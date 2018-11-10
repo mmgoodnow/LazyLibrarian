@@ -42,7 +42,6 @@ and a reddit at https://www.reddit.com/r/LazyLibrarian/
 
 Docker tutorial  http://sasquatters.com/lazylibrarian-docker/   
 Config tutorial  http://sasquatters.com/lazylibrarian-configuration/   
-(thanks @mccorkled)   
 
 ## Update
 Auto update available via interface from master for git and source installs
