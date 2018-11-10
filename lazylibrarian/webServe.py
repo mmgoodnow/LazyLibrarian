@@ -148,8 +148,10 @@ def serve_template(templatename, **kwargs):
             logger.debug("User %s: %s %s" % (username, perm, templatename))
         template = _hplookup.get_template(templatename)
         if templatename == "login.html":
+            cherrypy.response.cookie['ll_template'] = ''
             return template.render(perm=0, title="Redirected")
         else:
+            cherrypy.response.cookie['ll_template'] = templatename
             # noinspection PyArgumentList
             return template.render(perm=perm, **kwargs)
     except Exception:
@@ -295,6 +297,38 @@ class WebInterface(object):
                 threading.currentThread().name = "WEBSERVER"
 
     # USERS ############################################################
+
+    @cherrypy.expose
+    def help(self):
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_template' in list(cookie.keys()):
+            template = cookie['ll_template'].value
+            for item in[['index.html', 'overview'],
+                        ['books.html', 'ebooks'],
+                        ['series.html', 'series'],
+                        ['audio.html', 'audiobooks'],
+                        ['magazines.html', 'magazines'],
+                        ['managebooks.html', 'manage'],
+                        ['history.html', 'history'],
+                        ['logs.html', 'logs'],
+                        ['config.html', 'config_menus'],
+                        ['author.html', 'authors'],
+                        ['issues.html', 'magazine_detail'],
+                        ['users.html', 'config_users'],
+                        ]:
+                if template == item[0]:
+                    page = item[1]
+                    if template == 'config.html':
+                        if 'configTab' in list(cookie.keys()):
+                            tab = check_int(cookie['configTab'].value, 1)
+                            tabs = ['interface', 'importing', 'downloaders', 'providers', 'processing',
+                                    'notifications', 'categories', 'filters']
+                            try:
+                                page = 'config_' + tabs[tab - 1]
+                            except IndexError:
+                                pass
+                    raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/" + page)
+        raise cherrypy.HTTPRedirect("https://lazylibrarian.gitlab.io/")
 
     @cherrypy.expose
     def logout(self):

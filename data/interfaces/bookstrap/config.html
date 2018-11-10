@@ -4509,11 +4509,15 @@
         tabpanelid.addClass('active');
         tabid.attr("aria-selected", "true");
         tabid.addClass('active');
+        eraseCookie("configTab");
+        createCookie("configTab", tabnum, 0);
         $("div[role='tab-table']").removeClass('hidden');
 
         // when a tab is clicked
         $("li[role='presentation']").click(function(){
             var tabnum = $(this).attr('id');    // store current tab for python
+            eraseCookie("configTab");
+            createCookie("configTab", tabnum, 0);
             $("#current_tab").val(tabnum);
         });
 
