@@ -869,6 +869,14 @@ def logHeader():
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
         else:
             header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+    db_version = 0
+    myDB = database.DBConnection()
+    result = myDB.match('PRAGMA user_version')
+    if result and result[0]:
+        value = str(result[0])
+        if value.isdigit():
+            db_version = int(value)
+    header += "db version: %s\n" % db_version
     header += "Python version: %s\n" % sys.version.split('\n')
     # noinspection PyDeprecation
     header += "Distribution: %s\n" % str(platform.dist())
@@ -892,7 +900,6 @@ def logHeader():
         tls_version = str(e)
     header += "tls: %s\n" % tls_version
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
-
     if not lazylibrarian.GROUP_CONCAT:
         # 3.5.4 is the earliest version with GROUP_CONCAT which we use, but is not essential
         header += 'sqlite3: missing required functionality. Try upgrading to v3.5.4 or newer. You have '
