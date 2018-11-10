@@ -23,6 +23,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import restartJobs, pwd_generator
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8
 from lazylibrarian.importer import addAuthorToDB, update_totals
+from lazylibrarian.versioncheck import runGit
 
 
 def upgrade_needed():
@@ -89,8 +90,9 @@ def upgrade_needed():
     # 42 add SendTo to users table
     # 43 remove foreign key constraint on wanted tabe
     # 44 move hosting to gitlab
+    # 45 update local git repo to new origin
 
-    db_current_version = 44
+    db_current_version = 45
 
     if db_version < db_current_version:
         return db_current_version
@@ -1227,3 +1229,14 @@ def db_v44(myDB, upgradelog):
         lazylibrarian.config_write('Git')
     upgradelog.write("%s v44: complete\n" % time.ctime())
 
+
+def db_v45(myDB, upgradelog):
+    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+        upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))
+        runGit('remote rm origin')
+        runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
+        runGit('config master.remote origin')
+        runGit('config master.merge refs/heads/master')
+        runGit('stash clear')
+        runGit('pull origin master')
+    upgradelog.write("%s v45: complete\n" % time.ctime())
