@@ -78,7 +78,7 @@
         %for item in ['Skipped', 'Wanted', 'Active', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>

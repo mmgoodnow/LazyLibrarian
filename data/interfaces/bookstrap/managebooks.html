@@ -63,7 +63,7 @@
                 %endif
             >${item}</option>
         %endfor
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
         <option value="Read"
             %if whichStatus == "Read":
                 selected = "selected"
@@ -121,12 +121,12 @@
         %for item in ['Skipped', 'Wanted', 'Have', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>
         %endif
-        %if lazylibrarian.CONFIG['DELAYSEARCH']:
+        %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
         <option value="NoDelay">No Delay</option>
         %endif
       </select>

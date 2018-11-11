@@ -20,7 +20,7 @@
         </thead>
 
         <tbody>
-            %if searchresults:
+            %if searchresults is not None:
                 %for result in searchresults:
                     <%
                     if result['bookrate'] < 0.5:
