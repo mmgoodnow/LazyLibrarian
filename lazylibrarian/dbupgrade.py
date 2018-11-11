@@ -91,8 +91,9 @@ def upgrade_needed():
     # 43 remove foreign key constraint on wanted tabe
     # 44 move hosting to gitlab
     # 45 update local git repo to new origin
+    # 46 remove pastissues table and rebuild to ensure no foreign key
 
-    db_current_version = 45
+    db_current_version = 46
 
     if db_version < db_current_version:
         return db_current_version
@@ -1240,3 +1241,12 @@ def db_v45(myDB, upgradelog):
         runGit('stash clear')
         runGit('pull origin master')
     upgradelog.write("%s v45: complete\n" % time.ctime())
+
+
+def db_v46(myDB, upgradelog):
+    upgradelog.write("%s v46: %s\n" % (time.ctime(), "Re-creating past issues table"))
+    myDB.action('DROP TABLE pastissues')
+    res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
+    myDB.action(res['sql'].replace('wanted', 'pastissues'))
+    upgradelog.write("%s v46: complete\n" % time.ctime())
+
