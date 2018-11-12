@@ -223,6 +223,9 @@ def checkForUpdates():
     logmsg('debug', 'Setting Install Type, Current & Latest Version and Commit status')
     getInstallType()
     lazylibrarian.CONFIG['CURRENT_VERSION'] = getCurrentVersion()
+    # if last dobytang version, force first gitlab version hash
+    if lazylibrarian.CONFIG['CURRENT_VERSION'].startswith('ddeeb9fa'):
+        lazylibrarian.CONFIG['CURRENT_VERSION'] = 'd9002e449db276e0416a8d19423143cc677b2e84'
     lazylibrarian.CONFIG['LATEST_VERSION'] = getLatestVersion()
     if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
@@ -230,6 +233,7 @@ def checkForUpdates():
     else:
         commits, lazylibrarian.COMMIT_LIST = getCommitDifferenceFromGit()
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = commits
+
         if auto_update and commits > 0:
             for name in [n.name.lower() for n in [t for t in threading.enumerate()]]:
                 for word in ['update', 'scan', 'import', 'sync', 'process']:
@@ -455,6 +459,7 @@ def update():
         # Update version.txt and timestamp
         updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
         lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+        lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
         return True
 
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
@@ -529,6 +534,7 @@ def update():
         # Update version.txt and timestamp
         updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
         lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+        lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
         return True
 
     else:
