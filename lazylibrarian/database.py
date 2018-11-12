@@ -51,7 +51,7 @@ class DBConnection:
     def _action(self, query, args=None, suppress=None):
         sqlResult = None
         attempt = 0
-
+        start = 0
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
             start = time.time()
         while attempt < 5:
@@ -100,7 +100,8 @@ class DBConnection:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s [%s]\n" % (time.asctime(), attempt, elapsed, suppress, query, args))
+                            f.write("%s %d %.4f %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                 suppress, query, args))
                             f.write("%s Suppressed: %s\n" % (time.asctime(), msg))
                     self.connection.commit()
                     break
@@ -108,7 +109,8 @@ class DBConnection:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s [%s]\n" % (time.asctime(), attempt, elapsed, suppress, query, args))
+                            f.write("%s %d %.4f %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                 suppress, query, args))
                             f.write("%s IntegrityError: %s\n" % (time.asctime(), msg))
                     logger.error('Database IntegrityError: %s' % e)
                     logger.error("Failed query: [%s]" % query)
@@ -117,6 +119,7 @@ class DBConnection:
 
             except sqlite3.DatabaseError as e:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    elapsed = time.time() - start
                     with open(self.dblog, 'a') as f:
                         f.write("%s %d %.4f %s [%s]\n" % (time.asctime(), attempt, elapsed, query, args))
                         f.write("%s DatabaseError: %s\n" % (time.asctime(), e))
@@ -125,6 +128,7 @@ class DBConnection:
 
             except Exception as e:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    elapsed = time.time() - start
                     with open(self.dblog, 'a') as f:
                         f.write("%s %d %.4f %s [%s]\n" % (time.asctime(), attempt, elapsed, query, args))
                         f.write("%s CatchallError: %s\n" % (time.asctime(), e))
