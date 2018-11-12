@@ -1242,6 +1242,7 @@ def db_v45(myDB, upgradelog):
         runGit('config master.merge refs/heads/master')
         runGit('stash clear')
         runGit('pull origin master')
+        runGit('branch --set-upstream-to=origin/master master')
     upgradelog.write("%s v45: complete\n" % time.ctime())
 
 
