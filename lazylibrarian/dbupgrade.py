@@ -1212,6 +1212,7 @@ def db_v43(myDB, upgradelog):
     upgradelog.write("%s v43: complete\n" % time.ctime())
 
 
+# noinspection PyUnusedLocal
 def db_v44(myDB, upgradelog):
     if lazylibrarian.CONFIG['GIT_USER'].lower() == 'dobytang':
         upgradelog.write("%s v44: %s\n" % (time.ctime(), "Updating git host"))
@@ -1231,6 +1232,7 @@ def db_v44(myDB, upgradelog):
     upgradelog.write("%s v44: complete\n" % time.ctime())
 
 
+# noinspection PyUnusedLocal
 def db_v45(myDB, upgradelog):
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
         upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))

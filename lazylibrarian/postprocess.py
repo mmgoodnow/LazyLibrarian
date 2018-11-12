@@ -746,7 +746,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.warn("Unable to remove %s, %s %s" %
                                             (pp_path + '.fail', type(why).__name__, str(why)))
                         try:
-                            if os.name == 'nt': #Windows has max path length of 256
+                            if os.name == 'nt':  # Windows has max path length of 256
                                 pp_path = '\\\\?\\' + pp_path
                             _ = safe_move(pp_path, pp_path + '.fail')
                             logger.warn('Residual files remain in %s.fail' % pp_path)
@@ -1576,7 +1576,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     else:
                         dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
                         # calibre does not like quotes in author names
-                        if os.name == 'nt': #Windows has max path length of 256
+                        if os.name == 'nt':  # Windows has max path length of 256
                             srcfile = '\\\\?\\' + srcfile
                             logger.debug(str(srcfile))
                             dstfile = '\\\\?\\' + dstfile
