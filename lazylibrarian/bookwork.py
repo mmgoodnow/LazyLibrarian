@@ -881,7 +881,9 @@ def getWorkSeries(bookID=None):
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
                         elif match['SeriesID'] != seriesid:
-                            myDB.action('UPDATE series SET SeriesID=? WHERE SeriesName=?', (seriesid, seriesname))
+                            logger.warn("SeriesID mismatch for series %s, [%s][%s]" % (
+                                        seriesname, seriesid, match['SeriesID']))
+                            # myDB.action('UPDATE series SET SeriesID=? WHERE SeriesName=?', (seriesid, seriesname))
     else:
         work = getBookWork(bookID, "Series")
         if work:
