@@ -153,14 +153,6 @@ def dbupgrade(db_current_version):
                                 'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
                                 'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
                                 'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, LastBookID TEXT)')
-                    myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
-                                'ON DELETE CASCADE, BookName TEXT, BookSub TEXT, BookDesc TEXT, ' +
-                                'BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, BookRate INTEGER DEFAULT 0, ' +
-                                'BookImg TEXT, BookPages INTEGER DEFAULT 0, BookLink TEXT, BookID TEXT UNIQUE, ' +
-                                'BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
-                                'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
-                                'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
-                                'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
                     myDB.action('CREATE TABLE wanted (BookID TEXT, NZBurl TEXT, NZBtitle TEXT, NZBdate TEXT, ' +
                                 'NZBprov TEXT, Status TEXT, NZBsize TEXT, AuxInfo TEXT, NZBmode TEXT, ' +
                                 'Source TEXT, DownloadID TEXT, DLResult TEXT)')
@@ -168,29 +160,60 @@ def dbupgrade(db_current_version):
                                 'MagazineAdded TEXT, LastAcquired TEXT, IssueDate TEXT, IssueStatus TEXT, ' +
                                 'Reject TEXT, LatestCover TEXT, DateType TEXT, CoverPage INTEGER DEFAULT 1)')
                     myDB.action('CREATE TABLE languages (isbn TEXT, lang TEXT)')
-                    myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ON DELETE CASCADE, ' +
-                                'IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT)')
                     myDB.action('CREATE TABLE stats (authorname text, GR_book_hits int, GR_lang_hits int, ' +
                                 'LT_lang_hits int, GB_lang_change, cache_hits int, bad_lang int, bad_char int, ' +
                                 'uncached int, duplicates int)')
                     myDB.action('CREATE TABLE series (SeriesID INTEGER UNIQUE, SeriesName TEXT, Status TEXT, ' +
                                 'Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0)')
-                    myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
-                                'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
-                                'WorkID TEXT, SeriesNum TEXT)')
-                    myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, ' +
-                                'AuthorID TEXT REFERENCES authors (AuthorID) ON DELETE CASCADE, ' +
-                                'UNIQUE (SeriesID,AuthorID))')
                     myDB.action('CREATE TABLE downloads (Count INTEGER DEFAULT 0, Provider TEXT)')
                     myDB.action('CREATE TABLE users (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, ' +
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
                                 'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT)')
-                    myDB.action('CREATE TABLE sync (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
-                                'Label TEXT, Date TEXT, SyncList TEXT)')
                     myDB.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
-                    myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
-                                'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
-                                'Count INTEGER DEFAULT 0)')
+
+                    if lazylibrarian.FOREIGN_KEY:
+                        myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
+                                    'ON DELETE CASCADE, BookName TEXT, BookSub TEXT, BookDesc TEXT, ' +
+                                    'BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, BookRate INTEGER DEFAULT 0, ' +
+                                    'BookImg TEXT, BookPages INTEGER DEFAULT 0, BookLink TEXT, BookID TEXT UNIQUE, ' +
+                                    'BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
+                                    'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
+                                    'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
+                                    'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
+                        myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
+                                    'ON DELETE CASCADE, ' +
+                                    'IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT)')
+                        myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
+                                    'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                                    'WorkID TEXT, SeriesNum TEXT)')
+                        myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, ' +
+                                    'AuthorID TEXT REFERENCES authors (AuthorID) ON DELETE CASCADE, ' +
+                                    'UNIQUE (SeriesID,AuthorID))')
+                        myDB.action('CREATE TABLE sync (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
+                                    'Label TEXT, Date TEXT, SyncList TEXT)')
+                        myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
+                                    'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
+                                    'Count INTEGER DEFAULT 0)')
+                    else:
+                        # running a very old sqlite on a nas that can't be updated, no foreign key support
+                        # so orphans get cleaned up at program startup
+                        myDB.action('CREATE TABLE books (AuthorID TEXT, BookName TEXT, BookSub TEXT, ' +
+                                    'BookDesc TEXT, BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, ' +
+                                    'BookRate INTEGER DEFAULT 0, BookImg TEXT, BookPages INTEGER DEFAULT 0, ' +
+                                    'BookLink TEXT, BookID TEXT UNIQUE, BookFile TEXT, BookDate TEXT, ' +
+                                    'BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
+                                    'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
+                                    'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
+                                    'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
+                        myDB.action('CREATE TABLE issues (Title TEXT, ' +
+                                    'IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT)')
+                        myDB.action('CREATE TABLE member (SeriesID INTEGER, BookID TEXT, WorkID TEXT, ' +
+                                    'SeriesNum TEXT)')
+                        myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, AuthorID TEXT, ' +
+                                    'UNIQUE (SeriesID,AuthorID))')
+                        myDB.action('CREATE TABLE sync (UserID TEXT, Label TEXT, Date TEXT, SyncList TEXT)')
+                        myDB.action('CREATE TABLE failedsearch (BookID TEXT, Library TEXT, Time TEXT, ' +
+                                    'Interval INTEGER DEFAULT 0, Count INTEGER DEFAULT 0)')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")

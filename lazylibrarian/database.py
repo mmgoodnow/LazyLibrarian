@@ -36,7 +36,8 @@ class DBConnection:
         # 32mb of cache
         self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
         # for cascade deletes
-        self.connection.execute("PRAGMA foreign_keys = ON")
+        if lazylibrarian.FOREIGN_KEY:
+            self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.row_factory = sqlite3.Row
         self.dblog = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log')
 

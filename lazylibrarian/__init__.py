@@ -99,6 +99,7 @@ AUDIO_UPDATE = 0
 AUTHORS_UPDATE = 0
 LOGIN_MSG = ''
 GROUP_CONCAT = 0
+FOREIGN_KEY = 0
 HIST_REFRESH = 1000
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 
@@ -616,7 +617,7 @@ def initialize():
         UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, LAST_LIBRARYTHING, LAST_GOODREADS, SHOW_SERIES, SHOW_MAGS, \
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, \
-        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS
+        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY
 
     with INIT_LOCK:
 
@@ -713,12 +714,16 @@ def initialize():
 
         # group_concat needs sqlite3 >= 3.5.4
         GROUP_CONCAT = False
+        # foreign_key needs sqlite3 >= 3.6.19
+        FOREIGN_KEY = False
         try:
             sqlv = getattr(sqlite3, 'sqlite_version', None)
             parts = sqlv.split('.')
             if int(parts[0]) == 3:
                 if int(parts[1]) > 5 or int(parts[1]) == 5 and int(parts[2]) >= 4:
                     GROUP_CONCAT = True
+                if int(parts[1]) > 6 or int(parts[1]) == 6 and int(parts[2]) >= 19:
+                    FOREIGN_KEY = True
         except Exception as e:
             logger.warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
 

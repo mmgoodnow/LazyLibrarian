@@ -49,7 +49,7 @@ except ImportError:
     import lib.requests as requests
 
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run, is_valid_booktype, datecompare, check_int, \
     getList, makeUnicode, makeBytestr, unaccented, replace_all
 
@@ -869,6 +869,19 @@ def logHeader():
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
         else:
             header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+    try:
+        header += 'package: %s\n' % lazylibrarian.version.LAZYLIBRARIAN_VERSION
+    except AttributeError:
+        pass
+    try:
+        header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
+    except AttributeError:
+        pass
+    try:
+        header += 'packaged by: %s\n' % lazylibrarian.version.PACKAGED_BY
+    except AttributeError:
+        pass
+
     db_version = 0
     myDB = database.DBConnection()
     result = myDB.match('PRAGMA user_version')
@@ -900,9 +913,9 @@ def logHeader():
         tls_version = str(e)
     header += "tls: %s\n" % tls_version
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
-    if not lazylibrarian.GROUP_CONCAT:
-        # 3.5.4 is the earliest version with GROUP_CONCAT which we use, but is not essential
-        header += 'sqlite3: missing required functionality. Try upgrading to v3.5.4 or newer. You have '
+    if not lazylibrarian.FOREIGN_KEY:
+        # 3.6.19 is the earliest version with FOREIGN_KEY which we use, but is not essential
+        header += 'sqlite3: missing required functionality. Try upgrading to v3.6.19 or newer. You have '
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
     try:
         from lib.unrar import rarfile
