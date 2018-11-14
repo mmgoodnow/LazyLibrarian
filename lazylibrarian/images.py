@@ -696,9 +696,9 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                         generator = "%s version %s" % (generator, res)
                         issuefile = issuefile.split('[')[0]
                         params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                                    "-dFirstPage=%d" % check_int(pagenum, 1),
-                                    "-dLastPage=%d" % check_int(pagenum, 1),
-                                    "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                                  "-dFirstPage=%d" % check_int(pagenum, 1),
+                                  "-dLastPage=%d" % check_int(pagenum, 1),
+                                  "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                         res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         res = makeUnicode(res).strip()
                         if not os.path.isfile(coverfile):
