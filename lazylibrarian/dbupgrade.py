@@ -88,7 +88,7 @@ def upgrade_needed():
     # 40 add CoverPage to magazines table
     # 41 add Requester and AudioRequester to books table
     # 42 add SendTo to users table
-    # 43 remove foreign key constraint on wanted tabe
+    # 43 remove foreign key constraint on wanted table
     # 44 move hosting to gitlab
     # 45 update local git repo to new origin
     # 46 remove pastissues table and rebuild to ensure no foreign key
@@ -181,8 +181,8 @@ def dbupgrade(db_current_version):
                                     'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
                                     'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
                         myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
-                                    'ON DELETE CASCADE, ' +
-                                    'IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT)')
+                                    'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
+                                    'IssueFile TEXT)')
                         myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
                                     'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'WorkID TEXT, SeriesNum TEXT)')
@@ -259,6 +259,25 @@ def dbupgrade(db_current_version):
 
 def check_db(myDB):
     cnt = 0
+    unique = False
+    indexes = myDB.select("PRAGMA index_list('authors')")
+    for item in indexes:
+        data = list(item)
+        if data[2] == 1:  # unique index
+            res = myDB.match("PRAGMA index_info('%s')" % data[1])
+            data = list(res)
+            if data[2] == 'AuthorID':
+                unique = True
+                break;
+    if not unique:
+        res = myDB.match('select count(distinct authorid) as d,count(authorid) as c from authors')
+        if res['d'] == res['c']:
+            logger.warn("Adding unique index to AuthorID")
+            myDB.action("CREATE UNIQUE INDEX unique_authorid ON authors('AuthorID')")
+        else:
+            msg = 'Unable to create unique index on AuthorID: %i vs %i' % (res['d'], res['c'])
+            logger.error(msg)
+        cnt = 1
     try:
         # replace faulty/html language results with Unknown
         filt = 'BookLang is NULL or instr(BookLang, "<") or instr(BookLang, "invalid")'
@@ -268,7 +287,7 @@ def check_db(myDB):
         if tot:
             cnt += tot
             msg = 'Updating %s book%s with no language to "Unknown"' % (tot, plural(tot))
-            logger.debug(msg)
+            logger.warn(msg)
             cmd = 'UPDATE books SET BookLang="Unknown" WHERE ' + filt
             myDB.action(cmd)
 
@@ -280,7 +299,7 @@ def check_db(myDB):
         if tot:
             cnt += tot
             msg = 'Updating %s language%s with bad data' % (tot, plural(tot))
-            logger.debug(msg)
+            logger.warn(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             myDB.action(cmd)
 
@@ -292,7 +311,7 @@ def check_db(myDB):
         if tot:
             cnt += tot
             msg = 'Deleting %s duplicate language%s' % (tot, plural(tot))
-            logger.debug(msg)
+            logger.warn(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             myDB.action(cmd)
 
@@ -301,7 +320,7 @@ def check_db(myDB):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s author%s with no name' % (len(authors), plural(len(authors)))
-            logger.debug(msg)
+            logger.warn(msg)
             for author in authors:
                 authorid = author["AuthorID"]
                 myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
@@ -311,7 +330,7 @@ def check_db(myDB):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s author%s with no books' % (len(authors), plural(len(authors)))
-            logger.debug(msg)
+            logger.warn(msg)
             for author in authors:
                 authorid = author["AuthorID"]
                 myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
@@ -321,11 +340,12 @@ def check_db(myDB):
         if series:
             cnt += len(series)
             msg = 'Removing %s series with no members' % len(series)
-            logger.debug(msg)
+            logger.warn(msg)
             for item in series:
                 seriesid = item["SeriesID"]
                 myDB.action('DELETE from series WHERE SeriesID=?', (seriesid,))
 
+        # remove orphan entries (foreign key not available)
         for entry in [
                         ['authorid', 'books', 'authors'],
                         ['seriesid', 'member', 'series'],
