@@ -805,7 +805,10 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     if data:
         # to debug because of api
         logger.debug('Parsing results from %s' % URL)
-        provider = data['feed']['link']
+        try:
+            provider = data['feed']['link']
+        except KeyError:
+            provider = 'rss_%s' % feednr
         if not dispname:
             dispname = provider
         logger.debug("RSS %s returned %i result%s" % (provider, len(data.entries), plural(len(data.entries))))
