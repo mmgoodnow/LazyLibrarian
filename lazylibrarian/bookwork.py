@@ -797,13 +797,13 @@ def getSeriesMembers(seriesID=None, seriesname=None):
     return results, api_hits
 
 
-def get_book_desc(isbn=None, author=None, title=None):
+def get_gb_info(isbn=None, author=None, title=None, expire=False):
     """ GoodReads does not always have a book description in its api results
-        due to restrictive TOS from some of its providers.
-        Try to get missing descriptions from googlebooks
-        Return description, empty string if not found, None if error"""
+        due to restrictive TOS from some of its providers, and goodreads doesn't have genre.
+        Try to get missing info from googlebooks
+        Return info dictionary, None if error"""
     if not author or not title:
-        return ''
+        return {}
 
     author = cleanName(author)
     title = cleanName(title)
@@ -819,25 +819,121 @@ def get_book_desc(isbn=None, author=None, title=None):
                 url += '&key=' + lazylibrarian.CONFIG['GB_API']
             if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY'] == 2):
                 url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
-            results, cached = gb_json_request(url)
+            results, cached = gb_json_request(url, expire=expire)
             if results is None:  # there was an error
                 return None
             if results and not cached:
                 time.sleep(1)
             if results and 'items' in results:
+                high_fuzz = 0
                 for item in results['items']:
-                    # noinspection PyBroadException
-                    try:
-                        auth = item['volumeInfo']['authors'][0]
-                        book = item['volumeInfo']['title']
-                        desc = item['volumeInfo']['description']
-                        book_fuzz = fuzz.token_set_ratio(book, title)
-                        auth_fuzz = fuzz.token_set_ratio(auth, author)
-                        if book_fuzz > 98 and auth_fuzz > 80:
-                            return desc
-                    except Exception:
-                        pass
-    return ''
+                    res = googleBookDict(item)
+                    book_fuzz = fuzz.token_set_ratio(res['name'], title)
+                    auth_fuzz = fuzz.token_set_ratio(res['author'], author)
+                    total_fuzz = int(book_fuzz + auth_fuzz) / 2
+                    if total_fuzz > high_fuzz:
+                        high_fuzz = total_fuzz
+                    if book_fuzz < 98:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                            logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
+                    elif auth_fuzz < 80:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                            logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
+                    else:
+                        return res
+                if 'isbn:' in url:
+                    stype = 'isbn result'
+                else:
+                    stype = 'inauthor:intitle result'
+                logger.debug("No GoogleBooks match in %d %s%s (%d%%) cached=%s" %
+                             (len(results['items']), stype, plural(len(results['items'])), high_fuzz, cached))
+    return {}
+
+
+def googleBookDict(item):
+    """ Return all the book info we need as a dictionary or default value if no key """
+    mydict = {}
+    for val, idx1, idx2, default in [
+        ('author', 'authors', 0, ''),
+        ('name', 'title', None, ''),
+        ('lang', 'language', None, ''),
+        ('pub', 'publisher', None, ''),
+        ('sub', 'subtitle', None, ''),
+        ('date', 'publishedDate', None, '0000'),
+        ('rate', 'averageRating', None, 0),
+        ('rate_count', 'ratingsCount', None, 0),
+        ('pages', 'pageCount', None, 0),
+        ('desc', 'description', None, 'Not available'),
+        ('link', 'canonicalVolumeLink', None, ''),
+        ('img', 'imageLinks', 'thumbnail', 'images/nocover.png'),
+        ('genre', 'categories', 0, ''),
+        ('ratings', 'ratingsCount', None, 0)
+    ]:
+        try:
+            if idx2 is None:
+                mydict[val] = item['volumeInfo'][idx1]
+            else:
+                mydict[val] = item['volumeInfo'][idx1][idx2]
+        except KeyError:
+            mydict[val] = default
+
+    try:
+        if item['volumeInfo']['industryIdentifiers'][0]['type'] in ['ISBN_10', 'ISBN_13']:
+            mydict['isbn'] = item['volumeInfo']['industryIdentifiers'][0]['identifier']
+        else:
+            mydict['isbn'] = ""
+    except KeyError:
+        mydict['isbn'] = ""
+
+    # googlebooks has a few series naming systems in the authors books page...
+    # title or subtitle (seriesname num) eg (Discworld 24)
+    # title or subtitle (seriesname #num) eg (Discworld #24)
+    # title or subtitle (seriesname Series num)  eg (discworld Series 24)
+    # subtitle Book num of seriesname  eg Book 24 of Discworld
+    # There may be others...
+    #
+    try:
+
+        seriesNum, series = mydict['sub'].split('Book ')[1].split(' of ')
+    except (IndexError, ValueError):
+        series = ""
+        seriesNum = ""
+
+    if not series:
+        for item in [mydict['name'], mydict['sub']]:
+            if ' Series ' in item:
+                try:
+                    series, seriesNum = item.split('(')[1].split(' Series ')
+                    seriesNum = seriesNum.rstrip(')').lstrip('#')
+                except (IndexError, ValueError):
+                    series = ""
+                    seriesNum = ""
+            if not series and '#' in item:
+                try:
+                    series, seriesNum = item.rsplit('#', 1)
+                    series = series.split('(')[1].strip()
+                    seriesNum = seriesNum.rstrip(')')
+                except (IndexError, ValueError):
+                    series = ""
+                    seriesNum = ""
+            if not series and ' ' in item:
+                try:
+                    series, seriesNum = item.rsplit(' ', 1)
+                    series = series.split('(')[1].strip()
+                    seriesNum = seriesNum.rstrip(')')
+                    # has to be unicode for isnumeric()
+                    if not (u"%s" % seriesNum).isnumeric():
+                        series = ""
+                        seriesNum = ""
+                except (IndexError, ValueError):
+                    series = ""
+                    seriesNum = ""
+            if series and seriesNum:
+                break
+
+    mydict['series'] = series
+    mydict['seriesNum'] = seriesNum
+    return mydict
 
 
 def getWorkSeries(bookID=None):
@@ -880,7 +976,7 @@ def getWorkSeries(bookID=None):
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
-                        elif match['SeriesID'] != seriesid:
+                        elif str(match['SeriesID']) != str(seriesid):
                             logger.warn("SeriesID mismatch for series %s, [%s][%s] assume different series?" % (
                                         seriesname, seriesid, match['SeriesID']))
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))

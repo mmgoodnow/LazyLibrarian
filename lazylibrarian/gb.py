@@ -26,7 +26,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, thingLang
+    setSeries, setStatus, thingLang, googleBookDict
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_str, is_valid_isbn, \
@@ -144,7 +144,7 @@ class GoogleBooks:
                         for item in jsonresults['items']:
                             total_count += 1
 
-                            book = bookdict(item)
+                            book = googleBookDict(item)
                             if not book['author']:
                                 logger.debug('Skipped a result without authorfield.')
                                 no_author_count += 1
@@ -311,7 +311,7 @@ class GoogleBooks:
                     for item in jsonresults['items']:
 
                         total_count += 1
-                        book = bookdict(item)
+                        book = googleBookDict(item)
                         # skip if no author, no author is no book.
                         if not book['author']:
                             logger.debug('Skipped a result without authorfield.')
@@ -631,7 +631,7 @@ class GoogleBooks:
         if not audiostatus:
             audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
 
-        book = bookdict(jsonresults)
+        book = googleBookDict(jsonresults)
         dic = {':': '.', '"': '', '\'': ''}
         bookname = replace_all(book['name'], dic)
 
@@ -747,88 +747,3 @@ class GoogleBooks:
             myDB.upsert("books", newValueDict, controlValueDict)
 
 
-def bookdict(item):
-    """ Return all the book info we need as a dictionary or default value if no key """
-    mydict = {}
-    for val, idx1, idx2, default in [
-        ('author', 'authors', 0, ''),
-        ('name', 'title', None, ''),
-        ('lang', 'language', None, ''),
-        ('pub', 'publisher', None, ''),
-        ('sub', 'subtitle', None, ''),
-        ('date', 'publishedDate', None, '0000'),
-        ('rate', 'averageRating', None, 0),
-        ('rate_count', 'ratingsCount', None, 0),
-        ('pages', 'pageCount', None, 0),
-        ('desc', 'description', None, 'Not available'),
-        ('link', 'canonicalVolumeLink', None, ''),
-        ('img', 'imageLinks', 'thumbnail', 'images/nocover.png'),
-        ('genre', 'categories', 0, ''),
-        ('ratings', 'ratingsCount', None, 0)
-    ]:
-        try:
-            if idx2 is None:
-                mydict[val] = item['volumeInfo'][idx1]
-            else:
-                mydict[val] = item['volumeInfo'][idx1][idx2]
-        except KeyError:
-            mydict[val] = default
-
-    try:
-        if item['volumeInfo']['industryIdentifiers'][0]['type'] in ['ISBN_10', 'ISBN_13']:
-            mydict['isbn'] = item['volumeInfo']['industryIdentifiers'][0]['identifier']
-        else:
-            mydict['isbn'] = ""
-    except KeyError:
-        mydict['isbn'] = ""
-
-    # googlebooks has a few series naming systems in the authors books page...
-    # title or subtitle (seriesname num) eg (Discworld 24)
-    # title or subtitle (seriesname #num) eg (Discworld #24)
-    # title or subtitle (seriesname Series num)  eg (discworld Series 24)
-    # subtitle Book num of seriesname  eg Book 24 of Discworld
-    # There may be others...
-    #
-    try:
-
-        seriesNum, series = mydict['sub'].split('Book ')[1].split(' of ')
-    except (IndexError, ValueError):
-        series = ""
-        seriesNum = ""
-
-    if not series:
-        for item in [mydict['name'], mydict['sub']]:
-            if ' Series ' in item:
-                try:
-                    series, seriesNum = item.split('(')[1].split(' Series ')
-                    seriesNum = seriesNum.rstrip(')').lstrip('#')
-                except (IndexError, ValueError):
-                    series = ""
-                    seriesNum = ""
-            if not series and '#' in item:
-                try:
-                    series, seriesNum = item.rsplit('#', 1)
-                    series = series.split('(')[1].strip()
-                    seriesNum = seriesNum.rstrip(')')
-                except (IndexError, ValueError):
-                    series = ""
-                    seriesNum = ""
-            if not series and ' ' in item:
-                try:
-                    series, seriesNum = item.rsplit(' ', 1)
-                    series = series.split('(')[1].strip()
-                    seriesNum = seriesNum.rstrip(')')
-                    # has to be unicode for isnumeric()
-                    if not (u"%s" % seriesNum).isnumeric():
-                        series = ""
-                        seriesNum = ""
-                except (IndexError, ValueError):
-                    series = ""
-                    seriesNum = ""
-            if series and seriesNum:
-                break
-
-    mydict['series'] = series
-    mydict['seriesNum'] = seriesNum
-
-    return mydict

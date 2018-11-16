@@ -24,7 +24,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_book_desc
+    setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_gb_info
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, bookSeries, unaccented, split_title, getList, \
@@ -427,6 +427,7 @@ class GoodReads:
                         bookisbn = ""
                         isbnhead = ""
                         originalpubdate = ""
+                        bookgenre = ''
 
                         bookdict = self.get_bookdict(book)
 
@@ -725,11 +726,13 @@ class GoodReads:
                         if not rejected or (rejected and rejected[0] in ignorable and
                                             lazylibrarian.CONFIG['IMP_IGNORE']):
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
-                            cmd += 'OriginalPubDate,BookDesc FROM books WHERE BookID=?'
+                            cmd += 'OriginalPubDate,BookDesc,BookGenre FROM books WHERE BookID=?'
                             existing = myDB.match(cmd, (bookid,))
                             if existing:
                                 book_status = existing['Status']
                                 audio_status = existing['AudioStatus']
+                                bookdesc = existing['BookDesc']
+                                bookgenre = existing['BookGenre']
                                 if lazylibrarian.CONFIG['FOUND_STATUS'] == 'Open':
                                     if book_status == 'Have' and existing['BookFile']:
                                         book_status = 'Open'
@@ -782,13 +785,25 @@ class GoodReads:
                             if locked:
                                 locked_count += 1
                             else:
-                                if not bookdesc:  # nothing in the xml
-                                    if existing:  # but we might have tried google before
-                                        bookdesc = existing['BookDesc']
-                                    if not bookdesc:
-                                        bookdesc = get_book_desc(isbn=bookisbn, author=authorNameResult, title=bookname)
-                                        if not bookdesc:  # nothing from google, don't keep trying (except via api)
-                                            bookdesc = "No Description"
+                                if not bookdesc:  # or not bookgenre:
+                                    infodict = get_gb_info(isbn=bookisbn, author=authorNameResult, title=bookname,
+                                                           expire=False)
+                                    if infodict is not None:  # None if api blocked
+                                        if not bookdesc:
+                                            if infodict and infodict['desc']:
+                                                bookdesc = infodict['desc']
+                                                logger.debug("Updated description from googlebooks")
+                                            else:
+                                                bookdesc = "No Description"
+                                                logger.debug("No description from googlebooks")
+                                        if not bookgenre:
+                                            if infodict and infodict['genre']:
+                                                bookgenre = infodict['genre']
+                                                logger.debug("Updated genre from googlebooks")
+                                            else:
+                                                logger.debug("No genre from googlebooks")
+                                                bookgenre = "Unknown"
+
                                 controlValueDict = {"BookID": bookid}
                                 newValueDict = {
                                     "AuthorID": authorid,
@@ -797,7 +812,7 @@ class GoodReads:
                                     "BookDesc": bookdesc,
                                     "BookIsbn": bookisbn,
                                     "BookPub": bookpub,
-                                    "BookGenre": "",
+                                    "BookGenre": bookgenre,
                                     "BookImg": bookimg,
                                     "BookLink": booklink,
                                     "BookRate": bookrate,
@@ -1156,10 +1171,18 @@ class GoodReads:
                 logger.debug("isbn found %s for %s" % (res, bookname))
                 bookisbn = res
 
+        bookgenre = ''
         if not bookdesc:
-            bookdesc = get_book_desc(isbn=bookisbn, author=authorname, title=bookname)
-            if not bookdesc:
-                bookdesc = 'No Description'
+            infodict = get_gb_info(isbn=bookisbn, author=authorname, title=bookname, expire=False)
+            if infodict is not None:  # None if api blocked
+                if infodict and infodict['desc']:
+                    bookdesc = infodict['desc']
+                else:
+                    bookdesc = 'No Description'
+                if infodict and infodict['genre']:
+                    bookgenre = infodict['genre']
+                else:
+                    bookgenre = 'Unknown'
         controlValueDict = {"BookID": bookid}
         newValueDict = {
             "AuthorID": AuthorID,
@@ -1168,7 +1191,7 @@ class GoodReads:
             "BookDesc": bookdesc,
             "BookIsbn": bookisbn,
             "BookPub": bookpub,
-            "BookGenre": "",
+            "BookGenre": bookgenre,
             "BookImg": bookimg,
             "BookLink": booklink,
             "BookRate": bookrate,
