@@ -168,18 +168,18 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
             return str(e), False, False
 
 
-def gr_xml_request(my_url, useCache=True):
+def gr_xml_request(my_url, useCache=True, expire=True):
     # respect goodreads api limit
-    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="XML")
+    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="XML", expire=expire)
     return result, in_cache
 
 
-def gb_json_request(my_url, useCache=True):
-    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="JSON")
+def gb_json_request(my_url, useCache=True, expire=True):
+    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="JSON", expire=expire)
     return result, in_cache
 
 
-def get_cached_request(url, useCache=True, cache="XML"):
+def get_cached_request(url, useCache=True, cache="XML", expire=True):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
     # if not, read url and store the result in the cache
@@ -187,18 +187,16 @@ def get_cached_request(url, useCache=True, cache="XML"):
     #
     cacheLocation = cache + "Cache"
     cacheLocation = os.path.join(lazylibrarian.CACHEDIR, cacheLocation)
-    if not os.path.exists(cacheLocation):
-        os.mkdir(cacheLocation)
     myhash = md5_utf8(url)
     valid_cache = False
     source = None
-    hashfilename = cacheLocation + os.path.sep + myhash + "." + cache.lower()
+    hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + "." + cache.lower())
     expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
 
     if useCache and os.path.isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
         time_now = time.time()
-        if cache_modified_time < time_now - expiry:
+        if expire and cache_modified_time < time_now - expiry:
             # Cache entry is too old, delete it
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
                 logger.debug("Expiring %s" % myhash)

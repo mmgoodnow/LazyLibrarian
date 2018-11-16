@@ -677,13 +677,30 @@ def initialize():
             except OSError as e:
                 logger.error('Could not create cachedir; %s' % e)
 
-        for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'magazine']:
-            cachelocation = os.path.join(CACHEDIR, item)
-            if not os.path.isdir(cachelocation):
-                try:
-                    os.makedirs(cachelocation)
-                except OSError as e:
+        for cache in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'magazine']:
+            cachelocation = os.path.join(CACHEDIR, cache)
+            try:
+                os.makedirs(cachelocation)
+            except OSError as e:
+                if not os.path.isdir(cachelocation):
                     logger.error('Could not create %s: %s' % (cachelocation, e))
+
+        # nest these caches 2 levels to make smaller directory lists
+        caches = ["XMLCache", "JSONCache", "WorkCache"]
+        for cache in caches:
+            pth = os.path.join(CACHEDIR, cache)
+            start = time.time()
+            for i in '0123456789abcdef':
+                for j in '0123456789abcdef':
+                    cachelocation = os.path.join(pth, i, j)
+                    try:
+                        os.makedirs(cachelocation)
+                    except OSError as e:
+                        if not os.path.isdir(cachelocation):
+                            logger.error('Could not create %s: %s' % (cachelocation, e))
+            for item in os.listdir(pth):
+                if len(item) > 2:
+                    os.rename(os.path.join(pth, item), os.path.join(pth, item[0], item[1], item))
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
