@@ -1092,18 +1092,20 @@ def cleanCache():
     cleaned = 0
     kept = 0
     if expiry and os.path.isdir(cache):
-        for cached_file in os.listdir(makeBytestr(cache)):
-            cached_file = makeUnicode(cached_file)
-            target = os.path.join(cache, cached_file)
-            cache_modified_time = os.stat(target).st_mtime
-            time_now = time.time()
-            if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
-                # Cache is old, delete entry
-                os.remove(target)
-                cleaned += 1
-            else:
-                kept += 1
-    msg = "Cleaned %i file%s from JSONCache, kept %i" % (cleaned, plural(cleaned), kept)
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    cache_modified_time = os.stat(target).st_mtime
+                    time_now = time.time()
+                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
+                        # Cache is old, delete entry
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i expired file%s from JSONCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -1111,18 +1113,20 @@ def cleanCache():
     cleaned = 0
     kept = 0
     if expiry and os.path.isdir(cache):
-        for cached_file in os.listdir(makeBytestr(cache)):
-            cached_file = makeUnicode(cached_file)
-            target = os.path.join(cache, cached_file)
-            cache_modified_time = os.stat(target).st_mtime
-            time_now = time.time()
-            if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
-                # Cache is old, delete entry
-                os.remove(target)
-                cleaned += 1
-            else:
-                kept += 1
-    msg = "Cleaned %i file%s from XMLCache, kept %i" % (cleaned, plural(cleaned), kept)
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    cache_modified_time = os.stat(target).st_mtime
+                    time_now = time.time()
+                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
+                        # Cache is old, delete entry
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i expired file%s from XMLCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -1130,22 +1134,24 @@ def cleanCache():
     cleaned = 0
     kept = 0
     if os.path.isdir(cache):
-        for cached_file in os.listdir(makeBytestr(cache)):
-            cached_file = makeUnicode(cached_file)
-            target = os.path.join(cache, cached_file)
-            try:
-                bookid = cached_file.split('.')[0]
-            except IndexError:
-                logger.error('Clean Cache: Error splitting %s' % cached_file)
-                continue
-            item = myDB.match('select BookID from books where BookID=?', (bookid,))
-            if not item:
-                # WorkPage no longer referenced in database, delete cached_file
-                os.remove(target)
-                cleaned += 1
-            else:
-                kept += 1
-    msg = "Cleaned %i file%s from WorkCache, kept %i" % (cleaned, plural(cleaned), kept)
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    try:
+                        bookid = cached_file.split('.')[0]
+                    except IndexError:
+                        logger.error('Clean Cache: Error splitting %s' % cached_file)
+                        continue
+                    item = myDB.match('select BookID from books where BookID=?', (bookid,))
+                    if not item:
+                        # WorkPage no longer referenced in database, delete cached_file
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i orphan file%s from WorkCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -1168,7 +1174,7 @@ def cleanCache():
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i file%s from SeriesCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan file%s from SeriesCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -1186,7 +1192,7 @@ def cleanCache():
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i temporary file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -1237,7 +1243,7 @@ def cleanCache():
         if cached_file.endswith('.jpg'):
             os.remove(os.path.join(cache, cached_file))
             cleaned += 1
-    msg = "Cleaned %i file%s from ImageCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan file%s from ImageCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
