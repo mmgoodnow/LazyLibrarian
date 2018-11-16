@@ -309,7 +309,8 @@ class OPDS(object):
                 }
             )
 
-        res = myDB.select("select distinct BookGenre from books where Status='Open' and BookGenre != ''")
+        cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
+        res = myDB.select(cmd)
         if res and len(res) > 0:
             entries.append(
                 {
@@ -367,7 +368,7 @@ class OPDS(object):
         cmd = "SELECT distinct BookGenre from books WHERE Status='Open' AND "
         if 'query' in kwargs:
             cmd += "BookGenre LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "BookGenre !='' order by BookGenre"
+        cmd += "BookGenre !='' AND BookGenre != 'Unknown' order by BookGenre"
         results = myDB.select(cmd)
         if limit:
             page = results[index:(index + limit)]

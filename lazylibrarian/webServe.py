@@ -1838,7 +1838,7 @@ class WebInterface(object):
                     if perm & lazylibrarian.perm_edit:
                         title = title + ' ' + editpage
 
-                    if bookgenre:
+                    if bookgenre and bookgenre != 'Unknown':
                         title += ' [' + bookgenre + ']'
 
                     if not lazylibrarian.GROUP_CONCAT:
