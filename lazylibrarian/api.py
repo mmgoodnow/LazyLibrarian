@@ -28,7 +28,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audioProcess, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
-    setWorkID, get_book_desc
+    setWorkID, get_gb_info
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.common import clearLog, cleanCache, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
@@ -122,6 +122,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNoLang': 'list all books in the database with unknown language',
             'listNoDesc': 'list all books in the database with no description',
             'listNoISBN': 'list all books in the database with no isbn',
+            'listNoGenre': 'list all books in the database with no genre',
             'listNoBooks': 'list all authors in the database with no books',
             'listIgnoredAuthors': 'list all authors in the database marked ignored',
             'listIgnoredBooks': 'list all books in the database marked ignored',
@@ -143,7 +144,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'getBookAuthors': '&id= Get list of authors associated with this book',
             'cleanCache': '[&wait] Clean unused and expired files from the LazyLibrarian caches',
             'deleteEmptySeries': 'Delete any book series that have no members',
-            'setNoDesc': 'Set book descriptions for all books without one',
+            'setNoDesc': '[&refresh] Set book descriptions for all books without one',
+            'setNoGenre': '[&refresh] Set book genre for all books without one',
             'setWorkPages': '[&wait] Set the WorkPages links in the database',
             'setAllBookSeries': '[&wait] Set the series details from goodreads or librarything workpages',
             'setAllBookAuthors': '[&wait] Set all authors for all books from book workpages',
@@ -510,14 +512,25 @@ class Api(object):
         q += '(BookLang="Unknown" or BookLang="" or BookLang is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
+    def _listNoGenre(self):
+        q = 'SELECT BookID,BookName,AuthorName from books,authors where '
+        q += '(BookGenre="Unknown" or BookGenre="" or BookGenre is NULL) and books.AuthorID = authors.AuthorID'
+        self.data = self._dic_from_query(q)
+
     def _listNoDesc(self):
         q = 'SELECT BookID,BookName,AuthorName from books,authors where '
         q += '(BookDesc="" or BookDesc is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
-    def _setNoDesc(self):
+    def _setNoDesc(self, **kwargs):
+        if 'refresh' in kwargs:
+            expire = True
+            extra = ' or BookDesc="No Description"'
+        else:
+            expire = False
+            extra = ''
         q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where '
-        q += '(BookDesc="" or BookDesc="No Description" or BookDesc is NULL) and books.AuthorID = authors.AuthorID'
+        q += '(BookDesc="" or BookDesc is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         myDB = database.DBConnection()
         res = myDB.select(q)
         descs = 0
@@ -526,15 +539,43 @@ class Api(object):
             isbn = item['BookISBN']
             auth = item['AuthorName']
             book = item['BookName']
-            data = get_book_desc(isbn, auth, book)
-            if data:
+            data = get_gb_info(isbn, auth, book, expire=expire)
+            if data and data['desc']:
                 descs += 1
                 logger.debug("Updated description for %s:%s" % (auth, book))
-                myDB.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data, item['BookID']))
+                myDB.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
             elif data is None:
                 self.data = "Error reading description, see debug log"
                 break
         self.data = "Scanned %s book%s, found %s new description%s" % (len(res), plural(len(res)), descs, plural(descs))
+        logger.info(self.data)
+
+    def _setNoGenre(self, **kwargs):
+        if 'refresh' in kwargs:
+            expire = True
+            extra = ' or BookGenre="Unknown"'
+        else:
+            expire = False
+            extra = ''
+        q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where '
+        q += '(BookGenre="" or BookGenre is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
+        myDB = database.DBConnection()
+        res = myDB.select(q)
+        genre = 0
+        logger.debug("Checking genre for %s book%s" % (len(res), plural(len(res))))
+        for item in res:
+            isbn = item['BookISBN']
+            auth = item['AuthorName']
+            book = item['BookName']
+            data = get_gb_info(isbn, auth, book, expire=expire)
+            if data and data['genre']:
+                genre += 1
+                logger.debug("Updated genre for %s:%s" % (auth, book))
+                myDB.action('UPDATE books SET bookgenre=? WHERE bookid=?', (data['genre'], item['BookID']))
+            elif data is None:
+                self.data = "Error reading genre, see debug log"
+                break
+        self.data = "Scanned %s book%s, found %s new genre%s" % (len(res), plural(len(res)), genre, plural(genre))
         logger.info(self.data)
 
     def _listNoISBN(self):
