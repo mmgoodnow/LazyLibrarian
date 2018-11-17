@@ -718,6 +718,7 @@ def showStats():
 
     book_stats = []
     audio_stats = []
+    missing_stats = []
     res = myDB.match("SELECT count(*) as counter FROM books")
     book_stats.append(['eBooks', res['counter']])
     audio_stats.append(['Audio', res['counter']])
@@ -726,10 +727,11 @@ def showStats():
         book_stats.append([status, res['counter']])
         res = myDB.match('SELECT count(*) as counter FROM books WHERE AudioStatus="%s"' % status)
         audio_stats.append([status, res['counter']])
-    for column in ['BookISBN', 'BookDesc', 'BookLang']:
-        res = myDB.match("SELECT count(*) as counter FROM books WHERE %s is null or %s = '' or %s = 'Unknown'" % (
-            column, column, column))
-        book_stats.append([column.replace('Book', 'No-'), res['counter']])
+    for column in ['BookGenre', 'BookDesc', 'BookISBN', 'BookLang']:
+        cmd = "SELECT count(*) as counter FROM books WHERE %s is null or %s = ''"
+        cmd += " or %s = 'Unknown' or %s = 'No Description'"
+        res = myDB.match(cmd % (column, column, column, column))
+        missing_stats.append([column.replace('Book', 'No'), res['counter']])
 
     author_stats = []
     res = myDB.match("SELECT count(*) as counter FROM authors")
@@ -743,7 +745,7 @@ def showStats():
     author_stats.append(['Blank', res['counter']])
     overdue, _, _, _ = is_overdue()
     author_stats.append(['Overdue', overdue])
-    for stats in [author_stats, book_stats, series_stats, audio_stats, mag_stats]:
+    for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
         header = ''
         data = ''
         for item in stats:
