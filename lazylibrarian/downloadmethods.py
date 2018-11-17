@@ -521,22 +521,21 @@ def calculate_torrent_hash(link, data=None):
     Calculate the torrent hash from a magnet link or data. Returns empty string
     when it cannot create a torrent hash given the input data.
     """
-
-    if link.startswith("magnet:"):
+    try:
         torrent_hash = re.findall("urn:btih:([\w]{32,40})", link)[0]
         if len(torrent_hash) == 32:
             torrent_hash = b16encode(b32decode(torrent_hash)).lower()
-    elif data:
-        try:
-            # noinspection PyUnresolvedReferences
-            info = bdecode(data)["info"]
-            torrent_hash = sha1(bencode(info)).hexdigest()
-        except Exception as e:
-            logger.error("Error calculating hash: %s" % e)
+    except (re.error, IndexError, TypeError):
+        if data:
+            try:
+                # noinspection PyUnresolvedReferences
+                info = bdecode(data)["info"]
+                torrent_hash = sha1(bencode(info)).hexdigest()
+            except Exception as e:
+                logger.error("Error calculating hash: %s" % e)
+                return ''
+        else:
+            logger.error("Cannot calculate torrent hash without magnet link or data")
             return ''
-    else:
-        logger.error("Cannot calculate torrent hash without magnet link or data")
-        return ''
-
     logger.debug('Torrent Hash: ' + torrent_hash)
     return torrent_hash
