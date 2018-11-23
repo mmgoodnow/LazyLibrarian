@@ -12,11 +12,11 @@
 
 
 import json
-
+import re
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import check_int
+from lazylibrarian.formatter import check_int, makeUnicode
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
 
@@ -71,7 +71,7 @@ def _errorMsg(errnum, api):
         return generic_errors[errnum]
     if api == "login" and errnum in login_errors:
         return login_errors[errnum]
-    if api == "create" and errnum in create_errors:
+    if errnum in create_errors:
         return create_errors[errnum]
     return "Unknown error code in %s: %s" % (api, str(errnum))
 
@@ -173,7 +173,7 @@ def _getInfo(task_cgi, sid, download_id):
         "version": "1",
         "method": "getinfo",
         "id": download_id,
-        "additional": "detail,files",
+        "additional": "detail,file",
         "session": "LazyLibrarian",
         "_sid": sid
     }
@@ -240,34 +240,51 @@ def _addTorrentURI(task_cgi, sid, torurl):
 
     result, success = _getJSON(task_cgi, params)
     logger.debug("Result from create = %s" % repr(result))
+    res = ''
     if success:
+        errnum = 0
         if not result['success']:
             errnum = result['error']['code']
             res = "Synology Create Error: %s" % _errorMsg(errnum, "create")
             logger.debug(res)
-        else:
+        if not errnum or errnum == 100:
             # DownloadStation doesn't return the download_id for the newly added uri
             # which we need for monitoring progress & deleting etc.
             # so we have to scan the task list to get the id
+            logger.warn(torurl)  # REMOVE ME
+            try:
+                matchstr = re.findall("urn:btih:([\w]{32,40})", torurl)[0]
+            except (re.error, IndexError, TypeError):
+                matchstr = torurl.replace(' ', '+')
+            matchstr = makeUnicode(matchstr)
+            logger.warn(matchstr)  # REMOVE ME
             for task in _listTasks(task_cgi, sid):  # type: dict
-                if task['status'] == 'error':
-                    try:
-                        errmsg = task['status_extra']['error_detail']
-                    except KeyError:
-                        errmsg = "No error details"
-                    res = "Synology task [%s] failed: %s" % (task['title'], errmsg)
-                    logger.warn(res)
-                else:
+                logger.warn(str(task))  # REMOVE ME
+                if task['id']:
                     info = _getInfo(task_cgi, sid, task['id'])  # type: dict
+                    logger.warn(str(info))  # REMOVE ME
                     try:
                         uri = info['additional']['detail']['uri']
-                        if uri == torurl:
-                            logger.debug('Synology task %s for %s' % (task['id'], task['title']))
-                            return task['id'], ''
+                        if matchstr in uri:  # this might be us
+                            if task['status'] == 'error':
+                                try:
+                                    errmsg = task['status_extra']['error_detail']
+                                except KeyError:
+                                    errmsg = "No error details"
+                                if 'torrent_duplicate' in errmsg:
+                                    # should we delete the duplicate here, or just return the id?
+                                    # if the original is still active we might find it further down the list
+                                    _ = _deleteTask(task_cgi, sid, task['id'], False)
+                                else:
+                                    res = "Synology task [%s] failed: %s" % (task['title'], errmsg)
+                                    logger.warn(res)
+                                    return False, res
+                            else:
+                                logger.debug('Synology task %s for %s' % (task['id'], task['title']))
+                                return task['id'], ''
                     except KeyError:
                         res = "Unable to get uri for [%s] from getInfo" % task['title']
                         logger.debug(res)
-                        return False, res
             res = "Synology URL [%s] was not found in tasklist" % torurl
             logger.debug(res)
             return False, res
