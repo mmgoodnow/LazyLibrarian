@@ -308,8 +308,10 @@ class OPDS(object):
                     'rel': 'subsection',
                 }
             )
-
-        cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
+        cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
+        cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
+        cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
+        # cmd = "select distinct BookGenre from books where Status='Open' and BookGenre != '' and BookGenre !='Unknown'"
         res = myDB.select(cmd)
         if res and len(res) > 0:
             entries.append(
@@ -365,10 +367,13 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getLink(href='%s/opensearchgenres.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Genre'))
-        cmd = "SELECT distinct BookGenre from books WHERE Status='Open' AND "
+
+        cmd = 'select genrename,(select count(*) as counter from genrebooks,books where '
+        cmd += 'genrebooks.genreid = genres.genreid and books.status="Open" '
+        cmd += 'and books.bookid=genrebooks.bookid) as cnt from genres where cnt > 0'
         if 'query' in kwargs:
-            cmd += "BookGenre LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "BookGenre !='' AND BookGenre != 'Unknown' order by BookGenre"
+            cmd += " and genrename LIKE '%" + kwargs['query'] + "%'"
+        cmd += ' order by cnt DESC,genrename ASC'
         results = myDB.select(cmd)
         if limit:
             page = results[index:(index + limit)]
@@ -376,16 +381,14 @@ class OPDS(object):
             page = results
             limit = len(page)
         for genre in page:
-            res = myDB.match('SELECT count(*) as counter from books where Status="Open" AND BookGenre=?',
-                             (genre['BookGenre'],))
-            totalbooks = res['counter']
-            name = makeUnicode(genre['BookGenre'])
+            totalbooks = genre['cnt']
+            name = makeUnicode(genre['genrename'])
             entry = {
                     'title': escape('%s (%s)' % (name, totalbooks)),
-                    'id': escape('genre:%s' % genre['BookGenre']),
+                    'id': escape('genre:%s' % genre['genrename']),
                     'updated': now(),
                     'content': escape('%s (%s)' % (name, totalbooks)),
-                    'href': '%s?cmd=Genre&amp;genre=%s%s' % (self.opdsroot, quote_plus(genre['BookGenre']), userid),
+                    'href': '%s?cmd=Genre&amp;genre=%s%s' % (self.opdsroot, quote_plus(genre['genrename']), userid),
                     'author': escape('%s' % name),
                     'kind': 'navigation',
                     'rel': 'subsection',
@@ -427,8 +430,10 @@ class OPDS(object):
             return
         links = []
         entries = []
+
         cmd = "SELECT BookName,BookDate,BookAdded,BookDesc,BookImg,BookFile,AudioFile,books.BookID "
-        cmd += "from books where (Status='Open' or AudioStatus='Open') and BookGenre=? "
+        cmd += "from genrebooks,genres,books WHERE (books.Status='Open' or books.AudioStatus='Open') "
+        cmd += "AND books.Bookid=genrebooks.BookID AND genrebooks.genreid=genres.genreid AND genrename=?"
         cmd += "order by BookName"
         results = myDB.select(cmd, (kwargs['genre'],))
         if not len(results):

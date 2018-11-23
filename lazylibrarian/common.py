@@ -1,3 +1,4 @@
+
 #  This file is part of Lazylibrarian.
 #
 #  Lazylibrarian is free software':'you can redistribute it and/or modify
@@ -727,11 +728,25 @@ def showStats():
         book_stats.append([status, res['counter']])
         res = myDB.match('SELECT count(*) as counter FROM books WHERE AudioStatus="%s"' % status)
         audio_stats.append([status, res['counter']])
-    for column in ['BookGenre', 'BookDesc', 'BookISBN', 'BookLang']:
-        cmd = "SELECT count(*) as counter FROM books WHERE %s is null or %s = ''"
-        cmd += " or %s = 'Unknown' or %s = 'No Description'"
-        res = myDB.match(cmd % (column, column, column, column))
+    for column in ['BookGenre', 'BookDesc']:
+        cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
+        cmd += "(%s is null or %s = '')"
+        res = myDB.match(cmd % (column, column))
         missing_stats.append([column.replace('Book', 'No'), res['counter']])
+    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookGenre='Unknown'"
+    res = myDB.match(cmd)
+    missing_stats.append(['X_Genre', res['counter']])
+    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookDesc='No Description'"
+    res = myDB.match(cmd)
+    missing_stats.append(['X_Desc', res['counter']])
+    for column in ['BookISBN', 'BookLang']:
+        cmd = "SELECT count(*) as counter FROM books WHERE "
+        cmd += "(%s is null or %s = '' or %s = 'Unknown')"
+        res = myDB.match(cmd % (column, column, column))
+        missing_stats.append([column.replace('Book', 'No'), res['counter']])
+    cmd = "SELECT count(*) as counter FROM genres"
+    res = myDB.match(cmd)
+    missing_stats.append(['Genres', res['counter']])
 
     author_stats = []
     res = myDB.match("SELECT count(*) as counter FROM authors")

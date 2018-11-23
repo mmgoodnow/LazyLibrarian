@@ -24,11 +24,12 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_gb_info
+    setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_gb_info, \
+    get_gr_genres, setGenres
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, bookSeries, unaccented, split_title, getList, \
-    cleanName, is_valid_isbn, formatAuthorName, check_int, makeUnicode, check_year
+    cleanName, is_valid_isbn, formatAuthorName, check_int, makeUnicode, check_year, check_float
 from lib.fuzzywuzzy import fuzz
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
@@ -108,11 +109,11 @@ class GoodReads:
                             bookimg = 'images/nocover.png'
 
                         try:
-                            bookrate = author.find('average_rating').text
+                            bookrate = check_float(author.find('average_rating').text, 0)
                         except KeyError:
-                            bookrate = 0
+                            bookrate = 0.0
                         try:
-                            bookrate_count = int(author.find('ratings_count').text)
+                            bookrate_count = check_int(author.find('ratings_count').text, 0)
                         except KeyError:
                             bookrate_count = 0
 
@@ -184,7 +185,7 @@ class GoodReads:
                             'bookdate': bookdate,
                             'booklang': booklang,
                             'booklink': booklink,
-                            'bookrate': float(bookrate),
+                            'bookrate': bookrate,
                             'bookrate_count': bookrate_count,
                             'bookimg': bookimg,
                             'bookpages': bookpages,
@@ -195,7 +196,7 @@ class GoodReads:
                             'book_fuzz': book_fuzz,
                             'isbn_fuzz': isbn_fuzz,
                             'highest_fuzz': highest_fuzz,
-                            'num_reviews': float(bookrate)
+                            'num_reviews': bookrate
                         })
 
                         resultcount += 1
@@ -347,7 +348,7 @@ class GoodReads:
                 if value is None:
                     value = default
                 if idx == 'rate':
-                    value = float(value)
+                    value = check_float(value, 0.0)
                 mydict[val] = value
 
         return mydict
@@ -785,9 +786,13 @@ class GoodReads:
                             if locked:
                                 locked_count += 1
                             else:
+                                if not bookgenre:
+                                    genres, _ = get_gr_genres(bookid)
+                                    if genres:
+                                        bookgenre = ', '.join(genres)
                                 if not bookdesc:  # or not bookgenre:
-                                    infodict = get_gb_info(isbn=bookisbn, author=authorNameResult, title=bookname,
-                                                           expire=False)
+                                    infodict = get_gb_info(isbn=bookisbn, author=authorNameResult,
+                                                           title=bookname, expire=False)
                                     if infodict is not None:  # None if api blocked
                                         if not bookdesc:
                                             if infodict and infodict['desc']:
@@ -828,6 +833,8 @@ class GoodReads:
                                 }
 
                                 myDB.upsert("books", newValueDict, controlValueDict)
+
+                                setGenres(getList(bookgenre), bookid)
 
                                 updateValueDict = {}
                                 # need to run getWorkSeries AFTER adding to book table (foreign key constraint)
@@ -1112,7 +1119,7 @@ class GoodReads:
             bookisbn = rootxml.find('./book/isbn').text
         bookpub = rootxml.find('./book/publisher').text
         booklink = rootxml.find('./book/link').text
-        bookrate = float(rootxml.find('./book/average_rating').text)
+        bookrate = check_float(rootxml.find('./book/average_rating').text, 0)
         bookpages = rootxml.find('.book/num_pages').text
         workid = rootxml.find('.book/work/id').text
 
@@ -1172,6 +1179,9 @@ class GoodReads:
                 bookisbn = res
 
         bookgenre = ''
+        genres, _ = get_gr_genres(bookid)
+        if genres:
+            bookgenre = ', '.join(genres)
         if not bookdesc:
             infodict = get_gb_info(isbn=bookisbn, author=authorname, title=bookname, expire=False)
             if infodict is not None:  # None if api blocked
@@ -1179,10 +1189,11 @@ class GoodReads:
                     bookdesc = infodict['desc']
                 else:
                     bookdesc = 'No Description'
-                if infodict and infodict['genre']:
-                    bookgenre = infodict['genre']
-                else:
-                    bookgenre = 'Unknown'
+                if not bookgenre:
+                    if infodict and infodict['genre']:
+                        bookgenre = infodict['genre']
+                    else:
+                        bookgenre = 'Unknown'
         controlValueDict = {"BookID": bookid}
         newValueDict = {
             "AuthorID": AuthorID,
@@ -1236,6 +1247,8 @@ class GoodReads:
                 serieslist = newserieslist
                 logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
             setSeries(serieslist, bookid)
+
+        setGenres(getList(bookgenre), bookid)
 
         worklink = getWorkPage(bookid)
         if worklink:

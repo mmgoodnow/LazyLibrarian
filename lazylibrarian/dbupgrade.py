@@ -21,7 +21,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import restartJobs, pwd_generator
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8
+from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8, getList
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
 
@@ -92,8 +92,9 @@ def upgrade_needed():
     # 44 move hosting to gitlab
     # 45 update local git repo to new origin
     # 46 remove pastissues table and rebuild to ensure no foreign key
+    # 47 genres and genrebooks tables
 
-    db_current_version = 46
+    db_current_version = 47
 
     if db_version < db_current_version:
         return db_current_version
@@ -170,6 +171,7 @@ def dbupgrade(db_current_version):
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
                                 'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT)')
                     myDB.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
+                    myDB.action('CREATE TABLE genres (GenreID INTEGER UNIQUE, GenreName TEXT)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -194,6 +196,9 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
                                     'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
                                     'Count INTEGER DEFAULT 0)')
+                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, ' +
+                                    'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                                    'UNIQUE (GenreID,BookID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
                         # so orphans get cleaned up at program startup
@@ -214,6 +219,8 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE sync (UserID TEXT, Label TEXT, Date TEXT, SyncList TEXT)')
                         myDB.action('CREATE TABLE failedsearch (BookID TEXT, Library TEXT, Time TEXT, ' +
                                     'Interval INTEGER DEFAULT 0, Count INTEGER DEFAULT 0)')
+                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
+                                    'UNIQUE (GenreID,BookID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -268,7 +275,7 @@ def check_db(myDB):
             data = list(res)
             if data[2] == 'AuthorID':
                 unique = True
-                break;
+                break
     if not unique:
         res = myDB.match('select count(distinct authorid) as d,count(authorid) as c from authors')
         if res['d'] == res['c']:
@@ -345,6 +352,49 @@ def check_db(myDB):
                 seriesid = item["SeriesID"]
                 myDB.action('DELETE from series WHERE SeriesID=?', (seriesid,))
 
+        # check if genre exclusions/translations have altered
+        if lazylibrarian.GRGENRES:
+            for item in lazylibrarian.GRGENRES['genreExclude']:
+                match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
+                if match:
+                    cnt += 1
+                    msg = 'Removing excluded genre [%s]' % item
+                    logger.warn(msg)
+                    myDB.action('DELETE from genre WHERE GenreID=?', (match['GenreID'],))
+            for item in lazylibrarian.GRGENRES['genreExcludeParts']:
+                cmd = 'SELECT GenreID,GenreName from genres where GenreName like "%' + item + '%" COLLATE NOCASE'
+                matches = myDB.select(cmd)
+                if matches:
+                    cnt += len(matches)
+                    for itm in matches:
+                        msg = 'Removing excluded genre [%s]' % itm['GenreName']
+                        logger.warn(msg)
+                        myDB.action('DELETE from genre WHERE GenreID=?', (itm['GenreID'],))
+            for item in lazylibrarian.GRGENRES['genreReplace']:
+                match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
+                if match:
+                    newitem = lazylibrarian.GRGENRES['genreReplace'][item]
+                    newmatch = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (newitem,))
+                    cnt += 1
+                    msg = 'Replacing genre [%s] with [%s]' % (item, newitem)
+                    logger.warn(msg)
+                    if not newmatch:
+                        myDB.action('INSERT into genres (GenreName) VALUES (?)', (newitem,))
+                        newmatch = myDB.match('SELECT GenreID from genres where GenreName=?', (newitem,))
+                    myDB.action('UPDATE genrebooks SET GenreID=? WHERE GenreID=?', (newmatch, match))
+
+        # remove genres with no books
+        cmd = 'select GenreID, (select count(*) as counter from genrebooks where genres.genreid = genrebooks.genreid)'
+        cmd += ' as cnt from genres where cnt = 0'
+        genres = myDB.select(cmd)
+        if genres:
+            cnt += len(genres)
+            msg = 'Removing %s empty genre%s' % (len(genres), plural(len(genres)))
+            logger.warn(msg)
+            for item in genres:
+                genreid = item["GenreID"]
+                myDB.action('DELETE from genres WHERE GenreID=?', (genreid,))
+
         # remove orphan entries (foreign key not available)
         for entry in [
                         ['authorid', 'books', 'authors'],
@@ -352,6 +402,7 @@ def check_db(myDB):
                         ['seriesid', 'seriesauthors', 'series'],
                         ['authorid', 'seriesauthors', 'authors'],
                         ['title', 'issues', 'magazines'],
+                        ['genreid', 'genrebooks', 'genres'],
                      ]:
             orphans = myDB.select('select %s from %s except select %s from %s' %
                                   (entry[0], entry[1], entry[0], entry[2]))
@@ -1296,3 +1347,32 @@ def db_v46(myDB, upgradelog):
     myDB.action(res['sql'].replace('wanted', 'pastissues'))
     upgradelog.write("%s v46: complete\n" % time.ctime())
 
+
+def db_v47(myDB, upgradelog):
+    upgradelog.write("%s v47: %s\n" % (time.ctime(), "Creating genre tables"))
+    if not has_column(myDB, "genres", "GenreID"):
+        myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, GenreName TEXT UNIQUE)')
+        if lazylibrarian.FOREIGN_KEY:
+            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID), ' +
+                        'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                        'UNIQUE (GenreID,BookID))')
+        else:
+            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
+                        'UNIQUE (GenreID,BookID))')
+    res = myDB.select('SELECT bookid,bookgenre FROM books WHERE (Status="Open" or AudioStatus="Open")')
+    tot = len(res)
+    if tot:
+        upgradelog.write("%s v47: Upgrading %s genres\n" % (time.ctime(), tot))
+        cnt = 0
+        for book in res:
+            cnt += 1
+            myDB.action('DELETE from genrebooks WHERE BookID=?', (book['bookid'],))
+            lazylibrarian.UPDATE_MSG = "Updating genres %s of %s" % (cnt, tot)
+            for item in getList(book['bookgenre'], ','):
+                match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
+                if not match:
+                    myDB.action('INSERT into genres (GenreName) VALUES (?)', (item,))
+                    match = myDB.match('SELECT GenreID from genres where GenreName=?', (item,))
+                myDB.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
+                            (match['GenreID'], book['bookid']), suppress='UNIQUE')
+    upgradelog.write("%s v47: complete\n" % time.ctime())

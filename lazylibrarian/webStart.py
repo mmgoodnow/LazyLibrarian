@@ -144,6 +144,7 @@ def initialize(options=None):
         })
         conf['/api'].update({
             'tools.auth_basic.on': False,
+            'response.timeout': 3600,
         })
     if options['opds_authentication']:
         user_list = {}

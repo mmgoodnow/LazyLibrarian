@@ -19,6 +19,7 @@ import os
 import sqlite3
 import threading
 import time
+import traceback
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -124,7 +125,8 @@ class DBConnection:
                     with open(self.dblog, 'a') as f:
                         f.write("%s %d %.4f %s [%s]\n" % (time.asctime(), attempt, elapsed, query, args))
                         f.write("%s DatabaseError: %s\n" % (time.asctime(), e))
-                logger.error('Fatal error executing %s :: %s' % (query, e))
+                logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
+                logger.error("%s" % traceback.format_exc())
                 raise
 
             except Exception as e:

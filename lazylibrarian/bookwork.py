@@ -1009,6 +1009,102 @@ def getWorkSeries(bookID=None):
     return serieslist
 
 
+def setGenres(genrelist=None, bookid=None):
+    """ set genre details in genres/genrebooks tables from the supplied list
+        and a displayable summary in book table """
+    myDB = database.DBConnection()
+    if bookid:
+        # delete any old genrebooks entries
+        myDB.action('DELETE from genrebooks WHERE BookID=?', (bookid,))
+        for item in genrelist:
+            match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
+            if not match:
+                myDB.action('INSERT into genres (GenreName) VALUES (?)', (item,))
+                match = myDB.match('SELECT GenreID from genres where GenreName=?', (item,))
+            myDB.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
+                        (match['GenreID'], bookid), suppress='UNIQUE')
+        myDB.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
+
+
+def get_gr_genres(bookid, refresh=False):
+    if lazylibrarian.GRGENRES:
+        genreLimit = lazylibrarian.GRGENRES['genreLimit']
+        genreUsers = lazylibrarian.GRGENRES['genreUsers']
+        genreExclude = lazylibrarian.GRGENRES['genreExclude']
+        genreExcludeParts = lazylibrarian.GRGENRES['genreExcludeParts']
+        genreReplace = lazylibrarian.GRGENRES['genreReplace']
+    else:
+        genreLimit = 3
+        genreUsers = 10
+        genreExclude = []
+        genreExcludeParts = []
+        genreReplace = {}
+
+    myDB = database.DBConnection()
+    URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
+    genres = []
+    try:
+        rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
+    except Exception as e:
+        logger.error("%s fetching book genres: %s" % (type(e).__name__, str(e)))
+        return genres, False
+
+    if rootxml is None:
+        logger.debug("Error requesting book genres")
+        return genres, in_cache
+
+    shelves = []
+    try:
+        shelves = rootxml.find('book/popular_shelves')
+        if shelves is None:
+            return genres, in_cache
+    except (KeyError, AttributeError):
+        logger.error("Error reading shelves for GoodReads bookid %s" % bookid)
+
+    for shelf in shelves:
+        # check shelf name is used by >= users
+        if check_int(shelf.attrib['count'], 0) >= genreUsers:
+            genres.append([int(shelf.attrib['count']), shelf.attrib['name']])
+
+    # return max (limit) genres sorted by most popular first
+    res = sorted(genres, key=lambda x: x[0], reverse=True)
+    res = [item[1] for item in res]
+    cnt = genreLimit
+    genres = []
+    for item in res:
+        if item not in genreExclude:
+            if item in genreReplace:
+                item = genreReplace[item]
+
+            reject = False
+            # reject to-read, not-read, read-2017 etc...
+            for entry in genreExcludeParts:
+                if entry in item:
+                    reject = True
+                    break
+            if not reject:
+                # try to reject author names, check both  tom-holt and holt-tom
+                words = item.split('-')
+                if len(words) == 2:
+                    res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                                     ("%s %s" % (words[0], words[1]),))
+                    if len(res):
+                        reject = True
+                    else:
+                        res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                                         ("%s %s" % (words[1], words[0]),))
+                        if len(res):
+                            reject = True
+                if not reject and item not in genres:
+                    genres.append(item)
+                    cnt -= 1
+                    if not cnt:
+                        break
+    logger.debug("GoodReads bookid %s %d from %d genre%s, cached=%s" %
+                 (bookid, len(genres), len(res), plural(len(res)), in_cache))
+    return genres, in_cache
+
+
 def get_book_pubdate(bookid, refresh=False):
     URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
     bookdate = "0000"
@@ -1029,7 +1125,7 @@ def get_book_pubdate(bookid, refresh=False):
     except (KeyError, AttributeError):
         logger.error("Error reading pubdate for GoodReads bookid %s pubdate [%s]" % (bookid, bookdate))
 
-    logger.debug("GoodReads bookid %s pubdate [%s] %s" % (bookid, bookdate, in_cache))
+    logger.debug("GoodReads bookid %s pubdate [%s] cached=%s" % (bookid, bookdate, in_cache))
     return bookdate, in_cache
 
 

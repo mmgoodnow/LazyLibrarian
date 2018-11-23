@@ -40,7 +40,7 @@ from lib.six.moves import configparser
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
 FULL_PATH = None
-PROG_DIR = None
+PROG_DIR = ''
 ARGS = None
 DAEMON = False
 SIGNAL = None
@@ -102,6 +102,7 @@ GROUP_CONCAT = 0
 FOREIGN_KEY = 0
 HIST_REFRESH = 1000
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
+GRGENRES = None
 
 # extended loglevels
 log_magdates = 1 << 2  # 4 magazine date matching
@@ -617,7 +618,7 @@ def initialize():
         UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, LAST_LIBRARYTHING, LAST_GOODREADS, SHOW_SERIES, SHOW_MAGS, \
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, \
-        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY
+        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES
 
     with INIT_LOCK:
 
@@ -677,8 +678,8 @@ def initialize():
             except OSError as e:
                 logger.error('Could not create cachedir; %s' % e)
 
-        for cache in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'magazine']:
-            cachelocation = os.path.join(CACHEDIR, cache)
+        for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'magazine']:
+            cachelocation = os.path.join(CACHEDIR, item)
             try:
                 os.makedirs(cachelocation)
             except OSError as e:
@@ -687,9 +688,8 @@ def initialize():
 
         # nest these caches 2 levels to make smaller directory lists
         caches = ["XMLCache", "JSONCache", "WorkCache"]
-        for cache in caches:
-            pth = os.path.join(CACHEDIR, cache)
-            start = time.time()
+        for item in caches:
+            pth = os.path.join(CACHEDIR, item)
             for i in '0123456789abcdef':
                 for j in '0123456789abcdef':
                     cachelocation = os.path.join(pth, i, j)
@@ -698,9 +698,9 @@ def initialize():
                     except OSError as e:
                         if not os.path.isdir(cachelocation):
                             logger.error('Could not create %s: %s' % (cachelocation, e))
-            for item in os.listdir(pth):
-                if len(item) > 2:
-                    os.rename(os.path.join(pth, item), os.path.join(pth, item[0], item[1], item))
+            for itm in os.listdir(pth):
+                if len(itm) > 2:
+                    os.rename(os.path.join(pth, itm), os.path.join(pth, itm[0], itm[1], itm))
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
@@ -749,6 +749,9 @@ def initialize():
             if 'missing' in item:
                 logger.warn(item)
 
+        GRGENRES = build_genres()
+        MONTHNAMES = build_monthtable()
+
         try:  # optional module, check database health, could also be upgraded to modify/repair db or run other code
             # noinspection PyUnresolvedReferences
             from .dbcheck import dbcheck
@@ -756,7 +759,6 @@ def initialize():
         except ImportError:
             pass
 
-        MONTHNAMES = build_monthtable()
         BOOKSTRAP_THEMELIST = build_bookstrap_themes(PROG_DIR)
 
         __INITIALIZED__ = True
@@ -1402,6 +1404,19 @@ def build_bookstrap_themes(prog_dir):
 
     logger.info("Bookstrap found %i themes" % len(themelist))
     return themelist
+
+
+def build_genres():
+    json_file = os.path.join(DATADIR, 'gr_genres.json')
+    if not os.path.isfile(json_file):
+        json_file = os.path.join(PROG_DIR, 'example.gr_genres.json')
+    if os.path.isfile(json_file):
+        try:
+            with open(json_file) as json_data:
+                return json.load(json_data)
+        except Exception as e:
+            logger.error('Failed to load gr_genres.json, %s %s' % (type(e).__name__, str(e)))
+    return None
 
 
 def build_monthtable():

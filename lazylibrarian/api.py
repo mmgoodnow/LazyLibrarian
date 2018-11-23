@@ -144,8 +144,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'getBookAuthors': '&id= Get list of authors associated with this book',
             'cleanCache': '[&wait] Clean unused and expired files from the LazyLibrarian caches',
             'deleteEmptySeries': 'Delete any book series that have no members',
-            'setNoDesc': '[&refresh] Set book descriptions for all books without one',
-            'setNoGenre': '[&refresh] Set book genre for all books without one',
+            'setNoDesc': '[&refresh] Set descriptions for all books, include "No Description" entries on refresh',
+            'setNoGenre': '[&refresh] Set book genre for all books without one, include "Unknown" entries on refresh',
             'setWorkPages': '[&wait] Set the WorkPages links in the database',
             'setAllBookSeries': '[&wait] Set the series details from goodreads or librarything workpages',
             'setAllBookAuthors': '[&wait] Set all authors for all books from book workpages',
@@ -331,7 +331,10 @@ class Api(object):
         self.data = get_capabilities(prov, True)
 
     def _help(self):
-        self.data = dict(cmd_dict)
+        res = ''
+        for key in sorted(cmd_dict):
+            res += "%s: %s<p>" % (key, cmd_dict[key])
+        self.data = res
 
     def _getHistory(self):
         self.data = self._dic_from_query(
@@ -513,12 +516,12 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _listNoGenre(self):
-        q = 'SELECT BookID,BookName,AuthorName from books,authors where '
+        q = 'SELECT BookID,BookName,AuthorName from books,authors where books.Status != "Ignored" and '
         q += '(BookGenre="Unknown" or BookGenre="" or BookGenre is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
     def _listNoDesc(self):
-        q = 'SELECT BookID,BookName,AuthorName from books,authors where '
+        q = 'SELECT BookID,BookName,AuthorName from books,authors where books.Status != "Ignored" and '
         q += '(BookDesc="" or BookDesc is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
 
@@ -529,13 +532,16 @@ class Api(object):
         else:
             expire = False
             extra = ''
-        q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where '
+        q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookDesc="" or BookDesc is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         myDB = database.DBConnection()
         res = myDB.select(q)
         descs = 0
+        cnt = 0
         logger.debug("Checking description for %s book%s" % (len(res), plural(len(res))))
+        data = ''
         for item in res:
+            cnt += 1
             isbn = item['BookISBN']
             auth = item['AuthorName']
             book = item['BookName']
@@ -545,9 +551,12 @@ class Api(object):
                 logger.debug("Updated description for %s:%s" % (auth, book))
                 myDB.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
             elif data is None:
-                self.data = "Error reading description, see debug log"
                 break
-        self.data = "Scanned %s book%s, found %s new description%s" % (len(res), plural(len(res)), descs, plural(descs))
+        msg = "Scanned %d book%s, found %d new description%s from %d" % \
+              (cnt, plural(cnt), descs, plural(descs), len(res))
+        if data is None:
+            msg += ': Access Blocked'
+        self.data = msg
         logger.info(self.data)
 
     def _setNoGenre(self, **kwargs):
@@ -557,13 +566,16 @@ class Api(object):
         else:
             expire = False
             extra = ''
-        q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where '
+        q = 'SELECT BookID,BookName,AuthorName,BookISBN from books,authors where books.Status != "Ignored" and '
         q += '(BookGenre="" or BookGenre is NULL' + extra + ') and books.AuthorID = authors.AuthorID'
         myDB = database.DBConnection()
         res = myDB.select(q)
         genre = 0
+        cnt = 0
         logger.debug("Checking genre for %s book%s" % (len(res), plural(len(res))))
+        data = ''
         for item in res:
+            cnt += 1
             isbn = item['BookISBN']
             auth = item['AuthorName']
             book = item['BookName']
@@ -575,7 +587,10 @@ class Api(object):
             elif data is None:
                 self.data = "Error reading genre, see debug log"
                 break
-        self.data = "Scanned %s book%s, found %s new genre%s" % (len(res), plural(len(res)), genre, plural(genre))
+        msg = "Scanned %d book%s, found %d new genre%s from %d" % (cnt, plural(cnt), genre, plural(genre), len(res))
+        if data is None:
+            msg += ': Access Blocked'
+        self.data = msg
         logger.info(self.data)
 
     def _listNoISBN(self):
