@@ -322,7 +322,24 @@ def check_int(var, default, positive=True):
             return default
         return res
     except (ValueError, TypeError):
-        return default
+        try:
+            return int(default)
+        except (ValueError, TypeError):
+            return 0
+
+
+def check_float(var, default):
+    """
+    Return a float representation of var
+    or return default value if var is not a float
+    """
+    try:
+        return float(var)
+    except (ValueError, TypeError):
+        try:
+            return float(default)
+        except (ValueError, TypeError):
+            return 0.0
 
 
 def size_in_bytes(size):
