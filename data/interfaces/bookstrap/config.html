@@ -413,6 +413,17 @@
                         <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
                         Show titles ignoring definite article (The, A)</label>
                       </div>
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['SHOW_GENRES'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="show_genres" class="control-label">
+                          <input type="checkbox" id="show_genres" name="show_genres" value="1" ${checked} />
+                          Show genres</label>
+                      </div>
                     </div>
                 </div>
               </div>

@@ -234,6 +234,7 @@ CONFIG_DEFINITIONS = {
     'TOGGLES': ('bool', 'General', 1),
     'SORT_DEFINITE': ('bool', 'General', 0),
     'SORT_SURNAME': ('bool', 'General', 0),
+    'SHOW_GENRES': ('bool', 'General', 0),
     'LAUNCH_BROWSER': ('bool', 'General', 1),
     'API_ENABLED': ('bool', 'General', 0),
     'API_KEY': ('str', 'General', ''),
@@ -1407,15 +1408,14 @@ def build_bookstrap_themes(prog_dir):
 
 
 def build_genres():
-    json_file = os.path.join(DATADIR, 'gr_genres.json')
-    if not os.path.isfile(json_file):
-        json_file = os.path.join(PROG_DIR, 'example.gr_genres.json')
-    if os.path.isfile(json_file):
-        try:
-            with open(json_file) as json_data:
-                return json.load(json_data)
-        except Exception as e:
-            logger.error('Failed to load gr_genres.json, %s %s' % (type(e).__name__, str(e)))
+    for json_file in [os.path.join(DATADIR, 'genres.json'), os.path.join(PROG_DIR, 'example.genres.json')]:
+        if os.path.isfile(json_file):
+            try:
+                with open(json_file) as json_data:
+                    return json.load(json_data)
+            except Exception as e:
+                logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
+    logger.error('No valid genres.json file found')
     return None
 
 

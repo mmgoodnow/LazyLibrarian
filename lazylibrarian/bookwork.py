@@ -1083,8 +1083,8 @@ def get_gr_genres(bookid, refresh=False):
                     reject = True
                     break
             if not reject:
-                # try to reject author names, check both  tom-holt and holt-tom
-                words = item.split('-')
+                # try to reject author names, check both tom-holt and holt-tom
+                words = item.replace('-', ' ').split()
                 if len(words) == 2:
                     res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
                                      ("%s %s" % (words[0], words[1]),))
