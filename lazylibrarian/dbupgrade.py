@@ -322,6 +322,31 @@ def check_db(myDB):
             cmd = 'DELETE from languages WHERE ' + filt
             myDB.action(cmd)
 
+        #  remove books with no bookid
+        books = myDB.select('SELECT * FROM books WHERE BookID is NULL or BookID=""')
+        if books:
+            cnt += len(books)
+            msg = 'Removing %s book%s with no bookid' % (len(books), plural(len(books)))
+            logger.warn(msg)
+            myDB.action('DELETE from books WHERE BookID is NULL or BookID=""')
+
+        #  remove books with no authorid
+        books = myDB.select('SELECT BookID FROM books WHERE AuthorID is NULL or AuthorID=""')
+        if books:
+            cnt += len(books)
+            msg = 'Removing %s book%s with no authorid' % (len(books), plural(len(books)))
+            logger.warn(msg)
+            for book in books:
+                myDB.action('DELETE from books WHERE BookID=?', (book["BookID"],))
+
+        # remove authors with no authorid
+        authors = myDB.select('SELECT * FROM authors WHERE AuthorID IS NULL or AuthorID=""')
+        if authors:
+            cnt += len(authors)
+            msg = 'Removing %s author%s with no authorid' % (len(authors), plural(len(authors)))
+            logger.warn(msg)
+            myDB.action('DELETE from authors WHERE AuthorID is NULL or AuthorID=""')
+
         # remove authors with no name
         authors = myDB.select('SELECT AuthorID FROM authors WHERE AuthorName IS NULL or AuthorName = ""')
         if authors:
@@ -329,8 +354,7 @@ def check_db(myDB):
             msg = 'Removing %s author%s with no name' % (len(authors), plural(len(authors)))
             logger.warn(msg)
             for author in authors:
-                authorid = author["AuthorID"]
-                myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove authors with no books
         authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
@@ -339,8 +363,7 @@ def check_db(myDB):
             msg = 'Removing %s author%s with no books' % (len(authors), plural(len(authors)))
             logger.warn(msg)
             for author in authors:
-                authorid = author["AuthorID"]
-                myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove series with no members
         series = myDB.select('SELECT SeriesID FROM series WHERE Total=0')
@@ -349,8 +372,7 @@ def check_db(myDB):
             msg = 'Removing %s series with no members' % len(series)
             logger.warn(msg)
             for item in series:
-                seriesid = item["SeriesID"]
-                myDB.action('DELETE from series WHERE SeriesID=?', (seriesid,))
+                myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
 
         # check if genre exclusions/translations have altered
         if lazylibrarian.GRGENRES:
@@ -404,10 +426,9 @@ def check_db(myDB):
             msg = 'Removing %s empty genre%s' % (len(genres), plural(len(genres)))
             logger.warn(msg)
             for item in genres:
-                genreid = item["GenreID"]
-                myDB.action('DELETE from genres WHERE GenreID=?', (genreid,))
+                myDB.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
 
-        # remove orphan entries (foreign key not available)
+        # remove orphan entries (needed if foreign key not available)
         for entry in [
                         ['authorid', 'books', 'authors'],
                         ['seriesid', 'member', 'series'],
