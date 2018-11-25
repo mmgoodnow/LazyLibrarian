@@ -391,7 +391,7 @@ def check_db(myDB):
                     for itm in matches:
                         msg = 'Removing excluded genre [%s]' % itm['GenreName']
                         logger.warn(msg)
-                        myDB.action('DELETE from genre WHERE GenreID=?', (itm['GenreID'],))
+                        myDB.action('DELETE from genres WHERE GenreID=?', (itm['GenreID'],))
             for item in lazylibrarian.GRGENRES['genreReplace']:
                 match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
                 if match:

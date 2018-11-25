@@ -3187,13 +3187,13 @@
               <div class="col-md-12">
                 <legend>Reject Genres</legend>
                 <div class="form-group">
-                  <input type="text" id="genreexclude" name="genreexclude" value="${', '.join(i for i in lazylibrarian.GRGENRES['genreExclude'])}" class="form-control" placeholder="Reject word list">
+                  <input type="text" id="genreexclude" name="genreexclude" value="${', '.join(i for i in sorted(lazylibrarian.GRGENRES['genreExclude']))}" class="form-control" placeholder="Reject word list">
                   <span class="help-block">Comma separated list of genres to reject: Results that match any of these words will be ignored<br/>
                   </span>
                 </div>
                 <legend>Reject Parts</legend>
                 <div class="form-group">
-                  <input type="text" id="genreexcludeparts" name="genreexcludeparts" value="${', '.join(i for i in lazylibrarian.GRGENRES['genreExcludeParts'])}" class="form-control" placeholder="Reject word list">
+                  <input type="text" id="genreexcludeparts" name="genreexcludeparts" value="${', '.join(i for i in sorted(lazylibrarian.GRGENRES['genreExcludeParts']))}" class="form-control" placeholder="Reject word list">
                   <span class="help-block">Comma separated list of part-words in genres to reject: Results that match any part of these words will be ignored<br/>
                   </span>
                 </div>
