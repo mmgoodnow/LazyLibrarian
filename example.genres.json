@@ -9,7 +9,7 @@
             "general", "series", "audible", "nope", "hell-no", "not-interested", "have",
             "giveaways", "dnf", "ya", "wish-list", "s2e", "non", "1", "sub", "fantascienza"
             ],
-    "genreExcludeParts": ["read-", "-read", "-press", "2018", "2019"],
+    "genreExcludeParts": ["read-", "-read", "-press", "2017", "2018", "2019"],
     "genreReplace": {"humor": "humour",
                 "science-fiction": "sci-fi",
                 "scifi": "sci-fi",

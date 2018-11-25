@@ -41,6 +41,9 @@
         <li role="presentation" id="6" aria-controls="notifications"><a role="tab" data-toggle="tab" aria-controls="notifications" href="#notifications">Notifications</a></li>
         <li role="presentation" id="7" aria-controls="capabilities"><a role="tab" data-toggle="tab" aria-controls="capabilities" href="#capabilities">Categories</a></li>
         <li role="presentation" id="8" aria-controls="filters"><a role="tab" data-toggle="tab" aria-controls="filters" href="#filters">Filters</a></li>
+        %if lazylibrarian.CONFIG['SHOW_GENRES'] == True:
+        <li role="presentation" id="9" aria-controls="genres"><a role="tab" data-toggle="tab" aria-controls="genres" href="#genres">Genres</a></li>
+        %endif
         </ul>
         <div class="tab-content">
           <div role="tabpanel" class="tab-pane" id="webinterface">
@@ -3164,6 +3167,56 @@
                 </div>
             </div>
             <br>
+          </div>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="genres">
+          <div class="configtable">
+            <div class="row">
+              <div class="col-md-6">
+                <legend>Genre Settings</legend>
+                <div class="input-group">
+                  <span class="input-group-addon">Genres per book</span>
+                  <input type="number" id="genrelimit" name="genrelimit" value="${lazylibrarian.GRGENRES['genreLimit']}" class="form-control">
+                  <span class="input-group-addon">Genre Users</span>
+                  <input type="number" id="genreusers" name="genreusers" value="${lazylibrarian.GRGENRES['genreUsers']}" class="form-control">
+                </div>
+              </div>
+            </div>
+            <p>
+            <div class="row">
+              <div class="col-md-12">
+                <legend>Reject Genres</legend>
+                <div class="form-group">
+                  <input type="text" id="genreexclude" name="genreexclude" value="${', '.join(i for i in lazylibrarian.GRGENRES['genreExclude'])}" class="form-control" placeholder="Reject word list">
+                  <span class="help-block">Comma separated list of genres to reject: Results that match any of these words will be ignored<br/>
+                  </span>
+                </div>
+                <legend>Reject Parts</legend>
+                <div class="form-group">
+                  <input type="text" id="genreexcludeparts" name="genreexcludeparts" value="${', '.join(i for i in lazylibrarian.GRGENRES['genreExcludeParts'])}" class="form-control" placeholder="Reject word list">
+                  <span class="help-block">Comma separated list of part-words in genres to reject: Results that match any part of these words will be ignored<br/>
+                  </span>
+                </div>
+                <legend>Genre Replace</legend>
+                  <span class="help-block">Replace one genre name with another<br/>
+                  </span>
+                  <div class="input-group col-md-6">
+                    <span class="input-group-addon">Replace genre</span>
+                    <input type="text" id="genreold" name="genreold" value="" class="form-control">
+                    <span class="input-group-addon">with</span>
+                    <input type="text" id="genrenew" name="genrenew" value="" class="form-control">
+                  </div>
+                  <br>
+                  <span class="help-block">To remove an existing entry leave the text box below empty<br/>
+                  </span>
+                  %for item in sorted(lazylibrarian.GRGENRES['genreReplace']):
+                  <div class="col-md-4">
+                    <label>${item}</label>
+                    <input type="text" id="genrereplace[${item}]" name="genrereplace[${item}]" value="${lazylibrarian.GRGENRES['genreReplace'][item]}" class="form-control" placeholder="<delete>">
+                  </div>
+                  %endfor
+              </div>
+            </div>
           </div>
         </div>
       </div>

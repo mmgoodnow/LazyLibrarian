@@ -195,8 +195,7 @@ class GoodReads:
                             'author_fuzz': author_fuzz,
                             'book_fuzz': book_fuzz,
                             'isbn_fuzz': isbn_fuzz,
-                            'highest_fuzz': highest_fuzz,
-                            'num_reviews': bookrate
+                            'highest_fuzz': highest_fuzz
                         })
 
                         resultcount += 1
@@ -834,7 +833,7 @@ class GoodReads:
 
                                 myDB.upsert("books", newValueDict, controlValueDict)
 
-                                setGenres(getList(bookgenre), bookid)
+                                setGenres(getList(bookgenre, ','), bookid)
 
                                 updateValueDict = {}
                                 # need to run getWorkSeries AFTER adding to book table (foreign key constraint)
@@ -1248,7 +1247,7 @@ class GoodReads:
                 logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
             setSeries(serieslist, bookid)
 
-        setGenres(getList(bookgenre), bookid)
+        setGenres(getList(bookgenre, ','), bookid)
 
         worklink = getWorkPage(bookid)
         if worklink:

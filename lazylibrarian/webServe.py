@@ -19,6 +19,7 @@ import re
 import threading
 import time
 import traceback
+import json
 from shutil import copyfile, rmtree
 
 # noinspection PyUnresolvedReferences
@@ -55,6 +56,7 @@ from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.opds import OPDS
 from lazylibrarian.bookrename import nameVars
+from lazylibrarian.dbupgrade import check_db
 from lib.deluge_client import DelugeRPCClient
 from lib.six import PY2, text_type
 from mako import exceptions
@@ -1075,7 +1077,69 @@ class WebInterface(object):
                         adminmsg += "The default admin user is 'admin' and password is 'admin'<br>"
                         adminmsg += "This is insecure, please change it on Config -> User Admin<br>"
 
-        # first the non-config options
+        # store any genre changes
+        genre_changes = ''
+        genrelimit = check_int(kwargs.get('genrelimit', 0), 0)
+        if lazylibrarian.GRGENRES['genreLimit'] != genrelimit:
+            lazylibrarian.GRGENRES['genreLimit'] = genrelimit
+            genre_changes += 'limit '
+        genreusers = check_int(kwargs.get('genreusers', 0), 0)
+        if lazylibrarian.GRGENRES['genreUsers'] != genreusers:
+            lazylibrarian.GRGENRES['genreUsers'] = genreusers
+            genre_changes += 'users '
+        newexcludes = sorted(getList(kwargs.get('genreexclude', ''), ','))
+        if sorted(lazylibrarian.GRGENRES['genreExclude']) != newexcludes:
+            lazylibrarian.GRGENRES['genreExclude'] = newexcludes
+            genre_changes += 'excludes '
+        newexcludes = sorted(getList(kwargs.get('genreexcludeparts', ''), ','))
+        if sorted(lazylibrarian.GRGENRES['genreExcludeParts']) != newexcludes:
+            lazylibrarian.GRGENRES['genreExcludeParts'] = newexcludes
+            genre_changes += 'parts '
+        # now the replacements
+        genredict = {}
+        for item in kwargs:
+            if item.startswith('genrereplace['):
+                mykey = makeUnicode(item.split('[')[1].split(']')[0])
+                myval = makeUnicode(kwargs.get(item, ''))
+                if myval:
+                    genredict[mykey] = myval
+
+        # new genre to add
+        if 'genrenew' in kwargs and 'genreold' in kwargs:
+            if kwargs['genrenew'] and kwargs['genreold']:
+                genredict[makeUnicode(kwargs['genreold'])] = makeUnicode(kwargs['genrenew'])
+                genre_changes += 'new-entry '
+
+        dicts_same = False
+        if len(lazylibrarian.GRGENRES['genreReplace']) != len(genredict):
+            genre_changes += 'dict-length '
+        else:
+            shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k] for k in lazylibrarian.GRGENRES['genreReplace']
+                            if k in genredict and lazylibrarian.GRGENRES['genreReplace'][k] == genredict[k]}
+            if len(shared_items) != len(genredict):
+                genre_changes += 'shared-values '
+            else:
+                dicts_same = True
+
+        if not dicts_same:
+            lazylibrarian.GRGENRES['genreReplace'] = genredict
+
+        if genre_changes:
+            logger.debug("Genre changes: %s" % genre_changes)
+            logger.debug("Writing out new genres.json")
+            newdict = {
+                'genreLimit': lazylibrarian.GRGENRES['genreLimit'],
+                'genreUsers': lazylibrarian.GRGENRES['genreUsers'],
+                'genreExclude': lazylibrarian.GRGENRES['genreExclude'],
+                'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
+                'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
+                }
+            with open(os.path.join(lazylibrarian.DATADIR, 'genres.json'), 'w') as f:
+                json.dump(newdict, f, indent=4)
+            logger.debug("Applying genre changes")
+            check_db(myDB)
+
+        # now the non-config options
         if 'current_tab' in kwargs:
             lazylibrarian.CURRENT_TAB = kwargs['current_tab']
 

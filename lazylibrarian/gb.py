@@ -224,8 +224,7 @@ class GoogleBooks:
                                 'author_fuzz': author_fuzz,
                                 'book_fuzz': book_fuzz,
                                 'isbn_fuzz': isbn_fuzz,
-                                'highest_fuzz': highest_fuzz,
-                                'num_reviews': book['ratings']
+                                'highest_fuzz': highest_fuzz
                             })
 
                             resultcount += 1

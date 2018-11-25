@@ -826,6 +826,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                 time.sleep(1)
             if results and 'items' in results:
                 high_fuzz = 0
+                high_parts = []
                 for item in results['items']:
                     res = googleBookDict(item)
                     book_fuzz = fuzz.token_set_ratio(res['name'], title)
@@ -833,10 +834,11 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                     total_fuzz = int(book_fuzz + auth_fuzz) / 2
                     if total_fuzz > high_fuzz:
                         high_fuzz = total_fuzz
-                    if book_fuzz < 98:
+                        high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
+                    if book_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                             logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
-                    elif auth_fuzz < 80:
+                    elif auth_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                             logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                     else:
@@ -845,8 +847,11 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                     stype = 'isbn result'
                 else:
                     stype = 'inauthor:intitle result'
-                logger.debug("No GoogleBooks match in %d %s%s (%d%%) cached=%s" %
-                             (len(results['items']), stype, plural(len(results['items'])), high_fuzz, cached))
+                logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s" %
+                             (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
+                              high_parts[1], cached))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                    logger.debug(high_parts)
     return {}
 
 
@@ -866,8 +871,7 @@ def googleBookDict(item):
         ('desc', 'description', None, 'Not available'),
         ('link', 'canonicalVolumeLink', None, ''),
         ('img', 'imageLinks', 'thumbnail', 'images/nocover.png'),
-        ('genre', 'categories', 0, ''),
-        ('ratings', 'ratingsCount', None, 0)
+        ('genre', 'categories', 0, '')
     ]:
         try:
             if idx2 is None:
@@ -893,7 +897,6 @@ def googleBookDict(item):
     # There may be others...
     #
     try:
-
         seriesNum, series = mydict['sub'].split('Book ')[1].split(' of ')
     except (IndexError, ValueError):
         series = ""

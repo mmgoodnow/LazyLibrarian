@@ -381,7 +381,19 @@ def check_db(myDB):
                     if not newmatch:
                         myDB.action('INSERT into genres (GenreName) VALUES (?)', (newitem,))
                         newmatch = myDB.match('SELECT GenreID from genres where GenreName=?', (newitem,))
-                    myDB.action('UPDATE genrebooks SET GenreID=? WHERE GenreID=?', (newmatch, match))
+                    res = myDB.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
+                    for bk in res:
+                        cmd = 'select genrename from genres,genrebooks,books where genres.genreid=genrebooks.genreid '
+                        cmd += ' and books.bookid=genrebooks.bookid and books.bookid=? and genres.genreid !=?'
+                        bkgenres = myDB.select(cmd, (bk['bookid'], match['GenreID']))
+                        lst = []
+                        for gnr in bkgenres:
+                            lst.append(gnr['genrename'])
+                        if newitem not in lst:
+                            lst.append(newitem)
+                        myDB.action("UPDATE books SET BookGenre=? WHERE BookID=?", (', '.join(lst), bk['bookid']))
+                    myDB.action('UPDATE genrebooks SET GenreID=? WHERE GenreID=?',
+                                (newmatch['GenreID'], match['GenreID']), suppress='UNIQUE')
 
         # remove genres with no books
         cmd = 'select GenreID, (select count(*) as counter from genrebooks where genres.genreid = genrebooks.genreid)'

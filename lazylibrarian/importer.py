@@ -422,5 +422,5 @@ def search_for(searchterm):
 
     search_api.join()
     searchresults = myqueue.get()
-    sortedlist = sorted(searchresults, key=itemgetter('highest_fuzz', 'num_reviews'), reverse=True)
+    sortedlist = sorted(searchresults, key=itemgetter('highest_fuzz', 'bookrate_count'), reverse=True)
     return sortedlist
