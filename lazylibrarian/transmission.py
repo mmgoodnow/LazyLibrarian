@@ -306,7 +306,15 @@ def torrentAction(method, arguments):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Using existing session_id %s' % session_id)
     else:
-        response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('Requesting session_id')
+        try:
+            response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout)
+        except Exception as e:
+            res = 'Transmission %s: %s' % (type(e).__name__, str(e))
+            logger.error(res)
+            return False, res
+
         if response is None:
             res = "Error getting Transmission session ID"
             logger.error(res)
