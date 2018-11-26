@@ -324,7 +324,7 @@ class WebInterface(object):
                         if 'configTab' in list(cookie.keys()):
                             tab = check_int(cookie['configTab'].value, 1)
                             tabs = ['interface', 'importing', 'downloaders', 'providers', 'processing',
-                                    'notifications', 'categories', 'filters']
+                                    'notifications', 'categories', 'filters', 'genres']
                             try:
                                 page = 'config_' + tabs[tab - 1]
                             except IndexError:
