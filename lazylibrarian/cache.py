@@ -213,6 +213,9 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 source = json.load(open(hashfilename))
             except ValueError:
                 logger.error("Error decoding json from %s" % hashfilename)
+                # normally delete bad data, but keep for inspection if debug logging cache
+                if not (lazylibrarian.LOGLEVEL & lazylibrarian.log_cache):
+                    os.remove(hashfilename)
                 return None, False
         elif cache == "XML":
             with open(hashfilename, "rb") as cachefile:
@@ -233,7 +236,9 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                     source = None
             if source is None:
                 logger.error("Error reading xml from %s" % hashfilename)
-                os.remove(hashfilename)
+                # normally delete bad data, but keep for inspection if debug logging cache
+                if not (lazylibrarian.LOGLEVEL & lazylibrarian.log_cache):
+                    os.remove(hashfilename)
                 return None, False
     else:
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
