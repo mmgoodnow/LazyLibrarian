@@ -906,16 +906,15 @@ def logHeader():
         value = str(result[0])
         if value.isdigit():
             db_version = int(value)
+    uname = platform.uname()
     header += "db version: %s\n" % db_version
     header += "Python version: %s\n" % sys.version.split('\n')
-    # noinspection PyDeprecation
-    header += "Distribution: %s\n" % str(platform.dist())
-    header += "System: %s\n" % str(platform.system())
-    header += "Machine: %s\n" % str(platform.machine())
-    header += "Platform: %s\n" % str(platform.platform())
-    header += "uname: %s\n" % str(platform.uname())
-    header += "version: %s\n" % str(platform.version())
-    header += "mac_ver: %s\n" % str(platform.mac_ver())
+    header += "uname: %s\n" % str(uname)
+    header += "Platform: %s\n" % platform.platform(aliased=True)
+    if uname[0] == 'Darwin':
+        header += "mac_ver: %s\n" % str(platform.mac_ver())
+    elif uname[0] == 'Windows':
+        header += "win_ver: %s\n" % str(platform.win32_ver())
     if 'urllib3' in globals():
         header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
     else:

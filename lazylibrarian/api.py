@@ -589,7 +589,7 @@ class Api(object):
             data = get_gb_info(isbn, auth, book, expire=expire)
             if data and data['genre']:
                 genre += 1
-                logger.debug("Updated genre for %s:%s" % (auth, book))
+                logger.debug("Updated genre for %s:%s [%s]" % (auth, book, data['genre']))
                 myDB.action('UPDATE books SET bookgenre=? WHERE bookid=?', (data['genre'], item['BookID']))
             elif data is None:
                 for entry in lazylibrarian.PROVIDER_BLOCKLIST:
