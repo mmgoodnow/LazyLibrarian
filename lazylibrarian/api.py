@@ -539,7 +539,8 @@ class Api(object):
         descs = 0
         cnt = 0
         logger.debug("Checking description for %s book%s" % (len(res), plural(len(res))))
-        data = ''
+        # ignore all errors except blocked (not found etc)
+        blocked = False
         for item in res:
             cnt += 1
             isbn = item['BookISBN']
@@ -550,11 +551,16 @@ class Api(object):
                 descs += 1
                 logger.debug("Updated description for %s:%s" % (auth, book))
                 myDB.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
-            elif data is None:
-                break
+            elif data is None:  # error, see if it's because we are blocked
+                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
+                    if entry["name"] == 'googleapis':
+                        blocked = True
+                        break
+                if blocked:
+                    break
         msg = "Scanned %d book%s, found %d new description%s from %d" % \
               (cnt, plural(cnt), descs, plural(descs), len(res))
-        if data is None:
+        if blocked:
             msg += ': Access Blocked'
         self.data = msg
         logger.info(self.data)
@@ -573,7 +579,8 @@ class Api(object):
         genre = 0
         cnt = 0
         logger.debug("Checking genre for %s book%s" % (len(res), plural(len(res))))
-        data = ''
+        # ignore all errors except blocked (not found etc)
+        blocked = False
         for item in res:
             cnt += 1
             isbn = item['BookISBN']
@@ -585,10 +592,14 @@ class Api(object):
                 logger.debug("Updated genre for %s:%s" % (auth, book))
                 myDB.action('UPDATE books SET bookgenre=? WHERE bookid=?', (data['genre'], item['BookID']))
             elif data is None:
-                self.data = "Error reading genre, see debug log"
-                break
+                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
+                    if entry["name"] == 'googleapis':
+                        blocked = True
+                        break
+                if blocked:
+                    break
         msg = "Scanned %d book%s, found %d new genre%s from %d" % (cnt, plural(cnt), genre, plural(genre), len(res))
-        if data is None:
+        if blocked:
             msg += ': Access Blocked'
         self.data = msg
         logger.info(self.data)
