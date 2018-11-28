@@ -847,9 +847,14 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                     stype = 'isbn result'
                 else:
                     stype = 'inauthor:intitle result'
-                logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s" %
-                             (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
-                              high_parts[1], cached))
+                if high_parts:
+                    logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s" %
+                                 (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
+                                  high_parts[1], cached))
+                else:
+                    logger.debug("No GoogleBooks match in %d %s%s cached=%s" %
+                                 (len(results['items']), stype, plural(len(results['items'])), cached))
+
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                     logger.debug(high_parts)
     return {}
