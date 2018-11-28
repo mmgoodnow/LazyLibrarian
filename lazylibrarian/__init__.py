@@ -1630,7 +1630,8 @@ def logmsg(level, msg):
 
 def shutdown(restart=False, update=False):
     cherrypy.engine.exit()
-    SCHED.shutdown(wait=False)
+    if SCHED:
+        SCHED.shutdown(wait=False)
     # config_write() don't automatically rewrite config on exit
 
     if not restart and not update:
