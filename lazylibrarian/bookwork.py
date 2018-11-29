@@ -1080,10 +1080,10 @@ def get_gr_genres(bookid, refresh=False):
     cnt = genreLimit
     genres = []
     for item in res:
-        if item not in genreExclude:
-            if item in genreReplace:
-                item = genreReplace[item]
+        if item in genreReplace:  # replace first so we can merge and then exclude on results
+            item = genreReplace[item]
 
+        if item not in genreExclude:
             reject = False
             # reject to-read, not-read, read-2017 etc...
             for entry in genreExcludeParts:
