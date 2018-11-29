@@ -171,7 +171,7 @@ def dbupgrade(db_current_version):
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
                                 'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT)')
                     myDB.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
-                    myDB.action('CREATE TABLE genres (GenreID INTEGER UNIQUE, GenreName TEXT)')
+                    myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, GenreName TEXT UNIQUE)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -196,7 +196,7 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
                                     'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
                                     'Count INTEGER DEFAULT 0)')
-                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, ' +
+                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
                                     'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'UNIQUE (GenreID,BookID))')
                     else:
@@ -382,6 +382,7 @@ def check_db(myDB):
                     cnt += 1
                     msg = 'Removing excluded genre [%s]' % item
                     logger.warn(msg)
+                    myDB.action('DELETE from genrebooks WHERE GenreID=?', (match['GenreID'],))
                     myDB.action('DELETE from genres WHERE GenreID=?', (match['GenreID'],))
             for item in lazylibrarian.GRGENRES['genreExcludeParts']:
                 cmd = 'SELECT GenreID,GenreName from genres where GenreName like "%' + item + '%" COLLATE NOCASE'
@@ -1386,7 +1387,7 @@ def db_v47(myDB, upgradelog):
     if not has_column(myDB, "genres", "GenreID"):
         myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, GenreName TEXT UNIQUE)')
         if lazylibrarian.FOREIGN_KEY:
-            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID), ' +
+            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
                         'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                         'UNIQUE (GenreID,BookID))')
         else:
