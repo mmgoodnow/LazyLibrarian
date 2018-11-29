@@ -19,7 +19,6 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
     makeUnicode, makeBytestr, multibook
-from lib.six import PY2
 
 try:
     from lib.tinytag import TinyTag
@@ -276,11 +275,7 @@ def audioProcess(bookid, rename=False, playlist=False):
 
     if playlist:
         try:
-            if PY2:
-                fmode = 'wb'
-            else:
-                fmode = 'w'
-            playlist = open(os.path.join(r, 'playlist.ll'), fmode)
+            playlist = open(os.path.join(r, 'playlist.ll'), 'wb')
         except Exception as why:
             logger.error('Unable to create playlist in %s: %s' % (r, why))
             playlist = None
@@ -294,12 +289,12 @@ def audioProcess(bookid, rename=False, playlist=False):
         pattern = pattern + os.path.splitext(part[3])[1]
         if playlist:
             if rename:
-                playlist.write("%s\n" % pattern)
+                playlist.write("%s\n" % makeBytestr(pattern))
             else:
-                playlist.write("%s\n" % part[3])
+                playlist.write("%s\n" % makeBytestr(part[3]))
         if rename:
-            n = os.path.join(r, pattern)
-            o = os.path.join(r, part[3])
+            n = os.path.join(makeUnicode(r), makeUnicode(pattern))
+            o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
             if o != n:
                 try:
                     n = safe_move(o, n)
