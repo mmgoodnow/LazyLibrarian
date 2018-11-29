@@ -673,6 +673,7 @@ class GoodReads:
                                     if aid != authorid:
                                         logger.warn("Author %s has different authorid %s:%s" % (anm, aid, authorid))
                                     if role is None or 'author' in role.lower() or \
+                                            'writer' in role.lower() or \
                                             'creator' in role.lower() or \
                                             'pseudonym' in role.lower() or \
                                             'pen name' in role.lower():
