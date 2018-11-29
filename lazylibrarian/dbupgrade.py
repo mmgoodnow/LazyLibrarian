@@ -24,6 +24,7 @@ from lazylibrarian.common import restartJobs, pwd_generator
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8, getList
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
+from lazylibrarian.bookwork import setGenres
 
 
 def upgrade_needed():
@@ -171,7 +172,8 @@ def dbupgrade(db_current_version):
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
                                 'CalibreRead TEXT, CalibreToRead TEXT, BookType TEXT, SendTo TEXT)')
                     myDB.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
-                    myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, GenreName TEXT UNIQUE)')
+                    myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, ' +
+                                'GenreName TEXT UNIQUE)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -196,8 +198,8 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
                                     'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
                                     'Count INTEGER DEFAULT 0)')
-                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
-                                    'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ' +
+                                    'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'UNIQUE (GenreID,BookID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
@@ -407,17 +409,16 @@ def check_db(myDB):
                     res = myDB.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
                     for bk in res:
                         cmd = 'select genrename from genres,genrebooks,books where genres.genreid=genrebooks.genreid '
-                        cmd += ' and books.bookid=genrebooks.bookid and books.bookid=? and genres.genreid !=?'
-                        bkgenres = myDB.select(cmd, (bk['bookid'], match['GenreID']))
+                        cmd += ' and books.bookid=genrebooks.bookid and books.bookid=?'
+                        bkgenres = myDB.select(cmd, (bk['bookid'],))
                         lst = []
                         for gnr in bkgenres:
                             lst.append(gnr['genrename'])
+                        if item in lst:
+                            lst.remove(item)
                         if newitem not in lst:
                             lst.append(newitem)
-                        myDB.action("UPDATE books SET BookGenre=? WHERE BookID=?", (', '.join(lst), bk['bookid']))
-                    myDB.action('UPDATE genrebooks SET GenreID=? WHERE GenreID=?',
-                                (newmatch['GenreID'], match['GenreID']), suppress='UNIQUE')
-
+                        setGenres(lst, bk['bookid'])
         # remove genres with no books
         cmd = 'select GenreID, (select count(*) as counter from genrebooks where genres.genreid = genrebooks.genreid)'
         cmd += ' as cnt from genres where cnt = 0'
