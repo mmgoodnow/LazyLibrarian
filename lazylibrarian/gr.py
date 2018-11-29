@@ -802,7 +802,7 @@ class GoodReads:
                                                 logger.debug("No description from googlebooks")
                                         if not bookgenre:
                                             if infodict and infodict['genre']:
-                                                bookgenre = infodict['genre']
+                                                bookgenre = infodict['genre'].replace(',', '')
                                                 logger.debug("Updated genre from googlebooks")
                                             else:
                                                 logger.debug("No genre from googlebooks")
@@ -1190,7 +1190,7 @@ class GoodReads:
                     bookdesc = 'No Description'
                 if not bookgenre:
                     if infodict and infodict['genre']:
-                        bookgenre = infodict['genre']
+                        bookgenre = infodict['genre'].replace(',', '')
                     else:
                         bookgenre = 'Unknown'
         controlValueDict = {"BookID": bookid}

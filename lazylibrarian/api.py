@@ -28,7 +28,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audioProcess, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
-    setWorkID, get_gb_info
+    setWorkID, get_gb_info, setGenres
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.common import clearLog, cleanCache, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
@@ -589,8 +589,8 @@ class Api(object):
             data = get_gb_info(isbn, auth, book, expire=expire)
             if data and data['genre']:
                 genre += 1
-                logger.debug("Updated genre for %s:%s [%s]" % (auth, book, data['genre']))
-                myDB.action('UPDATE books SET bookgenre=? WHERE bookid=?', (data['genre'], item['BookID']))
+                logger.debug("Updated genre for %s:%s [%s]" % (auth, book, data['genre'].replace(',', '')))
+                setGenres([data['genre'].replace(',', '')], item['BookID'])
             elif data is None:
                 for entry in lazylibrarian.PROVIDER_BLOCKLIST:
                     if entry["name"] == 'googleapis':

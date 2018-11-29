@@ -799,7 +799,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
     """ GoodReads does not always have a book description in its api results
-        due to restrictive TOS from some of its providers, and goodreads doesn't have genre.
+        due to restrictive TOS from some of its providers, and goodreads may not have genre
         Try to get missing info from googlebooks
         Return info dictionary, None if error"""
     if not author or not title:
