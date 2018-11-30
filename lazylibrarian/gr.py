@@ -25,7 +25,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
     setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_gb_info, \
-    get_gr_genres, setGenres
+    get_gr_genres, setGenres, genreFilter
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, bookSeries, unaccented, split_title, getList, \
@@ -408,7 +408,6 @@ class GoodReads:
                 logger.warn('[%s] No books found for author with ID: %s' % (authorname, authorid))
             else:
                 logger.debug("[%s] Now processing books with GoodReads API" % authorname)
-                logger.debug("url " + URL)
                 authorNameResult = rootxml.find('./author/name').text
                 # Goodreads sometimes puts extra whitespace in the author names!
                 authorNameResult = ' '.join(authorNameResult.split())
@@ -803,7 +802,7 @@ class GoodReads:
                                                 logger.debug("No description from googlebooks")
                                         if not bookgenre:
                                             if infodict and infodict['genre']:
-                                                bookgenre = infodict['genre'].replace(',', '')
+                                                bookgenre = genreFilter(infodict['genre'])
                                                 logger.debug("Updated genre from googlebooks")
                                             else:
                                                 logger.debug("No genre from googlebooks")
@@ -1191,7 +1190,7 @@ class GoodReads:
                     bookdesc = 'No Description'
                 if not bookgenre:
                     if infodict and infodict['genre']:
-                        bookgenre = infodict['genre'].replace(',', '')
+                        bookgenre = genreFilter(infodict['genre'])
                     else:
                         bookgenre = 'Unknown'
         controlValueDict = {"BookID": bookid}

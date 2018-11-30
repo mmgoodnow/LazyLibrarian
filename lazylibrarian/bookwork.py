@@ -941,6 +941,7 @@ def googleBookDict(item):
 
     mydict['series'] = series
     mydict['seriesNum'] = seriesNum
+    mydict['genre'] = genreFilter(mydict['genre'])
     return mydict
 
 
@@ -1034,21 +1035,69 @@ def setGenres(genrelist=None, bookid=None):
         myDB.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
 
 
-def get_gr_genres(bookid, refresh=False):
+def genreFilter(genre):
+    """
+        Filter/replace genre name
+        Return new genre name or empty string if rejected
+    """
+
+    try:  # google genres sometimes contain commas which we use as list separator
+        genre = ' '.join(genre.replace(',', ' ').split())
+    except AttributeError:
+        return ""
+
+    if not genre:
+        return ""
+
     if lazylibrarian.GRGENRES:
-        genreLimit = lazylibrarian.GRGENRES['genreLimit']
-        genreUsers = lazylibrarian.GRGENRES['genreUsers']
         genreExclude = lazylibrarian.GRGENRES['genreExclude']
         genreExcludeParts = lazylibrarian.GRGENRES['genreExcludeParts']
         genreReplace = lazylibrarian.GRGENRES['genreReplace']
     else:
-        genreLimit = 3
-        genreUsers = 10
         genreExclude = []
         genreExcludeParts = []
         genreReplace = {}
 
-    myDB = database.DBConnection()
+    g_lower = genre.lower()
+    # do replacements first so we can merge and then exclude on results
+    for item in genreReplace:
+        if item.lower() == g_lower:
+            genre = genreReplace[item]
+            g_lower = genre.lower()
+            break
+
+    for item in genreExclude:
+        if item.lower() == g_lower:
+            return ""
+
+    for item in genreExcludeParts:
+        if item.lower() in g_lower:
+            return ""
+
+    # try to reject author names, check both tom-holt and holt-tom
+    words = genre.replace('-', ' ').rsplit(None, 1)
+    if len(words) == 2:
+        myDB = database.DBConnection()
+        res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                         ("%s %s" % (words[0], words[1]),))
+        if len(res):
+            return ""
+
+        res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
+                         ("%s %s" % (words[1], words[0]),))
+        if len(res):
+            return ""
+    return genre
+
+
+def get_gr_genres(bookid, refresh=False):
+    if lazylibrarian.GRGENRES:
+        genreUsers = lazylibrarian.GRGENRES['genreUsers']
+        genreLimit = lazylibrarian.GRGENRES['genreLimit']
+    else:
+        genreUsers = 10
+        genreLimit = 3
+
     URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
     genres = []
     try:
@@ -1080,34 +1129,12 @@ def get_gr_genres(bookid, refresh=False):
     cnt = genreLimit
     genres = []
     for item in res:
-        if item in genreReplace:  # replace first so we can merge and then exclude on results
-            item = genreReplace[item]
-
-        if item not in genreExclude:
-            reject = False
-            # reject to-read, not-read, read-2017 etc...
-            for entry in genreExcludeParts:
-                if entry in item:
-                    reject = True
-                    break
-            if not reject:
-                # try to reject author names, check both tom-holt and holt-tom
-                words = item.replace('-', ' ').split()
-                if len(words) == 2:
-                    res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                                     ("%s %s" % (words[0], words[1]),))
-                    if len(res):
-                        reject = True
-                    else:
-                        res = myDB.match('SELECT authorid from authors WHERE authorname=? COLLATE NOCASE',
-                                         ("%s %s" % (words[1], words[0]),))
-                        if len(res):
-                            reject = True
-                if not reject and item not in genres:
-                    genres.append(item)
-                    cnt -= 1
-                    if not cnt:
-                        break
+        item = genreFilter(item)
+        if item and item not in genres:
+            genres.append(item)
+            cnt -= 1
+            if not cnt:
+                break
     logger.debug("GoodReads bookid %s %d from %d genre%s, cached=%s" %
                  (bookid, len(genres), len(res), plural(len(res)), in_cache))
     return genres, in_cache
