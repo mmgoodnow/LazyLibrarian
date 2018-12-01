@@ -216,11 +216,15 @@ def GEN(book=None, prov=None, test=False):
                                         elif '/download/book' in output:
                                             url = '/download/book' + output.split('/download/book')[1]
                                             break
+                                        elif output.startswith('http') and '/download' in output:
+                                            url = output
+                                            break
 
-                                if url and not url.startswith('http'):
-                                    url = url_fix(host + url)
-                                else:
-                                    url = redirect_url(host, url)
+                                if url:
+                                    if not url.startswith('http'):
+                                        url = url_fix(host + url)
+                                    else:
+                                        url = redirect_url(host, url)
                             except Exception as e:
                                 logger.error('%s parsing bookresult for %s: %s' % (type(e).__name__, link, str(e)))
                                 url = None
