@@ -172,7 +172,6 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
 
         logger.debug("File download got %s bytes for %s" % (len(r.content), dl_title))
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
-        # destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), '%s LL.(%s)' % (basename, bookid))
         if not os.path.isdir(destdir):
             _ = mymakedirs(destdir)
 
@@ -185,7 +184,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
 
         if os.name == 'nt':  # Windows has max path length of 256
             destfile = '\\\\?\\' + destfile
-            
+
         try:
             with open(destfile, 'wb') as bookfile:
                 bookfile.write(r.content)
@@ -366,6 +365,15 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
     if lazylibrarian.CONFIG['TOR_DOWNLOADER_RTORRENT'] and lazylibrarian.CONFIG['RTORRENT_HOST']:
         logger.debug("Sending %s to rTorrent" % tor_title)
         Source = "RTORRENT"
+        if not torrent and tor_url.startswith('magnet:?'):
+            logger.debug("Converting magnet to data for rTorrent")
+            torrentfile = magnet2torrent(tor_url)
+            if torrentfile:
+                with open(torrentfile, 'rb') as f:
+                    torrent = f.read()
+                os.remove(torrentfile)
+            if not torrent:
+                logger.debug("Unable to convert magnet")
         if torrent:
             logger.debug("Sending %s data to rTorrent" % tor_title)
             downloadID, res = rtorrent.addTorrent(tor_title, hashid, data=torrent)
@@ -498,7 +506,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                     myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                 (rejected, full_url))
                     delete_task(Source, downloadID, True)
-                    return False
+                    return False, rejected
                 else:
                     logger.debug('%s setting torrent name to [%s]' % (Source, tor_title))
                     myDB.action('UPDATE wanted SET NZBtitle=? WHERE NZBurl=?', (tor_title, full_url))

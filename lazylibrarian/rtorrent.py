@@ -24,7 +24,7 @@ def getServer():
     host = lazylibrarian.CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
-        return False
+        return False, ''
 
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
@@ -40,31 +40,38 @@ def getServer():
     try:
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
         server = xmlrpc_client.ServerProxy(host)
-        result = server.system.client_version()
+        version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        logger.debug("rTorrent client version = %s" % result)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("rTorrent client version = %s" % version)
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed
         logger.error("xmlrpc_client error: %s" % repr(e))
-        return False
-    if result:
-        return server
+        return False, ''
+    if version:
+        return server, version
     else:
         logger.warn('No response from rTorrent server')
-        return False
+        return False, ''
 
 
 def addTorrent(tor_url, hashID, data=None):
-    server = getServer()
+    server, version = getServer()
     if server is False:
         return False, 'rTorrent unable to connect to server'
     try:
         if data:
             logger.debug('Sending rTorrent content [%s...]' % str(data)[:40])
-            _ = server.load_raw(xmlrpc_client.Binary(data))
+            if version.startswith('0.9') or version.startswith('1.'):
+                _ = server.load.raw('', xmlrpc_client.Binary(data))
+            else:
+                _ = server.load_raw(xmlrpc_client.Binary(data))
         else:
             logger.debug('Sending rTorrent url [%s...]' % str(tor_url)[:40])
-            _ = server.load(tor_url)  # response isn't anything useful, always 0
+            if version.startswith('0.9') or version.startswith('1.'):
+                _ = server.load.normal('', tor_url)  # response isn't anything useful, always 0
+            else:
+                _ = server.load(tor_url)
         # need a short pause while rtorrent loads it
         RETRIES = 5
         while RETRIES:
@@ -77,11 +84,17 @@ def addTorrent(tor_url, hashID, data=None):
 
         label = lazylibrarian.CONFIG['RTORRENT_LABEL']
         if label:
-            server.d.set_custom1(hashID, label)
+            if version.startswith('0.9') or version.startswith('1.'):
+                server.d.custom1.set(hashID, label)
+            else:
+                server.d.set_custom1(hashID, label)
 
         directory = lazylibrarian.CONFIG['RTORRENT_DIR']
         if directory:
-            server.d.set_directory(hashID, directory)
+            if version.startswith('0.9') or version.startswith('1.'):
+                server.d.directory.set(hashID, directory)
+            else:
+                server.d.set_directory(hashID, directory)
 
         server.d.start(hashID)
 
@@ -93,8 +106,13 @@ def addTorrent(tor_url, hashID, data=None):
     # wait a while for download to start, that's when rtorrent fills in the name
     name = getName(hashID)
     if name:
-        directory = server.d.get_directory(hashID)
-        label = server.d.get_custom1(hashID)
+        if version.startswith('0.9') or version.startswith('1.'):
+            directory = server.d.directory(hashID)
+            label = server.d.custom1(hashID)
+        else:
+            directory = server.d.get_directory(hashID)
+            label = server.d.get_custom1(hashID)
+
         if label:
             logger.debug('rTorrent downloading %s to %s with label %s' % (name, directory, label))
         else:
@@ -104,7 +122,7 @@ def addTorrent(tor_url, hashID, data=None):
 
 
 def getProgress(hashID):
-    server = getServer()
+    server, _ = getServer()
     if server is False:
         return 0, 'error'
     mainview = server.download_list("", "main")
@@ -117,7 +135,7 @@ def getProgress(hashID):
 
 
 def getFiles(hashID):
-    server = getServer()
+    server, _ = getServer()
     if server is False:
         return []
 
@@ -138,7 +156,7 @@ def getFiles(hashID):
 
 
 def getName(hashID):
-    server = getServer()
+    server, version = getServer()
     if server is False:
         return False
 
@@ -148,7 +166,10 @@ def getName(hashID):
             RETRIES = 5
             name = ''
             while RETRIES:
-                name = server.d.get_name(tor)
+                if version.startswith('0.9') or version.startswith('1.'):
+                    name = server.d.name(tor)
+                else:
+                    name = server.d.get_name(tor)
                 if tor.upper() not in name:
                     break
                 sleep(5)
@@ -159,7 +180,7 @@ def getName(hashID):
 
 # noinspection PyUnusedLocal
 def removeTorrent(hashID, remove_data=False):
-    server = getServer()
+    server, _ = getServer()
     if server is False:
         return False
 
@@ -171,7 +192,7 @@ def removeTorrent(hashID, remove_data=False):
 
 
 def checkLink():
-    server = getServer()
+    server, version = getServer()
     if server is False:
         return "rTorrent login FAILED\nCheck debug log"
-    return "rTorrent login successful"
+    return "rTorrent login successful: rTorrent %s" % version
