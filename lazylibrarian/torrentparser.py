@@ -16,10 +16,10 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix
+from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, now
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote, urlencode
+from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
 
 if PY2:
     from lib.bs4 import BeautifulSoup
@@ -36,7 +36,7 @@ def TPB(book=None, test=False):
     if not host.startswith('http'):
         host = 'http://' + host
 
-    providerurl = url_fix(host + "/s/?")
+    providerurl = url_fix(host + "/search/")
 
     cat = 0  # 601=ebooks, 102=audiobooks, 0=all, no mag category
     if 'library' in book:
@@ -49,21 +49,14 @@ def TPB(book=None, test=False):
 
     sterm = makeUnicode(book['searchterm'])
 
-    page = 0
+    page = 1
     results = []
     minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
     next_page = True
 
     while next_page:
 
-        params = {
-            "q": book['searchterm'],
-            "category": cat,
-            "page": page,
-            "orderby": "99"
-        }
-
-        searchURL = providerurl + "?%s" % urlencode(params)
+        searchURL = providerurl + "%s/%s/99/%s" % (quote_plus(book['searchterm']), page, cat)
 
         next_page = False
         result, success = fetchURL(searchURL)
@@ -106,6 +99,19 @@ def TPB(book=None, test=False):
                         size = size.replace('&nbsp;', '')
                         size = size_in_bytes(size)
                         try:
+                            tor_date = td[1].text.split('Uploaded ')[1].split(',')[0]
+                        except IndexError:
+                            tor_date = ''
+                        if tor_date:
+                            m = tor_date[:2]
+                            d = tor_date[3:5]
+                            y = tor_date[-4:]
+                            t = ''
+                            if ':' in y:
+                                y = now()[:4]
+                                t = tor_date[-6:]
+                            tor_date = "%s-%s-%s%s" % (y, m, d, t)
+                        try:
                             seeders = int(td[2].text.replace(',', ''))
                         except ValueError:
                             seeders = 0
@@ -131,7 +137,7 @@ def TPB(book=None, test=False):
                             if not magnet or not title:
                                 logger.debug('Missing magnet or title')
                             else:
-                                results.append({
+                                res = {
                                     'bookid': book['bookid'],
                                     'tor_prov': provider,
                                     'tor_title': title,
@@ -139,7 +145,11 @@ def TPB(book=None, test=False):
                                     'tor_size': str(size),
                                     'tor_type': 'magnet',
                                     'priority': lazylibrarian.CONFIG['TPB_DLPRIORITY']
-                                })
+                                }
+                                if tor_date:
+                                    res['tor_date'] = tor_date
+                                results.append(res)
+
                                 logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
                                 next_page = True
                         else:
@@ -148,10 +158,11 @@ def TPB(book=None, test=False):
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-        page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
+        else:
+            page += 1
 
     logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
     return results, errmsg
