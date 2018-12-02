@@ -29,9 +29,9 @@ from lazylibrarian.bookrename import audioProcess, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
     setWorkID, get_gb_info, setGenres, genreFilter
-from lazylibrarian.cache import cache_img
+from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
-from lazylibrarian.common import clearLog, cleanCache, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
+from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
     logHeader, authorUpdate, showStats
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, makeUnicode, makeBytestr, replace_all

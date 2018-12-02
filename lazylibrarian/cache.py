@@ -23,9 +23,9 @@ except ImportError:
 from lib.six import PY2
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.common import getUserAgent, proxyList
-from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, makeUnicode, seconds_to_midnight
+from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, makeUnicode, seconds_to_midnight, plural
 
 
 def gr_api_sleep():
@@ -294,3 +294,226 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 time.sleep(1)
             return None, False
     return source, valid_cache
+
+
+def cleanCache():
+    """ Remove unused files from the cache - delete if expired or unused.
+        Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine
+        Check covers and authorimages referenced in the database exist and change database entry if missing """
+
+    myDB = database.DBConnection()
+    result = []
+    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    cache = os.path.join(lazylibrarian.CACHEDIR, "JSONCache")
+    cleaned = 0
+    kept = 0
+    if expiry and os.path.isdir(cache):
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    cache_modified_time = os.stat(target).st_mtime
+                    time_now = time.time()
+                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
+                        # Cache is old, delete entry
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i expired file%s from JSONCache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    cache = os.path.join(lazylibrarian.CACHEDIR, "XMLCache")
+    cleaned = 0
+    kept = 0
+    if expiry and os.path.isdir(cache):
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    cache_modified_time = os.stat(target).st_mtime
+                    time_now = time.time()
+                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
+                        # Cache is old, delete entry
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i expired file%s from XMLCache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
+    cleaned = 0
+    kept = 0
+    if os.path.isdir(cache):
+        for i in '0123456789abcdef':
+            for j in '0123456789abcdef':
+                for cached_file in os.listdir(makeBytestr(os.path.join(cache, i, j))):
+                    cached_file = makeUnicode(cached_file)
+                    target = os.path.join(cache, i, j, cached_file)
+                    try:
+                        bookid = cached_file.split('.')[0]
+                    except IndexError:
+                        logger.error('Clean Cache: Error splitting %s' % cached_file)
+                        continue
+                    item = myDB.match('select BookID from books where BookID=?', (bookid,))
+                    if not item:
+                        # WorkPage no longer referenced in database, delete cached_file
+                        os.remove(target)
+                        cleaned += 1
+                    else:
+                        kept += 1
+    msg = "Cleaned %i orphan file%s from WorkCache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    cache = os.path.join(lazylibrarian.CACHEDIR, "SeriesCache")
+    cleaned = 0
+    kept = 0
+    if os.path.isdir(cache):
+        for cached_file in os.listdir(makeBytestr(cache)):
+            cached_file = makeUnicode(cached_file)
+            target = os.path.join(cache, cached_file)
+            try:
+                seriesid = cached_file.split('.')[0]
+            except IndexError:
+                logger.error('Clean Cache: Error splitting %s' % cached_file)
+                continue
+            item = myDB.match('select SeriesID from series where SeriesID=?', (seriesid,))
+            if not item:
+                # SeriesPage no longer referenced in database, delete cached_file
+                os.remove(target)
+                cleaned += 1
+            else:
+                kept += 1
+    msg = "Cleaned %i orphan file%s from SeriesCache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    cache = os.path.join(lazylibrarian.CACHEDIR, "magazine")
+    cleaned = 0
+    kept = 0
+    if os.path.isdir(cache):
+        # we can clear the magazine cache, it gets rebuilt as required
+        # this does not delete our magazine cover files, only the small cached copy
+        for cached_file in os.listdir(makeBytestr(cache)):
+            cached_file = makeUnicode(cached_file)
+            target = os.path.join(cache, cached_file)
+            if target.endswith('.jpg'):
+                os.remove(target)
+                cleaned += 1
+            else:
+                kept += 1
+    msg = "Cleaned %i temporary file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    cache = lazylibrarian.CACHEDIR
+    cleaned = 0
+    kept = 0
+    cachedir = os.path.join(cache, 'author')
+    if os.path.isdir(cachedir):
+        for cached_file in os.listdir(makeBytestr(cachedir)):
+            cached_file = makeUnicode(cached_file)
+            target = os.path.join(cachedir, cached_file)
+            if os.path.isfile(target):
+                try:
+                    imgid = cached_file.split('.')[0].rsplit(os.path.sep)[-1]
+                except IndexError:
+                    logger.error('Clean Cache: Error splitting %s' % cached_file)
+                    continue
+                item = myDB.match('select AuthorID from authors where AuthorID=?', (imgid,))
+                if not item:
+                    # Author Image no longer referenced in database, delete cached_file
+                    os.remove(target)
+                    cleaned += 1
+                else:
+                    kept += 1
+    cachedir = os.path.join(cache, 'book')
+    if os.path.isdir(cachedir):
+        for cached_file in os.listdir(makeBytestr(cachedir)):
+            cached_file = makeUnicode(cached_file)
+            target = os.path.join(cachedir, cached_file)
+            if os.path.isfile(target):
+                try:
+                    imgid = cached_file.split('.')[0].rsplit(os.path.sep)[-1]
+                except IndexError:
+                    logger.error('Clean Cache: Error splitting %s' % cached_file)
+                    continue
+                item = myDB.match('select BookID from books where BookID=?', (imgid,))
+                if not item:
+                    # Book Image no longer referenced in database, delete cached_file
+                    os.remove(target)
+                    cleaned += 1
+                else:
+                    kept += 1
+
+    # at this point there should be no more .jpg files in the root of the cachedir
+    # any that are still there are for books/authors deleted from database
+    for cached_file in os.listdir(makeBytestr(cache)):
+        cached_file = makeUnicode(cached_file)
+        if cached_file.endswith('.jpg'):
+            os.remove(os.path.join(cache, cached_file))
+            cleaned += 1
+    msg = "Cleaned %i orphan file%s from ImageCache, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    # verify the cover images referenced in the database are present
+    images = myDB.action('select BookImg,BookName,BookID from books')
+    cachedir = os.path.join(lazylibrarian.CACHEDIR, 'book')
+    cleaned = 0
+    kept = 0
+    for item in images:
+        keep = True
+        imgfile = ''
+        if item['BookImg'] is None or item['BookImg'] == '':
+            keep = False
+        if keep and not item['BookImg'].startswith('http') and not item['BookImg'] == "images/nocover.png":
+            # html uses '/' as separator, but os might not
+            imgname = item['BookImg'].rsplit('/')[-1]
+            imgfile = os.path.join(cachedir, imgname)
+            if not os.path.isfile(imgfile):
+                keep = False
+        if keep:
+            kept += 1
+        else:
+            cleaned += 1
+            logger.debug('Cover missing for %s %s' % (item['BookName'], imgfile))
+            myDB.action('update books set BookImg="images/nocover.png" where Bookid=?', (item['BookID'],))
+
+    msg = "Cleaned %i missing cover file%s, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+
+    # verify the author images referenced in the database are present
+    images = myDB.action('select AuthorImg,AuthorName,AuthorID from authors')
+    cachedir = os.path.join(lazylibrarian.CACHEDIR, 'author')
+    cleaned = 0
+    kept = 0
+    for item in images:
+        keep = True
+        imgfile = ''
+        if item['AuthorImg'] is None or item['AuthorImg'] == '':
+            keep = False
+        if keep and not item['AuthorImg'].startswith('http') and not item['AuthorImg'] == "images/nophoto.png":
+            # html uses '/' as separator, but os might not
+            imgname = item['AuthorImg'].rsplit('/')[-1]
+            imgfile = os.path.join(cachedir, imgname)
+            if not os.path.isfile(imgfile):
+                keep = False
+        if keep:
+            kept += 1
+        else:
+            cleaned += 1
+            logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
+            myDB.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
+
+    msg = "Cleaned %i missing author image%s, kept %i" % (cleaned, plural(cleaned), kept)
+    result.append(msg)
+    logger.debug(msg)
+    return result

@@ -256,69 +256,69 @@ class GoodReads:
 
         logger.debug("Searching for author with name: %s" % author)
 
-        authorlist = []
         try:
             rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
         except Exception as e:
             logger.error("%s finding authorid: %s, %s" % (type(e).__name__, URL, str(e)))
-            return authorlist
+            return {}
         if rootxml is None:
             logger.debug("Error requesting authorid")
-            return authorlist
+            return {}
 
         resultxml = rootxml.getiterator('author')
 
         if resultxml is None:
             logger.warn('No authors found with name: %s' % author)
-        else:
-            # In spite of how this looks, goodreads only returns one result, even if there are multiple matches
-            # we just have to hope we get the right one. eg search for "James Lovelock" returns "James E. Lovelock"
-            # who only has one book listed under googlebooks, the rest are under "James Lovelock"
-            # goodreads has all his books under "James E. Lovelock". Can't come up with a good solution yet.
-            # For now we'll have to let the user handle this by selecting/adding the author manually
-            for author in resultxml:
-                authorid = author.attrib.get("id")
-                authorlist = self.get_author_info(authorid)
-        return authorlist
+            return {}
+
+        # In spite of how this looks, goodreads only returns one result, even if there are multiple matches
+        # we just have to hope we get the right one. eg search for "James Lovelock" returns "James E. Lovelock"
+        # who only has one book listed under googlebooks, the rest are under "James Lovelock"
+        # goodreads has all his books under "James E. Lovelock". Can't come up with a good solution yet.
+        # For now we'll have to let the user handle this by selecting/adding the author manually
+        for author in resultxml:
+            authorid = author.attrib.get("id")
+            return self.get_author_info(authorid)
+        return {}
 
     def get_author_info(self, authorid=None):
 
         URL = 'https://www.goodreads.com/author/show/' + authorid + '.xml?' + urlencode(self.params)
-        author_dict = {}
+
         try:
             rootxml, in_cache = gr_xml_request(URL)
         except Exception as e:
             logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
-            return author_dict
+            return {}
         if rootxml is None:
             logger.debug("Error requesting author info")
-            return author_dict
+            return {}
 
         resultxml = rootxml.find('author')
-
         if resultxml is None:
             logger.warn('No author found with ID: ' + authorid)
-        else:
-            # added authorname to author_dict - this holds the intact name preferred by GR
-            # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
-            authorname = resultxml[1].text
-            if "," in authorname:
-                postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
-                words = authorname.split(',')
-                if len(words) == 2:
-                    if words[0].strip().strip('.').lower in postfix:
-                        authorname = words[1].strip() + ' ' + words[0].strip()
+            return {}
 
-            logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
-            author_dict = {
-                'authorid': resultxml[0].text,
-                'authorlink': resultxml.find('link').text,
-                'authorimg': resultxml.find('image_url').text,
-                'authorborn': resultxml.find('born_at').text,
-                'authordeath': resultxml.find('died_at').text,
-                'totalbooks': resultxml.find('works_count').text,
-                'authorname': ' '.join(authorname.split())  # remove any extra whitespace
-            }
+        # added authorname to author_dict - this holds the intact name preferred by GR
+        # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
+        authorname = resultxml[1].text
+        if "," in authorname:
+            postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
+            words = authorname.split(',')
+            if len(words) == 2:
+                if words[0].strip().strip('.').lower in postfix:
+                    authorname = words[1].strip() + ' ' + words[0].strip()
+
+        logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
+        author_dict = {
+            'authorid': resultxml[0].text,
+            'authorlink': resultxml.find('link').text,
+            'authorimg': resultxml.find('image_url').text,
+            'authorborn': resultxml.find('born_at').text,
+            'authordeath': resultxml.find('died_at').text,
+            'totalbooks': resultxml.find('works_count').text,
+            'authorname': ' '.join(authorname.split())  # remove any extra whitespace
+        }
         return author_dict
 
     @staticmethod

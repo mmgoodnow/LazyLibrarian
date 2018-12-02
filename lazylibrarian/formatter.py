@@ -106,21 +106,16 @@ def bookSeries(bookname):
                 series = series[:-1]
             seriesNum = result.group(2)
 
-    if series and series.lower().endswith(' novel'):
-        series = series[:-6]
-    if series and series.lower().endswith(' book'):
-        series = series[:-5]
-    if series and series.lower().endswith(' part'):
-        series = series[:-5]
-    if series and series.lower().endswith(' -'):
-        series = series[:-2]
+    for word in [' novel', ' book', ' part', ' -']:
+        if series and series.lower().endswith(word):
+            series = series[:-len(word)]
+            break
 
     for word in non_series_words:
         if series.lower().startswith(word):
             return "", ""
 
-    series = cleanName(unaccented(series))
-    series = series.strip()
+    series = cleanName(unaccented(series)).strip()
     seriesNum = seriesNum.strip()
     if series.lower().strip('.') == 'vol':
         series = ''
@@ -170,12 +165,8 @@ def now():
 
 
 def today():
-    """
-    Return todays date in format yyyymmdd
-    """
-    dttoday = datetime.date.today()
-    yyyymmdd = datetime.date.isoformat(dttoday)
-    return yyyymmdd
+    dtnow = datetime.datetime.now()
+    return dtnow.strftime("%Y-%m-%d")
 
 
 def seconds_to_midnight():
@@ -192,9 +183,8 @@ def age(histdate):
     histdate = yyyy-mm-dd
     return 0 for today, or if invalid histdate
     """
-    nowdate = datetime.date.isoformat(datetime.date.today())
-    y1, m1, d1 = (int(x) for x in nowdate.split('-'))
     try:
+        y1, m1, d1 = (int(x) for x in now().split()[0].split('-'))
         y2, m2, d2 = (int(x) for x in histdate.split('-'))
         date1 = datetime.date(y1, m1, d1)
         date2 = datetime.date(y2, m2, d2)
@@ -208,7 +198,7 @@ def check_year(num, past=1900, future=1):
     # See if num looks like a valid year
     # for a magazine allow forward dated by a year, eg Jan 2017 issues available in Dec 2016
     n = check_int(num, 0)
-    if past < n <= int(datetime.date.today().strftime("%Y")) + future:
+    if past < n <= int(now()[:4]) + future:
         return n
     return 0
 
@@ -227,7 +217,7 @@ def nzbdate2format(nzbdate):
         return "1970-01-01"
 
 
-def dateFormat(datestr, formatstr):
+def dateFormat(datestr, formatstr="$Y-$m-$d"):
     # return date formatted in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
@@ -237,12 +227,46 @@ def dateFormat(datestr, formatstr):
     # $Y	Year with century as a decimal number
     # datestr are stored in lazylibrarian as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS or nnnn for issue number
 
+    # Dates from providers are in various formats, need to consolidate them so we can sort...
+    # Newznab/Torznab Tue, 23 Aug 2016 17:33:26 +0100
+    # LimeTorrent 13 Nov 2014 05:01:18 +0200
+    # TPB 04-25 23:46 or 2018-04-25
+    # We could use dateutil module but it's not standard library and we only have a few formats
+    # so we can roll our own. To make it simple we'll ignore timezone and seconds
+
     if not datestr:
-        return ""
-    if datestr.isdigit():
+        return ''
+
+    if datestr.isdigit():  # issue number
         return datestr
-    if not formatstr or formatstr == '$Y-$m-$d':  # shortcut for default values
-        return datestr[:11]
+
+    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').split()
+    if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
+        _, d, m, y, hh, mm, _ = dateparts
+    elif len(dateparts) == 6:
+        if len(dateparts[0]) == 4:  # YYYY-MM-DD HH:MM:SS
+            y, m, d, hh, mm, _ = dateparts
+        else:  # 13 Nov 2014 05:01:18
+            d, m, y, hh, mm, _ = dateparts
+    elif len(dateparts) == 5:  # 2018-04-25 23:46
+        y, m, d, hh, mm = dateparts
+    elif len(dateparts) == 4:  # 04-25 23:46 (this year)
+        m, d, hh, mm = dateparts
+        y = now()[:4]
+    elif len(dateparts) == 3:  # 2018-04-25
+        y, m, d = dateparts
+        hh = '00'
+        mm = '00'
+    else:
+        y, m, d, hh, mm = ['1970', '01', '01', '00', '00']
+    try:
+        _ = int(m)
+    except ValueError:
+        m = "%02d" % month2num(m)
+
+    datestr = "%s-%s-%s %s:%s:00" % (y, m, d, hh, mm)
+    if not formatstr:
+        return datestr[:11]  # default yyyy-mm-dd
 
     # noinspection PyBroadException
     try:
@@ -286,17 +310,13 @@ def datecompare(nzbdate, control_date):
     or zero if error (not a valid date)
     """
     try:
-        y1 = int(nzbdate.split('-')[0])
-        m1 = int(nzbdate.split('-')[1])
-        d1 = int(nzbdate.split('-')[2])
-        y2 = int(control_date.split('-')[0])
-        m2 = int(control_date.split('-')[1])
-        d2 = int(control_date.split('-')[2])
+        y1, m1, d1 = (int(x) for x in nzbdate.split('-'))
+        y2, m2, d2 = (int(x) for x in control_date.split('-'))
         date1 = datetime.date(y1, m1, d1)
         date2 = datetime.date(y2, m2, d2)
         dtage = date1 - date2
         return dtage.days
-    except (AttributeError, IndexError, TypeError, ValueError):
+    except ValueError:
         return 0
 
 
@@ -381,8 +401,7 @@ def makeUnicode(txt):
         return txt
     for encoding in [lazylibrarian.SYS_ENCODING, 'latin-1', 'utf-8']:
         try:
-            txt = txt.decode(encoding)
-            return txt
+            return txt.decode(encoding)
         except UnicodeError:
             pass
     lazylibrarian.logger.debug("Unable to decode name [%s]" % repr(txt))
@@ -398,8 +417,7 @@ def makeBytestr(txt):
         return txt
     for encoding in [lazylibrarian.SYS_ENCODING, 'latin-1', 'utf-8']:
         try:
-            txt = txt.encode(encoding)
-            return txt
+            return txt.encode(encoding)
         except UnicodeError:
             pass
     lazylibrarian.logger.debug("Unable to encode name [%s]" % repr(txt))
@@ -669,4 +687,3 @@ def dispName(provider):
             provname = provname.split('/', 1)[1]
         provname = provname.replace('/', ' ')
     return provname
-
