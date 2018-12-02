@@ -13,7 +13,7 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, unaccented_str, plural
+from lazylibrarian.formatter import getList, unaccented_str, plural, dateFormat
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
     IterateOverDirectSites
 from lib.fuzzywuzzy import fuzz
@@ -116,11 +116,10 @@ def searchItem(item=None, bookid=None, cat=None):
 
         if title and provider and mode and url:
             # Not all results have a date or a size
-            if not date:
-                date = 'Fri, 01 Jan 1970 00:00:00 +0100'
             if not size:
                 size = '1000'
-
+            if date:
+                date = dateFormat(date)
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker
