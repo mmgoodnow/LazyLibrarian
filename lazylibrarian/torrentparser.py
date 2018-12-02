@@ -16,7 +16,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, now
+from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
@@ -95,22 +95,6 @@ def TPB(book=None, test=False):
                         link = new_soup.find("a")
                         magnet = link.get("href")
                         title = link.text
-                        size = td[1].text.split(', Size ')[1].split('iB')[0]
-                        size = size.replace('&nbsp;', '')
-                        size = size_in_bytes(size)
-                        try:
-                            tor_date = td[1].text.split('Uploaded ')[1].split(',')[0]
-                        except IndexError:
-                            tor_date = ''
-                        if tor_date:
-                            m = tor_date[:2]
-                            d = tor_date[3:5]
-                            y = tor_date[-4:]
-                            t = ''
-                            if ':' in y:
-                                y = now()[:4]
-                                t = tor_date[-6:]
-                            tor_date = "%s-%s-%s%s" % (y, m, d, t)
                         try:
                             seeders = int(td[2].text.replace(',', ''))
                         except ValueError:
@@ -137,6 +121,9 @@ def TPB(book=None, test=False):
                             if not magnet or not title:
                                 logger.debug('Missing magnet or title')
                             else:
+                                size = td[1].text.split(', Size ')[1].split('iB')[0]
+                                size = size.replace('&nbsp;', '')
+                                size = size_in_bytes(size)
                                 res = {
                                     'bookid': book['bookid'],
                                     'tor_prov': provider,
@@ -146,8 +133,20 @@ def TPB(book=None, test=False):
                                     'tor_type': 'magnet',
                                     'priority': lazylibrarian.CONFIG['TPB_DLPRIORITY']
                                 }
-                                if tor_date:
-                                    res['tor_date'] = tor_date
+                                # dates are either mm dd yyyy or mm dd hh:mm if yyyy is this year
+                                try:
+                                    tor_date = td[1].text.split('Uploaded ')[1].split(',')[0]
+                                    m = tor_date[:2]
+                                    d = tor_date[3:5]
+                                    y = tor_date[-4:]
+                                    if ':' in y:
+                                        t = tor_date[-6:]
+                                        res['tor_date'] = "%s-%s%s" % (m, d, t)
+                                    else:
+                                        res['tor_date'] = "%s-%s-%s" % (y, m, d)
+                                except IndexError:
+                                    pass
+
                                 results.append(res)
 
                                 logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
