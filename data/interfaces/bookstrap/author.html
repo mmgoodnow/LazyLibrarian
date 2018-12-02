@@ -89,7 +89,7 @@
         <div id="authorhead_menu">
             <h1><a href="${author['AuthorLink']}" target="_blank" rel="noreferrer">${author['AuthorName']}</a>
             %if perm&lazylibrarian.perm_edit:
-            <a href="editAuthor?authorid=${author['AuthorID']}"&amp; target="_new"><small><i>Edit</i></small></a>
+            <a href="editAuthor?authorid=${author['AuthorID']}" target="_new"><small><i>Edit</i></small></a>
             %endif
             </h1>
             %if author['AuthorDeath']:
@@ -301,8 +301,8 @@
                     { targets: [7],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                        var dtime = row[10];
-                        var str = String(dtime).substr(0, 10);
+                        var str = row[10];
+                        //var str = String(str).substr(0, 10);
                         if (str === "null"){ str = ""}
                         return str ;} },
                     { targets: [8],
