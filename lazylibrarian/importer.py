@@ -161,6 +161,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
 
             GR = GoodReads(authorid)
             author = GR.get_author_info(authorid=authorid)
+
             if author:
                 authorname = author['authorname']
                 authorimg = author['authorimg']
@@ -182,8 +183,10 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                 myDB.upsert("authors", newValueDict, controlValueDict)
                 match = True
             else:
-                logger.warn("Nothing found for %s" % authorid)
-                if not dbauthor:
+                logger.warn("Nothing found for %s:%s" % (authorid, authorname))
+                if dbauthor:  # goodreads may have changed authorid?
+                    author = dbauthor
+                else:
                     myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
 
         if authorname and author and not match:
@@ -229,14 +232,16 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                         logger.warn("Conflicting authorname for %s [%s][%s] Ignoring change" %
                                     (author['authorid'], authorname, dbauthor['authorname']))
                         authorname = dbauthor['authorname']
-                        # cmd = 'UPDATE authors SET AuthorName=? WHERE AuthorName=?'
-                        # myDB.action(cmd, (author['authorname'], dbauthor['authorname']))
                     if author['authorid'] != dbauthor['authorid']:
                         # GoodReads may have altered authorid?
                         logger.warn("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
                                     (authorname, author['authorid'], dbauthor['authorid']))
-                        cmd = 'UPDATE books SET AuthorID=? WHERE AuthorID=?'
-                        myDB.action(cmd, (author['authorid'], dbauthor['authorid']))
+                        if lazylibrarian.FOREIGN_KEY:
+                            myDB.action("PRAGMA foreign_keys = OFF")
+                        myDB.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                                    (author['authorid'], dbauthor['authorid']))
+                        myDB.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                                    (author['authorid'], dbauthor['authorid']), suppress='UNIQUE')
                         myDB.action('DELETE from authors WHERE AuthorID=?', (dbauthor['authorid'],))
                         dbauthor = None
 
@@ -246,6 +251,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                     newValueDict["AuthorDeath"] = author['authordeath']
 
                 myDB.upsert("authors", newValueDict, controlValueDict)
+                if dbauthor is None and lazylibrarian.FOREIGN_KEY:
+                    myDB.action("PRAGMA foreign_keys = ON")
                 match = True
             else:
                 logger.warn("Nothing found for %s" % authorname)
