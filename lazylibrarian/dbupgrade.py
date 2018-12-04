@@ -405,7 +405,6 @@ def check_db(myDB):
                     logger.warn(msg)
                     if not newmatch:
                         myDB.action('INSERT into genres (GenreName) VALUES (?)', (newitem,))
-                        newmatch = myDB.match('SELECT GenreID from genres where GenreName=?', (newitem,))
                     res = myDB.select('SELECT bookid from genrebooks where genreid=?', (match['GenreID'],))
                     for bk in res:
                         cmd = 'select genrename from genres,genrebooks,books where genres.genreid=genrebooks.genreid '
@@ -1364,14 +1363,19 @@ def db_v44(myDB, upgradelog):
 # noinspection PyUnusedLocal
 def db_v45(myDB, upgradelog):
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-        upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))
-        runGit('remote rm origin')
-        runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
-        runGit('config master.remote origin')
-        runGit('config master.merge refs/heads/master')
-        runGit('stash clear')
-        runGit('pull origin master')
-        runGit('branch --set-upstream-to=origin/master master')
+        res, err = runGit('remote -v')
+        if 'gitlab.com' not in res:
+            upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))
+            runGit('remote rm origin')
+            runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
+            runGit('config master.remote origin')
+            runGit('config master.merge refs/heads/master')
+            runGit('stash clear')
+            res, err = runGit('pull origin master')
+            if 'CONFLICT' in res:
+                upgradelog.write("Forcing reset to fix merge conflicts\n")
+                runGit('reset --hard origin/master')
+            runGit('branch --set-upstream-to=origin/master master')
     upgradelog.write("%s v45: complete\n" % time.ctime())
 
 
