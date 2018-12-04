@@ -215,8 +215,8 @@ def _deleteTask(task_cgi, sid, download_id, remove_data):
             logger.debug("Synology Delete Error: %s" % _errorMsg(errnum, "delete"))
         else:
             try:
-                errnum = result['data']['error']
-            except KeyError:
+                errnum = result['data'][0]['error']
+            except (KeyError, TypeError):
                 errnum = 0
             if errnum:
                 logger.debug("Synology Delete exited: %s" % _errorMsg(errnum, "delete"))
@@ -271,7 +271,8 @@ def _addTorrentURI(task_cgi, sid, torurl):
                                     errmsg = task['status_extra']['error_detail']
                                 except KeyError:
                                     errmsg = "No error details"
-                                if 'torrent_duplicate' in errmsg:
+                                logger.warn(errmsg)  # REMOVE ME
+                                if errmsg == 'torrent_duplicate':
                                     # should we delete the duplicate here, or just return the id?
                                     # if the original is still active we might find it further down the list
                                     _ = _deleteTask(task_cgi, sid, task['id'], False)
