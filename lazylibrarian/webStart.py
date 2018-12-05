@@ -194,8 +194,11 @@ def initialize(options=None):
             cherrypy.process.servers.check_port(str(options['http_host']), options['http_port'])
         cherrypy.server.start()
     except Exception as e:
+        msg = 'Failed to start on port: %i. Is something else running?' % (options['http_port'])
+        logger.warn(msg)
+        logger.warn(str(e))
+        print(msg)
         print(str(e))
-        print('Failed to start on port: %i. Is something else running?' % (options['http_port']))
         sys.exit(1)
 
     cherrypy.server.wait()

@@ -47,6 +47,7 @@ def main():
 
     lazylibrarian.PROG_DIR = os.path.dirname(lazylibrarian.FULL_PATH)
     lazylibrarian.ARGS = sys.argv[1:]
+    lazylibrarian.DOCKER = '/config' in lazylibrarian.ARGS and lazylibrarian.FULL_PATH.startswith('/app/')
 
     lazylibrarian.SYS_ENCODING = None
 

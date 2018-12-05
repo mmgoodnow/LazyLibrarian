@@ -17,6 +17,7 @@ import calendar
 import json
 import locale
 import os
+import signal
 import platform
 import subprocess
 import sys
@@ -55,6 +56,7 @@ DBFILE = None
 COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
+DOCKER = False
 
 # These are only used in startup
 SCHED = None
@@ -1636,6 +1638,10 @@ def shutdown(restart=False, update=False):
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian is shutting down...')
+        if DOCKER:
+            # force container to shutdown
+            # NOTE we don't seem to have sufficient permission to so this, so disabled the shutdown button
+            os.kill(1, signal.SIGKILL)
 
     if update:
         logmsg('info', 'LazyLibrarian is updating...')
@@ -1653,49 +1659,47 @@ def shutdown(restart=False, update=False):
 
     if restart:
         logmsg('info', 'LazyLibrarian is restarting ...')
+        if not DOCKER:
+            # Try to use the currently running python executable, as it is known to work
+            # if not able to determine, sys.executable returns empty string or None
+            # and we have to go looking for it...
+            executable = sys.executable
 
-        # Try to use the currently running python executable, as it is known to work
-        # if not able to determine, sys.executable returns empty string or None
-        # and we have to go looking for it...
-        executable = sys.executable
+            if not executable:
+                if PY2:
+                    prg = "python2"
+                else:
+                    prg = "python3"
+                if platform.system() == "Windows":
+                    params = ["where", prg]
+                    try:
+                        executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        executable = makeUnicode(executable).strip()
+                    except Exception as e:
+                        logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                else:
+                    params = ["which", prg]
+                    try:
+                        executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        executable = makeUnicode(executable).strip()
+                    except Exception as e:
+                        logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
 
-        if not executable:
-            if PY2:
-                prg = "python2"
-            else:
-                prg = "python3"
-            if platform.system() == "Windows":
-                params = ["where", prg]
-                try:
-                    executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    executable = makeUnicode(executable).strip()
-                except Exception as e:
-                    logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
-            else:
-                params = ["which", prg]
-                try:
-                    executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    executable = makeUnicode(executable).strip()
-                except Exception as e:
-                    logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+            if not executable:
+                executable = 'python'  # default if not found
 
-        if not executable:
-            executable = 'python'  # default if not found
+            popen_list = [executable, FULL_PATH]
+            popen_list += ARGS
+            if '--update' in popen_list:
+                popen_list.remove('--update')
+            if LOGLEVEL:
+                for item in ['--quiet', '-q', '--debug']:
+                    if item in popen_list:
+                        popen_list.remove(item)
+            if '--nolaunch' not in popen_list:
+                popen_list += ['--nolaunch']
 
-        popen_list = [executable, FULL_PATH]
-        popen_list += ARGS
-        if '--update' in popen_list:
-            popen_list.remove('--update')
-        if LOGLEVEL:
-            if '--quiet' in popen_list:
-                popen_list.remove('--quiet')
-            if '-q' in popen_list:
-                popen_list.remove('-q')
-        if '--nolaunch' not in popen_list:
-            popen_list += ['--nolaunch']
+            logmsg('debug', 'Restarting LazyLibrarian with ' + str(popen_list))
+            subprocess.Popen(popen_list, cwd=os.getcwd())
 
-        logmsg('debug', 'Restarting LazyLibrarian with ' + str(popen_list))
-        subprocess.Popen(popen_list, cwd=os.getcwd())
-
-    logmsg('info', 'LazyLibrarian is exiting')
     sys.exit(0)

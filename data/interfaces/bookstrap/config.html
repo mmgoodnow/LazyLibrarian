@@ -5,7 +5,9 @@
 <%def name="headerIncludes()">
 <div id="subhead_container">
     <div id="subhead_menu">
-      <a onclick="self.shutdownQA(this)" class="button btn btn-sm btn-danger" data-toggle="tooltip" data-placement="bottom" title="Terminate the LazyLibrarian process - Be careful if you're doing this remotely"><i class="fa fa-power-off"></i> Shutdown</a>
+      %if lazylibrarian.DOCKER == False:
+        <a onclick="self.shutdownQA(this)" class="button btn btn-sm btn-danger" data-toggle="tooltip" data-placement="bottom" title="Terminate the LazyLibrarian process - Be careful if you're doing this remotely"><i class="fa fa-power-off"></i> Shutdown</a>
+      %endif
       <a class="button btn btn-sm btn-warning" onclick="self.restartQA(this, '', '')"><i class="fa fa-sync"></i> Restart</a>
       <button class="button btn btn-sm btn-primary" type="button" value="System Info" id="sysinfo"><i class="fa fa-cogs"></i> System Info</button>
       <button class="button btn btn-sm btn-primary" type="button" value="Show Jobs" id="show_Jobs"><i class="fa fa-list-ul"></i> Job Status</button>
