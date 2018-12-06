@@ -361,11 +361,15 @@ def check_db(myDB):
         # remove authors with no books
         authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
         if authors:
-            cnt += len(authors)
-            msg = 'Removing %s author%s with no books' % (len(authors), plural(len(authors)))
-            logger.warn(msg)
-            for author in authors:
-                myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+            for author in authors:  # check we haven't mis-counted
+                update_totals(author['authorid'])
+            authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
+            if authors:
+                cnt += len(authors)
+                msg = 'Removing %s author%s with no books' % (len(authors), plural(len(authors)))
+                logger.warn(msg)
+                for author in authors:
+                    myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove series with no members
         series = myDB.select('SELECT SeriesID FROM series WHERE Total=0')
