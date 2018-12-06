@@ -827,7 +827,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                     delete_task(book['Source'], book['DownloadID'], True)
             else:
-                logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'].lower(), mins))
+                if book['Source']:
+                    logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'].lower(), mins))
+                else:
+                    logger.debug('%s was sent somewhere?? %s minutes ago' % (book['NZBtitle'], mins))
 
         # Check if postprocessor needs to run again
         snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
