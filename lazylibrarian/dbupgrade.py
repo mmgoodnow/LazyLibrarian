@@ -94,8 +94,9 @@ def upgrade_needed():
     # 45 update local git repo to new origin
     # 46 remove pastissues table and rebuild to ensure no foreign key
     # 47 genres and genrebooks tables
+    # 48 ensure magazine table schema is current
 
-    db_current_version = 47
+    db_current_version = 48
 
     if db_version < db_current_version:
         return db_current_version
@@ -1419,3 +1420,20 @@ def db_v47(myDB, upgradelog):
                 myDB.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
                             (match['GenreID'], book['bookid']), suppress='UNIQUE')
     upgradelog.write("%s v47: complete\n" % time.ctime())
+
+
+def db_v48(myDB, upgradelog):
+    upgradelog.write("%s v48: %s\n" % (time.ctime(), "Checking magazines table"))
+    res = myDB.action("SELECT sql FROM sqlite_master WHERE type='table' AND name='magazines'")
+    if not('Title TEXT UNIQUE') in res:
+        myDB.action('PRAGMA foreign_keys = OFF')
+        myDB.action('DROP TABLE IF EXISTS temp')
+        myDB.action('ALTER TABLE magazines RENAME to temp')
+        myDB.action('CREATE TABLE magazines (Title TEXT UNIQUE, Regex TEXT, Status TEXT, MagazineAdded TEXT, ' +
+                    'LastAcquired TEXT, IssueDate TEXT, IssueStatus TEXT, Reject TEXT, LatestCover TEXT, ' +
+                    'DateType TEXT, CoverPage INTEGER DEFAULT 1)')
+        myDB.action('INSERT INTO magazines SELECT Title,Regex,Status,MagazineAdded,LastAcquired,IssueDate,' +
+                    'IssueStatus,Reject,LatestCover,DateType,CoverPage FROM temp')
+        myDB.action('DROP TABLE temp')
+        myDB.action('PRAGMA foreign_keys = ON')
+    upgradelog.write("%s v48: complete\n" % time.ctime())
