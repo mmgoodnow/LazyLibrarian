@@ -20,7 +20,7 @@ from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, formatAuthorName, \
     makeUnicode, split_title, makeBytestr
-from lazylibrarian.importer import search_for, import_book, addAuthorNameToDB
+from lazylibrarian.importer import search_for, import_book, addAuthorNameToDB, update_totals
 from lazylibrarian.librarysync import find_book_in_db
 
 try:
@@ -310,6 +310,7 @@ def import_CSV(search_dir=None, library='eBook'):
 
                     if authmatch:
                         logger.debug("CSV: Author %s found in database" % authorname)
+                        authorid = authmatch['authorid']
                     else:
                         logger.debug("CSV: Author %s not found" % authorname)
                         newauthor, authorid, new = addAuthorNameToDB(author=authorname,
@@ -378,7 +379,9 @@ def import_CSV(search_dir=None, library='eBook'):
                             else:
                                 bookmatch = False
 
-                    if not bookmatch:
+                    if bookmatch:
+                        update_totals(authorid)
+                    else:
                         msg = "Skipping book %s by %s" % (title, authorname)
                         if not result:
                             msg += ', No results found'
