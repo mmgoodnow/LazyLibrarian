@@ -123,7 +123,7 @@ def searchItem(item=None, bookid=None, cat=None):
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker
-                if url.startswith('magnet'):
+                if url.startswith(b'magnet'):
                     mode = 'magnet'
 
             # calculate match percentage - torrents might have words_with_underscore_separator
