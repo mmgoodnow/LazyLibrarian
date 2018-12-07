@@ -95,8 +95,9 @@ def upgrade_needed():
     # 46 remove pastissues table and rebuild to ensure no foreign key
     # 47 genres and genrebooks tables
     # 48 ensure magazine table schema is current
+    # 49 ensure author table schema is current
 
-    db_current_version = 48
+    db_current_version = 49
 
     if db_version < db_current_version:
         return db_current_version
@@ -1425,7 +1426,9 @@ def db_v47(myDB, upgradelog):
 def db_v48(myDB, upgradelog):
     upgradelog.write("%s v48: %s\n" % (time.ctime(), "Checking magazines table"))
     res = myDB.action("SELECT sql FROM sqlite_master WHERE type='table' AND name='magazines'")
-    if not('Title TEXT UNIQUE') in res:
+    if 'Title TEXT UNIQUE' not in res:
+        res = myDB.match('SELECT count(*) as cnt from magazines')
+        upgradelog.write("%s v48: updating %s magazines\n" % (time.ctime(), res['cnt']))
         myDB.action('PRAGMA foreign_keys = OFF')
         myDB.action('DROP TABLE IF EXISTS temp')
         myDB.action('ALTER TABLE magazines RENAME to temp')
@@ -1437,3 +1440,25 @@ def db_v48(myDB, upgradelog):
         myDB.action('DROP TABLE temp')
         myDB.action('PRAGMA foreign_keys = ON')
     upgradelog.write("%s v48: complete\n" % time.ctime())
+
+
+def db_v49(myDB, upgradelog):
+    upgradelog.write("%s v49: %s\n" % (time.ctime(), "Checking authors table"))
+    res = myDB.action("SELECT sql FROM sqlite_master WHERE type='table' AND name='authors'")
+    if 'AuthorID TEXT UNIQUE' not in res or 'AuthorName TEXT UNIQUE' not in res:
+        res = myDB.match('SELECT count(*) as cnt from authors')
+        upgradelog.write("%s v49: updating %s authors\n" % (time.ctime(), res['cnt']))
+        myDB.action('PRAGMA foreign_keys = OFF')
+        myDB.action('DROP TABLE IF EXISTS temp')
+        myDB.action('ALTER TABLE authors RENAME to temp')
+        myDB.action('CREATE TABLE authors (AuthorID TEXT UNIQUE, AuthorName TEXT UNIQUE, ' +
+                    'AuthorImg TEXT, AuthorLink TEXT, DateAdded TEXT, Status TEXT, LastBook TEXT, ' +
+                    'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
+                    'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
+                    'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, LastBookID TEXT)')
+        myDB.action('INSERT INTO authors SELECT AuthorID,AuthorName,AuthorImg,AuthorLink,DateAdded,Status,' +
+                    'LastBook,LastBookImg,LastLink,LastDate,HaveBooks,TotalBooks,AuthorBorn,AuthorDeath,' +
+                    'UnignoredBooks,Manual,GRfollow,LastBookID FROM temp')
+        myDB.action('DROP TABLE temp')
+        myDB.action('PRAGMA foreign_keys = ON')
+    upgradelog.write("%s v49: complete\n" % time.ctime())
