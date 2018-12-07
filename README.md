@@ -49,7 +49,9 @@ Auto update available via interface from master for git and source installs
 ## Packages
 rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags
 The snap package is confined to users home directory, so all books and downloads need to be accessible from there too.
-Install the snap package with flags --dangerous --devmode  
+Install the snap package with flags --devmode
+The flatpak is installed with flatpak install lazylibrarian_1.x.x.flatpak
+to run, use flatpak run org.flatpak.LazyLibrarian
 AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/  
 QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
