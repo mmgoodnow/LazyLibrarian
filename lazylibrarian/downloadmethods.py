@@ -153,7 +153,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         basename = ''
         if ' ' in dl_title:
             basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
-        if extn and extn in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
+        if extn and extn.lower() in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
             dl_title = '.'.join(dl_title.rsplit(' ', 1))
         elif magic:
             mtype = magic.from_buffer(r.content)
