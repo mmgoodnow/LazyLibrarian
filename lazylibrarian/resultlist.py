@@ -182,8 +182,6 @@ def findBestResult(resultlist, book, searchtype, source):
 
             if not rejected:
                 bookid = book['bookid']
-                # newTitle = (author + ' - ' + title + ' LL.(' + book['bookid'] + ')').strip()
-                # newTitle = resultTitle + ' LL.(' + book['bookid'] + ')'
 
                 if source == 'nzb':
                     mode = res['nzbmode']  # nzb, torznab

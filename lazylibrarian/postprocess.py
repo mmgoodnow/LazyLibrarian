@@ -1022,7 +1022,7 @@ def check_residual(download_dir):
                     logger.debug("Skipping extn %s" % entry)
         else:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-                logger.debug("Skipping (not LL) %s" % entry)
+                logger.debug("Skipping (no LL bookid) %s" % entry)
     return ppcount
 
 

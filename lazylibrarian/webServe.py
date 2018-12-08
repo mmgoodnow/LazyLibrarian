@@ -1659,7 +1659,6 @@ class WebInterface(object):
             }
             myDB.upsert("wanted", newValueDict, controlValueDict)
             AuthorID = bookdata["AuthorID"]
-            # bookname = '%s LL.(%s)' % (bookdata["BookName"], bookid)
             if mode == 'direct':
                 snatch, res = DirectDownloadMethod(bookid, bookdata["BookName"], url, library)
             elif mode in ["torznab", "torrent", "magnet"]:
@@ -3240,7 +3239,6 @@ class WebInterface(object):
                     # title needs spaces for column resizing
                     title = thisrow[1]
                     title = title.replace('.', ' ')
-                    title = title.replace('LL (', 'LL.(')
                     thisrow[1] = title
                     # make this shorter and with spaces for column resizing
                     provider = thisrow[4]
@@ -3975,7 +3973,6 @@ class WebInterface(object):
                     title = nrow[0]  # type: str
                     if title:
                         title = title.replace('.', ' ')
-                        title = title.replace('LL (', 'LL.(')
                         nrow[0] = title
                     # provider name needs to be shorter and with spaces for column resizing
                     if nrow[3]:
