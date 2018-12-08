@@ -962,7 +962,9 @@ def check_residual(download_dir):
     downloads = os.listdir(makeBytestr(download_dir))
     downloads = [makeUnicode(item) for item in downloads]
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-        logger.debug("Scanning %s entries in %s for LL.(num)" % (len(downloads), download_dir))
+        logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
+                                                            plural(len(downloads), 'entry'),
+                                                            download_dir))
     for entry in downloads:
         if "LL.(" in entry:
             _, extn = os.path.splitext(entry)

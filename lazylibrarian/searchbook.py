@@ -101,6 +101,8 @@ def search_book(books=None, library=None):
 
         logger.info('Searching %s provider%s %s for %i book%s' %
                     (nprov, plural(nprov), str(modelist), len(searchbooks), plural(len(searchbooks))))
+        logger.info("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
+                                                           plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
 
         for searchbook in searchbooks:
             # searchterm is only used for display purposes

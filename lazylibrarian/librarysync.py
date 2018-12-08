@@ -1070,7 +1070,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             logger.debug("Cache %s hit%s, %s miss" %
                          (lazylibrarian.CACHE_HIT, plural(lazylibrarian.CACHE_HIT), lazylibrarian.CACHE_MISS))
             cachesize = myDB.match("select count(*) as counter from languages")
-            logger.debug("ISBN Language cache holds %s entries" % cachesize['counter'])
+            logger.debug("ISBN Language cache holds %s %s" % (cachesize['counter'],
+                                                              plural(cachesize['counter'], 'entry')))
 
             # Cache any covers and images
             images = myDB.select('select bookid, bookimg, bookname from books where bookimg like "http%"')

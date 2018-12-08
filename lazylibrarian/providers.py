@@ -397,7 +397,8 @@ def BlockProvider(who, why, delay=0):
                 lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
         newentry = {"name": who, "resume": timenow + delay, "reason": why}
         lazylibrarian.PROVIDER_BLOCKLIST.append(newentry)
-    logger.debug("Provider Blocklist contains %s entries" % len(lazylibrarian.PROVIDER_BLOCKLIST))
+    logger.debug("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
+                                                        plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
 
 
 def IterateOverNewzNabSites(book=None, searchType=None):

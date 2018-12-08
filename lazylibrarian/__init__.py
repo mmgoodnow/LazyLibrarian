@@ -33,6 +33,7 @@ from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob
 from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_str, makeUnicode
 from lazylibrarian.dbupgrade import check_db
+from lazylibrarian.providers import ProviderIsBlocked
 from lib.apscheduler.scheduler import Scheduler
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
@@ -1345,7 +1346,7 @@ def WishListType(host):
 def USE_RSS():
     count = 0
     for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and not WishListType(provider['HOST']):
+        if bool(provider['ENABLED']) and not WishListType(provider['HOST']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
     return count
 
@@ -1353,35 +1354,35 @@ def USE_RSS():
 def USE_WISHLIST():
     count = 0
     for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and WishListType(provider['HOST']):
+        if bool(provider['ENABLED']) and WishListType(provider['HOST']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
     return count
 
 
 def USE_NZB():
-    # Count how many nzb providers are active
+    # Count how many nzb providers are active and not blocked
     count = 0
     for provider in NEWZNAB_PROV:
-        if bool(provider['ENABLED']):
+        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
     for provider in TORZNAB_PROV:
-        if bool(provider['ENABLED']):
+        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
     return count
 
 
 def USE_TOR():
     count = 0
-    for provider in [CONFIG['KAT'], CONFIG['WWT'], CONFIG['TPB'], CONFIG['ZOO'], CONFIG['LIME'], CONFIG['TDL']]:
-        if bool(provider):
+    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL']:
+        if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
             count += 1
     return count
 
 
 def USE_DIRECT():
     count = 0
-    for provider in [CONFIG['GEN'], CONFIG['GEN2']]:
-        if bool(provider):
+    for provider in ['GEN', 'GEN2']:
+        if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
             count += 1
     return count
 
