@@ -3,7 +3,7 @@ To help with identifying and fixing issues, please include as much information a
 ### Operating system used (windows, mac, linux, NAS type)
 ### Interface in use (default, bookstrap)
 ### Which api (Goodreads, GoogleBooks, both)
-### Source of your LazyLibrarian installation (git, zip file, 3rd party package)
+### Source of your LazyLibrarian installation (git, zip, snap, flatpak, rpm, deb, docker (which), 3rd party package)
 ### Relevant debug log with api keys and any passwords redacted
 
 Please note - usually a single line of log is not sufficient. The lines just before the error occurs can give useful context and greatly assist with debugging.
