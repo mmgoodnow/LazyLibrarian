@@ -120,7 +120,7 @@ def getInstallType():
 
     elif install == 'package':  # deb, rpm, other non-upgradeable
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'package'
-        lazylibrarian.CONFIG['GIT_BRANCH'] = 'Package'
+        lazylibrarian.CONFIG['GIT_BRANCH'] = 'master'
 
     elif os.path.isdir(os.path.join(lazylibrarian.PROG_DIR, '.git')):
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'git'
