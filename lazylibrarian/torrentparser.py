@@ -29,9 +29,10 @@ except ImportError:
         from lib.bs4 import BeautifulSoup
     else:
         from lib3.bs4 import BeautifulSoup
-try:
+
+if PY2:
     import lib.feedparser as feedparser
-except ImportError:
+else:
     import lib3.feedparser as feedparser
 
 
