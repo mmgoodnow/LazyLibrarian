@@ -20,7 +20,10 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import unaccented, getList
 from lazylibrarian.importer import addAuthorNameToDB, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
-from lib.fuzzywuzzy import fuzz
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 from lazylibrarian.common import runScript
 
 # calibredb custom_columns

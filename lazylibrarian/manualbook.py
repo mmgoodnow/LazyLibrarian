@@ -16,7 +16,10 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import getList, unaccented_str, plural, dateFormat
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
     IterateOverDirectSites
-from lib.fuzzywuzzy import fuzz
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
 

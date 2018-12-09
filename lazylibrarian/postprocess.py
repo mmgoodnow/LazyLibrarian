@@ -47,8 +47,15 @@ from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibrarySca
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.images import createMagCover
 from lazylibrarian.notifiers import notify_download, custom_notify_download
-from lib.deluge_client import DelugeRPCClient
-from lib.fuzzywuzzy import fuzz
+try:
+    from deluge_client import DelugeRPCClient
+except ImportError:
+    from lib.deluge_client import DelugeRPCClient
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
+
 
 # Need to remove characters we don't want in the filename BEFORE adding to drive identifier
 # as windows drive identifiers have colon, eg c:  but no colons allowed elsewhere in pathname
@@ -243,9 +250,13 @@ def unpack_archive(archivename, download_dir, title):
         returns new directory in download_dir with book in it, or empty string """
     # noinspection PyBroadException
     try:
-        from lib.unrar import rarfile
+        from unrar import rarfile
     except Exception:
-        rarfile = None
+        # noinspection PyBroadException
+        try:
+            from lib.unrar import rarfile
+        except Exception:
+            rarfile = None
 
     archivename = makeUnicode(archivename)
     if not os.path.isfile(archivename):  # regular files only

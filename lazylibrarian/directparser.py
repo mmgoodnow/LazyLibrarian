@@ -20,10 +20,15 @@ from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlparse, urlencode
 
-if PY2:
-    from lib.bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
+
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    if PY2:
+        from lib.bs4 import BeautifulSoup
+    else:
+        from lib3.bs4 import BeautifulSoup
 
 
 # noinspection PyProtectedMember

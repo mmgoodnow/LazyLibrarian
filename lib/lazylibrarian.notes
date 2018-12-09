@@ -1,0 +1,41 @@
+# cherrypy is patched to allow utf-8 responses in forms (eg accented magazine names)
+# there is probably a proper way to do it without patching
+#
+# There is a python module on synology called csv that is not compatible, we only import the
+# local copy of csv if the system one does not contain the functions we use
+#
+# feedparser is patched to use a local copy of sgmllib as this is not available for python 3
+#
+# tinytag has "composer" field added as we need it for audiobooks and m4b added as equivalent filetype to m4a
+# Changes were requested upstream but not accepted
+#
+# apscheduler - there is a much more recent version available, should maybe update
+#
+# bencode  - there are several different bencode libraries available, easier to use the same one for consistency
+#
+# mobi is not available from pip, sources https://github.com/kroo/mobi-python
+#
+# pythontwitter - there is a much more recent version, but I am unable to test so leaving as not broken
+#
+# zipfile is normally part of a standard install, but some cut-down nas systems do not include it
+#
+# six is widely used in lazylibrarian but not standard library
+#
+################################################################################################
+# The following libraries can be pip installed for flatpak
+# but ubuntu requests does not include requests_auth so use our own requests in snap packages
+# ubuntu bs4 and fuzzywuzzy are not available?
+################################################################################################
+# oauth2        patched to use a local copy of httplib2, pip install oauth2 pulls in both
+# bs4           patched to use a local copy of html5lib, which in turn uses a local webencodings
+#               also need to pip install html5lib, which pulls in webencodings
+# cherrpy_cors  patched to use local httpagentparser, pip installs both
+# deluge_client
+# gntp          used by growl
+# magic         pip install as python-magic
+# pynma
+# pyOpenSSL
+# requests      pip install urllib3 and requests_auth too, our local copy includes them already
+# rfeed
+# fuzzywuzzy    suppressed warning about python-Levenshtein, pip install python-Levenshtein
+# unrar

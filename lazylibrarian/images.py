@@ -538,18 +538,21 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             logger.error("Failed to read zip file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
             data = ''
     elif extn in ['.cbr']:
+        # noinspection PyBroadException
         try:
-            # unrar will complain if the library isn't installed, needs to be compiled separately
-            # see https://pypi.python.org/pypi/unrar/ for instructions
-            # Download source from http://www.rarlab.com/rar_add.htm
-            # note we need LIBRARY SOURCE not a binary package
-            # make lib; sudo make install-lib; sudo ldconfig
-            # lib.unrar should then be able to find libunrar.so
-            from lib.unrar import rarfile
-            data = rarfile.RarFile(issuefile)
-        except Exception as why:
-            logger.error("Failed to read rar file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
-            data = ''
+            from unrar import rarfile
+        except Exception:
+            # noinspection PyBroadException
+            try:
+                from lib.unrar import rarfile
+            except Exception:
+                rarfile = None
+        if rarfile:
+            try:
+                data = rarfile.RarFile(issuefile)
+            except Exception as why:
+                logger.error("Failed to read rar file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
+                data = ''
     if data:
         img = None
         try:

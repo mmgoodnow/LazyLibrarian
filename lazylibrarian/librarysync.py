@@ -28,7 +28,10 @@ from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, ge
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
-from lib.fuzzywuzzy import fuzz
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 from lib.mobi import Mobi
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus, urlencode

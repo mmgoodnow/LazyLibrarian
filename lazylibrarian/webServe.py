@@ -27,7 +27,6 @@ from lib.six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlun
 
 import cherrypy
 import lazylibrarian
-import lib.simplejson as simplejson
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
@@ -57,7 +56,10 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.opds import OPDS
 from lazylibrarian.bookrename import nameVars
 from lazylibrarian.dbupgrade import check_db
-from lib.deluge_client import DelugeRPCClient
+try:
+    from deluge_client import DelugeRPCClient
+except ImportError:
+    from lib.deluge_client import DelugeRPCClient
 from lib.six import PY2, text_type
 from mako import exceptions
 from mako.lookup import TemplateLookup
@@ -524,13 +526,13 @@ class WebInterface(object):
         myDB = database.DBConnection()
         match = myDB.match('SELECT * from users where UserName=?', (kwargs['user'],))
         if match:
-            res = simplejson.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
-                                    'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
-                                    'sendto': match['SendTo'], 'booktype': match['BookType'],
-                                    'userid': match['UserID']})
+            res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
+                              'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
+                              'sendto': match['SendTo'], 'booktype': match['BookType'],
+                              'userid': match['UserID']})
         else:
-            res = simplejson.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '',
-                                    'sendto': '', 'booktype': '', 'userid': ''})
+            res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '',
+                              'sendto': '', 'booktype': '', 'userid': ''})
         return res
 
     @cherrypy.expose

@@ -397,7 +397,7 @@ try:
     import json
 except ImportError:
     try:
-        import lib.simplejson as json
+        import simplejson as json
     except ImportError:
         json = None
 

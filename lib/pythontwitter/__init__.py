@@ -39,6 +39,7 @@ from lib.six import PY2, text_type, StringIO
 from lib.six.moves.http_client import UNAUTHORIZED
 from lib.six.moves.urllib_error import HTTPError
 from lib.six.moves.urllib_parse import urlparse, urlunparse
+
 if PY2:
   import urllib2
 else:
@@ -50,7 +51,7 @@ try:
 except ImportError:
   try:
     # Python < 2.6
-    import lib.simplejson as simplejson
+    import simplejson as simplejson
   except ImportError:
     try:
       # Google App Engine
@@ -64,7 +65,10 @@ except ImportError:
   from md5 import md5
 
 # lazylibrarian changes
-import lib.oauth2 as oauth
+try:
+    import oauth2 as oauth
+except ImportError:
+    import lib.oauth2 as oauth
 
 def longint(x):
   if PY2:

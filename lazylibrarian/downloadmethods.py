@@ -17,6 +17,7 @@ import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
 
+# noinspection PyBroadException
 try:
     import urllib3
     import requests
@@ -27,7 +28,7 @@ except ImportError:
 try:
     # noinspection PyUnresolvedReferences
     import magic
-except Exception:
+except Exception:  # magic might fail for multiple reasons
     # noinspection PyBroadException
     try:
         import lib.magic as magic
@@ -41,7 +42,10 @@ from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import setperm, getUserAgent, proxyList, mymakedirs
 from lazylibrarian.formatter import cleanName, unaccented_str, getList, makeUnicode
 from lazylibrarian.postprocess import delete_task, check_contents
-from lib.deluge_client import DelugeRPCClient
+try:
+    from deluge_client import DelugeRPCClient
+except ImportError:
+    from lib.deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
 from lib.six import text_type

@@ -21,11 +21,17 @@ from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
 
-if PY2:
-    from lib.bs4 import BeautifulSoup
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    if PY2:
+        from lib.bs4 import BeautifulSoup
+    else:
+        from lib3.bs4 import BeautifulSoup
+try:
     import lib.feedparser as feedparser
-else:
-    from lib3.bs4 import BeautifulSoup
+except ImportError:
     import lib3.feedparser as feedparser
 
 

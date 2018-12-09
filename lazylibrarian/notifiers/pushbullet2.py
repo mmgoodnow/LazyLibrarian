@@ -11,7 +11,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import lib.simplejson as json
+import json
 # We use system version if available for pushbullet, as there was a report that
 # lazylibrarian version of requests was not working with pushbullet.
 # Not clear why, see as issue #675

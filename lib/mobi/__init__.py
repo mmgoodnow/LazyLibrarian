@@ -12,7 +12,8 @@ import os
 import unittest
 from struct import *
 from pprint import pprint
-from lib.six import PY2
+
+PY2 = sys.version_info[0] == 2
 
 if PY2:
     import utils

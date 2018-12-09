@@ -23,7 +23,10 @@ from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, 
 from lazylibrarian.formatter import unaccented_str, replace_all, getList, now, check_int
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
-from lib.fuzzywuzzy import fuzz
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 
 
 def processResultList(resultlist, book, searchtype, source):

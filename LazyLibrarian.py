@@ -14,9 +14,8 @@ import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
 from lazylibrarian.formatter import check_int
 from lazylibrarian.versioncheck import runGit
-
-# noinspection PyUnresolvedReferences
 from lib.six.moves import configparser
+
 
 # The following should probably be made configurable at the settings level
 # This fix is put in place for systems with broken SSL (like QNAP)
@@ -25,7 +24,6 @@ if opt_out_of_certificate_verification:
     # noinspection PyBroadException
     try:
         import ssl
-
         # noinspection PyProtectedMember
         ssl._create_default_https_context = ssl._create_unverified_context
     except Exception:

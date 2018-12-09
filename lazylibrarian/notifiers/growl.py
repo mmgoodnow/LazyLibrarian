@@ -7,8 +7,10 @@ from lib.six import PY2
 from lib.six.moves.urllib_parse import urlencode
 # noinspection PyUnresolvedReferences
 from lib.six.moves.http_client import HTTPSConnection
-
-import lib.gntp.notifier as gntp_notifier
+try:
+    import gntp.notifier as gntp_notifier
+except ImportError:
+    import lib.gntp.notifier as gntp_notifier
 
 
 class Growl_Notifier:
