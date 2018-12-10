@@ -6,6 +6,7 @@ try:
 except ImportError:
     from lib.pynma import pynma
 
+
 class NMA_Notifier:
 
     def __init__(self):

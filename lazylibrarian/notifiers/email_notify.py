@@ -56,13 +56,13 @@ class EmailNotifier:
             from_addr = lazylibrarian.CONFIG['EMAIL_FROM']
         else:
             logger.warn("Invalid FROM address, check config settings")
-            return false
+            return False
 
         if not to_addr:
             to_addr = lazylibrarian.CONFIG['EMAIL_TO']
         if not isValidEmail(to_addr):
             logger.warn("Invalid TO address, check users email and/or config")
-            return false
+            return False
 
         message['From'] = formataddr(('LazyLibrarian', from_addr))
         message['To'] = to_addr
