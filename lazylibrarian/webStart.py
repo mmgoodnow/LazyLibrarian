@@ -178,8 +178,6 @@ def initialize(options=None):
                                       '{webroot}', options['http_root']))
                     t.write('\n')
 
-    # Prevent time-outs
-    cherrypy.engine.timeout_monitor.unsubscribe()
     cherrypy.tree.mount(WebInterface(), str(options['http_root']), config=conf)
 
     if lazylibrarian.CHERRYPYLOG:
@@ -195,6 +193,9 @@ def initialize(options=None):
             portend.Checker().assert_free(str(options['http_host']), options['http_port'])
         else:
             cherrypy.process.servers.check_port(str(options['http_host']), options['http_port'])
+        # Prevent time-outs removed in cp v12
+        if cp_ver and int(cp_ver.split('.')[0]) < 12:
+            cherrypy.engine.timeout_monitor.unsubscribe()
         cherrypy.server.start()
     except Exception as e:
         msg = 'Failed to start on port: %i. Is something else running?' % (options['http_port'])
