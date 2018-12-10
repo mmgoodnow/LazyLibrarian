@@ -717,8 +717,10 @@ def grsync(status, shelf, library='eBook'):
         # store as comparison for next sync
         controlValueDict = {"UserID": "goodreads", "Label": shelf}
         newValueDict = {"Date": str(time.time()), "Synclist": ', '.join(ll_list)}
+        # goodreads user does not exist in user table
+        myDB.action('PRAGMA foreign_keys = OFF')
         myDB.upsert("sync", newValueDict, controlValueDict)
-
+        myDB.action('PRAGMA foreign_keys = ON')
         logger.debug('Sync %s to %s shelf complete' % (status, shelf))
         return shelf_changed, ll_changed
 
