@@ -23,7 +23,7 @@ from email.mime.multipart import MIMEMultipart
 import lazylibrarian
 import os
 from lazylibrarian import logger, database
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail
 from lazylibrarian.formatter import check_int, getList
 
 
@@ -49,11 +49,23 @@ class EmailNotifier:
             message = MIMEText(text, 'plain', "utf-8")
 
         message['Subject'] = subject
-        message['From'] = formataddr(('LazyLibrarian', lazylibrarian.CONFIG['EMAIL_FROM']))
-        if to_addr:
-            message['To'] = to_addr
+
+        if isValidEmail(lazylibrarian.CONFIG['ADMIN_EMAIL']):
+            from_addr = lazylibrarian.CONFIG['ADMIN_EMAIL']
+        elif isValidEmail(lazylibrarian.CONFIG['EMAIL_FROM']):
+            from_addr = lazylibrarian.CONFIG['EMAIL_FROM']
         else:
-            message['To'] = lazylibrarian.CONFIG['EMAIL_TO']
+            logger.warn("Invalid FROM address, check config settings")
+            return false
+
+        if not to_addr:
+            to_addr = lazylibrarian.CONFIG['EMAIL_TO']
+        if not isValidEmail(to_addr):
+            logger.warn("Invalid TO address, check users email and/or config")
+            return false
+
+        message['From'] = formataddr(('LazyLibrarian', from_addr))
+        message['To'] = to_addr
         message['Date'] = formatdate(localtime=True)
 
         logger.debug('Email notification: %s' % message['Subject'])
@@ -93,8 +105,7 @@ class EmailNotifier:
             if lazylibrarian.CONFIG['EMAIL_SMTP_USER']:
                 mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'], lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
 
-            mailserver.sendmail(lazylibrarian.CONFIG['EMAIL_FROM'], lazylibrarian.CONFIG['EMAIL_TO'],
-                                message.as_string())
+            mailserver.sendmail(from_addr, to_addr, message.as_string())
             mailserver.quit()
             if oversize:
                 return False
