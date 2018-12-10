@@ -994,6 +994,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
 
             if rootxml.tag == 'error':
                 errormsg = rootxml.get('description', default='unknown error')
+                errormsg = errormsg[:200]  # sometimes get huge error messages from jackett
                 logger.error("%s - %s" % (host, errormsg))
                 # maybe the host doesn't support the search type
                 cancelled = cancelSearchType(searchType, errormsg, provider)
