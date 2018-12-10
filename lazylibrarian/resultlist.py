@@ -13,7 +13,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import re
 import traceback
 
 import lazylibrarian
@@ -98,7 +97,7 @@ def findBestResult(resultlist, book, searchtype, source):
         ignored_messages = []
         for res in resultlist:
             resultTitle = unaccented_str(replace_all(res[prefix + 'title'], dictrepl)).strip()
-            resultTitle = re.sub(r"\s\s+", " ", resultTitle)  # remove extra whitespace
+            resultTitle = b' '.join(resultTitle.split())  # remove extra whitespace
             Author_match = fuzz.token_set_ratio(author, resultTitle)
             Book_match = fuzz.token_set_ratio(title, resultTitle)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
@@ -207,7 +206,7 @@ def findBestResult(resultlist, book, searchtype, source):
                 # lose a point for each unwanted word in the title so we get the closest match
                 # but for RSS ignore anything at the end in square braces [keywords, genres etc]
                 if source == 'rss':
-                    wordlist = getList(resultTitle.rsplit('[', 1)[0].lower())
+                    wordlist = getList(resultTitle.rsplit(b'[', 1)[0].lower())
                 else:
                     wordlist = getList(resultTitle.lower())
                 words = [x for x in wordlist if x not in getList(author.lower())]
