@@ -6,8 +6,8 @@
 #
 # feedparser is patched to use a local copy of sgmllib as this is not available for python 3
 #
-# tinytag has "composer" field added as we need it for audiobooks and m4b added as equivalent filetype to m4a
-# Changes were requested upstream but not accepted
+# tinytag has "composer" field added as we need it for audiobooks, m4b added as equivalent filetype to m4a,
+# fix for zero padded comment fields. Changes were requested upstream but not accepted
 #
 # apscheduler - there is a much more recent version available, should maybe update
 #

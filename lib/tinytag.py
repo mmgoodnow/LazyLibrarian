@@ -660,7 +660,7 @@ class ID3(TinyTag):
         try:  # it's not my fault, this is the spec.
             first_byte = b[:1]
             if first_byte == b'\x00':  # ISO-8859-1
-                return self._unpad(codecs.decode(b[1:], 'ISO-8859-1'))
+                return self._unpad(codecs.decode(b.strip(b'\x00'), 'ISO-8859-1'))
             elif first_byte == b'\x01':  # UTF-16 with BOM
                 # read byte order mark to determine endianess
                 encoding = 'UTF-16be' if b[1:3] == b'\xfe\xff' else 'UTF-16le'
@@ -1060,6 +1060,7 @@ if __name__ == '__main__':
         print('Album       :', id3.album)
         print('AlbumArtist :', id3.albumartist)
         print('Composer    :', id3.composer)
+        print('Comment     :', id3.comment)
         print('Title       :', id3.title)
         print('Track       :', id3.track)
         print('EndTrack    :', id3.track_total)

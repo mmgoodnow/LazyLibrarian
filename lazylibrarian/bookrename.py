@@ -39,15 +39,16 @@ def id3read(filename):
 
     try:
         id3r = TinyTag.get(filename)
-        performer = id3r.artist
+        artist = id3r.artist
         composer = id3r.composer
         book = id3r.album
         albumartist = id3r.albumartist
+        comment = id3r.comment
 
-        if performer:
-            performer = performer.strip()
+        if artist:
+            artist = artist.strip()
         else:
-            performer = ''
+            artist = ''
         if composer:
             composer = composer.strip()
         else:
@@ -62,16 +63,17 @@ def id3read(filename):
             albumartist = ''
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
-            logger.debug("id3r.filename [%s]" % filename)
-            logger.debug("id3r.performer [%s]" % performer)
-            logger.debug("id3r.composer [%s]" % composer)
-            logger.debug("id3r.album [%s]" % book)
-            logger.debug("id3r.albumartist [%s]" % albumartist)
+            logger.debug("id3.filename [%s]" % filename)
+            logger.debug("id3.artist [%s]" % artist)
+            logger.debug("id3.composer [%s]" % composer)
+            logger.debug("id3.album [%s]" % book)
+            logger.debug("id3.albumartist [%s]" % albumartist)
+            logger.debug("id3.comment [%s]" % comment)
 
         if composer:  # if present, should be author
             author = composer
-        elif performer:  # author, or narrator if composer == author
-            author = performer
+        elif artist:  # author, or narrator if composer == author
+            author = artist
         elif albumartist:
             author = albumartist
         else:
@@ -131,28 +133,30 @@ def audioProcess(bookid, rename=False, playlist=False):
             audio_file = f
             try:
                 audio_path = os.path.join(r, f)
-                performer = ''
+                artist = ''
                 composer = ''
                 albumartist = ''
+                comment = ''
                 book = ''
                 title = ''
                 track = 0
                 total = 0
                 if TinyTag.is_supported(audio_path):
                     id3r = TinyTag.get(audio_path)
-                    performer = id3r.artist
+                    artist = id3r.artist
                     composer = id3r.composer
                     albumartist = id3r.albumartist
                     book = id3r.album
                     title = id3r.title
+                    comment = id3r.comment
                     track = id3r.track
                     total = id3r.track_total
 
                     track = check_int(track, 0)
                     total = check_int(total, 0)
 
-                    if performer:
-                        performer = performer.strip()
+                    if artist:
+                        artist = artist.strip()
                     if composer:
                         composer = composer.strip()
                     if book:
@@ -162,19 +166,20 @@ def audioProcess(bookid, rename=False, playlist=False):
 
                 if composer:  # if present, should be author
                     author = composer
-                elif performer:  # author, or narrator if composer == author
-                    author = performer
+                elif artist:  # author, or narrator if composer == author
+                    author = artist
                 elif albumartist:
                     author = albumartist
                 if author and book:
                     parts.append([track, book, author, f])
                 if not abridged:
-                    for tag in [book, title, albumartist, performer, composer]:
-                        if tag and 'unabridged' in tag.lower():
+                    # unabridged is sometimes shortened to unabr
+                    for tag in [book, title, albumartist, artist, composer, comment]:
+                        if tag and 'unabr' in tag.lower():
                             abridged = 'Unabridged'
                             break
                 if not abridged:
-                    for tag in [book, title, albumartist, performer, composer]:
+                    for tag in [book, title, albumartist, artist, composer, comment]:
                         if tag and 'abridged' in tag.lower():
                             abridged = 'Abridged'
                             break
@@ -184,7 +189,7 @@ def audioProcess(bookid, rename=False, playlist=False):
                 pass
             finally:
                 if not abridged:
-                    if audio_file and 'unabridged' in audio_file.lower():
+                    if audio_file and 'unabr' in audio_file.lower():
                         abridged = 'Unabridged'
                         break
                 if not abridged:
