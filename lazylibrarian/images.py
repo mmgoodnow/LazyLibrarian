@@ -596,7 +596,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 if res:
                     logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
             except Exception as e:
-                # logger.debug(params)
+                logger.debug(params)
                 logger.warn('External "convert" failed %s %s' % (type(e).__name__, str(e)))
 
         elif platform.system() == "Windows":

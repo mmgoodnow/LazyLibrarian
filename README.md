@@ -48,6 +48,8 @@ Auto update available via interface from master for git and source installs
 
 ## Packages
 rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags
+NOTE: the snap and flatpak do not include ghostscript (for magazine cover generation) or calibredb for calibre communication.
+because of confinement issues. If you need these features, use source or git installation
 The snap package is confined to users home directory, so all books and downloads need to be accessible from there too.
 Install the snap package with flags --devmode
 The flatpak is installed with flatpak install lazylibrarian_1.x.x.flatpak
