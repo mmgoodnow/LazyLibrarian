@@ -20,7 +20,7 @@ from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
     makeUnicode, seconds_to_midnight
-from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, LIME
+from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
@@ -63,6 +63,11 @@ def test_provider(name, host=None, api=None):
         if host:
             lazylibrarian.CONFIG['TDL_HOST'] = host
         return TDL(book, test=True), "TorrentDownloads"
+    if name == 'TRF':
+        logger.debug("Testing provider %s" % name)
+        if host:
+            lazylibrarian.CONFIG['TRF_HOST'] = host
+        return TRF(book, test=True), "Torrof"
     if name == 'GEN':
         logger.debug("Testing provider %s" % name)
         if host:
@@ -477,7 +482,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
         authorname, bookname = get_searchterm(book, searchType)
         book['searchterm'] = authorname + ' ' + bookname
 
-    for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'LIME']:
+    for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         if lazylibrarian.CONFIG[prov]:
             if ProviderIsBlocked(prov):
                 logger.debug('[IterateOverTorrentSites] - %s is BLOCKED' % lazylibrarian.CONFIG[prov + '_HOST'])
@@ -497,8 +502,8 @@ def IterateOverTorrentSites(book=None, searchType=None):
                     results, error = WWT(book)
                 elif prov == 'ZOO':
                     results, error = ZOO(book)
-                # elif prov == 'EXTRA':
-                #    results, error = EXTRA(book)
+                elif prov == 'TRF':
+                   results, error = TRF(book)
                 elif prov == 'TDL':
                     results, error = TDL(book)
                 elif prov == 'LIME':

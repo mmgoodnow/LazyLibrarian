@@ -16,10 +16,15 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix
+from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, replace_all
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
+
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 
 try:
     import html5lib
@@ -34,6 +39,156 @@ if PY2:
     import lib.feedparser as feedparser
 else:
     import lib3.feedparser as feedparser
+
+
+def TRF(book=None, test=False):
+    errmsg = ''
+    provider = "Torrof"
+    host = lazylibrarian.CONFIG['TRF_HOST']
+    if not host.startswith('http'):
+        host = 'http://' + host
+
+    dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
+                ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '0': '', '1': '',
+                '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '', '\'': '',
+                ':': '', '!': '', '-': ' ', '\s\s': ' '}
+
+    cat = 'Book'
+    if 'library' in book:
+        if book['library'] == 'AudioBook':
+            cat = 'Audio'
+        elif book['library'] == 'eBook':
+            cat = 'Book'
+        elif book['library'] == 'magazine':
+            cat = 'Magazine'
+
+    sterm = makeUnicode("%s %s" % (book['searchterm'], cat))
+
+    results = []
+    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+
+    searchURL = "%s/%s" % (host, quote_plus(sterm))
+
+    result, success = fetchURL(searchURL)
+
+    if not success:
+        # may return 404 if no results, not really an error
+        if '404' in result:
+            logger.debug("No results found from %s for %s" % (provider, sterm))
+            success = True
+        else:
+            logger.debug(searchURL)
+            logger.debug('Error fetching data from %s: %s' % (provider, result))
+            errmsg = result
+        result = False
+
+    if test:
+        return success
+
+    if result:
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        soup = BeautifulSoup(result, 'html5lib')
+
+        table = soup.find_all('table')[1]  # un-named table
+
+        if table:
+            rows = table.find_all('tr')
+        else:
+            rows = []
+
+        if len(rows) > 3:
+            rows = rows[1:]  # first row is headers
+        for row in rows:
+            td = row.find_all('td')
+            if len(td) > 2:
+                rejected = False
+                dl_type = td[0].text
+                if not dl_type:
+                    rejected = 'no type'
+                elif 'Direct'in dl_type:
+                    rejected = 'direct'
+                elif cat not in dl_type:
+                    rejected = 'wrong cat'
+                elif cat != 'Audio' and 'Audio' in dl_type:
+                    rejected = 'audio'
+
+                if not rejected:
+                    resultTitle = unaccented(replace_all(td[1].text, dictrepl)).strip()
+                    match = fuzz.token_set_ratio(book['searchterm'], resultTitle)
+
+                    if match > 90:
+                        try:
+                            new_url = "%s%s" % (host, str(td[1]).split('href="')[1].split('"')[0])
+                            result, success = fetchURL(new_url)
+                            if not success:
+                                logger.debug('Error fetching url %s, %s' % (new_url, result))
+                            else:
+                                magnet = None
+                                title = ''
+                                seeders = 0
+                                size = 0
+                                new_soup = BeautifulSoup(result, 'html5lib')
+                                for link in new_soup.find_all('a'):
+                                    output = link.get('href')
+                                    if output and output.startswith('magnet'):
+                                        magnet = output
+                                        break
+                                if magnet:
+                                    for link in new_soup.find_all('li'):
+                                        data = link.get('title')
+                                        if 'Seeder' in data:
+                                            seeders = int(link.text.strip().split(' ')[0])
+                                        elif 'Size' in data:
+                                            size = size_in_bytes(link.text.strip())
+                                    title = new_soup.find("h1")
+                                    if title:
+                                        title = title.text
+                                        title = title.replace('\n', '').strip()
+                                        title = ' '.join(title.split())
+
+                            # no point in asking for magnet link if not enough seeders
+                            if minimumseeders < seeders:
+                                if not magnet or not title:
+                                    logger.debug('Missing magnet or title')
+                                else:
+                                    size = td[1].text.split(', Size ')[1].split('iB')[0]
+                                    size = size.replace('&nbsp;', '')
+                                    size = size_in_bytes(size)
+                                    res = {
+                                        'bookid': book['bookid'],
+                                        'tor_prov': provider,
+                                        'tor_title': title,
+                                        'tor_url': magnet,
+                                        'tor_size': str(size),
+                                        'tor_type': 'magnet',
+                                        'priority': lazylibrarian.CONFIG['TRF_DLPRIORITY']
+                                    }
+                                    # dates are either mm dd yyyy or mm dd hh:mm if yyyy is this year
+                                    try:
+                                        tor_date = td[1].text.split('Uploaded ')[1].split(',')[0]
+                                        m = tor_date[:2]
+                                        d = tor_date[3:5]
+                                        y = tor_date[-4:]
+                                        if ':' in y:
+                                            t = tor_date[-6:]
+                                            res['tor_date'] = "%s-%s%s" % (m, d, t)
+                                        else:
+                                            res['tor_date'] = "%s-%s-%s" % (y, m, d)
+                                    except IndexError:
+                                        pass
+
+                                    results.append(res)
+
+                                    logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
+
+                            else:
+                                logger.debug('Found %s, size %s, but %s seeder%s' % (title, size, seeders, plural(seeders)))
+                        except Exception as e:
+                            logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
+                            logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    return results, errmsg
 
 
 def TPB(book=None, test=False):

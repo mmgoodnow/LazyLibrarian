@@ -385,6 +385,10 @@ CONFIG_DEFINITIONS = {
     # 'EXTRA_HOST': ('str', 'EXTRA', 'extratorrent.cc'),
     # 'EXTRA': ('bool', 'EXTRA', 0),
     # 'EXTRA_DLPRIORITY': ('int', 'EXTRA', 0),
+    'TRF_HOST': ('str', 'Torrof', 'torrof.com'),
+    'TRF': ('bool', 'Torrof', 0),
+    'TRF_DLPRIORITY': ('int', 'Torrof', 0),
+    'TRF_DLTYPES': ('str', 'Torrof', 'A,E,M'),
     'TDL_HOST': ('str', 'TDL', 'torrentdownloads.me'),
     'TDL': ('bool', 'TDL', 0),
     'TDL_DLPRIORITY': ('int', 'TDL', 0),
@@ -1374,7 +1378,7 @@ def USE_NZB():
 
 def USE_TOR():
     count = 0
-    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL']:
+    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
         if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
             count += 1
     return count

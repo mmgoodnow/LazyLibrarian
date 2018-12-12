@@ -820,6 +820,15 @@
               <input type="text" placeholder="Enter URL Here" id="tdl_host" name="tdl_host" value="${lazylibrarian.CONFIG['TDL_HOST']}" size="26">
               <br>
               <%
+                if lazylibrarian.CONFIG['TRF'] == True:
+                    checked = 'checked="checked"'
+                else:
+                    checked = ''
+              %>
+              <input type="checkbox" id="trf" name="trf" value=1 ${checked} style="margin-bottom:4px;" /> torrof
+              <input type="text" placeholder="Enter URL Here" id="trf_host" name="trf_host" value="${lazylibrarian.CONFIG['TRF_HOST']}" size="26">
+              <br>
+              <%
                 if lazylibrarian.CONFIG['LIME'] == True:
                     checked = 'checked="checked"'
                 else:

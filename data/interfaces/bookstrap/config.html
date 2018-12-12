@@ -1488,6 +1488,30 @@
                         </span>
                       </div>
                     </div>
+                     <%
+                      if lazylibrarian.CONFIG['TRF'] == True:
+                        checked = 'checked="checked"'
+                      else:
+                        checked = ''
+                    %>
+                    <div class="col-md-4 form-group">
+                      <label for="trf_host" class="sr-only">torrof host</label>
+                      <div class="input-group">
+                        <input type="text" placeholder="torrof host" id="trf_host" name="trf_host" value="${lazylibrarian.CONFIG['TRF_HOST']}" class="form-control">
+                        <span class="input-group-addon">
+                        <input type="checkbox" id="trf" name="trf" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="trf_dlpriority" name="trf_dlpriority" value="${lazylibrarian.CONFIG['TRF_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="trf_dltypes" name="trf_dltypes" value="${lazylibrarian.CONFIG['TRF_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="TRF"> Test</button>
+                        </span>
+                      </div>
+                    </div>
                     <%
                       if lazylibrarian.CONFIG['LIME'] == True:
                         checked = 'checked="checked"'
@@ -3628,7 +3652,7 @@
             var prov = $(this).val();
             var host = ""
             var api = ""
-            if ( 'KAT TPB WWT ZOO TDL LIME GEN GEN2'.indexOf(prov) >= 0 ) {
+            if ( 'KAT TPB WWT ZOO TDL TRF LIME GEN GEN2'.indexOf(prov) >= 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
             }
             if ( 'GEN GEN2'.indexOf(prov) >= 0 ) {
