@@ -16,7 +16,8 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, replace_all
+from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, \
+    replace_all, getList, month2num, check_year
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
@@ -118,15 +119,16 @@ def TRF(book=None, test=False):
 
                     if match > 90:
                         try:
+                            magnet = None
+                            title = ''
+                            seeders = 0
+                            size = 0
+                            age = ''
                             new_url = "%s%s" % (host, str(td[1]).split('href="')[1].split('"')[0])
                             result, success = fetchURL(new_url)
                             if not success:
                                 logger.debug('Error fetching url %s, %s' % (new_url, result))
                             else:
-                                magnet = None
-                                title = ''
-                                seeders = 0
-                                size = 0
                                 new_soup = BeautifulSoup(result, 'html5lib')
                                 for link in new_soup.find_all('a'):
                                     output = link.get('href')
@@ -136,10 +138,13 @@ def TRF(book=None, test=False):
                                 if magnet:
                                     for link in new_soup.find_all('li'):
                                         data = link.get('title')
-                                        if 'Seeder' in data:
-                                            seeders = int(link.text.strip().split(' ')[0])
-                                        elif 'Size' in data:
-                                            size = size_in_bytes(link.text.strip())
+                                        if data:
+                                            if 'Seeder' in data:
+                                                seeders = int(link.text.strip().split(' ')[0])
+                                            elif 'Size' in data:
+                                                size = size_in_bytes(link.text.strip())
+                                            elif ' age' in data:
+                                                age = link.text.strip()
                                     title = new_soup.find("h1")
                                     if title:
                                         title = title.text
@@ -163,26 +168,29 @@ def TRF(book=None, test=False):
                                         'tor_type': 'magnet',
                                         'priority': lazylibrarian.CONFIG['TRF_DLPRIORITY']
                                     }
-                                    # dates are either mm dd yyyy or mm dd hh:mm if yyyy is this year
-                                    try:
-                                        tor_date = td[1].text.split('Uploaded ')[1].split(',')[0]
-                                        m = tor_date[:2]
-                                        d = tor_date[3:5]
-                                        y = tor_date[-4:]
-                                        if ':' in y:
-                                            t = tor_date[-6:]
-                                            res['tor_date'] = "%s-%s%s" % (m, d, t)
-                                        else:
-                                            res['tor_date'] = "%s-%s-%s" % (y, m, d)
-                                    except IndexError:
-                                        pass
+                                    # date style: Dec 2015
+                                    if age:
+                                        m = 0
+                                        y = 0
+                                        words = getList(age)
+                                        for word in words:
+                                            val = month2num(word)
+                                            if val:
+                                                m = val
+                                            else:
+                                                val = check_year(word)
+                                                if val:
+                                                    y = val
+                                        if y and m:
+                                            res['tor_date'] = "%d-%02d-01" % (y, m)
 
                                     results.append(res)
 
                                     logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
 
                             else:
-                                logger.debug('Found %s, size %s, but %s seeder%s' % (title, size, seeders, plural(seeders)))
+                                logger.debug('Found %s, %s:%s, but %s seeder%s' % (title, size, age, seeders,
+                                                                                   plural(seeders)))
                         except Exception as e:
                             logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                             logger.debug('%s: %s' % (provider, traceback.format_exc()))
