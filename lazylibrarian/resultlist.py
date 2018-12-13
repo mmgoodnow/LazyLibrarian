@@ -19,7 +19,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
-from lazylibrarian.formatter import unaccented_str, replace_all, getList, now, check_int
+from lazylibrarian.formatter import unaccented, replace_all, getList, now, check_int
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
 try:
@@ -71,8 +71,8 @@ def findBestResult(resultlist, book, searchtype, source):
         if source == 'rss':
             author, title = get_searchterm(book, searchtype)
         else:
-            author = unaccented_str(replace_all(book['authorName'], dic))
-            title = unaccented_str(replace_all(book['bookName'], dic))
+            author = unaccented(replace_all(book['authorName'], dic))
+            title = unaccented(replace_all(book['bookName'], dic))
 
         if book['library'] == 'AudioBook':
             reject_list = getList(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
@@ -96,8 +96,8 @@ def findBestResult(resultlist, book, searchtype, source):
         matches = []
         ignored_messages = []
         for res in resultlist:
-            resultTitle = unaccented_str(replace_all(res[prefix + 'title'], dictrepl)).strip()
-            resultTitle = b' '.join(resultTitle.split())  # remove extra whitespace
+            resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl)).strip()
+            resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
             Author_match = fuzz.token_set_ratio(author, resultTitle)
             Book_match = fuzz.token_set_ratio(title, resultTitle)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
@@ -206,7 +206,7 @@ def findBestResult(resultlist, book, searchtype, source):
                 # lose a point for each unwanted word in the title so we get the closest match
                 # but for RSS ignore anything at the end in square braces [keywords, genres etc]
                 if source == 'rss':
-                    wordlist = getList(resultTitle.rsplit(b'[', 1)[0].lower())
+                    wordlist = getList(resultTitle.rsplit('[', 1)[0].lower())
                 else:
                     wordlist = getList(resultTitle.lower())
                 words = [x for x in wordlist if x not in getList(author.lower())]
