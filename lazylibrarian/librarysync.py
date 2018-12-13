@@ -37,11 +37,6 @@ from lib.mobi import Mobi
 from lib.six.moves.urllib_parse import quote_plus, urlencode
 
 try:
-    from lib.tinytag import TinyTag
-except ImportError:
-    TinyTag = None
-
-try:
     import zipfile
 except ImportError:
     if PY2:

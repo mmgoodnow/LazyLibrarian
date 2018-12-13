@@ -518,7 +518,8 @@ class ID3(TinyTag):
                 self.samplerate = ID3.samplerates[mpeg_id][sr_id]
                 frame_bitrate = ID3.bitrate_by_version_by_layer[mpeg_id][layer_id][br_id]
             except (IndexError, TypeError):
-                raise TinyTagException('mp3 parsing failed')
+                # raise TinyTagException('mp3 parsing failed')
+                self.samplerate = 144000  # invalid/reserved
             # There might be a xing header in the first frame that contains
             # all the info we need, otherwise parse multiple frames to find the
             # accurate average bitrate
