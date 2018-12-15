@@ -90,7 +90,10 @@ def TRF(book=None, test=False):
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
         soup = BeautifulSoup(result, 'html5lib')
 
-        table = soup.find_all('table')[1]  # un-named table
+        try:
+            table = soup.find_all('table')[1]  # un-named table
+        except IndexError:
+            table = None
 
         if table:
             rows = table.find_all('tr')
