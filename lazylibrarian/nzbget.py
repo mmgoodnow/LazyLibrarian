@@ -31,11 +31,11 @@ from lib.six.moves import xmlrpc_client, http_client
 
 def checkLink():
     # socket.setdefaulttimeout(2)
-    test = sendNZB(cmd="test")
+    test, res = sendNZB(cmd="test")
     # socket.setdefaulttimeout(None)
     if test:
         return "NZBget connection successful"
-    return "NZBget connection FAILED\nCheck debug log"
+    return "NZBget connection FAILED\n%s" % res
 
 
 def deleteNZB(nzbID, remove_data=False):
@@ -103,7 +103,7 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         res = "Please check your NZBget host and port (if it is running). "
         res += "NZBget is not responding to this combination: %s" % e
         logger.error(res)
-        logger.error("NZBget url set to [%s]" % url)
+        logger.error("NZBget url is [%s]" % url)
         return False, res
 
     except xmlrpc_client.ProtocolError as e:
@@ -112,6 +112,12 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         else:
             res = "Protocol Error: %s" % e.errmsg
         logger.error(res)
+        return False, res
+
+    except Exception as e:
+        res = "nzbGet Exception: %s" % e
+        logger.error(res)
+        logger.error("NZBget url [%s]" % url)
         return False, res
 
     if nzbID is not None:
