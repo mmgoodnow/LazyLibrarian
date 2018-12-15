@@ -285,10 +285,11 @@ def getLatestVersion_FromGit():
                 branch = 'master'
             # Get the latest commit available from git
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                #url = 'https://%s/api/v4/projects/%s%%2F%s/repository/branches/%s' % (
+                #    url = 'https://%s/api/v4/projects/%s%%2F%s/repository/branches/%s' % (
                 #    lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
                 #    lazylibrarian.CONFIG['GIT_REPO'], branch)
-                url = 'https://lazylibrarian.gitlab.io/version.json'
+                #    url = 'https://lazylibrarian.gitlab.io/version.json'
+                url = 'https://lazylibrarian.gitlab.io/version/index.html'
             else:
                 url = 'https://api.%s/repos/%s/%s/commits/%s' % (
                     lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
@@ -319,11 +320,14 @@ def getLatestVersion_FromGit():
                 r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
 
                 if str(r.status_code).startswith('2'):
-                    git = r.json()
                     if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                        #latest_version = git['commit']['id']
-                        latest_version = git
+                        # latest_version = git['commit']['id']
+                        try:
+                            latest_version = r.text.split('"version:')[1].split('"')[0]
+                        except IndexError:
+                            latest_version = 'Not_Available_From_Git'
                     else:
+                        git = r.json()
                         latest_version = git['sha']
                     logmsg('debug', 'Branch [%s] Latest Version has been set to [%s]' % (
                         branch, latest_version))
