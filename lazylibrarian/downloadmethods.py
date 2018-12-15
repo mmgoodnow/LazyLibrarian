@@ -389,12 +389,8 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
 
     if lazylibrarian.CONFIG['TOR_DOWNLOADER_QBITTORRENT'] and lazylibrarian.CONFIG['QBITTORRENT_HOST']:
         Source = "QBITTORRENT"
-        if torrent:
-            logger.debug("Sending %s data to qBittorrent" % tor_title)
-            status, res = qbittorrent.addFile(torrent, hashid, tor_title)
-        else:
-            logger.debug("Sending %s url to qBittorrent" % tor_title)
-            status, res = qbittorrent.addTorrent(tor_url, hashid)  # returns True or False
+        logger.debug("Sending %s url to qBittorrent" % tor_title)
+        status, res = qbittorrent.addTorrent(tor_url, hashid)  # returns True or False
         if status:
             downloadID = hashid
             tor_title = qbittorrent.getName(hashid)
