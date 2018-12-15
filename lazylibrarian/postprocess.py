@@ -250,6 +250,7 @@ def unpack_archive(archivename, download_dir, title):
         returns new directory in download_dir with book in it, or empty string """
     # noinspection PyBroadException
     try:
+        # noinspection PyUnresolvedReferences
         from unrar import rarfile
     except Exception:
         # noinspection PyBroadException
@@ -1565,8 +1566,8 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     # run custom pre-processing, for example remove unwanted formats
     # or force format conversion before sending to calibre
     if len(lazylibrarian.CONFIG['IMP_PREPROCESS']):
-        logger.debug("Running PreProcessor: %s %s" % (booktype, pp_path))
-        params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], booktype, pp_path]
+        logger.debug("Running PreProcessor: %s %s %s %s" % (booktype, pp_path, authorname, bookname))
+        params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], booktype, pp_path, authorname, bookname]
         rc, res, err = runScript(params)
         if rc:
             return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
