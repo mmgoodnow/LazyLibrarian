@@ -201,7 +201,6 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
         return match['BookID'], match[whichstatus]
     else:
         # Try a more complex fuzzy match against each book in the db by this author
-        # Using hard-coded ratios for now, maybe make ratios configurable in config.ini later
         cmd = 'SELECT BookID,BookName,BookISBN,books.Status,AudioStatus FROM books,authors'
         cmd += ' where books.AuthorID = authors.AuthorID '
         ign = ''
@@ -256,11 +255,22 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
         if book_partname == book_lower:
             book_partname = ''
 
+        # translations: eg allow "fire & fury" to match "fire and fury"
+        translates = [
+                        [' & ', ' and '],
+                    ]
+
         for a_book in books:
             # tidy up everything to raise fuzziness scores
             # still need to lowercase for matching against partial_name later on
             a_book_lower = unaccented(a_book['BookName'].lower())
             a_book_lower = replace_all(a_book_lower, dic)
+
+            for entry in translates:
+                if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
+                    a_book_lower = a_book_lower.replace(entry[0], entry[1])
+                if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
+                    a_book_lower = a_book_lower.replace(entry[1], entry[0])
             #
             # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
             ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
