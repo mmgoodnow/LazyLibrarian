@@ -342,13 +342,17 @@ def main():
                     f.write("file '%s'\n" % makeBytestr(part[3]))
                     if write_tags and authorname and bookname:
                         if tokmatch or (part[2] != authorname) or (part[1] != bookname):
+                            extn = os.path.splitext(part[3])[1]
                             params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
-                                      '-y', '-c:a', 'copy', '-metadata', "album='%s'" % bookname,
-                                      '-metadata', "artist='%s'" % authorname,
-                                      '-metadata', "track='%s'" % part[0],
-                                      os.path.join(bookfolder, part[3])]
+                                      '-y', '-c:a', 'copy', '-metadata', "album=%s" % bookname,
+                                      '-metadata', "artist=%s" % authorname,
+                                      '-metadata', "track=%s" % part[0],
+                                      os.path.join(bookfolder, "tempaudio%s" % extn)]
                             try:
                                 _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                os.remove(os.path.join(bookfolder, part[3]))
+                                os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
+                                          os.path.join(bookfolder, part[3]))
                                 print("Metadata written to %s" % part[3])
                             except Exception as e:
                                 sys.stderr.write("%s\n" % e)
