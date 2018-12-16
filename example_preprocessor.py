@@ -1,9 +1,10 @@
 #!/usr/bin/python
-# The parameter list is type, folder
+# The parameter list is type, folder, authorname, bookname
 # where "type" is one of 'ebook', 'audiobook', 'mag', 'test'
 # and "folder" is the folder ready to be processed
+# and authorname, bookname are optional, only used for audio tags
 # This example uses "ebook-convert" from calibre to make sure we have both epub and mobi of the new book.
-# and "ffmpeg" to produce a single file audiobook
+# and "ffmpeg" to produce a single file audiobook and/or write id3 tags
 # Note it is not fully error trapped, just a basic working example.
 # Error messages appear as errors in the lazylibrarian log
 # Anything you print to stdout appears as debug messages in the log
@@ -25,7 +26,6 @@ if sys.version_info[0] == 3:
 else:
     text_type = unicode
 
-
 # eBook options
 ###########################################################################
 preprocess_ebook = True
@@ -36,11 +36,14 @@ keep_jpg = True
 delete_others = False  # use with care, deletes everything except wanted formats (and opf/jpg if keep is True)
 ###########################################################################
 # audiobook options
-preprocess_audio = True
+write_singlefile = True
+write_tags = True
 ffmpeg = 'ffmpeg'  # if not in your "path", put the full pathname here
 audio_options = ['-ab', '320k']
 keep_original_audiofiles = True
 audiotypes = ['mp3', 'flac', 'm4a', 'm4b']
+
+
 ###########################################################################
 # should not need to alter anything below here
 ###########################################################################
@@ -95,59 +98,19 @@ def check_int(var, default, positive=True):
             return 0
 
 
-def id3read(filename):
-    if not TinyTag:
-        return None, None
-
-    try:
-        id3r = TinyTag.get(filename)
-        performer = id3r.artist
-        composer = id3r.composer
-        book = id3r.album
-        albumartist = id3r.albumartist
-
-        if performer:
-            performer = performer.strip()
-        else:
-            performer = ''
-        if composer:
-            composer = composer.strip()
-        else:
-            composer = ''
-        if book:
-            book = book.strip()
-        else:
-            book = ''
-        if albumartist:
-            albumartist = albumartist.strip()
-        else:
-            albumartist = ''
-
-        if composer:  # if present, should be author
-            author = composer
-        elif performer:  # author, or narrator if composer == author
-            author = performer
-        elif albumartist:
-            author = albumartist
-        else:
-            author = None
-        if author and type(author) is list:
-            author = author[0]  # if multiple authors, just use the first one
-        if author and book:
-            return makeUnicode(author), makeUnicode(book)
-    except Exception as e:
-        sys.stderr.write("tinytag error %s %s [%s]" % (type(e).__name__, str(e), filename))
-    return None, None
-
-
 def main():
-    if len(sys.argv) != 3:
+    authorname = ''
+    bookname = ''
+    if len(sys.argv) < 3:
         sys.stderr.write("Invalid parameters (%s) assume test\n" % len(sys.argv))
         booktype = 'test'
         bookfolder = ''
     else:
         booktype = sys.argv[1]
         bookfolder = sys.argv[2]
+        if len(sys.argv) == 5:
+            authorname = sys.argv[3]
+            bookname = sys.argv[4]
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preprocessor.log'), 'a') as pplog:
         pplog.write("%s: %s %s\n" % (time.ctime(), booktype, bookfolder))
@@ -237,10 +200,11 @@ def main():
                 pplog.write("%s: No extra ebook formats created\n" % time.ctime())
 
         elif booktype == 'audiobook':
-            if not preprocess_audio:
+            if not write_singlefile and not write_tags:
                 print("audiobook preprocessing is disabled")
                 exit(0)
-            # this example produces a single file audiobook
+
+            # this produces a single file audiobook
             ffmpeg_params = ['-f', 'concat', '-safe', '0', '-i',
                              os.path.join(bookfolder, 'partslist.ll'), '-f', 'ffmetadata',
                              '-i', os.path.join(bookfolder, 'metadata.ll'), '-map_metadata', '1',
@@ -329,8 +293,8 @@ def main():
                         exit(1)
 
             # do we have any track info (value is 0 if not)
+            tokmatch = ''
             if parts[0][0] == 0:
-                tokmatch = ''
                 # try to extract part information from filename. Search for token style of part 1 in this order...
                 for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                     if tokmatch:
@@ -376,53 +340,67 @@ def main():
             with open(os.path.join(bookfolder, 'partslist.ll'), 'wb') as f:
                 for part in parts:
                     f.write("file '%s'\n" % makeBytestr(part[3]))
+                    if write_tags and authorname and bookname:
+                        if tokmatch or (part[2] != authorname) or (part[1] != bookname):
+                            params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
+                                      '-y', '-c:a', 'copy', '-metadata', "album='%s'" % bookname,
+                                      '-metadata', "artist='%s'" % authorname,
+                                      '-metadata', "track='%s'" % part[0],
+                                      os.path.join(bookfolder, part[3])]
+                            try:
+                                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                print("Metadata written to %s" % part[3])
+                            except Exception as e:
+                                sys.stderr.write("%s\n" % e)
 
-            params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
-                      '-f', 'ffmetadata', '-y', os.path.join(bookfolder, 'metadata.ll')]
-            try:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                print("Metadata written to file")
-            except Exception as e:
-                sys.stderr.write("%s\n" % e)
-                pplog.write("%s: %s\n" % (time.ctime(), e))
-                exit(1)
+            if write_singlefile:
+                params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
+                          '-f', 'ffmetadata', '-y', os.path.join(bookfolder, 'metadata.ll')]
+                try:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    print("Metadata written to file")
+                except Exception as e:
+                    sys.stderr.write("%s\n" % e)
+                    pplog.write("%s: %s\n" % (time.ctime(), e))
+                    exit(1)
 
-            params = [ffmpeg]
-            params.extend(ffmpeg_params)
-            params.extend(audio_options)
-            params.append('-y')
-            if not out_type:
-                out_type = 'mp3'
-            outfile = "%s - %s.%s" % (author, book, out_type)
-            params.append(os.path.join(bookfolder, outfile))
+                params = [ffmpeg]
+                params.extend(ffmpeg_params)
+                params.extend(audio_options)
+                params.append('-y')
+                if not out_type:
+                    out_type = 'mp3'
+                outfile = "%s - %s.%s" % (author, book, out_type)
+                params.append(os.path.join(bookfolder, outfile))
 
-            try:
-                msg = "Processing %d files" % len(parts)
+                try:
+                    msg = "Processing %d files" % len(parts)
+                    print(msg)
+                    pplog.write("%s: %s\n" % (time.ctime(), msg))
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                except Exception as e:
+                    sys.stderr.write("%s\n" % e)
+                    pplog.write("%s: %s\n" % (time.ctime(), e))
+                    exit(1)
+
+                msg = "%d files merged into %s" % (len(parts), outfile)
                 print(msg)
                 pplog.write("%s: %s\n" % (time.ctime(), msg))
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            except Exception as e:
-                sys.stderr.write("%s\n" % e)
-                pplog.write("%s: %s\n" % (time.ctime(), e))
-                exit(1)
-
-            msg = "%d files merged into %s" % (len(parts), outfile)
-            print(msg)
-            pplog.write("%s: %s\n" % (time.ctime(), msg))
-            os.remove(os.path.join(bookfolder, 'partslist.ll'))
-            os.remove(os.path.join(bookfolder, 'metadata.ll'))
-            if not keep_original_audiofiles:
-                msg = "Removing %d part files" % len(parts)
-                print(msg)
-                pplog.write("%s: %s\n" % (time.ctime(), msg))
-                for part in parts:
-                    os.remove(os.path.join(bookfolder, part[3]))
+                os.remove(os.path.join(bookfolder, 'partslist.ll'))
+                os.remove(os.path.join(bookfolder, 'metadata.ll'))
+                if not keep_original_audiofiles:
+                    msg = "Removing %d part files" % len(parts)
+                    print(msg)
+                    pplog.write("%s: %s\n" % (time.ctime(), msg))
+                    for part in parts:
+                        os.remove(os.path.join(bookfolder, part[3]))
 
         elif booktype == 'mag':
             # maybe you want to split the pages and turn them into jpeg like a comic?
             print("This example preprocessor only preprocesses eBooks and audiobooks")
 
     exit(0)
+
 
 if __name__ == "__main__":
     main()
