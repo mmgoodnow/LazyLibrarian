@@ -633,8 +633,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             dest_dir = lazylibrarian.DIRECTORY('eBook')
                             if book_type == 'AudioBook' and lazylibrarian.DIRECTORY('Audio'):
                                 dest_dir = lazylibrarian.DIRECTORY('Audio')
-                            dest_path = os.path.join(dest_dir, dest_path)
-                            dest_path = stripspaces(dest_path)
+                            dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             if PY2:
                                 dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
                             global_name = seriesinfo['BookFile']
@@ -653,14 +652,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                                 if lazylibrarian.CONFIG['MAG_RELATIVE']:
                                     dest_dir = lazylibrarian.DIRECTORY('eBook')
-                                    dest_path = os.path.join(dest_dir, dest_path)
-                                    dest_path = stripspaces(dest_path)
+                                    dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                     if PY2:
                                         dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
                                     if not mymakedirs(dest_path):
                                         logger.warn('Unable to create directory %s' % dest_path)
                                     else:
-                                        ignorefile = os.path.join(dest_path, '.ll_ignore')
+                                        ignorefile = os.path.join(dest_path, b'.ll_ignore')
                                         with open(ignorefile, 'a'):
                                             os.utime(ignorefile, None)
                                 elif PY2:
@@ -1429,14 +1427,12 @@ def process_book(pp_path=None, bookID=None):
                 lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'].replace('/', '\\')
 
             seriesinfo = nameVars(bookID)
-            dest_path = seriesinfo['FolderName']
-            dest_path = os.path.join(dest_dir, dest_path)
-            dest_path = stripspaces(dest_path)
-            if PY2:
-                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
             global_name = seriesinfo['BookFile']
+            dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['FolderName']))
+            if PY2:
+                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
 
             success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
                                                     global_name, bookID, book_type)
