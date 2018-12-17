@@ -322,8 +322,8 @@ def import_CSV(search_dir=None, library='eBook'):
                             authcount += 1
 
                     bookmatch = finditem(item, authorname, library=library)
-                    result = ''
-                    imported = ''
+                    imported = False
+                    results = []
                     if bookmatch:
                         authorname = bookmatch['AuthorName']
                         bookname = bookmatch['BookName']
@@ -348,52 +348,53 @@ def import_CSV(search_dir=None, library='eBook'):
                     else:
                         searchterm = "%s <ll> %s" % (title, authorname)
                         results = search_for(unaccented(searchterm))
-                        if results:
-                            result = results[0]
-                            if result['author_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
-                                    and result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO']:
-                                bookmatch = True
+                        for result in results:
+                            if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                                    and result['authorid'] == authorid:
+                                bookmatch = result
+                                break
                         if not bookmatch:  # no match on full searchterm, try splitting out subtitle
                             newtitle, _ = split_title(authorname, title)
                             if newtitle != title:
                                 title = newtitle
                                 searchterm = "%s <ll> %s" % (title, authorname)
                                 results = search_for(unaccented(searchterm))
-                                if results:
-                                    result = results[0]
-                                    if result['author_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
-                                            and result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO']:
-                                        bookmatch = True
+                                for result in results:
+                                    if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                                            and result['authorid'] == authorid:
+                                        bookmatch = result
+                                        break
                         if bookmatch:
-                            logger.info("Found (%s%% %s%%) %s: %s for %s: %s" %
-                                        (result['author_fuzz'], result['book_fuzz'],
-                                         result['authorname'], result['bookname'],
+                            logger.info("Found (%s%%) %s: %s for %s: %s" %
+                                        (bookmatch['book_fuzz'], bookmatch['authorname'], bookmatch['bookname'],
                                          authorname, title))
                             if library == 'eBook':
-                                import_book(result['bookid'], ebook="Wanted", wait=True)
+                                import_book(bookmatch['bookid'], ebook="Wanted", wait=True)
                             else:
-                                import_book(result['bookid'], audio="Wanted", wait=True)
-                            imported = myDB.match('select * from books where BookID=?', (result['bookid'],))
+                                import_book(bookmatch['bookid'], audio="Wanted", wait=True)
+                            imported = myDB.match('select * from books where BookID=?', (bookmatch['bookid'],))
                             if imported:
                                 bookcount += 1
-                            else:
-                                bookmatch = False
 
-                    if bookmatch:
+                    if bookmatch and imported:
                         update_totals(authorid)
                     else:
                         msg = "Skipping book %s by %s" % (title, authorname)
-                        if not result:
+                        if not results:
                             msg += ', No results found'
                             logger.warn(msg)
-                        elif not imported:
-                            msg += ', Failed to import %s' % result['bookid']
+                        elif bookmatch and not imported:
+                            msg += ', Failed to import %s' % bookmatch['bookid']
                             logger.warn(msg)
                         else:
                             msg += ', No match found'
                             logger.warn(msg)
-                            msg = "Closest match (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
-                                                                        result['authorname'], result['bookname'])
+                            msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
+                                                                        results[0]['book_fuzz'],
+                                                                        results[0]['authorname'],
+                                                                        results[0]['bookname'])
+                            if results[0]['authorid'] != authorid:
+                                msg += ' wrong authorid'
                             logger.warn(msg)
                         skipcount += 1
 

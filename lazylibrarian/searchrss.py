@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, formatAuthorName, check_int
+from lazylibrarian.formatter import plural, unaccented, formatAuthorName, check_int, split_title
 from lazylibrarian.importer import import_book, search_for
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverWishLists
 from lazylibrarian.resultlist import processResultList
@@ -161,40 +161,46 @@ def search_wishlist():
                         myDB.upsert("books", newValueDict, controlValueDict)
 
             else:  # not in database yet
+                results = []
+                authorname = formatAuthorName(book['rss_author'])
                 if book['rss_isbn']:
                     results = search_for(book['rss_isbn'])
-                    if results:
-                        result = results[0]  # type: dict
+                    for result in results:
                         if result['isbn_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
                             logger.info("Found (%s%%) %s: %s" %
                                         (result['isbn_fuzz'], result['authorname'], result['bookname']))
-                            import_book(result['bookid'], ebook_status, audio_status)
-                            new_books += 1
-                            newValueDict = {"Requester": book["dispname"] + ' '}
-                            controlValueDict = {"BookID": result['bookid']}
-                            myDB.upsert("books", newValueDict, controlValueDict)
-                            newValueDict = {"AudioRequester": book["dispname"] + ' '}
-                            myDB.upsert("books", newValueDict, controlValueDict)
-                            bookmatch = True
-                else:
-                    searchterm = "%s <ll> %s" % (book['rss_title'], formatAuthorName(book['rss_author']))
+                            bookmatch = result
+                            break
+                if not bookmatch:
+                    searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
                     results = search_for(unaccented(searchterm))
-                    if results:
-                        result = results[0]  # type: dict
+                    for result in results:
                         if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
                                 and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
                             logger.info("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
                                                                       result['authorname'], result['bookname']))
-                            import_book(result['bookid'], ebook_status, audio_status)
-                            new_books += 1
-                            newValueDict = {"Requester": book["dispname"] + ' '}
-                            controlValueDict = {"BookID": result['bookid']}
-                            myDB.upsert("books", newValueDict, controlValueDict)
-                            newValueDict = {"AudioRequester": book["dispname"] + ' '}
-                            myDB.upsert("books", newValueDict, controlValueDict)
-                            bookmatch = True
-
-                if not bookmatch:
+                            bookmatch = result
+                            break
+                if not bookmatch:  # no match on full searchterm, try splitting out subtitle
+                    newtitle, _ = split_title(authorname, book['rss_title'])
+                    if newtitle != book['rss_title']:
+                        title = newtitle
+                        searchterm = "%s <ll> %s" % (title, authorname)
+                        results = search_for(unaccented(searchterm))
+                        for result in results:
+                            if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
+                                    and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+                                logger.info("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
+                                                                          result['authorname'], result['bookname']))
+                                bookmatch = result
+                                break
+                if bookmatch:
+                    import_book(bookmatch['bookid'], ebook_status, audio_status)
+                    new_books += 1
+                    newValueDict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
+                    controlValueDict = {"BookID": bookmatch['bookid']}
+                    myDB.upsert("books", newValueDict, controlValueDict)
+                else:
                     msg = "Skipping book %s by %s" % (book['rss_title'], book['rss_author'])
                     if not results:
                         msg += ', No results returned'
@@ -202,12 +208,14 @@ def search_wishlist():
                     else:
                         msg += ', No match found'
                         logger.warn(msg)
-                        result = results[0]  # type: dict
-                        msg = "Closest match (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
-                                                                    result['authorname'], result['bookname'])
-                    logger.warn(msg)
+                        logger.warn("Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'],
+                                                                          results[0]['book_fuzz'],
+                                                                          results[0]['authorname'],
+                                                                          results[0]['bookname']))
         if new_books:
             logger.info("Wishlist marked %s book%s as Wanted" % (new_books, plural(new_books)))
+        else:
+            logger.debug("Wishlist marked no new books as Wanted")
 
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())

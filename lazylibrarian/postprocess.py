@@ -40,9 +40,10 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, mymakedirs, runScript
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
-    replace_all, getList, surnameFirst, makeUnicode, makeBytestr, check_int, is_valid_type, multibook
+    replace_all, getList, surnameFirst, makeUnicode, makeBytestr, check_int, is_valid_type, multibook, \
+    split_title
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals
+from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.images import createMagCover
@@ -182,14 +183,53 @@ def processAlternate(source_dir=None, library='eBook'):
 
             if authmatch:
                 logger.debug("Author %s found in database" % authorname)
+                authorid = authmatch['authorid']
             else:
                 logger.debug("Author %s not found, adding to database" % authorname)
                 if authorid:
-                    addAuthorToDB(authorid=authorid)
+                    addAuthorToDB(authorid=authorid, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
                 else:
-                    addAuthorNameToDB(author=authorname)
+                    aname, authorid, added = addAuthorNameToDB(author=authorname,
+                                                               addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                    if aname and aname != authorname:
+                        authorname = aname
 
             bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library)
+            results = []
+            if not bookid:
+                # new book, or new author where we didn't want to load their back catalog
+                searchterm = "%s <ll> %s" % (bookname, authorname)
+                match = {}
+                results = search_for(unaccented(searchterm))
+                for result in results:
+                    if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                            and result['authorid'] == authorid:
+                        match = result
+                        break
+                if not match:  # no match on full searchterm, try splitting out subtitle
+                    newtitle, _ = split_title(authorname, bookname)
+                    if newtitle != bookname:
+                        bookname = newtitle
+                        searchterm = "%s <ll> %s" % (bookname, authorname)
+                        results = search_for(unaccented(searchterm))
+                        for result in results:
+                            if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                                    and result['authorid'] == authorid:
+                                match = result
+                                break
+                if match:
+                    logger.info("Found (%s%%) %s: %s for %s: %s" %
+                                (match['book_fuzz'], match['authorname'], match['bookname'],
+                                    authorname, bookname))
+                    if library == 'eBook':
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True)
+                    else:
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True)
+                    imported = myDB.match('select * from books where BookID=?', (match['bookid'],))
+                    if imported:
+                        bookid = match['bookid']
+                        update_totals(authorid)
+
             if bookid:
                 if library == 'eBook':
                     res = myDB.match("SELECT Status from books WHERE BookID=?", (bookid,))
@@ -204,7 +244,18 @@ def processAlternate(source_dir=None, library='eBook'):
                                     (library, bookname, authorname))
                     return process_book(source_dir, bookid)
             else:
-                logger.warn("%s %s by %s not found in database" % (library, bookname, authorname))
+                msg = "%s %s by %s not found in database" % (library, bookname, authorname)
+                if not results:
+                    msg += ', No results returned'
+                    logger.warn(msg)
+                else:
+                    msg += ', No match found'
+                    logger.warn(msg)
+                    msg = "Closest match (%s%% %s%%) %s: %s" % (results[0]['author_fuzz'], results[0]['book_fuzz'],
+                                                                results[0]['authorname'], results[0]['bookname'])
+                    if results[0]['authorid'] != authorid:
+                        msg += ' wrong authorid'
+                    logger.warn(msg)
         else:
             logger.warn('%s %s has no metadata, unable to import' % (library, new_book))
         return False
@@ -584,6 +635,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 dest_dir = lazylibrarian.DIRECTORY('Audio')
                             dest_path = os.path.join(dest_dir, dest_path)
                             dest_path = stripspaces(dest_path)
+                            if PY2:
+                                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
                             global_name = seriesinfo['BookFile']
                         else:
                             data = myDB.match('SELECT IssueDate from magazines WHERE Title=?', (book['BookID'],))
@@ -601,6 +654,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 if lazylibrarian.CONFIG['MAG_RELATIVE']:
                                     dest_dir = lazylibrarian.DIRECTORY('eBook')
                                     dest_path = os.path.join(dest_dir, dest_path)
+                                    dest_path = stripspaces(dest_path)
                                     if PY2:
                                         dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
                                     if not mymakedirs(dest_path):
@@ -1378,6 +1432,8 @@ def process_book(pp_path=None, bookID=None):
             dest_path = seriesinfo['FolderName']
             dest_path = os.path.join(dest_dir, dest_path)
             dest_path = stripspaces(dest_path)
+            if PY2:
+                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
             global_name = seriesinfo['BookFile']
@@ -1694,6 +1750,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         # we are copying the files ourselves, either it's audiobook, magazine or we don't want to use calibre
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
+            logger.debug("Dest Path: %s" % (repr(dest_path)))
         if not os.path.exists(dest_path):
             logger.debug('%s does not exist, so it\'s safe to create it' % dest_path)
         elif not os.path.isdir(dest_path):
