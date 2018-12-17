@@ -589,6 +589,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             if 'convert' in converter and 'gs' not in converter:
                 # tell imagemagick to only convert first page
                 postfix = '[0]'
+            params = []
             try:
                 params = [converter, '%s%s' % (issuefile, postfix), '%s' % coverfile]
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -596,7 +597,8 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 if res:
                     logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
             except Exception as e:
-                logger.debug(params)
+                if params:
+                    logger.debug(params)
                 logger.warn('External "convert" failed %s %s' % (type(e).__name__, str(e)))
 
         elif platform.system() == "Windows":
