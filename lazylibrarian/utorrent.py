@@ -52,7 +52,11 @@ class utorrentclient(object):
         if host.endswith('/gui'):
             host = host[:-4]
 
-        host = "%s:%s" % (host, port)
+        if lazylibrarian.CONFIG['UTORRENT_BASE']:
+            host = "%s:%s/%s" % (host, port, lazylibrarian.CONFIG['UTORRENT_BASE'].strip('/'))
+        else:
+            host = "%s:%s" % (host, port)
+
         self.base_url = host
         self.username = lazylibrarian.CONFIG['UTORRENT_USER']
         self.password = lazylibrarian.CONFIG['UTORRENT_PASS']

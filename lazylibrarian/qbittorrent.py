@@ -54,7 +54,10 @@ class qbittorrentclient(object):
         if host.endswith('/gui'):
             host = host[:-4]
 
-        host = "%s:%s" % (host, port)
+        if lazylibrarian.CONFIG['QBITTORRENT_BASE']:
+            host = "%s:%s/%s" % (host, port, lazylibrarian.CONFIG['QBITTORRENT_BASE'].strip('/'))
+        else:
+            host = "%s:%s" % (host, port)
         self.base_url = host
         self.username = lazylibrarian.CONFIG['QBITTORRENT_USER']
         self.password = lazylibrarian.CONFIG['QBITTORRENT_PASS']

@@ -760,7 +760,7 @@
                         </div>
                         <div class="form-group col-md-6">
                           <label for="sab_subdir" class="control-label">SABnzbd URL Base:</label>
-                          <input type="text" id="sab_subdir" name="sab_subdir" value="${lazylibrarian.CONFIG['SAB_SUBDIR']}" class="form-control"     placeholder="Sabnzbd URL Base">
+                          <input type="text" id="sab_subdir" name="sab_subdir" value="${lazylibrarian.CONFIG['SAB_SUBDIR']}" class="form-control"     placeholder="URL Base">
                         </div>
                       </div>
                       <div class="row">
@@ -1100,6 +1100,10 @@
                         <label for="utorrent_label" class="control-label">uTorrent Label:</label>
                         <input type="text" id="utorrent_label" name="utorrent_label" value="${lazylibrarian.CONFIG['UTORRENT_LABEL']}" class="form-control" placeholder="uTorrent Label">
                       </div>
+                      <div class="form-group col-md-6">
+                        <label for="utorrent_base" class="control-label">uTorrent URL Base:</label>
+                        <input type="text" id="utorrent_base" name="utorrent_base" value="${lazylibrarian.CONFIG['UTORRENT_BASE']}" class="form-control" placeholder="URL base">
+                      </div>
                     </div>
                     <div class="row">
                       <div class="col-md-6">
@@ -1144,9 +1148,15 @@
                           <input type="text" id="qbittorrent_label" name="qbittorrent_label" value="${lazylibrarian.CONFIG['QBITTORRENT_LABEL']}" class="form-control" placeholder="qBitTorrent Label/Category">
                         </div>
                         <div class="form-group col-md-6">
+                          <label for="qbittorrent_base" class="control-label">qBitTorrent URL Base:</label>
+                          <input type="text" id="qbittorrent_base" name="qbittorrent_base" value="${lazylibrarian.CONFIG['QBITTORRENT_BASE']}" class="form-control" placeholder="URL base">
+                        </div>
+                        <div class="form-group col-md-6">
                           <label for="qbittorrent_dir" class="control-label">Download directory :</label>
                           <input type="text" id="qbittorrent_dir" name="qbittorrent_dir" value="${lazylibrarian.CONFIG['QBITTORRENT_DIR']}" class="form-control" placeholder="use qbittorrent default">
                         </div>
+                      </div>
+                      <div class="row">
                         <div class="col-md-6">
                           <button class="button btn btn-sm btn-primary" type="button" value="Test qBittorrent" id="testqBittorrent"><i class="fa fa-list-ul"></i> Test qBittorrent</button>
                           <br>
@@ -3839,10 +3849,11 @@
         $('#testqBittorrent').on('click', function() {
             var host = $.trim($("#qbittorrent_host").val());
             var port = $.trim($("#qbittorrent_port").val());
+            var base = $.trim($("#qbittorrent_base").val());
             var user = $.trim($("#qbittorrent_user").val());
             var pwd = $.trim($("#qbittorrent_pass").val());
             var label = $.trim($("#qbittorrent_label").val());
-            $.get('testqBittorrent', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'label': label},
+            $.get('testqBittorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
                     title: 'qBittorrent Connection',
@@ -3860,10 +3871,11 @@
         $('#testuTorrent').on('click', function(e) {
             var host = $.trim($("#utorrent_host").val());
             var port = $.trim($("#utorrent_port").val());
+            var base = $.trim($("#utorrent_base").val());
             var user = $.trim($("#utorrent_user").val());
             var pwd = $.trim($("#utorrent_pass").val());
             var label = $.trim($("#utorrent_label").val());
-            $.get('testuTorrent', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'label': label},
+            $.get('testuTorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
                     title: 'uTorrent Connection',

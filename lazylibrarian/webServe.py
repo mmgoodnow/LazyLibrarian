@@ -4754,6 +4754,8 @@ class WebInterface(object):
             lazylibrarian.CONFIG['QBITTORRENT_HOST'] = kwargs['host']
         if 'port' in kwargs:
             lazylibrarian.CONFIG['QBITTORRENT_PORT'] = check_int(kwargs['port'], 0)
+        if 'base' in kwargs:
+            lazylibrarian.CONFIG['QBITTORRENT_BASE'] = kwargs['base']
         if 'user' in kwargs:
             lazylibrarian.CONFIG['QBITTORRENT_USER'] = kwargs['user']
         if 'pwd' in kwargs:
@@ -4773,6 +4775,8 @@ class WebInterface(object):
             lazylibrarian.CONFIG['UTORRENT_HOST'] = kwargs['host']
         if 'port' in kwargs:
             lazylibrarian.CONFIG['UTORRENT_PORT'] = check_int(kwargs['port'], 0)
+        if 'base' in kwargs:
+            lazylibrarian.CONFIG['UTORRENT_BASE'] = kwargs['base']
         if 'user' in kwargs:
             lazylibrarian.CONFIG['UTORRENT_USER'] = kwargs['user']
         if 'pwd' in kwargs:
