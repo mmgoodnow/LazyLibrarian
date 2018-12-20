@@ -1082,19 +1082,19 @@ class WebInterface(object):
         # store any genre changes
         genre_changes = ''
         genrelimit = check_int(kwargs.get('genrelimit', 0), 0)
-        if lazylibrarian.GRGENRES['genreLimit'] != genrelimit:
+        if lazylibrarian.GRGENRES.get('genreLimit', 10) != genrelimit:
             lazylibrarian.GRGENRES['genreLimit'] = genrelimit
             genre_changes += 'limit '
         genreusers = check_int(kwargs.get('genreusers', 0), 0)
-        if lazylibrarian.GRGENRES['genreUsers'] != genreusers:
+        if lazylibrarian.GRGENRES.get('genreUsers', 10) != genreusers:
             lazylibrarian.GRGENRES['genreUsers'] = genreusers
             genre_changes += 'users '
         newexcludes = sorted(getList(kwargs.get('genreexclude', ''), ','))
-        if sorted(lazylibrarian.GRGENRES['genreExclude']) != newexcludes:
+        if sorted(lazylibrarian.GRGENRES.get('genreExclude', [])) != newexcludes:
             lazylibrarian.GRGENRES['genreExclude'] = newexcludes
             genre_changes += 'excludes '
         newexcludes = sorted(getList(kwargs.get('genreexcludeparts', ''), ','))
-        if sorted(lazylibrarian.GRGENRES['genreExcludeParts']) != newexcludes:
+        if sorted(lazylibrarian.GRGENRES.get('genreExcludeParts', [])) != newexcludes:
             lazylibrarian.GRGENRES['genreExcludeParts'] = newexcludes
             genre_changes += 'parts '
         # now the replacements
@@ -1113,7 +1113,7 @@ class WebInterface(object):
                 genre_changes += 'new-entry '
 
         dicts_same = False
-        if len(lazylibrarian.GRGENRES['genreReplace']) != len(genredict):
+        if len(lazylibrarian.GRGENRES.get('genreReplace', {})) != len(genredict):
             genre_changes += 'dict-length '
         else:
             shared_items = {k: lazylibrarian.GRGENRES['genreReplace'][k] for k in lazylibrarian.GRGENRES['genreReplace']

@@ -105,7 +105,7 @@ GROUP_CONCAT = 0
 FOREIGN_KEY = 0
 HIST_REFRESH = 1000
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
-GRGENRES = None
+GRGENRES = {}
 
 # extended loglevels
 log_magdates = 1 << 2  # 4 magazine date matching
@@ -1424,7 +1424,7 @@ def build_genres():
             except Exception as e:
                 logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
     logger.error('No valid genres.json file found')
-    return None
+    return {}
 
 
 def build_monthtable():

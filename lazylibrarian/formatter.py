@@ -414,7 +414,12 @@ def makeUnicode(txt):
         return u''
     elif isinstance(txt, text_type):
         return txt
-    for encoding in [lazylibrarian.SYS_ENCODING, 'latin-1', 'utf-8']:
+
+    encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
+    if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
+        encodings.append('utf-8')
+
+    for encoding in encodings:
         try:
             return txt.decode(encoding)
         except UnicodeError:
@@ -430,7 +435,12 @@ def makeBytestr(txt):
         return b''
     elif not isinstance(txt, text_type):  # nothing to do if already bytestring
         return txt
-    for encoding in [lazylibrarian.SYS_ENCODING, 'latin-1', 'utf-8']:
+
+    encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
+    if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
+        encodings.append('utf-8')
+
+    for encoding in encodings:
         try:
             return txt.encode(encoding)
         except UnicodeError:

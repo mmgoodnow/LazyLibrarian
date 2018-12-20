@@ -384,7 +384,7 @@ def check_db(myDB):
 
         # check if genre exclusions/translations have altered
         if lazylibrarian.GRGENRES:
-            for item in lazylibrarian.GRGENRES['genreExclude']:
+            for item in lazylibrarian.GRGENRES.get('genreExclude', []):
                 match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
                 if match:
                     cnt += 1
@@ -392,7 +392,7 @@ def check_db(myDB):
                     logger.warn(msg)
                     myDB.action('DELETE from genrebooks WHERE GenreID=?', (match['GenreID'],))
                     myDB.action('DELETE from genres WHERE GenreID=?', (match['GenreID'],))
-            for item in lazylibrarian.GRGENRES['genreExcludeParts']:
+            for item in lazylibrarian.GRGENRES.get('genreExcludeParts', []):
                 cmd = 'SELECT GenreID,GenreName from genres where GenreName like "%' + item + '%" COLLATE NOCASE'
                 matches = myDB.select(cmd)
                 if matches:
@@ -401,7 +401,7 @@ def check_db(myDB):
                         msg = 'Removing excluded genre [%s]' % itm['GenreName']
                         logger.warn(msg)
                         myDB.action('DELETE from genres WHERE GenreID=?', (itm['GenreID'],))
-            for item in lazylibrarian.GRGENRES['genreReplace']:
+            for item in lazylibrarian.GRGENRES.get('genreReplace', {}):
                 match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
                 if match:
                     newitem = lazylibrarian.GRGENRES['genreReplace'][item]

@@ -38,7 +38,7 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, mymakedirs, runScript
+    safe_copy, safe_move, make_dirs, runScript
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, makeBytestr, check_int, is_valid_type, multibook, \
     split_title
@@ -324,7 +324,7 @@ def unpack_archive(archivename, download_dir, title):
             return ''
 
         targetdir = os.path.join(download_dir, title + '.unpack')
-        if not mymakedirs(targetdir):
+        if not make_dirs(targetdir):
             logger.error("Failed to create target dir %s" % targetdir)
             return ''
         namelist = z.namelist()
@@ -345,7 +345,7 @@ def unpack_archive(archivename, download_dir, title):
             return ''
 
         targetdir = os.path.join(download_dir, title + '.unpack')
-        if not mymakedirs(targetdir):
+        if not make_dirs(targetdir):
             logger.error("Failed to create target dir %s" % targetdir)
             return ''
         namelist = z.getnames()
@@ -365,7 +365,7 @@ def unpack_archive(archivename, download_dir, title):
             return ''
 
         targetdir = os.path.join(download_dir, title + '.unpack')
-        if not mymakedirs(targetdir):
+        if not make_dirs(targetdir):
             logger.error("Failed to create target dir %s" % targetdir)
             return ''
         namelist = z.namelist()
@@ -540,7 +540,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                 targetdir = os.path.join(download_dir, aname)
                                                 move = 'move'
 
-                                            if mymakedirs(targetdir):
+                                            if make_dirs(targetdir):
                                                 cnt = move_into_subdir(download_dir, targetdir, aname, move=move)
                                                 if cnt:
                                                     pp_path = targetdir
@@ -655,7 +655,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                     if PY2:
                                         dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
-                                    if not mymakedirs(dest_path):
+                                    if not make_dirs(dest_path):
                                         logger.warn('Unable to create directory %s' % dest_path)
                                     else:
                                         ignorefile = os.path.join(dest_path, b'.ll_ignore')
@@ -1757,7 +1757,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 return False, 'Unable to delete %s: %s' % (dest_path, why.strerror)
         if os.path.isdir(dest_path):
             setperm(dest_path)
-        elif not mymakedirs(dest_path):
+        elif not make_dirs(dest_path):
             return False, 'Unable to create directory %s' % dest_path
 
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.

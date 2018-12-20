@@ -36,7 +36,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int
-from lazylibrarian.common import mymakedirs
+from lazylibrarian.common import make_dirs
 
 delugeweb_auth = {}
 delugeweb_url = ''
@@ -670,7 +670,7 @@ def setTorrentPath(result):
         if not os.path.isdir(dl_dir):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Deluge: %s directory doesn\'t exist, let\'s create it' % dl_dir)
-            _ = mymakedirs(dl_dir)
+            _ = make_dirs(dl_dir)
 
         post_json = {"method": "core.set_torrent_move_completed_path", "params": [result['hash'], dl_dir], "id": 8}
 

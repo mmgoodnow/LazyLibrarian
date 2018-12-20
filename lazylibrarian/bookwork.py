@@ -1053,9 +1053,9 @@ def genreFilter(genre):
         return ""
 
     if lazylibrarian.GRGENRES:
-        genreExclude = lazylibrarian.GRGENRES['genreExclude']
-        genreExcludeParts = lazylibrarian.GRGENRES['genreExcludeParts']
-        genreReplace = lazylibrarian.GRGENRES['genreReplace']
+        genreExclude = lazylibrarian.GRGENRES.get('genreExclude', [])
+        genreExcludeParts = lazylibrarian.GRGENRES.get('genreExcludeParts', [])
+        genreReplace = lazylibrarian.GRGENRES.get('genreReplace', {})
     else:
         genreExclude = []
         genreExcludeParts = []
@@ -1095,8 +1095,8 @@ def genreFilter(genre):
 
 def get_gr_genres(bookid, refresh=False):
     if lazylibrarian.GRGENRES:
-        genreUsers = lazylibrarian.GRGENRES['genreUsers']
-        genreLimit = lazylibrarian.GRGENRES['genreLimit']
+        genreUsers = lazylibrarian.GRGENRES.get('genreUsers', 10)
+        genreLimit = lazylibrarian.GRGENRES.get('genreLimit', 3)
     else:
         genreUsers = 10
         genreLimit = 3

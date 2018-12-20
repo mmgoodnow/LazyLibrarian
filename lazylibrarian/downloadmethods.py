@@ -39,7 +39,7 @@ import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import setperm, getUserAgent, proxyList, mymakedirs
+from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs
 from lazylibrarian.formatter import cleanName, unaccented_str, getList, makeUnicode
 from lazylibrarian.postprocess import delete_task, check_contents
 try:
@@ -177,7 +177,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         logger.debug("File download got %s bytes for %s" % (len(r.content), dl_title))
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
         if not os.path.isdir(destdir):
-            _ = mymakedirs(destdir)
+            _ = make_dirs(destdir)
 
         try:
             hashid = dl_url.split("md5=")[1].split("&")[0]

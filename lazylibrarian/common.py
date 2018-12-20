@@ -72,7 +72,7 @@ def getUserAgent():
         return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
 
 
-def mymakedirs(dest_path):
+def make_dirs(dest_path):
     """ os.makedirs only seems to set the right permission on the final leaf directory
         not any intermediate parents it creates on the way, so we'll try to do it ourselves
         setting permissions as we go. Could use recursion but probably aren't many levels to do...
