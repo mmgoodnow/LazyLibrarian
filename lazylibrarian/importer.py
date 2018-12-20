@@ -37,7 +37,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
     # authorname returned is our preferred name, or empty string if not found or unable to add
 
     new = False
-    if not author or len(author) < 2:
+    if not author or len(author) < 2 or author.lower() == 'unknown':
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
 
@@ -138,7 +138,6 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
     try:
         myDB = database.DBConnection()
         match = False
-        author = None
         authorimg = ''
         new_author = not refresh
         entry_status = ''
@@ -187,12 +186,10 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                 match = True
             else:
                 logger.warn("Nothing found for %s:%s" % (authorid, authorname))
-                if dbauthor:  # goodreads may have changed authorid?
-                    author = dbauthor
-                else:
+                if not dbauthor:  # goodreads may have changed authorid?
                     myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
 
-        if authorname and author and not match:
+        if not match and authorname and authorname.lower() != 'unknown':
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             GR = GoodReads(authorname)
             author = GR.find_author_id(refresh=refresh)
