@@ -224,8 +224,9 @@ def checkForUpdates():
     getInstallType()
     lazylibrarian.CONFIG['CURRENT_VERSION'] = getCurrentVersion()
     # if last dobytang version, force first gitlab version hash
-    if lazylibrarian.CONFIG['CURRENT_VERSION'].startswith('ddeeb9fa'):
+    if lazylibrarian.CONFIG['CURRENT_VERSION'].startswith('45d4f24'):
         lazylibrarian.CONFIG['CURRENT_VERSION'] = 'd9002e449db276e0416a8d19423143cc677b2e84'
+        lazylibrarian.CONFIG['GIT_UPDATED'] = 0  # and ignore timestamp to force upgrade
     lazylibrarian.CONFIG['LATEST_VERSION'] = getLatestVersion()
     if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
@@ -285,11 +286,7 @@ def getLatestVersion_FromGit():
                 branch = 'master'
             # Get the latest commit available from git
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                #    url = 'https://%s/api/v4/projects/%s%%2F%s/repository/branches/%s' % (
-                #    lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
-                #    lazylibrarian.CONFIG['GIT_REPO'], branch)
-                #    url = 'https://lazylibrarian.gitlab.io/version.json'
-                url = 'https://lazylibrarian.gitlab.io/version/index.html'
+                url = 'https://lazylibrarian.gitlab.io/version.json'
             else:
                 url = 'https://api.%s/repos/%s/%s/commits/%s' % (
                     lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
@@ -321,11 +318,7 @@ def getLatestVersion_FromGit():
 
                 if str(r.status_code).startswith('2'):
                     if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                        # latest_version = git['commit']['id']
-                        try:
-                            latest_version = r.text.split('"version:')[1].split('"')[0]
-                        except IndexError:
-                            latest_version = 'Not_Available_From_Git'
+                        latest_version = r.json()
                     else:
                         git = r.json()
                         latest_version = git['sha']
