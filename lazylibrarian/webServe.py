@@ -39,7 +39,7 @@ from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_ta
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_str, plural, now, today, check_int, replace_all, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeBytestr, md5_utf8, dateFormat, \
-    check_year, dispName
+    check_year, dispName, is_valid_booktype
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import getBookCover, createMagCover
@@ -2138,9 +2138,22 @@ class WebInterface(object):
         if ftype == 'audio':
             res = myDB.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
+                cnt = 0
                 basefile = res['AudioFile']
-                # zip up all the audiobook parts
+                # count the audiobook parts
                 if basefile and os.path.isfile(basefile):
+                    parentdir = os.path.dirname(basefile)
+                    for rootdir, dirs, filenames in os.walk(makeBytestr(parentdir)):
+                        filenames = [makeUnicode(item) for item in filenames]
+                        for filename in filenames:
+                            if is_valid_booktype(filename, 'audiobook'):
+                                cnt += 1
+
+                if cnt == 1:
+                    target = basefile
+                    _, extn = os.path.splitext(basefile)
+                    return self.send_file(target, name=res['BookName'] + extn)
+                elif cnt > 1:
                     target = zipAudio(os.path.dirname(basefile), res['BookName'])
                     return self.send_file(target, name=res['BookName'] + '.zip')
 

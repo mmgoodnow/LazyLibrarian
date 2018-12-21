@@ -999,6 +999,7 @@ def zipAudio(source, zipname):
     """ Zip up all the audiobook parts in source folder to zipname
         Check if zipfile already exists, if not create a new one
         Doesn't actually check for audiobook parts, just zips everything
+        including any .jpg etc
         Return full path to zipfile
     """
     zip_file = os.path.join(source, zipname + '.zip')
