@@ -61,17 +61,13 @@ class OPDS(object):
             else:
                 self.opdsroot = lazylibrarian.CONFIG['HTTP_ROOT'] + 'opds'
 
-        my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
+        my_ip = cherrypy.request.headers.get('Referer')
+        if my_ip:
+            _, my_ip, _, _, _ = urlsplit(my_ip)  # just want netloc
+        if not my_ip:
+            my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
         if not my_ip:
             my_ip = cherrypy.request.headers.get('Host')
-
-        scheme, netloc, _, _, _ = urlsplit(cherrypy.url())
-        port = None
-        if ':' in netloc:
-            port = netloc.split(':')[1]
-
-        if port and ':' not in my_ip:
-            my_ip = "%s:%s" % (my_ip, port)
 
         self.opdsroot = '%s://%s%s' % (cherrypy.request.scheme, my_ip, self.opdsroot)
 

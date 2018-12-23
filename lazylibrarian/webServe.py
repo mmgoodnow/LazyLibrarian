@@ -3762,14 +3762,16 @@ class WebInterface(object):
                 userid = cookie['ll_uid'].value
 
         scheme, netloc, path, qs, anchor = urlsplit(cherrypy.url())
-        port = None
-        if ':' in netloc:
-            port = netloc.split(':')[1]
-        netloc = cherrypy.request.headers.get('X-Forwarded-Host')
-        if not netloc:
-            netloc = cherrypy.request.headers.get('Host')
-        if port and ':' not in netloc:
-            netloc = "%s:%s" % (netloc, port)
+
+        my_ip = cherrypy.request.headers.get('Referer')
+        if my_ip:
+            _, my_ip, _, _, _ = urlsplit(my_ip)  # just want netloc
+        if not my_ip:
+            my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
+        if not my_ip:
+            my_ip = cherrypy.request.headers.get('Host')
+        if not my_ip:
+            my_ip = netloc
 
         remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
         if not remote_ip:
@@ -3778,10 +3780,11 @@ class WebInterface(object):
             remote_ip = cherrypy.request.headers.get('Remote-Addr')
         if not remote_ip:
             remote_ip = cherrypy.request.remote.ip
+        remote_ip = remote_ip.split(',')[0]
 
         filename = 'LazyLibrarian_RSS_' + ftype + '.xml'
         path = path.replace('rssFeed', '').rstrip('/')
-        baseurl = urlunsplit((scheme, netloc, path, qs, anchor))
+        baseurl = urlunsplit((scheme, my_ip, path, qs, anchor))
         logger.debug("RSS Feed request %s %s%s: %s %s" % (limit, ftype, plural(limit), remote_ip, userid))
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
