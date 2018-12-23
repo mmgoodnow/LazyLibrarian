@@ -27,7 +27,7 @@ from lazylibrarian.formatter import makeUnicode, check_int, plural, getList
 from lazylibrarian.common import mimeType, zipAudio
 from lazylibrarian.cache import cache_img
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus
+from lib.six.moves.urllib_parse import quote_plus, urlsplit
 from lib.six import string_types
 
 
@@ -64,8 +64,16 @@ class OPDS(object):
         my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
         if not my_ip:
             my_ip = cherrypy.request.headers.get('Host')
-        if my_ip:
-            self.opdsroot = '%s://%s%s' % (cherrypy.request.scheme, my_ip, self.opdsroot)
+
+        scheme, netloc, _, _, _ = urlsplit(cherrypy.url())
+        port = None
+        if ':' in netloc:
+            port = netloc.split(':')[1]
+
+        if port and ':' not in my_ip:
+            my_ip = "%s:%s" % (my_ip, port)
+
+        self.opdsroot = '%s://%s%s' % (cherrypy.request.scheme, my_ip, self.opdsroot)
 
         self.searchroot = self.opdsroot.replace('/opds', '')
 

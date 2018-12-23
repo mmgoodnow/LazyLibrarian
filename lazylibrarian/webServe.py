@@ -3762,9 +3762,14 @@ class WebInterface(object):
                 userid = cookie['ll_uid'].value
 
         scheme, netloc, path, qs, anchor = urlsplit(cherrypy.url())
+        port = None
+        if ':' in netloc:
+            port = netloc.split(':')[1]
         netloc = cherrypy.request.headers.get('X-Forwarded-Host')
         if not netloc:
             netloc = cherrypy.request.headers.get('Host')
+        if port and ':' not in netloc:
+            netloc = "%s:%s" % (netloc, port)
 
         remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
         if not remote_ip:
