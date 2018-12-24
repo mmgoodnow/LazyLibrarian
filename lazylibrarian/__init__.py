@@ -188,7 +188,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'BLACKLIST_FAILED', 'BLACKLIST_PROCESSED', 'WISHLIST_INTERVAL', 'IMP_PREPROCESS',
                      'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
-                     'ADMIN_EMAIL']
+                     'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -553,8 +553,9 @@ CONFIG_DEFINITIONS = {
     'OPDS_PASSWORD': ('str', 'OPDS', ''),
     'OPDS_METAINFO': ('bool', 'OPDS', 0),
     'OPDS_PAGE': ('int', 'OPDS', 30),
+    'RSS_ENABLED': ('bool', 'RSS', 1),
+    'RSS_HOST': ('str', 'RSS', ''),
     'USER_AGENT': ('str', 'General', ''),
-    # 'USER_AGENT': ('str', 'General',
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
 
@@ -1645,7 +1646,7 @@ def shutdown(restart=False, update=False):
     # config_write() don't automatically rewrite config on exit
 
     if not restart and not update:
-        logmsg('info', 'LazyLibrarian is shutting down...')
+        logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())
         if DOCKER:
             # force container to shutdown
             # NOTE we don't seem to have sufficient permission to so this, so disabled the shutdown button
@@ -1709,5 +1710,5 @@ def shutdown(restart=False, update=False):
 
             logmsg('debug', 'Restarting LazyLibrarian with ' + str(popen_list))
             subprocess.Popen(popen_list, cwd=os.getcwd())
-
+    logmsg('debug', 'Lazylibrarian (pid %s) is exiting now' % os.getpid())
     sys.exit(0)

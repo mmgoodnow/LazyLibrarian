@@ -134,6 +134,27 @@
                       <span class="help-block">Comma separated list http, https, etc</span>
                     </div>
                   </fieldset>
+                    <fieldset id=rss_options>
+                    <legend>RSS Server</legend>
+                        <div class="checkbox">
+                          <%
+                            if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="rss_enabled" title="Provide RSS feeds">
+                          <input type="checkbox" id="rss_enabled" name="rss_enabled" value="1" ${checked} />
+                          Enable RSS</label>
+                        </div>
+                        <fieldset id="rssoptions">
+                            <div class="input-group col-md-6">
+                            <span class="input-group-addon">RSS Host/Port</span>
+                            <input type="text" id="rss_host" name="rss_host" value="${lazylibrarian.CONFIG['RSS_HOST']}" class="form-control" placeholder="mywebsite.org:port">
+                            </div>
+                            <span class="help-block">Use if you need to override rss link address</span>
+                        </fieldset>
+                    </fieldset>
                     <fieldset>
                     <legend>OPDS Server</legend>
                         <div class="checkbox">
@@ -3317,12 +3338,14 @@
         if ($("#user_accounts").is(":checked"))
             {
                     $("#admin_options").show();
+                    $("#rss_options").show();
                     $("#webserver_options").hide();
             }
             else
             {
                     $("#webserver_options").show();
                     $("#admin_options").hide();
+                    $("#rss_options").hide();
             }
 
         $("#user_accounts").click(function(){
@@ -3330,10 +3353,12 @@
                 {
                         $("#webserver_options").slideUp();
                         $("#admin_options").slideDown();
+                        $("#rss_options").slideDown();
                 }
                 else
                 {
                         $("#admin_options").slideUp();
+                        $("#rss_options").slideUp();
                         $("#webserver_options").slideDown();
                 }
         });
@@ -3616,6 +3641,26 @@
                     }
                 });
             });
+        });
+
+        if ($("#rss_enabled").is(":checked"))
+          {
+            $("#rssoptions").show();
+          }
+          else
+          {
+              $("#rssoptions").hide();
+          }
+
+        $("#rss_enabled").click(function(){
+          if ($("#rss_enabled").is(":checked"))
+          {
+            $("#rssoptions").slideDown();
+          }
+          else
+          {
+            $("#rssoptions").slideUp();
+          }
         });
 
         if ($("#opds_enabled").is(":checked"))

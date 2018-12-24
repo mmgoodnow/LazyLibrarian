@@ -3763,15 +3763,16 @@ class WebInterface(object):
 
         scheme, netloc, path, qs, anchor = urlsplit(cherrypy.url())
 
-        my_ip = cherrypy.request.headers.get('Referer')
-        if my_ip:
-            _, my_ip, _, _, _ = urlsplit(my_ip)  # just want netloc
+        my_ip = lazylibrarian.CONFIG['RSS_HOST']
         if not my_ip:
             my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
         if not my_ip:
             my_ip = cherrypy.request.headers.get('Host')
         if not my_ip:
             my_ip = netloc
+        path = path.replace('rssFeed', '').rstrip('/')
+
+        baseurl = urlunsplit((scheme, my_ip, path, qs, anchor))
 
         remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
         if not remote_ip:
@@ -3783,8 +3784,6 @@ class WebInterface(object):
         remote_ip = remote_ip.split(',')[0]
 
         filename = 'LazyLibrarian_RSS_' + ftype + '.xml'
-        path = path.replace('rssFeed', '').rstrip('/')
-        baseurl = urlunsplit((scheme, my_ip, path, qs, anchor))
         logger.debug("RSS Feed request %s %s%s: %s %s" % (limit, ftype, plural(limit), remote_ip, userid))
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
