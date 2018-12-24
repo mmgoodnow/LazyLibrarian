@@ -87,7 +87,7 @@ def search_magazines(mags=None, reset=False):
                     searchterm = searchmag['Title']
                 searchterm = replace_all(searchterm, dic)
 
-                searchterm = re.sub('[.\-/]', ' ', searchterm)
+                searchterm = re.sub(r'[.\-/]', ' ', searchterm)
                 if PY2:
                     searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
 
@@ -243,9 +243,13 @@ def search_magazines(mags=None, reset=False):
                                 for word in nzbtitle_exploded:
                                     word = unaccented(word).lower()
                                     if word:
+                                        if word == '&':
+                                            word = 'and'
                                         wlist.append(word)
                                 for word in bookid_exploded:
                                     word = unaccented(word).lower()
+                                    if word == '&':
+                                        word = 'and'
                                     if word and word not in wlist:
                                         logger.debug("Rejecting %s, missing %s" % (nzbtitle, word))
                                         rejected = True
@@ -342,7 +346,7 @@ def search_magazines(mags=None, reset=False):
                                     if str(issuedate).isdigit():
                                         logger.debug('Magazine comparing issue numbers (%s)' % issuedate)
                                         control_date = 0
-                                    elif re.match('\d+-\d\d-\d\d', str(issuedate)):
+                                    elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
                                         start_time -= int(
                                             lazylibrarian.CONFIG['MAG_AGE']) * 24 * 60 * 60  # number of seconds in days
@@ -364,15 +368,15 @@ def search_magazines(mags=None, reset=False):
                                         comp_date = 1
                                     else:
                                         comp_date = int(issuedate) - int(control_date)
-                                elif re.match('\d+-\d\d-\d\d', str(control_date)) and \
-                                        re.match('\d+-\d\d-\d\d', str(issuedate)):
+                                elif re.match(r'\d+-\d\d-\d\d', str(control_date)) and \
+                                        re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                     # only grab a copy if it's newer than the most recent we have,
                                     # or newer than a month ago if we have none
                                     comp_date = datecompare(issuedate, control_date)
                                 else:
                                     # invalid comparison of date and issue number
                                     comp_date = 0
-                                    if re.match('\d+-\d\d-\d\d', str(control_date)):
+                                    if re.match(r'\d+-\d\d-\d\d', str(control_date)):
                                         if regex_pass > 9 and year:
                                             # we assumed it was an issue number, but it could be a date
                                             year = check_int(year, 0)
@@ -550,7 +554,7 @@ def get_issue_date(nzbtitle_exploded):
                         day = 1
                         regex_pass = 1
                     else:
-                        day = check_int(re.sub("\D", "", nzbtitle_exploded[pos - 2]), 0)
+                        day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 2]), 0)
                         if pos > 2 and nzbtitle_exploded[pos-3].lower().strip('.') in nouns:
                             # definitely an issue number
                             issuedate = str(day)  # 4 == 04 == 004
@@ -584,7 +588,7 @@ def get_issue_date(nzbtitle_exploded):
             if year and (pos > 1):
                 month = month2num(nzbtitle_exploded[pos - 2])
                 if month:
-                    day = check_int(re.sub("\D", "", nzbtitle_exploded[pos - 1]), 0)
+                    day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos - 1]), 0)
                     try:
                         _ = datetime.date(year, month, day)
                         issuedate = "%04d-%02d-%02d" % (year, month, day)
@@ -605,7 +609,7 @@ def get_issue_date(nzbtitle_exploded):
                     month = check_int(nzbtitle_exploded[pos + 1], 0)
                 if month:
                     if pos + 2 < len(nzbtitle_exploded):
-                        day = check_int(re.sub("\D", "", nzbtitle_exploded[pos + 2]), 0)
+                        day = check_int(re.sub(r"\D", "", nzbtitle_exploded[pos + 2]), 0)
                         if day:
                             regex_pass = 6
                         else:
