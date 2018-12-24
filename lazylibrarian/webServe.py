@@ -2164,13 +2164,13 @@ class WebInterface(object):
                             if is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
 
-                if cnt == 1:
+                if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
+                    target = zipAudio(os.path.dirname(basefile), res['BookName'])
+                    return self.send_file(target, name=res['BookName'] + '.zip')
+                else:
                     target = basefile
                     _, extn = os.path.splitext(basefile)
                     return self.send_file(target, name=res['BookName'] + extn)
-                elif cnt > 1:
-                    target = zipAudio(os.path.dirname(basefile), res['BookName'])
-                    return self.send_file(target, name=res['BookName'] + '.zip')
 
         basefile = None
         if ftype == 'book':

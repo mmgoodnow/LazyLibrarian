@@ -153,6 +153,17 @@
                             <input type="text" id="rss_host" name="rss_host" value="${lazylibrarian.CONFIG['RSS_HOST']}" class="form-control" placeholder="mywebsite.org:port">
                             </div>
                             <span class="help-block">Use if you need to override rss link address</span>
+                        <div class="checkbox">
+                          <%
+                            if lazylibrarian.CONFIG['RSS_PODCAST'] == True:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="rss_podcast" title="Send audiobook RSS feeds as podcasts">
+                          <input type="checkbox" id="rss_podcast" name="rss_podcast" value="1" ${checked} />
+                          Send AudioBook RSS as Podcasts</label>
+                        </div>
                         </fieldset>
                     </fieldset>
                     <fieldset>

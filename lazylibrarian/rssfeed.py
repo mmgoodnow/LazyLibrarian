@@ -42,13 +42,14 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
             cmd += " BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/bookWall&have=1'
         elif ftype == 'AudioBook':
-            podcast = True
+            podcast = lazylibrarian.CONFIG['RSS_PODCAST']
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
             cmd += "from books,authors where AudioLibrary != '' and books.AuthorID = authors.AuthorID "
             cmd += "order by AudioLibrary desc limit ?"
             baselink = baseurl + '/audioWall'
         elif ftype == 'Magazine':
-            cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues order by IssueAcquired desc limit ?"
+            cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues "
+            cmd += "order by IssueAcquired desc limit ?"
             baselink = baseurl + '/magWall'
         else:
             logger.debug("Invalid feed type")
@@ -64,6 +65,7 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
 
         for res in results:
             link = ''
+            itunes_item = ''
             if ftype == 'eBook':
                 pubdate = datetime.datetime.strptime(res['BookLibrary'], '%Y-%m-%d %H:%M:%S')
                 title = res['BookName']
