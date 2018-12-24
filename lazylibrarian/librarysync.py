@@ -553,7 +553,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             "\\$\\S\\e\\r\\i\\e\\s", "").replace(
             "\\$\\S\\e\\r\\N\\u\\m", "").replace(
             "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
-            "\\$\\$", "") + '\.[' + booktypes + ']'  # ignore any series, we just want author/title
+            "\\$\\$", "") + r'\.[' + booktypes + ']'  # ignore any series, we just want author/title
 
         pattern = re.compile(matchString, re.VERBOSE)
         last_authorid = None

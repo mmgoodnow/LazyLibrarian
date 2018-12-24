@@ -399,7 +399,7 @@ class GoogleBooks:
                             rejected = 'name', 'No bookname'
                         else:
                             bookname = replace_all(unaccented(bookname), {':': '.', '"': '', '\'': ''}).strip()
-                            if re.match('[^\w-]', bookname):  # remove books with bad characters in title
+                            if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
                                 logger.debug("[%s] removed book for bad characters" % bookname)
                                 rejected = 'chars', 'Bad characters in bookname'
 

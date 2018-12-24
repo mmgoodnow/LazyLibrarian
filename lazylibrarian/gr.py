@@ -451,7 +451,7 @@ class GoodReads:
                                          (bookid, authorNameResult))
                             rejected = 'name', 'No bookname'
 
-                        if not rejected and re.match('[^\w-]', bookname):  # reject books with bad characters in title
+                        if not rejected and re.match(r'[^\w-]', bookname):  # reject books with bad characters in title
                             logger.debug("removed result [" + bookname + "] for bad characters")
                             rejected = 'chars', 'Bad characters in bookname'
 

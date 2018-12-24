@@ -253,7 +253,7 @@ def _addTorrentURI(task_cgi, sid, torurl):
             # so we have to scan the task list to get the id
             logger.warn(torurl)  # REMOVE ME
             try:
-                matchstr = re.findall("urn:btih:([\w]{32,40})", torurl)[0]
+                matchstr = re.findall(r"urn:btih:([\w]{32,40})", torurl)[0]
             except (re.error, IndexError, TypeError):
                 matchstr = torurl.replace(' ', '+')
             matchstr = makeUnicode(matchstr)
