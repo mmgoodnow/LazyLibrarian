@@ -1065,3 +1065,4 @@ if __name__ == '__main__':
         print('Title       :', id3.title)
         print('Track       :', id3.track)
         print('EndTrack    :', id3.track_total)
+        print('Duration    :', id3.duration)

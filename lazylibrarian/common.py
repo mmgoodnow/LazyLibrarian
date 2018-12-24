@@ -348,6 +348,14 @@ def mimeType(filename):
         return 'application/pdf'
     elif name.endswith('.mp3'):
         return 'audio/mpeg3'
+    elif name.endswith('.m4a'):
+        return 'audio/mp4'
+    elif name.endswith('.m4b'):
+        return 'audio/mp4'
+    elif name.endswith('.flac'):
+        return 'audio/flac'
+    elif name.endswith('.ogg'):
+        return 'audio/ogg'
     elif name.endswith('.zip'):
         return 'application/x-zip-compressed'
     elif name.endswith('.xml'):

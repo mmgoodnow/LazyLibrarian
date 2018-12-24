@@ -2100,6 +2100,11 @@ class WebInterface(object):
                               title=title, message=msg, timer=timer)
 
     @cherrypy.expose
+    def serveImg(self, feedid=None):
+        logger.debug("Serve Image [%s]" % feedid)
+        return self.serveItem(feedid, "img")
+
+    @cherrypy.expose
     def serveBook(self, feedid=None):
         logger.debug("Serve Book [%s]" % feedid)
         return self.serveItem(feedid, "book")
@@ -2118,6 +2123,7 @@ class WebInterface(object):
     def serveItem(self, feedid, ftype):
         userid = feedid[:10]
         itemid = feedid[10:]
+        itemid = itemid.split('.')[0]  # discard any extension
         if len(userid) != 10:
             logger.debug("Invalid userID [%s]" % userid)
             return
@@ -2134,6 +2140,15 @@ class WebInterface(object):
         if not perm & lazylibrarian.perm_download:
             logger.debug("Insufficient permissions for userID [%s]" % userid)
             return
+
+        if ftype == 'img':
+            if itemid:
+                res = myDB.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
+                if res:
+                    target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
+                    return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+            target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
+            return self.send_file(target, name='lazylibrarian.png')
 
         if ftype == 'audio':
             res = myDB.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
