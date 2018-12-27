@@ -47,17 +47,23 @@ Config tutorial  http://sasquatters.com/lazylibrarian-configuration/
 Auto update available via interface from master for git and source installs
 
 ## Packages
-rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags
-NOTE: the snap and flatpak do not include ghostscript (for magazine cover generation) or calibredb for calibre communication.
-because of confinement issues. If you need these features, use source or git installation
+rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags  
+These packages do not use the lazylibrarian internal update mechanism. 
+You can check version from inside lazylibrarian, but to upgrade use the appropriate package manager. 
+The packages are not updated as regularly as the git/source installations.  
+NOTE: the smaller flatpak package does not include ghostscript (for magazine cover generation) or calibredb (for calibre communication)  
+If you need these features, install from source or git, or use the flatpak+ file.
+The flatpak+ file includes both ghostscript and calibredb but is considerably larger because of this.  
+To install: flatpak install lazylibrarian_1.x.x.flatpak. To run: flatpak run org.flatpak.LazyLibrarian  
 The snap package is confined to users home directory, so all books and downloads need to be accessible from there too.
-Install the snap package with flags --devmode
-The flatpak is installed with flatpak install lazylibrarian_1.x.x.flatpak
-to run, use flatpak run org.flatpak.LazyLibrarian
+It should be able to use system installed versions of ghostscript and calibredb provided they are in the system path. 
+Install the snap package with flags --devmode  
 AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/  
 QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
 ## Docker packages
 armhf version here : https://hub.docker.com/r/lsioarmhf/lazylibrarian/  
 x64 version here   : https://hub.docker.com/r/linuxserver/lazylibrarian/    
-with calibredb here: https://hub.docker.com/r/thraxis/lazylibrarian-calibre/
+with calibredb here: https://hub.docker.com/r/thraxis/lazylibrarian-calibre/  
+The above docker packages all include ghostscript for magazine cover generation but only the thraxis version includes calibredb  
+The dockers can be upgraded using the lazylibrarian internal upgrade mechanism
