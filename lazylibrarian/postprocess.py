@@ -1762,6 +1762,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
 
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
+        dest_path = makeUnicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
         for fname in os.listdir(makeBytestr(pp_path)):
             fname = makeUnicode(fname)
             if bestmatch and is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
