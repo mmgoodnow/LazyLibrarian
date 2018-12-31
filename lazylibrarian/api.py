@@ -154,7 +154,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'includeAlternate': '[&wait] [&dir=] Include books from named or alternate folder and any subfolders',
             'importCSVwishlist': '[&wait] [&dir=] Import a CSV wishlist from named or alternate directory',
             'exportCSVwishlist': '[&wait] [&dir=] Export a CSV wishlist to named or alternate directory',
-            'grSync': '&status= &shelf= [&library=] Sync books with given status to a goodreads shelf',
+            'grSync': '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads shelf, ' +
+                      'or reset goodreads shelf to match lazylibrarian',
             'grFollow': '&id= Follow an author on goodreads',
             'grFollowAll': 'Follow all lazylibrarian authors on goodreads',
             'grUnfollow': '&id= Unfollow an author on goodreads',
@@ -1188,8 +1189,11 @@ class Api(object):
         library = 'eBook'
         if 'library' in kwargs:
             library = kwargs['library']
+        reset = False
+        if 'reset' in kwargs:
+            reset = True
         try:
-            self.data = grsync(kwargs['status'], kwargs['shelf'], library)
+            self.data = grsync(kwargs['status'], kwargs['shelf'], library, reset)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
