@@ -491,7 +491,7 @@ def grfollow(authorid, follow=True):
         return "Unable to (un)follow %s, invalid authorid" % authorid
 
 
-def grsync(status, shelf, library='eBook'):
+def grsync(status, shelf, library='eBook', reset=False):
     # noinspection PyBroadException
     try:
         shelf = shelf.lower()
@@ -537,6 +537,23 @@ def grsync(status, shelf, library='eBook'):
         logger.info("There are %s %s %ss, %s on goodreads %s shelf" %
                     (len(ll_list), dstatus, library, len(gr_shelf), shelf))
 
+        if reset:
+            logger.info("Removing old goodreads shelf contents")
+            for book in gr_shelf:
+                try:
+                    r, content = GA.BookToList(book, shelf, action='remove')
+                except Exception as e:
+                    logger.error("Error removing %s from %s: %s %s" % (
+                                    book, shelf, type(e).__name__, str(e)))
+                    r = None
+                    content = ''
+                if r:
+                    gr_shelf.remove(book)
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                        logger.debug("%10s removed from %s shelf" % (book, shelf))
+                else:
+                    logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+
         # Sync method for WANTED:
         # Get results of last_sync (if any)
         # For each book in last_sync
@@ -555,7 +572,7 @@ def grsync(status, shelf, library='eBook'):
         last_sync = []
         shelf_changed = 0
         ll_changed = 0
-        if res:
+        if res and not reset:
             last_sync = getList(res['SyncList'])
 
         added_to_shelf = list(set(gr_shelf) - set(last_sync))
@@ -577,7 +594,8 @@ def grsync(status, shelf, library='eBook'):
                 shelf_changed += 1
             else:
                 if '404' not in content:  # already removed is ok
-                    logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                        logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
 
         logger.info("%s missing from goodreads %s" % (len(removed_from_shelf), shelf))
         for book in removed_from_shelf:
@@ -642,7 +660,8 @@ def grsync(status, shelf, library='eBook'):
                 if library == 'eBook':
                     if status == 'Open':
                         if res['Status'] == 'Open':
-                            logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                                logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             myDB.action('UPDATE books SET Status="Have" WHERE BookID=?', (book,))
                             ll_changed += 1
@@ -669,10 +688,11 @@ def grsync(status, shelf, library='eBook'):
                             logger.debug("%10s set to Wanted" % book)
                         else:
                             logger.warn("Not setting %s [%s] as Wanted, already marked Open" % (res['BookName'], book))
-
+                else:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
-                            logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                                logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             myDB.action('UPDATE books SET AudioStatus="Have" WHERE BookID=?', (book,))
                             ll_changed += 1
