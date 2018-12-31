@@ -34,7 +34,8 @@ def gr_api_sleep():
     if delay < 1.0:
         sleep_time = 1.0 - delay
         lazylibrarian.GR_SLEEP += sleep_time
-        logger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.GR_SLEEP))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+            logger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.GR_SLEEP))
         time.sleep(sleep_time)
     lazylibrarian.LAST_GOODREADS = time_now
 
