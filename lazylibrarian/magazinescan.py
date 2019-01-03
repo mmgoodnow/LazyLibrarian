@@ -38,11 +38,15 @@ def magazineScan(title=None):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        onetitle = title
-        if onetitle:
-            mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', onetitle)
+        mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
+        if title and '$Title' in mag_path:
+            mag_path = mag_path.replace('$Title', title)
+            onetitle = title
         else:
-            mag_path = os.path.dirname(lazylibrarian.CONFIG['MAG_DEST_FOLDER'])
+            onetitle = None
+
+        while '$' in mag_path:
+            mag_path = os.path.dirname(mag_path)
 
         if lazylibrarian.CONFIG['MAG_RELATIVE']:
             mag_path = os.path.join(lazylibrarian.DIRECTORY('eBook'), mag_path)
