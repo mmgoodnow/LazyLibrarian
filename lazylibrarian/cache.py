@@ -180,6 +180,11 @@ def gb_json_request(my_url, useCache=True, expire=True):
     return result, in_cache
 
 
+def html_request(my_url, useCache=True, expire=True):
+    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="HTML", expire=expire)
+    return result, in_cache
+
+
 def get_cached_request(url, useCache=True, cache="XML", expire=True):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
@@ -218,6 +223,9 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 if not (lazylibrarian.LOGLEVEL & lazylibrarian.log_cache):
                     os.remove(hashfilename)
                 return None, False
+        elif cache == "HTML":
+            with open(hashfilename, "rb") as cachefile:
+                source = cachefile.read()
         elif cache == "XML":
             with open(hashfilename, "rb") as cachefile:
                 result = cachefile.read()
@@ -262,6 +270,10 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                     logger.debug("%s : %s" % (e, result))
                     return None, False
                 json.dump(source, open(hashfilename, "w"))
+            elif cache == "HTML":
+                source = makeBytestr(result)
+                with open(hashfilename, "wb") as cachefile:
+                    cachefile.write(source)
             elif cache == "XML":
                 result = makeBytestr(result)
                 if result and result.startswith(b'<?xml'):
