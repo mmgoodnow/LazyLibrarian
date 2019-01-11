@@ -107,7 +107,7 @@ def _login(hosturl):
         "method": "login",
         "account": lazylibrarian.CONFIG['SYNOLOGY_USER'],
         "passwd": lazylibrarian.CONFIG['SYNOLOGY_PASS'],
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "format": "sid"
     }
 
@@ -131,7 +131,7 @@ def _logout(auth_cgi, sid):
         "api": "SYNO.API.Auth",
         "version": "1",
         "method": "logout",
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "_sid": sid
     }
 
@@ -146,7 +146,7 @@ def _listTasks(task_cgi, sid):
         "api": "SYNO.DownloadStation.Task",
         "version": "1",
         "method": "list",
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "_sid": sid
     }
 
@@ -174,7 +174,7 @@ def _getInfo(task_cgi, sid, download_id):
         "method": "getinfo",
         "id": download_id,
         "additional": "detail,file",
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "_sid": sid
     }
 
@@ -203,7 +203,7 @@ def _deleteTask(task_cgi, sid, download_id, remove_data):
         "method": "delete",
         "id": download_id,
         "force_complete": remove_data,
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "_sid": sid
     }
 
@@ -232,7 +232,7 @@ def _addTorrentURI(task_cgi, sid, torurl):
         "api": "SYNO.DownloadStation.Task",
         "version": "1",
         "method": "create",
-        "session": "LazyLibrarian",
+        "session": "DownloadStation",
         "uri": torurl,
         "destination": lazylibrarian.CONFIG['SYNOLOGY_DIR'],
         "_sid": sid
