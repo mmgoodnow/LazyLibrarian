@@ -1035,6 +1035,12 @@ def setGenres(genrelist=None, bookid=None):
                 match = myDB.match('SELECT GenreID from genres where GenreName=?', (item,))
             myDB.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
                         (match['GenreID'], bookid), suppress='UNIQUE')
+        if lazylibrarian.CONFIG['WISHLIST_GENRES']:
+            book = myDB.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
+            if book['Requester'] is not None and book['Requester'] not in genrelist:
+                genrelist.insert(0, book['Requester'])
+            if book['AudioRequester'] is not None and book['AudioRequester'] not in genrelist:
+                genrelist.insert(0, book['AudioRequester'])
         myDB.action('UPDATE books set BookGenre=? WHERE BookID=?', (', '.join(genrelist), bookid))
 
 
