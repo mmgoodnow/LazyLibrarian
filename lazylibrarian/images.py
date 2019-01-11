@@ -556,18 +556,16 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
     if data:
         img = None
         try:
-            for member in data.namelist():
-                memlow = member.lower()
-                if '-00.' in memlow or '000.' in memlow or 'cover.' in memlow:
-                    if memlow.endswith('.jpg') or memlow.endswith('.jpeg'):
+            for item in ['cover.j', '000.j', '001.j', '00.j', '01.j']:
+                for member in data.namelist():
+                    if item in member.lower():
                         img = data.read(member)
                         break
+                if img:
+                    break
             if img:
                 with open(coverfile, 'wb') as f:
-                    if PY2:
-                        f.write(img)
-                    else:
-                        f.write(img.encode())
+                    f.write(img)
                 return 'ok'
             else:
                 logger.debug("Failed to find image in %s" % issuefile)
