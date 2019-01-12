@@ -169,9 +169,23 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     # or prefer not ignored over ignored
     logger.debug('Searching database for [%s] by [%s]' % (book, author))
     myDB = database.DBConnection()
+    check_exist_author = myDB.match('SELECT AuthorID FROM authors where AuthorName=? COLLATE NOCASE', (author,))
+    if check_exist_author:
+        authorid = check_exist_author['AuthorID']
+    else:
+        newauthor, authorid, new = addAuthorNameToDB(author, False, False)
+        if len(newauthor) and newauthor != author:
+            logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
+            author = makeUnicode(newauthor)
+
+    if not authorid:
+        logger.warn("Author [%s] not recognised" % author)
+        return 0, ''
+
     cmd = 'SELECT BookID,books.Status,AudioStatus FROM books,authors where books.AuthorID = authors.AuthorID'
-    cmd += ' and AuthorName=? COLLATE NOCASE and BookName=? COLLATE NOCASE'
-    res = myDB.select(cmd, (author, book))
+    cmd += ' and authors.AuthorID=? and BookName=? COLLATE NOCASE'
+    res = myDB.select(cmd, (authorid, book))
+
     if library == 'eBook':
         whichstatus = 'Status'
     else:
@@ -199,235 +213,241 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if match:
         logger.debug('Exact match [%s]' % book)
         return match['BookID'], match[whichstatus]
+
+    # Try a more complex fuzzy match against each book in the db by this author
+    cmd = 'SELECT BookID,BookName,BookISBN,books.Status,AudioStatus FROM books,authors'
+    cmd += ' where books.AuthorID = authors.AuthorID '
+    ign = ''
+    if library == 'eBook':
+        if ignored is True:
+            cmd += 'and books.Status = "Ignored" '
+            ign = 'ignored '
+        elif ignored is False:
+            cmd += 'and books.Status != "Ignored" '
     else:
-        # Try a more complex fuzzy match against each book in the db by this author
-        cmd = 'SELECT BookID,BookName,BookISBN,books.Status,AudioStatus FROM books,authors'
-        cmd += ' where books.AuthorID = authors.AuthorID '
-        ign = ''
-        if library == 'eBook':
-            if ignored is True:
-                cmd += 'and books.Status = "Ignored" '
-                ign = 'ignored '
-            elif ignored is False:
-                cmd += 'and books.Status != "Ignored" '
-        else:
-            if ignored is True:
-                cmd += 'and AudioStatus = "Ignored" '
-                ign = 'ignored '
-            elif ignored is False:
-                cmd += 'and AudioStatus != "Ignored" '
+        if ignored is True:
+            cmd += 'and AudioStatus = "Ignored" '
+            ign = 'ignored '
+        elif ignored is False:
+            cmd += 'and AudioStatus != "Ignored" '
 
-        cmd += 'and AuthorName=? COLLATE NOCASE'
-        books = myDB.select(cmd, (author,))
-        best_ratio = 0
-        best_partial = 0
-        best_partname = 0
-        have_prefix = False
-        ratio_name = ""
-        partial_name = ""
-        partname_name = ""
-        prefix_name = ""
-        ratio_id = 0
-        partial_id = 0
-        partname_id = 0
-        prefix_id = 0
-        partname = 0
-        best_type = ''
-        partial_type = ''
-        partname_type = ''
-        prefix_type = ''
+    cmd += 'and authors.AuthorID=?'
+    books = myDB.select(cmd, (authorid,))
 
-        dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
-        book_lower = unaccented(book.lower())
-        book_lower = replace_all(book_lower, dic)
-        book_partname, book_sub = split_title(author, book_lower)
-
-        # We want to match a book on disk with a subtitle to a shorter book in the DB
-        # - Strict prefix match with a : followed by junk is allowed
-        # - Strict prefix match with a ()ed remainder is allowed
-        # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
-        has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
-
-        logger.debug('Searching %s %sbook%s by [%s] in database for [%s]' %
-                     (len(books), ign, plural(len(books)), author, book))
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
-            logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
-        if book_partname == book_lower:
-            book_partname = ''
-
-        # translations: eg allow "fire & fury" to match "fire and fury"
-        translates = [
-                        [' & ', ' and '],
-                    ]
-
-        for a_book in books:
-            # tidy up everything to raise fuzziness scores
-            # still need to lowercase for matching against partial_name later on
-            a_book_lower = unaccented(a_book['BookName'].lower())
-            a_book_lower = replace_all(a_book_lower, dic)
-
-            for entry in translates:
-                if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
-                    a_book_lower = a_book_lower.replace(entry[0], entry[1])
-                if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
-                    a_book_lower = a_book_lower.replace(entry[1], entry[0])
-            #
-            # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
-            ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                logger.debug("Ratio %s [%s][%s]" % (ratio, book_lower, a_book_lower))
-            # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
-            partial = fuzz.partial_ratio(book_lower, a_book_lower)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                logger.debug("PartialRatio %s [%s][%s]" % (partial, book_lower, a_book_lower))
-            if book_partname:
-                # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
-                partname = fuzz.partial_ratio(book_partname, a_book_lower)
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                    logger.debug("PartName %s [%s][%s]" % (partname, book_partname, a_book_lower))
-
-            # lose a point for each extra word in the fuzzy matches so we get the closest match
-            # this should also stop us matching single books against omnibus editions
-            words = len(getList(book_lower))
-            words -= len(getList(a_book_lower))
-            ratio -= abs(words)
-            partial -= abs(words)
-            partname -= abs(words)
-
-            use_it = False
-            if ratio > best_ratio:
-                use_it = True
-            elif ratio == best_ratio:
-                if library == 'eBook' and a_book['Status'] == 'Have':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                    use_it = True
-                if not use_it:
-                    want_words = getList(book_lower)
-                    best_words = getList(ratio_name.lower())
-                    new_words = getList(a_book['BookName'].lower())
-                    best_cnt = 0
-                    new_cnt = 0
-                    for word in want_words:
-                        if word in best_words:
-                            best_cnt += 1
-                        if word in new_words:
-                            new_cnt += 1
-                    if new_cnt > best_cnt:
-                        use_it = True
-                if not use_it and best_type == 'Ignored':
-                    if library == 'eBook' and a_book['Status'] != 'Ignored':
-                        use_it = True
-                    if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                        use_it = True
-            if use_it:
-                best_ratio = ratio
-                if library == 'eBook':
-                    best_type = a_book['Status']
-                else:
-                    best_type = a_book['AudioStatus']
-                ratio_name = a_book['BookName']
-                ratio_id = a_book['BookID']
-
-            use_it = False
-            if partial > best_partial:
-                use_it = True
-            elif partial == best_partial:
-                if library == 'eBook' and a_book['Status'] == 'Have':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                    use_it = True
-                if not use_it:
-                    want_words = getList(book_lower)
-                    best_words = getList(partial_name.lower())
-                    new_words = getList(a_book['BookName'].lower())
-                    best_cnt = 0
-                    new_cnt = 0
-                    for word in want_words:
-                        if word in best_words:
-                            best_cnt += 1
-                        if word in new_words:
-                            new_cnt += 1
-                    if new_cnt > best_cnt:
-                        use_it = True
-                if not use_it and partial_type == 'Ignored':
-                    if library == 'eBook' and a_book['Status'] != 'Ignored':
-                        use_it = True
-                    if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                        use_it = True
-            if use_it:
-                best_partial = partial
-                if library == 'eBook':
-                    partial_type = a_book['Status']
-                else:
-                    partial_type = a_book['AudioStatus']
-                partial_name = a_book['BookName']
-                partial_id = a_book['BookID']
-
-            use_it = False
-            if partname > best_partname:
-                use_it = True
-            elif partname == best_partname:
-                if library == 'eBook' and a_book['Status'] == 'Have':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                    use_it = True
-                if not use_it:
-                    want_words = getList(book_lower)
-                    best_words = getList(partname_name.lower())
-                    new_words = getList(a_book['BookName'].lower())
-                    best_cnt = 0
-                    new_cnt = 0
-                    for word in want_words:
-                        if word in best_words:
-                            best_cnt += 1
-                        if word in new_words:
-                            new_cnt += 1
-                    if new_cnt > best_cnt:
-                        use_it = True
-                if not use_it and partname_type == 'Ignored':
-                    if library == 'eBook' and a_book['Status'] != 'Ignored':
-                        use_it = True
-                    if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                        use_it = True
-            if use_it:
-                best_partname = partname
-                if library == 'eBook':
-                    partname_type = a_book['Status']
-                else:
-                    partname_type = a_book['AudioStatus']
-                partname_name = a_book['BookName']
-                partname_id = a_book['BookID']
-
-            if a_book_lower == book_partname and has_clean_subtitle:
-                have_prefix = True
-                if library == 'eBook':
-                    prefix_type = a_book['Status']
-                else:
-                    prefix_type = a_book['Status']
-                prefix_name = a_book['BookName']
-                prefix_id = a_book['BookID']
-
-        if best_ratio >= lazylibrarian.CONFIG['NAME_RATIO']:
-            logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
-            return ratio_id, best_type
-        if best_partial >= lazylibrarian.CONFIG['NAME_PARTIAL']:
-            logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
-            return partial_id, partial_type
-        if best_partname >= lazylibrarian.CONFIG['NAME_PARTNAME']:
-            logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
-            return partname_id, partname_type
-
-        if have_prefix:
-            logger.debug("Fuzz match prefix [%s] [%s] %s" % (book, prefix_name, prefix_id))
-            return prefix_id, prefix_type
-
-        if books:
-            logger.debug(
-                'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
-                (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
-                 best_partname, partname_name, partname_id))
+    if not len(books):
+        logger.warn("No books by %s in database" % author)
         return 0, ''
+
+    best_ratio = 0
+    best_partial = 0
+    best_partname = 0
+    have_prefix = False
+    ratio_name = ""
+    partial_name = ""
+    partname_name = ""
+    prefix_name = ""
+    ratio_id = 0
+    partial_id = 0
+    partname_id = 0
+    prefix_id = 0
+    partname = 0
+    best_type = ''
+    partial_type = ''
+    partname_type = ''
+    prefix_type = ''
+
+    dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
+    book_lower = unaccented(book.lower())
+    book_lower = replace_all(book_lower, dic)
+    book_partname, book_sub = split_title(author, book_lower)
+
+    # We want to match a book on disk with a subtitle to a shorter book in the DB
+    # - Strict prefix match with a : followed by junk is allowed
+    # - Strict prefix match with a ()ed remainder is allowed
+    # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
+    has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
+
+    logger.debug('Searching %s %sbook%s by [%s] in database for [%s]' %
+                    (len(books), ign, plural(len(books)), author, book))
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+        logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
+    if book_partname == book_lower:
+        book_partname = ''
+
+    # translations: eg allow "fire & fury" to match "fire and fury"
+    translates = [
+                    [' & ', ' and '],
+                    [' + ', ' plus '],
+                ]
+
+    for a_book in books:
+        # tidy up everything to raise fuzziness scores
+        # still need to lowercase for matching against partial_name later on
+        a_book_lower = unaccented(a_book['BookName'].lower())
+        a_book_lower = replace_all(a_book_lower, dic)
+
+        for entry in translates:
+            if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
+                a_book_lower = a_book_lower.replace(entry[0], entry[1])
+            if entry[1] in a_book_lower and entry[1] not in book_lower and entry[0] in book_lower:
+                a_book_lower = a_book_lower.replace(entry[1], entry[0])
+        #
+        # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
+        ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+            logger.debug("Ratio %s [%s][%s]" % (ratio, book_lower, a_book_lower))
+        # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
+        partial = fuzz.partial_ratio(book_lower, a_book_lower)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+            logger.debug("PartialRatio %s [%s][%s]" % (partial, book_lower, a_book_lower))
+        if book_partname:
+            # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
+            partname = fuzz.partial_ratio(book_partname, a_book_lower)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                logger.debug("PartName %s [%s][%s]" % (partname, book_partname, a_book_lower))
+
+        # lose a point for each extra word in the fuzzy matches so we get the closest match
+        # this should also stop us matching single books against omnibus editions
+        words = len(getList(book_lower))
+        words -= len(getList(a_book_lower))
+        ratio -= abs(words)
+        partial -= abs(words)
+        partname -= abs(words)
+
+        use_it = False
+        if ratio > best_ratio:
+            use_it = True
+        elif ratio == best_ratio:
+            if library == 'eBook' and a_book['Status'] == 'Have':
+                use_it = True
+            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
+                use_it = True
+            if not use_it:
+                want_words = getList(book_lower)
+                best_words = getList(ratio_name.lower())
+                new_words = getList(a_book['BookName'].lower())
+                best_cnt = 0
+                new_cnt = 0
+                for word in want_words:
+                    if word in best_words:
+                        best_cnt += 1
+                    if word in new_words:
+                        new_cnt += 1
+                if new_cnt > best_cnt:
+                    use_it = True
+            if not use_it and best_type == 'Ignored':
+                if library == 'eBook' and a_book['Status'] != 'Ignored':
+                    use_it = True
+                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
+                    use_it = True
+        if use_it:
+            best_ratio = ratio
+            if library == 'eBook':
+                best_type = a_book['Status']
+            else:
+                best_type = a_book['AudioStatus']
+            ratio_name = a_book['BookName']
+            ratio_id = a_book['BookID']
+
+        use_it = False
+        if partial > best_partial:
+            use_it = True
+        elif partial == best_partial:
+            if library == 'eBook' and a_book['Status'] == 'Have':
+                use_it = True
+            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
+                use_it = True
+            if not use_it:
+                want_words = getList(book_lower)
+                best_words = getList(partial_name.lower())
+                new_words = getList(a_book['BookName'].lower())
+                best_cnt = 0
+                new_cnt = 0
+                for word in want_words:
+                    if word in best_words:
+                        best_cnt += 1
+                    if word in new_words:
+                        new_cnt += 1
+                if new_cnt > best_cnt:
+                    use_it = True
+            if not use_it and partial_type == 'Ignored':
+                if library == 'eBook' and a_book['Status'] != 'Ignored':
+                    use_it = True
+                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
+                    use_it = True
+        if use_it:
+            best_partial = partial
+            if library == 'eBook':
+                partial_type = a_book['Status']
+            else:
+                partial_type = a_book['AudioStatus']
+            partial_name = a_book['BookName']
+            partial_id = a_book['BookID']
+
+        use_it = False
+        if partname > best_partname:
+            use_it = True
+        elif partname == best_partname:
+            if library == 'eBook' and a_book['Status'] == 'Have':
+                use_it = True
+            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
+                use_it = True
+            if not use_it:
+                want_words = getList(book_lower)
+                best_words = getList(partname_name.lower())
+                new_words = getList(a_book['BookName'].lower())
+                best_cnt = 0
+                new_cnt = 0
+                for word in want_words:
+                    if word in best_words:
+                        best_cnt += 1
+                    if word in new_words:
+                        new_cnt += 1
+                if new_cnt > best_cnt:
+                    use_it = True
+            if not use_it and partname_type == 'Ignored':
+                if library == 'eBook' and a_book['Status'] != 'Ignored':
+                    use_it = True
+                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
+                    use_it = True
+        if use_it:
+            best_partname = partname
+            if library == 'eBook':
+                partname_type = a_book['Status']
+            else:
+                partname_type = a_book['AudioStatus']
+            partname_name = a_book['BookName']
+            partname_id = a_book['BookID']
+
+        if a_book_lower == book_partname and has_clean_subtitle:
+            have_prefix = True
+            if library == 'eBook':
+                prefix_type = a_book['Status']
+            else:
+                prefix_type = a_book['Status']
+            prefix_name = a_book['BookName']
+            prefix_id = a_book['BookID']
+
+    if best_ratio >= lazylibrarian.CONFIG['NAME_RATIO']:
+        logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
+        return ratio_id, best_type
+    if best_partial >= lazylibrarian.CONFIG['NAME_PARTIAL']:
+        logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
+        return partial_id, partial_type
+    if best_partname >= lazylibrarian.CONFIG['NAME_PARTNAME']:
+        logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
+        return partname_id, partname_type
+
+    if have_prefix:
+        logger.debug("Fuzz match prefix [%s] [%s] %s" % (book, prefix_name, prefix_id))
+        return prefix_id, prefix_type
+
+    if books:
+        logger.debug(
+            'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
+            (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
+            best_partname, partname_name, partname_id))
+    return 0, ''
 
 
 def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
