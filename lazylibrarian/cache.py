@@ -138,7 +138,7 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
         linked to the id, return the link to the cached file, success, was_in_cache
         or error message, False, False if failed to cache """
 
-    if img_type not in ['book', 'author', 'magazine']:
+    if img_type not in ['book', 'author', 'magazine', 'comic']:
         logger.error('Internal error in cache_img, img_type = [%s]' % img_type)
         img_type = 'book'
 
@@ -158,6 +158,7 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
                 return link, True, False
             except Exception as e:
                 logger.error("%s writing image to %s, %s" % (type(e).__name__, cachefile, str(e)))
+                logger.error("Image url: %s" % img_url)
                 return str(e), False, False
         return result, False, False
     else:
