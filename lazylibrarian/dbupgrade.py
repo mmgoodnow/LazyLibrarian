@@ -96,8 +96,9 @@ def upgrade_needed():
     # 47 genres and genrebooks tables
     # 48 ensure magazine table schema is current
     # 49 ensure author table schema is current
+    # 50 add comics and comicissues tables
 
-    db_current_version = 49
+    db_current_version = 50
 
     if db_version < db_current_version:
         return db_current_version
@@ -176,6 +177,10 @@ def dbupgrade(db_current_version):
                     myDB.action('CREATE TABLE isbn (Words TEXT, ISBN TEXT)')
                     myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, ' +
                                 'GenreName TEXT UNIQUE)')
+                    myDB.action('CREATE TABLE comics (ComicID TEXT UNIQUE, Title TEXT, Status TEXT, ' +
+                                'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
+                                'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
+                                'Publisher TEXT, Link TEXT)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -203,6 +208,9 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ' +
                                     'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'UNIQUE (GenreID,BookID))')
+                        myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
+                                    'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT ' +
+                                    'UNIQUE (ComicID, IssueID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
                         # so orphans get cleaned up at program startup
@@ -225,6 +233,8 @@ def dbupgrade(db_current_version):
                                     'Interval INTEGER DEFAULT 0, Count INTEGER DEFAULT 0)')
                         myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
                                     'UNIQUE (GenreID,BookID))')
+                        myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
+                                    'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -400,6 +410,7 @@ def check_db(myDB):
                     for itm in matches:
                         msg = 'Removing excluded genre [%s]' % itm['GenreName']
                         logger.warn(msg)
+                        myDB.action('DELETE from genrebooks WHERE GenreID=?', (itm['GenreID'],))
                         myDB.action('DELETE from genres WHERE GenreID=?', (itm['GenreID'],))
             for item in lazylibrarian.GRGENRES.get('genreReplace', {}):
                 match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
@@ -443,6 +454,7 @@ def check_db(myDB):
                         ['authorid', 'seriesauthors', 'authors'],
                         ['title', 'issues', 'magazines'],
                         ['genreid', 'genrebooks', 'genres'],
+                        ['comicid', 'comicissues', 'comics'],
                      ]:
             orphans = myDB.select('select %s from %s except select %s from %s' %
                                   (entry[0], entry[1], entry[0], entry[2]))
@@ -1462,3 +1474,18 @@ def db_v49(myDB, upgradelog):
         myDB.action('DROP TABLE temp')
         myDB.action('PRAGMA foreign_keys = ON')
     upgradelog.write("%s v49: complete\n" % time.ctime())
+
+
+def db_v50(myDB, upgradelog):
+    upgradelog.write("%s v50: %s\n" % (time.ctime(), "Creating comics tables"))
+    if not has_column(myDB, "comics", "ComicID"):
+        myDB.action('CREATE TABLE comics (ComicID TEXT UNIQUE, Title TEXT, Status TEXT, ' +
+                    'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
+                    'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
+                    'Publisher TEXT, Link TEXT)')
+        if lazylibrarian.FOREIGN_KEY:
+            myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
+                        'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT)')
+        else:
+            myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
+                        'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')

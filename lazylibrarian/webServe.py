@@ -13,13 +13,13 @@
 
 import datetime
 import hashlib
+import json
 import os
 import random
 import re
 import threading
 import time
 import traceback
-import json
 from shutil import copyfile, rmtree
 
 # noinspection PyUnresolvedReferences
@@ -28,14 +28,17 @@ from lib.six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlun
 import cherrypy
 import lazylibrarian
 from cherrypy.lib.static import serve_file
-from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, \
+from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
+from lazylibrarian.bookrename import nameVars
 from lazylibrarian.bookwork import setSeries, deleteEmptySeries, getSeriesAuthors
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
+from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, setperm, \
     aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, zipAudio, runScript
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
+from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_str, plural, now, today, check_int, replace_all, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeBytestr, md5_utf8, dateFormat, \
@@ -47,15 +50,14 @@ from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_tota
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
+from lazylibrarian.opds import OPDS
 from lazylibrarian.postprocess import processAlternate, processDir, delete_task, getDownloadProgress
 from lazylibrarian.providers import test_provider
+from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines
 from lazylibrarian.searchrss import search_wishlist
-from lazylibrarian.rssfeed import genFeed
-from lazylibrarian.opds import OPDS
-from lazylibrarian.bookrename import nameVars
-from lazylibrarian.dbupgrade import check_db
+
 try:
     from deluge_client import DelugeRPCClient
 except ImportError:
@@ -63,6 +65,10 @@ except ImportError:
 from lib.six import PY2, text_type
 from mako import exceptions
 from mako.lookup import TemplateLookup
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 
 
 def serve_template(templatename, **kwargs):
@@ -130,6 +136,10 @@ def serve_template(templatename, **kwargs):
             templatename = "login.html"
         elif templatename in ['magazines.html', 'issues.html', 'manageissues.html'] \
                 and not perm & lazylibrarian.perm_magazines:
+            logger.warn('User %s attempted to access %s' % (username, templatename))
+            templatename = "login.html"
+        elif templatename in ['comics.html', 'comicissues.html', 'comicresults.html'] \
+                and not perm & lazylibrarian.perm_comics:
             logger.warn('User %s attempted to access %s' % (username, templatename))
             templatename = "login.html"
         elif templatename == 'audio.html' and not perm & lazylibrarian.perm_audio:
@@ -1247,12 +1257,16 @@ class WebInterface(object):
                 'newznab_%i_magsearch' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['AUDIOSEARCH'] = kwargs.get(
                 'newznab_%i_audiosearch' % count, '')
+            lazylibrarian.NEWZNAB_PROV[count]['COMICSEARCH'] = kwargs.get(
+                'newznab_%i_comicsearch' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['BOOKCAT'] = kwargs.get(
                 'newznab_%i_bookcat' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['MAGCAT'] = kwargs.get(
                 'newznab_%i_magcat' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['AUDIOCAT'] = kwargs.get(
                 'newznab_%i_audiocat' % count, '')
+            lazylibrarian.NEWZNAB_PROV[count]['COMICCAT'] = kwargs.get(
+                'newznab_%i_comiccat' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['EXTENDED'] = kwargs.get(
                 'newznab_%i_extended' % count, '')
             lazylibrarian.NEWZNAB_PROV[count]['UPDATED'] = kwargs.get(
@@ -1286,12 +1300,16 @@ class WebInterface(object):
                 'torznab_%i_magsearch' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['AUDIOSEARCH'] = kwargs.get(
                 'torznab_%i_audiosearch' % count, '')
+            lazylibrarian.TORZNAB_PROV[count]['COMICSEARCH'] = kwargs.get(
+                'torznab_%i_comicsearch' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['BOOKCAT'] = kwargs.get(
                 'torznab_%i_bookcat' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['MAGCAT'] = kwargs.get(
                 'torznab_%i_magcat' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['AUDIOCAT'] = kwargs.get(
                 'torznab_%i_audiocat' % count, '')
+            lazylibrarian.TORZNAB_PROV[count]['COMICCAT'] = kwargs.get(
+                'torznab_%i_comiccat' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['EXTENDED'] = kwargs.get(
                 'torznab_%i_extended' % count, '')
             lazylibrarian.TORZNAB_PROV[count]['UPDATED'] = kwargs.get(
@@ -1928,7 +1946,10 @@ class WebInterface(object):
                             searches = myDB.match(cmd, (row[6],))
                             if searches:
                                 thisrow.append("%s/%s" % (searches['Count'], searches['Interval']))
-                                thisrow.append(time.strftime("%d %b %Y", time.localtime(searches['Time'])))
+                                try:
+                                    thisrow.append(time.strftime("%d %b %Y", time.localtime(searches['Time'])))
+                                except TypeError:
+                                    thisrow.append('')
                             else:
                                 thisrow.append('0')
                                 thisrow.append('')
@@ -2100,6 +2121,11 @@ class WebInterface(object):
                               title=title, message=msg, timer=timer)
 
     @cherrypy.expose
+    def serveComic(self, feedid=None):
+        logger.debug("Serve Comic [%s]" % feedid)
+        return self.serveItem(feedid, "comic")
+
+    @cherrypy.expose
     def serveImg(self, feedid=None):
         logger.debug("Serve Image [%s]" % feedid)
         return self.serveItem(feedid, "img")
@@ -2150,6 +2176,22 @@ class WebInterface(object):
             target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
             return self.send_file(target, name='lazylibrarian.png')
 
+        if ftype == 'comic':
+            try:
+                comicid, issueid = itemid.split('_')
+                cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
+                cmd += ' and ComicID=? and IssueID=?'
+                res = myDB.match(cmd, (comicid, issueid))
+            except (IndexError, ValueError):
+                res = None
+
+            if res:
+                target = res['IssueFile']
+
+                if target and os.path.isfile(target):
+                    logger.debug('Opening %s %s' % (ftype, target))
+                    return self.send_file(target)
+
         if ftype == 'audio':
             res = myDB.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
@@ -2172,7 +2214,6 @@ class WebInterface(object):
                     _, extn = os.path.splitext(basefile)
                     return self.send_file(target, name=res['BookName'] + extn)
 
-        basefile = None
         if ftype == 'book':
             res = myDB.match('SELECT BookFile from books WHERE BookID=?', (itemid,))
             if res:
@@ -2189,18 +2230,18 @@ class WebInterface(object):
                     basefile = basename + '.' + preftype
                 else:
                     basefile = basename + '.' + types[0]
+                if basefile and os.path.isfile(basefile):
+                    logger.debug('Opening %s %s' % (ftype, basefile))
+                    return self.send_file(basefile)
 
         elif ftype == 'issue':
             res = myDB.match('SELECT IssueFile from issues WHERE IssueID=?', (itemid,))
             if res:
                 basefile = res['IssueFile']
-
-        if basefile and os.path.isfile(basefile):
-            logger.debug('Opening %s %s' % (ftype, basefile))
-            return self.send_file(basefile)
-
-        else:
-            logger.warn("No file found for %s %s" % (ftype, itemid))
+                if basefile and os.path.isfile(basefile):
+                    logger.debug('Opening %s %s' % (ftype, basefile))
+                    return self.send_file(basefile)
+        logger.warn("No file found for %s %s" % (ftype, itemid))
 
     @cherrypy.expose
     def openBook(self, bookid=None, library=None, redirect=None, booktype=None):
@@ -2824,7 +2865,7 @@ class WebInterface(object):
     def magWall(self, title=None):
         self.label_thread('MAGWALL')
         myDB = database.DBConnection()
-        cmd = 'SELECT IssueFile,IssueID,IssueDate from issues'
+        cmd = 'SELECT IssueFile,IssueID,IssueDate,Title from issues'
         args = None
         if title:
             title = title.replace('&amp;', '&')
@@ -2859,6 +2900,7 @@ class WebInterface(object):
 
                 this_issue = dict(issue)
                 this_issue['Cover'] = magimg
+                this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
                 count += 1
                 if maxcount and count >= maxcount:
@@ -2867,6 +2909,54 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="magazines",
+            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+
+    @cherrypy.expose
+    def comicWall(self, comicid=None):
+        self.label_thread('COMICWALL')
+        myDB = database.DBConnection()
+        cmd = 'SELECT IssueFile,IssueID,ComicID from comicissues'
+        args = None
+        if comicid:
+            cmd += ' WHERE ComicID=?'
+            args = (comicid,)
+        cmd += ' order by IssueAcquired DESC'
+        issues = myDB.select(cmd, args)
+        title = "Recent Issues"
+        if not len(issues):
+            raise cherrypy.HTTPRedirect("comics")
+        else:
+            mod_issues = []
+            count = 0
+            maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
+            for issue in issues:
+                magfile = issue['IssueFile']
+                extn = os.path.splitext(magfile)[1]
+                if extn:
+                    magimg = magfile.replace(extn, '.jpg')
+                    if not magimg or not os.path.isfile(magimg):
+                        magimg = 'images/nocover.jpg'
+                    else:
+                        myhash = md5_utf8(magimg)
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', myhash + ".jpg")
+                        if not os.path.isfile(hashname):
+                            copyfile(magimg, hashname)
+                            setperm(hashname)
+                        magimg = 'cache/comic/' + myhash + '.jpg'
+                else:
+                    logger.debug('No extension found on %s' % magfile)
+                    magimg = 'images/nocover.jpg'
+
+                this_issue = dict(issue)
+                this_issue['Cover'] = magimg
+                mod_issues.append(this_issue)
+                count += 1
+                if maxcount and count >= maxcount:
+                    title = "%s (Top %i)" % (title, count)
+                    break
+
+        return serve_template(
+            templatename="coverwall.html", title=title, results=mod_issues, redirect="comic",
             columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
@@ -2923,6 +3013,475 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect('magWall')
         else:
             raise cherrypy.HTTPRedirect('home')
+
+    # COMICS #########################################################
+
+    @cherrypy.expose
+    def comics(self):
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+        else:
+            user = 0
+        # use server-side processing
+        covers = 1
+        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
+            covers = 0
+        return serve_template(templatename="comics.html", title="Comics", comics=[],
+                              covercount=covers, user=user)
+
+    # noinspection PyUnusedLocal
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def getComics(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+        # kwargs is used by datatables to pass params
+        # for arg in kwargs:
+        #     print arg, kwargs[arg]
+        rows = []
+        filtered = []
+        rowlist = []
+        # noinspection PyBroadException
+        try:
+            iDisplayStart = int(iDisplayStart)
+            iDisplayLength = int(iDisplayLength)
+            lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
+            mags = []
+            myDB = database.DBConnection()
+            cmd = 'select comics.*,(select count(*) as counter from comicissues '
+            cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics order by Title'
+
+            rowlist = myDB.select(cmd)
+
+            if len(rowlist):
+                for mag in rowlist:
+                    magimg = mag['LatestCover']
+                    if not lazylibrarian.CONFIG['IMP_COMICCOVER'] or not magimg or not os.path.isfile(magimg):
+                        magimg = 'images/nocover.jpg'
+                    else:
+                        myhash = md5_utf8(magimg)
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                        # if not os.path.isfile(hashname):
+                        copyfile(magimg, hashname)
+                        setperm(hashname)
+                        magimg = 'cache/comic/' + myhash + '.jpg'
+
+                    this_mag = dict(mag)
+                    this_mag['Cover'] = magimg
+                    mags.append(this_mag)
+
+                rowlist = []
+
+                if len(mags):
+                    for mag in mags:
+                        title = mag['Title']
+                        if PY2:
+                            temp_title = title.encode(lazylibrarian.SYS_ENCODING)
+                            safetitle = quote_plus(temp_title)
+                        entry = [mag['ComicID'], mag['Cover'], title, mag['Iss_Cnt'], mag['LastAcquired'],
+                                 mag['LatestIssue'], mag['Status'], mag['IssueStatus'], mag['Start'],
+                                 mag['Publisher'], mag['Link']]
+                        rowlist.append(entry)  # add each rowlist to the masterlist
+
+                if sSearch:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("filter %s" % sSearch)
+                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                else:
+                    filtered = rowlist
+
+                sortcolumn = int(iSortCol_0)
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("sortcolumn %d" % sortcolumn)
+
+                if sortcolumn in [4, 5]:  # dates
+                    self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                      reverse=sSortDir_0 == "desc")
+                elif sortcolumn == 2:  # title
+                    filtered.sort(key=lambda y: y[sortcolumn].lower(), reverse=sSortDir_0 == "desc")
+                else:
+                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+
+                if iDisplayLength < 0:  # display = all
+                    rows = filtered
+                else:
+                    rows = filtered[iDisplayStart:(iDisplayStart + iDisplayLength)]
+
+                for row in rows:
+                    row[4] = dateFormat(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+                    if row[5] and row[5].isdigit():
+                        if len(row[5]) == 8:
+                            if check_year(row[5][:4]):
+                                row[5] = 'Issue %d %s' % (int(row[5][4:]), row[5][:4])
+                            else:
+                                row[5] = 'Vol %d #%d' % (int(row[5][:4]), int(row[5][4:]))
+                        elif len(row[5]) == 12:
+                            row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
+                    else:
+                        row[5] = dateFormat(row[5], lazylibrarian.CONFIG['ISS_FORMAT'])
+
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug("getComics returning %s to %s" % (iDisplayStart, iDisplayStart + iDisplayLength))
+                logger.debug("getComics filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
+
+        except Exception:
+            logger.error('Unhandled exception in getComics: %s' % traceback.format_exc())
+            rows = []
+            rowlist = []
+            filtered = []
+        finally:
+            mydict = {'iTotalDisplayRecords': len(filtered),
+                      'iTotalRecords': len(rowlist),
+                      'aaData': rows,
+                      }
+            return mydict
+
+    @cherrypy.expose
+    def comicScan(self, **kwargs):
+        if 'comicid' in kwargs:
+            comicid = kwargs['comicid']
+        else:
+            comicid = None
+
+        if 'COMIC_SCAN' not in [n.name for n in [t for t in threading.enumerate()]]:
+            try:
+                if comicid:
+                    threading.Thread(target=comicscan.comicScan, name='COMIC_SCAN', args=[comicid]).start()
+                else:
+                    threading.Thread(target=comicscan.comicScan, name='COMIC_SCAN', args=[]).start()
+            except Exception as e:
+                logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
+        else:
+            logger.debug('COMIC_SCAN already running')
+        if comicid:
+            raise cherrypy.HTTPRedirect("comicPage?comicid=%s" % comicid)
+        else:
+            raise cherrypy.HTTPRedirect("comics")
+
+    @cherrypy.expose
+    def comicPage(self, comicid):
+        myDB = database.DBConnection()
+        mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        title = mag_data['Title']
+        if title and '&' in title and '&amp;' not in title:  # could use htmlparser but seems overkill for just '&'
+            safetitle = title.replace('&', '&amp;')
+        else:
+            safetitle = title
+
+        # use server-side processing
+        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
+            covercount = 0
+        else:
+            covercount = 1
+        return serve_template(templatename="comicissues.html", title=safetitle, issues=[], covercount=covercount)
+
+    @cherrypy.expose
+    def comicissuePage(self, comicid):
+        myDB = database.DBConnection()
+        mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        title = mag_data['Title']
+        if title and '&' in title and '&amp;' not in title:
+            safetitle = title.replace('&', '&amp;')
+        else:
+            safetitle = title
+
+        # use server-side processing
+        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
+            covercount = 0
+        else:
+            covercount = 1
+        return serve_template(templatename="comicissues.html", comicid=comicid,
+                              title=safetitle, issues=[], covercount=covercount)
+
+    @cherrypy.expose
+    def openComic(self, comicid=None, issueid=None):
+        myDB = database.DBConnection()
+        mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        title = mag_data['Title']
+        # we may want to open an issue with an issueid
+        if issueid:
+            cmd = 'SELECT * from comicissues WHERE ComicID=? and IssueID=?'
+            iss_data = myDB.match(cmd, (comicid, issueid))
+            if iss_data:
+                IssueFile = iss_data["IssueFile"]
+                if IssueFile and os.path.isfile(IssueFile):
+                    logger.debug('Opening file %s' % IssueFile)
+                    return self.send_file(IssueFile, name="Comic %s %s" % (title, issueid))
+
+        # or we may just have an id to find comic in comicissues table
+        iss_data = myDB.select('SELECT * from comicissues WHERE ComicID=?', (comicid,))
+        if len(iss_data) <= 0:  # no issues!
+            raise cherrypy.HTTPRedirect("comics")
+        elif len(iss_data) == 1 and lazylibrarian.CONFIG['COMIC_SINGLE']:  # we only have one issue, get it
+            IssueID = iss_data[0]["IssueID"]
+            IssueFile = iss_data[0]["IssueFile"]
+            logger.debug('Opening %s - %s' % (comicid, IssueID))
+            return self.send_file(IssueFile, name="Comic %s %s" % (comicid, IssueID))
+        else:  # multiple issues, show a list
+            logger.debug("%s has %s issue%s" % (comicid, len(iss_data), plural(len(iss_data))))
+            raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
+
+    @cherrypy.expose
+    @cherrypy.tools.json_out()
+    def getComicIssues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc",
+                       sSearch="", **kwargs):
+        rows = []
+        filtered = []
+        rowlist = []
+
+        # noinspection PyBroadException
+        try:
+            iDisplayStart = int(iDisplayStart)
+            iDisplayLength = int(iDisplayLength)
+            lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
+
+            comicid = kwargs['comicid']
+            myDB = database.DBConnection()
+            mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+            title = mag_data['Title']
+            rowlist = myDB.select('SELECT * from comicissues WHERE ComicID=? order by IssueID DESC', (comicid,))
+            if len(rowlist):
+                mod_issues = []
+                covercount = 0
+                for issue in rowlist:
+                    magfile = issue['IssueFile']
+                    extn = os.path.splitext(magfile)[1]
+                    if extn:
+                        magimg = magfile.replace(extn, '.jpg')
+                        if not magimg or not os.path.isfile(magimg):
+                            magimg = 'images/nocover.jpg'
+                        else:
+                            myhash = md5_utf8(magimg)
+                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', myhash + ".jpg")
+                            # if not os.path.isfile(hashname):
+                            copyfile(magimg, hashname)
+                            setperm(hashname)
+                            magimg = 'cache/comic/' + myhash + '.jpg'
+                            covercount += 1
+                    else:
+                        logger.debug('No extension found on %s' % magfile)
+                        magimg = 'images/nocover.jpg'
+                    this_issue = dict(issue)
+                    this_issue['Cover'] = magimg
+                    mod_issues.append(this_issue)
+
+                rowlist = []
+                if len(mod_issues):
+                    for mag in mod_issues:
+                        entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], comicid]
+                        rowlist.append(entry)  # add each rowlist to the masterlist
+
+                if sSearch:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("filter %s" % sSearch)
+                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                else:
+                    filtered = rowlist
+
+                sortcolumn = int(iSortCol_0)
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("sortcolumn %d" % sortcolumn)
+
+                if sortcolumn in [2, 3]:  # dates
+                    self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                      reverse=sSortDir_0 == "desc")
+                else:
+                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+
+                if iDisplayLength < 0:  # display = all
+                    rows = filtered
+                else:
+                    rows = filtered[iDisplayStart:(iDisplayStart + iDisplayLength)]
+
+            for row in rows:
+                row[3] = dateFormat(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
+                row[2] = dateFormat(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
+
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug("getComicIssues returning %s to %s" % (iDisplayStart, iDisplayStart + iDisplayLength))
+                logger.debug("getComicIssues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
+        except Exception:
+            logger.error('Unhandled exception in getComicIssues: %s' % traceback.format_exc())
+            rows = []
+            rowlist = []
+            filtered = []
+        finally:
+            mydict = {'iTotalDisplayRecords': len(filtered),
+                      'iTotalRecords': len(rowlist),
+                      'aaData': rows,
+                      }
+            return mydict
+
+    @cherrypy.expose
+    def findComic(self, title=None):
+        global comicresults
+        myDB = database.DBConnection()
+        if not title or title == 'None':
+            raise cherrypy.HTTPRedirect("comics")
+        else:
+            # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
+            dic = {'\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"'}
+            title = replace_all(title, dic)
+            exists = myDB.match('SELECT Title from comics WHERE Title=?', (title,))
+            if exists:
+                logger.debug("Comic %s already exists (%s)" % (title, exists['Title']))
+            else:
+                cvres = cv_identify(title, best=False)
+                cxres = cx_identify(title, best=False)
+                words = nameWords(title)
+                titlewords = ' '.join(titleWords(words))
+                comicresults = []
+                for item in cvres:
+                    item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                    comicresults.append(item)
+                for item in cxres:
+                    item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                    comicresults.append(item)
+
+                comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
+                return serve_template(templatename="comicresults.html", title="Comics", results=comicresults)
+
+            raise cherrypy.HTTPRedirect("comics")
+
+    @cherrypy.expose
+    def addComic(self, comicid=None):
+        global comicresults
+        apikey = lazylibrarian.CONFIG['CV_APIKEY']
+        if not apikey:
+            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
+            comicid = None
+
+        if not comicid or comicid == 'None':
+            raise cherrypy.HTTPRedirect("comics")
+        else:
+            myDB = database.DBConnection()
+            exists = myDB.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
+            if exists:
+                logger.debug("Comic %s already exists (%s)" % (exists['Title'], exists['comicid']))
+            else:
+                match = False
+                for item in comicresults:
+                    if item['seriesid'] == comicid:
+                        myDB.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
+                                    'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
+                                    'First, Last, Publisher, Link) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                    (comicid, item['title'], 'Active', now(), None,
+                                     now(), None, 'Skipped', None, item['searchterm'], item['start'],
+                                     item['first'], item['last'], item['publisher'], item['link']))
+                        match = True
+                        break
+                if not match:
+                    logger.warn("Failed to get data for %s" % comicid)
+
+        raise cherrypy.HTTPRedirect("comics")
+
+    @cherrypy.expose
+    def markComics(self, action=None, **args):
+        myDB = database.DBConnection()
+        args.pop('book_table_length', None)
+        for item in args:
+            if action == "Paused" or action == "Active":
+                controlValueDict = {"ComicID": item}
+                newValueDict = {"Status": action}
+                myDB.upsert("comics", newValueDict, controlValueDict)
+                logger.info('Status of comic %s changed to %s' % (item, action))
+            if action == "Delete":
+                issues = myDB.select('SELECT IssueFile from comicissues WHERE ComicID=?', (item,))
+                logger.debug('Deleting comic %s from disc' % item)
+                issuedir = ''
+                for issue in issues:  # delete all issues of this comic
+                    result = self.deleteIssue(issue['IssueFile'])
+                    if result:
+                        logger.debug('Issue %s deleted from disc' % issue['IssueFile'])
+                        issuedir = os.path.dirname(issue['IssueFile'])
+                    else:
+                        logger.debug('Failed to delete %s' % (issue['IssueFile']))
+
+                # if the directory is now empty, delete that too
+                if issuedir and lazylibrarian.CONFIG['COMIC_DELFOLDER']:
+                    magdir = os.path.dirname(issuedir)
+                    try:
+                        os.rmdir(magdir)
+                        logger.debug('Comic directory %s deleted from disc' % magdir)
+                    except OSError:
+                        logger.debug('Comic directory %s is not empty' % magdir)
+                    logger.info('Comic %s deleted from disc' % item)
+
+            if action == "Remove" or action == "Delete":
+                myDB.action('DELETE from comics WHERE ComicID=?', (item,))
+                myDB.action('DELETE from wanted where BookID=?', (item,))
+                logger.info('Comic %s removed from database' % item)
+            if action == "Reset":
+                controlValueDict = {"ComicID": item}
+                newValueDict = {
+                    "LastAcquired": None,
+                    "IssueDate": None,
+                    "LatestCover": None,
+                    "IssueStatus": "Wanted"
+                }
+                myDB.upsert("comics", newValueDict, controlValueDict)
+                logger.info('Comic %s details reset' % item)
+
+        raise cherrypy.HTTPRedirect("comics")
+
+    @cherrypy.expose
+    def markComicIssues(self, action=None, **args):
+        myDB = database.DBConnection()
+        args.pop('book_table_length', None)
+        comicid = None
+        for item in args:
+            comicid, issueid = item.split('_')
+            cmd = 'SELECT IssueFile,Title,comics.ComicID from comics,comicissues WHERE '
+            cmd += 'comics.ComicID = comicissues.ComicID and comics.ComicID=? and IssueID=?'
+            issue = myDB.match(cmd, (comicid, issueid))
+            if issue:
+                if action == "Delete":
+                    result = self.deleteIssue(issue['IssueFile'])
+                    if result:
+                        logger.info('Issue %s of %s deleted from disc' % (issueid, issue['Title']))
+                if action == "Remove" or action == "Delete":
+                    myDB.action('DELETE from comicissues WHERE ComicID=? and IssueID=?', (comicid, issueid))
+                    logger.info('Issue %s of %s removed from database' % (issueid, issue['Title']))
+                    # Set issuedate to issuedate of most recent issue we have
+                    # Set latestcover to most recent issue cover
+                    # Set lastacquired to acquired date of most recent issue we have
+                    # Set added to acquired date of earliest issue we have
+                    cmd = 'select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?'
+                    cmd += ' order by IssueID '
+                    newest = myDB.match(cmd + 'DESC', (comicid,))
+                    oldest = myDB.match(cmd + 'ASC', (comicid,))
+                    controlValueDict = {'ComicID': comicid}
+                    if newest and oldest:
+                        old_acquired = ''
+                        new_acquired = ''
+                        cover = ''
+                        issuefile = newest['IssueFile']
+                        if os.path.exists(issuefile):
+                            cover = os.path.splitext(issuefile)[0] + '.jpg'
+                            mtime = os.path.getmtime(issuefile)
+                            new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+                        issuefile = oldest['IssueFile']
+                        if os.path.exists(issuefile):
+                            mtime = os.path.getmtime(issuefile)
+                            old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+
+                        newValueDict = {
+                            'LatestIssue': newest['IssueID'],
+                            'LatestCover': cover,
+                            'LastAcquired': new_acquired,
+                            'Added': old_acquired
+                        }
+                    else:
+                        newValueDict = {
+                            'LatestIssue': '',
+                            'LastAcquired': '',
+                            'LatestCover': '',
+                            'Added': ''
+                        }
+                    myDB.upsert("comics", newValueDict, controlValueDict)
+        if comicid:
+            raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
+
+        raise cherrypy.HTTPRedirect("comics")
 
     # MAGAZINES #########################################################
 
@@ -3326,9 +3885,9 @@ class WebInterface(object):
 
         # or we may just have a title to find magazine in issues table
         mag_data = myDB.select('SELECT * from issues WHERE Title=?', (bookid,))
-        if len(mag_data) <= 0:  # no issues!
-            raise cherrypy.HTTPRedirect("magazines")
-        elif len(mag_data) == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:  # we only have one issue, get it
+        if len(mag_data) == 0:  # no issues!
+            mag_data = []
+        if len(mag_data) == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:  # we only have one issue, get it
             IssueDate = mag_data[0]["IssueDate"]
             IssueFile = mag_data[0]["IssueFile"]
             logger.debug('Opening %s - %s' % (bookid, IssueDate))

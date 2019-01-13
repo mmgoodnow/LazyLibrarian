@@ -95,7 +95,7 @@ def test_provider(name, host=None, api=None):
                     if 'goodreads' in host and 'list_rss' in host:
                         return GOODREADS(host, provider['NAME'], provider['DLPRIORITY'],
                                          provider['DISPNAME'], test=True), provider['DISPNAME']
-                    elif 'goodreads' in host and '/list/show/' in host:
+                    elif 'goodreads' in host and '/show/' in host:
                         # goodreads listopia
                         return LISTOPIA(host, provider['NAME'], provider['DLPRIORITY'],
                                         provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -270,9 +270,11 @@ def get_capabilities(provider, force=False):
                 provider['BOOKCAT'] = ''
                 provider['MAGCAT'] = ''
                 provider['AUDIOCAT'] = ''
+                provider['COMICCAT'] = ''
                 provider['BOOKSEARCH'] = ''
                 provider['MAGSEARCH'] = ''
                 provider['AUDIOSEARCH'] = ''
+                provider['COMICSEARCH'] = ''
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
                 lazylibrarian.config_write(provider['NAME'])
@@ -290,15 +292,16 @@ def get_capabilities(provider, force=False):
             # eg "Magazines" "Mags" or "Books/Magazines" "Mags > French"
             # Load all languages for now as we don't know which the user might want
             #
-            #
             #  set some defaults
             #
             provider['GENERALSEARCH'] = 'search'
             provider['EXTENDED'] = '1'
             provider['BOOKCAT'] = ''
+            provider['COMICCAT'] = ''
             provider['MAGCAT'] = ''
             provider['AUDIOCAT'] = ''
             provider['BOOKSEARCH'] = ''
+            provider['COMICSEARCH'] = ''
             provider['MAGSEARCH'] = ''
             provider['AUDIOSEARCH'] = ''
             #
@@ -321,8 +324,9 @@ def get_capabilities(provider, force=False):
 
                     elif cat.attrib['name'].lower() == 'books':
                         provider['BOOKCAT'] = cat.attrib['id']
-                        # if no specific magazine subcategory, use books
+                        # if no specific magazine/comic subcategory, use books
                         provider['MAGCAT'] = cat.attrib['id']
+                        provider['COMICCAT'] = cat.attrib['id']
                         # set default booksearch
                         if provider['BOOKCAT'] == '7000':
                             # looks like newznab+, should support book-search
@@ -346,6 +350,7 @@ def get_capabilities(provider, force=False):
                         subcats = cat.getiterator('subcat')
                         ebooksubs = ''
                         magsubs = ''
+                        comicsubs = ''
                         for subcat in subcats:
                             if 'ebook' in subcat.attrib['name'].lower():
                                 if ebooksubs:
@@ -355,12 +360,19 @@ def get_capabilities(provider, force=False):
                                 if magsubs:
                                     magsubs = magsubs + ','
                                 magsubs = magsubs + subcat.attrib['id']
+                            if 'comic' in subcat.attrib['name'].lower():
+                                if comicsubs:
+                                    comicsubs = comicsubs + ','
+                                comicsubs = comicsubs + subcat.attrib['id']
                         if ebooksubs:
                             provider['BOOKCAT'] = ebooksubs
                         if magsubs:
                             provider['MAGCAT'] = magsubs
-            logger.info("Categories: Books %s : Mags %s : Audio %s : BookSearch '%s'" %
-                        (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['BOOKSEARCH']))
+                        if comicsubs:
+                            provider['COMICCAT'] = comicsubs
+            logger.info("Categories: Books %s : Mags %s : Audio %s : Comic %s : BookSearch '%s'" %
+                        (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
+                         provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
             lazylibrarian.config_write(provider['NAME'])
     return provider
@@ -426,6 +438,8 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
             elif "mag" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+            elif "comic" in searchType and 'C' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % provider['HOST'])
             else:
                 if check_int(provider['APILIMIT'], 0):
                     if 'APICOUNT' in provider:
@@ -454,6 +468,8 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
             elif "mag" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+            elif "comic" in searchType and 'C' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % provider['HOST'])
             else:
                 if check_int(provider['APILIMIT'], 0):
                     if 'APICOUNT' in provider:
@@ -492,6 +508,8 @@ def IterateOverTorrentSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for AudioBook" % prov)
             elif "mag" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % prov)
+            elif "comic" in searchType and 'C' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % prov)
             else:
                 logger.debug('[IterateOverTorrentSites] - %s' % lazylibrarian.CONFIG[prov + '_HOST'])
                 if prov == 'KAT':
@@ -540,6 +558,8 @@ def IterateOverDirectSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for AudioBook" % prov)
             elif "mag" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % prov)
+            elif "comic" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % prov)
             else:
                 logger.debug('[IterateOverDirectSites] - %s %s' % (lazylibrarian.CONFIG[prov + '_HOST'],
                                                                    lazylibrarian.CONFIG[prov + '_SEARCH']))
@@ -672,7 +692,7 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
 
     page = 1
     next_page = True
-    provider = host.split('/list/show/')[1]
+    provider = host.split('/show/')[1]
     if not dispname:
         dispname = provider
 

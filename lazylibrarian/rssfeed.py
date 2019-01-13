@@ -51,9 +51,13 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
             cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues "
             cmd += "order by IssueAcquired desc limit ?"
             baselink = baseurl + '/magWall'
+        elif ftype == 'Comic':
+            cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues "
+            cmd += "WHERE comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
+            baselink = baseurl + '/comicWall'
         else:
             logger.debug("Invalid feed type")
-            return None
+            return res
 
         myDB = database.DBConnection()
         results = myDB.select(cmd, (limit,))
@@ -101,15 +105,25 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
                     subtitle=res['BookSub'],
                     summary=res['BookDesc'])
 
-            else:  # ftype == 'Magazine':
+            elif ftype == 'Magazine':
                 pubdate = datetime.datetime.strptime(res['IssueAcquired'], '%Y-%m-%d')
-                title = res['IssueDate']
+                title = "%s (%s)" % (res['Title'], res['IssueDate'])
                 author = res['Title']
-                description = author + ' ' + title
+                description = title
                 bookid = res['IssueID']
                 extn = os.path.splitext(res['IssueFile'])[1]
                 if user:
                     link = '%s/serveIssue/%s%s%s' % (baseurl, user, res['IssueID'], extn)
+
+            else:  # if ftype == 'Comic':
+                pubdate = datetime.datetime.strptime(res['IssueAcquired'], '%Y-%m-%d')
+                title = res['Title']
+                author = res['Publisher']
+                description = title
+                bookid = res['IssueID']
+                extn = os.path.splitext(res['IssueFile'])[1]
+                if user:
+                    link = '%s/serveComic/%s%s_%s%s' % (baseurl, user, res['ComicID'], res['IssueID'], extn)
 
             if podcast:
                 item = Item(

@@ -846,13 +846,15 @@ def logHeader():
             from lib.unrar import rarfile
             unrarlib = 1
         except Exception:
-            # noinspection PyBroadException
-            try:
-                import lib.UnRAR2 as UnRAR2
-                unrarlib = 2
-            except Exception as e:
-                header += "unrar: missing: %s\n" % str(e)
-                unrarlib = 0
+            unrarlib = 0
+    if not unrarlib:
+        # noinspection PyBroadException
+        try:
+            import lib.UnRAR2 as UnRAR2
+            unrarlib = 2
+        except Exception as e:
+            header += "unrar: missing: %s\n" % str(e)
+            unrarlib = 0
     if unrarlib:
         if unrarlib == 1:
             vers = rarfile.unrarlib.RARGetDllVersion()

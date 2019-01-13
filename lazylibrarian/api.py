@@ -50,6 +50,7 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
+from lazylibrarian.comicid import cv_identify, cx_identify
 from lib.six import PY2, string_types
 
 cmd_dict = {'help': 'list available commands. ' +
@@ -168,6 +169,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'calibreList': '[&toread=] [&read=] get a list of books in calibre library',
             'syncCalibreList': '[&toread=] [&read=] sync list of read/toread books with calibre',
             'logMessage': '&level= &text=  send a message to lazylibrarian logger',
+            'comicid': '&name= &source= [&best] try to identify comic from name',
             }
 
 
@@ -1131,6 +1133,29 @@ class Api(object):
             logger.debug(self.data)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
+
+    def _comicid(self, **kwargs):
+        if 'name' in kwargs:
+            name = kwargs['name']
+        else:
+            self.data = 'Missing parameter: name'
+            return
+        if 'source' not in kwargs:
+            self.data = 'Missing parameter: source'
+            return
+        else:
+            source = kwargs['source']
+            if source not in ['cv', 'cx']:
+                self.data = 'Invalid parameter: source'
+                return
+        if 'best' in kwargs:
+            best = True
+        else:
+            best = False
+        if source == 'cv':
+            self.data = cv_identify(name, best=best)
+        else:
+            self.data = cx_identify(name, best=best)
 
     def _addAuthor(self, **kwargs):
         if 'name' not in kwargs:

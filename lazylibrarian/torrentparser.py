@@ -62,6 +62,8 @@ def TRF(book=None, test=False):
             cat = 'Book'
         elif book['library'] == 'magazine':
             cat = 'Magazine'
+        elif book['library'] == 'comic':
+            cat = 'Comic'
 
     sterm = makeUnicode("%s %s" % (book['searchterm'], cat))
 
@@ -211,12 +213,14 @@ def TPB(book=None, test=False):
 
     providerurl = url_fix(host + "/search/")
 
-    cat = 0  # 601=ebooks, 102=audiobooks, 0=all, no mag category
+    cat = 0  # 601=ebooks, 602=comics, 102=audiobooks, 0=all, no mag category
     if 'library' in book:
         if book['library'] == 'AudioBook':
             cat = 102
         elif book['library'] == 'eBook':
             cat = 601
+        elif book['library'] == 'comic':
+            cat = 602
         elif book['library'] == 'magazine':
             cat = 0
 
@@ -458,12 +462,14 @@ def WWT(book=None, test=False):
 
     sterm = makeUnicode(book['searchterm'])
 
-    cat = 0  # 0=all, 36=ebooks, 52=mags, 56=audiobooks
+    cat = 0  # 0=all, 36=ebooks, 50=comics, 52=mags, 56=audiobooks
     if 'library' in book:
         if book['library'] == 'AudioBook':
             cat = 56
         elif book['library'] == 'eBook':
             cat = 36
+        elif book['library'] == 'comic':
+            cat = 50
         elif book['library'] == 'magazine':
             cat = 52
 

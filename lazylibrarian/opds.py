@@ -32,7 +32,8 @@ from lib.six import string_types
 
 
 searchable = ['Authors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
-              'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres']
+              'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres', 'Comics',
+              'Comic', 'RecentComics']
 
 cmd_list = searchable + ['root', 'Serve', 'search', 'Members', 'Magazine']
 
@@ -198,6 +199,20 @@ class OPDS(object):
                 }
             )
 
+        res = myDB.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
+        if res['counter'] > 0:
+            entries.append(
+                {
+                    'title': 'Recent Comics (%i)' % res['counter'],
+                    'id': 'RecentComics',
+                    'updated': now(),
+                    'content': 'Recently Added Comic Issues',
+                    'href': '%s?cmd=RecentComics%s' % (self.opdsroot, userid),
+                    'kind': 'acquisition',
+                    'rel': 'subsection',
+                }
+            )
+
         res = myDB.match("select count(*) as counter from issues where IssueFile != ''")
         if res['counter'] > 0:
             entries.append(
@@ -335,6 +350,20 @@ class OPDS(object):
                     'updated': now(),
                     'content': 'List of Magazines',
                     'href': '%s?cmd=Magazines%s' % (self.opdsroot, userid),
+                    'kind': 'navigation',
+                    'rel': 'subsection',
+                }
+            )
+
+        res = myDB.match("SELECT count(*) as counter from comics WHERE LastAcquired != ''")
+        if res['counter'] > 0:
+            entries.append(
+                {
+                    'title': 'Comics (%i)' % res['counter'],
+                    'id': 'Comics',
+                    'updated': now(),
+                    'content': 'List of Comics',
+                    'href': '%s?cmd=Comics%s' % (self.opdsroot, userid),
                     'kind': 'navigation',
                     'rel': 'subsection',
                 }
@@ -580,6 +609,76 @@ class OPDS(object):
         self.data = feed
         return
 
+    def _Comics(self, **kwargs):
+        index = 0
+        limit = self.PAGE_SIZE
+        if 'Aldiko' in self.reader:
+            limit = 0
+
+        if 'index' in kwargs:
+            index = check_int(kwargs['index'], 0)
+        userid = ''
+        if 'user' in kwargs:
+            userid = '&amp;user=%s' % kwargs['user']
+
+        myDB = database.DBConnection()
+        feed = {'title': 'LazyLibrarian OPDS - Comics', 'id': 'Comics', 'updated': now()}
+        links = []
+        entries = []
+        links.append(getLink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                             rel='start', title='Home'))
+        links.append(getLink(href='%s?cmd=Comics%s' % (self.opdsroot, userid),
+                             ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
+        links.append(getLink(href='%s/opensearchcomics.xml' % self.searchroot,
+                             ftype='application/opensearchdescription+xml', rel='search', title='Search Comics'))
+        cmd = 'select comics.*,(select count(*) as counter from comicissues where '
+        cmd += 'comics.ComicID = comicissues.ComicID) as Iss_Cnt from comics '
+        if 'query' in kwargs:
+            cmd += "WHERE comics.title LIKE '%" + kwargs['query'] + "%' "
+        cmd += 'order by comics.title'
+        results = myDB.select(cmd)
+        if limit:
+            page = results[index:(index + limit)]
+        else:
+            page = results
+            limit = len(page)
+        for mag in page:
+            if mag['Iss_Cnt'] > 0:
+                title = makeUnicode(mag['Title'])
+                entry = {
+                    'title': escape('%s %s (%s)' % (title, mag['Start'], mag['Iss_Cnt'])),
+                    'id': escape('comic:%s' % mag['ComicID']),
+                    'updated': opdstime(mag['LastAcquired']),
+                    'content': escape('%s' % title),
+                    'href': '%s?cmd=Comic&amp;magid=%s%s' % (self.opdsroot, mag['ComicID'], userid),
+                    'kind': 'navigation',
+                    'rel': 'subsection',
+                }
+
+                # if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                #     res = cache_img('magazine', md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
+                #     entry['thumbnail'] = '/' + res[0]
+                entries.append(entry)
+
+        if len(results) > (index + limit):
+            links.append(
+                getLink(href='%s?cmd=Comics&amp;index=%s%s' % (self.opdsroot, index + limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
+        if index >= limit:
+            links.append(
+                getLink(href='%s?cmd=Comics&amp;index=%s%s' % (self.opdsroot, index - limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
+
+        feed['links'] = links
+        feed['entries'] = entries
+        fin = index + limit
+        if fin > len(results):
+            fin = len(results)
+        logger.debug("Returning %s comic%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
+                                                                 fin, len(results)))
+        self.data = feed
+        return
+
     def _Magazines(self, **kwargs):
         index = 0
         limit = self.PAGE_SIZE
@@ -722,6 +821,81 @@ class OPDS(object):
         if fin > len(results):
             fin = len(results)
         logger.debug("Returning %s series, %s to %s from %s" % (len(entries), index + 1, fin, len(results)))
+        self.data = feed
+        return
+
+    def _Comic(self, **kwargs):
+        index = 0
+        limit = self.PAGE_SIZE
+        if 'index' in kwargs:
+            index = check_int(kwargs['index'], 0)
+        userid = ''
+        if 'user' in kwargs:
+            userid = '&amp;user=%s' % kwargs['user']
+
+        myDB = database.DBConnection()
+        if 'magid' not in kwargs:
+            self.data = self._error_with_message('No ComicID Provided')
+            return
+        links = []
+        entries = []
+        title = ''
+        comic = myDB.match("SELECT Title from comics WHERE ComicID=?", (kwargs['magid'],))
+        if comic:
+            title = makeUnicode(comic['Title'])
+        cmd = "SELECT IssueID,IssueAcquired,IssueFile from comicissues "
+        cmd += "WHERE ComicID=? order by IssueID DESC"
+        results = myDB.select(cmd, (kwargs['magid'],))
+        if limit:
+            page = results[index:(index + limit)]
+        else:
+            page = results
+            limit = len(page)
+        for issue in page:
+            issueid = '%s_%s' % (kwargs['magid'], issue['IssueID'])
+            entry = {'title': escape('%s (%s)' % (title, issue['IssueID'])),
+                     'id': 'issue:%s' % issueid,
+                     'updated': opdstime(issue['IssueAcquired']),
+                     'content': escape('%s - %s' % (title, issue['IssueID'])),
+                     'href': '%s?cmd=Serve&amp;comicissueid=%s%s' % (self.opdsroot, issueid, userid),
+                     'kind': 'acquisition',
+                     'rel': 'file',
+                     'type': mimeType(issue['IssueFile'])}
+            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                fname = os.path.splitext(issue['IssueFile'])[0]
+                res = cache_img('comic', issueid, fname + '.jpg')
+                entry['image'] = self.searchroot + '/' + res[0]
+                entry['thumbnail'] = entry['image']
+            entries.append(entry)
+
+        feed = {}
+        title = '%s (%s)' % (escape(title), len(entries))
+        feed['title'] = 'LazyLibrarian OPDS - %s' % title
+        feed['id'] = 'comic:%s' % kwargs['magid']
+        feed['updated'] = now()
+        links.append(getLink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                             rel='start', title='Home'))
+        links.append(getLink(href='%s?cmd=Comic&amp;magid=%s%s' % (self.opdsroot, kwargs['magid'], userid),
+                             ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
+
+        if len(results) > (index + limit):
+            links.append(
+                getLink(href='%s?cmd=Comic&amp;magid=%s&amp;index=%s%s' % (self.opdsroot,
+                        kwargs['magid'], index + limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
+        if index >= limit:
+            links.append(
+                getLink(href='%s?cmd=Comic&amp;magid=%s&amp;index=%s%s' % (self.opdsroot,
+                        kwargs['magid'], index - limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
+
+        feed['links'] = links
+        feed['entries'] = entries
+        fin = index + limit
+        if fin > len(results):
+            fin = len(results)
+        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
+                                                                 fin, len(results)))
         self.data = feed
         return
 
@@ -1049,6 +1223,74 @@ class OPDS(object):
         self.data = feed
         return
 
+    def _RecentComics(self, **kwargs):
+        index = 0
+        limit = self.PAGE_SIZE
+        if 'index' in kwargs:
+            index = check_int(kwargs['index'], 0)
+        userid = ''
+        if 'user' in kwargs:
+            userid = '&amp;user=%s' % kwargs['user']
+
+        myDB = database.DBConnection()
+        feed = {'title': 'LazyLibrarian OPDS - Recent Comics', 'id': 'Recent Comics', 'updated': now()}
+        links = []
+        entries = []
+        links.append(getLink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                             rel='start', title='Home'))
+        links.append(getLink(href='%s?cmd=RecentComics%s' % (self.opdsroot, userid),
+                             ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
+        links.append(getLink(href='%s/opensearchcomics.xml' % self.searchroot,
+                             ftype='application/opensearchdescription+xml', rel='search', title='Search Comics'))
+        cmd = "select comics.ComicID,Title,IssueID,IssueAcquired,IssueFile,Start from comics,comicissues "
+        cmd += "where comics.ComicID = comicissues.ComicID and IssueFile != '' "
+        if 'query' in kwargs:
+            cmd += "AND Title LIKE '%" + kwargs['query'] + "%' "
+        cmd += "order by IssueAcquired DESC"
+        results = myDB.select(cmd)
+        if limit:
+            page = results[index:(index + limit)]
+        else:
+            page = results
+            limit = len(page)
+        for mag in page:
+            title = makeUnicode(mag['Title'])
+            issueid = '%s_%s' % (mag['ComicID'], mag['IssueID'])
+            entry = {'title': escape('%s %s' % (title, mag['Start'])),
+                     'id': escape('issue:%s' % issueid),
+                     'updated': opdstime(mag['IssueAcquired']),
+                     'content': escape('%s - %s' % (title, mag['IssueID'])),
+                     'href': '%s?cmd=Serve&amp;comicissueid=%s' % (self.opdsroot, issueid),
+                     'kind': 'acquisition',
+                     'rel': 'file',
+                     'author': escape(title),
+                     'type': mimeType(mag['IssueFile'])}
+            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                fname = os.path.splitext(mag['IssueFile'])[0]
+                res = cache_img('comic', issueid, fname + '.jpg')
+                entry['image'] = self.searchroot + '/' + res[0]
+                entry['thumbnail'] = entry['image']
+            entries.append(entry)
+
+        if len(results) > (index + limit):
+            links.append(
+                getLink(href='%s?cmd=RecentComics&amp;index=%s%s' % (self.opdsroot, index + limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
+        if index >= limit:
+            links.append(
+                getLink(href='%s?cmd=RecentComics&amp;index=%s%s' % (self.opdsroot, index - limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
+
+        feed['links'] = links
+        feed['entries'] = entries
+        fin = index + limit
+        if fin > len(results):
+            fin = len(results)
+        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
+                                                                 fin, len(results)))
+        self.data = feed
+        return
+
     def _ReadBooks(self, sorder='Read', **kwargs):
         if 'user' not in kwargs:
             sorder = ''
@@ -1291,6 +1533,18 @@ class OPDS(object):
             myid = kwargs['issueid']
             myDB = database.DBConnection()
             res = myDB.match('SELECT IssueFile from issues where issueid=?', (myid,))
+            self.file = res['IssueFile']
+            self.filename = os.path.split(res['IssueFile'])[1]
+            return
+        elif 'comicissueid' in kwargs:
+            myid = kwargs['comicissueid']
+            myDB = database.DBConnection()
+            try:
+                comicid, issueid = myid.split('_')
+            except ValueError:
+                return
+            res = myDB.match('SELECT IssueFile from comicissues where comicid=? and issueid=?',
+                             (comicid, issueid))
             self.file = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return

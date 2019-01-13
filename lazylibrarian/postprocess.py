@@ -299,16 +299,28 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
 def unpack_archive(archivename, download_dir, title):
     """ See if archivename is an archive containing a book
         returns new directory in download_dir with book in it, or empty string """
+
+    rarfile = None
+    RarFile = None
+    targetdir = ''
     # noinspection PyBroadException
     try:
-        # noinspection PyUnresolvedReferences
         from unrar import rarfile
+        unrarlib = 1
     except Exception:
         # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
+            unrarlib = 1
         except Exception:
-            rarfile = None
+            unrarlib = 0
+    if not unrarlib:
+        # noinspection PyBroadException
+        try:
+            from lib.UnRAR2 import RarFile
+            unrarlib = 2
+        except Exception:
+            unrarlib = 0
 
     archivename = makeUnicode(archivename)
     if not os.path.isfile(archivename):  # regular files only
@@ -328,9 +340,15 @@ def unpack_archive(archivename, download_dir, title):
             logger.error("Failed to create target dir %s" % targetdir)
             return ''
         namelist = z.namelist()
+        # Look for any wanted files (inc jpg for cbr/cbz) and directories (name endswith / )
         for item in namelist:
-            # Look for any wanted files (inc jpg for cbr/cbz) and directories (name endswith / )
-            if item.endswith('/') or is_valid_type(item):
+            if item.endswith('/'):
+                new_subdir = os.path.join(targetdir, item)
+                if not make_dirs(new_subdir):
+                    logger.error("Failed to create subdir %s" % new_subdir)
+                    return ''
+        for item in namelist:
+            if is_valid_type(item):
                 with open(os.path.join(targetdir, item), "wb") as f:
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     f.write(z.read(item))
@@ -350,12 +368,18 @@ def unpack_archive(archivename, download_dir, title):
             return ''
         namelist = z.getnames()
         for item in namelist:
-            if item.endswith('/') or is_valid_type(item):
+            if item.endswith('/'):  # it's a directory
+                new_subdir = os.path.join(targetdir, item)
+                if not make_dirs(new_subdir):
+                    logger.error("Failed to create subdir %s" % new_subdir)
+                    return ''
+        for item in namelist:
+            if is_valid_type(item):
                 with open(os.path.join(targetdir, item), "wb") as f:
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     f.write(z.extractfile(item).read())
 
-    elif rarfile and rarfile.is_rarfile(archivename):
+    elif unrarlib == 1 and rarfile.is_rarfile(archivename):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug('%s is a rar file' % archivename)
         try:
@@ -370,12 +394,45 @@ def unpack_archive(archivename, download_dir, title):
             return ''
         namelist = z.namelist()
         for item in namelist:
-            if item.endswith('/') or is_valid_type(item):
+            if item.endswith('/'):  # it's a directory
+                new_subdir = os.path.join(targetdir, item)
+                if not make_dirs(new_subdir):
+                    logger.error("Failed to create subdir %s" % new_subdir)
+                    return ''
+        for item in namelist:
+            if is_valid_type(item):
                 with open(os.path.join(targetdir, item), "wb") as f:
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     f.write(z.read(item))
+
+    elif unrarlib == 2:
+        # noinspection PyBroadException
+        try:
+            rarc = RarFile(archivename)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug('%s is a rar file' % archivename)
+        except Exception:
+            logger.debug("[%s] doesn't look like a rar file" % archivename)
+            rarc = None
+        if rarc:
+            targetdir = os.path.join(download_dir, title + '.unpack')
+            if not make_dirs(targetdir):
+                logger.error("Failed to create target dir %s" % targetdir)
+                return ''
+
+            for rarinfo in rarc.infoiter():
+                if rarinfo.isdir:
+                    new_subdir = os.path.join(targetdir, rarinfo.filename)
+                    if not make_dirs(new_subdir):
+                        logger.error("Failed to create subdir %s" % new_subdir)
+                        return ''
+            for rarinfo in rarc.infoiter():
+                if is_valid_type(rarinfo.filename):
+                    with open(os.path.join(targetdir, rarinfo.filename), "wb") as f:
+                        logger.debug('Extracting %s to %s' % (rarinfo.filename, targetdir))
+                        f.write(rarc.read_files(rarinfo.filename)[0][1])
     else:
-        logger.debug("[%s] doesn't look like an archive" % archivename)
+        logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
         return ''
     return targetdir
 
@@ -387,7 +444,7 @@ def cron_processDir():
 
 def bookType(book):
     book_type = book['AuxInfo']
-    if book_type not in ['AudioBook', 'eBook']:
+    if book_type not in ['AudioBook', 'eBook', 'comic']:
         if not book_type:
             book_type = 'eBook'
         else:
@@ -521,7 +578,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     # move the file into it's own subdirectory so we don't move/delete
                                     # things that aren't ours
                                     # note that epub are zipfiles so check booktype first
-                                    if is_valid_type(fname, extras=''):
+                                    # and don't unpack cbr/cbz comics'
+                                    if is_valid_type(fname, extras='cbr, cbz'):
                                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                                             logger.debug('file [%s] is a valid book/mag' % fname)
                                         if bts_file(download_dir):
@@ -663,14 +721,51 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                             os.utime(ignorefile, None)
                                 elif PY2:
                                     dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
-                                global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
-                                    '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
+                                if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                                    global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                                        '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
+                                else:
+                                    global_name = "%s %s" % (mag_name, book['AuxInfo'])
                                 global_name = unaccented(global_name)
-                            else:  # not recognised, maybe deleted
-                                logger.debug('Nothing in database matching "%s"' % book['BookID'])
-                                controlValueDict = {"BookID": book['BookID'], "Status": "Snatched"}
-                                newValueDict = {"Status": "Failed", "NZBDate": now()}
-                                myDB.upsert("wanted", newValueDict, controlValueDict)
+                            else:
+                                try:
+                                    comicid, issueid = book['BookID'].split('_')
+                                    data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+                                except ValueError:
+                                    issueid = 0
+                                    data = None
+
+                                if data:  # it's a comic
+                                    logger.debug('Processing %s issue %s' % (data['Title'], issueid))
+                                    mostrecentissue = data['IssueID']
+                                    comic_name = unaccented_str(replace_all(data['Title'], __dic__))
+                                    dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
+                                        '$Issue', issueid).replace(
+                                        '$Publisher', data['Publisher']).replace(
+                                        '$Title', comic_name)
+
+                                    global_name = "%s %s" % (comic_name, issueid)
+                                    global_name = unaccented(global_name)
+
+                                    if lazylibrarian.CONFIG['COMIC_RELATIVE']:
+                                        dest_dir = lazylibrarian.DIRECTORY('eBook')
+                                        dest_path = stripspaces(os.path.join(dest_dir, dest_path))
+                                        if PY2:
+                                            dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                                        if not make_dirs(dest_path):
+                                            logger.warn('Unable to create directory %s' % dest_path)
+                                        else:
+                                            ignorefile = os.path.join(dest_path, b'.ll_ignore')
+                                            with open(ignorefile, 'a'):
+                                                os.utime(ignorefile, None)
+                                    elif PY2:
+                                        dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+
+                                else:  # not recognised, maybe deleted
+                                    logger.debug('Nothing in database matching "%s"' % book['BookID'])
+                                    controlValueDict = {"BookID": book['BookID'], "Status": "Snatched"}
+                                    newValueDict = {"Status": "Failed", "NZBDate": now()}
+                                    myDB.upsert("wanted", newValueDict, controlValueDict)
                     else:
                         logger.debug("Snatched %s %s is not in download directory" %
                                      (book['NZBmode'], book['NZBtitle']))
@@ -694,8 +789,36 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                         if bookname:  # it's ebook or audiobook
                             processExtras(dest_file, global_name, book['BookID'], book_type)
-                            iss_id = 0
-                        else:  # update mags
+                            issueid = 0
+                        elif book_type == 'comic':
+                            try:
+                                comicid, issueid = book['BookID'].split('_')
+                            except ValueError:
+                                comicid = ''
+                                issueid = 0
+                            if comicid:
+                                if mostrecentissue:
+                                    older = (int(mostrecentissue) > int(issueid))
+                                else:
+                                    older = False
+
+                                createMagCover(dest_file, refresh=True)
+
+                                controlValueDict = {"ComicID": comicid}
+                                if older:  # check this in case processing issues arriving out of order
+                                    newValueDict = {"LastAcquired": today(),
+                                                    "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
+                                else:
+                                    newValueDict = {"IssueID": issueid, "LastAcquired": today(),
+                                                    "LatestCover": os.path.splitext(dest_file)[0] + '.jpg',
+                                                    "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
+                                myDB.upsert("comics", newValueDict, controlValueDict)
+                                controlValueDict = {"ComicID": comicid, "IssueID": issueid}
+                                newValueDict = {"IssueAcquired": today(),
+                                                "IssueFile": dest_file
+                                                }
+                                myDB.upsert("comicissues", newValueDict, controlValueDict)
+                        else:  # magazine
                             if mostrecentissue:
                                 if mostrecentissue.isdigit() and str(book['AuxInfo']).isdigit():
                                     older = (int(mostrecentissue) > int(book['AuxInfo']))  # issuenumber
@@ -714,18 +837,18 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                 "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                             myDB.upsert("magazines", newValueDict, controlValueDict)
 
-                            iss_id = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
+                            issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
                             controlValueDict = {"Title": book['BookID'], "IssueDate": book['AuxInfo']}
                             newValueDict = {"IssueAcquired": today(),
                                             "IssueFile": dest_file,
-                                            "IssueID": iss_id
+                                            "IssueID": issueid
                                             }
                             myDB.upsert("issues", newValueDict, controlValueDict)
 
                             maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
                             # create a thumbnail cover for the new issue
                             createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
-                            processMAGOPF(dest_file, book['BookID'], book['AuxInfo'], iss_id)
+                            processMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 processAutoAdd(dest_path, booktype='mag')
@@ -786,7 +909,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         else:
                             custom_notify_download("%s %s" % (book['BookID'], book['NZBUrl']))
                             notify_download("%s %s from %s at %s" %
-                                            (book_type, global_name, book['NZBprov'], now()), iss_id)
+                                            (book_type, global_name, book['NZBprov'], now()), issueid)
 
                         update_downloads(book['NZBprov'])
                     else:
@@ -936,11 +1059,11 @@ def check_contents(source, downloadid, book_type, title):
         minsize = lazylibrarian.CONFIG['REJECT_MAGMIN']
         filetypes = lazylibrarian.CONFIG['MAG_TYPE']
         banwords = lazylibrarian.CONFIG['REJECT_MAGS']
-    else:  # shouldn't happen
-        maxsize = 0
-        minsize = 0
-        filetypes = ''
-        banwords = ''
+    else:  # comics
+        maxsize = lazylibrarian.CONFIG['REJECT_MAXCOMIC']
+        minsize = lazylibrarian.CONFIG['REJECT_MINCOMIC']
+        filetypes = lazylibrarian.CONFIG['COMIC_TYPE']
+        banwords = lazylibrarian.CONFIG['REJECT_COMIC']
 
     if banwords:
         banlist = getList(banwords, ',')
@@ -985,28 +1108,29 @@ def check_contents(source, downloadid, book_type, title):
                         break
 
             # only check size on right types of file
-            # eg dont reject cos jpg is smaller than min file size
+            # eg dont reject cos jpg is smaller than min file size for a book
             # need to check if we have a size in K M G or just a number. If K M G could be a float.
-            if not rejected and fsize and extn in filetypes:
-                try:
-                    if 'G' in str(fsize):
-                        fsize = int(float(fsize.split('G')[0].strip()) * 1073741824)
-                    elif 'M' in str(fsize):
-                        fsize = int(float(fsize.split('M')[0].strip()) * 1048576)
-                    elif 'K' in str(fsize):
-                        fsize = int(float(fsize.split('K')[0].strip() * 1024))
-                    fsize = round(check_int(fsize, 0) / 1048576.0, 2)  # float to 2dp in Mb
-                except ValueError:
-                    fsize = 0
-                if fsize:
-                    if maxsize and fsize > maxsize:
-                        rejected = "%s is too large (%sMb)" % (fname, fsize)
-                        logger.warn("%s. Rejecting download" % rejected)
-                        break
-                    if minsize and fsize < minsize:
-                        rejected = "%s is too small (%sMb)" % (fname, fsize)
-                        logger.warn("%s. Rejecting download" % rejected)
-                        break
+            if not rejected and filetypes:
+                if extn in filetypes and fsize:
+                    try:
+                        if 'G' in str(fsize):
+                            fsize = int(float(fsize.split('G')[0].strip()) * 1073741824)
+                        elif 'M' in str(fsize):
+                            fsize = int(float(fsize.split('M')[0].strip()) * 1048576)
+                        elif 'K' in str(fsize):
+                            fsize = int(float(fsize.split('K')[0].strip() * 1024))
+                        fsize = round(check_int(fsize, 0) / 1048576.0, 2)  # float to 2dp in Mb
+                    except ValueError:
+                        fsize = 0
+                    if fsize:
+                        if maxsize and fsize > maxsize:
+                            rejected = "%s is too large (%sMb)" % (fname, fsize)
+                            logger.warn("%s. Rejecting download" % rejected)
+                            break
+                        if minsize and fsize < minsize:
+                            rejected = "%s is too small (%sMb)" % (fname, fsize)
+                            logger.warn("%s. Rejecting download" % rejected)
+                            break
             if not rejected:
                 logger.debug("%s: (%sMb) is wanted" % (fname, fsize))
     if not rejected:
@@ -1583,9 +1707,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book  or False, error_message"""
 
-    if not bookname:
-        booktype = 'mag'
-
     booktype = booktype.lower()
 
     bestmatch = ''
@@ -1602,7 +1723,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     if bestmatch:
         match = bestmatch
         logger.debug('One format import, best match = %s' % bestmatch)
-    else:  # mag or audiobook or multi-format book
+    else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in os.listdir(makeBytestr(pp_path)):
             fname = makeUnicode(fname)
@@ -1743,10 +1864,13 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         except Exception as e:
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e))
     else:
-        # we are copying the files ourselves, either it's audiobook, magazine or we don't want to use calibre
+        # we are copying the files ourselves, either it's audiobook,mag,comic or we don't want to use calibre
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
             logger.debug("Dest Path: %s" % (repr(dest_path)))
+        dest_path, encoding = makeUTF8(dest_path)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            logger.debug("dest_path was %s" % encoding)
         if not os.path.exists(dest_path):
             logger.debug('%s does not exist, so it\'s safe to create it' % dest_path)
         elif not os.path.isdir(dest_path):
@@ -1760,24 +1884,32 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         elif not make_dirs(dest_path):
             return False, 'Unable to create directory %s' % dest_path
 
+        udest_path = makeUnicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
+        global_name, encoding = makeUTF8(global_name)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            logger.debug("global_name was %s" % encoding)
+        pp_path, encoding = makeUTF8(pp_path)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            logger.debug("pp_path was %s" % encoding)
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
-        dest_path = makeUnicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
-        for fname in os.listdir(makeBytestr(pp_path)):
-            fname = makeUnicode(fname)
-            if bestmatch and is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
-                logger.debug("Ignoring %s as not %s" % (fname, bestmatch))
+        for fname in os.listdir(pp_path):
+            fname, encoding = makeUTF8(fname)
+            if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug("fname was %s" % encoding)
+            ufname = makeUnicode(fname)
+            if bestmatch and is_valid_booktype(ufname, booktype=booktype) and not ufname.endswith(bestmatch):
+                logger.debug("Ignoring %s as not %s" % (ufname, bestmatch))
             else:
-                if is_valid_booktype(fname, booktype=booktype) or \
-                        ((fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"))
+                if is_valid_booktype(ufname, booktype=booktype) or \
+                        ((ufname.lower().endswith(".jpg") or ufname.lower().endswith(".opf"))
                          and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
-                    logger.debug('Copying %s to directory %s' % (fname, dest_path))
+                    logger.debug('Copying %s to directory %s' % (ufname, udest_path))
                     typ = ''
                     srcfile = os.path.join(pp_path, fname)
-                    if booktype == 'audiobook':
+                    if booktype in ['audiobook', 'comic']:
                         destfile = os.path.join(dest_path, fname)  # don't rename, just copy it
                     else:
-                        # for ebooks, the book, jpg, opf all have the same basename
                         destfile = os.path.join(dest_path, global_name + os.path.splitext(fname)[1])
                     try:
                         if lazylibrarian.CONFIG['DESTINATION_COPY']:
@@ -1787,7 +1919,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             typ = 'move'
                             destfile = safe_move(srcfile, destfile)
                         setperm(destfile)
-                        if is_valid_booktype(destfile, booktype=booktype):
+                        if is_valid_booktype(makeUnicode(destfile), booktype=booktype):
                             newbookfile = destfile
                     except Exception as why:
                         if not os.access(srcfile, os.R_OK):
@@ -1796,15 +1928,15 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             logger.error("File [%s] is not writeable" % srcfile)
                         parent = os.path.dirname(destfile)
                         try:
-                            with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                            with open(os.path.join(parent, b'll_temp'), 'w') as f:
                                 f.write('test')
-                            os.remove(os.path.join(parent, 'll_temp'))
+                            os.remove(os.path.join(parent, b'll_temp'))
                         except Exception as w:
                             logger.error("Directory [%s] is not writeable: %s" % (parent, w))
-                        return False, "Unable to %s file %s to %s: %s %s" % (typ, srcfile,
-                                                                             destfile, type(why).__name__, str(why))
+                        return False, "Unable to %s file %s to %s: %s %s" % (typ, srcfile, destfile,
+                                                                             type(why).__name__, str(why))
                 else:
-                    logger.debug('Ignoring unwanted file: %s' % fname)
+                    logger.debug('Ignoring unwanted file: %s' % ufname)
 
         # for ebooks, prefer the first book_type found in ebook_type list
         if booktype == 'ebook':
@@ -1823,11 +1955,11 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                 if tokmatch:
                     break
-                for f in os.listdir(makeBytestr(pp_path)):
-                    f = makeUnicode(f)
-                    if is_valid_booktype(f, booktype='audiobook') and token in f:
+                for f in os.listdir(pp_path):
+                    uf = makeUnicode(f)
+                    if is_valid_booktype(uf, booktype='audiobook') and token in uf:
                         firstfile = os.path.join(pp_path, f)
-                        logger.debug("Link to preferred part [%s], %s" % (token, f))
+                        logger.debug("Link to preferred part [%s], %s" % (token, uf))
                         tokmatch = token
                         break
         if firstfile:

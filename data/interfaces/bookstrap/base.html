@@ -172,6 +172,11 @@
                   <li><a id="magazines" href="magazines" class="navbarele">Mags</a></li>
                   % endif
                 % endif
+                % if lazylibrarian.SHOW_COMICS != 0:
+                  %if perm&lazylibrarian.perm_comics:
+                  <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
+                  % endif
+                % endif
                 %if perm&lazylibrarian.perm_managebooks:
                   <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
                 % endif

@@ -550,12 +550,14 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 from lib.unrar import rarfile
                 unrarlib = 1
             except Exception:
-                # noinspection PyBroadException
-                try:
-                    from lib.UnRAR2 import RarFile
-                    unrarlib = 2
-                except Exception:
-                    unrarlib = 0
+                unrarlib = 0
+        if not unrarlib:
+            # noinspection PyBroadException
+            try:
+                from lib.UnRAR2 import RarFile
+                unrarlib = 2
+            except Exception:
+                unrarlib = 0
         if unrarlib:
             try:
                 if unrarlib == 1:

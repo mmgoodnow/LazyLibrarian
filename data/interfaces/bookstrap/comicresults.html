@@ -1,0 +1,68 @@
+<%inherit file="base.html"/>
+<%!
+    import lazylibrarian
+%>
+<%def name="headerIncludes()">
+  <div id="subhead_container">
+    <div id="subhead_menu">
+    </div>
+  </div>
+</%def>
+<%def name="body()">
+  <h2>${title}</h2>
+  <div class="table-responsive">
+    <table class="display table table-striped table-hover table-bordered" id="book_table">
+      <thead>
+        <tr>
+          <th class="bookid">Match</th>
+          <th class="filename">Title</th>
+          <th class="provider">Publisher</th>
+          <th class="date">Date</th>
+          <th class="size">Description</th>
+          <th class="status">Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        %for item in results:
+        <tr>
+          <td class="bookid">${item['fuzz']} %</td>
+          <td class="filename">${item['title']}</td>
+          <td class="provider"><a data-toggle="tooltip" title="${item['seriesid']}">${item['publisher']}</a></td>
+          <td class="date">${item['start']}</td>
+          <td class="size">${item['description']}</td>
+          <td class="status text-center"> <a class="btn btn-xs btn-info button"
+                    href="addComic?comicid=${item['seriesid']}" title="Add">Add</a></td>
+        </tr>
+        %endfor
+      </tbody>
+    </table>
+  </div>
+</%def>
+<%def name="headIncludes()">
+</%def>
+<%def name="javascriptIncludes()">
+  <script>
+
+  $(document).ready(function()
+    {
+        $('#book_table').dataTable(
+            {
+                "responsive": true,
+                "order": [[ 0, 'desc' ]],
+                "columnDefs":[{ type: 'natural', targets: 3 },
+                ],
+                "oLanguage": {
+                    "sSearch": "Filter: ",
+                    "sLengthMenu":"Show _MENU_ rows per page",
+                    "sEmptyTable": "No results found",
+                    "sInfo":"Showing _START_ to _END_ of _TOTAL_ rows",
+                    "sInfoEmpty":"Showing 0 to 0 of 0 rows",
+                    "sInfoFiltered":"(filtered from _MAX_ total rows)"},
+                "sPaginationType": "full_numbers",
+                "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
+                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+            });
+            $('.dataTables_filter input').attr("placeholder", "Results filter");
+    });
+  </script>
+</%def>

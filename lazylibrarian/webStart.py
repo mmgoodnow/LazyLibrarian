@@ -110,6 +110,10 @@ def initialize(options=None):
             'tools.staticfile.on': True,
             'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchbooks.xml')
         },
+        '/opensearchcomics.xml': {
+            'tools.staticfile.on': True,
+            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchcomics.xml')
+        },
         '/opensearchgenres.xml': {
             'tools.staticfile.on': True,
             'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchgenres.xml')
@@ -169,6 +173,7 @@ def initialize(options=None):
         for item in [('Authors', 'Authors'),
                      ('Magazines', 'RecentMags'),
                      ('Books', 'RecentBooks'),
+                     ('Comics', 'RecentComics'),
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
             with open(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower()), 'w') as t:

@@ -96,9 +96,11 @@ USER_BLOCKLIST = []
 SHOW_MAGS = 1
 SHOW_SERIES = 1
 SHOW_AUDIO = 0
+SHOW_COMICS = 0
 MAG_UPDATE = 0
 EBOOK_UPDATE = 0
 AUDIO_UPDATE = 0
+COMIC_UPDATE = 0
 AUTHORS_UPDATE = 0
 LOGIN_MSG = ''
 GROUP_CONCAT = 0
@@ -135,9 +137,10 @@ perm_search = 1 << 9  # 512 can search goodreads/googlebooks for books/authors
 perm_status = 1 << 10  # 1024 can change book status (wanted/skipped etc)
 perm_force = 1 << 11  # 2048 can use background tasks (refresh authors/libraryscan/postprocess/searchtasks)
 perm_download = 1 << 12  # 4096 can download existing books/mags
+perm_comics = 1 << 13   # 8192 access to comics
 
 perm_authorbooks = perm_audio + perm_ebook
-perm_guest = perm_download + perm_series + perm_authorbooks + perm_magazines
+perm_guest = perm_download + perm_series + perm_authorbooks + perm_magazines + perm_comics
 perm_friend = perm_guest + perm_search + perm_status
 perm_admin = 65535
 
@@ -188,7 +191,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'BLACKLIST_FAILED', 'BLACKLIST_PROCESSED', 'WISHLIST_INTERVAL', 'IMP_PREPROCESS',
                      'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
-                     'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST']
+                     'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
+                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -232,8 +236,10 @@ CONFIG_DEFINITIONS = {
     'AUTHOR_IMG': ('bool', 'General', 1),
     'BOOK_IMG': ('bool', 'General', 1),
     'MAG_IMG': ('bool', 'General', 1),
+    'COMIC_IMG': ('bool', 'General', 1),
     'SERIES_TAB': ('bool', 'General', 1),
     'MAG_TAB': ('bool', 'General', 1),
+    'COMIC_TAB': ('bool', 'General', 0),
     'AUDIO_TAB': ('bool', 'General', 1),
     'TOGGLES': ('bool', 'General', 1),
     'SORT_DEFINITE': ('bool', 'General', 0),
@@ -272,6 +278,7 @@ CONFIG_DEFINITIONS = {
     'MAG_RENAME': ('bool', 'General', 0),
     'IMP_MAGOPF': ('bool', 'General', 1),
     'IMP_MAGCOVER': ('bool', 'General', 1),
+    'IMP_COMICCOVER': ('bool', 'General', 1),
     'IMP_CONVERT': ('str', 'General', ''),
     'IMP_PREPROCESS': ('str', 'General', ''),
     'GIT_PROGRAM': ('str', 'General', ''),
@@ -279,6 +286,7 @@ CONFIG_DEFINITIONS = {
     'TASK_AGE': ('int', 'General', 2),
     'OPF_TAGS': ('bool', 'General', 1),
     'WISHLIST_TAGS': ('bool', 'General', 1),
+    'WISHLIST_GENRES': ('bool', 'General', 1),
     'GIT_HOST': ('str', 'Git', 'gitlab.com'),
     'GIT_USER': ('str', 'Git', 'LazyLibrarian'),
     'GIT_REPO': ('str', 'Git', 'lazylibrarian'),
@@ -379,7 +387,7 @@ CONFIG_DEFINITIONS = {
     'TPB_HOST': ('str', 'TPB', 'https://pirateproxy.cc'),
     'TPB': ('bool', 'TPB', 0),
     'TPB_DLPRIORITY': ('int', 'TPB', 0),
-    'TPB_DLTYPES': ('str', 'TPB', 'A,E,M'),
+    'TPB_DLTYPES': ('str', 'TPB', 'A,C,E,M'),
     'ZOO_HOST': ('str', 'ZOO', 'https://zooqle.com'),
     'ZOO': ('bool', 'ZOO', 0),
     'ZOO_DLPRIORITY': ('int', 'ZOO', 0),
@@ -424,6 +432,9 @@ CONFIG_DEFINITIONS = {
     'REJECT_MINAUDIO': ('int', 'General', 0),
     'REJECT_MAGSIZE': ('int', 'General', 0),
     'REJECT_MAGMIN': ('int', 'General', 0),
+    'REJECT_COMIC': ('str', 'General', 'epub, mobi'),
+    'REJECT_MAXCOMIC': ('int', 'General', 0),
+    'REJECT_MINCOMIC': ('int', 'General', 0),
     'MAG_AGE': ('int', 'General', 31),
     'SEARCH_BOOKINTERVAL': ('int', 'SearchScan', '360'),
     'SEARCH_MAGINTERVAL': ('int', 'SearchScan', '360'),
@@ -455,6 +466,11 @@ CONFIG_DEFINITIONS = {
     'EBOOK_DEST_FILE': ('str', 'PostProcess', '$Title - $Author'),
     'AUDIOBOOK_DEST_FILE': ('str', 'PostProcess', '$Author - $Title Part $Part of $Total'),
     'ONE_FORMAT': ('bool', 'PostProcess', 0),
+    'COMIC_DEST_FOLDER': ('str', 'PostProcess', '_Comics/$Title/$IssueDate'),
+    'COMIC_RELATIVE': ('bool', 'PostProcess', 1),
+    'COMIC_DELFOLDER': ('bool', 'PostProcess', 1),
+    'COMIC_TYPE': ('str', 'General', 'cbr, cbz'),
+    'COMIC_SINGLE': ('bool', 'General', 1),
     'MAG_DEST_FOLDER': ('str', 'PostProcess', '_Magazines/$Title/$IssueDate'),
     'MAG_DEST_FILE': ('str', 'PostProcess', '$IssueDate - $Title'),
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),
@@ -530,6 +546,7 @@ CONFIG_DEFINITIONS = {
     'EMAIL_SMTP_PASSWORD': ('str', 'Email', ''),
     'BOOK_API': ('str', 'API', 'GoodReads'),
     'LT_DEVKEY': ('str', 'API', ''),
+    'CV_APIKEY': ('str', 'API', ''),
     'GR_API': ('str', 'API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     'GR_SYNC': ('bool', 'API', 0),
     'GR_SECRET': ('str', 'API', ''),  # tied to users own api key
@@ -630,8 +647,8 @@ def initialize():
         CONFIG, CFG, DBFILE, COMMIT_LIST, SCHED, INIT_LOCK, __INITIALIZED__, started, LOGLIST, LOGTOGGLE, \
         UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, LAST_LIBRARYTHING, LAST_GOODREADS, SHOW_SERIES, SHOW_MAGS, \
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
-        CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, \
-        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES
+        CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
+        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES, SHOW_COMICS
 
     with INIT_LOCK:
 
@@ -691,7 +708,8 @@ def initialize():
             except OSError as e:
                 logger.error('Could not create cachedir; %s' % e)
 
-        for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache', 'magazine']:
+        for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
+                     'magazine', 'comic']:
             cachelocation = os.path.join(CACHEDIR, item)
             try:
                 os.makedirs(cachelocation)
@@ -781,7 +799,7 @@ def initialize():
 # noinspection PyUnresolvedReferences
 def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
-        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT
+        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS
     # legacy name conversion
     if not CFG.has_option('General', 'ebook_dir'):
         ebook_dir = check_setting('str', 'General', 'destination_dir', '')
@@ -835,9 +853,11 @@ def config_read(reloaded=False):
                              "BOOKSEARCH": check_setting('str', newz_name, 'booksearch', ''),
                              "MAGSEARCH": check_setting('str', newz_name, 'magsearch', ''),
                              "AUDIOSEARCH": check_setting('str', newz_name, 'audiosearch', ''),
+                             "COMICSEARCH": check_setting('str', newz_name, 'comicsearch', ''),
                              "BOOKCAT": check_setting('str', newz_name, 'bookcat', '7000,7020'),
                              "MAGCAT": check_setting('str', newz_name, 'magcat', '7010'),
                              "AUDIOCAT": check_setting('str', newz_name, 'audiocat', '3030'),
+                             "COMICCAT": check_setting('str', newz_name, 'comiccat', '7030'),
                              "EXTENDED": check_setting('str', newz_name, 'extended', '1'),
                              "UPDATED": check_setting('str', newz_name, 'updated', ''),
                              "MANUAL": check_setting('bool', newz_name, 'manual', 0),
@@ -876,9 +896,11 @@ def config_read(reloaded=False):
                              "BOOKSEARCH": check_setting('str', torz_name, 'booksearch', ''),
                              "MAGSEARCH": check_setting('str', torz_name, 'magsearch', ''),
                              "AUDIOSEARCH": check_setting('str', torz_name, 'audiosearch', ''),
+                             "COMICSEARCH": check_setting('str', torz_name, 'comicsearch', ''),
                              "BOOKCAT": check_setting('str', torz_name, 'bookcat', '8000,8010'),
                              "MAGCAT": check_setting('str', torz_name, 'magcat', '8030'),
                              "AUDIOCAT": check_setting('str', torz_name, 'audiocat', '3030'),
+                             "COMICCAT": check_setting('str', torz_name, 'comiccat', '8020'),
                              "EXTENDED": check_setting('str', torz_name, 'extended', '1'),
                              "UPDATED": check_setting('str', torz_name, 'updated', ''),
                              "MANUAL": check_setting('bool', torz_name, 'manual', 0),
@@ -936,9 +958,11 @@ def config_read(reloaded=False):
     CONFIG['EBOOK_TYPE'] = CONFIG['EBOOK_TYPE'].lower()
     CONFIG['AUDIOBOOK_TYPE'] = CONFIG['AUDIOBOOK_TYPE'].lower()
     CONFIG['MAG_TYPE'] = CONFIG['MAG_TYPE'].lower()
+    CONFIG['COMIC_TYPE'] = CONFIG['COMIC_TYPE'].lower()
     CONFIG['REJECT_MAGS'] = CONFIG['REJECT_MAGS'].lower()
     CONFIG['REJECT_WORDS'] = CONFIG['REJECT_WORDS'].lower()
     CONFIG['REJECT_AUDIO'] = CONFIG['REJECT_AUDIO'].lower()
+    CONFIG['REJECT_COMIC'] = CONFIG['REJECT_COMIC'].lower()
     CONFIG['BANNED_EXT'] = CONFIG['BANNED_EXT'].lower()
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
@@ -971,16 +995,20 @@ def config_read(reloaded=False):
         SHOW_MAGS = 1
     else:
         SHOW_MAGS = 0
-    # Suppress audio tab if on legacy interface
-    if CONFIG['HTTP_LOOK'] == 'legacy':
-        SHOW_AUDIO = 0
-    # or if disabled
-    elif CONFIG['AUDIO_TAB']:
+    if CONFIG['COMIC_TAB']:
+        SHOW_COMICS = 1
+    else:
+        SHOW_COMICS = 0
+    if CONFIG['AUDIO_TAB']:
         SHOW_AUDIO = 1
     else:
         SHOW_AUDIO = 0
+    # Suppress audio/comic tabs if on legacy interface
+    if CONFIG['HTTP_LOOK'] == 'legacy':
+        SHOW_AUDIO = 0
+        SHOW_COMICS = 0
 
-    for item in ['BOOK_IMG', 'MAG_IMG', 'AUTHOR_IMG', 'TOGGLES']:
+    for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
         if CONFIG[item]:
             CONFIG[item] = 1
         else:
@@ -995,7 +1023,7 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -1019,8 +1047,8 @@ def config_write(part=None):
             value = CONFIG[key]
             if key == 'LOGLEVEL':
                 LOGLEVEL = check_int(value, 1)
-            elif key in ['REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_MAGS', 'MAG_TYPE', 'EBOOK_TYPE',
-                         'BANNED_EXT', 'AUDIOBOOK_TYPE']:
+            elif key in ['REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_MAGS', 'REJECT_COMIC',
+                         'MAG_TYPE', 'EBOOK_TYPE', 'COMIC_TYPE', 'BANNED_EXT', 'AUDIOBOOK_TYPE']:
                 value = value.lower()
         else:
             # keep the old value
@@ -1038,7 +1066,7 @@ def config_write(part=None):
                     value = unaccented_str(value)
             value = value.strip()
             if 'DLTYPES' in key:
-                value = ','.join(sorted(set([i for i in value.upper() if i in 'AEM'])))
+                value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
                 if not value:
                     value = 'E'
                 CONFIG[key] = value
@@ -1072,7 +1100,7 @@ def config_write(part=None):
     if not part or part.startswith('Newznab') or part.startswith('Torznab'):
         NAB_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'API', 'GENERALSEARCH', 'BOOKSEARCH', 'MAGSEARCH',
                      'AUDIOSEARCH', 'BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'EXTENDED', 'DLPRIORITY', 'DLTYPES',
-                     'UPDATED', 'MANUAL', 'APILIMIT']
+                     'UPDATED', 'MANUAL', 'APILIMIT', 'COMICSEARCH', 'COMICCAT']
         for entry in [[NEWZNAB_PROV, 'Newznab'], [TORZNAB_PROV, 'Torznab']]:
             new_list = []
             # strip out any empty slots
@@ -1105,7 +1133,7 @@ def config_write(part=None):
                     if isinstance(value, text_type):
                         value = value.strip()
                     if item == 'DLTYPES':
-                        value = ','.join(sorted(set([i for i in value.upper() if i in 'AEM'])))
+                        value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
                         if not value:
                             value = 'E'
                         provider['DLTYPES'] = value
@@ -1151,7 +1179,7 @@ def config_write(part=None):
                 if isinstance(value, text_type):
                     value = value.strip()
                 if item == 'DLTYPES':
-                    value = ','.join(sorted(set([i for i in value.upper() if i in 'AEM'])))
+                    value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
                     if not value:
                         value = 'E'
                     provider['DLTYPES'] = value
@@ -1167,16 +1195,24 @@ def config_write(part=None):
     if not CONFIG['SERIES_TAB']:
         SHOW_SERIES = 0
 
-    SHOW_MAGS = len(CONFIG['MAG_DEST_FOLDER'])
-    if not CONFIG['MAG_TAB']:
+    if CONFIG['MAG_TAB']:
+        SHOW_MAGS = 1
+    else:
         SHOW_MAGS = 0
 
-    if CONFIG['HTTP_LOOK'] == 'legacy':
-        SHOW_AUDIO = 0
-    elif CONFIG['AUDIO_TAB']:
+    if CONFIG['COMIC_TAB']:
+        SHOW_COMICS = 1
+    else:
+        SHOW_COMICS = 0
+
+    if CONFIG['AUDIO_TAB']:
         SHOW_AUDIO = 1
     else:
         SHOW_AUDIO = 0
+
+    if CONFIG['HTTP_LOOK'] == 'legacy':
+        SHOW_AUDIO = 0
+        SHOW_COMICS = 0
 
     msg = None
     try:
@@ -1232,16 +1268,18 @@ def add_newz_slot():
                  "BOOKSEARCH": 'book',
                  "MAGSEARCH": '',
                  "AUDIOSEARCH": '',
+                 "COMICSEARCH": '',
                  "BOOKCAT": '7000,7020',
                  "MAGCAT": '7010',
                  "AUDIOCAT": '3030',
+                 "COMICCAT": '7030',
                  "EXTENDED": '1',
                  "UPDATED": '',
                  "MANUAL": 0,
                  "APILIMIT": 0,
                  "APICOUNT": 0,
                  "DLPRIORITY": 0,
-                 "DLTYPES": 'A,E,M'
+                 "DLTYPES": 'A,C,E,M'
                  }
         NEWZNAB_PROV.append(empty)
 
@@ -1265,16 +1303,18 @@ def add_torz_slot():
                  "BOOKSEARCH": 'book',
                  "MAGSEARCH": '',
                  "AUDIOSEARCH": '',
+                 "COMICSEARCH": '',
                  "BOOKCAT": '8000,8010',
                  "MAGCAT": '8030',
-                 "AUDIOCAT": '8030',
+                 "AUDIOCAT": '3030',
+                 "COMICCAT": '8020',
                  "EXTENDED": '1',
                  "UPDATED": '',
                  "MANUAL": 0,
                  "APILIMIT": 0,
                  "APICOUNT": 0,
                  "DLPRIORITY": 0,
-                 "DLTYPES": 'A,E,M'
+                 "DLTYPES": 'A,C,E,M'
                  }
         TORZNAB_PROV.append(empty)
 
@@ -1602,7 +1642,7 @@ def launch_browser(host, port, root):
 
 
 def start():
-    global __INITIALIZED__, started, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO
+    global __INITIALIZED__, started, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, SHOW_COMICS
 
     if __INITIALIZED__:
         # Crons and scheduled jobs started here
@@ -1615,14 +1655,21 @@ def start():
             SHOW_SERIES = len(series_list)
             if CONFIG['ADD_SERIES']:
                 SHOW_SERIES = 1
-            SHOW_MAGS = len(CONFIG['MAG_DEST_FOLDER'])
-
-            if CONFIG['HTTP_LOOK'] == 'legacy':
-                SHOW_AUDIO = 0
-            elif CONFIG['AUDIO_TAB']:
+            if CONFIG['MAG_TAB']:
+                SHOW_MAGS = 1
+            else:
+                SHOW_MAGS = 0
+            if CONFIG['COMIC_TAB']:
+                SHOW_COMICS = 1
+            else:
+                SHOW_COMICS = 0
+            if CONFIG['AUDIO_TAB']:
                 SHOW_AUDIO = 1
             else:
                 SHOW_AUDIO = 0
+            if CONFIG['HTTP_LOOK'] == 'legacy':
+                SHOW_AUDIO = 0
+                SHOW_COMICS = 0
 
 
 def logmsg(level, msg):

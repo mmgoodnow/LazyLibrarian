@@ -153,6 +153,7 @@
                             <input type="text" id="rss_host" name="rss_host" value="${lazylibrarian.CONFIG['RSS_HOST']}" class="form-control" placeholder="mywebsite.org:port">
                             </div>
                             <span class="help-block">Use if you need to override rss link address</span>
+                        %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                         <div class="checkbox">
                           <%
                             if lazylibrarian.CONFIG['RSS_PODCAST'] == True:
@@ -164,6 +165,7 @@
                           <input type="checkbox" id="rss_podcast" name="rss_podcast" value="1" ${checked} />
                           Send AudioBook RSS as Podcasts</label>
                         </div>
+                        %endif
                         </fieldset>
                     </fieldset>
                     <fieldset>
@@ -390,6 +392,32 @@
                           Show Magazine Images</label>
                       </div>
                     </div>
+                    <!--div class="row checkbox">
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="comic_tab" class="control-label">
+                          <input type="checkbox" id="comic_tab" name="comic_tab" value="1" ${checked} />
+                          Show Comics</label>
+                      </div>
+                      %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['COMIC_IMG'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="comic_img" class="control-label">
+                          <input type="checkbox" id="comic_img" name="comic_img" value="1" ${checked} />
+                          Show Comic Images</label>
+                      </div>
+                      %endif
+                    </div -->
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
@@ -524,12 +552,14 @@
                       <input type="text" id="gr_wanted" name="gr_wanted" value="${lazylibrarian.CONFIG['GR_WANTED']}" class="form-control" placeholder="eg: to-read">
                       <label for="gr_owned">Sync Owned eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_owned" name="gr_owned" value="${lazylibrarian.CONFIG['GR_OWNED']}" class="form-control" placeholder="eg: owned">
+                      %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                       <fieldset id="graudio_options">
                         <label for="gr_awanted">Sync Wanted AudioBooks to Goodreads shelf:</label>
                         <input type="text" id="gr_awanted" name="gr_awanted" value="${lazylibrarian.CONFIG['GR_AWANTED']}" class="form-control" placeholder="eg: audio_wanted">
                         <label for="gr_owned">Sync Owned AudioBooks to Goodreads shelf:</label>
                         <input type="text" id="gr_aowned" name="gr_aowned" value="${lazylibrarian.CONFIG['GR_AOWNED']}"class="form-control" placeholder="eg: audio_owned">
                       </fieldset>
+                      %endif
                         <div class="checkbox">
                           <%
                             if lazylibrarian.CONFIG['GR_UNIQUE'] == True:
@@ -563,6 +593,14 @@
                     <input type="text" id="lt_devkey" name="lt_devkey" value="${lazylibrarian.CONFIG['LT_DEVKEY']}" class="form-control" placeholder="optional">
                   </div>
                 </fieldset>
+                  </fieldset>
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="form-group">
+                    <label for="cv_apikey" class="control-label">ComicVine Api Key:</label>
+                    <input type="text" id="cv_apikey" name="cv_apikey" value="${lazylibrarian.CONFIG['CV_APIKEY']}" class="form-control" placeholder="optional">
+                  </div>
+                  %endif
+                </fieldset>
               </div>
               <div class="col-md-4">
                 <fieldset>
@@ -572,16 +610,27 @@
                     <input type="text" id="ebook_type" name="ebook_type" value="${lazylibrarian.CONFIG['EBOOK_TYPE']}" class="form-control" placeholder="eBook file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
+                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="audiobook_type" class="control-label">AudioBooks:</label>
                     <input type="text" id="audiobook_type" name="audiobook_type" value="${lazylibrarian.CONFIG['AUDIOBOOK_TYPE']}" class="form-control" placeholder="AudioBook file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="mag_type" class="control-label">Magazines:</label>
                     <input type="text" id="mag_type" name="mag_type" value="${lazylibrarian.CONFIG['MAG_TYPE']}" class="form-control"       placeholder="Magazine file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="form-group">
+                    <label for="mag_type" class="control-label">Comics:</label>
+                    <input type="text" id="comic_type" name="comic_type" value="${lazylibrarian.CONFIG['COMIC_TYPE']}" class="form-control"       placeholder="Comic file formats">
+                    <span class="help-block">Comma separated file extensions</span>
+                  </div>
+                  %endif
                   <div class="checkbox">
                     <%
                     if lazylibrarian.CONFIG['NO_FUTURE'] == True:
@@ -1744,6 +1793,7 @@
                     </select>
                     <span class="help-block">Status for new ebooks by existing authors</span>
                   </div>
+                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="newaudio_status">New AudioBook Status:</label>
                     <select id="newaudio_status" name="newaudio_status" class="form-control">
@@ -1758,6 +1808,7 @@
                     </select>
                     <span class="help-block">Status for new audiobooks by existing authors</span>
                   </div>
+                  %endif
                   <div class="form-group">
                     <label for="newauthor_status">New Authors eBook Status:</label>
                     <select id="newauthor_status" name="newauthor_status" class="form-control">
@@ -1772,6 +1823,7 @@
                     </select>
                     <span class="help-block">Status for ebooks by new authors</span>
                   </div>
+                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="newauthor_audio">New Authors AudioBook Status:</label>
                     <select id="newauthor_audio" name="newauthor_audio" class="form-control">
@@ -1786,6 +1838,7 @@
                     </select>
                     <span class="help-block">Status for audiobooks by new authors</span>
                   </div>
+                  %endif
                   <div class="form-group">
                     <label for="found_status">New Found Status:</label>
                     <select id="found_status" name="found_status" class="form-control">
@@ -1958,7 +2011,11 @@
                     <small>Example:  <mark>${config['namevars']['FmtNum']}</mark></small>
                   </div>
                   <div class="form-group">
+                    %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                     <label for="ebook_dest_folder">eBook/AudioBook Foldername Pattern:</label>
+                    %else:
+                    <label for="ebook_dest_folder">eBook Foldername Pattern:</label>
+                    %endif
                     <input type="text" id="ebook_dest_folder" name="ebook_dest_folder" value="${lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']}" class="form-control" placeholder="eBook Destination Folder">
                     <span class="help-block">Options: $Author, $Title, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
@@ -1971,6 +2028,7 @@
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                       <small>Example:  <mark>${config['namevars']['BookFile']}</mark></small>
                   </div>
+                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="audiobook_dest_file">AudioBook Filename Pattern:</label>
                     <input type="text" id="audiobook_dest_file" name="audiobook_dest_file" value="${lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']}" class="form-control" placeholder="audioBook Destination File">
@@ -1978,6 +2036,7 @@
                       <strong>Current limitation: Has to include $Title and $Part</strong></span>
                       <small>Example:  <mark>${config['namevars']['AudioFile']}</mark></small>
                   </div>
+                  %endif
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['DESTINATION_COPY'] == True:
@@ -2000,6 +2059,7 @@
                       <input type="checkbox" id="one_format" name="one_format" value="1" ${checked} />
                       Only import one format of an ebook if multiple formats downloaded</label>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="mag_dest_folder">Magazine Foldername Pattern:</label>
                     <input type="text" id="mag_dest_folder" name="mag_dest_folder" value="${lazylibrarian.CONFIG['MAG_DEST_FOLDER']}" class="form-control" placeholder="Magazines Destination Folder">
@@ -2031,9 +2091,38 @@
                     <label for="mag_dest_file">Magazine Filename Pattern:</label>
                     <input type="text" id="mag_dest_file" name="mag_dest_file" value="${lazylibrarian.CONFIG['MAG_DEST_FILE']}" class="form-control" placeholder="Magazine Issue Filename">
                     <span class="help-block">Options: $Title, $IssueDate, any string
-                      <BR><strong>Current limitations: Filename must contain IssueDate
-                      <BR>If Filename does not contain Title, Foldername is used as Title</strong></span>
+                      <BR><strong>Current limitation: Filename must contain IssueDate</strong></span>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="form-group">
+                    <label for="comic_dest_folder">Comic Foldername Pattern:</label>
+                    <input type="text" id="comic_dest_folder" name="comic_dest_folder" value="${lazylibrarian.CONFIG['COMIC_DEST_FOLDER']}" class="form-control" placeholder="Comics Destination Folder">
+                    <span class="help-block">Absolute path, or inside book folder<br>Options: $Title, $Issue, $Publisher, any string</span>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['COMIC_RELATIVE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="comic_relative" class="control-label">
+                      <input type="checkbox" id="comic_relative" name="comic_relative" value="1" ${checked} />
+                      Comics inside book folder</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['COMIC_DELFOLDER'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="comic_delfolder" class="control-label">
+                      <input type="checkbox" id="comic_delfolder" name="comic_delfolder" value="1" ${checked} />
+                      Delete folder and comic details when last issue is removed</label>
+                  </div>
+                  %endif
                 </fieldset>
               </div>
               <div class="col-md-4">
@@ -2048,10 +2137,12 @@
                     <label for="ebook_dir" class="control-label">eBook Library Folder:</label>
                     <input type="text" id="ebook_dir" name="ebook_dir" value="${lazylibrarian.CONFIG['EBOOK_DIR']}" class="form-control" placeholder="eBook Library Folder">
                   </div>
+                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="audio_dir" class="control-label">AudioBook Library Folder:</label>
                     <input type="text" id="audio_dir" name="audio_dir" value="${lazylibrarian.CONFIG['AUDIO_DIR']}" class="form-control" placeholder="AudioBook Library Folder">
                   </div>
+                  %endif
                   <div class="form-group">
                     <label for="alternate_dir" class="control-label">Alternate Import/Export Folder:</label>
                     <input type="text" id="alternate_dir" name="alternate_dir" value="${lazylibrarian.CONFIG['ALTERNATE_DIR']}" class="form-control" placeholder="Alternate Directory">
@@ -2066,6 +2157,7 @@
                       <span class="input-group-addon">Days</span>
                     </div>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="mag_age" class="control-label">Max Magazine Issue Age:</label>
                     <div class="input-group">
@@ -2073,6 +2165,7 @@
                       <span class="input-group-addon">Days</span>
                     </div>
                   </div>
+                  %endif
                   <div class="form-group">
                     <label for="task_age" class="control-label">Remove failed tasks after:</label>
                     <div class="input-group">
@@ -2113,6 +2206,7 @@
                     <input type="text" placeholder="git program" id="git_program" name="git_program" value="${lazylibrarian.CONFIG['GIT_PROGRAM']}" class="form-control">
                     <span class="help-block">Git program unless already in your path. Usually leave this blank</span>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="imp_convert">Cover creation program:</label>
                     <input type="text" placeholder="Cover creation program" id="imp_convert" name="imp_convert" value="${lazylibrarian.CONFIG['IMP_CONVERT']}" class="form-control">
@@ -2140,6 +2234,20 @@
                       <input type="checkbox" id="imp_magopf" name="imp_magopf" value="1" ${checked} />
                       Create opf files for magazines</label>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['IMP_COMICCOVER'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="imp_comiccover" class="control-label">
+                      <input type="checkbox" id="imp_comiccover" name="imp_comiccover" value="1" ${checked} />
+                      Create cover files for comics</label>
+                  </div>
+                  %endif
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['FULL_SCAN'] == True:
@@ -2175,6 +2283,7 @@
                       <input type="checkbox" id="imp_rename" name="imp_rename" value="1" ${checked} />
                       Rename existing books on libraryscan</label>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['MAG_RENAME'] == True:
@@ -2186,6 +2295,7 @@
                       <input type="checkbox" id="mag_rename" name="mag_rename" value="1" ${checked} />
                       Rename existing magazines on libraryscan</label>
                   </div>
+                  %endif
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['ADD_AUTHOR'] == True:
@@ -2219,6 +2329,7 @@
                       <input type="checkbox" id="imp_autosearch" name="imp_autosearch" value="1" ${checked} />
                       Search when added</label>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['MAG_SINGLE'] == True:
@@ -2230,6 +2341,20 @@
                       <input type="checkbox" id="mag_single" name="mag_single" value="1" ${checked} />
                       Quick open single issues of magazines</label>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['COMIC_SINGLE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="comic_single" class="control-label">
+                      <input type="checkbox" id="comic_single" name="comic_single" value="1" ${checked} />
+                      Quick open single issues of comics</label>
+                  </div>
+                  %endif
                 </fieldset>
               </div>
             </div>
@@ -3019,6 +3144,7 @@
                   <input type="text" id="newznab_${loop.index}_bookcat" name="newznab_${loop.index}_bookcat" value="${provider['BOOKCAT']}" class="form-control">
                 </div>
                 </div>
+                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_magsearch" class="control-label">Magazine Search:</label>
@@ -3029,6 +3155,8 @@
                   <input type="text" id="newznab_${loop.index}_magcat" name="newznab_${loop.index}_magcat" value="${provider['MAGCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_audiosearch" class="control-label">AudioBook Search:</label>
@@ -3039,6 +3167,19 @@
                   <input type="text" id="newznab_${loop.index}_audiocat" name="newznab_${loop.index}_audiocat" value="${provider['AUDIOCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                <div class="row form-group" ${hidden}>
+                <div class="col-md-6">
+                  <label for="newznab_${loop.index}_comicsearch" class="control-label">Comic Search:</label>
+                  <input type="text" placeholder="none" id="newznab_${loop.index}_comicsearch" name="newznab_${loop.index}_comicsearch" value="${provider['COMICSEARCH']}" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label for="newznab_${loop.index}_comiccat" class="control-label">Comic Categories:</label>
+                  <input type="text" id="newznab_${loop.index}_comiccat" name="newznab_${loop.index}_comiccat" value="${provider['COMICCAT']}" class="form-control">
+                </div>
+                </div>
+                %endif
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_apilimit" class="control-label">Daily API Limit: (used ${provider['APICOUNT']})</label>
@@ -3091,6 +3232,7 @@
                   <input type="text" id="torznab_${loop.index}_bookcat" name="torznab_${loop.index}_bookcat" value="${provider['BOOKCAT']}" class="form-control">
                 </div>
                 </div>
+                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_magsearch" class="control-label">Magazine Search:</label>
@@ -3101,6 +3243,8 @@
                   <input type="text" id="torznab_${loop.index}_magcat" name="torznab_${loop.index}_magcat" value="${provider['MAGCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_audiosearch" class="control-label">AudioBook Search:</label>
@@ -3111,6 +3255,19 @@
                   <input type="text" id="torznab_${loop.index}_audiocat" name="torznab_${loop.index}_audiocat" value="${provider['AUDIOCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                <div class="row form-group" ${hidden}>
+                <div class="col-md-6">
+                  <label for="torznab_${loop.index}_comicsearch" class="control-label">Comic Search:</label>
+                  <input type="text" placeholder="none" id="torznab_${loop.index}_comicsearch" name="torznab_${loop.index}_comicsearch" value="${provider['COMICSEARCH']}" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label for="torznab_${loop.index}_comiccat" class="control-label">Comic Categories:</label>
+                  <input type="text" id="torznab_${loop.index}_comiccat" name="torznab_${loop.index}_comiccat" value="${provider['COMICCAT']}" class="form-control">
+                </div>
+                </div>
+                %endif
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_apilimit" class="control-label">Daily API Limit: (used ${provider['APICOUNT']})</label>
@@ -3146,6 +3303,7 @@
                   </span>
                 </div>
                 </div>
+                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="col-md-6">
                 <legend>AudioBook Reject List</legend>
                 <div class="form-group">
@@ -3156,6 +3314,8 @@
                   </span>
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="col-md-6">
                 <legend>Magazine Reject List (all titles)</legend>
                 <div class="form-group">
@@ -3166,6 +3326,18 @@
                   </span>
                 </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                <div class="col-md-6">
+                <legend>Comic Reject List (all titles)</legend>
+                <div class="form-group">
+                  <input type="text" id="reject_comic" name="reject_comic" value="${lazylibrarian.CONFIG['REJECT_COMIC']}" class="form-control" placeholder="Reject word list">
+                  <span class="help-block">Comma separated list of words to reject:<br/>
+                    Search results with any of these words in the title will be ignored<br/>
+                  </span>
+                </div>
+                </div>
+                %endif
                 <div class="col-md-6">
                 <legend>Extension Reject List (all types)</legend>
                 <div class="form-group">
@@ -3186,6 +3358,7 @@
                     <span class="input-group-addon">Mb</span>
                   </div>
                 </div>
+                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="col-md-6">
                 <legend>AudioBook Size Limits</legend>
                  <div class="input-group">
@@ -3196,6 +3369,20 @@
                     <span class="input-group-addon">Mb</span>
                   </div>
                 </div>
+                %endif
+                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                <div class="col-md-6">
+                <legend>Comic Size Limits</legend>
+                 <div class="input-group">
+                    <span class="input-group-addon">Max size</span>
+                    <input type="number" id="reject_maxcomic" name="reject_maxcomic" value="${lazylibrarian.CONFIG['REJECT_MAXCOMIC']}" class="form-control" placeholder="Reject maximum size">
+                    <span class="input-group-addon">Min size</span>
+                    <input type="number" id="reject_mincomic" name="reject_mincomic" value="${lazylibrarian.CONFIG['REJECT_MINCOMIC']}" class="form-control" placeholder="Reject minimum size">
+                    <span class="input-group-addon">Mb</span>
+                  </div>
+                </div>
+                %endif
+                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="col-md-6">
                 <br>
                 <legend>Magazine Size Limits</legend>
@@ -3230,6 +3417,7 @@
                   </div>
                 </div>
                 %endfor
+                %endif
                 <div class="col-md-6">
                 <label>Settings:</label><br>
                 <input type="button" value="Export Filters" id="savefilters" class="btn btn-default" />

@@ -1,0 +1,283 @@
+#  This file is part of Lazylibrarian.
+#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  Lazylibrarian is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
+
+
+import lazylibrarian
+from lazylibrarian import logger, database
+from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int
+from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
+    IterateOverDirectSites
+from lazylibrarian.comicid import cv_identify, cx_identify
+from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
+from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
+
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
+
+
+dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '',
+            ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '0': '', '1': '',
+            '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '', '\'': '',
+            ':': '', '!': '', '-': ' ', r'\s\s': ' '}
+
+def searchItem(comicid=None):
+    """
+    Call all active search providers to search for comic by id
+    return a list of results, each entry in list containing percentage_match, title, provider, size, url
+    """
+    results = []
+
+    if not comicid:
+        return results
+
+    myDB = database.DBConnection()
+    cmd = 'SELECT Title,SearchTerm from comics WHERE Status="Active" and ComicID=?'
+    match = myDB.match(cmd, (comicid,))
+    if not match:
+        logger.debug("No comic match for %s" % comicid)
+        return results
+
+    cat = 'comic'
+    book = {}
+    book['authorName'] = ''
+    book['bookSub'] = ''
+    book['bookid'] = comicid
+    book['bookName'] = match['Title']
+    searchterm = match['SearchTerm']
+    if not searchterm:
+        searchterm = match['Title']
+    book['searchterm'] = searchterm.replace('+', ' ')
+
+    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS() + lazylibrarian.USE_DIRECT()
+    logger.debug('Searching %s provider%s (%s) for %s' % (nprov, plural(nprov), cat, searchterm))
+
+    if lazylibrarian.USE_NZB():
+        resultlist, nprov = IterateOverNewzNabSites(book, cat)
+        if nprov:
+            results += resultlist
+    if lazylibrarian.USE_TOR():
+        resultlist, nprov = IterateOverTorrentSites(book, cat)
+        if nprov:
+            results += resultlist
+    if lazylibrarian.USE_DIRECT():
+        resultlist, nprov = IterateOverDirectSites(book, cat)
+        if nprov:
+            results += resultlist
+    if lazylibrarian.USE_RSS():
+        resultlist, nprov, dltypes = IterateOverRSSSites()
+        if nprov and dltypes != 'C':
+            results += resultlist
+
+    # reprocess to get consistent results
+    searchresults = []
+    for item in results:
+        provider = ''
+        title = ''
+        url = ''
+        size = ''
+        date = ''
+        mode = ''
+        if 'dispname' in item:
+            provider = item['dispname']
+        elif 'nzbprov' in item:
+            provider = item['nzbprov']
+        elif 'tor_prov' in item:
+            provider = item['tor_prov']
+        elif 'rss_prov' in item:
+            provider = item['rss_prov']
+        if 'nzbtitle' in item:
+            title = item['nzbtitle']
+        if 'nzburl' in item:
+            url = item['nzburl']
+        if 'nzbsize' in item:
+            size = item['nzbsize']
+        if 'nzbdate' in item:
+            date = item['nzbdate']
+        if 'nzbmode' in item:
+            mode = item['nzbmode']
+        if 'tor_title' in item:
+            title = item['tor_title']
+        if 'tor_url' in item:
+            url = item['tor_url']
+        if 'tor_size' in item:
+            size = item['tor_size']
+        if 'tor_date' in item:
+            date = item['tor_date']
+        if 'tor_type' in item:
+            mode = item['tor_type']
+
+        if title and provider and mode and url:
+            # Not all results have a date or a size
+            if not size:
+                size = '1000'
+            if date:
+                date = dateFormat(date)
+            url = url.encode('utf-8')
+            if mode == 'torznab':
+                # noinspection PyTypeChecker
+                if url.startswith(b'magnet'):
+                    mode = 'magnet'
+
+            # calculate match percentage - torrents might have words_with_underscore_separator
+            score = fuzz.token_set_ratio(searchterm, title.replace('_', ' '))
+            # lose a point for each extra word in the title so we get the closest match
+            words = len(getList(searchterm))
+            words -= len(getList(title))
+            score -= abs(words)
+            rejected = False
+            if score >= 40:  # ignore wildly wrong results?
+
+                maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXCOMIC'], 0)
+                minsize = check_int(lazylibrarian.CONFIG['REJECT_MINCOMIC'], 0)
+                filetypes = getList(lazylibrarian.CONFIG['COMIC_TYPE'])
+                banwords = getList(lazylibrarian.CONFIG['REJECT_COMIC'], ',')
+                size_mb = check_int(size, 1000)
+                size_mb = round(float(size_mb) / 1048576, 2)
+
+                if not rejected and maxsize and size_mb > maxsize:
+                    rejected = True
+                    logger.debug("Rejecting %s, too large (%sMb)" % (title, size_mb))
+
+                if not rejected and minsize and size_mb < minsize:
+                    rejected = True
+                    logger.debug("Rejecting %s, too small (%sMb)" % (title, size_mb))
+
+                if not rejected:
+                    resultTitle = unaccented(replace_all(title, dictrepl)).strip()
+                    words = getList(resultTitle.lower())
+                    for word in words:
+                        if word in banwords:
+                            logger.debug("Rejecting %s, contains %s" % (title, word))
+                            rejected = True
+                            break
+                    if not rejected and filetypes:
+                        for word in filetypes:
+                            if word in words:
+                                score += 1
+                if not rejected:
+                    result = {'score': score, 'title': title, 'provider': provider, 'size': size, 'date': date,
+                              'url': url, 'mode': mode, 'bookid': comicid}
+                    searchresults.append(result)
+
+    logger.debug('Found %s %s results for %s' % (len(searchresults), cat, searchterm))
+    return searchresults
+
+
+def comicSearch(comicid=None):
+    myDB = database.DBConnection()
+    cmd = "SELECT ComicID,Title from comics WHERE Status='Active'"
+    if comicid:
+        # single comic search
+        cmd += ' AND ComicID=?'
+        comics = myDB.select(cmd, (comicid,))
+    else:
+        # search for all active comics
+        comics = myDB.select(cmd)
+        logger.debug("Found %s active comics" % len(comics))
+
+    for comic in comics:
+        comicid = comic['ComicID']
+        title = comic['Title']
+        res = searchItem(comicid)
+        found = 0
+        notfound = 0
+        foundissues = {}
+        for item in res:
+            match = None
+            if item['score'] >= 90:
+                match = cv_identify(item['title'])
+            if match:
+                if match[3]['seriesid'] == comicid:
+                    found += 1
+                    if match[4]:
+                        if match[4] not in foundissues:
+                            foundissues[match[4]] = item
+                else:
+                    notfound += 1
+            else:
+                notfound += 1
+
+        total = len(foundissues)
+        haveissues = myDB.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
+        have = []
+        for item in haveissues:
+            have.append(int(item['IssueID']))
+        for item in foundissues.keys():
+            if item in have:
+                foundissues.pop(item)
+
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+            logger.debug("Found %s results, %s match, %s fail, %s distinct, Have %s, Missing %s" %
+                         (len(res), found, notfound, total, sorted(have),
+                          sorted(foundissues.iterkeys())))
+
+
+        for issue in foundissues:
+            item = foundissues[issue]
+            print(item)
+            match = myDB.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
+                               (item['title'], item['provider']))
+            if match:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                    logger.debug('%s is already marked %s' % (item['title'], match['Status']))
+            else:
+                bookid = "%s_%s" % (item['bookid'], issue)
+                controlValueDict = {
+                    "NZBtitle": item['title'],
+                    "NZBprov": item['provider']
+                }
+                newValueDict = {
+                    "NZBurl": item['url'],
+                    "BookID": bookid,
+                    "NZBdate": item['date'],
+                    "AuxInfo": "comic",
+                    "Status": "Matched",
+                    "NZBsize": item['size'],
+                    "NZBmode": item['mode']
+                }
+                myDB.upsert("wanted", newValueDict, controlValueDict)
+
+                if item['mode'] in ["torznab", "torrent", "magnet"]:
+                    snatch, res = TORDownloadMethod(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic')
+                elif item['mode'] == 'direct':
+                    snatch, res = DirectDownloadMethod(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic')
+                elif item['mode'] == 'nzb':
+                    snatch, res = NZBDownloadMethod(
+                        bookid,
+                        item['title'],
+                        item['url'],
+                        'comic')
+                else:
+                    res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
+                    logger.error(res)
+                    snatch = 0
+
+                if snatch:
+                    logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
+                    custom_notify_snatch("%s %s" % (bookid, item['url']))
+                    notify_snatch("Comic %s from %s at %s" %
+                                  (unaccented(item['title']), item["provider"], now()))
+                    scheduleJob(action='Start', target='PostProcessor')
+                else:
+                    myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                (res, item["url"]))
+
