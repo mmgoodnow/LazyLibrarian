@@ -273,6 +273,7 @@ def audioProcess(bookid, rename=False, playlist=False):
     dest_path = os.path.join(dest_dir, dest_path)
     if rename and r != dest_path:
         try:
+            logger.debug("Moving [%s] to [%s]" % (repr(r), repr(dest_path)))
             dest_path = safe_move(r, dest_path)
             r = dest_path
         except Exception as why:
