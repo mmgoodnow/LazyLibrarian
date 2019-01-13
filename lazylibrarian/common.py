@@ -834,18 +834,35 @@ def logHeader():
         # 3.6.19 is the earliest version with FOREIGN_KEY which we use, but is not essential
         header += 'sqlite3: missing required functionality. Try upgrading to v3.6.19 or newer. You have '
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
+    rarfile = None
+    UnRAR2 = None
     # noinspection PyBroadException
     try:
         from unrar import rarfile
-    except Exception:  # might fail for multiple reasons
+        unrarlib = 1
+    except Exception:
+        # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
-        except Exception as e:
-            header += "unrar: missing: %s\n" % str(e)
-            rarfile = None
-    if rarfile:
-        vers = rarfile.unrarlib.RARGetDllVersion()
-        header += "unrar: DLL version %s\n" % vers
+            unrarlib = 1
+        except Exception:
+            # noinspection PyBroadException
+            try:
+                import lib.UnRAR2 as UnRAR2
+                unrarlib = 2
+            except Exception as e:
+                header += "unrar: missing: %s\n" % str(e)
+                unrarlib = 0
+    if unrarlib:
+        if unrarlib == 1:
+            vers = rarfile.unrarlib.RARGetDllVersion()
+            header += "unrar: library version %s\n" % vers
+        elif unrarlib == 2:
+            vers = getattr(UnRAR2, '__version__', None)
+            header += "unrar2: library version %s\n" % vers
+            if platform.system() == "Windows":
+                vers = UnRAR2.windows.RARGetDllVersion()
+                header += "windows dll version %s\n" % vers
 
     header += "openssl: %s\n" % getattr(ssl, 'OPENSSL_VERSION', None)
     X509 = None

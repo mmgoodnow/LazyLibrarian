@@ -538,18 +538,30 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             logger.error("Failed to read zip file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
             data = ''
     elif extn in ['.cbr']:
+        rarfile = None
+        RarFile = None
         # noinspection PyBroadException
         try:
             from unrar import rarfile
+            unrarlib = 1
         except Exception:
             # noinspection PyBroadException
             try:
                 from lib.unrar import rarfile
+                unrarlib = 1
             except Exception:
-                rarfile = None
-        if rarfile:
+                # noinspection PyBroadException
+                try:
+                    from lib.UnRAR2 import RarFile
+                    unrarlib = 2
+                except Exception:
+                    unrarlib = 0
+        if unrarlib:
             try:
-                data = rarfile.RarFile(issuefile)
+                if unrarlib == 1:
+                    data = rarfile.RarFile(issuefile)
+                elif unrarlib == 2:
+                    data = RarFile(issuefile)
             except Exception as why:
                 logger.error("Failed to read rar file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
                 data = ''
@@ -557,10 +569,17 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         img = None
         try:
             for item in ['cover.j', '000.j', '001.j', '00.j', '01.j']:
-                for member in data.namelist():
-                    if item in member.lower():
-                        img = data.read(member)
-                        break
+                if getattr(data, 'infoiter', None):
+                    for member in data.infoiter():
+                        if item in member.filename.lower():
+                            r = data.read_files(member.filename)
+                            img = r[0][1]
+                            break
+                else:
+                    for member in data.namelist():
+                        if item in member.lower():
+                            img = data.read(member)
+                            break
                 if img:
                     break
             if img:
