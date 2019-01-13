@@ -153,6 +153,7 @@ def main():
                     sys.stderr.write("%s %s\n" % ("No suitable sourcefile found in", bookfolder))
                 pplog.write("%s: %s %s\n" % (time.ctime(), "No suitable sourcefile found in", bookfolder))
             else:
+                sourcefile = makeBytestr(sourcefile)
                 basename, source_extn = os.path.splitext(sourcefile)
                 for ftype in wanted_formats:
                     if not os.path.exists(os.path.join(bookfolder, basename + ftype)):
@@ -173,25 +174,25 @@ def main():
                     else:
                         pplog.write("Found %s\n" % ftype)
 
-            if delete_others:
-                if keep_opf:
-                    wanted_formats.append('.opf')
-                if keep_jpg:
-                    wanted_formats.append('.jpg')
-                for fname in os.listdir(makeBytestr(bookfolder)):
-                    fname = makeUnicode(fname)
-                    filename, extn = os.path.splitext(fname)
-                    if not extn or extn.lower() not in wanted_formats:
-                        if booktype == 'test':
-                            print("Would delete %s" % fname)
-                            pplog.write("Would delete %s\n" % fname)
-                        else:
-                            print("Deleting %s" % fname)
-                            pplog.write("Deleting %s\n" % fname)
-                            try:
-                                os.remove(os.path.join(bookfolder, fname))
-                            except OSError:
-                                pass
+                if delete_others:
+                    if keep_opf:
+                        wanted_formats.append('.opf')
+                    if keep_jpg:
+                        wanted_formats.append('.jpg')
+                    for fname in os.listdir(makeBytestr(bookfolder)):
+                        fname = makeUnicode(fname)
+                        filename, extn = os.path.splitext(fname)
+                        if not extn or extn.lower() not in wanted_formats:
+                            if booktype == 'test':
+                                print("Would delete %s" % fname)
+                                pplog.write("Would delete %s\n" % fname)
+                            else:
+                                print("Deleting %s" % fname)
+                                pplog.write("Deleting %s\n" % fname)
+                                try:
+                                    os.remove(os.path.join(bookfolder, fname))
+                                except OSError:
+                                    pass
             if created:
                 print("Created %s from %s" % (created, source_extn))
                 pplog.write("%s: Created %s from %s\n" % (time.ctime(), created, source_extn))
