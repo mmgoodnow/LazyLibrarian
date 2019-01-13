@@ -407,6 +407,43 @@ def md5_utf8(txt):
     return hashlib.md5(txt).hexdigest()
 
 
+# Special character hex range:
+# CP850: 0x80-0xA5 (fortunately not used in ISO-8859-15)
+# UTF-8: 1st hex code 0xC2-0xC3 followed by a 2nd hex code 0xA1-0xFF
+# ISO-8859-15: 0xA6-0xFF
+# The function will detect if string contains a special character
+# If there is special character, detects if it is a UTF-8, CP850 or ISO-8859-15 encoding
+def makeUTF8(input_string):
+    name = makeBytestr(input_string)
+    # parse to detect if CP850/ISO-8859-15 is used
+    # and return tuple of bytestring encoded in utf-8, detected encoding
+    for idx in range(len(name)):
+        # /!\ detection is done 2char by 2char for UTF-8 special character
+        if PY2:
+            ch = name[idx]
+        else:
+            ch = chr(name[idx])
+        if idx < (len(name) - 1):
+            if PY2:
+                chx = name[idx + 1]
+            else:
+                chx = chr(name[idx + 1])
+            # Detect UTF-8
+            if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
+                return input_string, 'UTF-8'
+        # Detect CP850
+        if (ch >= '\x80') & (ch <= '\xA5'):
+            utf8Name = name.decode('cp850')
+            utf8Name = utf8Name.encode('utf-8')
+            return utf8Name, 'CP850'
+        # Detect ISO-8859-15
+        if (ch >= '\xA6') & (ch <= '\xFF'):
+            utf8Name = name.decode('iso-8859-15')
+            utf8Name = utf8Name.encode('utf-8')
+            return utf8Name, 'ISO-8859-15'
+    return input_string, ''
+
+
 def makeUnicode(txt):
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
@@ -414,11 +451,9 @@ def makeUnicode(txt):
         return u''
     elif isinstance(txt, text_type):
         return txt
-
     encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
     if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
         encodings.append('utf-8')
-
     for encoding in encodings:
         try:
             return txt.decode(encoding)
@@ -435,11 +470,9 @@ def makeBytestr(txt):
         return b''
     elif not isinstance(txt, text_type):  # nothing to do if already bytestring
         return txt
-
     encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
     if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
         encodings.append('utf-8')
-
     for encoding in encodings:
         try:
             return txt.encode(encoding)
@@ -470,6 +503,7 @@ def is_valid_type(filename, extras='jpg, opf'):
     type_list = list(set(getList(lazylibrarian.CONFIG['MAG_TYPE']) +
                          getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
                          getList(lazylibrarian.CONFIG['EBOOK_TYPE']) +
+                         getList(lazylibrarian.CONFIG['COMIC_TYPE']) +
                          getList(extras)))
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in type_list:
@@ -481,10 +515,12 @@ def is_valid_booktype(filename, booktype=None):
     """
     Check if filename extension is one we want
     """
-    if booktype == 'mag':  # default is book
+    if booktype.startswith('mag'):  # default is book
         booktype_list = getList(lazylibrarian.CONFIG['MAG_TYPE'])
     elif booktype == 'audiobook':
         booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+    elif booktype == 'comic':
+        booktype_list = getList(lazylibrarian.CONFIG['COMIC_TYPE'])
     else:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
     extn = os.path.splitext(filename)[1].lstrip('.')
