@@ -13,9 +13,10 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int
+from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, now
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
     IterateOverDirectSites
+from lazylibrarian.common import scheduleJob
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -30,6 +31,7 @@ dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + 
             ',': ' ', '*': '', '(': '', ')': '', '[': '', ']': '', '#': '', '0': '', '1': '',
             '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '', '\'': '',
             ':': '', '!': '', '-': ' ', r'\s\s': ' '}
+
 
 def searchItem(comicid=None):
     """
@@ -49,11 +51,7 @@ def searchItem(comicid=None):
         return results
 
     cat = 'comic'
-    book = {}
-    book['authorName'] = ''
-    book['bookSub'] = ''
-    book['bookid'] = comicid
-    book['bookName'] = match['Title']
+    book = {'authorName': '', 'bookSub': '', 'bookid': comicid, 'bookName': match['Title']}
     searchterm = match['SearchTerm']
     if not searchterm:
         searchterm = match['Title']
@@ -188,7 +186,6 @@ def comicSearch(comicid=None):
 
     for comic in comics:
         comicid = comic['ComicID']
-        title = comic['Title']
         res = searchItem(comicid)
         found = 0
         notfound = 0
@@ -196,7 +193,10 @@ def comicSearch(comicid=None):
         for item in res:
             match = None
             if item['score'] >= 90:
-                match = cv_identify(item['title'])
+                if comic['ComicID'].startswith('CV'):
+                    match = cv_identify(item['title'])
+                elif comic['ComicID'].startswith('CX'):
+                    match = cx_identify(item['title'])
             if match:
                 if match[3]['seriesid'] == comicid:
                     found += 1
@@ -220,8 +220,7 @@ def comicSearch(comicid=None):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
             logger.debug("Found %s results, %s match, %s fail, %s distinct, Have %s, Missing %s" %
                          (len(res), found, notfound, total, sorted(have),
-                          sorted(foundissues.iterkeys())))
-
+                          sorted(foundissues.keys())))
 
         for issue in foundissues:
             item = foundissues[issue]

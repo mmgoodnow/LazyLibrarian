@@ -268,7 +268,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
 
     logger.debug('Searching %s %sbook%s by [%s] in database for [%s]' %
-                    (len(books), ign, plural(len(books)), author, book))
+                 (len(books), ign, plural(len(books)), author, book))
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
         logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
     if book_partname == book_lower:
@@ -446,7 +446,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
         logger.debug(
             'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
             (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
-            best_partname, partname_name, partname_id))
+             best_partname, partname_name, partname_id))
     return 0, ''
 
 

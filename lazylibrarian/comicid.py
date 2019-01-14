@@ -277,7 +277,6 @@ def cv_identify(fname, best=True):
 def get_volumes_from_search(page_content):
     # Return list of volumes for the Comics Series
     choices = []
-    # tree = html.fromstring(page_content)
     soup = BeautifulSoup(page_content, "html5lib")
     h2 = soup.find('h2', class_='header-border')
     if h2:
@@ -291,12 +290,18 @@ def get_volumes_from_search(page_content):
             title = item.find('h3').text.strip('\n').strip().strip('\n')
             info = item.find('p').text.strip('\n').strip().strip('\n')
             href = item.find('a', href=True)['href']
-            seriesid = href[0].split('-')[-1].strip('/')
+            seriesid = href.rsplit('-', 1)[1].strip('/')
             publisher = info.split('(')[-1].split(')')[0]
             start = info.split('(')[0].split(' ', 1)[1].strip()
             count = info.split('(')[1].split(' ')[0]
             match = True
         except IndexError:
+            title = ''
+            publisher = ''
+            href = ''
+            seriesid = ''
+            start = ''
+            count = ''
             match = False
 
         if match:
@@ -346,7 +351,6 @@ def get_series_links_from_search(page_content):
 def get_series_detail_from_search(page_content):
     # Return details for the Comics Series
     series_detail = {}
-    tree = html.fromstring(page_content)
     soup = BeautifulSoup(page_content, "html5lib")
     series_detail['publisher'] = soup.find('h3', class_="name").text.strip('\n').strip()
     series_detail['title'] = soup.find('h1', itemprop='name').text
@@ -406,6 +410,7 @@ def cx_identify(fname, best=True):
             if data:
                 series_detail = get_series_detail_from_search(data)
                 for item in series_detail['issues']:
+                    # noinspection PyBroadException
                     try:
                         num = item.split('#')[1].split(' ')[0]
                         num = check_int(num, 0)
@@ -414,7 +419,7 @@ def cx_identify(fname, best=True):
                         else:
                             first = min(first, num)
                         last = max(last, num)
-                    except IndexError:
+                    except Exception:
                         pass
                 try:
                     start = series_detail['title'].rsplit('(', 1)[1].split('-')[0]
