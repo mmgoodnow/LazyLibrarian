@@ -11,6 +11,8 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import threading
+import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, now
@@ -172,111 +174,131 @@ def searchItem(comicid=None):
     return searchresults
 
 
-def comicSearch(comicid=None):
-    myDB = database.DBConnection()
-    cmd = "SELECT ComicID,Title from comics WHERE Status='Active'"
-    if comicid:
-        # single comic search
-        cmd += ' AND ComicID=?'
-        comics = myDB.select(cmd, (comicid,))
+def cron_search_comics():
+    if 'SEARCHALLCOMICS' not in [n.name for n in [t for t in threading.enumerate()]]:
+        search_comics()
     else:
-        # search for all active comics
-        comics = myDB.select(cmd)
-        logger.debug("Found %s active comics" % len(comics))
+        logger.debug("SEARCHALLCOMICS is already running")
 
-    for comic in comics:
-        comicid = comic['ComicID']
-        res = searchItem(comicid)
-        found = 0
-        notfound = 0
-        foundissues = {}
-        for item in res:
-            match = None
-            if item['score'] >= 90:
-                if comic['ComicID'].startswith('CV'):
-                    match = cv_identify(item['title'])
-                elif comic['ComicID'].startswith('CX'):
-                    match = cx_identify(item['title'])
-            if match:
-                if match[3]['seriesid'] == comicid:
-                    found += 1
-                    if match[4]:
-                        if match[4] not in foundissues:
-                            foundissues[match[4]] = item
+
+def search_comics(comicid=None):
+    # noinspection PyBroadException
+    try:
+        threadname = threading.currentThread().name
+        if "Thread-" in threadname:
+            if not comicid:
+                threading.currentThread().name = "SEARCHALLCOMICS"
+            else:
+                threading.currentThread().name = "SEARCHCOMIC"
+
+        myDB = database.DBConnection()
+        cmd = "SELECT ComicID,Title from comics WHERE Status='Active'"
+        count = 0
+        if comicid:
+            # single comic search
+            cmd += ' AND ComicID=?'
+            comics = myDB.select(cmd, (comicid,))
+        else:
+            # search for all active comics
+            comics = myDB.select(cmd)
+            logger.debug("Found %s active comics" % len(comics))
+
+        for comic in comics:
+            comicid = comic['ComicID']
+            res = searchItem(comicid)
+            found = 0
+            notfound = 0
+            foundissues = {}
+            for item in res:
+                match = None
+                if item['score'] >= 90:
+                    if comic['ComicID'].startswith('CV'):
+                        match = cv_identify(item['title'])
+                    elif comic['ComicID'].startswith('CX'):
+                        match = cx_identify(item['title'])
+                if match:
+                    if match[3]['seriesid'] == comicid:
+                        found += 1
+                        if match[4]:
+                            if match[4] not in foundissues:
+                                foundissues[match[4]] = item
+                    else:
+                        notfound += 1
                 else:
                     notfound += 1
-            else:
-                notfound += 1
 
-        total = len(foundissues)
-        haveissues = myDB.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
-        have = []
-        for item in haveissues:
-            have.append(int(item['IssueID']))
-        for item in foundissues.keys():
-            if item in have:
-                foundissues.pop(item)
+            total = len(foundissues)
+            haveissues = myDB.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
+            have = []
+            for item in haveissues:
+                have.append(int(item['IssueID']))
+            for item in foundissues.keys():
+                if item in have:
+                    foundissues.pop(item)
 
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
             logger.debug("Found %s results, %s match, %s fail, %s distinct, Have %s, Missing %s" %
                          (len(res), found, notfound, total, sorted(have),
                           sorted(foundissues.keys())))
 
-        for issue in foundissues:
-            item = foundissues[issue]
-            print(item)
-            match = myDB.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
-                               (item['title'], item['provider']))
-            if match:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
-                    logger.debug('%s is already marked %s' % (item['title'], match['Status']))
-            else:
-                bookid = "%s_%s" % (item['bookid'], issue)
-                controlValueDict = {
-                    "NZBtitle": item['title'],
-                    "NZBprov": item['provider']
-                }
-                newValueDict = {
-                    "NZBurl": item['url'],
-                    "BookID": bookid,
-                    "NZBdate": item['date'],
-                    "AuxInfo": "comic",
-                    "Status": "Matched",
-                    "NZBsize": item['size'],
-                    "NZBmode": item['mode']
-                }
-                myDB.upsert("wanted", newValueDict, controlValueDict)
-
-                if item['mode'] in ["torznab", "torrent", "magnet"]:
-                    snatch, res = TORDownloadMethod(
-                        bookid,
-                        item['title'],
-                        item['url'],
-                        'comic')
-                elif item['mode'] == 'direct':
-                    snatch, res = DirectDownloadMethod(
-                        bookid,
-                        item['title'],
-                        item['url'],
-                        'comic')
-                elif item['mode'] == 'nzb':
-                    snatch, res = NZBDownloadMethod(
-                        bookid,
-                        item['title'],
-                        item['url'],
-                        'comic')
+            for issue in foundissues:
+                item = foundissues[issue]
+                match = myDB.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
+                                   (item['title'], item['provider']))
+                if match:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                        logger.debug('%s is already marked %s' % (item['title'], match['Status']))
                 else:
-                    res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
-                    logger.error(res)
-                    snatch = 0
+                    bookid = "%s_%s" % (item['bookid'], issue)
+                    controlValueDict = {
+                        "NZBtitle": item['title'],
+                        "NZBprov": item['provider']
+                    }
+                    newValueDict = {
+                        "NZBurl": item['url'],
+                        "BookID": bookid,
+                        "NZBdate": item['date'],
+                        "AuxInfo": "comic",
+                        "Status": "Matched",
+                        "NZBsize": item['size'],
+                        "NZBmode": item['mode']
+                    }
+                    myDB.upsert("wanted", newValueDict, controlValueDict)
 
-                if snatch:
-                    logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
-                    custom_notify_snatch("%s %s" % (bookid, item['url']))
-                    notify_snatch("Comic %s from %s at %s" %
-                                  (unaccented(item['title']), item["provider"], now()))
-                    scheduleJob(action='Start', target='PostProcessor')
-                else:
-                    myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                                (res, item["url"]))
+                    if item['mode'] in ["torznab", "torrent", "magnet"]:
+                        snatch, res = TORDownloadMethod(
+                            bookid,
+                            item['title'],
+                            item['url'],
+                            'comic')
+                    elif item['mode'] == 'direct':
+                        snatch, res = DirectDownloadMethod(
+                            bookid,
+                            item['title'],
+                            item['url'],
+                            'comic')
+                    elif item['mode'] == 'nzb':
+                        snatch, res = NZBDownloadMethod(
+                            bookid,
+                            item['title'],
+                            item['url'],
+                            'comic')
+                    else:
+                        res = 'Unhandled mode [%s] for %s' % (item['mode'], item["url"])
+                        logger.error(res)
+                        snatch = 0
 
+                    if snatch:
+                        count += 1
+                        logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
+                        custom_notify_snatch("%s %s" % (bookid, item['url']))
+                        notify_snatch("Comic %s from %s at %s" %
+                                      (unaccented(item['title']), item["provider"], now()))
+                        scheduleJob(action='Start', target='PostProcessor')
+                    else:
+                        myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                    (res, item["url"]))
+        logger.info("ComicSearch for Wanted items complete, found %s comic%s" % (count, plural(count)))
+    except Exception:
+        logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
+    finally:
+        threading.currentThread().name = "WEBSERVER"

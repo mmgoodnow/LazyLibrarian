@@ -1717,6 +1717,7 @@
                       <span class="input-group-addon">Minutes</span>
                     </div>
                   </div>
+                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="search_maginterval" class="control-label">Magazine Search Interval:</label>
                     <div class="input-group">
@@ -1724,6 +1725,16 @@
                       <span class="input-group-addon">Minutes</span>
                     </div>
                   </div>
+                  %endif
+                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  <div class="form-group">
+                    <label for="search_comicinterval" class="control-label">Comic Search Interval:</label>
+                    <div class="input-group">
+                      <input type="number" id="search_comicinterval" name="search_comicinterval" value="${lazylibrarian.CONFIG['SEARCH_COMICINTERVAL']}" class="form-control" placeholder="0 to disable">
+                      <span class="input-group-addon">Hours</span>
+                    </div>
+                  </div>
+                  %endif
                   <div class="form-group">
                     <label for="searchrss_interval" class="control-label">RSS Search Interval:</label>
                     <div class="input-group">

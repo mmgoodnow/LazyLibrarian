@@ -28,7 +28,7 @@ import sqlite3
 
 import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
-    importer, grsync, webServe
+    importer, grsync, webServe, comicsearch
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob
 from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_str, makeUnicode
@@ -192,7 +192,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
-                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES']
+                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'SEARCH_COMICINTERVAL']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -441,6 +441,7 @@ CONFIG_DEFINITIONS = {
     'SCAN_INTERVAL': ('int', 'SearchScan', '10'),
     'SEARCHRSS_INTERVAL': ('int', 'SearchScan', '20'),
     'WISHLIST_INTERVAL': ('int', 'SearchScan', '24'),
+    'SEARCH_COMICINTERVAL': ('int', 'SearchScan', '24'),
     'VERSIONCHECK_INTERVAL': ('int', 'SearchScan', '24'),
     'GOODREADS_INTERVAL': ('int', 'SearchScan', '48'),
     'DELAYSEARCH': ('bool', 'SearchScan', 0),
@@ -1072,17 +1073,19 @@ def config_write(part=None):
                 CONFIG[key] = value
 
         if key in ['SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'VERSIONCHECK_INTERVAL',
-                   'SEARCHRSS_INTERVAL', 'GOODREADS_INTERVAL', 'WISHLIST_INTERVAL']:
+                   'SEARCHRSS_INTERVAL', 'GOODREADS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL']:
             oldvalue = CFG.get(section, key.lower())
             if value != oldvalue:
                 if key == 'SEARCH_BOOKINTERVAL':
                     scheduleJob('Restart', 'search_book')
                 elif key == 'SEARCH_MAGINTERVAL':
-                    scheduleJob('Restart', 'search_magazine')
+                    scheduleJob('Restart', 'search_magazines')
                 elif key == 'SEARCHRSS_INTERVAL':
                     scheduleJob('Restart', 'search_rss_book')
                 elif key == 'WISHLIST_INTERVAL':
                     scheduleJob('Restart', 'search_wishlist')
+                elif key == 'SEARCH_COMICINTERVAL':
+                    scheduleJob('Restart', 'search_comics')
                 elif key == 'SCAN_INTERVAL':
                     scheduleJob('Restart', 'PostProcessor')
                 elif key == 'VERSIONCHECK_INTERVAL':

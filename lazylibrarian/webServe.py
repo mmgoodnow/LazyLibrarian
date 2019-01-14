@@ -35,6 +35,7 @@ from lazylibrarian.bookwork import setSeries, deleteEmptySeries, getSeriesAuthor
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
+from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, setperm, \
     aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, zipAudio, runScript
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
@@ -65,6 +66,7 @@ except ImportError:
 from lib.six import PY2, text_type
 from mako import exceptions
 from mako.lookup import TemplateLookup
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -317,19 +319,19 @@ class WebInterface(object):
         cookie = cherrypy.request.cookie
         if cookie and 'll_template' in list(cookie.keys()):
             template = cookie['ll_template'].value
-            for item in[['index.html', 'overview'],
-                        ['books.html', 'ebooks'],
-                        ['series.html', 'series'],
-                        ['audio.html', 'audiobooks'],
-                        ['magazines.html', 'magazines'],
-                        ['managebooks.html', 'manage'],
-                        ['history.html', 'history'],
-                        ['logs.html', 'logs'],
-                        ['config.html', 'config_menus'],
-                        ['author.html', 'authors'],
-                        ['issues.html', 'magazine_detail'],
-                        ['users.html', 'config_users'],
-                        ]:
+            for item in [['index.html', 'overview'],
+                         ['books.html', 'ebooks'],
+                         ['series.html', 'series'],
+                         ['audio.html', 'audiobooks'],
+                         ['magazines.html', 'magazines'],
+                         ['managebooks.html', 'manage'],
+                         ['history.html', 'history'],
+                         ['logs.html', 'logs'],
+                         ['config.html', 'config_menus'],
+                         ['author.html', 'authors'],
+                         ['issues.html', 'magazine_detail'],
+                         ['users.html', 'config_users'],
+                         ]:
                 if template == item[0]:
                     page = item[1]
                     if template == 'config.html':
@@ -1016,7 +1018,7 @@ class WebInterface(object):
         mags_list = []
 
         magazines = myDB.select(
-                        'SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by Title COLLATE NOCASE')
+            'SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by Title COLLATE NOCASE')
 
         if magazines:
             for mag in magazines:
@@ -1145,7 +1147,7 @@ class WebInterface(object):
                 'genreExclude': lazylibrarian.GRGENRES['genreExclude'],
                 'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
                 'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
-                }
+            }
             with open(os.path.join(lazylibrarian.DATADIR, 'genres.json'), 'w') as f:
                 json.dump(newdict, f, indent=4)
             logger.debug("Applying genre changes")
@@ -1650,7 +1652,8 @@ class WebInterface(object):
         if action.startswith('a_'):
             library = 'AudioBook'
         return serve_template(templatename="manualsearch.html", title=library + ' Search Results: "' +
-                              searchterm + '"', bookid=bookid, results=results, library=library)
+                              searchterm + '"', bookid=bookid, results=results,
+                              library=library)
 
     @cherrypy.expose
     def countProviders(self):
@@ -2847,10 +2850,10 @@ class WebInterface(object):
                     threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'AudioBook']).start()
 
         if redirect == "author":
-                if 'eBook' in library:
-                    raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s&library=%s" % (AuthorID, 'eBook'))
-                if 'Audio' in library:
-                    raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s&library=%s" % (AuthorID, 'AudioBook'))
+            if 'eBook' in library:
+                raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s&library=%s" % (AuthorID, 'eBook'))
+            if 'Audio' in library:
+                raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s&library=%s" % (AuthorID, 'AudioBook'))
         elif redirect in ["books", "audio"]:
             raise cherrypy.HTTPRedirect(redirect)
         elif redirect == "members":
@@ -3015,6 +3018,28 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect('home')
 
     # COMICS #########################################################
+
+    @cherrypy.expose
+    def searchForComic(self, comicid=None):
+        myDB = database.DBConnection()
+        bookdata = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if bookdata:
+            # start searchthreads
+            self.startComicSearch(comicid)
+            raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
+        raise cherrypy.HTTPRedirect("comics")
+
+    @cherrypy.expose
+    def startComicSearch(self, comicid=None):
+        if comicid:
+            if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                threading.Thread(target=search_comics, name='SEARCHCOMIC', args=[comicid]).start()
+                logger.debug("Searching for comic ID %s" % comicid)
+            else:
+                logger.warn("Not searching for comic, no download methods set, check config")
+        else:
+            logger.debug("ComicSearch called with no comic ID")
 
     @cherrypy.expose
     def comics(self):
@@ -5162,15 +5187,23 @@ class WebInterface(object):
 
     @cherrypy.expose
     def forceSearch(self, source=None, title=None):
-        if source == "magazines":
+        if source in ["magazines", 'comics']:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
                 if title:
                     title = title.replace('&amp;', '&')
-                    self.searchForMag(bookid=title)
-                elif 'SEARCHALLMAG' not in [n.name for n in [t for t in threading.enumerate()]]:
+                    if source == 'magazines':
+                        self.searchForMag(bookid=title)
+                    elif source == 'comics':
+                        self.searchForComic(comicid=title)
+                elif source == 'magazines' and 'SEARCHALLMAG' not in [
+                        n.name for n in [t for t in threading.enumerate()]]:
                     threading.Thread(target=search_magazines, name='SEARCHALLMAG', args=[]).start()
                     scheduleJob(action='Restart', target='search_magazines')
+                elif source == 'comics' and 'SEARCHALLCOMICS' not in [
+                        n.name for n in [t for t in threading.enumerate()]]:
+                    threading.Thread(target=search_comics, name='SEARCHALLCOMICS', args=[]).start()
+                    scheduleJob(action='Restart', target='search_comics')
             else:
                 logger.warn('Search called but no download providers set')
         elif source in ["books", "audio"]:

@@ -432,6 +432,11 @@ def scheduleJob(action='Start', target=None):
                 hours = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist, hours=hours)
                 logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+        elif 'search_comics' in target and check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0):
+            if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
+                hours = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics, hours=hours)
+                logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
         elif 'checkForUpdates' in target and check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0):
             hours = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
             lazylibrarian.SCHED.add_interval_job(
@@ -526,7 +531,7 @@ def aaUpdate(refresh=False):
 
 def restartJobs(start='Restart'):
     for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist',
-                 'search_magazines', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads']:
+                 'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads']:
         scheduleJob(start, item)
 
 
@@ -569,8 +574,10 @@ def checkRunningJobs():
 
     if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
         ensureRunning('search_magazines')
+        ensureRunning('search_comics')
     else:
         scheduleJob('Stop', 'search_magazines')
+        scheduleJob('Stop', 'search_comics')
 
     ensureRunning('authorUpdate')
 
@@ -609,14 +616,25 @@ def showStats():
     series_stats.append(['Blank', res['counter']])
 
     mag_stats = []
-    res = myDB.match("SELECT count(*) as counter FROM magazines")
-    mag_stats.append(['Magazine', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM issues")
-    mag_stats.append(['Issues', res['counter']])
-    cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
-    cmd += 'as counter from magazines where counter=0'
-    res = myDB.match(cmd)
-    mag_stats.append(['Empty', len(res)])
+    if lazylibrarian.SHOW_MAGS:
+        res = myDB.match("SELECT count(*) as counter FROM magazines")
+        mag_stats.append(['Magazine', res['counter']])
+        res = myDB.match("SELECT count(*) as counter FROM issues")
+        mag_stats.append(['Issues', res['counter']])
+        cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
+        cmd += 'as counter from magazines where counter=0'
+        res = myDB.match(cmd)
+        mag_stats.append(['Empty', len(res)])
+
+    if lazylibrarian.SHOW_COMICS:
+        res = myDB.match("SELECT count(*) as counter FROM comics")
+        mag_stats.append(['Comics', res['counter']])
+        res = myDB.match("SELECT count(*) as counter FROM comicissues")
+        mag_stats.append(['Issues', res['counter']])
+        cmd = 'select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) '
+        cmd += 'as counter from comics where counter=0'
+        res = myDB.match(cmd)
+        mag_stats.append(['Empty', len(res)])
 
     book_stats = []
     audio_stats = []
@@ -649,6 +667,9 @@ def showStats():
     res = myDB.match(cmd)
     missing_stats.append(['Genres', res['counter']])
 
+    if not lazylibrarian.SHOW_AUDIO:
+        audio_stats = []
+
     author_stats = []
     res = myDB.match("SELECT count(*) as counter FROM authors")
     author_stats.append(['Authors', res['counter']])
@@ -662,14 +683,15 @@ def showStats():
     overdue, _, _, _ = is_overdue()
     author_stats.append(['Overdue', overdue])
     for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
-        header = ''
-        data = ''
-        for item in stats:
-            header += "%8s" % item[0]
-            data += "%8i" % item[1]
-        result.append('')
-        result.append(header)
-        result.append(data)
+        if len(stats):
+            header = ''
+            data = ''
+            for item in stats:
+                header += "%8s" % item[0]
+                data += "%8i" % item[1]
+            result.append('')
+            result.append(header)
+            result.append(data)
     return result
 
 
@@ -680,6 +702,8 @@ def showJobs():
         job = str(job)
         if "search_magazines" in job:
             jobname = "Magazine search"
+        elif "search_comics" in job:
+            jobname = "Comic search"
         elif "checkForUpdates" in job:
             jobname = "Check LazyLibrarian version"
         elif "search_book" in job:
