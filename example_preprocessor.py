@@ -1,6 +1,6 @@
 #!/usr/bin/python
 # The parameter list is type, folder, authorname, bookname
-# where "type" is one of 'ebook', 'audiobook', 'mag', 'test'
+# where "type" is one of 'ebook', 'audiobook', 'magazine', 'comic', 'test'
 # and "folder" is the folder ready to be processed
 # and authorname, bookname are optional, only used for audio tags
 # This example uses "ebook-convert" from calibre to make sure we have both epub and mobi of the new book.
@@ -114,10 +114,10 @@ def main():
 
     with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preprocessor.log'), 'a') as pplog:
         pplog.write("%s: %s %s\n" % (time.ctime(), booktype, bookfolder))
-        if not booktype or booktype not in ['ebook', 'audiobook', 'mag', 'test']:
+        if not booktype or booktype not in ['ebook', 'audiobook', 'magazine', 'test']:
             sys.stderr.write("%s %s\n" % ("Invalid booktype", booktype))
             pplog.write("%s: %s %s\n" % (time.ctime(), "Invalid booktype", booktype))
-            exit(1)
+            exit(0)
         if not os.path.exists(bookfolder) and booktype != 'test':
             sys.stderr.write("%s %s\n" % ("Invalid bookfolder", bookfolder))
             pplog.write("%s: %s %s\n" % (time.ctime(), "Invalid bookfolder", bookfolder))
@@ -400,7 +400,7 @@ def main():
                     for part in parts:
                         os.remove(os.path.join(bookfolder, part[3]))
 
-        elif booktype == 'mag':
+        elif booktype in ['magazine', 'comic']:
             # maybe you want to split the pages and turn them into jpeg like a comic?
             print("This example preprocessor only preprocesses eBooks and audiobooks")
 
