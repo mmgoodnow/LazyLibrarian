@@ -41,7 +41,7 @@ from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_
     safe_copy, safe_move, make_dirs, runScript
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, makeBytestr, check_int, is_valid_type, multibook, \
-    split_title
+    split_title, makeUTF8
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
