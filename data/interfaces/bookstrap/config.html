@@ -343,7 +343,6 @@
                         </select>
                       </div>
                     </fieldset>
-                    <fieldset>
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
@@ -557,7 +556,7 @@
                         <label for="gr_awanted">Sync Wanted AudioBooks to Goodreads shelf:</label>
                         <input type="text" id="gr_awanted" name="gr_awanted" value="${lazylibrarian.CONFIG['GR_AWANTED']}" class="form-control" placeholder="eg: audio_wanted">
                         <label for="gr_owned">Sync Owned AudioBooks to Goodreads shelf:</label>
-                        <input type="text" id="gr_aowned" name="gr_aowned" value="${lazylibrarian.CONFIG['GR_AOWNED']}"class="form-control" placeholder="eg: audio_owned">
+                        <input type="text" id="gr_aowned" name="gr_aowned" value="${lazylibrarian.CONFIG['GR_AOWNED']} "class="form-control" placeholder="eg: audio_owned">
                       </fieldset>
                       %endif
                         <div class="checkbox">
@@ -593,11 +592,22 @@
                     <input type="text" id="lt_devkey" name="lt_devkey" value="${lazylibrarian.CONFIG['LT_DEVKEY']}" class="form-control" placeholder="optional">
                   </div>
                 </fieldset>
-                  </fieldset>
+                <fieldset>
                   %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
                   <div class="form-group">
                     <label for="cv_apikey" class="control-label">ComicVine Api Key:</label>
                     <input type="text" id="cv_apikey" name="cv_apikey" value="${lazylibrarian.CONFIG['CV_APIKEY']}" class="form-control" placeholder="optional">
+                  </div>
+                  <div class="checkbox">
+                    <%
+                    if lazylibrarian.CONFIG['CV_WEBSEARCH'] == True:
+                        checked = 'checked="checked"'
+                    else:
+                        checked = ''
+                    %>
+                    <label for="cv_websearch">
+                      <input type="checkbox" id="cv_websearch" name="cv_websearch" value="1" ${checked} />
+                      Try web search if api returns no results<br><small>WARNING this may get your api key blocked</small></label>
                   </div>
                   %endif
                 </fieldset>
@@ -1965,7 +1975,7 @@
                             checked = ''
                     %>
                     <label for="wishlist_tags">
-                      <input type="checkbox" id="wishlits_tags" name="wishlist_tags" value="1" ${checked} />
+                      <input type="checkbox" id="wishlist_tags" name="wishlist_tags" value="1" ${checked} />
                       Add wishlist name as tag to Calibre</label>
                   </div>
                   </fieldset>
