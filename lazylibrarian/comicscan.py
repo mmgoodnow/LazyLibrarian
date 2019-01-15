@@ -17,9 +17,9 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.comicid import cv_identify, cx_identify
-from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, makeBytestr, \
-    now
+from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
+from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, check_int, \
+    now, makeUTF8bytes
 from lazylibrarian.images import createMagCover
 from lib.six import PY2
 
@@ -82,21 +82,47 @@ def comicScan(title=None):
 
         logger.info(' Checking [%s] for comics' % mag_path)
 
-        # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
+        # try to ensure startdir is utf8 str as os.walk can fail if it tries to convert a subdir or file
         # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        for rootdir, dirnames, filenames in os.walk(makeBytestr(mag_path)):
+        comic_path, encoding = makeUTF8bytes(mag_path)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            logger.debug("comic_path was %s" % encoding)
+        for rootdir, dirnames, filenames in os.walk(comic_path):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:
                 if is_valid_booktype(fname, booktype='comic'):
-                    res = cv_identify(fname)
-                    if not res:
-                        res = cx_identify(fname)
+                    res = comic_metadata(os.path.join(rootdir, fname))
                     if res:
-                        issue = str(res[4])
-                        title = res[3]['title']
-                        comicid = res[3]['seriesid']
-                        logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
+                        title = res.get('Series')
+                        issue = str(check_int(res.get('Number'), 0))
+                        comicid = res.get('ComicID')
+                        if not title or not issue or not comicid:
+                            res = None
+                        else:
+                            publisher = res.get('Publisher')
+                            start = res.get('Year')
+                            first = ''
+                            last = ''
+                            searchterm = title
+                            link = res.get('Web')
+                            logger.debug("Metadata found %s (%s) Issue %s" % (title, comicid, issue))
+                    if not res:
+                        res = cv_identify(fname)
+                        if not res:
+                            res = cx_identify(fname)
+                        if res:
+                            issue = str(res[4])
+                            title = res[3]['title']
+                            comicid = res[3]['seriesid']
+                            publisher = res[3]['publisher']
+                            start = res[3]['start']
+                            first = res[3]['first']
+                            last = res[3]['last']
+                            searchterm = res[3]['searchterm']
+                            link = res[3]['link']
+                            logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
+                    if res:
                         controlValueDict = {"ComicID": comicid}
 
                         # is this comic already in the database?
@@ -112,14 +138,14 @@ def comicScan(title=None):
                                 "LatestIssue": issue,
                                 "IssueStatus": "Skipped",
                                 "LatestCover": None,
-                                "Start": res[3]['start'],
-                                "First": res[3]['first'],
-                                "Last": res[3]['last'],
-                                "Publisher": res[3]['publisher'],
-                                "SearchTerm": res[3]['searchterm'],
-                                "Link": res[3]['link']
+                                "Start": start,
+                                "First": first,
+                                "Last": last,
+                                "Publisher": publisher,
+                                "SearchTerm": searchterm,
+                                "Link": link
                             }
-                            logger.debug("Adding comic %s" % title)
+                            logger.debug("Adding comic %s (%s)" % (title, comicid))
                             myDB.upsert("comics", newValueDict, controlValueDict)
                             lastacquired = None
                             latestissue = issue

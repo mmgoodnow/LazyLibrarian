@@ -11,13 +11,15 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import os
 import re
 import string
+from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request
-from lazylibrarian.formatter import check_int, check_year, replace_all
+from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode
 
 try:
     import urllib3
@@ -34,6 +36,13 @@ except ImportError:
         from lib.bs4 import BeautifulSoup
     else:
         from lib3.bs4 import BeautifulSoup
+try:
+    import zipfile
+except ImportError:
+    if PY2:
+        import lib.zipfile as zipfile
+    else:
+        import lib3.zipfile as zipfile
 
 
 def getIssueNum(words, skipped):
@@ -61,7 +70,7 @@ def nameWords(name):
     # strip all ascii and non-ascii quotes/apostrophes
     dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
     name = replace_all(name, dic)
-    regex = re.compile('[%s]' % re.escape(string.punctuation))
+    regex = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '')))  # allow #num
     name = regex.sub(' ', name)
     tempwords = name.lower().split()
     # merge initials together into one "word" for matching
@@ -218,6 +227,10 @@ def cv_identify(fname, best=True):
     if results:
         return results[0]
 
+    if not lazylibrarian.CONFIG['CV_WEBSEARCH']:
+        logger.warn('No match for %s' % fname)
+        return []
+
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
         logger.debug('No api match for %s, trying websearch' % fname)
     # fortunately comicvine sorts the resuts and gives us "best match first"
@@ -356,7 +369,10 @@ def get_series_detail_from_search(page_content):
     series_detail['title'] = soup.find('h1', itemprop='name').text
     series_detail['description'] = soup.find('div', itemprop='description').text
     issues = soup.find('div', class_="list Issues")
-    series_detail['issues'] = issues.find_all('h6')
+    if issues:
+        series_detail['issues'] = issues.find_all('h6')
+    else:
+        series_detail['issues'] = []
     return series_detail
 
 
@@ -398,7 +414,7 @@ def cx_identify(fname, best=True):
 
             if pager:
                 # eg '1 TO 18 OF 27'
-                pager_words = pager[-1].split()
+                pager_words = pager.split()
                 if pager_words[2] == pager_words[4]:
                     next_page = False
                 else:
@@ -518,3 +534,90 @@ def cx_identify(fname, best=True):
 
     logger.warn('No match for %s' % fname)
     return []
+
+
+def comic_metadata(archivename):
+    rarfile = None
+    RarFile = None
+    targetdir = ''
+    # noinspection PyBroadException
+    try:
+        from unrar import rarfile
+        unrarlib = 1
+    except Exception:
+        # noinspection PyBroadException
+        try:
+            from lib.unrar import rarfile
+            unrarlib = 1
+        except Exception:
+            unrarlib = 0
+    if not unrarlib:
+        # noinspection PyBroadException
+        try:
+            from lib.UnRAR2 import RarFile
+            unrarlib = 2
+        except Exception:
+            unrarlib = 0
+
+    archivename = makeUnicode(archivename)
+    if not os.path.isfile(archivename):  # regular files only
+        return {}
+
+    if zipfile.is_zipfile(archivename):
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+            logger.debug('%s is a zip file' % archivename)
+        try:
+            z = zipfile.ZipFile(archivename)
+        except Exception as e:
+            logger.error("Failed to unzip %s: %s" % (archivename, e))
+            return {}
+
+        namelist = z.namelist()
+        for item in namelist:
+            if item.endswith('ComicInfo.xml'):
+                return meta_dict(z.read(item))
+
+    elif unrarlib == 1 and rarfile.is_rarfile(archivename):
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+            logger.debug('%s is a rar file' % archivename)
+        try:
+            z = rarfile.RarFile(archivename)
+        except Exception as e:
+            logger.error("Failed to unrar %s: %s" % (archivename, e))
+            return {}
+
+        namelist = z.namelist()
+        for item in namelist:
+            if item.endswith('ComicInfo.xml'):
+                return meta_dict(z.read(item))
+
+    elif unrarlib == 2:
+        # noinspection PyBroadException
+        try:
+            rarc = RarFile(archivename)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                logger.debug('%s is a rar file' % archivename)
+        except Exception:
+            return ''
+        data = rarc.read_files('ComicInfo.xml')
+        if data:
+            return meta_dict(data[0][1])
+    return {}
+
+
+def meta_dict(data):
+    rootxml = ElementTree.fromstring(data)
+    datadict = {}
+    for item in ['Series', 'Title', 'Number', 'Summary', 'Year', 'Publisher', 'Web']:
+        res = rootxml.find(item)
+        if res is not None:
+            datadict[item] = res.text
+    if 'Web' in datadict and 'comicvine' in datadict['Web']:
+        datadict['ComicID'] = 'CV' + datadict['Web'].rsplit('-', 1)[-1].strip('/')
+    else:
+        res = rootxml.find('Notes')
+        if res is not None:
+            notes = res.text
+            if 'Comic Vine' in notes and 'Issue ID ' in notes:
+                datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
+    return datadict
