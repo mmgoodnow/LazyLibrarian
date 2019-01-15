@@ -40,8 +40,8 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
-    replace_all, getList, surnameFirst, makeUnicode, makeBytestr, check_int, is_valid_type, multibook, \
-    split_title, makeUTF8
+    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, multibook, \
+    split_title, makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
@@ -90,7 +90,7 @@ def processAlternate(source_dir=None, library='eBook'):
 
         logger.debug('Processing %s directory %s' % (library, source_dir))
         # first, recursively process any books in subdirectories
-        flist = os.listdir(makeBytestr(source_dir))
+        flist = os.listdir(makeUTF8bytes(source_dir)[0])
         flist = [makeUnicode(item) for item in flist]
         for fname in flist:
             subdir = os.path.join(source_dir, fname)
@@ -112,7 +112,7 @@ def processAlternate(source_dir=None, library='eBook'):
             new_book = book_file(source_dir, booktype='ebook')
             if not new_book:
                 # check if an archive in this directory
-                for f in os.listdir(makeBytestr(source_dir)):
+                for f in os.listdir(makeUTF8bytes(source_dir)[0]):
                     f = makeUnicode(f)
                     if not is_valid_type(f):
                         # Is file an archive, if so look inside and extract to new dir
@@ -271,7 +271,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     # can't move metadata.opf or cover.jpg or similar as can't be sure they are ours
     # return how many files you moved
     cnt = 0
-    list_dir = os.listdir(makeBytestr(sourcedir))
+    list_dir = os.listdir(makeUTF8bytes(sourcedir)[0])
     list_dir = [makeUnicode(item) for item in list_dir]
     for ourfile in list_dir:
         if ourfile.startswith(fname) or is_valid_booktype(ourfile, booktype="audiobook"):
@@ -527,7 +527,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
         for download_dir in dirlist:
             try:
-                downloads = os.listdir(makeBytestr(download_dir))
+                downloads = os.listdir(makeUTF8bytes(download_dir)[0])
                 downloads = [makeUnicode(item) for item in downloads]
             except OSError as why:
                 logger.error('Could not access directory [%s] %s' % (download_dir, why.strerror))
@@ -640,7 +640,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     elif book_type == 'Magazine' and not book_file(pp_path, 'mag'):
                                         logger.debug("Skipping %s, no magazine found" % pp_path)
                                         skipped = True
-                                    if not os.listdir(makeBytestr(pp_path)):
+                                    if not os.listdir(makeUTF8bytes(pp_path)[0]):
                                         logger.debug("Skipping %s, folder is empty" % pp_path)
                                         skipped = True
                                     elif bts_file(pp_path):
@@ -1147,7 +1147,7 @@ def check_residual(download_dir):
     myDB = database.DBConnection()
     skipped_extensions = getList(lazylibrarian.CONFIG['SKIPPED_EXT'])
     ppcount = 0
-    downloads = os.listdir(makeBytestr(download_dir))
+    downloads = os.listdir(makeUTF8bytes(download_dir)[0])
     downloads = [makeUnicode(item) for item in downloads]
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
         logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
@@ -1714,7 +1714,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
             if not bestmatch:
-                for fname in os.listdir(makeBytestr(pp_path)):
+                for fname in os.listdir(makeUTF8bytes(pp_path)[0]):
                     fname = makeUnicode(fname)
                     extn = os.path.splitext(fname)[1].lstrip('.')
                     if extn and extn.lower() == btype:
@@ -1725,7 +1725,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         logger.debug('One format import, best match = %s' % bestmatch)
     else:  # mag, comic or audiobook or multi-format book
         match = False
-        for fname in os.listdir(makeBytestr(pp_path)):
+        for fname in os.listdir(makeUTF8bytes(pp_path)[0]):
             fname = makeUnicode(fname)
             if is_valid_booktype(fname, booktype=booktype):
                 match = True
@@ -1755,7 +1755,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
             # and ignores opf data if there is data embedded in the book file
             # so we send separate "set_metadata" commands after the import
-            for fname in os.listdir(makeBytestr(pp_path)):
+            for fname in os.listdir(makeUTF8bytes(pp_path)[0]):
                 fname = makeUnicode(fname)
                 filename, extn = os.path.splitext(fname)
                 srcfile = os.path.join(pp_path, fname)
@@ -1847,7 +1847,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     # should we be setting permissions on calibres directories and files?
                     if newbookfile:
                         setperm(target_dir)
-                        for fname in os.listdir(makeBytestr(target_dir)):
+                        for fname in os.listdir(makeUTF8bytes(target_dir)[0]):
                             fname = makeUnicode(fname)
                             setperm(os.path.join(target_dir, fname))
                         return True, newbookfile
@@ -1868,7 +1868,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
             logger.debug("Dest Path: %s" % (repr(dest_path)))
-        dest_path, encoding = makeUTF8(dest_path)
+        dest_path, encoding = makeUTF8bytes(dest_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("dest_path was %s" % encoding)
         if not os.path.exists(dest_path):
@@ -1885,16 +1885,16 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             return False, 'Unable to create directory %s' % dest_path
 
         udest_path = makeUnicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
-        global_name, encoding = makeUTF8(global_name)
+        global_name, encoding = makeUTF8bytes(global_name)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("global_name was %s" % encoding)
-        pp_path, encoding = makeUTF8(pp_path)
+        pp_path, encoding = makeUTF8bytes(pp_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("pp_path was %s" % encoding)
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
         for fname in os.listdir(pp_path):
-            fname, encoding = makeUTF8(fname)
+            fname, encoding = makeUTF8bytes(fname)
             if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug("fname was %s" % encoding)
             ufname = makeUnicode(fname)
@@ -1981,7 +1981,7 @@ def processAutoAdd(src_path=None, booktype='book'):
         return False
     # Now try and copy all the book files into a single dir.
     try:
-        names = os.listdir(makeBytestr(src_path))
+        names = os.listdir(makeUTF8bytes(src_path)[0])
         names = [makeUnicode(item) for item in names]
         # files jpg, opf & book(s) should have same name
         # Caution - book may be pdf, mobi, epub or all 3.

@@ -192,7 +192,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
-                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'SEARCH_COMICINTERVAL']
+                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES',
+                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -548,6 +549,7 @@ CONFIG_DEFINITIONS = {
     'BOOK_API': ('str', 'API', 'GoodReads'),
     'LT_DEVKEY': ('str', 'API', ''),
     'CV_APIKEY': ('str', 'API', ''),
+    'CV_WEBSEARCH': ('bool', 'API', 0),
     'GR_API': ('str', 'API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     'GR_SYNC': ('bool', 'API', 0),
     'GR_SECRET': ('str', 'API', ''),  # tied to users own api key

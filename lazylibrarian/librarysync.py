@@ -24,7 +24,7 @@ from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, split_title, now, makeUnicode, makeBytestr
+    cleanName, replace_all, split_title, now, makeUnicode, makeUTF8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
@@ -579,7 +579,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         last_authorid = None
         # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
         # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        for rootdir, dirnames, filenames in os.walk(makeBytestr(startdir)):
+        start_utf, encoding = makeUTF8bytes(startdir)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+            logger.debug("startdir was %s" % encoding)
+        for rootdir, dirnames, filenames in os.walk(start_utf):
             for directory in dirnames:
                 # prevent magazine being scanned
                 if PY2:
@@ -613,7 +616,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
-                elif not os.path.isdir(rootdir):
+                elif not os.path.isdir(makeUTF8bytes(rootdir)[0]):
                     logger.debug("[%s] missing (renamed?)" % rootdir)
                 else:
                     # If this is a book, try to get author/title/isbn/language
@@ -985,7 +988,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                                                 if tokmatch:
                                                     break
-                                                for e in os.listdir(makeBytestr(rootdir)):
+                                                for e in os.listdir(makeUTF8bytes(rootdir)[0]):
                                                     e = makeUnicode(e)
                                                     if is_valid_booktype(e, booktype='audiobook') and token in e:
                                                         book_filename = os.path.join(rootdir, e)

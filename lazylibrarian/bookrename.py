@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
-    makeUnicode, makeBytestr, multibook
+    makeUnicode, makeUTF8bytes, multibook
 from lib.six import PY2
 
 try:
@@ -126,7 +126,7 @@ def audioProcess(bookid, rename=False, playlist=False):
     book = ''
     audio_file = ''
     abridged = ''
-    for f in os.listdir(makeBytestr(r)):
+    for f in os.listdir(makeUTF8bytes(r)[0]):
         f = makeUnicode(f)
         if is_valid_booktype(f, booktype='audiobook'):
             cnt += 1
@@ -300,9 +300,9 @@ def audioProcess(bookid, rename=False, playlist=False):
         pattern = pattern + os.path.splitext(part[3])[1]
         if playlist:
             if rename:
-                playlist.write("%s\n" % makeBytestr(pattern))
+                playlist.write("%s\n" % makeUTF8bytes(pattern)[0])
             else:
-                playlist.write("%s\n" % makeBytestr(part[3]))
+                playlist.write("%s\n" % makeUTF8bytes(part[3])[0])
         if rename:
             n = os.path.join(makeUnicode(r), makeUnicode(pattern))
             o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
@@ -389,7 +389,7 @@ def bookRename(bookid):
 
     if book_basename != new_basename:
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
-        for fname in os.listdir(makeBytestr(dest_path)):
+        for fname in os.listdir(makeUTF8bytes(dest_path)[0]):
             fname = makeUnicode(fname)
             extn = ''
             if is_valid_booktype(fname, booktype='ebook'):

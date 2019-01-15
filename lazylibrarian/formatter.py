@@ -42,7 +42,7 @@ def multibook(foldername, recurse=False):
     filetypes = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
     if recurse:
-        for r, d, f in os.walk(makeBytestr(foldername)):
+        for r, d, f in os.walk(makeUTF8bytes(foldername)[0]):
             flist = [makeUnicode(item) for item in f]
             for item in filetypes:
                 counter = 0
@@ -52,7 +52,7 @@ def multibook(foldername, recurse=False):
                         if counter > 1:
                             return item
     else:
-        flist = os.listdir(makeBytestr(foldername))
+        flist = os.listdir(makeUTF8bytes(foldername)[0])
         flist = [makeUnicode(item) for item in flist]
         for item in filetypes:
             counter = 0
@@ -413,8 +413,8 @@ def md5_utf8(txt):
 # ISO-8859-15: 0xA6-0xFF
 # The function will detect if string contains a special character
 # If there is special character, detects if it is a UTF-8, CP850 or ISO-8859-15 encoding
-def makeUTF8(input_string):
-    name = makeBytestr(input_string)
+def makeUTF8bytes(txt):
+    name = makeBytestr(txt)
     # parse to detect if CP850/ISO-8859-15 is used
     # and return tuple of bytestring encoded in utf-8, detected encoding
     for idx in range(len(name)):
@@ -430,7 +430,7 @@ def makeUTF8(input_string):
                 chx = chr(name[idx + 1])
             # Detect UTF-8
             if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
-                return input_string, 'UTF-8'
+                return txt, 'UTF-8'
         # Detect CP850
         if (ch >= '\x80') & (ch <= '\xA5'):
             utf8Name = name.decode('cp850')
@@ -441,7 +441,7 @@ def makeUTF8(input_string):
             utf8Name = name.decode('iso-8859-15')
             utf8Name = utf8Name.encode('utf-8')
             return utf8Name, 'ISO-8859-15'
-    return input_string, ''
+    return txt, ''
 
 
 def makeUnicode(txt):

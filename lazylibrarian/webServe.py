@@ -42,7 +42,7 @@ from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_ta
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_str, plural, now, today, check_int, replace_all, \
-    safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeBytestr, md5_utf8, dateFormat, \
+    safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
     check_year, dispName, is_valid_booktype
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -2203,7 +2203,10 @@ class WebInterface(object):
                 # count the audiobook parts
                 if basefile and os.path.isfile(basefile):
                     parentdir = os.path.dirname(basefile)
-                    for rootdir, dirs, filenames in os.walk(makeBytestr(parentdir)):
+                    start_utf, encoding = makeUTF8bytes(parentdir)
+                    if encoding:
+                        logger.debug("parentdir was %s" % encoding)
+                    for _, _, filenames in os.walk(start_utf):
                         filenames = [makeUnicode(item) for item in filenames]
                         for filename in filenames:
                             if is_valid_booktype(filename, 'audiobook'):
@@ -4387,7 +4390,7 @@ class WebInterface(object):
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
         res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl)
-        return makeBytestr(res)
+        return makeUTF8bytes(res)[0]
 
     @cherrypy.expose
     def importCSV(self, library='eBook'):

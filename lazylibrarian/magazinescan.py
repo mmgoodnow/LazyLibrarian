@@ -22,7 +22,7 @@ from lib.six import PY2
 from lazylibrarian import database, logger
 from lazylibrarian.common import safe_move
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeUnicode, makeBytestr, \
-    replace_all, check_year
+    replace_all, check_year, makeUTF8bytes
 from lazylibrarian.images import createMagCover
 
 
@@ -109,7 +109,10 @@ def magazineScan(title=None):
 
         # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
         # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        for rootdir, dirnames, filenames in os.walk(makeBytestr(mag_path)):
+        start_utf, encoding = makeUTF8bytes(mag_path)
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+            logger.debug("mag_path was %s" % encoding)
+        for rootdir, dirnames, filenames in os.walk(start_utf):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:

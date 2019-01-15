@@ -51,7 +51,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run, is_valid_booktype, datecompare, check_int, \
-    getList, makeUnicode, makeBytestr, unaccented, replace_all
+    getList, makeUnicode, unaccented, replace_all, makeUTF8bytes
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -265,7 +265,7 @@ def any_file(search_dir=None, extn=None):
     if search_dir is None or extn is None:
         return ""
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeBytestr(search_dir)):
+        for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
             fname = makeUnicode(fname)
             if fname.endswith(extn):
                 return os.path.join(search_dir, fname)
@@ -279,7 +279,7 @@ def opf_file(search_dir=None):
     res = ''
     meta = ''
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeBytestr(search_dir)):
+        for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
             fname = makeUnicode(fname)
             if fname.endswith('.opf'):
                 if fname == 'metadata.opf':
@@ -306,7 +306,7 @@ def bts_file(search_dir=None):
 def csv_file(search_dir=None, library=None):
     if search_dir and os.path.isdir(search_dir):
         try:
-            for fname in os.listdir(makeBytestr(search_dir)):
+            for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
                 fname = makeUnicode(fname)
                 if fname.endswith('.csv'):
                     if not library or library in fname:
@@ -327,7 +327,7 @@ def book_file(search_dir=None, booktype=None):
         return ""
     if search_dir and os.path.isdir(search_dir):
         try:
-            for fname in os.listdir(makeBytestr(search_dir)):
+            for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
                 fname = makeUnicode(fname)
                 if is_valid_booktype(fname, booktype=booktype):
                     return os.path.join(search_dir, fname)
@@ -1058,7 +1058,7 @@ def zipAudio(source, zipname):
         logger.debug('Zipping up %s' % zipname)
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
-            for rootdir, dirs, filenames in os.walk(makeBytestr(source)):
+            for rootdir, dirs, filenames in os.walk(makeUTF8bytes(source)[0]):
                 rootdir = makeUnicode(rootdir)
                 filenames = [makeUnicode(item) for item in filenames]
                 for filename in filenames:

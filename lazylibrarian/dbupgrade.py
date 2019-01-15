@@ -209,7 +209,7 @@ def dbupgrade(db_current_version):
                                     'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
-                                    'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT ' +
+                                    'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
                                     'UNIQUE (ComicID, IssueID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
@@ -1485,7 +1485,8 @@ def db_v50(myDB, upgradelog):
                     'Publisher TEXT, Link TEXT)')
         if lazylibrarian.FOREIGN_KEY:
             myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
-                        'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT)')
+                        'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
+                        'UNIQUE (ComicID, IssueID))')
         else:
             myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
                         'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
