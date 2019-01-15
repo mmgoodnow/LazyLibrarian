@@ -24,12 +24,16 @@ from lazylibrarian.images import createMagCover
 from lib.six import PY2
 
 
-def comicScan(title=None):
+def comicScan(comicid=None):
     lazylibrarian.COMIC_UPDATE = 1
-
+    title = ''
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
+        if comicid:
+            mags = myDB.match('select Title from comics WHERE ComicID=?', (comicid,))
+            if mags:
+                title = mags['Title']
         mag_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
         if title and '$Title' in mag_path:
             mag_path = mag_path.replace('$Title', title)
@@ -46,18 +50,21 @@ def comicScan(title=None):
             mag_path = mag_path.encode(lazylibrarian.SYS_ENCODING)
 
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
-            mags = myDB.select('select * from comicissues')
+            cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '
+            cmd += 'WHERE comics.ComicID = comicissues.ComicID'
+            mags = myDB.select(cmd)
             # check all the issues are still there, delete entry if not
             for mag in mags:
                 title = mag['Title']
                 issueid = mag['IssueID']
+                comicid = mag['ComicID']
                 issuefile = mag['IssueFile']
 
                 if issuefile and not os.path.isfile(issuefile):
                     myDB.action('DELETE from comicissues where issuefile=?', (issuefile,))
                     logger.info('Issue %s - %s deleted as not found on disk' % (title, issueid))
 
-                    controlValueDict = {"Title": title}
+                    controlValueDict = {"ComicID": comicid}
                     newValueDict = {
                         "LastAcquired": None,  # clear magazine dates
                         "LatestIssue": None,  # we will fill them in again later
@@ -65,7 +72,7 @@ def comicScan(title=None):
                         "IssueStatus": "Skipped"  # assume there are no issues now
                     }
                     myDB.upsert("comics", newValueDict, controlValueDict)
-                    logger.debug('Comic %s details reset' % title)
+                    logger.debug('Comic %s (%s) details reset' % (title, comicid))
 
             # now check the comic titles and delete any with no issues
             if lazylibrarian.CONFIG['COMIC_DELFOLDER']:

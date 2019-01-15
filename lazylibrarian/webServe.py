@@ -3181,7 +3181,7 @@ class WebInterface(object):
         else:
             logger.debug('COMIC_SCAN already running')
         if comicid:
-            raise cherrypy.HTTPRedirect("comicPage?comicid=%s" % comicid)
+            raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
         else:
             raise cherrypy.HTTPRedirect("comics")
 
@@ -3250,8 +3250,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def getComicIssues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc",
-                       sSearch="", **kwargs):
+    def getComicIssues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
         filtered = []
         rowlist = []
