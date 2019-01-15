@@ -2921,10 +2921,11 @@ class WebInterface(object):
     def comicWall(self, comicid=None):
         self.label_thread('COMICWALL')
         myDB = database.DBConnection()
-        cmd = 'SELECT IssueFile,IssueID,ComicID from comicissues'
+        cmd = 'SELECT IssueFile,IssueID,comics.ComicID,Title from comicissues,comics WHERE '
+        cmd += 'comics.ComicID = comicissues.ComicID'
         args = None
         if comicid:
-            cmd += ' WHERE ComicID=?'
+            cmd += ' AND comics.ComicID=?'
             args = (comicid,)
         cmd += ' order by IssueAcquired DESC'
         issues = myDB.select(cmd, args)

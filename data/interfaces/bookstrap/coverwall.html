@@ -41,7 +41,7 @@
                   <td class="bookart text-center"><a href="openBook?bookid=${result['BookID']}&library=AudioBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
                 %else:
                   %if redirect == 'comic':
-                    <td class="bookart text-center"><a href="openComic?bookid=${result['ComicID']}&issueid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['IssueID']}</td>
+                    <td class="bookart text-center"><a href="openComic?bookid=${result['ComicID']}&issueid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueID']}</td>
                   %else:
                     <td class="bookart text-center"><a href="openMag?bookid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueDate']}</td>
                   %endif
