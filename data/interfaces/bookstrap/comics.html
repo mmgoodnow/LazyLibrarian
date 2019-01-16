@@ -126,8 +126,8 @@
                         'class': 'text-left',
                         'render': function(data, type, row) {
                             btn = '<a href=\'openComic?comicid=' + row[0] + '\'">' + row[2] + '</a>'
-                            if ( row[8].length > 1) { btn = btn + ' (' + row[8] + ')<br>' }
-                            if ( row[10].length > 1) { btn = btn + '<small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
+                            if ( row[8].length > 1) { btn = btn + ' (' + row[8] + ')' }
+                            if ( row[10].length > 1) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
                                 if ( row[0].indexOf('CV') >= 0) { btn = btn + 'ComicVine</a></small>'}
                                 if ( row[0].indexOf('CX') >= 0) { btn = btn + 'ComiXology</a></small>'}
                             }
