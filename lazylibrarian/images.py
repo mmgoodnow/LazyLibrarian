@@ -80,7 +80,7 @@ def getBookCovers():
         counter = 0
         for book in books:
             bookid = book['BookID']
-            coverlink = getBookCover(bookid)
+            coverlink, _ = getBookCover(bookid)
             if coverlink and "nocover" not in coverlink:
                 controlValueDict = {"BookID": bookid}
                 newValueDict = {"BookImg": coverlink}
