@@ -130,7 +130,13 @@ def searchItem(comicid=None):
                     mode = 'magnet'
 
             # calculate match percentage - torrents might have words_with_underscore_separator
-            score = fuzz.token_set_ratio(searchterm, title.replace('_', ' '))
+            part_title = title.replace('_', ' ').split('(')[0]
+            # strip any trailing words that are just digits
+            while part_title and part_title[-1].isdigit():
+                part_title = part_title[:-1].strip()
+            searchmatch = searchterm.replace('+', ' ')
+            score = fuzz.token_set_ratio(searchmatch, part_title)
+
             # lose a point for each extra word in the title so we get the closest match
             words = len(getList(searchterm))
             words -= len(getList(title))
@@ -211,7 +217,7 @@ def search_comics(comicid=None):
             foundissues = {}
             for item in res:
                 match = None
-                if item['score'] >= 90:
+                if item['score'] >= 85:
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
                     elif comic['ComicID'].startswith('CX'):
@@ -223,8 +229,13 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                            logger.debug("No match (%s) want %s: %s" %
+                                         (match[3]['seriesid'], comicid, item['title']))
                         notfound += 1
                 else:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                        logger.debug("No match [%s%%] %s" % (item['score'], item['title']))
                     notfound += 1
 
             total = len(foundissues)

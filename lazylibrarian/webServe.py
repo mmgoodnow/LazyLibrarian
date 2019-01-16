@@ -3238,9 +3238,9 @@ class WebInterface(object):
 
         # or we may just have an id to find comic in comicissues table
         iss_data = myDB.select('SELECT * from comicissues WHERE ComicID=?', (comicid,))
-        if len(iss_data) <= 0:  # no issues!
-            raise cherrypy.HTTPRedirect("comics")
-        elif len(iss_data) == 1 and lazylibrarian.CONFIG['COMIC_SINGLE']:  # we only have one issue, get it
+        if len(iss_data) == 0:  # no issues!
+            iss_data = []
+        if len(iss_data) == 1 and lazylibrarian.CONFIG['COMIC_SINGLE']:  # we only have one issue, get it
             IssueID = iss_data[0]["IssueID"]
             IssueFile = iss_data[0]["IssueFile"]
             logger.debug('Opening %s - %s' % (comicid, IssueID))

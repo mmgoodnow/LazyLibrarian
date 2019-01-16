@@ -126,12 +126,12 @@
                         'class': 'text-left',
                         'render': function(data, type, row) {
                             btn = '<a href=\'openComic?comicid=' + row[0] + '\'">' + row[2] + '</a>'
-                            if ( row[8].length > 1) { btn = btn + ' (' + row[8] + ')' }
-                            if ( row[10].length > 1) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
+                            if ( row[8]) { btn = btn + ' (' + row[8] + ')' }
+                            if ( row[10]) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
                                 if ( row[0].indexOf('CV') >= 0) { btn = btn + 'ComicVine</a></small>'}
                                 if ( row[0].indexOf('CX') >= 0) { btn = btn + 'ComiXology</a></small>'}
                             }
-                            if ( row[9].length > 1) { btn = btn + '&nbsp;&nbsp;<i><small>' + row[9] + '</small></i> ' }
+                            if ( row[9]) { btn = btn + '&nbsp;&nbsp;<i><small>' + row[9] + '</small></i> ' }
                             return btn
                         ;} },
                     { targets: [3, 4, 5, 6],

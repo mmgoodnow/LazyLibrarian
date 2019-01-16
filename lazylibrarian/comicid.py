@@ -172,7 +172,7 @@ def cv_identify(fname, best=True):
                                 "last": last,
                                 "seriesid": "CV%s" % seriesid,
                                 "description": description,
-                                "searchterm": matchwords,
+                                "searchterm": matchwords.replace('+', ' '),
                                 "link": link
                                 })
             if paged and len(choices) < total:
@@ -330,7 +330,7 @@ def get_volumes_from_search(page_content):
                             "last": last,
                             "seriesid": "CV%s" % seriesid,
                             "description": description,
-                            "searchterm": matchwords,
+                            "searchterm": matchwords.replace('+', ' '),
                             "link": 'https://comicvine.gamespot.com' + href[0]
                             })
     return choices
@@ -446,7 +446,7 @@ def cx_identify(fname, best=True):
                 series_detail['start'] = start
                 series_detail['first'] = first
                 series_detail['last'] = last
-                series_detail['searchterm'] = matchwords
+                series_detail['searchterm'] = matchwords.replace('+', ' ')
                 series_detail['link'] = link
                 series_detail.pop('issues')
                 res.append(series_detail)
