@@ -539,7 +539,6 @@ def cx_identify(fname, best=True):
 def comic_metadata(archivename, xml=False):
     rarfile = None
     RarFile = None
-    targetdir = ''
     # noinspection PyBroadException
     try:
         from unrar import rarfile

@@ -99,6 +99,13 @@ def comicScan(comicid=None):
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:
                 if is_valid_booktype(fname, booktype='comic'):
+                    issue = ''
+                    start = ''
+                    first = ''
+                    last = ''
+                    publisher = ''
+                    searchterm = ''
+                    link = ''
                     res = comic_metadata(os.path.join(rootdir, fname))
                     if res:
                         title = res.get('Series')
@@ -109,8 +116,6 @@ def comicScan(comicid=None):
                         else:
                             publisher = res.get('Publisher')
                             start = res.get('Year')
-                            first = ''
-                            last = ''
                             searchterm = title
                             link = res.get('Web')
                             logger.debug("Metadata found %s (%s) Issue %s" % (title, comicid, issue))

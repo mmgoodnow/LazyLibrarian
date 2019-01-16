@@ -3251,7 +3251,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
-    def getComicIssues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
+    def getComicIssues(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0,
+                       sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
         filtered = []
         rowlist = []
