@@ -536,7 +536,7 @@ def cx_identify(fname, best=True):
     return []
 
 
-def comic_metadata(archivename):
+def comic_metadata(archivename, xml=False):
     rarfile = None
     RarFile = None
     targetdir = ''
@@ -575,6 +575,8 @@ def comic_metadata(archivename):
         namelist = z.namelist()
         for item in namelist:
             if item.endswith('ComicInfo.xml'):
+                if xml:
+                    return z.read(item)
                 return meta_dict(z.read(item))
 
     elif unrarlib == 1 and rarfile.is_rarfile(archivename):
@@ -589,6 +591,8 @@ def comic_metadata(archivename):
         namelist = z.namelist()
         for item in namelist:
             if item.endswith('ComicInfo.xml'):
+                if xml:
+                    return z.read(item)
                 return meta_dict(z.read(item))
 
     elif unrarlib == 2:
@@ -601,6 +605,8 @@ def comic_metadata(archivename):
             return ''
         data = rarc.read_files('ComicInfo.xml')
         if data:
+            if xml:
+                return data[0][1]
             return meta_dict(data[0][1])
     return {}
 
@@ -612,8 +618,11 @@ def meta_dict(data):
         res = rootxml.find(item)
         if res is not None:
             datadict[item] = res.text
-    if 'Web' in datadict and 'comicvine' in datadict['Web']:
-        datadict['ComicID'] = 'CV' + datadict['Web'].rsplit('-', 1)[-1].strip('/')
+    if 'Web' in datadict:
+        if 'comicvine' in datadict['Web']:
+            datadict['ComicID'] = 'CV' + datadict['Web'].rsplit('-', 1)[-1].strip('/')
+        elif 'comixology' in datadict['Web']:
+            datadict['ComicID'] = 'CX' + datadict['Web'].rsplit('/', 1)[-1]
     else:
         res = rootxml.find('Notes')
         if res is not None:
