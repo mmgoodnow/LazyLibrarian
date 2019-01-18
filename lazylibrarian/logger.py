@@ -10,16 +10,16 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import inspect
 import logging
 import os
+import sys
 import platform
 import threading
-import inspect
-from logging import handlers
-from lib.six import PY2
 
 import lazylibrarian
 from lazylibrarian import formatter
+from lib.six import PY2
 
 
 # Simple rotating log handler that uses RotatingFileHandler
@@ -35,6 +35,8 @@ class RotatingLogger(object):
         lg = logging.getLogger('lazylibrarian')
         lg.removeHandler(self.filehandler)
         lg.removeHandler(self.consolehandler)
+        self.filehandler = None
+        self.consolehandler = None
 
     def initLogger(self, loglevel=1):
 
@@ -43,7 +45,17 @@ class RotatingLogger(object):
 
         self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
 
-        filehandler = handlers.RotatingFileHandler(
+        # concurrentLogHandler/0.8.7 (to deal with windows locks)
+        # since this only happens on windows boxes, if it's nix/mac use the default logger.
+        if platform.system() != "Windows":
+            try:
+                from lib.ConcurrentLogHandler.cloghandler import ConcurrentRotatingFileHandler as RotatingFileHandler
+            except ImportError:
+                from logging.handlers import RotatingFileHandler
+        else:
+            from logging.handlers import RotatingFileHandler
+
+        filehandler = RotatingFileHandler(
             self.filename,
             maxBytes=lazylibrarian.CONFIG['LOGSIZE'],
             backupCount=lazylibrarian.CONFIG['LOGFILES'])
