@@ -47,7 +47,7 @@ class RotatingLogger(object):
 
         # concurrentLogHandler/0.8.7 (to deal with windows locks)
         # since this only happens on windows boxes, if it's nix/mac use the default logger.
-        if platform.system() != "Windows":
+        if platform.system() == "Windows":
             try:
                 from lib.ConcurrentLogHandler.cloghandler import ConcurrentRotatingFileHandler as RotatingFileHandler
             except ImportError:
