@@ -494,7 +494,8 @@ def IterateOverNewzNabSites(book=None, searchType=None):
 def IterateOverTorrentSites(book=None, searchType=None):
     resultslist = []
     providers = 0
-    if searchType != 'mag' and searchType != 'general':
+
+    if searchType not in ['mag', 'general', 'comic']:
         authorname, bookname = get_searchterm(book, searchType)
         book['searchterm'] = authorname + ' ' + bookname
 
@@ -543,7 +544,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
 def IterateOverDirectSites(book=None, searchType=None):
     resultslist = []
     providers = 0
-    if searchType != 'mag' and searchType != 'general':
+    if searchType not in ['mag', 'general', 'comic']:
         authorname, bookname = get_searchterm(book, searchType)
         book['searchterm'] = authorname + ' ' + bookname
 
