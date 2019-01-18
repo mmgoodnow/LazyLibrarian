@@ -53,7 +53,7 @@ def searchItem(comicid=None):
         return results
 
     cat = 'comic'
-    book = {'authorName': '', 'bookSub': '', 'bookid': comicid, 'bookName': match['Title']}
+    book = {'library': cat, 'bookid': comicid, 'bookName': match['Title']}
     searchterm = match['SearchTerm']
     if not searchterm:
         searchterm = match['Title']
