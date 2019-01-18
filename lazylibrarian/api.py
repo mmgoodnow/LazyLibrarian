@@ -502,7 +502,7 @@ class Api(object):
         for item in sys.modules:
             data = str(sys.modules[item]).replace('<', '').replace('>', '')
             for libname in ['apscheduler', 'bs4', 'deluge_client', 'feedparser', 'fuzzywuzzy', 'html5lib',
-                            'httplib2', 'mobi', 'oauth2', 'pynma', 'pythontwitter', 'requests', 'simplejson',
+                            'httplib2', 'mobi', 'oauth2', 'pynma', 'pythontwitter', 'requests',
                             'unrar', 'six', 'webencodings']:
                 if libname in data and 'dist-packages' in data:
                     lst.append("%s: %s" % (item, data))
