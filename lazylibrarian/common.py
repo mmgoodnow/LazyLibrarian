@@ -72,6 +72,69 @@ def getUserAgent():
         return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
 
 
+def multibook(foldername, recurse=False):
+    # Check for more than one book in the folder(tree). Note we can't rely on basename
+    # being the same, so just check for more than one bookfile of the same type
+    # Return which type we found multiples of, or empty string if no multiples
+    filetypes = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
+
+    if recurse:
+        for r, d, f in walk(foldername):
+            flist = [makeUnicode(item) for item in f]
+            for item in filetypes:
+                counter = 0
+                for fname in flist:
+                    if fname.endswith(item):
+                        counter += 1
+                        if counter > 1:
+                            return item
+    else:
+        flist = os.listdir(makeUTF8bytes(foldername)[0])
+        flist = [makeUnicode(item) for item in flist]
+        for item in filetypes:
+            counter = 0
+            for fname in flist:
+                if fname.endswith(item):
+                    counter += 1
+                    if counter > 1:
+                        return item
+    return ''
+
+
+def walk(top, topdown=True, onerror=None, followlinks=False):
+    """
+    duplicate of os.walk, except we do a forced decode to utf-8 bytes after listdir
+    """
+    islink, join, isdir = os.path.islink, os.path.join, os.path.isdir
+
+    try:
+        top = makeUTF8bytes(top)[0]
+        names = os.listdir(top)
+        # force non-ascii text out
+        names = [makeUTF8bytes(name)[0] for name in names]
+    except os.error, err:
+        if onerror is not None:
+            onerror(err)
+        return
+
+    dirs, nondirs = [], []
+    for name in names:
+        if isdir(join(top, name)):
+            dirs.append(name)
+        else:
+            nondirs.append(name)
+
+    if topdown:
+        yield top, dirs, nondirs
+    for name in dirs:
+        new_path = join(top, name)
+        if followlinks or not islink(new_path):
+            for x in walk(new_path, topdown, onerror, followlinks):
+                yield x
+    if not topdown:
+        yield top, dirs, nondirs
+
+
 def make_dirs(dest_path):
     """ os.makedirs only seems to set the right permission on the final leaf directory
         not any intermediate parents it creates on the way, so we'll try to do it ourselves

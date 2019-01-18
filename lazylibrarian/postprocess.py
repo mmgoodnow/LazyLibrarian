@@ -38,10 +38,9 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, runScript
+    safe_copy, safe_move, make_dirs, runScript, multibook
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
-    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, multibook, \
-    split_title, makeUTF8bytes
+    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan

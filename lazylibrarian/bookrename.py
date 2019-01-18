@@ -16,9 +16,9 @@ import string
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move
+from lazylibrarian.common import safe_move, multibook
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
-    makeUnicode, makeUTF8bytes, multibook
+    makeUnicode, makeUTF8bytes
 from lib.six import PY2
 
 try:

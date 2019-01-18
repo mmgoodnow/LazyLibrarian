@@ -36,8 +36,9 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, setperm, \
-    aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, zipAudio, runScript
+from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
+    setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
+    zipAudio, runScript, walk
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -2206,7 +2207,7 @@ class WebInterface(object):
                     start_utf, encoding = makeUTF8bytes(parentdir)
                     if encoding:
                         logger.debug("parentdir was %s" % encoding)
-                    for _, _, filenames in os.walk(start_utf):
+                    for _, _, filenames in walk(start_utf):
                         filenames = [makeUnicode(item) for item in filenames]
                         for filename in filenames:
                             if is_valid_booktype(filename, 'audiobook'):

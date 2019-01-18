@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setWorkPages
 from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file, any_file
+from lazylibrarian.common import opf_file, any_file, walk
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
     cleanName, replace_all, split_title, now, makeUnicode, makeUTF8bytes
 from lazylibrarian.gb import GoogleBooks
@@ -582,7 +582,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         start_utf, encoding = makeUTF8bytes(startdir)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
             logger.debug("startdir was %s" % encoding)
-        for rootdir, dirnames, filenames in os.walk(start_utf):
+        for rootdir, dirnames, filenames in walk(start_utf):
             for directory in dirnames:
                 # prevent magazine being scanned
                 if PY2:

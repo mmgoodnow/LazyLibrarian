@@ -28,7 +28,7 @@ except ImportError:
     import lib.requests as requests
 
 from lazylibrarian import logger, version
-from lazylibrarian.common import getUserAgent, proxyList
+from lazylibrarian.common import getUserAgent, proxyList, walk
 from lazylibrarian.formatter import check_int, makeUnicode
 
 
@@ -520,7 +520,7 @@ def update():
         content_dir = os.path.join(update_dir, update_dir_contents[0])
 
         # walk temp folder and move files to main folder
-        for rootdir, dirnames, filenames in os.walk(content_dir):
+        for rootdir, dirnames, filenames in walk(content_dir):
             rootdir = rootdir[len(content_dir) + 1:]
             for curfile in filenames:
                 old_path = os.path.join(content_dir, rootdir, curfile)
