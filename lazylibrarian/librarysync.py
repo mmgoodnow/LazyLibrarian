@@ -585,12 +585,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         for rootdir, dirnames, filenames in walk(start_utf):
             for directory in dirnames:
                 # prevent magazine being scanned
-                if PY2:
-                    c = directory[0]
-                    ignorefile = '.ll_ignore'
-                else:
-                    c = chr(directory[0])
-                    ignorefile = b'.ll_ignore'
+                c = directory[0]
+                ignorefile = '.ll_ignore'
                 if c in ["_", "."]:
                     logger.debug('Skipping %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)

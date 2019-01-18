@@ -112,7 +112,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         names = os.listdir(top)
         # force non-ascii text out
         names = [makeUTF8bytes(name)[0] for name in names]
-    except os.error, err:
+    except os.error as err:
         if onerror is not None:
             onerror(err)
         return
