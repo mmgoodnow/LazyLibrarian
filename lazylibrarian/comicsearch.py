@@ -172,7 +172,7 @@ def searchItem(comicid=None):
                             if word in words:
                                 score += 1
                 if not rejected:
-                    result = {'score': score, 'title': title, 'provider': provider, 'size': size, 'date': date,
+                    result = {'score': score, 'title': title, 'provider': provider, 'size': size_mb, 'date': date,
                               'url': url, 'mode': mode, 'bookid': comicid}
                     searchresults.append(result)
 
