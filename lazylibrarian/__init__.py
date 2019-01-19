@@ -68,6 +68,7 @@ started = False
 # Transients used by logger process
 LOGLIST = []
 LOGTOGGLE = 2  # normal debug
+LOGTYPE = ''
 
 # These are globals
 UPDATE_MSG = ''
@@ -686,8 +687,8 @@ def initialize():
 
         CONFIG['LOGLEVEL'] = LOGLEVEL
         logger.lazylibrarian_log.initLogger(loglevel=CONFIG['LOGLEVEL'])
-        logger.info("Log level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
-            CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], CFGLOGLEVEL))
+        logger.info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
+            LOGTYPE, CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], CFGLOGLEVEL))
         if CONFIG['LOGLEVEL'] > 2:
             logger.info("Screen Log set to EXTENDED DEBUG")
         elif CONFIG['LOGLEVEL'] == 2:
@@ -1732,7 +1733,7 @@ def shutdown(restart=False, update=False):
                     prg = "python2"
                 else:
                     prg = "python3"
-                if platform.system() == "Windows":
+                if 'windows' in platform.system().lower():
                     params = ["where", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
