@@ -213,7 +213,7 @@ def TPB(book=None, test=False):
 
     providerurl = url_fix(host + "/search/")
 
-    cat = 0  # 601=ebooks, 602=comics, 102=audiobooks, 0=all, no mag category
+    cat = 0  # 601=ebooks, 602=comics, 102=audiobooks, 0=all, no mag category so use 600=other
     if 'library' in book:
         if book['library'] == 'AudioBook':
             cat = 102
@@ -222,7 +222,7 @@ def TPB(book=None, test=False):
         elif book['library'] == 'comic':
             cat = 602
         elif book['library'] == 'magazine':
-            cat = 0
+            cat = 600
 
     sterm = makeUnicode(book['searchterm'])
 
