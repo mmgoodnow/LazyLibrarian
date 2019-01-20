@@ -401,18 +401,16 @@ def makeUTF8bytes(txt):
                 chx = chr(name[idx + 1])
             # Detect UTF-8
             if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
-                return txt, 'UTF-8'
+                return name, 'UTF-8'
         # Detect CP850
         if (ch >= '\x80') & (ch <= '\xA5'):
-            utf8Name = name.decode('cp850')
-            utf8Name = utf8Name.encode('utf-8')
-            return utf8Name, 'CP850'
+            name = name.decode('cp850')
+            return name.encode('utf-8'), 'CP850'
         # Detect ISO-8859-15
         if (ch >= '\xA6') & (ch <= '\xFF'):
-            utf8Name = name.decode('iso-8859-15')
-            utf8Name = utf8Name.encode('utf-8')
-            return utf8Name, 'ISO-8859-15'
-    return txt, ''
+            name = name.decode('iso-8859-15')
+            return name.encode('utf-8'), 'ISO-8859-15'
+    return name, ''
 
 
 def makeUnicode(txt):
