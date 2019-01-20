@@ -21,7 +21,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import restartJobs, pwd_generator
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8, getList
+from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8, getList, check_int
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
 from lazylibrarian.bookwork import setGenres
@@ -97,8 +97,9 @@ def upgrade_needed():
     # 48 ensure magazine table schema is current
     # 49 ensure author table schema is current
     # 50 add comics and comicissues tables
+    # 51 add aka to comics table
 
-    db_current_version = 50
+    db_current_version = 51
 
     if db_version < db_current_version:
         return db_current_version
@@ -180,7 +181,7 @@ def dbupgrade(db_current_version):
                     myDB.action('CREATE TABLE comics (ComicID TEXT UNIQUE, Title TEXT, Status TEXT, ' +
                                 'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
                                 'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
-                                'Publisher TEXT, Link TEXT)')
+                                'Publisher TEXT, Link TEXT, aka TEXT)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -301,7 +302,7 @@ def check_db(myDB):
         cnt = 1
     try:
         # replace faulty/html language results with Unknown
-        filt = 'BookLang is NULL or instr(BookLang, "<") or instr(BookLang, "invalid")'
+        filt = 'BookLang is NULL or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
         cmd = 'SELECT count(*) as counter from books WHERE ' + filt
         res = myDB.match(cmd)
         tot = res['counter']
@@ -384,13 +385,22 @@ def check_db(myDB):
                     myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove series with no members
-        series = myDB.select('SELECT SeriesID FROM series WHERE Total=0')
+        series = myDB.select('SELECT SeriesID,SeriesName FROM series WHERE Total=0')
         if series:
-            cnt += len(series)
-            msg = 'Removing %s series with no members' % len(series)
-            logger.warn(msg)
-            for item in series:
-                myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
+            for ser in series:  # check we haven't mis-counted
+                res = myDB.match('select count(*) as counter from member where seriesid=?', (ser['SeriesID'],))
+                if res:
+                    counter = check_int(res['counter'], 0)
+                    if counter:
+                        myDB.action("UPDATE series SET Total=? WHERE SeriesID=?", (counter, ser['SeriesID']))
+            series = myDB.select('SELECT SeriesID,SeriesName FROM series WHERE Total=0')
+            if series:
+                cnt += len(series)
+                msg = 'Removing %s series with no members' % len(series)
+                logger.warn(msg)
+                for item in series:
+                    print(item['SeriesID'],item['SeriesName'])
+                    #myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
 
         # check if genre exclusions/translations have altered
         if lazylibrarian.GRGENRES:
@@ -1490,3 +1500,12 @@ def db_v50(myDB, upgradelog):
         else:
             myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
                         'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
+
+def db_v51(myDB, upgradelog):
+    if not has_column(myDB, "comics", "aka"):
+        lazylibrarian.UPDATE_MSG = 'Adding aka to comics table'
+        upgradelog.write("%s v51: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE comics ADD COLUMN aka TEXT')
+    upgradelog.write("%s v51: complete\n" % time.ctime())
+
+
