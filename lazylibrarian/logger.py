@@ -47,7 +47,7 @@ class RotatingLogger(object):
 
         # concurrentLogHandler/0.8.7 (to deal with windows locks)
         # since this only happens on windows boxes, if it's nix/mac use the default logger.
-        if 'windows' in platform.system().lower():
+        if '**disabled**windows' in platform.system().lower():
             try:
                 from lib.ConcurrentLogHandler.cloghandler import ConcurrentRotatingFileHandler as RotatingFileHandler
                 lazylibrarian.LOGTYPE = 'Concurrent'
