@@ -198,7 +198,7 @@ def search_comics(comicid=None):
                 threading.currentThread().name = "SEARCHCOMIC"
 
         myDB = database.DBConnection()
-        cmd = "SELECT ComicID,Title from comics WHERE Status='Active'"
+        cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         count = 0
         if comicid:
             # single comic search
@@ -211,10 +211,14 @@ def search_comics(comicid=None):
 
         for comic in comics:
             comicid = comic['ComicID']
-            res = searchItem(comicid)
+            aka = getList(comic['aka'])
+            id_list = comicid
+            if len(aka):
+                id_list = id_list + ', ' + ', '.join(aka)
             found = 0
             notfound = 0
             foundissues = {}
+            res = searchItem(comicid)
             for item in res:
                 match = None
                 if item['score'] >= 85:
@@ -223,7 +227,7 @@ def search_comics(comicid=None):
                     elif comic['ComicID'].startswith('CX'):
                         match = cx_identify(item['title'])
                 if match:
-                    if match[3]['seriesid'] == comicid:
+                    if match[3]['seriesid'] == comicid or match[3]['seriesid'] in aka:
                         found += 1
                         if match[4]:
                             if match[4] not in foundissues:
@@ -231,7 +235,7 @@ def search_comics(comicid=None):
                     else:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
                             logger.debug("No match (%s) want %s: %s" %
-                                         (match[3]['seriesid'], comicid, item['title']))
+                                         (match[3]['seriesid'], id_list, item['title']))
                         notfound += 1
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:

@@ -107,6 +107,8 @@ def comicScan(comicid=None):
                     publisher = ''
                     searchterm = ''
                     link = ''
+                    comicid = ''
+                    aka = []
                     res = comic_metadata(os.path.join(rootdir, fname))
                     if res:
                         title = res.get('Series')
@@ -120,21 +122,23 @@ def comicScan(comicid=None):
                             searchterm = title
                             link = res.get('Web')
                             logger.debug("Metadata found %s (%s) Issue %s" % (title, comicid, issue))
+
+                    res = cv_identify(fname)
                     if not res:
-                        res = cv_identify(fname)
-                        if not res:
-                            res = cx_identify(fname)
-                        if res:
-                            issue = str(res[4])
-                            title = res[3]['title']
-                            comicid = res[3]['seriesid']
-                            publisher = res[3]['publisher']
-                            start = res[3]['start']
-                            first = res[3]['first']
-                            last = res[3]['last']
-                            searchterm = res[3]['searchterm']
-                            link = res[3]['link']
-                            logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
+                        res = cx_identify(fname)
+                    if res:
+                        if comicid and comicid != res[3]['seriesid']:
+                            aka = [comicid]
+                        comicid = res[3]['seriesid']
+                        issue = str(res[4])
+                        title = res[3]['title']
+                        publisher = res[3]['publisher']
+                        start = res[3]['start']
+                        first = res[3]['first']
+                        last = res[3]['last']
+                        searchterm = res[3]['searchterm']
+                        link = res[3]['link']
+                        logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
                     if res:
                         controlValueDict = {"ComicID": comicid}
 
@@ -156,7 +160,8 @@ def comicScan(comicid=None):
                                 "Last": last,
                                 "Publisher": publisher,
                                 "SearchTerm": searchterm,
-                                "Link": link
+                                "Link": link,
+                                "aka": ', '.join(aka)
                             }
                             logger.debug("Adding comic %s (%s)" % (title, comicid))
                             myDB.upsert("comics", newValueDict, controlValueDict)
