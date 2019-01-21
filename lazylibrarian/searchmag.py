@@ -91,7 +91,8 @@ def search_magazines(mags=None, reset=False):
                 if PY2:
                     searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
 
-            searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype, "library": 'mag'})
+            searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype,
+                               "library": 'magazine'})
 
         if not searchlist:
             logger.warn('There is nothing to search for.  Mark some magazines as active.')
