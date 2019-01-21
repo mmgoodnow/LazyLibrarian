@@ -331,7 +331,7 @@ def get_volumes_from_search(page_content):
                             "seriesid": "CV%s" % seriesid,
                             "description": description,
                             "searchterm": matchwords.replace('+', ' '),
-                            "link": 'https://comicvine.gamespot.com' + href[0]
+                            "link": 'https://comicvine.gamespot.com' + href
                             })
     return choices
 
