@@ -147,7 +147,7 @@ def cv_identify(fname, best=True):
                     publisher = publisher['name']
                 else:
                     publisher = ''
-                start = item['start_year']
+                start = item.get('start_year', '')
                 link = item['site_detail_url'].replace('\\', '')
                 count = item['count_of_issues']
                 first = item.get('first_issue', 0)
@@ -185,7 +185,7 @@ def cv_identify(fname, best=True):
         return choices
 
     if choices:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('Found %i possible for %s' % (len(choices), fname))
         results = []
         year = 0
@@ -207,7 +207,7 @@ def cv_identify(fname, best=True):
                 else:
                     noise += 1
 
-            if year and item["start"] > year:  # series not started yet
+            if year and check_int(item["start"], 0) > year:  # series not started yet
                 rejected = True
 
             issue = getIssueNum(words, namewords)
@@ -228,22 +228,24 @@ def cv_identify(fname, best=True):
         return results[0]
 
     if not lazylibrarian.CONFIG['CV_WEBSEARCH']:
-        logger.warn('No match for %s' % fname)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug('No match for %s' % fname)
         return []
 
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
         logger.debug('No api match for %s, trying websearch' % fname)
     # fortunately comicvine sorts the resuts and gives us "best match first"
     # so we only scrape the first page (could add &page=2)
     url = 'https://comicvine.gamespot.com/search/?i=volume&q=%s' % matchwords
     data, in_cache = html_request(url)
     if not data:
-        logger.warn('No match for %s' % fname)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug('No match for %s' % fname)
         return []
 
     choices = get_volumes_from_search(data)
     if choices:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('Found %i possible for %s' % (len(choices), fname))
         results = []
         year = 0
@@ -283,7 +285,8 @@ def cv_identify(fname, best=True):
     if results:
         return results[0]
 
-    logger.warn('No match for %s' % fname)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+        logger.debug('No match for %s' % fname)
     return []
 
 
@@ -389,7 +392,8 @@ def cx_identify(fname, best=True):
     data, in_cache = html_request(url)
 
     if not data:
-        logger.warn('No match for %s' % fname)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug('No match for %s' % fname)
         return []
 
     series_links = get_series_links_from_search(data)
@@ -456,7 +460,7 @@ def cx_identify(fname, best=True):
 
     choices = []
     if res:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('Found %i possible for %s' % (len(res), fname))
         year = 0
         # do we have a year to narrow it down
@@ -488,24 +492,24 @@ def cx_identify(fname, best=True):
             for w in nameWords(item['title']):
                 if w in words:
                     if check_year(w):
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                             logger.debug('Match %s year %s' % (item['title'], year))
                     else:
                         wordcount += 1
                 else:
                     if check_year(w):
                         if y1 and y2 and int(y1) <= int(year) <= int(y2):
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug('Match %s (%s is between %s-%s)' % (item['title'], year, y1, y2))
                             rejected = False
                             break
                         elif y1 and not y2 and int(year) >= int(y1):
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug('Accept %s (%s is in %s-)' % (item['title'], year, y1))
                             rejected = False
                             break
                         else:
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug('Rejecting %s, need %s' % (item['title'], year))
                             rejected = True
                             noise += 1
@@ -523,7 +527,7 @@ def cx_identify(fname, best=True):
 
             if not rejected and wordcount >= minmatch:
                 if (missing + noise)/2 >= wordcount:
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                         logger.debug("Rejecting %s (noise %s)" % (item['title'], missing + noise))
                 else:
                     choices.append([wordcount, noise, missing, item, issue])
@@ -532,7 +536,8 @@ def cx_identify(fname, best=True):
             choices = sorted(choices, key=lambda x: (-x[0], x[1]))
             return choices[0]
 
-    logger.warn('No match for %s' % fname)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+        logger.debug('No match for %s' % fname)
     return []
 
 
@@ -563,7 +568,7 @@ def comic_metadata(archivename, xml=False):
         return {}
 
     if zipfile.is_zipfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('%s is a zip file' % archivename)
         try:
             z = zipfile.ZipFile(archivename)
@@ -579,7 +584,7 @@ def comic_metadata(archivename, xml=False):
                 return meta_dict(z.read(item))
 
     elif unrarlib == 1 and rarfile.is_rarfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('%s is a rar file' % archivename)
         try:
             z = rarfile.RarFile(archivename)
@@ -598,7 +603,7 @@ def comic_metadata(archivename, xml=False):
         # noinspection PyBroadException
         try:
             rarc = RarFile(archivename)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                 logger.debug('%s is a rar file' % archivename)
         except Exception:
             return ''
