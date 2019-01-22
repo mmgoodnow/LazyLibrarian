@@ -233,12 +233,12 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                             logger.debug("No match (%s) want %s: %s" %
                                          (match[3]['seriesid'], id_list, item['title']))
                         notfound += 1
                 else:
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                         logger.debug("No match [%s%%] %s" % (item['score'], item['title']))
                     notfound += 1
 
@@ -260,7 +260,7 @@ def search_comics(comicid=None):
                 match = myDB.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
                                    (item['title'], item['provider']))
                 if match:
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                         logger.debug('%s is already marked %s' % (item['title'], match['Status']))
                 else:
                     bookid = "%s_%s" % (item['bookid'], issue)

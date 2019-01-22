@@ -111,8 +111,8 @@ GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}
 
 # extended loglevels
-log_magdates = 1 << 2  # 4 magazine date matching
-log_searchmag = 1 << 3  # 8 extra searchmag logging
+log_matching = 1 << 2  # 4 magazine/comic date/name matching
+log_searching = 1 << 3  # 8 extra search logging
 log_dlcomms = 1 << 4  # 16 detailed downloader communication
 log_dbcomms = 1 << 5  # 32 database comms
 log_postprocess = 1 << 6  # 64 detailed postprocessing
@@ -469,7 +469,7 @@ CONFIG_DEFINITIONS = {
     'EBOOK_DEST_FILE': ('str', 'PostProcess', '$Title - $Author'),
     'AUDIOBOOK_DEST_FILE': ('str', 'PostProcess', '$Author - $Title Part $Part of $Total'),
     'ONE_FORMAT': ('bool', 'PostProcess', 0),
-    'COMIC_DEST_FOLDER': ('str', 'PostProcess', '_Comics/$Title/$IssueDate'),
+    'COMIC_DEST_FOLDER': ('str', 'PostProcess', '_Comics/$Title/$Issue'),
     'COMIC_RELATIVE': ('bool', 'PostProcess', 1),
     'COMIC_DELFOLDER': ('bool', 'PostProcess', 1),
     'COMIC_TYPE': ('str', 'General', 'cbr, cbz'),

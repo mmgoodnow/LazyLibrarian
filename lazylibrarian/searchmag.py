@@ -286,7 +286,7 @@ def search_magazines(mags=None, reset=False):
                             lower_title = unaccented(nzbtitle_formatted).lower()
                             lower_bookid = unaccented(bookid).lower()
                             if reject_list:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('Reject: %s' % str(reject_list))
                                     logger.debug('Title: %s' % lower_title)
                                     logger.debug('Bookid: %s' % lower_bookid)
@@ -414,14 +414,14 @@ def search_magazines(mags=None, reset=False):
                                     logger.debug('This issue of %s is new, downloading' % nzbtitle_formatted)
                                     issues.append(issue)
                                     logger.debug('Magazine request number %s' % len(issues))
-                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                         logger.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
                                     logger.debug('This issue of %s is already flagged for download' % issue)
                             else:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
                                 old_date += 1
 
@@ -433,7 +433,7 @@ def search_magazines(mags=None, reset=False):
                             mag_entry = myDB.match('SELECT Status from %s WHERE NZBtitle=? and NZBprov=?' %
                                                    insert_table, (nzbtitle, nzbprov))
                             if mag_entry:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('%s is already in %s marked %s' %
                                                  (nzbtitle, insert_table, mag_entry['Status']))
                             else:
@@ -461,7 +461,7 @@ def search_magazines(mags=None, reset=False):
                                     "NZBmode": nzbmode
                                 }
                                 myDB.upsert(insert_table, newValueDict, controlValueDict)
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searchmag:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('Added %s to %s marked %s' % (nzbtitle, insert_table, insert_status))
 
                 msg = 'Found %i result%s for %s. %i new,' % (total_nzbs, plural(total_nzbs), bookid, new_date)

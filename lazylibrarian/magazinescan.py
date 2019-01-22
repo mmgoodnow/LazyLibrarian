@@ -110,7 +110,7 @@ def magazineScan(title=None):
         # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
         # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
         start_utf, encoding = makeUTF8bytes(mag_path)
-        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug("mag_path was %s" % encoding)
         for rootdir, dirnames, filenames in walk(start_utf):
             rootdir = makeUnicode(rootdir)
@@ -125,7 +125,7 @@ def magazineScan(title=None):
                         if match:
                             title = match.group("title")
                             issuedate = match.group("issuedate")
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("Title pattern [%s][%s]" % (title, issuedate))
                             match = True
                         else:
@@ -140,7 +140,7 @@ def magazineScan(title=None):
                             if match:
                                 issuedate = match.group("issuedate")
                                 title = os.path.basename(rootdir)
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                     logger.debug("Date pattern [%s][%s]" % (title, issuedate))
                                 match = True
                             else:
@@ -157,7 +157,7 @@ def magazineScan(title=None):
                     if issuedate:
                         exploded = replace_all(issuedate, dic).split()
                         regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded)
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                             logger.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                         if not regex_pass:
                             issuedate = ''
@@ -165,7 +165,7 @@ def magazineScan(title=None):
                     if not issuedate:
                         exploded = replace_all(fname, dic).split()
                         regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded)
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_magdates:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                             logger.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                         if not regex_pass:
                             issuedate = ''
