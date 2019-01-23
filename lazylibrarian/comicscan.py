@@ -114,9 +114,7 @@ def comicScan(comicid=None):
                         title = res.get('Series')
                         issue = str(check_int(res.get('Number'), 0))
                         comicid = res.get('ComicID')
-                        if not title or not issue or not comicid:
-                            res = None
-                        else:
+                        if title and issue and comicid:
                             publisher = res.get('Publisher')
                             start = res.get('Year')
                             searchterm = title
@@ -145,7 +143,7 @@ def comicScan(comicid=None):
                         # is this comic already in the database?
                         mag_entry = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
                         if not mag_entry:
-                            # need to add a new magazine to the database
+                            # need to add a new comic to the database
                             newValueDict = {
                                 "Title": title,
                                 "Status": "Active",
