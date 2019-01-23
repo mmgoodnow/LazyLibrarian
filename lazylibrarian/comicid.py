@@ -207,7 +207,7 @@ def cv_identify(fname, best=True):
                 else:
                     noise += 1
 
-            if year and check_int(item["start"], 0) > year:  # series not started yet
+            if year and item['start'] and item["start"] > year:  # series not started yet
                 rejected = True
 
             issue = getIssueNum(words, namewords)
