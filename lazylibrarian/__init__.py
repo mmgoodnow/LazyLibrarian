@@ -1352,13 +1352,13 @@ def DIRECTORY(dirname):
                 f.write('test')
             os.remove(os.path.join(usedir, 'll_temp'))
         except Exception as why:
-            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, usedir, DATADIR, str(why)))
+            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
             logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
                          oct(os.stat(usedir).st_mode), os.stat(usedir).st_uid, os.stat(usedir).st_gid,
                          os.access(usedir, os.W_OK), os.access(usedir, os.X_OK)))
             usedir = DATADIR
     else:
-        logger.warn("%s dir [%s] not found, using %s" % (dirname, usedir, DATADIR))
+        logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
         usedir = DATADIR
 
     # return directory as unicode so we get unicode results from listdir
