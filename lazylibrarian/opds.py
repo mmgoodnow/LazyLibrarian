@@ -28,7 +28,7 @@ from lazylibrarian.common import mimeType, zipAudio
 from lazylibrarian.cache import cache_img
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus, urlsplit
-from lib.six import string_types
+from lib.six import text_type, string_types
 
 
 searchable = ['Authors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
@@ -43,7 +43,7 @@ class OPDS(object):
     def __init__(self):
         self.cmd = None
         self.img = None
-        self.file = None
+        self.filepath = None
         self.filename = None
         self.kwargs = None
         self.data = None
@@ -121,9 +121,9 @@ class OPDS(object):
             _ = methodToCall(**self.kwargs)
             if self.img:
                 return serve_file(self.img, content_type='image/jpeg')
-            if self.file and self.filename:
-                logger.debug('Downloading %s: %s' % (self.filename, self.file))
-                return serve_file(self.file, mimeType(self.filename), 'attachment', name=self.filename)
+            if self.filepath and self.filename:
+                logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
+                return serve_file(self.filepath, mimeType(self.filename), 'attachment', name=self.filename)
             if isinstance(self.data, string_types):
                 return self.data
             else:
@@ -136,7 +136,9 @@ class OPDS(object):
     def multiLink(self, bookfile, bookid):
         types = []
         multi = ''
-        basename, extn = os.path.splitext(bookfile)
+        basename, _ = os.path.splitext(bookfile)
+        if not isinstance(basename, text_type):
+            basename = basename.decode('utf-8')
         for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
             target = basename + '.' + item
             if os.path.isfile(target):
@@ -1526,14 +1528,14 @@ class OPDS(object):
             bookfile = res['BookFile']
             if fmt:
                 bookfile = os.path.splitext(bookfile)[0] + '.' + fmt
-            self.file = bookfile
+            self.filepath = bookfile
             self.filename = os.path.split(bookfile)[1]
             return
         elif 'issueid' in kwargs:
             myid = kwargs['issueid']
             myDB = database.DBConnection()
             res = myDB.match('SELECT IssueFile from issues where issueid=?', (myid,))
-            self.file = res['IssueFile']
+            self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
         elif 'comicissueid' in kwargs:
@@ -1545,7 +1547,7 @@ class OPDS(object):
                 return
             res = myDB.match('SELECT IssueFile from comicissues where comicid=? and issueid=?',
                              (comicid, issueid))
-            self.file = res['IssueFile']
+            self.filepath = res['IssueFile']
             self.filename = os.path.split(res['IssueFile'])[1]
             return
         elif 'audioid' in kwargs:
@@ -1556,7 +1558,7 @@ class OPDS(object):
             # zip up all the audiobook parts
             if basefile and os.path.isfile(basefile):
                 target = zipAudio(os.path.dirname(basefile), res['BookName'])
-                self.file = target
+                self.filepath = target
                 self.filename = res['BookName'] + '.zip'
             return
 
