@@ -519,7 +519,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         logger.debug('Unable to create cover for %s, no extension?' % issuefile)
         return 'failed'
 
-    coverfile = base + b'.jpg'
+    coverfile = base + '.jpg'
 
     if os.path.isfile(coverfile):
         if refresh:
