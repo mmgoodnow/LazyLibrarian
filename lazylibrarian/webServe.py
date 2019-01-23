@@ -3085,7 +3085,7 @@ class WebInterface(object):
             if len(rowlist):
                 for mag in rowlist:
                     magimg = mag['LatestCover']
-                    if not lazylibrarian.CONFIG['IMP_COMICCOVER'] or not magimg or not os.path.isfile(magimg):
+                    if not magimg or not os.path.isfile(magimg):
                         magimg = 'images/nocover.jpg'
                     else:
                         myhash = md5_utf8(magimg)
