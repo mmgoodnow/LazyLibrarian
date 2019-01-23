@@ -30,13 +30,13 @@ from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_str, is_valid_isbn, \
-    getList, cleanName, makeUnicode
+    getList, cleanName, makeUnicode, makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
-from lib.six import PY2
+
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
 
@@ -91,21 +91,16 @@ class GoogleBooks:
                 elif api_value == 'intitle:':
                     searchterm = fullterm
                     if title:  # just search for title
-                        # noinspection PyUnresolvedReferences
                         title = title.split(' (')[0]  # without any series info
                         searchterm = title
                     searchterm = searchterm.replace("'", "").replace('"', '').strip()  # and no quotes
-                    if PY2:
-                        searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
-                    set_url = set_url + quote(api_value + '"' + searchterm + '"')
+                    set_url = set_url + quote(makeUTF8bytes(api_value + '"' + searchterm + '"')[0])
                 elif api_value == 'inauthor:':
                     searchterm = fullterm
                     if authorname:
                         searchterm = authorname  # just search for author
                     searchterm = searchterm.strip()
-                    if PY2:
-                        searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
-                    set_url = set_url + quote_plus(api_value + '"' + searchterm + '"')
+                    set_url = set_url + quote_plus(makeUTF8bytes(api_value + '"' + searchterm + '"')[0])
 
                 startindex = 0
                 resultcount = 0

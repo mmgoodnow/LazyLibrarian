@@ -29,12 +29,12 @@ from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, bookSeries, unaccented, split_title, getList, \
-    cleanName, is_valid_isbn, formatAuthorName, check_int, makeUnicode, check_year, check_float
+    cleanName, is_valid_isbn, formatAuthorName, check_int, makeUnicode, check_year, check_float, makeUTF8bytes
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
-from lib.six import PY2
+
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
 
@@ -61,12 +61,10 @@ class GoodReads:
                 searchtitle, searchauthorname = searchterm.split(' <ll> ')
                 searchterm = searchterm.replace(' <ll> ', ' ')
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
-            if PY2:
-                searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
-            url = quote_plus(searchterm)
+
+            url = quote_plus(makeUTF8bytes(searchterm)[0])
             set_url = 'https://www.goodreads.com/search.xml?q=' + url + '&' + urlencode(self.params)
             logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
-            # logger.debug('Searching for %s at: %s' % (searchterm, set_url))
 
             resultcount = 0
             try:
@@ -237,6 +235,7 @@ class GoodReads:
                     logger.warn('Access to api is denied 403: usage exceeded')
                 else:
                     logger.error('An unexpected error has occurred when searching for an author: %s' % str(err))
+                    logger.error('in GR.find_results: %s' % traceback.format_exc())
 
             logger.debug('Found %s result%s with keyword: %s' % (resultcount, plural(resultcount), searchterm))
             logger.debug(
