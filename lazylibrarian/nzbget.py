@@ -27,6 +27,7 @@ from lazylibrarian import logger
 from lazylibrarian.formatter import check_int
 # noinspection PyUnresolvedReferences
 from lib.six.moves import xmlrpc_client, http_client
+from lib.six.moves.urllib_parse import quote
 
 
 def checkLink():
@@ -68,9 +69,10 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         host = host[:-1]
     hostparts = host.split('://')
 
-    url = hostparts[0] + '://' + nzbgetXMLrpc % {"host": hostparts[1], "username": lazylibrarian.CONFIG['NZBGET_USER'],
+    url = hostparts[0] + '://' + nzbgetXMLrpc % {"host": hostparts[1],
+                                                 "username": quote(lazylibrarian.CONFIG['NZBGET_USER']),
                                                  "port": port,
-                                                 "password": lazylibrarian.CONFIG['NZBGET_PASS']}
+                                                 "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'])}
     try:
         nzbGetRPC = xmlrpc_client.ServerProxy(url)
     except Exception as e:
