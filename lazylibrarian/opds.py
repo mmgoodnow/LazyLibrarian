@@ -118,18 +118,21 @@ class OPDS(object):
                 else:
                     self.cmd = 'RecentBooks'
             methodToCall = getattr(self, "_" + self.cmd)
-            _ = methodToCall(**self.kwargs)
-            if self.img:
-                return serve_file(self.img, content_type='image/jpeg')
-            if self.filepath and self.filename:
-                logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
-                return serve_file(self.filepath, mimeType(self.filename), 'attachment', name=self.filename)
-            if isinstance(self.data, string_types):
-                return self.data
-            else:
-                cherrypy.response.headers['Content-Type'] = "text/xml"
-                return lazylibrarian.webServe.serve_template(templatename="opds.html",
-                                                             title=self.data['title'], opds=self.data)
+            try:
+                _ = methodToCall(**self.kwargs)
+                if self.img:
+                    return serve_file(self.img, content_type='image/jpeg')
+                if self.filepath and self.filename:
+                    logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
+                    return serve_file(self.filepath, mimeType(self.filename), 'attachment', name=self.filename)
+                if isinstance(self.data, string_types):
+                    return self.data
+                else:
+                    cherrypy.response.headers['Content-Type'] = "text/xml"
+                    return lazylibrarian.webServe.serve_template(templatename="opds.html",
+                                                                 title=self.data['title'], opds=self.data)
+            except Exception as e:
+                logger.error("Unhandled OPDS %s error: %s" % (cmd, e))
         else:
             return self.data
 
