@@ -50,12 +50,16 @@ except ImportError:
 def getIssueNum(words, skipped):
     # try to extract issue number from a list of words if not in skipped list
     # this is so we can tell 007 in "james bond 007" is not an issue number
+    # Allow floats as issue could be #0.5
     for word in words:
         if word.startswith('#') and len(word) > 1:
             try:
                 return int(word[1:])
             except ValueError:
-                pass
+                try:
+                    return float(word[1:])
+                except ValueError:
+                    pass
 
     for l in (3, 2, 1):
         for word in words:
@@ -63,7 +67,10 @@ def getIssueNum(words, skipped):
                 try:
                     return int(word)
                 except ValueError:
-                    pass
+                    try:
+                        return float(word)
+                    except ValueError:
+                        pass
     return ''
 
 
@@ -95,15 +102,13 @@ def nameWords(name):
 
 def titleWords(words):
     titlewords = []
-    # Extract title from filename by skipping leading numbers
-    # and stopping when we reach the next number (volume, issue, year)
+    skipwords = ['volume', 'vol', 'issue']
+    # Extract title from filename
+    # stopping when we reach the next number (volume, issue, year)
     for word in words:
-        if not titlewords:
-            if not word[-1].isdigit():
-                titlewords.append(word)
-        elif word[-1].isdigit():
-            break
-        elif len(word) > 1:
+        if word not in skipwords and len(word) > 1:
+            if titlewords and (word[-1].isdigit() and word[0] != 'v'):
+                break
             titlewords.append(word)
     return titlewords
 
