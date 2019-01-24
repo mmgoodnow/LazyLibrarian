@@ -170,6 +170,7 @@ def main():
                         except Exception as e:
                             sys.stderr.write("%s\n" % e)
                             pplog.write("%s: %s\n" % (time.ctime(), e))
+                            pplog.write(repr(params))
                             exit(1)
                     else:
                         pplog.write("Found %s\n" % ftype)
@@ -367,6 +368,7 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
+                    pplog.write(repr(params))
                     exit(1)
 
                 params = [ffmpeg]
@@ -386,6 +388,7 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
+                    pplog.write(repr(params))
                     exit(1)
 
                 msg = "%d files merged into %s" % (len(parts), outfile)
