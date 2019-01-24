@@ -20,6 +20,8 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request
 from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode
+from lib.six.moves.urllib_parse import quote
+
 
 try:
     import urllib3
@@ -68,9 +70,11 @@ def getIssueNum(words, skipped):
 def nameWords(name):
     # sanitize for better matching
     # strip all ascii and non-ascii quotes/apostrophes
-    dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
-    name = replace_all(name, dic)
-    regex = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '')))  # allow #num
+    stripchars = u'\u2018\u2019\u201c\u201d"\''
+    # allow #num and word! or word?
+    punct = string.punctuation.replace('#', '').replace('!', '').replace('?', '')
+    punct += stripchars
+    regex = re.compile('[%s]' % re.escape(punct))
     name = regex.sub(' ', name)
     tempwords = name.lower().split()
     # merge initials together into one "word" for matching
@@ -110,6 +114,7 @@ def cv_identify(fname, best=True):
         logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
         return []
 
+    fname = makeUnicode(fname)
     words = nameWords(fname)
     titlewords = titleWords(words)
     minmatch = 1
@@ -130,7 +135,7 @@ def cv_identify(fname, best=True):
             off = ''
 
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (matchwords, off)
+        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote(matchwords), off)
         res, in_cache = gb_json_request(url)
 
         if not res:
@@ -196,15 +201,14 @@ def cv_identify(fname, best=True):
                 break
 
         for item in choices:
-            wordcount = 0
+            present = 0
             noise = 0
+            missing = 0
             rejected = False
             namewords = nameWords(item['title'])
 
             for w in namewords:
-                if w in words:
-                    wordcount += 1
-                else:
+                if w not in words:
                     noise += 1
 
             if year and item['start'] and item["start"] > year:  # series not started yet
@@ -214,15 +218,16 @@ def cv_identify(fname, best=True):
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
                 rejected = True
 
-            missing = 0
             for w in titlewords:
                 if w not in nameWords(item['title']):
                     missing += 1
+                else:
+                    present += 1
 
-            if not rejected and wordcount >= minmatch:
-                results.append([wordcount, noise, missing, item, issue])
+            if not rejected and present >= minmatch:
+                results.append([present, noise, missing, item, issue])
 
-        results = sorted(results, key=lambda x: (-x[0], -(check_int(x[3]["start"], 0)), x[1]))
+        results = sorted(results, key=lambda x: (-x[0], x[1], -(check_int(x[3]["start"], 0))))
 
     if results:
         return results[0]
@@ -381,6 +386,7 @@ def get_series_detail_from_search(page_content):
 
 def cx_identify(fname, best=True):
     res = []
+    fname = makeUnicode(fname)
     words = nameWords(fname)
     titlewords = titleWords(words)
     minmatch = 1
