@@ -1947,7 +1947,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             book_basename = os.path.join(dest_path, global_name)
             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
             for book_type in booktype_list:
-                preferred_type = "%s.%s" % (book_basename, book_type)
+                preferred_type = "%s.%s" % (makeUnicode(book_basename), book_type)
                 if os.path.exists(preferred_type):
                     logger.debug("Link to preferred type %s, %s" % (book_type, preferred_type))
                     firstfile = preferred_type
