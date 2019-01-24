@@ -23,7 +23,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import plural, now, unaccented_str, replace_all, unaccented, \
-    nzbdate2format, getList, month2num, datecompare, check_int, check_year
+    nzbdate2format, getList, month2num, datecompare, check_int, check_year, age
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
     IterateOverDirectSites
@@ -350,7 +350,7 @@ def search_magazines(mags=None, reset=False):
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
                                         start_time -= int(
-                                            lazylibrarian.CONFIG['MAG_AGE']) * 24 * 60 * 60  # number of seconds in days
+                                            lazylibrarian.CONFIG['MAG_AGE']) * 24 * 60 * 60  # number of days in seconds
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))
@@ -366,7 +366,7 @@ def search_magazines(mags=None, reset=False):
                                     else:
                                         issuedate = str(issuedate).zfill(4)
                                     if not control_date:
-                                        comp_date = 1
+                                        comp_date = int(lazylibrarian.CONFIG['MAG_AGE']) - age(nzbdate)
                                     else:
                                         comp_date = int(issuedate) - int(control_date)
                                 elif re.match(r'\d+-\d\d-\d\d', str(control_date)) and \
