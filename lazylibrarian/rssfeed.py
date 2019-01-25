@@ -34,6 +34,8 @@ except ImportError:
 
 def genFeed(ftype, limit=10, user=0, baseurl=''):
     res = ''
+    if not lazylibrarian.CONFIG['RSS_ENABLED']:
+        return res
     # noinspection PyBroadException
     try:
         podcast = False
