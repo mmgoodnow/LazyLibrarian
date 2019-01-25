@@ -83,6 +83,7 @@ def nameWords(name):
     punct += stripchars
     regex = re.compile('[%s]' % re.escape(punct))
     name = regex.sub(' ', name)
+    name = name.replace('40 000', '40,000')  # nasty special case
     tempwords = name.lower().split()
     # merge initials together into one "word" for matching
     namewords = []
@@ -105,9 +106,10 @@ def titleWords(words):
     skipwords = ['volume', 'vol', 'issue']
     # Extract title from filename
     # stopping when we reach the next number (volume, issue, year)
+    # but allow v2 or 40,000
     for word in words:
         if word not in skipwords and len(word) > 1:
-            if titlewords and (word[-1].isdigit() and word[0] != 'v'):
+            if titlewords and (word[-1].isdigit() and word[0] != 'v' and ',' not in word):
                 break
             titlewords.append(word)
     return titlewords
@@ -321,7 +323,7 @@ def get_volumes_from_search(page_content):
             start = info.split('(')[0].split(' ', 1)[1].strip()
             count = info.split('(')[1].split(' ')[0]
             match = True
-        except IndexError:
+        except (IndexError, AttributeError):
             title = ''
             publisher = ''
             href = ''
@@ -420,11 +422,11 @@ def cx_identify(fname, best=True):
                 data, in_cache = html_request(link)
             else:
                 data, in_cache = html_request(link+'?Issues_pg=%s' % page_number)
-            soup = BeautifulSoup(data, "html5lib")
             try:
+                soup = BeautifulSoup(data, "html5lib")
                 pager = soup.find('div', class_="list Issues").find(
                                   'div', class_="pager-text").text.strip('\n').strip()
-            except AttributeError:
+            except (TypeError,AttributeError):
                 pager = None
 
             if pager:
