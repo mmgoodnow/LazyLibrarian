@@ -1715,7 +1715,7 @@ def shutdown(restart=False, update=False):
                 config_write('Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
-
+            logmsg('error', str(traceback.format_exc()))
     if PIDFILE:
         logmsg('info', 'Removing pidfile %s' % PIDFILE)
         os.remove(PIDFILE)
