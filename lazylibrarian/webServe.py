@@ -116,7 +116,7 @@ def serve_template(templatename, **kwargs):
             perm = check_int(res['Perms'], 0)
             username = res['UserName']
 
-        if perm == 0 and templatename != "register.html" and templatename != "response.html":
+        if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
             templatename = "login.html"
         elif templatename == 'config.html' and not perm & lazylibrarian.perm_config:
             logger.warn('User %s attempted to access %s' % (username, templatename))
