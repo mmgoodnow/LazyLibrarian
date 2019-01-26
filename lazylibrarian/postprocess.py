@@ -1113,6 +1113,7 @@ def check_contents(source, downloadid, book_type, title):
             # need to check if we have a size in K M G or just a number. If K M G could be a float.
             if not rejected and filetypes:
                 if extn in filetypes and fsize:
+                    unit = ''
                     try:
                         if 'G' in str(fsize):
                             fsize = int(float(fsize.split('G')[0].strip()) * 1073741824)
@@ -1121,19 +1122,20 @@ def check_contents(source, downloadid, book_type, title):
                         elif 'K' in str(fsize):
                             fsize = int(float(fsize.split('K')[0].strip() * 1024))
                         fsize = round(check_int(fsize, 0) / 1048576.0, 2)  # float to 2dp in Mb
+                        unit = 'Mb'
                     except ValueError:
                         fsize = 0
                     if fsize:
                         if maxsize and fsize > maxsize:
-                            rejected = "%s is too large (%sMb)" % (fname, fsize)
+                            rejected = "%s is too large (%s%s)" % (fname, fsize, unit)
                             logger.warn("%s. Rejecting download" % rejected)
                             break
                         if minsize and fsize < minsize:
-                            rejected = "%s is too small (%sMb)" % (fname, fsize)
+                            rejected = "%s is too small (%s%s)" % (fname, fsize, unit)
                             logger.warn("%s. Rejecting download" % rejected)
                             break
             if not rejected:
-                logger.debug("%s: (%sMb) is wanted" % (fname, fsize))
+                logger.debug("%s: (%s%s) is wanted" % (fname, fsize, unit))
     if not rejected:
         logger.debug("%s accepted" % title)
     else:

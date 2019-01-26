@@ -132,8 +132,11 @@ def dbupgrade(db_current_version):
             check = myDB.match('PRAGMA integrity_check')
             if check and check[0]:
                 result = check[0]
-                logger.error('Database integrity check: %s' % result)
-                # should probably abort now if result is not "ok"
+                if result == 'ok':
+                    logger.debug('Database integrity check: %s' % result)
+                else:
+                    logger.error('Database integrity check: %s' % result)
+                    # should probably abort now if result is not "ok"
 
             if db_version < db_current_version:
                 myDB = database.DBConnection()

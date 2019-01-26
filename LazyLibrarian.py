@@ -225,7 +225,8 @@ def main():
                 runGit('branch --set-upstream-to=origin/master master')
                 lazylibrarian.SIGNAL = 'restart'
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
-            logger.warn('Unrecognised version, to force upgrade delete %s' % version_file)
+            logger.warn('Unrecognised version [%s] to force upgrade delete %s' % (
+                        lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
 
     if not os.path.isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
         # User may be running an old source zip, so try to force update
