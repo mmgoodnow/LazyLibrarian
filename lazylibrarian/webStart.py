@@ -77,6 +77,9 @@ def initialize(options=None):
         '/api': {
             'cors.expose.on': True,
         },
+        '/rssFeed': {
+            'tools.auth_basic.on': False
+        },
         '/interfaces': {
             'tools.staticdir.on': True,
             'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'interfaces')
@@ -153,9 +156,9 @@ def initialize(options=None):
             'tools.auth_basic.on': False,
             'response.timeout': 3600,
         })
-        conf['/rssFeed'].update({
-            'tools.auth_basic.on': False,
-        })
+
+    conf['/rssFeed'].update({'tools.auth_basic.on': False})
+
     if options['opds_authentication']:
         user_list = {}
         if len(options['opds_username']) > 0:
