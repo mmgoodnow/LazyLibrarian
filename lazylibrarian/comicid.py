@@ -426,7 +426,7 @@ def cx_identify(fname, best=True):
                 soup = BeautifulSoup(data, "html5lib")
                 pager = soup.find('div', class_="list Issues").find(
                                   'div', class_="pager-text").text.strip('\n').strip()
-            except (TypeError,AttributeError):
+            except (TypeError, AttributeError):
                 pager = None
 
             if pager:

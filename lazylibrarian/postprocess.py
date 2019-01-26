@@ -1111,9 +1111,9 @@ def check_contents(source, downloadid, book_type, title):
             # only check size on right types of file
             # eg dont reject cos jpg is smaller than min file size for a book
             # need to check if we have a size in K M G or just a number. If K M G could be a float.
+            unit = ''
             if not rejected and filetypes:
                 if extn in filetypes and fsize:
-                    unit = ''
                     try:
                         if 'G' in str(fsize):
                             fsize = int(float(fsize.split('G')[0].strip()) * 1073741824)

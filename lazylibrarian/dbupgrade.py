@@ -402,8 +402,8 @@ def check_db(myDB):
                 msg = 'Removing %s series with no members' % len(series)
                 logger.warn(msg)
                 for item in series:
-                    print(item['SeriesID'],item['SeriesName'])
-                    #myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
+                    logger.warn("Removing series %s:%s" % (item['SeriesID'], item['SeriesName']))
+                    myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
 
         # check if genre exclusions/translations have altered
         if lazylibrarian.GRGENRES:
@@ -1503,6 +1503,7 @@ def db_v50(myDB, upgradelog):
         else:
             myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
                         'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
+
 
 def db_v51(myDB, upgradelog):
     if not has_column(myDB, "comics", "aka"):
