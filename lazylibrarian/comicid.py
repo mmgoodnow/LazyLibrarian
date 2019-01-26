@@ -19,8 +19,8 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request
-from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode
-from lib.six.moves.urllib_parse import quote
+from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode, unaccented
+from lib.six.moves.urllib_parse import quote_plus
 
 
 try:
@@ -83,7 +83,8 @@ def nameWords(name):
     punct += stripchars
     regex = re.compile('[%s]' % re.escape(punct))
     name = regex.sub(' ', name)
-    name = name.replace('40 000', '40,000')  # nasty special case
+    # special cases, probably need a configurable translation table like we do for genres
+    name = name.replace('40 000', '40,000').replace("X Men", "X-Men").replace("X Factor", "X-Factor")
     tempwords = name.lower().split()
     # merge initials together into one "word" for matching
     namewords = []
@@ -108,7 +109,7 @@ def titleWords(words):
     # stopping when we reach the next number (volume, issue, year)
     # but allow v2 or 40,000
     for word in words:
-        if word not in skipwords and len(word) > 1:
+        if word and word not in skipwords:
             if titlewords and (word[-1].isdigit() and word[0] != 'v' and ',' not in word):
                 break
             titlewords.append(word)
@@ -127,8 +128,8 @@ def cv_identify(fname, best=True):
     minmatch = 1
     # comicvine sometimes misses matches if we include too many words??
     # we can either use less words, or scrape the html...
-    matchwords = '+'.join(titlewords)
-    if '+' in matchwords:
+    matchwords = ' '.join(titlewords)
+    if ' ' in matchwords:
         minmatch = 2
 
     choices = []
@@ -140,9 +141,8 @@ def cv_identify(fname, best=True):
             off = "&offset=%s" % offset
         else:
             off = ''
-
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote(matchwords), off)
+        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(unaccented(matchwords)), off)
         res, in_cache = gb_json_request(url)
 
         if not res:
