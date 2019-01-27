@@ -177,7 +177,7 @@ def addTorrent(link, data=None):
 def getTorrentFolder(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent folder name')
-    res = getTorrentStatus(torrentid, "name")  # type: dict
+    res = getTorrentStatus(torrentid, ["name"])
     if res:
         return res['result']['name']
     return ''
@@ -186,7 +186,7 @@ def getTorrentFolder(torrentid):
 def getTorrentFiles(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent files')
-    res = getTorrentStatus(torrentid, "files")  # type: dict
+    res = getTorrentStatus(torrentid, ["files"])
     if res:
         return res['result']['files']
     return ''
@@ -195,7 +195,7 @@ def getTorrentFiles(torrentid):
 def getTorrentProgress(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent progress')
-    res = getTorrentStatus(torrentid, ["progress", "message"])  # type: dict
+    res = getTorrentStatus(torrentid, ["progress", "message"])
     if res:
         if 'progress' in res['result']:
             return res['result']['progress'], res['result']['message']
@@ -237,19 +237,7 @@ def getTorrentStatus(torrentid, data):
                 pass
 
         post_json = {"method": "web.get_torrent_status",
-                     "params": [torrentid,
-                                [
-                                    data
-                                    # "progress",
-                                    # "save_path",
-                                    # "total_size",
-                                    # "num_files",
-                                    # "files",
-                                    # "message",
-                                    # "tracker",
-                                    # "comment"
-                                ]
-                                ],
+                     "params": [torrentid, data],
                      "id": 23}
 
         response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
@@ -260,7 +248,7 @@ def getTorrentStatus(torrentid, data):
         return response.json()
 
     except Exception as err:
-        logger.debug('Deluge %s: Could not get torrent info %s: %s' % (data, type(err).__name__, str(err)))
+        logger.debug('Deluge %s: Could not get torrent info %s: %s' % (str(data), type(err).__name__, str(err)))
         return False
 
 
