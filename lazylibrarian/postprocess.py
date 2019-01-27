@@ -810,11 +810,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     newValueDict = {"LastAcquired": today(),
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 else:
-                                    newValueDict = {"IssueID": issueid, "LastAcquired": today(),
+                                    newValueDict = {"LatestIssue": issueid, "LastAcquired": today(),
                                                     "LatestCover": os.path.splitext(dest_file)[0] + '.jpg',
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 myDB.upsert("comics", newValueDict, controlValueDict)
-                                controlValueDict = {"ComicID": comicid, "LatestIssue": issueid}
+                                controlValueDict = {"ComicID": comicid, "IssueID": issueid}
                                 newValueDict = {"IssueAcquired": today(),
                                                 "IssueFile": dest_file
                                                 }
@@ -870,9 +870,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.warn("Unable to remove %s, no source" % book['NZBtitle'])
                             elif not book['DownloadID'] or book['DownloadID'] == "unknown":
                                 logger.warn("Unable to remove %s from %s, no DownloadID" %
-                                            (book['NZBtitle'], book['Source'].lower()))
+                                            (book['NZBtitle'], book['Source']))
                             elif book['Source'] != 'DIRECT':
-                                logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source'].lower()))
+                                logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
                                 delete_task(book['Source'], book['DownloadID'], False)
 
                         if to_delete or pp_path.endswith('.unpack'):
@@ -890,7 +890,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     try:
                                         shutil.rmtree(pp_path)
                                         logger.debug('Deleted files for %s, %s from %s' %
-                                                     (book['NZBtitle'], book['NZBmode'], book['Source'].lower()))
+                                                     (book['NZBtitle'], book['NZBmode'], book['Source']))
                                     except Exception as why:
                                         logger.warn("Unable to remove %s, %s %s" %
                                                     (pp_path, type(why).__name__, str(why)))
@@ -989,10 +989,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 dlresult = ''
                 if book['Source'] and book['Source'] != 'DIRECT':
                     if book['Status'] == "Snatched":
-                        dlresult = '%s was sent to %s %s hours ago' % (book['NZBtitle'],
-                                                                       book['Source'].lower(), hours)
+                        dlresult = '%s was sent to %s %s hours ago' % (book['NZBtitle'], book['Source'], hours)
                     else:
-                        dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'].lower())
+                        dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
                     logger.warn('%s, deleting failed task' % dlresult)
                 # change status to "Failed", and ask downloader to delete task and files
                 # Only reset book status to wanted if still snatched in case another download task succeeded
@@ -1016,7 +1015,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                     delete_task(book['Source'], book['DownloadID'], True)
             else:
                 if book['Source']:
-                    logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'].lower(), mins))
+                    logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'], mins))
                 else:
                     logger.debug('%s was sent somewhere?? %s minutes ago' % (book['NZBtitle'], mins))
 
