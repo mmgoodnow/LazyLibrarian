@@ -372,6 +372,8 @@ def getCommitDifferenceFromGit():
                 if 'commits' in git:
                     commits = len(git['commits'])
                     st = ''
+                    ahead = 0
+                    behind = 0
                     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
                         output, err = runGit('rev-list --left-right --count master...origin/master')
                         if output:
