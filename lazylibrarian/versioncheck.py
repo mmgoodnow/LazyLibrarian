@@ -371,17 +371,20 @@ def getCommitDifferenceFromGit():
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
                 if 'commits' in git:
                     commits = len(git['commits'])
-                    output, err = runGit('rev-list --left-right --count master...origin/master')
-                    if output:
-                        a, b = output.split(None, 1)
-                        ahead = check_int(a, 0)
-                        behind = check_int(b, 0)
-                        if ahead + behind:
-                            st = "Differ"
-                        else:
-                            st = "Even"
+                    st = ''
+                    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+                        output, err = runGit('rev-list --left-right --count master...origin/master')
+                        if output:
+                            a, b = output.split(None, 1)
+                            ahead = check_int(a, 0)
+                            behind = check_int(b, 0)
+                            if ahead + behind:
+                                st = "Differ"
+                            else:
+                                st = "Even"
+                    if st:
                         msg = 'Git: Status [%s] - Ahead [%s] - Behind [%s] - Total Commits [%s]' % (
-                            st, ahead, behind, commits)
+                               st, ahead, behind, commits)
                     else:
                         msg = 'Git: Total Commits [%s]' % commits
                     logmsg('debug', msg)
