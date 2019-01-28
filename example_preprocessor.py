@@ -171,6 +171,8 @@ def main():
                             sys.stderr.write("%s\n" % e)
                             pplog.write("%s: %s\n" % (time.ctime(), e))
                             pplog.write(repr(params))
+                            if e.errno == 2:
+                                pplog.write("Is path to ebook-convert correct?")
                             exit(1)
                     else:
                         pplog.write("Found %s\n" % ftype)
@@ -357,6 +359,9 @@ def main():
                                           os.path.join(bookfolder, part[3]))
                                 print("Metadata written to %s" % part[3])
                             except Exception as e:
+                                pplog.write("%s: %s\n" % (time.ctime(), e))
+                                if e.errno == 2:
+                                    pplog.write("Is path to ffmpeg correct?")
                                 sys.stderr.write("%s\n" % e)
 
             if write_singlefile:
@@ -368,6 +373,8 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
+                    if e.errno == 2:
+                        pplog.write("Is path to ffmpeg correct?")
                     pplog.write(repr(params))
                     exit(1)
 
@@ -388,6 +395,8 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
+                    if e.errno == 2:
+                        pplog.write("Is path to ffmpeg correct?")
                     pplog.write(repr(params))
                     exit(1)
 
