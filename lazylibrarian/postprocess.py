@@ -142,7 +142,7 @@ def processAlternate(source_dir=None, library='eBook'):
                 extn = os.path.splitext(new_book)[1]
                 if extn.lower() in [".epub", ".mobi"]:
                     if PY2:
-                        new_book = new_book.encode(lazylibrarian.SYS_ENCODING)
+                        new_book = makeUTF8bytes(new_book)[0]
                     try:
                         metadata = get_book_info(new_book)
                     except Exception as e:
@@ -691,8 +691,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             if book_type == 'AudioBook' and lazylibrarian.DIRECTORY('Audio'):
                                 dest_dir = lazylibrarian.DIRECTORY('Audio')
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
-                            if PY2:
-                                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                            dest_path = makeUTF8bytes(dest_path)[0]
                             global_name = seriesinfo['BookFile']
                         else:
                             data = myDB.match('SELECT IssueDate from magazines WHERE Title=?', (book['BookID'],))
@@ -710,16 +709,16 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 if lazylibrarian.CONFIG['MAG_RELATIVE']:
                                     dest_dir = lazylibrarian.DIRECTORY('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
-                                    if PY2:
-                                        dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                                    dest_path = makeUTF8bytes(dest_path)[0]
                                     if not make_dirs(dest_path):
                                         logger.warn('Unable to create directory %s' % dest_path)
                                     else:
                                         ignorefile = os.path.join(dest_path, b'.ll_ignore')
                                         with open(ignorefile, 'a'):
                                             os.utime(ignorefile, None)
-                                elif PY2:
-                                    dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                                else:
+                                    dest_path = makeUTF8bytes(dest_path)[0]
+
                                 if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
                                     global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
                                         '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
@@ -749,16 +748,15 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     if lazylibrarian.CONFIG['COMIC_RELATIVE']:
                                         dest_dir = lazylibrarian.DIRECTORY('eBook')
                                         dest_path = stripspaces(os.path.join(dest_dir, dest_path))
-                                        if PY2:
-                                            dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                                        dest_path = makeUTF8bytes(dest_path)[0]
                                         if not make_dirs(dest_path):
                                             logger.warn('Unable to create directory %s' % dest_path)
                                         else:
                                             ignorefile = os.path.join(dest_path, b'.ll_ignore')
                                             with open(ignorefile, 'a'):
                                                 os.utime(ignorefile, None)
-                                    elif PY2:
-                                        dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+                                    else:
+                                        dest_path = makeUTF8bytes(dest_path)[0]
 
                                 else:  # not recognised, maybe deleted
                                     logger.debug('Nothing in database matching "%s"' % book['BookID'])
@@ -1558,8 +1556,7 @@ def process_book(pp_path=None, bookID=None):
             # audiobooks are usually multi part so can't be renamed this way
             global_name = seriesinfo['BookFile']
             dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['FolderName']))
-            if PY2:
-                dest_path = dest_path.encode(lazylibrarian.SYS_ENCODING)
+            dest_path = makeUTF8bytes(dest_path)[0]
 
             success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
                                                     global_name, bookID, book_type)
