@@ -3391,12 +3391,18 @@ class WebInterface(object):
                 match = False
                 for item in comicresults:
                     if item['seriesid'] == comicid:
+                        aka = ''
+                        akares = cv_identify(item['title'])
+                        if not akares:
+                            akares = cx_identify(item['title'])
+                        if akares and akares[3]['seriesid'] != comicid:
+                            aka = akares[3]['seriesid']
                         myDB.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
                                     'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
-                                    'First, Last, Publisher, Link) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                    'First, Last, Publisher, Link) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                     (comicid, item['title'], 'Active', now(), None,
                                      now(), None, 'Skipped', None, item['searchterm'], item['start'],
-                                     item['first'], item['last'], item['publisher'], item['link']))
+                                     item['first'], item['last'], item['publisher'], item['link'], aka))
                         match = True
                         break
                 if not match:
