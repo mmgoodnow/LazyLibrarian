@@ -1161,7 +1161,7 @@ class GoodReads:
 
         bookname = unaccented(bookname)
         bookname, booksub = split_title(authorname, bookname)
-        dic = {':': '.', '"': '', '\'': ''}
+        dic = {':': '.', '"': ''}
         bookname = replace_all(bookname, dic).strip()
         booksub = replace_all(booksub, dic).strip()
         if booksub:

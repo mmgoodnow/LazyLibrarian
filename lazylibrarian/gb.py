@@ -629,7 +629,7 @@ class GoogleBooks:
             audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
 
         book = googleBookDict(jsonresults)
-        dic = {':': '.', '"': '', '\'': ''}
+        dic = {':': '.', '"': ''}
         bookname = replace_all(book['name'], dic)
 
         bookname = unaccented(bookname)
