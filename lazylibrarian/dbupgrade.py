@@ -1227,6 +1227,7 @@ def db_v36(myDB, upgradelog):
 def db_v37(myDB, upgradelog):
     lazylibrarian.UPDATE_MSG = 'Adding delete cascade constraint to existing tables'
     upgradelog.write("%s v37: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+    myDB.action('PRAGMA foreign_keys = OFF')
     myDB.action('DROP TABLE IF EXISTS temp_table')
     myDB.action('ALTER TABLE books RENAME TO temp_table')
     myDB.action('CREATE TABLE books (AuthorID TEXT, BookName TEXT, BookSub TEXT, BookDesc TEXT, ' +
@@ -1295,12 +1296,14 @@ def db_v37(myDB, upgradelog):
                 'ON DELETE CASCADE)')
     myDB.action('INSERT INTO failedsearch SELECT BookID,Library,Time,Interval,Count FROM temp_table')
     myDB.action('DROP TABLE temp_table')
+    myDB.action('PRAGMA foreign_keys = ON')
     upgradelog.write("%s v37: complete\n" % time.ctime())
 
 
 def db_v38(myDB, upgradelog):
     lazylibrarian.UPDATE_MSG = 'Changing counters in series table to integers'
     upgradelog.write("%s v38: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+    myDB.action('PRAGMA foreign_keys = OFF')
     myDB.action('DROP TABLE IF EXISTS temp_table')
     myDB.action('ALTER TABLE series RENAME TO temp_table')
     myDB.action('CREATE TABLE series (SeriesID INTEGER UNIQUE, SeriesName TEXT, Status TEXT, ' +
@@ -1308,6 +1311,7 @@ def db_v38(myDB, upgradelog):
     myDB.action('INSERT INTO series SELECT SeriesID,SeriesName,Status,CAST(Have as INTEGER),CAST(Total as INTEGER)' +
                 ' FROM temp_table')
     myDB.action('DROP TABLE temp_table')
+    myDB.action('PRAGMA foreign_keys = ON')
     upgradelog.write("%s v38: complete\n" % time.ctime())
 
 
