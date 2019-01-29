@@ -132,7 +132,7 @@ class OPDS(object):
                     return lazylibrarian.webServe.serve_template(templatename="opds.html",
                                                                  title=self.data['title'], opds=self.data)
             except Exception as e:
-                logger.error("Unhandled OPDS %s error: %s" % (cmd, e))
+                logger.error("Unhandled OPDS %s error: %s" % (self.cmd, e))
         else:
             return self.data
 
