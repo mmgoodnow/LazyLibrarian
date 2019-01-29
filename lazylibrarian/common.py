@@ -400,7 +400,7 @@ def book_file(search_dir=None, booktype=None):
 
 
 def mimeType(filename):
-    name = filename.lower()
+    name = makeUnicode(filename).lower()
     if name.endswith('.epub'):
         return 'application/epub+zip'
     elif name.endswith('.mobi') or name.endswith('.azw'):
