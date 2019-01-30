@@ -383,19 +383,28 @@ def jpg_file(search_dir=None):
     return any_file(search_dir, '.jpg')
 
 
-def book_file(search_dir=None, booktype=None):
-    # find a book/mag file in this directory, any book will do
+def book_file(search_dir=None, booktype=None, recurse=False):
+    # find a book/mag file in this directory (tree), any book will do
     # return full pathname of book/mag, or empty string if none found
-    if search_dir is None or booktype is None:
+    if booktype is None:
         return ""
     if search_dir and os.path.isdir(search_dir):
-        try:
-            for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
-                fname = makeUnicode(fname)
-                if is_valid_booktype(fname, booktype=booktype):
-                    return os.path.join(search_dir, fname)
-        except Exception as e:
-            logger.warn('Listdir error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
+        if recurse:
+            try:
+                for r, d, f in walk(search_dir):
+                    for item in f:
+                        if is_valid_booktype(item, booktype=booktype):
+                            return os.path.join(r, item)
+            except Exception as e:
+                logger.warn('walk error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
+        else:
+            try:
+                for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
+                    fname = makeUnicode(fname)
+                    if is_valid_booktype(fname, booktype=booktype):
+                        return os.path.join(search_dir, fname)
+            except Exception as e:
+                logger.warn('listdir error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
     return ""
 
 

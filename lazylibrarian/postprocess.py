@@ -625,20 +625,32 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     # If so, should we process all the books recursively? we can maybe use
                                     # processAlternate(pp_path) but that currently only does ebooks, not audio or mag
                                     # or should we just try to find and extract the one item from the collection?
-                                    # For now just import single book from top level directory...
+                                    # For now just import single book, might not be in top dir...
                                     mult = multibook(pp_path, recurse=True)
                                     if mult:
                                         logger.debug("Skipping %s, found multiple %s" % (pp_path, mult))
                                         skipped = True
-                                    elif book_type == 'eBook' and not book_file(pp_path, 'ebook'):
-                                        logger.debug("Skipping %s, no ebook found" % pp_path)
-                                        skipped = True
-                                    elif book_type == 'AudioBook' and not book_file(pp_path, 'audiobook'):
-                                        logger.debug("Skipping %s, no audiobook found" % pp_path)
-                                        skipped = True
-                                    elif book_type == 'Magazine' and not book_file(pp_path, 'mag'):
-                                        logger.debug("Skipping %s, no magazine found" % pp_path)
-                                        skipped = True
+                                    elif book_type == 'eBook':
+                                        result = book_file(pp_path, 'ebook', recurse=True)
+                                        if result:
+                                            pp_path = os.path.dirname(result)
+                                        else:
+                                            logger.debug("Skipping %s, no ebook found" % pp_path)
+                                            skipped = True
+                                    elif book_type == 'AudioBook':
+                                        result = book_file(pp_path, 'audiobook', recurse=True)
+                                        if result:
+                                            pp_path = os.path.dirname(result)
+                                        else:
+                                            logger.debug("Skipping %s, no audiobook found" % pp_path)
+                                            skipped = True
+                                    elif book_type == 'Magazine':
+                                        result = book_file(pp_path, 'mag', recurse=True)
+                                        if result:
+                                            pp_path = os.path.dirname(result)
+                                        else:
+                                            logger.debug("Skipping %s, no magazine found" % pp_path)
+                                            skipped = True
                                     if not os.listdir(makeUTF8bytes(pp_path)[0]):
                                         logger.debug("Skipping %s, folder is empty" % pp_path)
                                         skipped = True
