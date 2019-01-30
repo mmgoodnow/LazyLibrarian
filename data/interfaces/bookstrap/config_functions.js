@@ -801,26 +801,6 @@
                 }
         });
 
-            if ($("#use_nma").is(":checked"))
-                    {
-                            $("#nmaoptions").show();
-                    }
-            else
-                    {
-                            $("#nmaoptions").hide();
-                    }
-
-            $("#use_nma").click(function(){
-                    if ($("#use_nma").is(":checked"))
-                    {
-                            $("#nmaoptions").slideDown();
-                    }
-                    else
-                    {
-                            $("#nmaoptions").slideUp();
-                    }
-            });
-
             $("#use_prowl").click(function(){
                     if ($("#use_prowl").is(":checked"))
                     {
@@ -1181,24 +1161,6 @@
                 function (data) {
                     bootbox.dialog({
                         title: 'Telegram Notifier',
-                        message: '<pre>'+data+'</pre>',
-                        buttons: {
-                            primary: {
-                                label: "Close",
-                                className: 'btn-primary'
-                            }
-                        }
-                    });
-                });
-        });
-
-        $('#testNMA').click(function () {
-            var apikey = $.trim($("#nma_apikey").val());
-            var priority = $.trim($("#nma_priority").val());
-            $.get("testNMA", {'apikey': apikey, 'priority': priority},
-                function (data) {
-                    bootbox.dialog({
-                        title: 'NMA Notifier',
                         message: '<pre>'+data+'</pre>',
                         buttons: {
                             primary: {

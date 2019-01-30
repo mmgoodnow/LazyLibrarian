@@ -20,7 +20,6 @@ from . import androidpn
 from . import boxcar
 from . import custom_notify
 from . import email_notify
-from . import nma
 from . import prowl
 from . import growl
 from . import pushbullet
@@ -38,7 +37,6 @@ pushover_notifier = pushover.PushoverNotifier()
 androidpn_notifier = androidpn.AndroidPNNotifier()
 prowl_notifier = prowl.Prowl_Notifier()
 growl_notifier = growl.Growl_Notifier()
-nma_notifier = nma.NMA_Notifier()
 slack_notifier = slack.SlackNotifier()
 email_notifier = email_notify.EmailNotifier()
 telegram_notifier = telegram.Telegram_Notifier()
@@ -53,7 +51,6 @@ notifiers = [
     androidpn_notifier,
     prowl_notifier,
     growl_notifier,
-    nma_notifier,
     slack_notifier,
     email_notifier,
     telegram_notifier
