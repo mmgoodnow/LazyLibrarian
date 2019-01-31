@@ -40,6 +40,18 @@ def gr_api_sleep():
     lazylibrarian.LAST_GOODREADS = time_now
 
 
+def cv_api_sleep():
+    time_now = time.time()
+    delay = time_now - lazylibrarian.LAST_COMICVINE
+    if delay < 1.0:
+        sleep_time = 1.0 - delay
+        lazylibrarian.CV_SLEEP += sleep_time
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+            logger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.CV_SLEEP))
+        time.sleep(sleep_time)
+    lazylibrarian.LAST_COMICVINE = time_now
+
+
 def fetchURL(URL, headers=None, retry=True, raw=None):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False

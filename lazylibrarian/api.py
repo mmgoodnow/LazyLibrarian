@@ -410,7 +410,7 @@ class Api(object):
             if not res:
                 self.data = 'No data found for bookid %s' % kwargs['id']
                 return
-            if not res['BookFile']:
+            if not res['BookFile'] or not os.path.isfile(res['BookFile']):
                 self.data = 'No bookfile found for bookid %s' % kwargs['id']
                 return
             dest_path = os.path.dirname(res['BookFile'])

@@ -665,7 +665,8 @@ def showStats():
     result = ["Cache %i hit%s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
                                              plural(check_int(lazylibrarian.CACHE_HIT, 0)),
                                              check_int(lazylibrarian.CACHE_MISS, 0)),
-              "Sleep %.3f goodreads, %.3f librarything" % (lazylibrarian.GR_SLEEP, lazylibrarian.LT_SLEEP),
+              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
+                  lazylibrarian.GR_SLEEP, lazylibrarian.LT_SLEEP, lazylibrarian.CV_SLEEP),
               "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
 
     myDB = database.DBConnection()

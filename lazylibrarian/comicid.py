@@ -18,7 +18,7 @@ from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.cache import html_request, gb_json_request
+from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode, unaccented
 from lib.six.moves.urllib_parse import quote_plus
 
@@ -143,6 +143,7 @@ def cv_identify(fname, best=True):
             off = ''
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
         url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(unaccented(matchwords)), off)
+        cv_api_sleep()
         res, in_cache = gb_json_request(url)
 
         if not res:
