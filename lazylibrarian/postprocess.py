@@ -968,7 +968,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
             ppcount += check_residual(download_dir)
 
-        logger.info('%s book%s/mag%s processed.' % (ppcount, plural(ppcount), plural(ppcount)))
+        logger.info('%s download%s processed.' % (ppcount, plural(ppcount)))
 
         # Now check for any that are still marked snatched, or any aborted...
         snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched" or Status="Aborted"')
