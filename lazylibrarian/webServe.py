@@ -3399,7 +3399,7 @@ class WebInterface(object):
                             aka = akares[3]['seriesid']
                         myDB.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
                                     'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
-                                    'First, Last, Publisher, Link) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                    'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                     (comicid, item['title'], 'Active', now(), None,
                                      now(), None, 'Skipped', None, item['searchterm'], item['start'],
                                      item['first'], item['last'], item['publisher'], item['link'], aka))
