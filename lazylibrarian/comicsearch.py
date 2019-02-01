@@ -305,6 +305,7 @@ def search_comics(comicid=None):
                     if snatch:
                         count += 1
                         logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
+                        myDB.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
                         custom_notify_snatch("%s %s" % (bookid, item['url']))
                         notify_snatch("Comic %s from %s at %s" %
                                       (unaccented(item['title']), item["provider"], now()))

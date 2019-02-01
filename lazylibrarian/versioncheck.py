@@ -314,7 +314,11 @@ def getLatestVersion_FromGit():
                     headers.update({'If-Modified-Since': age})
                 proxies = proxyList()
                 timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-                r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
+                if url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                    r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
+                                     verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                else:
+                    r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
 
                 if str(r.status_code).startswith('2'):
                     if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
@@ -365,7 +369,11 @@ def getCommitDifferenceFromGit():
             headers = {'User-Agent': getUserAgent()}
             proxies = proxyList()
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-            r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
+            if url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+            else:
+                r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
             git = r.json()
             # for gitlab, commits = len(git['commits'])  no status/ahead/behind
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
@@ -495,7 +503,11 @@ def update():
             headers = {'User-Agent': getUserAgent()}
             proxies = proxyList()
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-            r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies)
+            if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies,
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+            else:
+                r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies)
         except requests.exceptions.Timeout:
             logmsg('error', "Timeout retrieving new version from " + tar_download_url)
             return False

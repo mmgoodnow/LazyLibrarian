@@ -131,7 +131,11 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     proxies = proxyList()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': getUserAgent()}
     try:
-        r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies)
+        if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies,
+                             verify=lazylibrarian.CONFIG['SSL_CERTS'])
+        else:
+            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies)
     except requests.exceptions.Timeout:
         res = 'Timeout fetching file from url: %s' % dl_url
         logger.warn(res)
@@ -251,7 +255,11 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
 
         try:
             logger.debug("Fetching %s" % tor_url)
-            r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies)
+            if tor_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies,
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+            else:
+                r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies)
             if str(r.status_code).startswith('2'):
                 torrent = r.content
                 if not len(torrent):

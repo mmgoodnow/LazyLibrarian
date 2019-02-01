@@ -181,7 +181,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['NAME_POSTFIX', 'DIR_PERM', 'FILE_PERM', 'BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
-                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT']
+                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -233,6 +233,7 @@ CONFIG_DEFINITIONS = {
     'HTTPS_ENABLED': ('bool', 'General', 0),
     'HTTPS_CERT': ('str', 'General', ''),
     'HTTPS_KEY': ('str', 'General', ''),
+    'SSL_CERTS': ('str', 'General', ''),
     'HTTP_TIMEOUT': ('int', 'General', 30),
     'HTTP_EXT_TIMEOUT': ('int', 'General', 90),
     'BOOKSTRAP_THEME': ('str', 'General', 'slate'),
@@ -1017,6 +1018,10 @@ def config_read(reloaded=False):
         else:
             CONFIG[item] = 0
 
+    if CONFIG['SSL_CERTS'] and not os.path.exists(CONFIG['SSL_CERTS']):
+        logger.warn("SSL_CERTS [%s] not found" % CONFIG['SSL_CERTS'])
+        CONFIG['SSL_CERTS'] = ''
+
     if reloaded:
         logger.info('Config file reloaded')
     else:
@@ -1043,8 +1048,8 @@ def config_write(part=None):
             value = check_int(CONFIG[key], 5)
         elif part and section != part:
             value = CFG.get(section, key.lower())  # keep the old value
-            # if CONFIG['LOGLEVEL'] > 2:
-            #     logger.debug("Leaving %s unchanged (%s)" % (key, value))
+            if LOGLEVEL & log_admin:
+                logger.debug("Leaving %s unchanged (%s)" % (key, value))
         elif key not in CONFIG_NONWEB and not (interface == 'legacy' and key in CONFIG_NONDEFAULT):
             check_section(section)
             value = CONFIG[key]

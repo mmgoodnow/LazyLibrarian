@@ -159,7 +159,11 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
     proxies = proxyList()
     try:
         timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        r = requests.get(URL, timeout=timeout, proxies=proxies)
+        if URL.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            r = requests.get(URL, timeout=timeout, proxies=proxies,
+                             verify=lazylibrarian.CONFIG['SSL_CERTS'])
+        else:
+            r = requests.get(URL, timeout=timeout, proxies=proxies)
         result = r.json()
     except requests.exceptions.Timeout:
         res = "Timeout connecting to SAB with URL: %s" % URL

@@ -87,8 +87,11 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
             timeout = check_int(lazylibrarian.CONFIG['HTTP_EXT_TIMEOUT'], 90)
         else:
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-
-        r = requests.get(URL, headers=headers, timeout=timeout, proxies=proxies)
+        if URL.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            r = requests.get(URL, headers=headers, timeout=timeout, proxies=proxies,
+                             verify=lazylibrarian.CONFIG['SSL_CERTS'])
+        else:
+            r = requests.get(URL, headers=headers, timeout=timeout, proxies=proxies)
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             if raw:
