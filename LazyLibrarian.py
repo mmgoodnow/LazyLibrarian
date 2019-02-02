@@ -246,6 +246,7 @@ def main():
     if lazylibrarian.APPRISE:
         logger.warn("Apprise library reports: %s" % lazylibrarian.APPRISE)
         lazylibrarian.APPRISE = False
+        lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] = False
     else:
         logger.info("Apprise library installed")
         lazylibrarian.APPRISE = True

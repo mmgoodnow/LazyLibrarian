@@ -466,17 +466,6 @@
                       </div>
                     </div>
                     <div class="row checkbox">
-                      <div class="col-md-12">
-                      <%
-                        if lazylibrarian.CONFIG['SORT_DEFINITE'] == True:
-                            checked = 'checked="checked"'
-                        else:
-                            checked = ''
-                      %>
-                      <label for="sort_definite" class="control-label">
-                        <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
-                        Show titles ignoring definite article (The, A)</label>
-                      </div>
                       <div class="col-md-6">
                         <%
                           if lazylibrarian.CONFIG['SHOW_GENRES'] == True:
@@ -487,6 +476,32 @@
                         <label for="show_genres" class="control-label">
                           <input type="checkbox" id="show_genres" name="show_genres" value="1" ${checked} />
                           Show genres</label>
+                      </div>
+                      %if lazylibrarian.APPRISE == True:
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="hide_old_notifiers" class="control-label">
+                          <input type="checkbox" id="hide_old_notifiers" name="hide_old_notifiers" value="1" ${checked} />
+                          Hide old notifiers</label>
+                      </div>
+                    </div>
+                    <div class="row checkbox">
+                    %endif
+                      <div class="col-md-12">
+                      <%
+                        if lazylibrarian.CONFIG['SORT_DEFINITE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="sort_definite" class="control-label">
+                        <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
+                        Show titles ignoring definite article (The, A)</label>
                       </div>
                     </div>
                 </div>
@@ -2386,7 +2401,7 @@
           <div class="configtable">
             <div class="row">
               <div class="col-md-6">
-              <!--%if lazylibrarian.APPRISE == False:-->
+              %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_TWITTER'] == True:
@@ -2662,7 +2677,7 @@
                     </div>
                   </fieldset>
                 </div>
-              <!--%endif-->
+              %endif
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_EMAIL'] == True:
@@ -2775,7 +2790,7 @@
                 </div>
               </div>
               <div class="col-md-6">
-              <!--%if lazylibrarian.APPRISE == False:-->
+              %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_PROWL'] == True:
@@ -3001,7 +3016,7 @@
                     </div>
                   </fieldset>
                 </div>
-              <!--%endif-->
+              %endif
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_CUSTOM'] == True:

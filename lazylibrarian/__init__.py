@@ -197,7 +197,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES',
-                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH']
+                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -482,6 +482,7 @@ CONFIG_DEFINITIONS = {
     'MAG_DEST_FILE': ('str', 'PostProcess', '$IssueDate - $Title'),
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),
     'MAG_DELFOLDER': ('bool', 'PostProcess', 1),
+    'HIDE_OLD_NOTIFIERS': ('bool', 'General', 0),
     'USE_TWITTER': ('bool', 'Twitter', 0),
     'TWITTER_NOTIFY_ONSNATCH': ('bool', 'Twitter', 0),
     'TWITTER_NOTIFY_ONDOWNLOAD': ('bool', 'Twitter', 0),
