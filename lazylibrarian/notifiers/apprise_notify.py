@@ -10,13 +10,14 @@ try:
 except ImportError as e:
     lazylibrarian.APPRISE = str(e)
 
+
 class Apprise_Notifier:
 
     def __init__(self):
         pass
 
     @staticmethod
-    def _sendApprise(self, event=None, message=None, url=None):
+    def _sendApprise(event=None, message=None, url=None):
         try:
             asset = AppriseAsset()
             asset.default_extension = ".png"
@@ -25,8 +26,8 @@ class Apprise_Notifier:
             asset.app_desc = "LazyLibrarian Announcement"
             asset.app_url = "https://gitlab.com/LazyLibrarian/LazyLibrarian"
             apobj = Apprise(asset=asset)
-        except Exception as e:
-            logger.error(e)
+        except Exception as err:
+            logger.error(err)
             return False
 
         if url is not None:
@@ -61,24 +62,25 @@ class Apprise_Notifier:
 
         return apobj.notify(title=title, body=message, notify_type=notifytype)
 
-
-    def _notify(self, event, message, url):
+    def _notify(self, event, message, url=None):
         """
         event: The title of the notification to send
         message: The message string to send
+        url: to send to one notifier. If None send to all enabled notifiers
         """
-        return self._sendApprise(self, event, message, url)
+        return self._sendApprise(event, message, url)
 
 #
 # Public functions
 #
     def notify_snatch(self, title):
-        self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title)
+        self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
 
     def notify_download(self, title):
-        self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
+        self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
 
     def test_notify(self, url=None):
         return self._notify(event="Test", message="Testing Apprise settings from LazyLibrarian", url=url)
+
 
 notifier = Apprise_Notifier
