@@ -4803,7 +4803,6 @@ class WebInterface(object):
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
             result, name = test_provider(kwargs['name'], host=host, api=api)
-            print(result, name, kwargs['name'])
             if result:
                 lazylibrarian.config_write(kwargs['name'])
                 msg = "%s test PASSED" % name

@@ -40,7 +40,6 @@ class Apprise_Notifier:
                 elif event == 'Test':
                     apobj.add(item['URL'])
 
-        logger.debug(apobj.details()['asset'])
         title = "LazyLibrarian"
 
         if apobj is None:
