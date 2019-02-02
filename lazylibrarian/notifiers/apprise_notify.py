@@ -6,10 +6,9 @@ from lazylibrarian.formatter import plural
 try:
     import apprise
     from apprise import NotifyType, AppriseAsset, Apprise
-    lazylibrarian.APPRISE = True
+    lazylibrarian.APPRISE = ''
 except ImportError as e:
-    print(e)
-    lazylibrarian.APPRISE = False
+    lazylibrarian.APPRISE = str(e)
 
 class Apprise_Notifier:
 

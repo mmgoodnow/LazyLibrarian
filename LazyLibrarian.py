@@ -243,6 +243,13 @@ def main():
         else:
             logger.debug('Not updating, LazyLibrarian has local changes')
 
+    if lazylibrarian.APPRISE:
+        logger.warn("Apprise library reports: %s" % lazylibrarian.APPRISE)
+        lazylibrarian.APPRISE = False
+    else:
+        logger.info("Apprise library installed")
+        lazylibrarian.APPRISE = True
+
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
 
