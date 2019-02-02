@@ -1343,6 +1343,15 @@ class WebInterface(object):
                     'rss_%i_dispname' % count, '')
             count += 1
 
+        count = 0
+        while count < len(lazylibrarian.APPRISE_PROV):
+            lazylibrarian.APPRISE_PROV[count]['NAME'] = kwargs.get('apprise_%i_name' % count, '')
+            lazylibrarian.APPRISE_PROV[count]['DISPNAME'] = kwargs.get('apprise_%i_dispname' % count, '')
+            lazylibrarian.APPRISE_PROV[count]['SNATCH'] = bool(kwargs.get('apprise_%i_snatch' % count, False))
+            lazylibrarian.APPRISE_PROV[count]['DOWNLOAD'] = bool(kwargs.get('apprise_%i_download' % count, False))
+            lazylibrarian.APPRISE_PROV[count]['URL'] = kwargs.get('apprise_%i_url' % count, '')
+            count += 1
+
         lazylibrarian.config_write()
         checkRunningJobs()
 
@@ -4794,6 +4803,7 @@ class WebInterface(object):
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
             result, name = test_provider(kwargs['name'], host=host, api=api)
+            print(result, name, kwargs['name'])
             if result:
                 lazylibrarian.config_write(kwargs['name'])
                 msg = "%s test PASSED" % name

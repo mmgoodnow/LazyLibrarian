@@ -105,6 +105,16 @@ def test_provider(name, host=None, api=None):
         except IndexError:
             pass
 
+    if name.startswith('apprise_'):
+        for provider in lazylibrarian.APPRISE_PROV:
+            if provider['NAME'].lower() == name:
+                if provider['DISPNAME']:
+                    name = provider['DISPNAME']
+                logger.debug("Testing notifier %s" % name)
+                noti = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier()
+                return noti.test_notify(host), name
+        return False, name
+
     # for torznab/newznab get capabilities first, unless locked,
     # then try book search if enabled, fall back to general search
     book.update({'authorName': 'Agatha Christie', 'bookName': 'Poirot', 'bookSub': ''})

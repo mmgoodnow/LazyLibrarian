@@ -27,6 +27,7 @@ from . import pushover
 from . import slack
 from . import tweet
 from . import telegram
+from . import apprise_notify
 from lazylibrarian import logger
 
 # online
@@ -40,6 +41,7 @@ growl_notifier = growl.Growl_Notifier()
 slack_notifier = slack.SlackNotifier()
 email_notifier = email_notify.EmailNotifier()
 telegram_notifier = telegram.Telegram_Notifier()
+apprise_notifier = apprise_notify.Apprise_Notifier()
 #
 custom_notifier = custom_notify.CustomNotifier()
 
@@ -53,7 +55,8 @@ notifiers = [
     growl_notifier,
     slack_notifier,
     email_notifier,
-    telegram_notifier
+    telegram_notifier,
+    apprise_notifier,
 ]
 
 

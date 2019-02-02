@@ -93,6 +93,7 @@ NEWZNAB_PROV = []
 TORZNAB_PROV = []
 NABAPICOUNT = ''
 RSS_PROV = []
+APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
 USER_BLOCKLIST = []
@@ -803,7 +804,7 @@ def initialize():
 # noinspection PyUnresolvedReferences
 def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
-        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS
+        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV
     # legacy name conversion
     if not CFG.has_option('General', 'ebook_dir'):
         ebook_dir = check_setting('str', 'General', 'destination_dir', '')
@@ -950,6 +951,19 @@ def config_read(reloaded=False):
     # if the last slot is full, add an empty one on the end
     add_rss_slot()
 
+    count = 0
+    while CFG.has_section('APPRISE_%i' % count):
+        apprise_name = 'APPRISE_%i' % count
+        APPRISE_PROV.append({"NAME": check_setting('str', apprise_name, 'NAME', apprise_name),
+                             "DISPNAME": check_setting('str', apprise_name, 'DISPNAME', apprise_name),
+                             "SNATCH": check_setting('bool', apprise_name, 'SNATCH', 0),
+                             "DOWNLOAD": check_setting('bool', apprise_name, 'DOWNLOAD', 0),
+                             "URL": check_setting('str', apprise_name, 'URL', ''),
+                             })
+        count += 1
+    # if the last slot is full, add an empty one on the end
+    add_apprise_slot()
+
     for key in list(CONFIG_DEFINITIONS.keys()):
         item_type, section, default = CONFIG_DEFINITIONS[key]
         CONFIG[key.upper()] = check_setting(item_type, section, key.lower(), default)
@@ -1031,7 +1045,7 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV, SHOW_COMICS
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -1197,6 +1211,43 @@ def config_write(part=None):
 
         RSS_PROV = new_list
         add_rss_slot()
+
+    if not part or part.startswith('apprise_'):
+        APPRISE_ITEMS = ['NAME', 'DISPNAME', 'SNATCH', 'DOWNLOAD', 'URL']
+        new_list = []
+        # strip out any empty slots
+        for provider in APPRISE_PROV:
+            if provider['URL']:
+                new_list.append(provider)
+
+        if part:  # only update the named provider
+            for provider in new_list:
+                if provider['NAME'].lower() != part:  # keep old values
+                    if CONFIG['LOGLEVEL'] > 2:
+                        logger.debug("Keep %s" % provider['NAME'])
+                    for item in APPRISE_ITEMS:
+                        provider[item] = CFG.get(provider['NAME'], item.lower())
+
+        # renumber the items
+        for index, item in enumerate(new_list):
+            item['NAME'] = 'APPRISE_%i' % index
+
+        # strip out the old config entries
+        sections = CFG.sections()
+        for item in sections:
+            if item.startswith('APPRISE_'):
+                CFG.remove_section(item)
+
+        for provider in new_list:
+            check_section(provider['NAME'])
+            for item in APPRISE_ITEMS:
+                value = provider[item]
+                if isinstance(value, text_type):
+                    value = value.strip()
+                CFG.set(provider['NAME'], item, value)
+        APPRISE_PROV = new_list
+
+        add_apprise_slot()
     #
     series_list = myDB.select('SELECT SeriesID from series')
     SHOW_SERIES = len(series_list)
@@ -1386,6 +1437,20 @@ def add_rss_slot():
                          "DLPRIORITY": 0,
                          "DLTYPES": 'E'
                          })
+
+
+# noinspection PyUnresolvedReferences
+def add_apprise_slot():
+    count = len(APPRISE_PROV)
+    if count == 0 or len(CFG.get('APPRISE_%i' % int(count - 1), 'URL')):
+        apprise_name = 'APPRISE_%i' % count
+        check_section(apprise_name)
+        CFG.set(apprise_name, 'NAME', apprise_name)
+        CFG.set(apprise_name, 'DISPNAME', apprise_name)
+        CFG.set(apprise_name, 'SNATCH', False)
+        CFG.set(apprise_name, 'DOWNLOAD', False)
+        CFG.set(apprise_name, 'URL', '')
+        APPRISE_PROV.append({"NAME": apprise_name, "DISPNAME": apprise_name, "SNATCH": 0, "DOWNLOAD": 0, "URL": ''})
 
 
 def WishListType(host):

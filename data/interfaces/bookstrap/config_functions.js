@@ -432,6 +432,12 @@
             if ( prov.indexOf('rss_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
             }
+            if ( prov.indexOf('apprise_') == 0 ) {
+                var host = $("#" + prov.toLowerCase() + "_url").val();
+                var s = ($("#" + prov.toLowerCase() + "_snatch").prop('checked') == true) ? '1' : '0';
+                var d = ($("#" + prov.toLowerCase() + "_download").prop('checked') == true) ? '1' : '0';
+                var api = s + ':' + d
+            }
             $("#myAlert").removeClass('hidden');
             $.get('testprovider', {'name': prov, 'host': host, 'api': api},
             function(data) {
