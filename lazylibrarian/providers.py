@@ -245,7 +245,7 @@ def get_capabilities(provider, force=False):
                     logger.debug("Unable to get capabilities: %s" % data.attrib)
                     success = False
             except (ElementTree.ParseError, UnicodeEncodeError):
-                logger.debug("Error parsing xml from %s, %s" % (URL, source_xml))
+                logger.debug("Error parsing xml from %s, %s" % (URL, repr(source_xml)))
                 success = False
         if not success:
             # If it failed, retry with api key
@@ -262,7 +262,7 @@ def get_capabilities(provider, force=False):
                             logger.debug("Unable to get capabilities: %s" % data.attrib)
                             success = False
                     except (ElementTree.ParseError, UnicodeEncodeError):
-                        logger.debug("Error parsing xml from %s, %s" % (URL, source_xml))
+                        logger.debug("Error parsing xml from %s, %s" % (URL, repr(source_xml)))
                         success = False
             else:
                 logger.debug('Unable to retry capabilities, no apikey for %s' % URL)
