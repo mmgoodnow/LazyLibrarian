@@ -22,6 +22,8 @@ class Apprise_Notifier:
             asset = AppriseAsset()
             asset.default_extension = ".png"
             asset.image_path_mask = "/opt/LazyLibrarian/data/images/{TYPE}-{XY}{EXTENSION}"
+            asset.image_url_logo = "https://lazylibrarian.gitlab.io/assets/logo.png"
+            asset.image_url_mask = "https://lazylibrarian.gitlab.io/assets/{TYPE}-{XY}{EXTENSION}"
             asset.app_id = "LazyLibrarian"
             asset.app_desc = "LazyLibrarian Announcement"
             asset.app_url = "https://gitlab.com/LazyLibrarian/LazyLibrarian"
@@ -52,7 +54,7 @@ class Apprise_Notifier:
         logger.debug("Apprise: message: " + message)
         logger.debug("Apprise: url: " + str(url))
         logger.debug("Using %d notification service%s" % (len(apobj), plural(len(apobj))))
-
+        logger.debug(str(asset.details()))
         if event == notifyStrings[NOTIFY_SNATCH]:
             notifytype = NotifyType.INFO
         elif event == notifyStrings[NOTIFY_DOWNLOAD]:
