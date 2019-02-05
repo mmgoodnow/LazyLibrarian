@@ -526,8 +526,8 @@ def scheduleJob(action='Start', target=None):
                 overdue, total, _, days = is_overdue()
                 if not overdue:
                     logger.debug("There are no authors to update")
-                    if days > maxage:
-                        minutes = 60 * 24  # nothing today, check again in 24hrs
+                    if maxage - days > 1:
+                        minutes = 60 * 24 * (maxage - days - 1) # nothing today, check again in a few days
                     else:
                         minutes = 60
                 else:
