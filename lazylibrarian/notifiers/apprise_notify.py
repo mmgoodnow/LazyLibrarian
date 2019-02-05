@@ -6,7 +6,7 @@ from lazylibrarian.formatter import plural
 try:
     import apprise
     from apprise import NotifyType, AppriseAsset, Apprise
-    lazylibrarian.APPRISE = ''
+    lazylibrarian.APPRISE = getattr(apprise, '__version__', 'Unknown Version')
 except ImportError as e:
     lazylibrarian.APPRISE = str(e)
 

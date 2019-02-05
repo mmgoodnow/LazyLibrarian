@@ -243,13 +243,13 @@ def main():
         else:
             logger.debug('Not updating, LazyLibrarian has local changes')
 
-    if lazylibrarian.APPRISE:
+    if lazylibrarian.APPRISE[0].isdigit():
+        logger.info("Apprise library (%s) installed" % lazylibrarian.APPRISE)
+        lazylibrarian.APPRISE = True
+    else:
         logger.warn("Apprise library reports: %s" % lazylibrarian.APPRISE)
         lazylibrarian.APPRISE = False
         lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] = False
-    else:
-        logger.info("Apprise library installed")
-        lazylibrarian.APPRISE = True
 
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
