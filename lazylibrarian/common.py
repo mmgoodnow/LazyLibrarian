@@ -388,20 +388,20 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     # return full pathname of book/mag, or empty string if none found
     if booktype is None:
         return ""
-    if search_dir and os.path.isdir(search_dir):
+
+    if os.path.isdir(search_dir):
         if recurse:
             try:
-                for r, d, f in walk(search_dir):
+                for r, d, f in walk(makeUTF8bytes(search_dir)):
                     for item in f:
-                        if is_valid_booktype(item, booktype=booktype):
+                        if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
             except Exception as e:
                 logger.warn('walk error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
         else:
             try:
                 for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
-                    fname = makeUnicode(fname)
-                    if is_valid_booktype(fname, booktype=booktype):
+                    if is_valid_booktype(makeUnicode(fname), booktype=booktype):
                         return os.path.join(search_dir, fname)
             except Exception as e:
                 logger.warn('listdir error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
@@ -527,7 +527,7 @@ def scheduleJob(action='Start', target=None):
                 if not overdue:
                     logger.debug("There are no authors to update")
                     if maxage - days > 1:
-                        minutes = 60 * 24 * (maxage - days - 1) # nothing today, check again in a few days
+                        minutes = 60 * 24 * (maxage - days - 1)  # nothing today, check again in a few days
                     else:
                         minutes = 60
                 else:

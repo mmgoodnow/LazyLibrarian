@@ -885,14 +885,14 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
                                 delete_task(book['Source'], book['DownloadID'], False)
 
-                        if to_delete or pp_path.endswith('.unpack'):
+                        if to_delete or pp_path.endswith(b'.unpack'):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
                             # always delete files we unpacked from an archive
                             if lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
                             if pp_path == download_dir:
                                 to_delete = False
-                            if pp_path.endswith('.unpack'):
+                            if pp_path.endswith(b'.unpack'):
                                 to_delete = True
                             if to_delete:
                                 if os.path.isdir(pp_path):
