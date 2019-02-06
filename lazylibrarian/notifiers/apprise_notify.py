@@ -43,13 +43,12 @@ class Apprise_Notifier:
                 elif event == 'Test':
                     apobj.add(item['URL'])
 
-        title = "LazyLibrarian"
-
         if apobj is None:
             logger.warn("Apprise notifier is not initialised")
             return False
 
-        logger.debug("Apprise: title: " + title)
+        title = "LazyLibrarian"
+
         logger.debug("Apprise: event: " + event)
         logger.debug("Apprise: message: " + message)
         logger.debug("Apprise: url: " + str(url))
@@ -84,5 +83,16 @@ class Apprise_Notifier:
     def test_notify(self, url=None):
         return self._notify(event="Test", message="Testing Apprise settings from LazyLibrarian", url=url)
 
+    def notify_types(self):
+        apobj = Apprise()
+        schemas = apobj.details()['schemas']
+        res = []
+        for item in schemas:
+            res.append(item['service_name'])
+        return res
+
+    def version(self):
+        apobj = Apprise()
+        return apobj.details()['version']
 
 notifier = Apprise_Notifier
