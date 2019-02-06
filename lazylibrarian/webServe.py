@@ -4283,7 +4283,7 @@ class WebInterface(object):
         lazylibrarian.SIGNAL = 'update'
         message = 'Updating...'
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Updating",
-                              message=message, timer=30)
+                              message=message, timer=60)
 
     # IMPORT/EXPORT #####################################################
 
