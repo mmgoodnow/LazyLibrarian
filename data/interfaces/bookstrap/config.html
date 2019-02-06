@@ -3068,7 +3068,9 @@
               %if lazylibrarian.APPRISE == True:
                 <div id="apprise">
                   <div class="col-md-12">
-                  <legend>Apprise Notifiers</legend>
+                    <legend>Apprise Notifiers
+                    <button class="button btn btn-sm btn-primary" type="button" value="Supported Types" id="show_apprise"><i class="fa fa-list-ul"></i> Supported Types</button>
+                    </legend>
                   </div>
                   %for provider in lazylibrarian.APPRISE_PROV:
                   %if provider['DISPNAME'] != '':

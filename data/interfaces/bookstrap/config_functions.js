@@ -495,6 +495,21 @@
             });
         });
 
+        $('#show_apprise').on('click', function(e) {
+            $.get('show_Apprise', function(data) {
+                bootbox.dialog({
+                    title: 'Supported Types',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
+                        }
+                    }
+                });
+            });
+        });
+
         $('#testSABnzbd').on('click', function() {
             var host = $.trim($("#sab_host").val());
             var port = $.trim($("#sab_port").val());

@@ -83,7 +83,8 @@ class Apprise_Notifier:
     def test_notify(self, url=None):
         return self._notify(event="Test", message="Testing Apprise settings from LazyLibrarian", url=url)
 
-    def notify_types(self):
+    @staticmethod
+    def notify_types():
         apobj = Apprise()
         schemas = apobj.details()['schemas']
         res = []
@@ -91,8 +92,10 @@ class Apprise_Notifier:
             res.append(item['service_name'])
         return res
 
-    def version(self):
+    @staticmethod
+    def version():
         apobj = Apprise()
         return apobj.details()['version']
+
 
 notifier = Apprise_Notifier

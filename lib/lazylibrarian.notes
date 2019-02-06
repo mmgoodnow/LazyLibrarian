@@ -1,5 +1,5 @@
 # cherrypy is patched to allow utf-8 responses in forms (eg accented magazine names)
-# there is probably a proper way to do it without patching
+# there is probably a proper way to do it without patching - only an issue on python2
 #
 # There is a python module on synology called csv that is not compatible, we only import the
 # local copy of csv if the system one does not contain the functions we use
@@ -15,16 +15,16 @@
 #
 # mobi is not available from pip, sources https://github.com/kroo/mobi-python
 #
-# pythontwitter - there is a much more recent version, but I am unable to test so leaving as not broken
+# pythontwitter - there is a much more recent version, but I am unable to test so leaving as not broken,
+# and it may get dropped eventually as apprise notifier also provides twitter
 #
 # zipfile is normally part of a standard install, but some cut-down nas systems do not include it
 #
 # six is widely used in lazylibrarian but not standard library
 #
 ################################################################################################
-# The following libraries can be pip installed for flatpak, we build flatpak with python3
-# but ubuntu requests does not include requests_auth so use our own requests in snap packages
-# ubuntu bs4 and fuzzywuzzy are not available?
+# The following libraries can be pip installed for flatpak and snaps
+# we build flatpak and snap with python3
 ################################################################################################
 # oauth2        patched to use a local copy of httplib2, pip install oauth2 pulls in both
 # bs4           patched to use a local copy of html5lib, which in turn uses a local webencodings
@@ -33,10 +33,11 @@
 #               so we can drop our cherrypy if using python3
 # deluge_client
 # gntp          used by growl
-# magic         pip install as python-magic
+# magic         pip install python-magic
 # pynma
 # pyOpenSSL
 # requests      pip install urllib3 and requests_auth too, our local copy includes them already
 # rfeed
 # fuzzywuzzy    suppressed warning about python-Levenshtein, pip install python-Levenshtein
 # unrar
+# apprise

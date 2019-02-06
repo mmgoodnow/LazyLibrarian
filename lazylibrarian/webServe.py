@@ -1014,6 +1014,7 @@ class WebInterface(object):
         http_look_list = [name for name in os.listdir(http_look_dir)
                           if os.path.isdir(os.path.join(http_look_dir, name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
+        apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
 
         myDB = database.DBConnection()
         mags_list = []
@@ -1054,6 +1055,7 @@ class WebInterface(object):
         # lazylibrarian.globals
         config = {
             "http_look_list": http_look_list,
+            "apprise_list": apprise_list,
             "status_list": status_list,
             "magazines_list": mags_list,
             "namevars": nameVars('test'),
@@ -4468,6 +4470,16 @@ class WebInterface(object):
         resultlist = showJobs()
         result = ''
         for line in resultlist:
+            result = result + line + '\n'
+        return result
+
+    @cherrypy.expose
+    def show_Apprise(self):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        # show the available notifiers
+        apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
+        result = ''
+        for line in apprise_list:
             result = result + line + '\n'
         return result
 
