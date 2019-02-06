@@ -392,7 +392,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     if os.path.isdir(search_dir):
         if recurse:
             try:
-                for r, d, f in walk(makeUTF8bytes(search_dir)):
+                for r, d, f in walk(makeUTF8bytes(search_dir)[0]):
                     for item in f:
                         if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
