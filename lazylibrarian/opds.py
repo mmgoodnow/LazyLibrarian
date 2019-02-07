@@ -1019,7 +1019,11 @@ class OPDS(object):
                 mime_type = mimeType(book['AudioFile'])
 
             if mime_type:
-                entry = {'title': escape('%s (%s)' % (book['BookName'], book['BookDate'])),
+                if book['BookDate'] and book['BookDate'] != '0000':
+                    disptitle = escape('%s (%s)' % (book['BookName'], book['BookDate']))
+                else:
+                    disptitle = escape('%s' % book['BookName'])
+                entry = {'title': disptitle,
                          'id': escape('book:%s' % book['BookID']),
                          'updated': opdstime(book['BookAdded']),
                          'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, book['BookID'], userid),
