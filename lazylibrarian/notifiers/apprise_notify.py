@@ -85,17 +85,23 @@ class Apprise_Notifier:
 
     @staticmethod
     def notify_types():
-        apobj = Apprise()
-        schemas = apobj.details()['schemas']
         res = []
-        for item in schemas:
-            res.append(item['service_name'])
+        try:
+            apobj = Apprise()
+            schemas = apobj.details()['schemas']
+            for item in schemas:
+                res.append(item['service_name'])
+        except NameError:
+            pass
         return res
 
     @staticmethod
     def version():
-        apobj = Apprise()
-        return apobj.details()['version']
+        try:
+            apobj = Apprise()
+            return apobj.details()['version']
+        except NameError:
+            return ''
 
 
 notifier = Apprise_Notifier
