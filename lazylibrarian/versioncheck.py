@@ -157,7 +157,7 @@ def getCurrentVersion():
 
         VERSION = cur_commit_hash
 
-    elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['source', 'package']:
+    elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['source']:
 
         version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
 
@@ -175,6 +175,12 @@ def getCurrentVersion():
             else:
                 VERSION = 'No Version set in file'
                 return VERSION
+    elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['package']:
+        try:
+            v = version.LAZYLIBRARIAN_HASH
+        except AttributeError:
+            v = "Unknown Version"
+        VERSION = v
     else:
         logmsg('error', 'Install Type not set - cannot get version value')
         VERSION = 'Install type not set'
@@ -282,7 +288,7 @@ def getLatestVersion_FromGit():
         if branch == 'InvalidBranch':
             logmsg('debug', 'Failed to get a valid branch name from local repo')
         else:
-            if branch == 'Package':  # check packages against master
+            if branch.lower() == 'package':  # check packages against master
                 branch = 'master'
             # Get the latest commit available from git
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:

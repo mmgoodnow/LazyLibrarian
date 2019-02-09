@@ -168,6 +168,22 @@ def main():
     # There is no point putting in any logging above this line, as its not set till after initialize.
     lazylibrarian.initialize()
 
+    # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
+    old_file = os.path.join(lazylibrarian.PROG_DIR, 'version.txt')
+    version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
+    if os.path.isfile(old_file):
+        if not os.path.isfile(version_file):
+            try:
+                with open(old_file, 'r') as s:
+                    with open(version_file, 'w') as d:
+                        d.write(s.read())
+            except OSError:
+                logger.warn("Unable to copy version.txt")
+        try:
+            os.remove(old_file)
+        except OSError:
+            pass
+
     if lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'] == 0:
         logger.debug('Automatic update checks are disabled')
         # pretend we're up to date so we don't keep warning the user
@@ -188,22 +204,6 @@ def main():
                 if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
                     lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
                     logger.debug('Setting update timestamp to now')
-
-    # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
-    old_file = os.path.join(lazylibrarian.PROG_DIR, 'version.txt')
-    version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
-    if os.path.isfile(old_file):
-        if not os.path.isfile(version_file):
-            try:
-                with open(old_file, 'r') as s:
-                    with open(version_file, 'w') as d:
-                        d.write(s.read())
-            except OSError:
-                logger.warn("Unable to copy version.txt")
-        try:
-            os.remove(old_file)
-        except OSError:
-            pass
 
     # if gitlab doesn't recognise a hash it returns 0 commits
     if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \

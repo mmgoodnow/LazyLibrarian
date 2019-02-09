@@ -885,10 +885,6 @@ def logHeader():
         else:
             header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
     try:
-        header += 'package: %s\n' % lazylibrarian.version.LAZYLIBRARIAN_VERSION
-    except AttributeError:
-        pass
-    try:
         header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
     except AttributeError:
         pass
