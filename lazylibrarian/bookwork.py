@@ -1149,28 +1149,43 @@ def get_gr_genres(bookid, refresh=False):
     return genres, in_cache
 
 
-def get_book_pubdate(bookid, refresh=False):
-    URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
+def getBookPubdate(bookid, refresh=False):
     bookdate = "0000"
-    try:
-        rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
-    except Exception as e:
-        logger.error("%s fetching book publication date: %s" % (type(e).__name__, str(e)))
-        return bookdate, False
+    if bookid.isdigit():  # goodreads bookid
+        URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
+        try:
+            rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
+        except Exception as e:
+            logger.error("%s fetching book publication date: %s" % (type(e).__name__, str(e)))
+            return bookdate, False
 
-    if rootxml is None:
-        logger.debug("Error requesting book publication date")
+        if rootxml is None:
+            logger.debug("Error requesting book publication date")
+            return bookdate, in_cache
+
+        try:
+            bookdate = rootxml.find('book/work/original_publication_year').text
+            if bookdate is None:
+                bookdate = '0000'
+        except (KeyError, AttributeError):
+            logger.error("Error reading pubdate for GoodReads bookid %s pubdate [%s]" % (bookid, bookdate))
+
+        logger.debug("GoodReads bookid %s pubdate [%s] cached=%s" % (bookid, bookdate, in_cache))
         return bookdate, in_cache
+    else:
+        if not lazylibrarian.CONFIG['GB_API']:
+            logger.warn('No GoogleBooks API key, check config')
+            return bookdate, False
 
-    try:
-        bookdate = rootxml.find('book/work/original_publication_year').text
-        if bookdate is None:
-            bookdate = '0000'
-    except (KeyError, AttributeError):
-        logger.error("Error reading pubdate for GoodReads bookid %s pubdate [%s]" % (bookid, bookdate))
-
-    logger.debug("GoodReads bookid %s pubdate [%s] cached=%s" % (bookid, bookdate, in_cache))
-    return bookdate, in_cache
+        URL = 'https://www.googleapis.com/books/v1/volumes/%s?key=%s' % (bookid, lazylibrarian.CONFIG['GB_API'])
+        jsonresults, in_cache = gb_json_request(URL)
+        if not jsonresults:
+            logger.debug('No results found for %s' % bookid)
+        else:
+            book = googleBookDict(jsonresults)
+            if book['date']:
+                bookdate = book['date']
+        return bookdate, in_cache
 
 
 def thingLang(isbn):

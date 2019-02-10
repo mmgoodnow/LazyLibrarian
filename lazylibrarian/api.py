@@ -28,7 +28,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audioProcess, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
-    setWorkID, get_gb_info, setGenres, genreFilter
+    setWorkID, get_gb_info, setGenres, genreFilter, getBookPubdate
 from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
@@ -172,6 +172,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'logMessage': '&level= &text=  send a message to lazylibrarian logger',
             'comicid': '&name= &source= [&best] try to identify comic from name',
             'comicmeta': '&name= [&xml] get metadata from comic archive, xml or dictionary',
+            'getBookPubdate': '&id= get original publication date of a book by bookid',
             }
 
 
@@ -356,6 +357,12 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         self.data = audioProcess(kwargs['id'], rename=True)
+
+    def _getBookPubdate(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        self.data = getBookPubdate(kwargs['id'])
 
     def _createPlaylist(self, **kwargs):
         if 'id' not in kwargs:

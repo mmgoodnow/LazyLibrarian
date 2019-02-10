@@ -24,7 +24,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, isbn_from_words, thingLang, get_book_pubdate, get_gb_info, \
+    setSeries, setStatus, isbn_from_words, thingLang, getBookPubdate, get_gb_info, \
     get_gr_genres, setGenres, genreFilter
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
@@ -755,7 +755,7 @@ class GoodReads:
                                 locked = False
 
                             if not originalpubdate:  # already set with language code or existing book?
-                                originalpubdate, in_cache = get_book_pubdate(bookid)
+                                originalpubdate, in_cache = getBookPubdate(bookid)
                                 if not in_cache:
                                     api_hits += 1
 
