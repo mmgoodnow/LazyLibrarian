@@ -681,7 +681,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         book = highest[2]  # type: dict
                     if match and match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
                         logger.debug('Found match (%s%%): %s for %s %s' % (
-                            match, pp_path, book_type, book['NZBtitle']))
+                            match, repr(pp_path), book_type, repr(book['NZBtitle'])))
 
                         cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
                         cmd += ' and books.AuthorID = authors.AuthorID'
