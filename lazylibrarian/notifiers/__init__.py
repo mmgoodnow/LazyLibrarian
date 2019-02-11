@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
+import traceback
 from . import androidpn
 from . import boxcar
 from . import custom_notify
@@ -65,6 +66,7 @@ def custom_notify_download(bookid):
         custom_notifier.notify_download(bookid)
     except Exception as e:
         logger.warn('Custom notify download failed: %s' % str(e))
+        logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def custom_notify_snatch(bookid):
@@ -72,6 +74,7 @@ def custom_notify_snatch(bookid):
         custom_notifier.notify_snatch(bookid)
     except Exception as e:
         logger.warn('Custom notify snatch failed: %s' % str(e))
+        logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def notify_download(title, bookid=None):
@@ -83,6 +86,7 @@ def notify_download(title, bookid=None):
                 n.notify_download(title)
     except Exception as e:
         logger.warn('Notify download failed: %s' % str(e))
+        logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
 def notify_snatch(title):
@@ -91,3 +95,4 @@ def notify_snatch(title):
             n.notify_snatch(title)
     except Exception as e:
         logger.warn('Notify snatch failed: %s' % str(e))
+        logger.error('Unhandled exception: %s' % traceback.format_exc())
