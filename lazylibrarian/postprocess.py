@@ -924,7 +924,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                         update_downloads(book['NZBprov'])
                     else:
-                        logger.error('Postprocessing for %s has failed: %s' % (global_name, dest_file))
+                        logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Failed", "DLResult": dest_file, "NZBDate": now()}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
@@ -950,13 +950,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             logger.warn('Residual files remain in %s.fail' % pp_path)
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
-                                         (pp_path, type(why).__name__, str(why)))
+                                         (repr(pp_path), type(why).__name__, str(why)))
                             if not os.access(pp_path, os.R_OK):
-                                logger.error("%s is not readable" % pp_path)
+                                logger.error("%s is not readable" % repr(pp_path))
                             if not os.access(pp_path, os.W_OK):
-                                logger.error("%s is not writeable" % pp_path)
+                                logger.error("%s is not writeable" % repr(pp_path))
                             if not os.access(pp_path, os.X_OK):
-                                logger.error("%s is not executable" % pp_path)
+                                logger.error("%s is not executable" % repr(pp_path))
                             parent = os.path.dirname(pp_path)
                             try:
                                 with open(os.path.join(parent, 'll_temp'), 'w') as f:
@@ -1617,7 +1617,7 @@ def process_book(pp_path=None, bookID=None):
                 update_downloads(snatched_from)
                 return True
             else:
-                logger.error('Postprocessing for %s has failed: %s' % (global_name, dest_file))
+                logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
                 if os.path.isdir(pp_path + '.fail'):
                     try:
                         shutil.rmtree(pp_path + '.fail')
@@ -1630,9 +1630,9 @@ def process_book(pp_path=None, bookID=None):
                     logger.error("Unable to rename %s, %s %s" %
                                  (pp_path, type(e).__name__, str(e)))
                     if not os.access(pp_path, os.R_OK):
-                        logger.error("%s is not readable" % pp_path)
+                        logger.error("%s is not readable" % repr(pp_path))
                     if not os.access(pp_path, os.W_OK):
-                        logger.error("%s is not writeable" % pp_path)
+                        logger.error("%s is not writeable" % repr(pp_path))
                     parent = os.path.dirname(pp_path)
                     try:
                         with open(os.path.join(parent, 'll_temp'), 'w') as f:
@@ -1937,9 +1937,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             newbookfile = destfile
                     except Exception as why:
                         if not os.access(srcfile, os.R_OK):
-                            logger.error("File [%s] is not readable" % srcfile)
+                            logger.error("File [%s] is not readable" % repr(srcfile))
                         if not os.access(srcfile, os.W_OK):
-                            logger.error("File [%s] is not writeable" % srcfile)
+                            logger.error("File [%s] is not writeable" % repr(srcfile))
                         parent = os.path.dirname(destfile)
                         try:
                             with open(os.path.join(parent, b'll_temp'), 'w') as f:
