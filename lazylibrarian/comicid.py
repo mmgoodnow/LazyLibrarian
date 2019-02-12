@@ -144,7 +144,7 @@ def cv_identify(fname, best=True):
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
         url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(unaccented(matchwords)), off)
         cv_api_sleep()
-        res, in_cache = gb_json_request(url)
+        res, _ = gb_json_request(url)
 
         if not res:
             next_page = False
@@ -403,7 +403,7 @@ def cx_identify(fname, best=True):
         minmatch = 2
 
     url = 'https://www.comixology.com/search/series?search=%s' % matchwords
-    data, in_cache = html_request(url)
+    data, _ = html_request(url)
 
     if not data:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:

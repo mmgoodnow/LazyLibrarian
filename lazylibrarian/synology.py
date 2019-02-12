@@ -135,7 +135,7 @@ def _logout(auth_cgi, sid):
         "_sid": sid
     }
 
-    result, success = _getJSON(auth_cgi, params)
+    _, success = _getJSON(auth_cgi, params)
     return success
 
 
@@ -319,7 +319,7 @@ def checkLink():
     msg = "Synology login FAILED\nCheck debug log"
     hosturl = _hostURL()
     if hosturl:
-        auth_cgi, task_cgi, sid = _login(hosturl)
+        auth_cgi, _, sid = _login(hosturl)
         if sid:
             msg = "Synology login successful"
             _logout(auth_cgi, sid)

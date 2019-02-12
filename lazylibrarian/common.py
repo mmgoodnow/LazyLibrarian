@@ -79,7 +79,7 @@ def multibook(foldername, recurse=False):
     filetypes = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
     if recurse:
-        for r, d, f in walk(foldername):
+        for _, _, f in walk(foldername):
             flist = [makeUnicode(item) for item in f]
             for item in filetypes:
                 counter = 0
@@ -392,7 +392,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     if os.path.isdir(search_dir):
         if recurse:
             try:
-                for r, d, f in walk(makeUTF8bytes(search_dir)[0]):
+                for r, _, f in walk(makeUTF8bytes(search_dir)[0]):
                     for item in f:
                         if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
@@ -1132,7 +1132,7 @@ def zipAudio(source, zipname):
         logger.debug('Zipping up %s' % zipname)
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
-            for rootdir, dirs, filenames in os.walk(makeUTF8bytes(source)[0]):
+            for rootdir, _, filenames in os.walk(makeUTF8bytes(source)[0]):
                 rootdir = makeUnicode(rootdir)
                 filenames = [makeUnicode(item) for item in filenames]
                 for filename in filenames:

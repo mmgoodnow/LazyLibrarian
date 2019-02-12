@@ -173,7 +173,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, new = addAuthorNameToDB(author, False, False)
+        newauthor, authorid, _ = addAuthorNameToDB(author, False, False)
         if len(newauthor) and newauthor != author:
             logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
             author = makeUnicode(newauthor)
@@ -754,7 +754,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 else:
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
-                            newauthor, authorid, new = addAuthorNameToDB(author)  # get the author name as we know it...
+                            newauthor, authorid, _ = addAuthorNameToDB(author)  # get the author name as we know it...
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
@@ -863,7 +863,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         set_url = base_url + searchterm + '&' + urlencode(params)
                                         # noinspection PyBroadException
                                         try:
-                                            rootxml, in_cache = gr_xml_request(set_url)
+                                            rootxml, _ = gr_xml_request(set_url)
                                             if rootxml is None:
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
                                                 logger.debug(set_url)

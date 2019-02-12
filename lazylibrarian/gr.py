@@ -259,7 +259,7 @@ class GoodReads:
         logger.debug("Searching for author with name: %s" % author)
 
         try:
-            rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
+            rootxml, _ = gr_xml_request(URL, useCache=not refresh)
         except Exception as e:
             logger.error("%s finding authorid: %s, %s" % (type(e).__name__, URL, str(e)))
             return {}
@@ -288,7 +288,7 @@ class GoodReads:
         URL = 'https://www.goodreads.com/author/show/' + authorid + '.xml?' + urlencode(self.params)
 
         try:
-            rootxml, in_cache = gr_xml_request(URL)
+            rootxml, _ = gr_xml_request(URL)
         except Exception as e:
             logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
             return {}
@@ -1020,7 +1020,7 @@ class GoodReads:
             pagecount += 1
             URL = 'https://www.goodreads.com/book/id_to_work_id/' + page + '?' + urlencode(self.params)
             try:
-                rootxml, in_cache = gr_xml_request(URL, useCache=False)
+                rootxml, _ = gr_xml_request(URL, useCache=False)
                 if rootxml is None:
                     logger.debug("Error requesting id_to_work_id page")
                 else:
@@ -1062,7 +1062,7 @@ class GoodReads:
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
 
         try:
-            rootxml, in_cache = gr_xml_request(URL)
+            rootxml, _ = gr_xml_request(URL)
             if rootxml is None:
                 logger.debug("Error requesting book")
                 return

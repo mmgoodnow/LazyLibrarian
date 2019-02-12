@@ -2337,7 +2337,7 @@ class WebInterface(object):
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
                     if bookfile and os.path.isfile(bookfile):
-                        basename, extn = os.path.splitext(bookfile)
+                        basename, _ = os.path.splitext(bookfile)
                         types = []
                         for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
                             target = basename + '.' + item
@@ -3115,9 +3115,6 @@ class WebInterface(object):
                 if len(mags):
                     for mag in mags:
                         title = mag['Title']
-                        if PY2:
-                            temp_title = title.encode(lazylibrarian.SYS_ENCODING)
-                            safetitle = quote_plus(temp_title)
                         entry = [mag['ComicID'], mag['Cover'], title, mag['Iss_Cnt'], mag['LastAcquired'],
                                  mag['LatestIssue'], mag['Status'], mag['IssueStatus'], mag['Start'],
                                  mag['Publisher'], mag['Link']]
@@ -5094,22 +5091,6 @@ class WebInterface(object):
             return "Test Growl notice sent successfully"
         else:
             return "Test Growl notice failed"
-
-    @cherrypy.expose
-    def testNMA(self, **kwargs):
-        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
-        if 'apikey' in kwargs:
-            lazylibrarian.CONFIG['NMA_APIKEY'] = kwargs['apikey']
-        if 'priority' in kwargs:
-            lazylibrarian.CONFIG['NMA_PRIORITY'] = check_int(kwargs['priority'], 0)
-
-        result = notifiers.nma_notifier.test_notify('NMA')
-        if result:
-            lazylibrarian.config_write('NMA')
-            return "Test NMA notice sent successfully"
-        else:
-            return "Test NMA notice failed"
 
     @cherrypy.expose
     def testSlack(self, **kwargs):

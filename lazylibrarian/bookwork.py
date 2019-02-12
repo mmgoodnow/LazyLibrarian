@@ -328,7 +328,7 @@ def setWorkID(books=None):
     for page in pages:
         URL = 'https://www.goodreads.com/book/id_to_work_id/' + page + '?' + urlencode(params)
         try:
-            rootxml, in_cache = gr_xml_request(URL, useCache=False)
+            rootxml, _ = gr_xml_request(URL, useCache=False)
             if rootxml is None:
                 logger.debug("Error requesting id_to_work_id page")
             else:
@@ -569,7 +569,7 @@ def getBookAuthors(bookid):
         params = {"key": lazylibrarian.CONFIG['GR_API']}
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(params)
         try:
-            rootxml, in_cache = gr_xml_request(URL)
+            rootxml, _ = gr_xml_request(URL)
             if rootxml is None:
                 logger.debug("Error requesting book %s" % bookid)
                 return []
@@ -961,7 +961,7 @@ def getWorkSeries(bookID=None):
         URL = "https://www.goodreads.com/work/"
         seriesurl = URL + bookID + "/series?format=xml&key=" + lazylibrarian.CONFIG['GR_API']
 
-        rootxml, in_cache = gr_xml_request(seriesurl)
+        rootxml, _ = gr_xml_request(seriesurl)
         if rootxml is None:
             logger.warn('Error getting XML for %s' % seriesurl)
         else:
@@ -1228,7 +1228,7 @@ def isbn_from_words(words):
                'Content-Type': 'text/plain; charset="UTF-8"',
                'Content-Transfer-Encoding': 'Quoted-Printable',
                }
-    content, success = fetchURL(search_url, headers=headers)
+    content, _ = fetchURL(search_url, headers=headers)
     # noinspection Annotator
     RE_ISBN13 = re.compile(r'97[89]{1}(?:-?\d){10,16}|97[89]{1}[- 0-9]{10,16}')
     RE_ISBN10 = re.compile(r'ISBN\x20(?=.{13}$)\d{1,5}([- ])\d{1,7}\1\d{1,6}\1(\d|X)$|[- 0-9X]{10,16}')

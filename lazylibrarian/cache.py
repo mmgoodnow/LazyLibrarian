@@ -143,8 +143,6 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
         result, success = fetchURL(URL, headers=headers, retry=False, raw=raw)
         return result, success
     except Exception as e:
-        if hasattr(e, 'reason'):
-            return "Exception %s: Reason: %s" % (type(e).__name__, str(e.reason)), False
         return "Exception %s: %s" % (type(e).__name__, str(e)), False
 
 

@@ -95,7 +95,7 @@ def comicScan(comicid=None):
         comic_path, encoding = makeUTF8bytes(mag_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("comic_path was %s" % encoding)
-        for rootdir, dirnames, filenames in walk(comic_path):
+        for rootdir, _, filenames in walk(comic_path):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:

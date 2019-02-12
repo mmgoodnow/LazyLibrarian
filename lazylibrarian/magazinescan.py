@@ -112,7 +112,7 @@ def magazineScan(title=None):
         start_utf, encoding = makeUTF8bytes(mag_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug("mag_path was %s" % encoding)
-        for rootdir, dirnames, filenames in walk(start_utf):
+        for rootdir, _, filenames in walk(start_utf):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:

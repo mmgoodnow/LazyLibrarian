@@ -141,11 +141,8 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         logger.warn(res)
         return False, res
     except Exception as e:
-        if hasattr(e, 'reason'):
-            res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, e.reason)
-        else:
-            res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
-            logger.warn(res)
+        res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
+        logger.warn(res)
         return False, res
 
     if not str(r.status_code).startswith('2'):
@@ -289,10 +286,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 tor_url = 'magnet:?' + str(e).split('magnet:?')[1].strip("'")
                 logger.debug("Redirecting to %s" % tor_url)
             else:
-                if hasattr(e, 'reason'):
-                    res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, e.reason)
-                else:
-                    res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, str(e))
+                res = '%s fetching file from url: %s, %s' % (type(e).__name__, tor_url, str(e))
                 logger.warn(res)
                 return False, res
 

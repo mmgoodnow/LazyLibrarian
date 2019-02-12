@@ -121,7 +121,7 @@ def addTorrent(link, data=None):
 
             if not torrentfile:
                 logger.debug('Deluge: Getting .torrent file')
-                with open(link, str('rb')) as f:
+                with open(link, 'rb') as f:
                     torrentfile = f.read()
             # Extract torrent name from .torrent
             try:

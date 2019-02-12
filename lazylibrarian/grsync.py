@@ -260,8 +260,8 @@ class grauth:
         gr_api_sleep()
 
         try:
-            response, content = client.request('%s/user_shelves.xml' % 'https://www.goodreads.com', 'POST',
-                                               body, headers)
+            response, _ = client.request('%s/user_shelves.xml' % 'https://www.goodreads.com', 'POST',
+                                         body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             return False, "Error in client.request: see error log"

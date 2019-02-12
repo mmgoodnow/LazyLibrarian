@@ -129,10 +129,7 @@ class GoogleBooks:
                             else:
                                 pass
                         except Exception as err:
-                            if hasattr(err, 'reason'):
-                                errmsg = err.reason
-                            else:
-                                errmsg = str(err)
+                            errmsg = str(err)
                             logger.warn(
                                 'Google Books API Error [%s]: Check your API key or wait a while' % errmsg)
                             break
@@ -290,10 +287,7 @@ class GoogleBooks:
                                 api_hits += 1
                             number_results = jsonresults['totalItems']
                     except Exception as err:
-                        if hasattr(err, 'reason'):
-                            errmsg = err.reason
-                        else:
-                            errmsg = str(err)
+                        errmsg = str(err)
                         logger.warn('Google Books API Error [%s]: Check your API key or wait a while' % errmsg)
                         break
 
@@ -617,7 +611,7 @@ class GoogleBooks:
             logger.warn('No GoogleBooks API key, check config')
         URL = 'https://www.googleapis.com/books/v1/volumes/' + \
               str(bookid) + "?key=" + lazylibrarian.CONFIG['GB_API']
-        jsonresults, in_cache = gb_json_request(URL)
+        jsonresults, _ = gb_json_request(URL)
 
         if not jsonresults:
             logger.debug('No results found for %s' % bookid)

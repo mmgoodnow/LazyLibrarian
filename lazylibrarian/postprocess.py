@@ -188,7 +188,7 @@ def processAlternate(source_dir=None, library='eBook'):
                 if authorid:
                     addAuthorToDB(authorid=authorid, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
                 else:
-                    aname, authorid, added = addAuthorNameToDB(author=authorname,
+                    aname, authorid, _ = addAuthorNameToDB(author=authorname,
                                                                addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
                     if aname and aname != authorname:
                         authorname = aname
@@ -926,7 +926,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                     else:
                         logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
-                        newValueDict = {"Status": "Failed", "DLResult": dest_file, "NZBDate": now()}
+                        newValueDict = {"Status": "Failed", "DLResult": makeUnicode(dest_file), "NZBDate": now()}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
                         # if it's a book, reset status so we try for a different version
                         # if it's a magazine, user can select a different one from pastissues table
@@ -1628,7 +1628,7 @@ def process_book(pp_path=None, bookID=None):
                     logger.warn('Residual files remain in %s.fail' % pp_path)
                 except Exception as e:
                     logger.error("Unable to rename %s, %s %s" %
-                                 (pp_path, type(e).__name__, str(e)))
+                                 (repr(pp_path), type(e).__name__, str(e)))
                     if not os.access(pp_path, os.R_OK):
                         logger.error("%s is not readable" % repr(pp_path))
                     if not os.access(pp_path, os.W_OK):
@@ -1771,7 +1771,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             # so we send separate "set_metadata" commands after the import
             for fname in os.listdir(makeUTF8bytes(pp_path)[0]):
                 fname = makeUnicode(fname)
-                filename, extn = os.path.splitext(fname)
+                extn = os.path.splitext(fname)[1]
                 srcfile = os.path.join(pp_path, fname)
                 if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                     if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
@@ -2090,7 +2090,7 @@ def processMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
         return
     dest_path, global_name = os.path.split(issuefile)
-    global_name, extn = os.path.splitext(global_name)
+    global_name = os.path.splitext(global_name)[0]
 
     if len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]

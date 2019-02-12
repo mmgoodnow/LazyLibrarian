@@ -143,7 +143,7 @@ def getCurrentVersion():
         VERSION = 'Windows Install'
 
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-        output, err = runGit('rev-parse HEAD')
+        output, _ = runGit('rev-parse HEAD')
 
         if not output:
             logmsg('error', 'Couldn\'t find latest git installed version.')
@@ -206,7 +206,7 @@ def getCurrentGitBranch():
         return 'NON GIT INSTALL'
 
     # use git rev-parse --abbrev-ref HEAD which returns the name of the current branch
-    current_branch, err = runGit('rev-parse --abbrev-ref HEAD')
+    current_branch, _ = runGit('rev-parse --abbrev-ref HEAD')
     current_branch = str(current_branch)
     current_branch = current_branch.strip(' \n\r')
 
@@ -389,7 +389,7 @@ def getCommitDifferenceFromGit():
                     ahead = 0
                     behind = 0
                     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-                        output, err = runGit('rev-list --left-right --count master...origin/master')
+                        output, _ = runGit('rev-list --left-right --count master...origin/master')
                         if output:
                             a, b = output.split(None, 1)
                             ahead = check_int(a, 0)
@@ -472,7 +472,7 @@ def update():
         branch = getCurrentGitBranch()
 
         _, _ = runGit('stash clear')
-        output, err = runGit('pull origin ' + branch)
+        output, _ = runGit('pull origin ' + branch)
 
         if not output:
             logmsg('error', 'Couldn\'t download latest version')
@@ -518,10 +518,7 @@ def update():
             logmsg('error', "Timeout retrieving new version from " + tar_download_url)
             return False
         except Exception as e:
-            if hasattr(e, 'reason'):
-                errmsg = e.reason
-            else:
-                errmsg = str(e)
+            errmsg = str(e)
             logmsg('error',
                    "Unable to retrieve new version from " + tar_download_url + ", can't update: %s" % errmsg)
             return False
@@ -555,7 +552,7 @@ def update():
         content_dir = os.path.join(update_dir, update_dir_contents[0])
 
         # walk temp folder and move files to main folder
-        for rootdir, dirnames, filenames in walk(content_dir):
+        for rootdir, _, filenames in walk(content_dir):
             rootdir = rootdir[len(content_dir) + 1:]
             for curfile in filenames:
                 old_path = os.path.join(content_dir, rootdir, curfile)

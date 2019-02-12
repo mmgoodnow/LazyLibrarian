@@ -249,7 +249,7 @@ def finditem(item, preferred_authorname, library='eBook'):
             fullcmd = cmd + 'and BookIsbn=?'
             bookmatch = myDB.match(fullcmd, (isbn13,))
     if not bookmatch:
-        bookid, mtype = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library)
+        bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library)
         if bookid:
             fullcmd = cmd + 'and BookID=?'
             bookmatch = myDB.match(fullcmd, (bookid,))

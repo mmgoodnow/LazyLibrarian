@@ -1398,7 +1398,7 @@ def db_v44(myDB, upgradelog):
 # noinspection PyUnusedLocal
 def db_v45(myDB, upgradelog):
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-        res, err = runGit('remote -v')
+        res, _ = runGit('remote -v')
         if 'gitlab.com' not in res:
             upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))
             runGit('remote rm origin')

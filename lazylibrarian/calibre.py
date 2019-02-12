@@ -124,7 +124,7 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
 
     for item in calibre_list:
         if toreadcol and toreadcol in item or readcol and readcol in item:
-            authorname, authorid, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False)
+            authorname, _, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False)
             if authorname:
                 if authorname != item['authors']:
                     logger.debug("Changed authorname for [%s] from [%s] to [%s]" %
@@ -391,7 +391,7 @@ def calibreTest():
             else:
                 calibre_id = wrt.split("book ids: ", 1)[1].split("\n", 1)[0]
                 if vernum.startswith('2'):
-                    rmv, err, rc = calibredb('remove', [calibre_id], [])
+                    _, err, rc = calibredb('remove', [calibre_id], [])
                 else:
                     rmv, err, rc = calibredb('remove', ['--permanent', calibre_id], [])
                 if not rc:

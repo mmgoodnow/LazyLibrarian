@@ -1465,7 +1465,7 @@ class Api(object):
             # cache image from url
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                cachedimg, success, _ = cache_img(table, itemid, img)
+                _, success, _ = cache_img(table, itemid, img)
                 if success:
                     msg = ''
                 else:

@@ -1058,7 +1058,7 @@ def config_write(part=None):
     interface = CFG.get('General', 'http_look')
 
     for key in list(CONFIG_DEFINITIONS.keys()):
-        item_type, section, default = CONFIG_DEFINITIONS[key]
+        _, section, _ = CONFIG_DEFINITIONS[key]
         if key in ['WALL_COLUMNS', 'DISPLAY_LENGTH']:  # may be modified by user interface but not on config page
             value = check_int(CONFIG[key], 5)
         elif part and section != part:
