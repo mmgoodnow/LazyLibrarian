@@ -963,7 +963,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     f.write('test')
                                 os.remove(os.path.join(parent, 'll_temp'))
                             except Exception as why:
-                                logger.error("Directory %s is not writeable: %s" % (parent, why))
+                                logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                             logger.warn('Residual files remain in %s' % pp_path)
 
             ppcount += check_residual(download_dir)
@@ -1937,16 +1937,16 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             newbookfile = destfile
                     except Exception as why:
                         if not os.access(srcfile, os.R_OK):
-                            logger.error("File [%s] is not readable" % repr(srcfile))
+                            logger.error("Sourcefile [%s] is not readable" % repr(srcfile))
                         if not os.access(srcfile, os.W_OK):
-                            logger.error("File [%s] is not writeable" % repr(srcfile))
+                            logger.error("Sourcefile [%s] is not writeable" % repr(srcfile))
                         parent = os.path.dirname(destfile)
                         try:
                             with open(os.path.join(parent, b'll_temp'), 'w') as f:
                                 f.write('test')
                             os.remove(os.path.join(parent, b'll_temp'))
                         except Exception as w:
-                            logger.error("Directory [%s] is not writeable: %s" % (parent, w))
+                            logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to %s file %s to %s: %s %s" % (typ, srcfile, destfile,
                                                                              type(why).__name__, str(why))
                 else:

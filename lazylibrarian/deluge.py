@@ -177,7 +177,7 @@ def addTorrent(link, data=None):
 def getTorrentFolder(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent folder name')
-    res = getTorrentStatus(torrentid, ["name"])
+    res = getTorrentStatus(torrentid, ["name", "state"])
     if res:
         return res['result']['name']
     return ''
@@ -186,7 +186,7 @@ def getTorrentFolder(torrentid):
 def getTorrentFiles(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent files')
-    res = getTorrentStatus(torrentid, ["files"])
+    res = getTorrentStatus(torrentid, ["files", "state"])
     if res:
         return res['result']['files']
     return ''
