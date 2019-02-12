@@ -193,12 +193,13 @@ def get_searchterm(book, searchType):
         # and Charles H. Elliott, Phd -> Charles Elliott
         # but Tom Holt -> Tom Holt
         # Calibre directories may have trailing '.' replaced by '_'  eg Jr_
+        authorname = authorname.replace('.', ' ').replace('_', ' ')
         if ' ' in authorname:
             authorname_exploded = authorname.split()
             authorname = ''
             postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
             for word in authorname_exploded:
-                word = word.rstrip('.').rstrip('_')
+                # word = word.rstrip('.').rstrip('_')
                 if len(word) > 1 and word.lower() not in postfix:
                     if authorname:
                         authorname += ' '
