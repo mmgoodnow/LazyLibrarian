@@ -22,7 +22,7 @@ from lib.six import PY2
 from lazylibrarian import database, logger
 from lazylibrarian.common import safe_move, walk
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeUnicode, makeBytestr, \
-    replace_all, check_year, makeUTF8bytes
+    replace_all, check_year
 from lazylibrarian.images import createMagCover
 
 
@@ -84,6 +84,11 @@ def magazineScan(title=None):
                         logger.debug('Magazine %s deleted as no issues found' % title)
                         myDB.action('DELETE from magazines WHERE Title=?', (title,))
 
+        if not mag_path or not os.path.isdir(mag_path):
+            logger.warn("Magazine folder %s not found" % mag_path)
+            lazylibrarian.MAG_UPDATE = 0
+            return
+
         logger.info(' Checking [%s] for magazines' % mag_path)
 
         matchString = ''
@@ -100,6 +105,7 @@ def magazineScan(title=None):
                 booktypes = book_type
             else:
                 booktypes = booktypes + '|' + book_type
+
         match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
             "\\$\\T\\i\\t\\l\\e", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
         title_pattern = re.compile(match, re.VERBOSE)
@@ -107,12 +113,7 @@ def magazineScan(title=None):
             "\\$\\T\\i\\t\\l\\e", "") + r'\.[' + booktypes + ']'
         date_pattern = re.compile(match, re.VERBOSE)
 
-        # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
-        # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        start_utf, encoding = makeUTF8bytes(mag_path)
-        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-            logger.debug("mag_path was %s" % encoding)
-        for rootdir, _, filenames in walk(start_utf):
+        for rootdir, _, filenames in walk(mag_path):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:

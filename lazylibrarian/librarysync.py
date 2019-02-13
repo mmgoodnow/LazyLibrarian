@@ -24,7 +24,7 @@ from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, split_title, now, makeUnicode, makeUTF8bytes
+    cleanName, replace_all, split_title, now, makeUnicode, makeBytestr
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
@@ -577,17 +577,12 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
         pattern = re.compile(matchString, re.VERBOSE)
         last_authorid = None
-        # try to ensure startdir is str as os.walk can fail if it tries to convert a subdir or file
-        # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        start_utf, encoding = makeUTF8bytes(startdir)
-        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
-            logger.debug("startdir was %s" % encoding)
-        for rootdir, dirnames, filenames in walk(start_utf):
+        for rootdir, dirnames, filenames in walk(startdir):
             for directory in dirnames:
                 # prevent magazine being scanned
                 c = directory[0]
-                ignorefile = '.ll_ignore'
-                if c in ["_", "."]:
+                ignorefile = b'.ll_ignore'
+                if c in [b"_", b"."]:
                     logger.debug('Skipping %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)
                     # ignore directories containing this special file
@@ -597,11 +592,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
+            subdirectory = rootdir.replace(startdir, b'')
 
             for files in filenames:
-                subdirectory = rootdir.replace(startdir, '')
                 file_count += 1
-
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini
                 # in case user keeps multiple different books in the same subdirectory
@@ -612,8 +606,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
-                elif not os.path.isdir(makeUTF8bytes(rootdir)[0]):
-                    logger.debug("[%s] missing (renamed?)" % rootdir)
+                elif not os.path.isdir(makeBytestr(rootdir)):
+                    logger.debug("Directory %s missing (renamed?)" % repr(rootdir))
                 else:
                     # If this is a book, try to get author/title/isbn/language
                     # if epub or mobi, read metadata from the book
@@ -984,7 +978,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                                                 if tokmatch:
                                                     break
-                                                for e in os.listdir(makeUTF8bytes(rootdir)[0]):
+                                                for e in os.listdir(makeBytestr(rootdir)):
                                                     e = makeUnicode(e)
                                                     if is_valid_booktype(e, booktype='audiobook') and token in e:
                                                         book_filename = os.path.join(rootdir, e)

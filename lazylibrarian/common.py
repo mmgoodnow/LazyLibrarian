@@ -51,7 +51,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run, is_valid_booktype, datecompare, check_int, \
-    getList, makeUnicode, unaccented, replace_all, makeUTF8bytes
+    getList, makeUnicode, unaccented, replace_all, makeBytestr
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -89,7 +89,7 @@ def multibook(foldername, recurse=False):
                         if counter > 1:
                             return item
     else:
-        flist = os.listdir(makeUTF8bytes(foldername)[0])
+        flist = os.listdir(makeBytestr(foldername))
         flist = [makeUnicode(item) for item in flist]
         for item in filetypes:
             counter = 0
@@ -108,10 +108,9 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     islink, join, isdir = os.path.islink, os.path.join, os.path.isdir
 
     try:
-        top = makeUTF8bytes(top)[0]
+        top = makeBytestr(top)
         names = os.listdir(top)
-        # force non-ascii text out
-        names = [makeUTF8bytes(name)[0] for name in names]
+        names = [makeBytestr(name) for name in names]
     except os.error as err:
         if onerror is not None:
             onerror(err)
@@ -328,7 +327,7 @@ def any_file(search_dir=None, extn=None):
     if search_dir is None or extn is None:
         return ""
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
+        for fname in os.listdir(makeBytestr(search_dir)):
             fname = makeUnicode(fname)
             if fname.endswith(extn):
                 return os.path.join(search_dir, fname)
@@ -342,7 +341,7 @@ def opf_file(search_dir=None):
     res = ''
     meta = ''
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
+        for fname in os.listdir(makeBytestr(search_dir)):
             fname = makeUnicode(fname)
             if fname.endswith('.opf'):
                 if fname == 'metadata.opf':
@@ -369,7 +368,7 @@ def bts_file(search_dir=None):
 def csv_file(search_dir=None, library=None):
     if search_dir and os.path.isdir(search_dir):
         try:
-            for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
+            for fname in os.listdir(makeBytestr(search_dir)):
                 fname = makeUnicode(fname)
                 if fname.endswith('.csv'):
                     if not library or library in fname:
@@ -392,7 +391,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     if os.path.isdir(search_dir):
         if recurse:
             try:
-                for r, _, f in walk(makeUTF8bytes(search_dir)[0]):
+                for r, _, f in walk(search_dir):
                     for item in f:
                         if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
@@ -400,7 +399,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
                 logger.warn('walk error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
         else:
             try:
-                for fname in os.listdir(makeUTF8bytes(search_dir)[0]):
+                for fname in os.listdir(makeBytestr(search_dir)):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
                         return os.path.join(search_dir, fname)
             except Exception as e:
@@ -1132,7 +1131,7 @@ def zipAudio(source, zipname):
         logger.debug('Zipping up %s' % zipname)
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
-            for rootdir, _, filenames in os.walk(makeUTF8bytes(source)[0]):
+            for rootdir, _, filenames in walk(source):
                 rootdir = makeUnicode(rootdir)
                 filenames = [makeUnicode(item) for item in filenames]
                 for filename in filenames:

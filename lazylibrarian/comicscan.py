@@ -18,8 +18,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
-from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, check_int, \
-    now, makeUTF8bytes
+from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, check_int, now
 from lazylibrarian.common import walk
 from lazylibrarian.images import createMagCover
 from lib.six import PY2
@@ -90,12 +89,7 @@ def comicScan(comicid=None):
 
         logger.info(' Checking [%s] for comics' % mag_path)
 
-        # try to ensure startdir is utf8 str as os.walk can fail if it tries to convert a subdir or file
-        # to utf-8 and fails (eg scandinavian characters in ascii 8bit)
-        comic_path, encoding = makeUTF8bytes(mag_path)
-        if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            logger.debug("comic_path was %s" % encoding)
-        for rootdir, _, filenames in walk(comic_path):
+        for rootdir, _, filenames in walk(mag_path):
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:

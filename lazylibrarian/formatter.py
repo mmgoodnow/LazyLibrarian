@@ -379,7 +379,7 @@ def md5_utf8(txt):
 
 
 # Special character hex range:
-# CP850: 0x80-0xA5 (fortunately not used in ISO-8859-15)
+# CP850: 0x80-0xA5 (fortunately not used in ISO-8859-15) aka latin-1
 # UTF-8: 1st hex code 0xC2-0xC3 followed by a 2nd hex code 0xA1-0xFF
 # ISO-8859-15: 0xA6-0xFF
 # The function will detect if string contains a special character
@@ -413,6 +413,9 @@ def makeUTF8bytes(txt):
     return name, ''
 
 
+_encodings = ['utf-8', 'iso-8859-15', 'cp850']
+
+
 def makeUnicode(txt):
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
@@ -420,10 +423,9 @@ def makeUnicode(txt):
         return u''
     elif isinstance(txt, text_type):
         return txt
-    encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
-    if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
-        encodings.append('utf-8')
-    for encoding in encodings:
+    if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
+        encodings.insert(0, lazylibrarian.SYS_ENCODING)
+    for encoding in _encodings:
         try:
             return txt.decode(encoding)
         except UnicodeError:
@@ -437,10 +439,9 @@ def makeBytestr(txt):
         return b''
     elif not isinstance(txt, text_type):  # nothing to do if already bytestring
         return txt
-    encodings = [lazylibrarian.SYS_ENCODING, 'latin-1']
-    if lazylibrarian.SYS_ENCODING.lower() != 'utf-8':
-        encodings.append('utf-8')
-    for encoding in encodings:
+    if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
+        encodings.insert(0, lazylibrarian.SYS_ENCODING)
+    for encoding in _encodings:
         try:
             return txt.encode(encoding)
         except UnicodeError:

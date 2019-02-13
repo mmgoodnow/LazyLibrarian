@@ -2215,10 +2215,7 @@ class WebInterface(object):
                 # count the audiobook parts
                 if basefile and os.path.isfile(basefile):
                     parentdir = os.path.dirname(basefile)
-                    start_utf, encoding = makeUTF8bytes(parentdir)
-                    if encoding:
-                        logger.debug("parentdir was %s" % encoding)
-                    for _, _, filenames in walk(start_utf):
+                    for _, _, filenames in walk(parentdir):
                         filenames = [makeUnicode(item) for item in filenames]
                         for filename in filenames:
                             if is_valid_booktype(filename, 'audiobook'):
@@ -3566,6 +3563,7 @@ class WebInterface(object):
 
                     this_mag = dict(mag)
                     this_mag['Cover'] = magimg
+
                     temp_title = mag['Title']
                     if PY2:
                         temp_title = temp_title.encode(lazylibrarian.SYS_ENCODING)
