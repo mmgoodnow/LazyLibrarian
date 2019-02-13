@@ -32,7 +32,7 @@ class RotatingLogger(object):
         self.consolehandler = None
 
     def stopLogger(self):
-        lg = logging.getLogger('lazylibrarian')
+        lg = logging.getLogger(__name__)
         lg.removeHandler(self.filehandler)
         lg.removeHandler(self.consolehandler)
         self.filehandler = None
@@ -40,7 +40,7 @@ class RotatingLogger(object):
 
     def initLogger(self, loglevel=1):
 
-        lg = logging.getLogger('lazylibrarian')
+        lg = logging.getLogger(__name__)
         lg.setLevel(logging.DEBUG)
 
         self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
@@ -85,7 +85,7 @@ class RotatingLogger(object):
     @staticmethod
     def log(message, level):
 
-        logger = logging.getLogger('lazylibrarian')
+        logger = logging.getLogger(__name__)
 
         threadname = threading.currentThread().getName()
 
