@@ -424,7 +424,7 @@ def makeUnicode(txt):
     elif isinstance(txt, text_type):
         return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
-        encodings.insert(0, lazylibrarian.SYS_ENCODING)
+        _encodings.insert(0, lazylibrarian.SYS_ENCODING)
     for encoding in _encodings:
         try:
             return txt.decode(encoding)
@@ -440,7 +440,7 @@ def makeBytestr(txt):
     elif not isinstance(txt, text_type):  # nothing to do if already bytestring
         return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
-        encodings.insert(0, lazylibrarian.SYS_ENCODING)
+        _encodings.insert(0, lazylibrarian.SYS_ENCODING)
     for encoding in _encodings:
         try:
             return txt.encode(encoding)
