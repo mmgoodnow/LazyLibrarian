@@ -592,7 +592,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
             rootdir = makeUnicode(rootdir)
             filenames = [makeUnicode(item) for item in filenames]
-            subdirectory = rootdir.replace(startdir, b'')
+            subdirectory = rootdir.replace(startdir, '')
 
             for files in filenames:
                 file_count += 1
