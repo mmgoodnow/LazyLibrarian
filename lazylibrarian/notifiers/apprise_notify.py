@@ -29,7 +29,7 @@ class Apprise_Notifier:
             asset.app_url = "https://gitlab.com/LazyLibrarian/LazyLibrarian"
             apobj = Apprise(asset=asset)
         except Exception as err:
-            logger.error(err)
+            logger.error(str(err))
             return False
 
         if url is not None:
