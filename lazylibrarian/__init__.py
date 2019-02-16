@@ -1539,12 +1539,18 @@ def build_genres():
     for json_file in [os.path.join(DATADIR, 'genres.json'), os.path.join(PROG_DIR, 'example.genres.json')]:
         if os.path.isfile(json_file):
             try:
-                with open(json_file) as json_data:
-                    return json.load(json_data)
+                if PY2:
+                    with open(json_file, 'r') as json_data:
+                        res = json.load(json_data)
+                else:
+                    with open(json_file, 'r', encoding='utf-8') as json_data:
+                        res = json.load(json_data)
+                logger.info("Loaded genres from %s" % json_file)
+                return res
             except Exception as e:
                 logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
     logger.error('No valid genres.json file found')
-    return {}
+    return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
 
 
 def build_monthtable():
