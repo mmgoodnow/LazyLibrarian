@@ -96,21 +96,15 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             if raw:
                 return r.content, True
-            try:
-                result = r.content.decode('utf-8')
-            except UnicodeDecodeError:
-                result = r.content.decode('latin-1')
-            return result, True
-
+            return r.text, True
         elif r.status_code == 403 and 'googleapis' in URL:
-            msg = makeUnicode(r.content)
-            logger.debug(msg)
+            logger.debug(r.text)
             # noinspection PyBroadException
             try:
-                source = json.loads(msg)
+                source = r.json()
                 msg = source['error']['message']
             except Exception:
-                pass
+                msg = "Error 403: see debug log"
 
             if 'Limit Exceeded' in msg:
                 # how long until midnight Pacific Time when google reset the quotas
@@ -133,7 +127,7 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
             # noinspection PyProtectedMember
             msg = requests.status_codes._codes[r.status_code][0]
         except Exception:
-            msg = str(r.content)
+            msg = r.text
         return "Response status %s: %s" % (r.status_code, msg), False
     except requests.exceptions.Timeout as e:
         if not retry:
