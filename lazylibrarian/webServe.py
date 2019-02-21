@@ -2047,11 +2047,15 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
-    def startBookSearch(self, books=None, library=None):
+    def startBookSearch(self, books=None, library=None, force=False):
         if books:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
-                threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, library]).start()
+                if force:
+                    name='FORCE-SEARCHBOOK'
+                else:
+                    name='SEARCHBOOK'
+                threading.Thread(target=search_book, name=name, args=[books, library]).start()
                 booktype = library
                 if not booktype:
                     booktype = 'book'  # all types
@@ -2071,7 +2075,7 @@ class WebInterface(object):
 
             # start searchthreads
             books = [{"bookid": bookid}]
-            self.startBookSearch(books, library=library)
+            self.startBookSearch(books, library=library, force=True)
 
         if AuthorID:
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
