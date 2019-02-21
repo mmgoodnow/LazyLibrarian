@@ -20,6 +20,7 @@ import shutil
 import tarfile
 import threading
 import traceback
+import json
 
 import lazylibrarian
 from lib.six import PY2
@@ -38,7 +39,7 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, runScript, multibook
+    safe_copy, safe_move, make_dirs, runScript, multibook, walk
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes, \
     makeBytestr
@@ -434,6 +435,14 @@ def unpack_archive(archivename, download_dir, title):
     else:
         logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
         return ''
+
+    # check for any empty directories (contained files we dont want)
+    for root, dirnames, _ in walk(target_dir, topdown=False):
+        for dirname in dirnames:
+            try:
+                os.rmdir(os.path.join(root, dirname))
+            except OSError:
+                pass
     return targetdir
 
 
@@ -1848,34 +1857,49 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if rc:
                     logger.warn("calibredb unable to set identifier")
 
-            # calibre does not like accents or quotes in names
-            if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
-                authorname = authorname[:-1] + '_'
-            calibre_dir = os.path.join(dest_dir, unaccented_str(authorname.replace('"', '_')), '')
-            if os.path.isdir(calibre_dir):  # assumed author directory
-                target_dir = os.path.join(calibre_dir, '%s (%s)' % (unaccented(bookname), calibre_id))
-                logger.debug('Calibre trying directory [%s]' % target_dir)
-                remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
-                if os.path.isdir(target_dir):
-                    _ = LibraryScan(target_dir, remove=remove)
-                    newbookfile = book_file(target_dir, booktype='ebook')
-                    # should we be setting permissions on calibres directories and files?
-                    if newbookfile:
-                        setperm(target_dir)
-                        for fname in os.listdir(makeBytestr(target_dir)):
-                            fname = makeUnicode(fname)
-                            setperm(os.path.join(target_dir, fname))
-                        return True, newbookfile
-                    return False, "Failed to find a valid ebook in [%s]" % target_dir
+            # Ask calibre for the author/title so we can construct the likely location
+            target_dir = ''
+            res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', 'id:%s' % calibre_id],
+                                     ['--for-machine'])
+            if not rc:
+                try:
+                    res = json.loads(res.strip('[').strip(']'))
+                    target_dir = os.path.join(dest_dir, res['authors'], "%s (%d)" % (res['title'], res['id']))
+                except Exception as e:
+                    logger.debug("Unable to read json response; %s" % str(e))
+                    target_dir = ''
+
+            if not target_dir or not os.path.isdir(target_dir):
+                # calibre does not like accents or quotes in names
+                if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
+                    authorname = authorname[:-1] + '_'
+                author_dir = os.path.join(dest_dir, unaccented_str(authorname.replace('"', '_')), '')
+                if os.path.isdir(author_dir):  # assumed author directory
+                    entries = os.listdir(makeBytestr(author_dir))
+                    our_id = '(%s)' % calibre_id
+                    for entry in entries:
+                        entry = makeUnicode(entry)
+                        if entry.endswith(our_id):
+                            target_dir = os.path.join(author_dir, entry)
+                            break
+
+                    if not target_dir or not os.path.isdir(target_dir):
+                        return False, 'Failed to locate folder with calibre_id %s in %s' % (our_id, author_dir)
                 else:
-                    _ = LibraryScan(calibre_dir, remove=remove)  # rescan whole authors directory
-                    myDB = database.DBConnection()
-                    match = myDB.match('SELECT BookFile FROM books WHERE BookID=?', (bookid,))
-                    if match:
-                        return True, match['BookFile']
-                    return False, 'Failed to find bookfile for %s in database' % bookid
-            return False, "Failed to locate calibre author dir [%s]" % calibre_dir
-            # imported = LibraryScan(dest_dir)  # may have to rescan whole library instead
+                    return False, 'Failed to locate author folder %s' % author_dir
+
+            remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+            logger.debug('Scanning directory [%s]' % target_dir)
+            _ = LibraryScan(target_dir, remove=remove)
+            newbookfile = book_file(target_dir, booktype='ebook')
+            # should we be setting permissions on calibres directories and files?
+            if newbookfile:
+                setperm(target_dir)
+                for fname in os.listdir(makeBytestr(target_dir)):
+                    fname = makeUnicode(fname)
+                    setperm(os.path.join(target_dir, fname))
+                return True, newbookfile
+            return False, "Failed to find a valid ebook in [%s]" % target_dir
         except Exception as e:
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e))
     else:
@@ -1965,11 +1989,11 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                 if tokmatch:
                     break
-                for f in os.listdir(pp_path):
+                for f in os.listdir(dest_path):
                     uf = makeUnicode(f)
                     if is_valid_booktype(uf, booktype='audiobook') and token in uf:
-                        firstfile = os.path.join(pp_path, f)
-                        logger.debug("Link to preferred part [%s], %s" % (token, uf))
+                        firstfile = os.path.join(dest_path, f)
+                        logger.debug("Link to first part [%s], %s" % (token, uf))
                         tokmatch = token
                         break
         if firstfile:
