@@ -87,7 +87,7 @@ def search_magazines(mags=None, reset=False):
                     # unless there are no ascii characters left
                     searchterm = searchmag['Title']
                 """
-                searchterm = replace_all(searchterm, dic)
+                searchterm = replace_all(searchmag['Title'], dic)
 
                 searchterm = re.sub(r'[.\-/]', ' ', searchterm)
                 if PY2:
