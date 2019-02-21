@@ -4182,12 +4182,14 @@ class WebInterface(object):
     def searchForMag(self, bookid=None):
         myDB = database.DBConnection()
         bookid = unquote_plus(bookid)
-        bookdata = myDB.match('SELECT * from magazines WHERE Title=?', (bookid,))
+        bookdata = myDB.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
         if bookdata:
             # start searchthreads
-            mags = [{"bookid": bookid}]
+            mags = [{"bookid": bookdata['Title']}]
             self.startMagazineSearch(mags)
-            raise cherrypy.HTTPRedirect("magazines")
+        else:
+            logger.warn("Magazine %s was not found in the library" % bookid)
+        raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
     def startMagazineSearch(self, mags=None):
@@ -4215,10 +4217,11 @@ class WebInterface(object):
             # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
             dic = {'\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"'}
             title = replace_all(title, dic)
-            exists = myDB.match('SELECT Title from magazines WHERE Title=?', (title,))
+            exists = myDB.match('SELECT Title from magazines WHERE Title=? COLLATE NOCASE', (title,))
             if exists:
                 logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
             else:
+                title = title.title()
                 controlValueDict = {"Title": title}
                 newValueDict = {
                     "Regex": None,

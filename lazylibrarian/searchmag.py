@@ -80,11 +80,13 @@ def search_magazines(mags=None, reset=False):
 
             if not searchterm:
                 dic = {'...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '', ',': '', '*': ''}
+                """
                 # strip accents from the magazine title for easier name-matching
                 searchterm = unaccented_str(searchmag['Title'])
                 if not searchterm:
                     # unless there are no ascii characters left
                     searchterm = searchmag['Title']
+                """
                 searchterm = replace_all(searchterm, dic)
 
                 searchterm = re.sub(r'[.\-/]', ' ', searchterm)
@@ -190,10 +192,14 @@ def search_magazines(mags=None, reset=False):
                     total_nzbs += 1
                     bookid = nzb['bookid']
                     # strip accents from the magazine title for easier name-matching
+                    """
                     nzbtitle = unaccented_str(nzb['nzbtitle'])
                     if not nzbtitle:
                         # unless it's not a latin-1 encodable name
                         nzbtitle = nzb['nzbtitle']
+                    """
+                    nzbtitle = nzb['nzbtitle']
+
                     nzbtitle = nzbtitle.replace('"', '').replace("'", "")  # suppress " in titles
                     nzburl = nzb['nzburl']
                     nzbprov = nzb['nzbprov']
@@ -209,11 +215,12 @@ def search_magazines(mags=None, reset=False):
                     dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
                            '#': '# '}
                     nzbtitle_formatted = replace_all(nzbtitle, dic)
+
                     # remove extra spaces if they're in a row
                     nzbtitle_formatted = " ".join(nzbtitle_formatted.split())
                     nzbtitle_exploded = nzbtitle_formatted.split()
 
-                    results = myDB.match('SELECT * from magazines WHERE Title=?', (bookid,))
+                    results = myDB.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
                     if not results:
                         logger.debug('Magazine [%s] does not match search term [%s].' % (nzbtitle, bookid))
                         bad_name += 1
@@ -235,23 +242,23 @@ def search_magazines(mags=None, reset=False):
 
                             # Check nzb has magazine title and a date/issue nr
                             # eg The MagPI July 2015
-
                             if len(nzbtitle_exploded) > len(bookid_exploded):
                                 # needs to be longer as it has to include a date
                                 # check all the words in the mag title are in the nzbtitle
                                 rejected = False
                                 wlist = []
                                 for word in nzbtitle_exploded:
-                                    word = unaccented(word).lower()
-                                    if word:
-                                        if word == '&':
-                                            word = 'and'
-                                        wlist.append(word)
-                                for word in bookid_exploded:
-                                    word = unaccented(word).lower()
                                     if word == '&':
                                         word = 'and'
-                                    if word and word not in wlist:
+                                    elif word == '+':
+                                        word = 'plus'
+                                    wlist.append(word)
+                                for word in bookid_exploded:
+                                    if word == '&':
+                                        word = 'and'
+                                    elif word == '+':
+                                        word = 'plus'
+                                    if word not in wlist:
                                         logger.debug("Rejecting %s, missing %s" % (nzbtitle, word))
                                         rejected = True
                                         break

@@ -179,42 +179,16 @@ def magazineScan(title=None):
                     mtime = os.path.getmtime(issuefile)
                     iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
-                    if lazylibrarian.CONFIG['MAG_RENAME']:
-                        filedate = issuedate
-                        if issuedate and issuedate.isdigit():
-                            if len(issuedate) == 8:
-                                if check_year(issuedate[:4]):
-                                    filedate = 'Issue %d %s' % (int(issuedate[4:]), issuedate[:4])
-                                else:
-                                    filedate = 'Vol %d Iss %d' % (int(issuedate[:4]), int(issuedate[4:]))
-                            elif len(issuedate) == 12:
-                                filedate = 'Vol %d Iss %d %s' % (int(issuedate[4:8]), int(issuedate[8:]),
-                                                                 issuedate[:4])
-                            else:
-                                filedate = str(issuedate).zfill(4)
-
-                        extn = os.path.splitext(fname)[1]
-                        newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
-                                                                                 '$IssueDate', filedate)
-                        newfname = newfname + extn
-                        if newfname and newfname != fname:
-                            logger.debug("Rename %s -> %s" % (fname, newfname))
-                            newissuefile = os.path.join(rootdir, newfname)
-                            newissuefile = safe_move(issuefile, newissuefile)
-                            if os.path.exists(issuefile.replace(extn, '.jpg')):
-                                safe_move(issuefile.replace(extn, '.jpg'), newissuefile.replace(extn, '.jpg'))
-                            if os.path.exists(issuefile.replace(extn, '.opf')):
-                                safe_move(issuefile.replace(extn, '.opf'), newissuefile.replace(extn, '.opf'))
-                            issuefile = newissuefile
-
                     logger.debug("Found %s Issue %s" % (title, issuedate))
-                    controlValueDict = {"Title": title}
 
                     # is this magazine already in the database?
-                    mag_entry = myDB.match(
-                        'SELECT LastAcquired,IssueDate,MagazineAdded,CoverPage from magazines WHERE Title=?', (title,))
+                    cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage from magazines '
+                    cmd += 'WHERE Title=? COLLATE NOCASE'
+                    mag_entry = myDB.match(cmd, (title,))
                     if not mag_entry:
                         # need to add a new magazine to the database
+                        title = title.title()
+                        controlValueDict = {"Title": title}
                         newValueDict = {
                             "Reject": None,
                             "Status": "Active",
@@ -233,11 +207,45 @@ def magazineScan(title=None):
                         maglastacquired = None
                         magcoverpage = 1
                     else:
+                        title = mag_entry['Title']
                         maglastacquired = mag_entry['LastAcquired']
                         magissuedate = mag_entry['IssueDate']
                         magazineadded = mag_entry['MagazineAdded']
                         magissuedate = str(magissuedate).zfill(4)
                         magcoverpage = mag_entry['CoverPage']
+
+                    if lazylibrarian.CONFIG['MAG_RENAME']:
+                        filedate = issuedate
+                        if issuedate and issuedate.isdigit():
+                            if len(issuedate) == 8:
+                                if check_year(issuedate[:4]):
+                                    filedate = 'Issue %d %s' % (int(issuedate[4:]), issuedate[:4])
+                                else:
+                                    filedate = 'Vol %d Iss %d' % (int(issuedate[:4]), int(issuedate[4:]))
+                            elif len(issuedate) == 12:
+                                filedate = 'Vol %d Iss %d %s' % (int(issuedate[4:8]), int(issuedate[8:]),
+                                                                 issuedate[:4])
+                            else:
+                                filedate = str(issuedate).zfill(4)
+
+                        extn = os.path.splitext(fname)[1]
+                        newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
+                                                                                 '$IssueDate', filedate)
+                        newfname = newfname + extn
+                        newissuefile = os.path.join(mag_path, title, newfname)
+                        if newissuefile != issuefile:
+                            logger.debug("Rename %s -> %s" % (issuefile, newissuefile))
+                            newissuefile = safe_move(issuefile, newissuefile)
+                            for e in ['.jpg', '.opf']:
+                                if os.path.exists(issuefile.replace(extn, e)):
+                                    safe_move(issuefile.replace(extn, e), newissuefile.replace(extn, e))
+
+                            # check for any empty directories
+                            try:
+                                os.rmdir(os.path.dirname(issuefile))
+                            except OSError:
+                                pass
+                            issuefile = newissuefile
 
                     issuedate = str(issuedate).zfill(4)  # for sorting issue numbers
 
@@ -270,6 +278,7 @@ def magazineScan(title=None):
                     # see if this issues date values are useful
                     controlValueDict = {"Title": title}
                     if not mag_entry:  # new magazine, this is the only issue
+                        controlValueDict = {"Title": title.title()}
                         newValueDict = {
                             "MagazineAdded": iss_acquired,
                             "LastAcquired": iss_acquired,
