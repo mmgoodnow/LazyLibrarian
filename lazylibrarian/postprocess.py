@@ -630,6 +630,17 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 if os.path.isdir(pp_path):
                                     logger.debug('Found folder (%s%%) [%s] for %s %s' %
                                                  (match, pp_path, book_type, matchtitle))
+
+                                    # unpack if archive found in top directory, but not comics
+                                    # only unpack first archive, we are only matching one download
+                                    for f in os.listdir(makeBytestr(pp_path)):
+                                        f = makeUnicode(f)
+                                        if not is_valid_type(f, extras='cbr, cbz'):
+                                            res = unpack_archive(os.path.join(pp_path, f), download_dir, f)
+                                            if res:
+                                                pp_path = res
+                                                break
+
                                     skipped = False
                                     # Might be multiple books in the download, could be a collection?
                                     # If so, should we process all the books recursively? we can maybe use
