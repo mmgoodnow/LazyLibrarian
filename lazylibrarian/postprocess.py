@@ -438,7 +438,7 @@ def unpack_archive(archivename, download_dir, title):
         return ''
 
     # check for any empty directories (contained files we dont want)
-    for root, dirnames, _ in walk(target_dir, topdown=False):
+    for root, dirnames, _ in walk(targetdir, topdown=False):
         for dirname in dirnames:
             try:
                 os.rmdir(os.path.join(root, dirname))
