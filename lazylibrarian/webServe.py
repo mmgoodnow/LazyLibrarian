@@ -2052,9 +2052,9 @@ class WebInterface(object):
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
                 if force:
-                    name='FORCE-SEARCHBOOK'
+                    name = 'FORCE-SEARCHBOOK'
                 else:
-                    name='SEARCHBOOK'
+                    name = 'SEARCHBOOK'
                 threading.Thread(target=search_book, name=name, args=[books, library]).start()
                 booktype = library
                 if not booktype:
