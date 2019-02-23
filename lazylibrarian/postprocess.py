@@ -433,7 +433,8 @@ def unpack_archive(archivename, download_dir, title):
                         logger.debug('Extracting %s to %s' % (rarinfo.filename, targetdir))
                         f.write(rarc.read_files(rarinfo.filename)[0][1])
     else:
-        logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
         return ''
 
     # check for any empty directories (contained files we dont want)
