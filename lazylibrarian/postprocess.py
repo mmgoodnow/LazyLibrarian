@@ -299,7 +299,12 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
 
 def unpack_archive(archivename, download_dir, title):
     """ See if archivename is an archive containing a book
-        returns new directory in download_dir with book in it, or empty string """
+        returns new directory in download_dir with book in it, or empty string
+    """
+
+    archivename = makeUnicode(archivename)
+    if not os.path.isfile(archivename):  # regular files only
+        return ''
 
     rarfile = None
     RarFile = None
@@ -323,128 +328,120 @@ def unpack_archive(archivename, download_dir, title):
         except Exception:
             unrarlib = 0
 
-    archivename = makeUnicode(archivename)
-    if not os.path.isfile(archivename):  # regular files only
-        return ''
-
-    if zipfile.is_zipfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            logger.debug('%s is a zip file' % archivename)
-        try:
-            z = zipfile.ZipFile(archivename)
-        except Exception as e:
-            logger.error("Failed to unzip %s: %s" % (archivename, e))
-            return ''
-
-        targetdir = os.path.join(download_dir, title + '.unpack')
-        if not make_dirs(targetdir):
-            logger.error("Failed to create target dir %s" % targetdir)
-            return ''
-        namelist = z.namelist()
-        # Look for any wanted files (inc jpg for cbr/cbz) and directories (name endswith / )
-        for item in namelist:
-            if item.endswith('/'):
-                new_subdir = os.path.join(targetdir, item)
-                if not make_dirs(new_subdir):
-                    logger.error("Failed to create subdir %s" % new_subdir)
-                    return ''
-        for item in namelist:
-            if is_valid_type(item):
-                with open(os.path.join(targetdir, item), "wb") as f:
-                    logger.debug('Extracting %s to %s' % (item, targetdir))
-                    f.write(z.read(item))
-
-    elif tarfile.is_tarfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            logger.debug('%s is a tar file' % archivename)
-        try:
-            z = tarfile.TarFile(archivename)
-        except Exception as e:
-            logger.error("Failed to untar %s: %s" % (archivename, e))
-            return ''
-
-        targetdir = os.path.join(download_dir, title + '.unpack')
-        if not make_dirs(targetdir):
-            logger.error("Failed to create target dir %s" % targetdir)
-            return ''
-        namelist = z.getnames()
-        for item in namelist:
-            if item.endswith('/'):  # it's a directory
-                new_subdir = os.path.join(targetdir, item)
-                if not make_dirs(new_subdir):
-                    logger.error("Failed to create subdir %s" % new_subdir)
-                    return ''
-        for item in namelist:
-            if is_valid_type(item):
-                with open(os.path.join(targetdir, item), "wb") as f:
-                    logger.debug('Extracting %s to %s' % (item, targetdir))
-                    f.write(z.extractfile(item).read())
-
-    elif unrarlib == 1 and rarfile.is_rarfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            logger.debug('%s is a rar file' % archivename)
-        try:
-            z = rarfile.RarFile(archivename)
-        except Exception as e:
-            logger.error("Failed to unrar %s: %s" % (archivename, e))
-            return ''
-
-        targetdir = os.path.join(download_dir, title + '.unpack')
-        if not make_dirs(targetdir):
-            logger.error("Failed to create target dir %s" % targetdir)
-            return ''
-        namelist = z.namelist()
-        for item in namelist:
-            if item.endswith('/'):  # it's a directory
-                new_subdir = os.path.join(targetdir, item)
-                if not make_dirs(new_subdir):
-                    logger.error("Failed to create subdir %s" % new_subdir)
-                    return ''
-        for item in namelist:
-            if is_valid_type(item):
-                with open(os.path.join(targetdir, item), "wb") as f:
-                    logger.debug('Extracting %s to %s' % (item, targetdir))
-                    f.write(z.read(item))
-
-    elif unrarlib == 2:
-        # noinspection PyBroadException
-        try:
-            rarc = RarFile(archivename)
+    # noinspection PyBroadException
+    try:
+        if zipfile.is_zipfile(archivename):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-                logger.debug('%s is a rar file' % archivename)
-        except Exception:
-            logger.debug("[%s] doesn't look like a rar file" % archivename)
-            rarc = None
-        if rarc:
+                logger.debug('%s is a zip file' % archivename)
+            try:
+                z = zipfile.ZipFile(archivename)
+            except Exception as e:
+                logger.error("Failed to unzip %s: %s" % (archivename, e))
+                return ''
+
             targetdir = os.path.join(download_dir, title + '.unpack')
             if not make_dirs(targetdir):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
-            for rarinfo in rarc.infoiter():
-                if rarinfo.isdir:
-                    new_subdir = os.path.join(targetdir, rarinfo.filename)
-                    if not make_dirs(new_subdir):
-                        logger.error("Failed to create subdir %s" % new_subdir)
+            # Look for any wanted files (inc jpg for cbr/cbz)
+            for item in z.namelist():
+                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                    logger.debug('Extracting %s to %s' % (item, targetdir))
+                    dst = os.path.join(targetdir, item)
+                    dstdir = os.path.dirname(dst)
+                    if not make_dirs(dstdir):
+                        logger.error("Failed to create directory %s" % dstdir)
                         return ''
-            for rarinfo in rarc.infoiter():
-                if is_valid_type(rarinfo.filename):
-                    with open(os.path.join(targetdir, rarinfo.filename), "wb") as f:
-                        logger.debug('Extracting %s to %s' % (rarinfo.filename, targetdir))
-                        f.write(rarc.read_files(rarinfo.filename)[0][1])
-    else:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
-        return ''
+                    with open(dst, "wb") as f:
+                        f.write(z.read(item))
 
-    # check for any empty directories (contained files we dont want)
-    for root, dirnames, _ in walk(targetdir, topdown=False):
-        for dirname in dirnames:
+        elif tarfile.is_tarfile(archivename):
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug('%s is a tar file' % archivename)
             try:
-                os.rmdir(os.path.join(root, dirname))
-            except OSError:
-                pass
-    return targetdir
+                z = tarfile.TarFile(archivename)
+            except Exception as e:
+                logger.error("Failed to untar %s: %s" % (archivename, e))
+                return ''
+
+            targetdir = os.path.join(download_dir, title + '.unpack')
+            if not make_dirs(targetdir):
+                logger.error("Failed to create target dir %s" % targetdir)
+                return ''
+
+            for item in z.getnames():
+                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                    logger.debug('Extracting %s to %s' % (item, targetdir))
+                    dst = os.path.join(targetdir, item)
+                    dstdir = os.path.dirname(dst)
+                    if not make_dirs(dstdir):
+                        logger.error("Failed to create directory %s" % dstdir)
+                        return ''
+                    with open(dst, "wb") as f:
+                        f.write(z.extractfile(item).read())
+
+        elif unrarlib == 1 and rarfile.is_rarfile(archivename):
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug('%s is a rar file' % archivename)
+            try:
+                z = rarfile.RarFile(archivename)
+            except Exception as e:
+                logger.error("Failed to unrar %s: %s" % (archivename, e))
+                return ''
+
+            targetdir = os.path.join(download_dir, title + '.unpack')
+            if not make_dirs(targetdir):
+                logger.error("Failed to create target dir %s" % targetdir)
+                return ''
+
+            for item in z.namelist():
+                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                    logger.debug('Extracting %s to %s' % (item, targetdir))
+                    dst = os.path.join(targetdir, item)
+                    dstdir = os.path.dirname(dst)
+                    if not make_dirs(dstdir):
+                        logger.error("Failed to create directory %s" % dstdir)
+                        return ''
+                    with open(dst, "wb") as f:
+                        f.write(z.read(item))
+
+        elif unrarlib == 2:
+            # noinspection PyBroadException
+            try:
+                z = RarFile(archivename)
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                    logger.debug('%s is a rar file' % archivename)
+            except Exception:
+                z = None  # not a rar archive
+
+            if z:
+                targetdir = os.path.join(download_dir, title + '.unpack')
+                if not make_dirs(targetdir):
+                    logger.error("Failed to create target dir %s" % targetdir)
+                    return ''
+
+                for item in z.infoiter():
+                    if is_valid_type(item.filename) and not item.isdir:
+                        logger.debug('Extracting %s to %s' % (item.filename, targetdir))
+                        dst = os.path.join(targetdir, item.filename)
+                        dstdir = os.path.dirname(dst)
+                        if not make_dirs(dstdir):
+                            logger.error("Failed to create directory %s" % dstdir)
+                            return ''
+                        with open(dst, "wb") as f:
+                            f.write(z.read_files(item.filename)[0][1])
+
+        if not targetdir:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
+            return ''
+
+        return targetdir
+
+    except Exception:
+        logger.error('Unhandled exception in unpack_archive: %s' % traceback.format_exc())
+        return ''
 
 
 def cron_processDir():
@@ -966,8 +963,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.warn("Unable to remove %s, %s %s" %
                                             (pp_path + '.fail', type(why).__name__, str(why)))
                         try:
-                            if os.name == 'nt':  # Windows has max path length of 256
-                                pp_path = '\\\\?\\' + pp_path
                             _ = safe_move(pp_path, pp_path + '.fail')
                             logger.warn('Residual files remain in %s.fail' % pp_path)
                         except Exception as why:
@@ -1802,10 +1797,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     else:
                         dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
                         # calibre does not like quotes in author names
-                        if os.name == 'nt':  # Windows has max path length of 256
-                            srcfile = '\\\\?\\' + srcfile
-                            logger.debug(str(srcfile))
-                            dstfile = '\\\\?\\' + dstfile
                         _ = safe_move(srcfile, dstfile)
                 else:
                     logger.debug('Removing %s as not wanted' % fname)

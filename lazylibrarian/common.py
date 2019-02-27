@@ -24,7 +24,7 @@ import shutil
 import threading
 import time
 import traceback
-from lib.six import PY2
+from lib.six import PY2, text_type
 from subprocess import Popen, PIPE
 
 try:
@@ -179,12 +179,54 @@ def make_dirs(dest_path):
     return True
 
 
+WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
+
+
+def syspath(path, prefix=True):
+    """Convert a path for use by the operating system. In particular,
+    paths on Windows must receive a magic prefix and must be converted
+    to Unicode before they are sent to the OS. To disable the magic
+    prefix on Windows, set `prefix` to False---but only do this if you
+    *really* know what you're doing.
+    """
+    # Don't do anything if we're not on windows
+    if os.path.__name__ != 'ntpath':
+        return path
+
+    if not isinstance(path, text_type):
+        # Beets currently represents Windows paths internally with UTF-8
+        # arbitrarily. But earlier versions used MBCS because it is
+        # reported as the FS encoding by Windows. Try both.
+        try:
+            path = path.decode('utf-8')
+        except UnicodeError:
+            # The encoding should always be MBCS, Windows' broken
+            # Unicode representation.
+            encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
+            path = path.decode(encoding, 'replace')
+
+    # Add the magic prefix if it isn't already there.
+    # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
+    if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
+        if path.startswith(u'\\\\'):
+            # UNC path. Final path should look like \\?\UNC\...
+            path = u'UNC' + path[1:]
+        path = WINDOWS_MAGIC_PREFIX + path
+
+    return path
+
+
 def safe_move(src, dst, action='move'):
     """ Move or copy src to dst
         Retry without accents if unicode error as some file systems can't handle (some) accents
         Retry with some characters stripped if bad filename
         eg windows can't handle <>?":| (and maybe others) in filenames
         Return (new) dst if success """
+
+    src = syspath(src)
+    dst = syspath(dst)
+    if src == dst:  # nothing to do
+        return dst
 
     while action:  # might have more than one problem...
         try:
@@ -1048,7 +1090,7 @@ def saveLog():
     redactlist = ['api -> ', 'key -> ', 'secret -> ', 'pass -> ', 'password -> ', 'token -> ', 'keys -> ',
                   'apitoken -> ', 'username -> ', '&r=', 'using api [', 'apikey=', 'key=', 'apikey%3D', "apikey': ",
                   "'--password', u'", "'--password', '", "api:", "keys:", "token:", "secret=", "email_from -> ",
-                  "email_to -> ", "email_smtp_user -> "]
+                  "'--password', u\"", "'--password', \"", "email_to -> ", "email_smtp_user -> "]
     with open(outfile + '.tmp', 'w') as out:
         nextfile = True
         extn = 0
