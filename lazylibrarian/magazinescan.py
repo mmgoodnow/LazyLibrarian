@@ -234,6 +234,9 @@ def magazineScan(title=None):
                         newfname = newfname + extn
                         newissuefile = os.path.join(mag_path, title, newfname)
                         if newissuefile != issuefile:
+                            newissuedir = os.path.join(mag_path, title)
+                            if not os.path.isdir(newissuedir):
+                                make_dirs(newissuedir)
                             logger.debug("Rename %s -> %s" % (issuefile, newissuefile))
                             newissuefile = safe_move(issuefile, newissuefile)
                             for e in ['.jpg', '.opf']:
