@@ -701,6 +701,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     GS = os.path.join(os.getcwd(), "gs")
                     generator = "local gs"
                     if not os.path.isfile(GS):
+                        logger.debug("gs not found in %s" % os.getcwd())
                         GS = ""
                         params = ["which", "gs"]
                         try:
@@ -708,25 +709,34 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                             GS = makeUnicode(GS).strip()
                             generator = GS
                         except Exception as e:
-                            logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
+                            if e.returncode == 1:
+                                logger.debug("Could not find gs in your system path")
+                            else:
+                                logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
                     if not os.path.isfile(GS):
                         logger.debug("Cannot find gs")
                         generator = "(no gs found)"
                     else:
                         params = [GS, "--version"]
-                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        res = makeUnicode(res).strip()
-                        logger.debug("Found gs [%s] version %s" % (GS, res))
-                        generator = "%s version %s" % (generator, res)
-                        issuefile = issuefile.split('[')[0]
-                        params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                                  "-dFirstPage=%d" % check_int(pagenum, 1),
-                                  "-dLastPage=%d" % check_int(pagenum, 1),
-                                  "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
-                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        res = makeUnicode(res).strip()
-                        if not os.path.isfile(coverfile):
-                            logger.debug("Failed to create jpg: %s" % res)
+                        try:
+                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                            res = makeUnicode(res).strip()
+                            logger.debug("gs found [%s] version %s" % (GS, res))
+                            generator = "%s version %s" % (generator, res)
+                            issuefile = issuefile.split('[')[0]
+                            params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                                    "-dFirstPage=%d" % check_int(pagenum, 1),
+                                    "-dLastPage=%d" % check_int(pagenum, 1),
+                                    "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                            try:
+                                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                res = makeUnicode(res).strip()
+                                if not os.path.isfile(coverfile):
+                                    logger.debug("Failed to create jpg: %s" % res)
+                            except Exception as e:
+                                logger.debug("Failed to create cover with %s" % str(params))
+                        except Exception as e:
+                            logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
             except Exception as e:
                 logger.warn("Unable to create cover for %s using %s %s" % (issuefile, type(e).__name__, generator))
                 logger.debug('Exception in create_cover: %s' % traceback.format_exc())
