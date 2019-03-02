@@ -20,7 +20,7 @@ import lazylibrarian
 from lib.six import PY2
 
 from lazylibrarian import database, logger
-from lazylibrarian.common import safe_move, walk
+from lazylibrarian.common import safe_move, walk, make_dirs
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeUnicode, makeBytestr, \
     replace_all, check_year
 from lazylibrarian.images import createMagCover
