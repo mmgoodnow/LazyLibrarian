@@ -2185,6 +2185,14 @@
                     <span class="help-block">Directory for wishlists and manually importing books<br>
                       <strong>If "keep original files" is not set, LazyLibrarian can delete this folder after import</strong></span>
                   </div>
+                  <legend>Permissions</legend>
+                  <div class="input-group">
+                    <span class="input-group-addon">File</span>
+                    <input type="text" id="file_perm" name="file_perm" value="${lazylibrarian.CONFIG['FILE_PERM'][2:]}" class="form-control" placeholder="644">
+                    <span class="input-group-addon">Directory</span>
+                    <input type="text" id="dir_perm" name="dir_perm" value="${lazylibrarian.CONFIG['DIR_PERM'][2:]}" class="form-control" placeholder="755">
+                    </div>
+                    <span class="help-block">Permissions should be 3 digits<br>Defaults are File:644 Directory:755</span>
                   <legend>Miscellaneous</legend>
                   <div class="form-group">
                     <label for="cache_age" class="control-label">Cache expire after:</label>

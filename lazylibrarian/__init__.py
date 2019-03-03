@@ -179,7 +179,7 @@ isbn_978_dict = {
 # Any _NOT_ in the web ui will remain unchanged on config save
 CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDATED', 'CURRENT_VERSION',
               'GIT_HOST', 'COMMITS_BEHIND', 'INSTALL_TYPE', 'AUTO_UPDATE']
-CONFIG_NONWEB = ['NAME_POSTFIX', 'DIR_PERM', 'FILE_PERM', 'BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
+CONFIG_NONWEB = ['NAME_POSTFIX', 'BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
                  'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS']
@@ -196,7 +196,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
-                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES',
+                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS']
 
 CONFIG_DEFINITIONS = {
@@ -1059,7 +1059,23 @@ def config_write(part=None):
 
     for key in list(CONFIG_DEFINITIONS.keys()):
         _, section, _ = CONFIG_DEFINITIONS[key]
-        if key in ['WALL_COLUMNS', 'DISPLAY_LENGTH']:  # may be modified by user interface but not on config page
+        if key in ['FILE_PERM', 'DIR_PERM']:
+            if key == 'FILE_PERM':
+                def_val = '644'
+            else:
+                def_val = '755'
+            value = CONFIG[key]
+            if len(value) == 3:
+                try:
+                    _ = int(value, 8)
+                except ValueError:
+                    value = def_val
+            else:
+                value = def_val
+            value = '0o' + value
+            CONFIG[key] = value
+
+        elif key in ['WALL_COLUMNS', 'DISPLAY_LENGTH']:  # may be modified by user interface but not on config page
             value = check_int(CONFIG[key], 5)
         elif part and section != part:
             value = CFG.get(section, key.lower())  # keep the old value
