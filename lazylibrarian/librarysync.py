@@ -837,10 +837,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         rescan_count += 1
                                         base_url = 'https://www.goodreads.com/search.xml?q='
                                         params = {"key": lazylibrarian.CONFIG['GR_API']}
-                                        if author[1] in '. ':
+                                        if len(author) > 1 and author[1] in '. ':
                                             surname = author
                                             forename = ''
-                                            while surname and surname[1] in '. ':
+                                            while len(surname) > 1 and surname[1] in '. ':
                                                 forename = forename + surname[0] + '.'
                                                 surname = surname[2:].strip()
                                             if author != forename + ' ' + surname:
