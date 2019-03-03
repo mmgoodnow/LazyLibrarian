@@ -75,6 +75,7 @@ def get_book_info(fname):
                 # (author set to publisher, or software used)
                 # so probably not much point in looking at pdfs
                 #
+                from PyPDF2 import PdfFileReader
                 if (extn == ".pdf"):
                     pdf = PdfFileReader(open(fname, "rb"))
                     txt = pdf.getDocumentInfo()

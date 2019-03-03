@@ -725,16 +725,16 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                             generator = "%s version %s" % (generator, res)
                             issuefile = issuefile.split('[')[0]
                             params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                                    "-dFirstPage=%d" % check_int(pagenum, 1),
-                                    "-dLastPage=%d" % check_int(pagenum, 1),
-                                    "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                                      "-dFirstPage=%d" % check_int(pagenum, 1),
+                                      "-dLastPage=%d" % check_int(pagenum, 1),
+                                      "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                             try:
                                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                                 res = makeUnicode(res).strip()
                                 if not os.path.isfile(coverfile):
                                     logger.debug("Failed to create jpg: %s" % res)
                             except Exception as e:
-                                logger.debug("Failed to create cover with %s" % str(params))
+                                logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
                         except Exception as e:
                             logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
             except Exception as e:
