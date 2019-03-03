@@ -752,7 +752,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
 
     # if not recognised extension or cover creation failed
     try:
-        coverfile = safe_copy(os.path.join(lazylibrarian.PROG_DIR, 'data/images/nocover.jpg'), coverfile)
+        coverfile = safe_copy(os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg'), coverfile)
         setperm(coverfile)
     except Exception as why:
         logger.error("Failed to copy nocover file, %s %s" % (type(why).__name__, str(why)))
