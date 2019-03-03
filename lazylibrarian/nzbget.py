@@ -24,7 +24,7 @@ from base64 import standard_b64encode
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int
+from lazylibrarian.formatter import check_int, makeUnicode
 # noinspection PyUnresolvedReferences
 from lib.six.moves import xmlrpc_client, http_client
 from lib.six.moves.urllib_parse import quote
@@ -137,7 +137,7 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
     nzbcontent64 = None
     if nzb.resultType == "nzbdata":
         data = nzb.extraInfo[0]
-        nzbcontent64 = standard_b64encode(data)
+        nzbcontent64 = makeUnicode(standard_b64encode(data))
 
     logger.info("Sending NZB to NZBget")
     logger.debug("URL: " + url)
