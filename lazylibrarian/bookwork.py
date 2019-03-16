@@ -23,7 +23,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
 from lazylibrarian.common import proxyList
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, unaccented, formatAuthorName, \
-    check_int, replace_all, check_year, getList
+    check_int, replace_all, check_year, getList, now
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -622,6 +622,37 @@ def getBookAuthors(bookid):
     return authorlist
 
 
+def addSeriesMembers(seriesid):
+    """ Add all members of a series to the database
+        Return how many books you added
+    """
+    myDB = database.DBConnection()
+    result = myDB.match('select SeriesName from series where SeriesID=?', (seriesid,))
+    if not result:
+        logger.error("Error getting series name for %s" % seriesid)
+        return 0
+
+    count = 0
+    seriesname = result['SeriesName']
+    members, api_hits = getSeriesMembers(seriesid, seriesname)
+
+    for member in members:
+        # order = member[0]
+        # bookname = member[1]
+        # authorname = member[2]
+        # workid = member[3]
+        # authorid = member[4]
+        # pubyear = member[5]
+        bookid = member[6]
+        result = myDB.match("select * from books where bookid=?", (bookid,))
+        if not result:
+            # import with default statuses
+            lazylibrarian.importer.import_book(bookid, wait=True)
+            count += 1
+        myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
+    return count
+
+
 def getSeriesAuthors(seriesid):
     """ Get a list of authors contributing to a series
         and import those authors (and their books) into the database
@@ -630,12 +661,15 @@ def getSeriesAuthors(seriesid):
     result = myDB.match("select count(*) as counter from authors")
     start = int(result['counter'])
     result = myDB.match('select SeriesName from series where SeriesID=?', (seriesid,))
+    if not result:
+        logger.error("Error getting series name for %s" % seriesid)
+        return 0
+
     seriesname = result['SeriesName']
     members, api_hits = getSeriesMembers(seriesid, seriesname)
-    dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
 
     if members:
-        myDB = database.DBConnection()
+        dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
         for member in members:
             # order = member[0]
             bookname = member[1]
@@ -643,6 +677,7 @@ def getSeriesAuthors(seriesid):
             # workid = member[3]
             authorid = member[4]
             # pubyear = member[5]
+            # bookid = member[6]
             bookname = replace_all(bookname, dic)
             if not authorid:
                 # goodreads gives us all the info we need, librarything/google doesn't
@@ -735,8 +770,8 @@ def getSeriesAuthors(seriesid):
 
 def getSeriesMembers(seriesID=None, seriesname=None):
     """ Ask librarything or goodreads for details on all books in a series
-        order, bookname, authorname, workid, authorid
-        (workid and authorid are goodreads only)
+        order, bookname, authorname, workid, authorid, pubyear, bookid
+        (workid, authorid, pubyear, bookid are currently goodreads only)
         Return as a list of lists """
     results = []
     api_hits = 0
@@ -766,14 +801,15 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                                     ('authorname', 'work/best_book/author/name'),
                                     ('workid', 'work/id'),
                                     ('authorid', 'work/best_book/author/id'),
-                                    ('pubyear', 'work/original_publication_year')
+                                    ('pubyear', 'work/original_publication_year'),
+                                    ('bookid', 'work/best_book/id')
                                     ]:
                 if book.find(location) is not None:
                     mydict[mykey] = book.find(location).text
                 else:
                     mydict[mykey] = ""
             results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
-                            mydict['workid'], mydict['authorid'], mydict['pubyear']])
+                            mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['bookid']])
     else:
         api_hits = 0
         data = getBookWork(None, "SeriesPage", seriesID)
@@ -791,7 +827,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                             authorname = authorlink.split('">')[1].split('<')[0]
                             # authorlink = authorlink.split('"')[0]
                             order = row.split('class="order">')[1].split('<')[0]
-                            results.append([order, bookname, authorname, '', ''])
+                            results.append([order, bookname, authorname, '', '', '', ''])
                         except IndexError:
                             logger.debug('Incomplete data in series table for series %s' % seriesID)
             except IndexError:
