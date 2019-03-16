@@ -153,8 +153,8 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                     res = check_int(cnt['counter'], 0)
                     seriesid = str(res + 1)
                     members = []
-                myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?)',
-                            (seriesid, item[2], "Active", 0, 0), suppress='UNIQUE')
+                myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?)',
+                            (seriesid, item[2], "Active", 0, 0, time.time()), suppress='UNIQUE')
 
             if not workid or not authorid:
                 book = myDB.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
@@ -1019,8 +1019,8 @@ def getWorkSeries(bookID=None):
                         if not match:
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
-                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?)',
-                                            (seriesid, seriesname, "Active", 0, 0))
+                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
+                                            (seriesid, seriesname, "Active", 0, 0, time.time()))
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
@@ -1029,8 +1029,8 @@ def getWorkSeries(bookID=None):
                                         seriesname, seriesid, match['SeriesID']))
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
-                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?)',
-                                            (seriesid, seriesname, "Active", 0, 0))
+                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
+                                            (seriesid, seriesname, "Active", 0, 0, time.time()))
     else:
         work = getBookWork(bookID, "Series")
         if work:
