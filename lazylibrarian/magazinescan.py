@@ -39,19 +39,22 @@ def magazineScan(title=None):
     try:
         myDB = database.DBConnection()
         mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
-        if title and '$Title' in mag_path:
-            mag_path = mag_path.replace('$Title', title)
-            onetitle = title
-        else:
-            onetitle = None
-
-        while '$' in mag_path:
-            mag_path = os.path.dirname(mag_path)
-
         if lazylibrarian.CONFIG['MAG_RELATIVE']:
             mag_path = os.path.join(lazylibrarian.DIRECTORY('eBook'), mag_path)
         if PY2:
             mag_path = mag_path.encode(lazylibrarian.SYS_ENCODING)
+
+        onetitle = title
+        if onetitle and '$Title' in mag_path:
+            mag_path = mag_path.replace('$Title', onetitle)
+
+        while '$' in mag_path:
+            mag_path = os.path.dirname(mag_path)
+
+        if not mag_path or not os.path.isdir(mag_path):
+            logger.warn("Magazine folder %s not found" % mag_path)
+            lazylibrarian.MAG_UPDATE = 0
+            return
 
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
             mags = myDB.select('select * from Issues')
@@ -83,11 +86,6 @@ def magazineScan(title=None):
                     if not issues:
                         logger.debug('Magazine %s deleted as no issues found' % title)
                         myDB.action('DELETE from magazines WHERE Title=?', (title,))
-
-        if not mag_path or not os.path.isdir(mag_path):
-            logger.warn("Magazine folder %s not found" % mag_path)
-            lazylibrarian.MAG_UPDATE = 0
-            return
 
         logger.info(' Checking [%s] for magazines' % mag_path)
 
@@ -232,11 +230,18 @@ def magazineScan(title=None):
                         newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
                                                                                  '$IssueDate', filedate)
                         newfname = newfname + extn
-                        newissuefile = os.path.join(mag_path, title, newfname)
+
+                        new_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
+                                                                                   '$IssueDate', filedate)
+                        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                            new_path = os.path.join(lazylibrarian.DIRECTORY('eBook'), new_path)
+                        if PY2:
+                            new_path = new_path.encode(lazylibrarian.SYS_ENCODING)
+
+                        newissuefile = os.path.join(new_path, newfname)
                         if newissuefile != issuefile:
-                            newissuedir = os.path.join(mag_path, title)
-                            if not os.path.isdir(newissuedir):
-                                make_dirs(newissuedir)
+                            if not os.path.isdir(new_path):
+                                make_dirs(new_path)
                             logger.debug("Rename %s -> %s" % (issuefile, newissuefile))
                             newissuefile = safe_move(issuefile, newissuefile)
                             for e in ['.jpg', '.opf']:
