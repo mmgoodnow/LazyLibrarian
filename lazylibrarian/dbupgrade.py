@@ -98,8 +98,9 @@ def upgrade_needed():
     # 49 ensure author table schema is current
     # 50 add comics and comicissues tables
     # 51 add aka to comics table
+    # 52 add updated to series table
 
-    db_current_version = 51
+    db_current_version = 52
 
     if db_version < db_current_version:
         return db_current_version
@@ -173,7 +174,7 @@ def dbupgrade(db_current_version):
                                 'LT_lang_hits int, GB_lang_change, cache_hits int, bad_lang int, bad_char int, ' +
                                 'uncached int, duplicates int)')
                     myDB.action('CREATE TABLE series (SeriesID INTEGER UNIQUE, SeriesName TEXT, Status TEXT, ' +
-                                'Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0)')
+                                'Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0, Updated INTEGER DEFAULT 0)')
                     myDB.action('CREATE TABLE downloads (Count INTEGER DEFAULT 0, Provider TEXT)')
                     myDB.action('CREATE TABLE users (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, ' +
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
@@ -1515,5 +1516,13 @@ def db_v51(myDB, upgradelog):
         upgradelog.write("%s v51: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE comics ADD COLUMN aka TEXT')
     upgradelog.write("%s v51: complete\n" % time.ctime())
+
+
+def db_v52(myDB, upgradelog):
+    if not has_column(myDB, "series", "Updated"):
+        lazylibrarian.UPDATE_MSG = 'Adding Updated column to series table'
+        upgradelog.write("%s v52: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE series ADD COLUMN Updated INTEGER DEFAULT 0')
+    upgradelog.write("%s v52: complete\n" % time.ctime())
 
 
