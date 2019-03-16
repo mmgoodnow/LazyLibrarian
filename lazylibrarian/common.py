@@ -432,20 +432,22 @@ def book_file(search_dir=None, booktype=None, recurse=False):
 
     if os.path.isdir(search_dir):
         if recurse:
+            # noinspection PyBroadException
             try:
                 for r, _, f in walk(search_dir):
                     for item in f:
                         if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
-            except Exception as e:
-                logger.warn('walk error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
+            except Exception:
+                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
         else:
+            # noinspection PyBroadException
             try:
                 for fname in os.listdir(makeBytestr(search_dir)):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
                         return os.path.join(search_dir, fname)
-            except Exception as e:
-                logger.warn('listdir error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
+            except Exception:
+                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return ""
 
 
