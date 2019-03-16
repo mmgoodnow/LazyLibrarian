@@ -28,7 +28,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audioProcess, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
-    setWorkID, get_gb_info, setGenres, genreFilter, getBookPubdate
+    setWorkID, get_gb_info, setGenres, genreFilter, getBookPubdate, addSeriesMembers
 from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
@@ -139,6 +139,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'checkRunningJobs': 'ensure all needed jobs are running',
             'vacuum': 'vacuum the database',
             'getWorkSeries': '&id= Get series from Librarything BookWork using BookID or GoodReads using WorkID',
+            'addSeriesMembers': '&id= add series members to database using SeriesID',
             'getSeriesMembers': '&id= Get list of series members using SeriesID',
             'getSeriesAuthors': '&id= Get all authors for a series and import them',
             'getWorkPage': '&id= Get url of Librarything BookWork using BookID',
@@ -1347,6 +1348,14 @@ class Api(object):
             self.id = kwargs['id']
             count = getSeriesAuthors(self.id)
             self.data = "Added %s" % count
+
+    def _addSeriesMembers(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        else:
+            self.id = kwargs['id']
+        self.data = addSeriesMembers(self.id)
 
     def _getSeriesMembers(self, **kwargs):
         if 'id' not in kwargs:
