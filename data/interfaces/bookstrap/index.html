@@ -12,7 +12,7 @@
             %if lazylibrarian.IGNORED_AUTHORS == True:
               <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user"></i> Show Active Authors</a>
             %else:
-              <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user-secret"></i> Show Ignored Authors</a>
+              <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user-secret"></i> Show Inactive Authors</a>
             %endif
         </div>
         <div class="clearfix visible-xs"><hr/></div>
@@ -66,6 +66,7 @@
         <a class="toggle-vis" data-column="6"> Status</a>
         <p>&nbsp;</p>
       %endif
+  </div>
   <div class="table-responsive">
     <table class="display table table-striped table-hover table-bordered" id="author_table">
         <%
