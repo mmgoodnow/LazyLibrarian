@@ -604,8 +604,9 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
             # no such item, might be a new entry
             my_val = int(def_val)
         except Exception as e:
-            logger.warn('Invalid int for %s: %s, using default %s' % (cfg_name, item_name, int(def_val)))
-            logger.debug(str(e))
+            if LOGLEVEL & log_admin:
+                logger.warn('Invalid int for %s: %s, using default %s' % (cfg_name, item_name, int(def_val)))
+                logger.debug(str(e))
             my_val = int(def_val)
 
     elif cfg_type == 'bool':
@@ -615,8 +616,9 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
         except configparser.Error:
             my_val = bool(def_val)
         except Exception as e:
-            logger.warn('Invalid bool for %s: %s, using default %s' % (cfg_name, item_name, bool(def_val)))
-            logger.debug(str(e))
+            if LOGLEVEL & log_admin:
+                logger.warn('Invalid bool for %s: %s, using default %s' % (cfg_name, item_name, bool(def_val)))
+                logger.debug(str(e))
             my_val = bool(def_val)
 
     elif cfg_type == 'str':
@@ -631,8 +633,9 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
         except configparser.Error:
             my_val = str(def_val)
         except Exception as e:
-            logger.warn('Invalid str for %s: %s, using default %s' % (cfg_name, item_name, str(def_val)))
-            logger.debug(str(e))
+            if LOGLEVEL & log_admin:
+                logger.warn('Invalid str for %s: %s, using default %s' % (cfg_name, item_name, str(def_val)))
+                logger.debug(str(e))
             my_val = str(def_val)
         finally:
             my_val = makeUnicode(my_val)
