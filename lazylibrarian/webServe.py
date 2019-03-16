@@ -31,7 +31,7 @@ from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
 from lazylibrarian.bookrename import nameVars
-from lazylibrarian.bookwork import setSeries, deleteEmptySeries, getSeriesAuthors
+from lazylibrarian.bookwork import setSeries, deleteEmptySeries, addSeriesMembers
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
@@ -220,9 +220,9 @@ class WebInterface(object):
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status'
             cmd += ',AuthorLink,LastLink,HaveBooks,UnignoredBooks,AuthorID,LastBookID from authors '
             if lazylibrarian.IGNORED_AUTHORS:
-                cmd += 'where Status == "Ignored" '
+                cmd += 'where Status == "Ignored" or Status == "Paused" '
             else:
-                cmd += 'where Status != "Ignored" '
+                cmd += 'where Status != "Ignored" and  Status != "Paused" '
             cmd += 'order by AuthorName COLLATE NOCASE'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -935,7 +935,7 @@ class WebInterface(object):
                         myDB.upsert("series", {'Status': action}, {'SeriesID': seriesid})
                         logger.debug('Status set to "%s" for "%s"' % (action, match['SeriesName']))
                         if action in ['Wanted', 'Active']:
-                            threading.Thread(target=getSeriesAuthors, name='SERIESAUTHORS', args=[seriesid]).start()
+                            threading.Thread(target=addSeriesMembers, name='SERIESMEMBERS', args=[seriesid]).start()
                 elif action in ["Unread", "Read", "ToRead"]:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
@@ -1631,7 +1631,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def toggleAuth(self):
-        if lazylibrarian.IGNORED_AUTHORS:  # show ignored ones, or active ones
+        if lazylibrarian.IGNORED_AUTHORS:  # show ignored/paused ones, or active/wanted ones
             lazylibrarian.IGNORED_AUTHORS = False
         else:
             lazylibrarian.IGNORED_AUTHORS = True
