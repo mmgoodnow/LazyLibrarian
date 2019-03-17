@@ -11,6 +11,8 @@
     %if perm&lazylibrarian.perm_force:
       <a href="refreshAuthor?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
       <i class="fa fa-sync"></i> Refresh Author</a>
+      <a href="refreshSeries?SeriesID=${series['SeriesID']}" class="btn btn-sm btn-primary">
+      <i class="fa fa-sync"></i> Refresh Series</a>
     %endif
   </div>
 </%def>
@@ -19,6 +21,11 @@
   <h1>${title}</h1>
   %else:
   <h1>${series['AuthorName']} : ${title}</h1>
+  %endif
+  %if lazylibrarian.SERIES_UPDATE == True:
+    <p>
+    <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Series scan in progress ...</button>
+    </p>
   %endif
   <form action="markBooks" method="get" class="form-inline">
     <div class="indented">
@@ -137,6 +144,9 @@
 <p>&nbsp;</p>
 </%def>
 <%def name="headIncludes()">
+  %if lazylibrarian.SERIES_UPDATE == True:
+  <meta http-equiv="refresh" content="10">
+  %endif
 </%def>
 <%def name="javascriptIncludes()">
   <script>

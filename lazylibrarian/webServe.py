@@ -732,6 +732,13 @@ class WebInterface(object):
 
     # SERIES ############################################################
     @cherrypy.expose
+    def refreshSeries(self, SeriesID):
+        threadname = 'SERIESMEMBERS_%s' % SeriesID
+        if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
+            threading.Thread(target=addSeriesMembers, name=threadname, args=[SeriesID]).start()
+        raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s" % SeriesID)
+
+    @cherrypy.expose
     @cherrypy.tools.json_out()
     def getSeries(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
         rows = []
@@ -935,7 +942,10 @@ class WebInterface(object):
                         myDB.upsert("series", {'Status': action}, {'SeriesID': seriesid})
                         logger.debug('Status set to "%s" for "%s"' % (action, match['SeriesName']))
                         if action in ['Wanted', 'Active']:
-                            threading.Thread(target=addSeriesMembers, name='SERIESMEMBERS', args=[seriesid]).start()
+                            threadname = 'SERIESMEMBERS_%s' % seriesid
+                            if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
+                                threading.Thread(target=addSeriesMembers, name=threadname,
+                                                 args=[seriesid]).start()
                 elif action in ["Unread", "Read", "ToRead"]:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):

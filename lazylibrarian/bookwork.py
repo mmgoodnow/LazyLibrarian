@@ -632,8 +632,10 @@ def addSeriesMembers(seriesid):
         logger.error("Error getting series name for %s" % seriesid)
         return 0
 
+    lazylibrarian.SERIES_UPDATE = True
     count = 0
     seriesname = result['SeriesName']
+    logger.debug("Updating series members for %s" % seriesname)
     members, api_hits = getSeriesMembers(seriesid, seriesname)
 
     for member in members:
@@ -650,6 +652,8 @@ def addSeriesMembers(seriesid):
             lazylibrarian.importer.import_book(bookid, wait=True)
             count += 1
         myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
+    lazylibrarian.SERIES_UPDATE = False
+    logger.debug("Found %s new series member%s for %s" % (count, plural(count), seriesname))
     return count
 
 
