@@ -478,7 +478,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
 
     if downloadID:
         if tor_title:
-            if downloadID.upper() in tor_title.upper():
+            if makeUnicode(downloadID).upper() in makeUnicode(tor_title).upper():
                 logger.warn('%s: name contains hash, probably unresolved magnet' % Source)
             else:
                 tor_title = unaccented_str(tor_title)

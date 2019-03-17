@@ -946,6 +946,9 @@ class WebInterface(object):
                             if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
                                 threading.Thread(target=addSeriesMembers, name=threadname,
                                                  args=[seriesid]).start()
+                        else:
+                            # stop monitoring
+                            myDB.action("UPDATE series SET Updated=0 WHERE SeriesID=?", (seriesid,))
                 elif action in ["Unread", "Read", "ToRead"]:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
