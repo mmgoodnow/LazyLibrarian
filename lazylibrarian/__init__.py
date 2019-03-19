@@ -1070,6 +1070,8 @@ def config_write(part=None):
             else:
                 def_val = '755'
             value = CONFIG[key]
+            if len(value) == 5:
+                value = value[2:]
             if len(value) == 3:
                 try:
                     _ = int(value, 8)
