@@ -958,14 +958,16 @@ def showJobs():
         result.append(jobinfo)
 
     overdue, total, name, days = is_overdue('Author')
-    result.append('Oldest author info (%s) is %s day%s old' % (name, days, plural(days)))
+    if name:
+        result.append('Oldest author info (%s) is %s day%s old' % (name, days, plural(days)))
     if not overdue:
         result.append("There are no authors overdue update")
     else:
         result.append("Found %s author%s from %s overdue update" % (overdue, plural(overdue), total))
 
     overdue, total, name, days = is_overdue('Series')
-    result.append('Oldest series info (%s) is %s day%s old' % (name, days, plural(days)))
+    if name:
+        result.append('Oldest series info (%s) is %s day%s old' % (name, days, plural(days)))
     if not overdue:
         result.append("There are no series overdue update")
     else:
