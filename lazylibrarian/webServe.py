@@ -4637,6 +4637,7 @@ class WebInterface(object):
                 # the masterlist to be filled with the row data
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     nrow = list(row)
+                    nrow[8] = makeUnicode(nrow[8])  # delugerpc returns bytes
                     # title needs spaces, not dots, for column resizing
                     title = nrow[0]  # type: str
                     if title:
