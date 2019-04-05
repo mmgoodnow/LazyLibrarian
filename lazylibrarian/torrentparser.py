@@ -226,14 +226,14 @@ def TPB(book=None, test=False):
 
     sterm = makeUnicode(book['searchterm'])
 
-    page = 1
+    page = 0
     results = []
     minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
     next_page = True
 
     while next_page:
 
-        searchURL = providerurl + "%s/%s/99/%s" % (quote_plus(book['searchterm']), page, cat)
+        searchURL = providerurl + "%s/%s/99/%s" % (quote(book['searchterm']), page, cat)
 
         next_page = False
         result, success = fetchURL(searchURL)
