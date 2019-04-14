@@ -892,6 +892,17 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.warn('%s is seeding %s %s' % (book['Source'], book['NZBmode'], book['NZBtitle']))
                                 to_delete = False
 
+                        # Only delete torrents if seeding is complete - examples from radarr
+                        # DELUGE CanBeRemoved = (torrent.IsAutoManaged && torrent.StopAtRatio &&
+                        # torrent.Ratio >= torrent.StopRatio && torrent.State == DelugeTorrentStatus.Paused);
+                        # TRANSMISSION CanBeRemoved = torrent.Status == TransmissionTorrentStatus.Stopped;
+                        # RTORRENT No stop ratio data is present, so do not delete CanBeRemoved = false;
+                        # UTORRENT CanBeRemoved = (!torrent.Status.HasFlag(UTorrentTorrentStatus.Queued) &&
+                        # !torrent.Status.HasFlag(UTorrentTorrentStatus.Started));
+                        # DOWNLOADSTATION CanBeRemoved = DownloadStationTaskStatus.Finished;
+                        # QBITTORRENT CanBeRemoved = (!config.MaxRatioEnabled || config.MaxRatio <= torrent.Ratio) &&
+                        # torrent.State == "pausedUP";
+
                         if ignoreclient is False and to_delete:
                             # ask downloader to delete the torrent, but not the files
                             # we may delete them later, depending on other settings
@@ -901,8 +912,17 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.warn("Unable to remove %s from %s, no DownloadID" %
                                             (book['NZBtitle'], book['Source']))
                             elif book['Source'] != 'DIRECT':
-                                logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
-                                delete_task(book['Source'], book['DownloadID'], False)
+                                progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+                                if progress == 100 and finished:
+                                    logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
+                                    delete_task(book['Source'], book['DownloadID'], False)
+                                elif progress < 0:
+                                    logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
+                                else:
+                                    cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
+                                    myDB.action(cmd, (book['NZBurl'],))
+                                    logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
+                                    to_delete = False
 
                         if to_delete or pp_path.endswith(b'.unpack'):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
@@ -956,14 +976,14 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                         # at this point, as it failed we should move it or it will get postprocessed
                         # again (and fail again)
-                        if os.path.isdir(pp_path + '.fail'):
+                        if os.path.isdir(pp_path + b'.fail'):
                             try:
-                                shutil.rmtree(pp_path + '.fail')
+                                shutil.rmtree(pp_path + b'.fail')
                             except Exception as why:
                                 logger.warn("Unable to remove %s, %s %s" %
-                                            (pp_path + '.fail', type(why).__name__, str(why)))
+                                            (pp_path + b'.fail', type(why).__name__, str(why)))
                         try:
-                            _ = safe_move(pp_path, pp_path + '.fail')
+                            _ = safe_move(pp_path, pp_path + b'.fail')
                             logger.warn('Residual files remain in %s.fail' % pp_path)
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
@@ -976,9 +996,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.error("%s is not executable" % repr(pp_path))
                             parent = os.path.dirname(pp_path)
                             try:
-                                with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                                with open(os.path.join(parent, b'll_temp'), 'w') as f:
                                     f.write('test')
-                                os.remove(os.path.join(parent, 'll_temp'))
+                                os.remove(os.path.join(parent, b'll_temp'))
                             except Exception as why:
                                 logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                             logger.warn('Residual files remain in %s' % pp_path)
@@ -987,8 +1007,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
         logger.info('%s download%s processed.' % (ppcount, plural(ppcount)))
 
-        # Now check for any that are still marked snatched, or any aborted...
-        snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched" or Status="Aborted"')
+        # Now check for any that are still marked snatched, seeding, or any aborted...
+        cmd = 'SELECT * from wanted WHERE Status="Snatched" or Status="Aborted" or Status="Seeding"'
+        snatched = myDB.select(cmd)
 
         for book in snatched:
             book_type = bookType(book)
@@ -997,6 +1018,37 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
             mins = 0
             if book['Status'] == "Aborted":
                 abort = True
+            elif book['Status'] == "Seeding":
+                progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+                if finished:
+                    logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
+                    q = 'UPDATE wanted SET Status="Processed" WHERE NZBurl=? and Status="Seeding"'
+                    myDB.action(q, (book['NZBurl'],))
+                    delete_task(book['Source'], book['DownloadID'], True)
+                    # only delete the files if not in download root dir and DESTINATION_COPY not set
+                    to_delete = True
+                    if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                        to_delete = False
+                    if pp_path == download_dir:
+                        to_delete = False
+                    if to_delete:
+                        if os.path.isdir(pp_path):
+                            # calibre might have already deleted it?
+                            try:
+                                shutil.rmtree(pp_path)
+                                logger.debug('Deleted files for %s, %s from %s' %
+                                                (book['NZBtitle'], book['NZBmode'], book['Source']))
+                            except Exception as why:
+                                logger.warn("Unable to remove %s, %s %s" %
+                                            (pp_path, type(why).__name__, str(why)))
+                    else:
+                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                            logger.debug("Not removing original files as Keep Files is set")
+                        else:
+                            logger.debug("Not removing original files as in download root")
+                else:
+                    logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
+
             elif book['Status'] == "Snatched" and lazylibrarian.CONFIG['TASK_AGE']:
                 # FUTURE: we could check percentage downloaded or eta?
                 # if percentage is increasing, it's just slow
@@ -1330,9 +1382,10 @@ def getDownloadFiles(source, downloadid):
 
 def getDownloadProgress(source, downloadid):
     progress = 0
+    finished = False
     try:
         if source == 'TRANSMISSION':
-            progress, errorstring = transmission.getTorrentProgress(downloadid)
+            progress, errorstring, finished = transmission.getTorrentProgress(downloadid)
             if errorstring:
                 myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
@@ -1345,6 +1398,7 @@ def getDownloadProgress(source, downloadid):
             data = myDB.match(cmd, (downloadid, "DIRECT"))
             if data:
                 progress = 100
+                finished = True
             else:
                 progress = 0
 
@@ -1366,6 +1420,7 @@ def getDownloadProgress(source, downloadid):
                             # 100% if completed, 99% if still extracting, 0% if not found, -1 if failed
                             if item['status'] == 'Completed' and not item['fail_message']:
                                 progress = 100
+                                finished = True
                             elif item['status'] == 'Extracting':
                                 progress = 99
                             elif item['status'] == 'Failed' or item['fail_message']:
@@ -1376,6 +1431,7 @@ def getDownloadProgress(source, downloadid):
                             break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
+                progress = -1
 
         elif source == 'NZBGET':
             res = nzbget.sendNZB(cmd='listgroups', nzbID=downloadid)
@@ -1390,12 +1446,15 @@ def getDownloadProgress(source, downloadid):
                                 remaining = item['RemainingSizeHi'] << 32 + item['RemainingSizeLo']
                                 done = total - remaining
                                 progress = done * 100 / total
+                                if progress == 100:
+                                    finished = True
                             break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
+                progress = -1
 
         elif source == 'QBITTORRENT':
-            progress, status = qbittorrent.getProgress(downloadid)
+            progress, status, finished = qbittorrent.getProgress(downloadid)
             if progress == -1:
                 logger.debug('%s not found at %s' % (downloadid, source))
             if status == 'error':
@@ -1427,7 +1486,7 @@ def getDownloadProgress(source, downloadid):
                 progress = -1
 
         elif source == 'SYNOLOGY_TOR':
-            progress, status = synology.getProgress(downloadid)
+            progress, status, finished = synology.getProgress(downloadid)
             if status == 'finished':
                 progress = 100
             elif status == 'error':
@@ -1437,7 +1496,7 @@ def getDownloadProgress(source, downloadid):
                 progress = -1
 
         elif source == 'DELUGEWEBUI':
-            progress, message = deluge.getTorrentProgress(downloadid)
+            progress, message, finished = deluge.getTorrentProgress(downloadid)
             if message and message != 'OK':
                 myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
@@ -1450,8 +1509,13 @@ def getDownloadProgress(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if 'percentDone' in result:
+                if 'progress' in result:
                     progress = result['progress']
+                    try:
+                        finished = result['is_auto_managed'] and result['stop_at_ratio'] and \
+                            result['state'].lower() == 'paused' and result['ratio'] >= result['stop_ratio']
+                    except (KeyError, AttributeError):
+                        finished = False
                 if 'message' in result and result['message'] != 'OK':
                     myDB = database.DBConnection()
                     cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
@@ -1459,18 +1523,19 @@ def getDownloadProgress(source, downloadid):
                     progress = -1
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
+                progress = -1
 
         try:
             progress = int(progress)
         except ValueError:
             logger.debug("Progress value error %s [%s] %s" % (source, progress, downloadid))
             progress = 0
-        return progress
+        return progress, finished
 
     except Exception as e:
         logger.error("Failed to get download progress from %s for %s: %s %s" %
                      (source, downloadid, type(e).__name__, str(e)))
-        return 0
+        return 0, False
 
 
 def delete_task(Source, DownloadID, remove_data):
@@ -1639,7 +1704,7 @@ def process_book(pp_path=None, bookID=None):
                     try:
                         shutil.rmtree(pp_path + '.fail')
                     except Exception as why:
-                        logger.warn("Unable to remove %s, %s %s" % (pp_path + '.fail', type(why).__name__, str(why)))
+                        logger.warn("Unable to remove %s.fail, %s %s" % (pp_path, type(why).__name__, str(why)))
                 try:
                     _ = safe_move(pp_path, pp_path + '.fail')
                     logger.warn('Residual files remain in %s.fail' % pp_path)
