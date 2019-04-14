@@ -283,7 +283,7 @@ def isValidEmail(email):
     if len(email) > 7:
         # noinspection PyBroadException
         try:
-            if re.match(r"^[_a-z0-9-]+(\.[_a-z0-9-]+)*@[a-z0-9-]+(\.[a-z0-9-]+)*(\.[a-z]{2,4})$", email) is not None:
+            if re.match(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email) is not None:
                 return True
         except Exception:
             return False
