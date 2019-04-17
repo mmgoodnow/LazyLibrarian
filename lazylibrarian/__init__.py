@@ -1573,6 +1573,7 @@ def build_genres():
                     with open(json_file, 'r') as json_data:
                         res = json.load(json_data)
                 else:
+                    # noinspection PyArgumentList
                     with open(json_file, 'r', encoding='utf-8') as json_data:
                         res = json.load(json_data)
                 logger.info("Loaded genres from %s" % json_file)

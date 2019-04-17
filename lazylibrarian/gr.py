@@ -328,29 +328,29 @@ class GoodReads:
         """ Return all the book info we need as a dictionary or default value if no key """
         mydict = {}
         for val, idx, default in [
-                ('name', 'title', ''),
-                ('id', 'id', ''),
-                ('desc', 'description', ''),
-                ('pub', 'publisher', ''),
-                ('link', 'link', ''),
-                ('rate', 'average_rating', 0.0),
-                ('pages', 'num_pages', 0),
-                ('date', 'publication_year', '0000'),
-                ('workid', 'work/id', ''),
-                ('isbn13', 'isbn13', ''),
-                ('isbn10', 'isbn', ''),
-                ('img', 'image_url', '')
-                ]:
+            ('name', 'title', ''),
+            ('id', 'id', ''),
+            ('desc', 'description', ''),
+            ('pub', 'publisher', ''),
+            ('link', 'link', ''),
+            ('rate', 'average_rating', 0.0),
+            ('pages', 'num_pages', 0),
+            ('date', 'publication_year', '0000'),
+            ('workid', 'work/id', ''),
+            ('isbn13', 'isbn13', ''),
+            ('isbn10', 'isbn', ''),
+            ('img', 'image_url', '')
+            ]:
 
+            value = default
+            res = book.find(idx)
+            if res is not None:
+                value = res.text
+            if value is None:
                 value = default
-                res = book.find(idx)
-                if res is not None:
-                    value = res.text
-                if value is None:
-                    value = default
-                if idx == 'rate':
-                    value = check_float(value, 0.0)
-                mydict[val] = value
+            if idx == 'rate':
+                value = check_float(value, 0.0)
+            mydict[val] = value
 
         return mydict
 
@@ -463,9 +463,9 @@ class GoodReads:
                                 bookisbn = isbn13
                                 isbnhead = bookisbn[3:6]
                             elif isbn10:
-                                    find_field = "isbn"
-                                    bookisbn = isbn10
-                                    isbnhead = bookisbn[0:3]
+                                find_field = "isbn"
+                                bookisbn = isbn10
+                                isbnhead = bookisbn[0:3]
 
                             if not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
                                 # try lookup by name

@@ -41,19 +41,18 @@ def bookSeries(bookname):
     See if book is in multiple series first, if so return first one
     eg "The Shepherds Crown (Discworld, #41; Tiffany Aching, #5)"
     if no match, try single series, eg Mrs Bradshaws Handbook (Discworld, #40.5)
-
-    \(            Must have (
-    ([\S\s]+      followed by a group of one or more non whitespace
-    [^)])        not ending in )
-    ,? #?         followed by optional comma, then space optional hash
-    (             start next group
-    \d+           must have one or more digits
-    \.?           then optional decimal point, (. must be escaped)
-    -?            optional dash for a range
-    \d{0,}        zero or more digits
-    [;,]          a semicolon or comma if multiple series
-    )             end group
     """
+    # \(            Must have (
+    # ([\S\s]+      followed by a group of one or more non whitespace
+    # [^)])        not ending in )
+    # ,? #?         followed by optional comma, then space optional hash
+    # (             start next group
+    # \d+           must have one or more digits
+    # \.?           then optional decimal point, (. must be escaped)
+    # -?            optional dash for a range
+    # \d{0,}        zero or more digits
+    # [;,]          a semicolon or comma if multiple series
+    # )             end group
     series = ""
     seriesNum = ""
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
