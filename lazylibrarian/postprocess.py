@@ -919,8 +919,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 elif progress < 0:
                                     logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
                                 else:
-                                    cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
-                                    myDB.action(cmd, (book['NZBurl'],))
+                                    cmd = 'UPDATE wanted SET Status="Seeding", DLResult=?'
+                                    cmd += ' WHERE NZBurl=? and Status="Processed"'
+                                    myDB.action(cmd, (pp_path, book['NZBurl']))
                                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
                                     to_delete = False
 
@@ -1022,14 +1023,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
                 if finished:
                     logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
-                    q = 'UPDATE wanted SET Status="Processed" WHERE NZBurl=? and Status="Seeding"'
-                    myDB.action(q, (book['NZBurl'],))
+                    pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     delete_task(book['Source'], book['DownloadID'], True)
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
                     to_delete = True
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
                         to_delete = False
-                    if pp_path == download_dir:
+                    if pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
                         to_delete = False
                     if to_delete:
                         if os.path.isdir(pp_path):
@@ -1037,7 +1037,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             try:
                                 shutil.rmtree(pp_path)
                                 logger.debug('Deleted files for %s, %s from %s' %
-                                                (book['NZBtitle'], book['NZBmode'], book['Source']))
+                                             (book['NZBtitle'], book['NZBmode'], book['Source']))
                             except Exception as why:
                                 logger.warn("Unable to remove %s, %s %s" %
                                             (pp_path, type(why).__name__, str(why)))
@@ -1376,6 +1376,39 @@ def getDownloadFiles(source, downloadid):
 
     except Exception as e:
         logger.error("Failed to get list of files from %s for %s: %s %s" %
+                     (source, downloadid, type(e).__name__, str(e)))
+        return None
+
+
+def getDownloadFolder(source, downloadid):
+    dlfolder = None
+    try:
+        if source == 'TRANSMISSION':
+            dlfolder = transmission.getTorrentFolder(downloadid)
+        elif source == 'UTORRENT':
+            dlfolder = utorrent.dirTorrent(downloadid)
+        elif source == 'RTORRENT':
+            dlfolder = rtorrent.getFolder(downloadid)
+        elif source == 'SYNOLOGY_TOR':
+            dlfolder = synology.getFolder(downloadid)
+        elif source == 'QBITTORRENT':
+            dlfolder = qbittorrent.getFolder(downloadid)
+        elif source == 'DELUGEWEBUI':
+            dlfolder = deluge.getTorrentFolder(downloadid)
+        elif source == 'DELUGERPC':
+            client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
+                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'])
+            try:
+                client.connect()
+                result = client.call('core.get_torrent_status', downloadid, {})
+                if 'files' in result:
+                    dlfolder = result['files']
+            except Exception as e:
+                logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
+        return dlfolder
+
+    except Exception as e:
+        logger.error("Failed to get folder from %s for %s: %s %s" %
                      (source, downloadid, type(e).__name__, str(e)))
         return None
 

@@ -178,6 +178,29 @@ def getName(hashID):
     return False  # not found
 
 
+def getFolder(hashID):
+    server, version = getServer()
+    if server is False:
+        return False
+
+    mainview = server.download_list("", "main")
+    for tor in mainview:
+        if tor.upper() == hashID.upper():
+            RETRIES = 5
+            name = ''
+            while RETRIES:
+                if version.startswith('0.9') or version.startswith('1.'):
+                    name = server.d.directory(tor)
+                else:
+                    name = server.d.get_directory(tor)
+                if tor.upper() not in name:
+                    break
+                sleep(5)
+                RETRIES -= 1
+            return name
+    return False  # not found
+
+
 # noinspection PyUnusedLocal
 def removeTorrent(hashID, remove_data=False):
     server, _ = getServer()

@@ -60,49 +60,6 @@ def addTorrent(link, data=None):
             result = {'type': 'url',
                       'url': link}
             retid = _add_torrent_url(result)
-
-            """
-            user_agent = 'Mozilla/5.0 (Windows NT 6.3; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko)
-                          Chrome/41.0.2243.2 Safari/537.36'
-            headers = {'User-Agent': user_agent}
-            torrentfile = ''
-            logger.debug('Deluge: Trying to download (GET)')
-            try:
-                r = requests.get(link, headers=headers)
-                if r.status_code == 200:
-                    logger.debug('Deluge: 200 OK')
-                    torrentfile = r.text
-                    #for chunk in r.iter_content(chunk_size=1024):
-                    #    if chunk: # filter out keep-alive new chunks
-                    #        torrentfile = torrentfile + chunk
-                else:
-                    logger.debug('Deluge: Trying to GET %s returned status %d' % (link, r.status_code))
-                    return False
-            except Exception as e:
-                logger.debug('Deluge: Download failed: %s' % str(e))
-            if 'announce' not in torrentfile[:40]:
-                logger.debug('Deluge: Contents of %s doesn\'t look like a torrent file' % link)
-                return False
-            # Extract torrent name from .torrent
-            try:
-                logger.debug('Deluge: Getting torrent name length')
-                name_length = int(re.findall('name([0-9]*)\:.*?\:', torrentfile)[0])
-                logger.debug('Deluge: Getting torrent name')
-                name = re.findall('name[0-9]*\:(.*?)\:', torrentfile)[0][:name_length]
-            except Exception as e:
-                logger.debug('Deluge: Could not get torrent name, getting file name')
-                # get last part of link/path (name only)
-                name = link.split('\\')[-1].split('/')[-1]
-                # remove '.torrent' suffix
-                if name[-len('.torrent'):] == '.torrent':
-                    name = name[:-len('.torrent')]
-            logger.debug('Deluge: Sending Deluge torrent with name %s and content [%s...]' % (name, torrentfile[:40]))
-            result = {'type': 'torrent',
-                        'name': name,
-                        'content': torrentfile}
-            retid = _add_torrent_file(result)
-            """
-        # elif link.endswith('.torrent') or data:
         elif link:
             torrentfile = ''
             if data:
@@ -195,12 +152,16 @@ def getTorrentFiles(torrentid):
 def getTorrentProgress(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent progress')
-    res = getTorrentStatus(torrentid, ["progress", "message"])
+    res = getTorrentStatus(torrentid, ["progress", "message", "state", "is_auto_managed",
+                                       "stop_at_ratio", "ratio", "stop_ratio"])
     if res:
-        if 'progress' in res['result']:
-            return res['result']['progress'], res['result']['message']
-        return 0, 'OK'
-    return 0, ''
+        info = res['result']
+        if 'progress' in info:
+            finished = info['is_auto_managed'] and info['stop_at_ratio'] and \
+                info['state'].lower() == 'paused' and info['ratio'] >= info['stop_ratio']
+            return info['progress'], info['message'], finished
+        return 0, 'OK', False
+    return 0, '', False
 
 
 def getTorrentStatus(torrentid, data):
@@ -220,7 +181,7 @@ def getTorrentStatus(torrentid, data):
 
         try:
             total_done = response.json()['result']['total_done']
-            if data[0] == 'progress' and total_done == 0:
+            if 'progress' in data and total_done == 0:
                 return response.json()
         except KeyError:
             total_done = 0

@@ -201,7 +201,15 @@ def getProgress(hashid):
     qbclient = qbittorrentclient()
     if not len(qbclient.cookiejar):
         logger.debug("Failed to login to qBittorrent")
-        return False
+        return -1, '', False
+    # noinspection PyProtectedMember
+    preferences = qbclient._get_settings()
+    max_ratio = 0.0
+    if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
+        # noinspection PyTypeChecker
+        if preferences['max_ratio_enabled']:
+            # noinspection PyTypeChecker
+            max_ratio = float(preferences['max_ratio'])
     # noinspection PyProtectedMember
     torrentList = qbclient._get_list()
     if torrentList:
@@ -211,6 +219,10 @@ def getProgress(hashid):
                     state = torrent['state']
                 else:
                     state = ''
+                if 'ratio' in torrent:
+                    ratio = float(torrent['ratio'])
+                else:
+                    ratio = 0.0
                 if 'progress' in torrent:
                     try:
                         progress = int(100 * float(torrent['progress']))
@@ -218,8 +230,11 @@ def getProgress(hashid):
                         progress = 0
                 else:
                     progress = 0
-                return progress, state
-    return -1, ''
+                finished = False
+                if max_ratio and max_ratio <= ratio and state == 'pausedUP':
+                    finished = True
+                return progress, state, finished
+    return -1, '', False
 
 
 def removeTorrent(hashid, remove_data=False):

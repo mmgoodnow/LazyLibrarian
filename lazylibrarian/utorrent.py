@@ -228,8 +228,8 @@ def progressTorrent(hashid):
     torrentList = uTorrentClient.list()
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            return torrent[4], torrent[1]
-    return -1, ''
+            return torrent[4], torrent[1], (torrent[1] & 65 == 0)  # status not started or queued
+    return -1, '', False
 
 
 def listTorrent(hashid):

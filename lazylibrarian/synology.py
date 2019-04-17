@@ -353,6 +353,23 @@ def getName(download_id):
     return ""
 
 
+def getFolder(download_id):
+    # get the name of a download from it's download_id
+    # return "" if not found
+    hosturl = _hostURL()
+    if hosturl:
+        auth_cgi, task_cgi, sid = _login(hosturl)
+        if sid:
+            result = _getInfo(task_cgi, sid, download_id)  # type: dict
+            _logout(auth_cgi, sid)
+            if result:
+                try:
+                    return result['additional']['detail']['destination']
+                except Exception as e:
+                    logger.warn(e)
+    return ""
+
+
 def getProgress(download_id):
     # get the progress/status of a download from it's download_id
     # return "" if not found
@@ -385,8 +402,8 @@ def getProgress(download_id):
                     pc = int((got_size * 100) / tot_size)
                 else:
                     pc = 0
-                return pc, status
-    return -1, ""
+                return pc, status, (status == 'finished')
+    return -1, '', False
 
 
 def getFiles(download_id):
