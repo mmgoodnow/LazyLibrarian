@@ -988,6 +988,13 @@ def config_read(reloaded=False):
     CONFIG['REJECT_AUDIO'] = CONFIG['REJECT_AUDIO'].lower()
     CONFIG['REJECT_COMIC'] = CONFIG['REJECT_COMIC'].lower()
     CONFIG['BANNED_EXT'] = CONFIG['BANNED_EXT'].lower()
+
+    if 'windows' in platform.system().lower():
+        for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
+            if '/' in CONFIG[k]:
+                logger.warn('Please check your %s setting' % k)
+                CONFIG[k] = CONFIG[k].replace('/', '\\')
+
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
         CONFIG['HTTP_LOOK'] = 'legacy'
