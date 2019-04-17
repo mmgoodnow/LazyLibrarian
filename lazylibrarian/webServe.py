@@ -444,7 +444,7 @@ class WebInterface(object):
             cherrypy.response.cookie['ll_uid'] = ''
         username = ''
         password = ''
-        res = ''
+        res = {}
         pwd = ''
         if 'username' in kwargs:
             username = kwargs['username']
@@ -4677,7 +4677,7 @@ class WebInterface(object):
                     row = row[:9]
                     if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
                         if row[6] == 'Snatched':
-                            progress = getDownloadProgress(row[7], row[8])
+                            progress, _ = getDownloadProgress(row[7], row[8])
                             row.append(progress)
                             if progress < 100:
                                 lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG['HIST_REFRESH']
