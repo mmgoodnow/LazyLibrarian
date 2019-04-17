@@ -306,7 +306,7 @@ def getBookCover(bookID=None, src=None):
                         source = json.loads(result)  # type: dict
                     except Exception as e:
                         logger.debug("OpenLibrary json error: %s" % e)
-                        source = []
+                        source = {}
 
                     img = ''
                     if source:
