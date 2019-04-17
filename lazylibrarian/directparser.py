@@ -67,9 +67,7 @@ def GEN(book=None, prov=None, test=False):
         host = 'http://' + host
 
     search = lazylibrarian.CONFIG[prov + '_SEARCH']
-    if not search or not search.endswith('.php'):
-        search = 'search.php'
-    if 'index.php' not in search and 'search.php' not in search:
+    if not search:
         search = 'search.php'
     if search[0] == '/':
         search = search[1:]
@@ -88,7 +86,7 @@ def GEN(book=None, prov=None, test=False):
                 "f_columns": 0,
                 "f_ext": "All"
             }
-        else:
+        elif 'search.php' in search:
             params = {
                 "view": "simple",
                 "open": 0,
@@ -96,6 +94,10 @@ def GEN(book=None, prov=None, test=False):
                 "column": "def",
                 "res": 100,
                 "req": book['searchterm']
+            }
+        else:  # elif 'fiction' in search:
+            params = {
+                "q": book['searchterm']
             }
 
         if page > 1:
@@ -131,10 +133,11 @@ def GEN(book=None, prov=None, test=False):
                 rows = []
 
                 try:
-                    table = soup.find_all('table', rules='rows')[-1]  # the last table with rules=rows
-                    if table:
-                        rows = table.find_all('tr')
-
+                    tables = soup.find_all('table', rules='rows')  # the last table with rules=rows
+                    if not tables:
+                        tables = soup.find_all('table')
+                    if tables:
+                        rows = tables[-1].find_all('tr')
                 except IndexError:  # no results table in result page
                     rows = []
 
@@ -164,6 +167,21 @@ def GEN(book=None, prov=None, test=False):
                         except IndexError as e:
                             logger.debug('Error parsing libgen index.php results: %s' % str(e))
 
+                    elif 'fiction' in search and len(td) > 3:
+                        # Foreign fiction
+                        try:
+                            author = formatAuthorName(td[0].text)
+                            title = td[2].text
+                            newsoup = BeautifulSoup(str(td[5]), 'html5lib')
+                            data = newsoup.find('a')
+                            if data:
+                                link = data.get('href')
+                                extn = td[4].text.split('/')[0].strip()
+                                size = td[4].text.split('/')[1].strip()
+                                size = size.upper()
+                        except IndexError as e:
+                            logger.debug('Error parsing libgen fiction results: %s' % str(e))
+
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
                         try:
@@ -182,7 +200,6 @@ def GEN(book=None, prov=None, test=False):
                             logger.debug('Error parsing libgen search.php results; %s' % str(e))
 
                     size = size_in_bytes(size)
-
                     if link and title:
                         if author:
                             title = author.strip() + ' ' + title.strip()
