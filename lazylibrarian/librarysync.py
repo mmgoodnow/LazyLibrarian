@@ -576,7 +576,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
             "\\$\\$", "") + r'\.[' + booktypes + ']'  # ignore any series, we just want author/title
 
-        pattern = re.compile(matchString, re.VERBOSE)
+        pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
         last_authorid = None
         for rootdir, dirnames, filenames in walk(startdir):
             for directory in dirnames:
