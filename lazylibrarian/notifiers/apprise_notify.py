@@ -75,10 +75,16 @@ class Apprise_Notifier:
 # Public functions
 #
     def notify_snatch(self, title):
-        self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
+        if lazylibrarian.APPRISE:
+            self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
+        else:
+            return True
 
     def notify_download(self, title):
-        self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
+        if lazylibrarian.APPRISE:
+            self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
+        else:
+            return True
 
     def test_notify(self, url=None):
         return self._notify(event="Test", message="Testing Apprise settings from LazyLibrarian", url=url)
