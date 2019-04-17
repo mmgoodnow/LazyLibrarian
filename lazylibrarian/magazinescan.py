@@ -106,10 +106,10 @@ def magazineScan(title=None):
 
         match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
             "\\$\\T\\i\\t\\l\\e", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
-        title_pattern = re.compile(match, re.VERBOSE)
+        title_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
         match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
             "\\$\\T\\i\\t\\l\\e", "") + r'\.[' + booktypes + ']'
-        date_pattern = re.compile(match, re.VERBOSE)
+        date_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
 
         for rootdir, _, filenames in walk(mag_path):
             rootdir = makeUnicode(rootdir)
