@@ -199,29 +199,34 @@ def audioProcess(bookid, rename=False, playlist=False):
 
     logger.debug("%s found %s audiofile%s" % (exists['BookName'], cnt, plural(cnt)))
 
+    failed = False
     if cnt == 1 and not parts:  # single file audiobook with no tags
         parts = [[1, exists['BookName'], exists['AuthorName'], audio_file]]
 
     if cnt != len(parts):
         logger.warn("%s: Incorrect number of parts (found %i from %i)" % (exists['BookName'], len(parts), cnt))
-        return book_filename
+        failed = True
+        # return book_filename
 
     if total and total != cnt:
         logger.warn("%s: Reported %i parts, got %i" % (exists['BookName'], total, cnt))
-        return book_filename
+        failed = True
+        # return book_filename
 
     # check all parts have the same author and title
     if len(parts) > 1:
         for part in parts:
             if part[1] != book:
                 logger.warn("%s: Inconsistent title: [%s][%s]" % (exists['BookName'], part[1], book))
-                return book_filename
+                failed = True
+                # return book_filename
             if part[2] != author:
                 logger.warn("%s: Inconsistent author: [%s][%s]" % (exists['BookName'], part[2], author))
-                return book_filename
+                failed = True
+                # return book_filename
 
-    # do we have any track info (value is 0 if not)
-    if parts[0][0] == 0:
+    # do we have any track info from id3 tags
+    if failed or parts[0][0] == 0:
         tokmatch = ''
         # try to extract part information from filename. Search for token style of part 1 in this order...
         for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
