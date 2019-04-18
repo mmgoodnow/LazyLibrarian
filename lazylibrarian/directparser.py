@@ -149,21 +149,21 @@ def GEN(book=None, prov=None, test=False):
                     title = ''
                     size = ''
                     extn = ''
-                    link = ''
                     td = row.find_all('td')
+                    links = []
 
                     if 'index.php' in search and len(td) > 3:
                         # Foreign fiction
                         try:
                             author = formatAuthorName(td[0].text)
                             title = td[2].text
+                            extn = td[4].text.split('(')[0].strip()
+                            size = td[4].text.split('(')[1].split(')')[0]
+                            size = size.upper()
                             newsoup = BeautifulSoup(str(td[4]), 'html5lib')
-                            data = newsoup.find('a')
-                            if data:
-                                link = data.get('href')
-                                extn = td[4].text.split('(')[0].strip()
-                                size = td[4].text.split('(')[1].split(')')[0]
-                                size = size.upper()
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen index.php results: %s' % str(e))
 
@@ -172,13 +172,13 @@ def GEN(book=None, prov=None, test=False):
                         try:
                             author = formatAuthorName(td[0].text)
                             title = td[2].text
+                            extn = td[4].text.split('/')[0].strip()
+                            size = td[4].text.split('/')[1].strip()
+                            size = size.upper()
                             newsoup = BeautifulSoup(str(td[5]), 'html5lib')
-                            data = newsoup.find('a')
-                            if data:
-                                link = data.get('href')
-                                extn = td[4].text.split('/')[0].strip()
-                                size = td[4].text.split('/')[1].strip()
-                                size = size.upper()
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen fiction results: %s' % str(e))
 
@@ -189,41 +189,43 @@ def GEN(book=None, prov=None, test=False):
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text
-                            link = ''
                             newsoup = BeautifulSoup(str(td[2]), 'html5lib')
                             for res in newsoup.find_all('a'):
-                                output = res.get('href')
-                                if 'md5' in output:
-                                    link = output
-                                    break
+                                d = res.get('href')
+                                if 'md5' in d:
+                                    links.append(d)
                         except IndexError as e:
                             logger.debug('Error parsing libgen search.php results; %s' % str(e))
 
                     size = size_in_bytes(size)
-                    if link and title:
+                    if links and title:
                         if author:
                             title = author.strip() + ' ' + title.strip()
                         if extn:
                             title = title + '.' + extn
 
-                        if link.startswith('http'):
-                            url = redirect_url(host, link)
-                        else:
-                            if "/index.php?" in link:
-                                link = 'md5' + link.split('md5')[1]
-
-                            if "/ads.php?" in link:
-                                url = url_fix(host + "/" + link)
+                        success = False
+                        bookresult = None
+                        for link in links:
+                            if link.startswith('http'):
+                                url = redirect_url(host, link)
                             else:
-                                url = url_fix(host + "/ads.php?" + link)
+                                if "/index.php?" in link:
+                                    link = 'md5' + link.split('md5')[1]
+                                if "/ads.php?" in link:
+                                    url = url_fix(host + "/" + link)
+                                else:
+                                    url = url_fix(host + "/ads.php?" + link)
 
-                        bookresult, success = fetchURL(url)
-                        if not success:
-                            logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))
-                            logger.debug(url)
-                            url = None
-                        else:
-                            url = None
+                            bookresult, success = fetchURL(url)
+                            if not success:
+                                logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))
+                                logger.debug(url)
+                            else:
+                                break
+
+                        url = None
+                        if success and bookresult:
                             try:
                                 new_soup = BeautifulSoup(bookresult, 'html5lib')
                                 for link in new_soup.find_all('a'):
@@ -241,14 +243,13 @@ def GEN(book=None, prov=None, test=False):
                                         elif output.startswith('http') and '/download' in output:
                                             url = output
                                             break
-
                                 if url:
                                     if not url.startswith('http'):
                                         url = url_fix(host + url)
                                     else:
                                         url = redirect_url(host, url)
                             except Exception as e:
-                                logger.error('%s parsing bookresult for %s: %s' % (type(e).__name__, link, str(e)))
+                                logger.error('%s parsing bookresult: %s' % (type(e).__name__, str(e)))
                                 url = None
 
                         if url:
