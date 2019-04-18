@@ -78,7 +78,6 @@ class grauth:
             request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
         if 'oauth_token' in request_token:
             authorize_link = '%s?oauth_token=%s' % (authorize_url, request_token['oauth_token'])
-            # print authorize_link
             return authorize_link
         else:
             return "No oauth_token, got %s" % content
