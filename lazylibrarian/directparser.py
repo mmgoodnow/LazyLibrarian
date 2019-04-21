@@ -189,7 +189,7 @@ def GEN(book=None, prov=None, test=False):
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text
-                            newsoup = BeautifulSoup(str(td[2]), 'html5lib')
+                            newsoup = BeautifulSoup(str(td[9]), 'html5lib')
                             for res in newsoup.find_all('a'):
                                 d = res.get('href')
                                 if 'md5' in d:
