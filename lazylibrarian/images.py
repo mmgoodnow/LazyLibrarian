@@ -169,7 +169,7 @@ def getBookCover(bookID=None, src=None):
                         with open(coverfile, 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
-                        logger.debug('Got an empty librarything image for %s [%s]' % (bookID, coverlink))
+                        logger.debug('Got an empty librarything image for %s [%s]' % (bookID, img))
                     elif success:
                         logger.debug("Caching librarything cover for %s" % bookID)
                         return coverlink, 'librarything'
