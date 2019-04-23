@@ -709,7 +709,7 @@ def seriesUpdate(restart=True):
         if res and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             name = res['SeriesName']
             dtnow = time.time()
-            diff = int((dtnow - int(item['Updated'])) / (24 * 60 * 60))
+            diff = int((dtnow - int(res['Updated'])) / (24 * 60 * 60))
             msg = 'Oldest series info (%s) is %s day%s old' % (name, diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
                 logger.info('Starting series update for %s' % name)
