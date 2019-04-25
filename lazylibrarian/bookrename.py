@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
-    makeUnicode, makeUTF8bytes
+    makeUnicode, makeUTF8bytes, sortDefinite, surnameFirst
 from lib.six import PY2
 
 try:
@@ -96,8 +96,10 @@ def audioProcess(bookid, rename=False, playlist=False):
     :param playlist: generate a playlist for popup
     :return: filename of part 01 of the audiobook
     """
-    for item in ['$Part', '$Title']:
-        if rename and item not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+    if rename:
+        if '$Part' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] or (
+            '$Title' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] and
+                '$SortTitle' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']):
             logger.error("Unable to audioProcess, check AUDIOBOOK_DEST_FILE")
             return ''
 
@@ -445,6 +447,8 @@ def nameVars(bookid, abridged=''):
         seriesname = 'The Lord of the Rings'
         mydict['Author'] = 'J.R.R. Tolkien'
         mydict['Title'] = 'The Fellowship of the Ring'
+        mydict['SortAuthor'] = surnameFirst(mydict['Author'])
+        mydict['SortTitle'] = sortDefinite(mydict['Title'])
         res = {}
     else:
         cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
@@ -571,9 +575,13 @@ def nameVars(bookid, abridged=''):
         if exists:
             mydict['Author'] = exists['AuthorName']
             mydict['Title'] = exists['BookName']
+            mydict['SortAuthor'] = surnameFirst(mydict['Author'])
+            mydict['SortTitle'] = sortDefinite(mydict['Title'])
         else:
             mydict['Author'] = ''
             mydict['Title'] = ''
+            mydict['SortAuthor'] = ''
+            mydict['SortTitle'] = ''
 
     dest_path = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'], mydict)
     dest_path = replace_all(dest_path, __dic__)

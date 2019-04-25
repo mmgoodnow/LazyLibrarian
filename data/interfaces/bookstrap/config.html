@@ -2053,14 +2053,14 @@
                     <label for="ebook_dest_folder">eBook Foldername Pattern:</label>
                     %endif
                     <input type="text" id="ebook_dest_folder" name="ebook_dest_folder" value="${lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']}" class="form-control" placeholder="eBook Destination Folder">
-                    <span class="help-block">Options: $Author, $Title, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                     <small>Example:  <mark>${config['namevars']['FolderName']}</mark></small>
                   </div>
                   <div class="form-group">
                     <label for="ebook_dest_file">eBook Filename Pattern:</label>
                     <input type="text" id="ebook_dest_file" name="ebook_dest_file" value="${lazylibrarian.CONFIG['EBOOK_DEST_FILE']}" class="form-control" placeholder="eBook Destination File">
-                    <span class="help-block">Options: $Author, $Title, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $$, any string.<br/>
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                       <small>Example:  <mark>${config['namevars']['BookFile']}</mark></small>
                   </div>
@@ -2068,8 +2068,8 @@
                   <div class="form-group">
                     <label for="audiobook_dest_file">AudioBook Filename Pattern:</label>
                     <input type="text" id="audiobook_dest_file" name="audiobook_dest_file" value="${lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']}" class="form-control" placeholder="audioBook Destination File">
-                    <span class="help-block">Options: $Author, $Title, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $Part, $Total, $$, any string.<br/>
-                      <strong>Current limitation: Has to include $Title and $Part</strong></span>
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $Part, $Total, $$, any string.<br/>
+                      <strong>Current limitation: Has to include $Title or $SortTitle and $Part</strong></span>
                       <small>Example:  <mark>${config['namevars']['AudioFile']}</mark></small>
                   </div>
                   %endif
