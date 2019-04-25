@@ -279,15 +279,18 @@ def proxyList():
     return proxies
 
 
-def isValidEmail(email):
-    if len(email) > 7:
-        # noinspection PyBroadException
-        try:
-            if re.match(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email) is not None:
-                return True
-        except Exception:
+def isValidEmail(emails):
+    if not emails:
+        return False
+    elif ',' in emails:
+        emails = getList(emails)
+    else:
+        emails = [emails]
+
+    for email in emails:
+        if re.match(r"(^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$)", email) is None:
             return False
-    return False
+    return True
 
 
 def pwd_generator(size=10, chars=string.ascii_letters + string.digits):
