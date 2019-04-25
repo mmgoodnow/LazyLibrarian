@@ -574,9 +574,9 @@ def grsync(status, shelf, library='eBook', reset=False):
         if res and not reset:
             last_sync = getList(res['SyncList'])
 
-        added_to_shelf = list(set(gr_shelf) - set(last_sync))
+        added_to_shelf = list(set(gr_shelf) - set(last_sync) - set(ll_list))
         removed_from_shelf = list(set(last_sync) - set(gr_shelf))
-        added_to_ll = list(set(ll_list) - set(last_sync))
+        added_to_ll = list(set(ll_list) - set(last_sync) - set(gr_shelf))
         removed_from_ll = list(set(last_sync) - set(ll_list))
 
         logger.info("%s missing from lazylibrarian %s" % (len(removed_from_ll), shelf))
