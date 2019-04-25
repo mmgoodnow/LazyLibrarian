@@ -2002,6 +2002,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 return True, newbookfile
             return False, "Failed to find a valid ebook in [%s]" % target_dir
         except Exception as e:
+            logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e))
     else:
         # we are copying the files ourselves, either it's audiobook,mag,comic or we don't want to use calibre
