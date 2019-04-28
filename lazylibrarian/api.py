@@ -32,7 +32,7 @@ from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, set
 from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
-    logHeader, authorUpdate, showStats
+    logHeader, authorUpdate, showStats, seriesUpdate
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, makeUnicode, \
     makeBytestr, replace_all
@@ -96,6 +96,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'ignoreAuthor': '&id= ignore author by AuthorID',
             'refreshAuthor': '&name= [&refresh] reload author (and their books) by name, optionally refresh cache',
             'authorUpdate': 'update the oldest author, if any are overdue',
+            'seriesUpdate': 'update the oldest series, if any are overdue',
             'forceActiveAuthorsUpdate': '[&wait] [&refresh] reload all active authors and book data, refresh cache',
             'forceLibraryScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library',
             'forceAudioBookScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library',
@@ -280,6 +281,11 @@ class Api(object):
         else:
             limit = 10
 
+        if 'authorid' in kwargs:
+            authorid = kwargs['authorid']
+        else:
+            authorid = None
+
         # url might end in .xml
         if not limit.isdigit():
             try:
@@ -294,7 +300,7 @@ class Api(object):
             netloc = cherrypy.request.headers.get('Host')
         path = path.replace('rssFeed', '').rstrip('/')
         baseurl = urlunsplit((scheme, netloc, path, qs, anchor))
-        self.data = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl)
+        self.data = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid)
 
     def _syncCalibreList(self, **kwargs):
         col1 = None
@@ -851,6 +857,12 @@ class Api(object):
     def _authorUpdate(self):
         try:
             self.data = authorUpdate(restart=False)
+        except Exception as e:
+            self.data = "%s %s" % (type(e).__name__, str(e))
+
+    def _seriesUpdate(self):
+        try:
+            self.data = seriesUpdate(restart=False)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
