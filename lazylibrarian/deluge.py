@@ -64,13 +64,13 @@ def addTorrent(link, data=None):
             torrentfile = ''
             if data:
                 logger.debug('Deluge: Getting .torrent data')
-                if 'announce' in data[:40]:
+                if b'announce' in data[:40]:
                     torrentfile = data
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                         logger.debug('Deluge: Contents doesn\'t look like a torrent file, maybe b64encoded')
                     data = b64decode(data)
-                    if 'announce' in data[:40]:
+                    if b'announce' in data[:40]:
                         torrentfile = data
                     else:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -252,11 +252,10 @@ def _get_auth():
         return None
 
     delugeweb_password = lazylibrarian.CONFIG['DELUGE_PASS']
-
     if not delugeweb_host.startswith("http"):
         delugeweb_host = 'http://%s' % delugeweb_host
 
-    delugeweb_host = "%s:%s" % (delugeweb_host.strip('/'), delugeweb_port)
+    delugeweb_host = "%s:%s" % (delugeweb_host.rstrip('/'), delugeweb_port)
 
     if lazylibrarian.CONFIG['DELUGE_BASE']:
         delugeweb_base = lazylibrarian.CONFIG['DELUGE_BASE'].strip('/')
@@ -273,7 +272,6 @@ def _get_auth():
             logger.debug('Deluge: Using certificate %s, host is now %s' % (deluge_verify_cert, delugeweb_host))
 
     delugeweb_url = delugeweb_host + '/json'
-
     post_json = {"method": "auth.login", "params": [delugeweb_password], "id": 1}
 
     try:
@@ -289,10 +287,10 @@ def _get_auth():
             logger.error('Deluge: Switching to HTTPS, certificate won\'t be verified NO CERTIFICATE WAS CONFIGURED')
             delugeweb_url = delugeweb_url.replace('http:', 'https:')
         except Exception as e:
-            logger.error('Deluge: Authentication failed: %s' % str(e))
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                formatted_lines = traceback.format_exc().splitlines()
-                logger.debug('; '.join(formatted_lines))
+            logger.error('Deluge: HTTPS Authentication failed: %s' % str(e))
+            # if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            #     formatted_lines = traceback.format_exc().splitlines()
+            #     logger.debug('; '.join(formatted_lines))
             return None
     except Exception as err:
         logger.error('Deluge %s: auth.login returned %s' % (type(err).__name__, str(err)))
