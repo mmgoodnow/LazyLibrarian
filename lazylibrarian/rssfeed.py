@@ -32,7 +32,7 @@ except ImportError:
     TinyTag = None
 
 
-def genFeed(ftype, limit=10, user=0, baseurl=''):
+def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None):
     res = ''
     if not lazylibrarian.CONFIG['RSS_ENABLED']:
         return res
@@ -40,13 +40,18 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
     try:
         podcast = False
         if ftype == 'eBook':
-            cmd = "select AuthorName,BookName,BookDesc,BookLibrary,BookFile,BookID from books,authors where"
-            cmd += " BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
+            cmd = "select AuthorName,BookName,BookDesc,BookLibrary,BookFile,BookID from books,authors where "
+            if authorid:
+                cmd += 'books.AuthorID = ? and '
+            cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/bookWall&have=1'
         elif ftype == 'AudioBook':
             podcast = lazylibrarian.CONFIG['RSS_PODCAST']
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
-            cmd += "from books,authors where AudioLibrary != '' and books.AuthorID = authors.AuthorID "
+            cmd += "from books,authors where "
+            if authorid:
+                cmd += 'books.AuthorID = ? and '
+            cmd += "AudioLibrary != '' and books.AuthorID = authors.AuthorID "
             cmd += "order by AudioLibrary desc limit ?"
             baselink = baseurl + '/audioWall'
         elif ftype == 'Magazine':
@@ -62,7 +67,10 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
             return res
 
         myDB = database.DBConnection()
-        results = myDB.select(cmd, (limit,))
+        if authorid:
+            results = myDB.select(cmd, (authorid, limit))
+        else:
+            results = myDB.select(cmd, (limit,))
         items = []
         logger.debug("Found %s %s results" % (len(results), ftype))
 
@@ -159,6 +167,8 @@ def genFeed(ftype, limit=10, user=0, baseurl=''):
             owner=iTunesOwner(name='LazyLibrarian', email=lazylibrarian.CONFIG['ADMIN_EMAIL']))
 
         title = "%s Recent Downloads" % ftype
+        if authorid and results:
+            title = "%s %s Recent Downloads" % (results[0]['AuthorName'], ftype)
 
         if podcast:
             feed = Feed(

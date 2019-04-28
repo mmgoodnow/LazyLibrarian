@@ -1449,6 +1449,11 @@ class WebInterface(object):
     def authorPage(self, AuthorID, BookLang=None, library='eBook', Ignored=False):
         global lastauthor
         myDB = database.DBConnection()
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+        else:
+            user = 0
         if Ignored:
             languages = myDB.select(
                 "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'", (AuthorID,))
@@ -1482,7 +1487,7 @@ class WebInterface(object):
         return serve_template(
             templatename="author.html", title=quote_plus(authorname),
             author=author, languages=languages, booklang=BookLang, types=types, library=library, ignored=Ignored,
-            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage)
+            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user)
 
     @cherrypy.expose
     def setAuthor(self, AuthorID, status):
@@ -4382,6 +4387,11 @@ class WebInterface(object):
         else:
             limit = '10'
 
+        if 'authorid' in kwargs:
+            authorid = kwargs['authorid']
+        else:
+            authorid = None
+
         # url might end in .xml
         if not limit.isdigit():
             try:
@@ -4423,7 +4433,7 @@ class WebInterface(object):
         logger.debug("RSS Feed request %s %s%s: %s %s" % (limit, ftype, plural(limit), remote_ip, userid))
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
-        res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl)
+        res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid)
         return makeUTF8bytes(res)[0]
 
     @cherrypy.expose
