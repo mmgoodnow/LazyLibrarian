@@ -427,35 +427,42 @@ def sync_to_gr():
     msg = ''
     try:
         threading.currentThread().name = 'GRSync'
-        if lazylibrarian.CONFIG['GR_WANTED']:
-            to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'eBook')
-            msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
-                                                  lazylibrarian.CONFIG['GR_WANTED'])
-            msg += "%s change%s to eBook Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+        if lazylibrarian.CONFIG['GR_OWNED'] and lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
+            msg += "Unable to sync ebooks, WANTED and OWNED must be different shelves\n"
         else:
-            msg += "Sync Wanted eBooks is disabled\n"
-        if lazylibrarian.CONFIG['GR_OWNED']:
-            to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'eBook')
-            msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
-                                                  lazylibrarian.CONFIG['GR_OWNED'])
-            msg += "%s change%s to eBook Owned from GoodReads\n" % (ll_have, plural(ll_have))
-        else:
-            msg += "Sync Owned eBooks is disabled\n"
-        if lazylibrarian.SHOW_AUDIO:
-            if lazylibrarian.CONFIG['GR_AWANTED']:
-                to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
+            if lazylibrarian.CONFIG['GR_WANTED']:
+                to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'eBook')
                 msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
-                                                      lazylibrarian.CONFIG['GR_AWANTED'])
-                msg += "%s change%s to Audio Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                                                      lazylibrarian.CONFIG['GR_WANTED'])
+                msg += "%s change%s to eBook Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
             else:
-                msg += "Sync Wanted AudioBooks is disabled\n"
-            if lazylibrarian.CONFIG['GR_AOWNED']:
-                to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_AOWNED'], 'AudioBook')
+                msg += "Sync Wanted eBooks is disabled\n"
+            if lazylibrarian.CONFIG['GR_OWNED']:
+                to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'eBook')
                 msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
-                                                      lazylibrarian.CONFIG['GR_AOWNED'])
-                msg += "%s change%s to Audio Owned from GoodReads\n" % (ll_have, plural(ll_have))
+                                                      lazylibrarian.CONFIG['GR_OWNED'])
+                msg += "%s change%s to eBook Owned from GoodReads\n" % (ll_have, plural(ll_have))
             else:
-                msg += "Sync Owned AudioBooks is disabled\n"
+                msg += "Sync Owned eBooks is disabled\n"
+        if lazylibrarian.SHOW_AUDIO:
+            if lazylibrarian.CONFIG['GR_AOWNED'] and \
+                    lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_AWANTED']:
+                msg += "Unable to sync audiobooks, WANTED and OWNED must be different shelves\n"
+            else:
+                if lazylibrarian.CONFIG['GR_AWANTED']:
+                    to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
+                    msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
+                                                          lazylibrarian.CONFIG['GR_AWANTED'])
+                    msg += "%s change%s to Audio Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                else:
+                    msg += "Sync Wanted AudioBooks is disabled\n"
+                if lazylibrarian.CONFIG['GR_AOWNED']:
+                    to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_AOWNED'], 'AudioBook')
+                    msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
+                                                          lazylibrarian.CONFIG['GR_AOWNED'])
+                    msg += "%s change%s to Audio Owned from GoodReads\n" % (ll_have, plural(ll_have))
+                else:
+                    msg += "Sync Owned AudioBooks is disabled\n"
         logger.info(msg.strip('\n').replace('\n', ', '))
     except Exception as e:
         logger.error("Exception in sync_to_gr: %s %s" % (type(e).__name__, str(e)))
