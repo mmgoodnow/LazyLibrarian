@@ -1317,8 +1317,8 @@ def getDownloadName(title, source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                # for item in result:
-                #     logger.debug ('Deluge RPC result %s: %s' % (item, result[item]))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
                     dlname = unaccented_str(result['name'])
             except Exception as e:
@@ -1368,6 +1368,8 @@ def getDownloadFiles(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'files' in result:
                     dlfiles = result['files']
             except Exception as e:
@@ -1401,6 +1403,8 @@ def getDownloadFolder(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'files' in result:
                     dlfolder = result['files']
             except Exception as e:
@@ -1542,6 +1546,8 @@ def getDownloadProgress(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'progress' in result:
                     progress = result['progress']
                     try:
@@ -1837,7 +1843,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         Return True, full_path_to_book  or False, error_message"""
 
     booktype = booktype.lower()
-
+    pp_path = makeUnicode(pp_path)
     bestmatch = ''
     if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
@@ -2040,20 +2046,21 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if is_valid_booktype(ufname, booktype=booktype) or \
                         ((ufname.lower().endswith(".jpg") or ufname.lower().endswith(".opf"))
                          and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
-                    logger.debug('Copying %s to directory %s' % (ufname, udest_path))
-                    typ = ''
+                    # typ = ''
                     srcfile = os.path.join(pp_path, fname)
                     if booktype in ['audiobook', 'comic']:
                         destfile = os.path.join(dest_path, fname)  # don't rename, just copy it
                     else:
                         destfile = os.path.join(dest_path, global_name + os.path.splitext(fname)[1])
                     try:
-                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                            typ = 'copy'
-                            destfile = safe_copy(srcfile, destfile)
-                        else:
-                            typ = 'move'
-                            destfile = safe_move(srcfile, destfile)
+                        # if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                        #     typ = 'copy'
+                        logger.debug('Copying %s to directory %s' % (ufname, udest_path))
+                        destfile = safe_copy(srcfile, destfile)
+                        # else:
+                        #     typ = 'move'
+                        #     logger.debug('Moving %s to directory %s' % (ufname, udest_path))
+                        #     destfile = safe_move(srcfile, destfile)
                         setperm(destfile)
                         if is_valid_booktype(makeUnicode(destfile), booktype=booktype):
                             newbookfile = destfile
@@ -2069,8 +2076,8 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             os.remove(os.path.join(parent, b'll_temp'))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
-                        return False, "Unable to %s file %s to %s: %s %s" % (typ, srcfile, destfile,
-                                                                             type(why).__name__, str(why))
+                        return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
+                                                                               type(why).__name__, str(why))
                 else:
                     logger.debug('Ignoring unwanted file: %s' % ufname)
 
