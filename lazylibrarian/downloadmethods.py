@@ -425,7 +425,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
             Source = "DELUGEWEBUI"
             if torrent:
                 logger.debug("Sending %s data to Deluge" % tor_title)
-                downloadID, res = deluge.addTorrent(tor_title, data=b64encode(torrent))
+                downloadID, res = deluge.addTorrent(tor_title, data=makeUnicode(b64encode(torrent)))
             else:
                 logger.debug("Sending %s url to Deluge" % tor_title)
                 downloadID, res = deluge.addTorrent(tor_url)  # can be link or magnet, returns hash or False
@@ -450,7 +450,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 elif torrent:
                     res = "Sending %s data to DelugeRPC" % tor_title
                     logger.debug(res)
-                    downloadID = client.call('core.add_torrent_file', tor_title, b64encode(torrent), args)
+                    downloadID = client.call('core.add_torrent_file', tor_title, makeUnicode(b64encode(torrent)), args)
                 else:
                     res = "Sending %s url to DelugeRPC" % tor_title
                     logger.debug(res)

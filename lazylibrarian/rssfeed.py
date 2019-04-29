@@ -22,6 +22,9 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import mimeType
 
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_parse import unquote_plus
+
 try:
     from rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure
 except ImportError:
@@ -32,7 +35,7 @@ except ImportError:
     TinyTag = None
 
 
-def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None):
+def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
     if not lazylibrarian.CONFIG['RSS_ENABLED']:
         return res
@@ -56,11 +59,15 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None):
             baselink = baseurl + '/audioWall'
         elif ftype == 'Magazine':
             cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues "
+            if onetitle:
+                cmd += 'where Title = ? '
             cmd += "order by IssueAcquired desc limit ?"
             baselink = baseurl + '/magWall'
         elif ftype == 'Comic':
-            cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues "
-            cmd += "WHERE comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
+            cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues where"
+            if onetitle:
+                cmd += 'Title = ? and '
+            cmd += "comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
             baselink = baseurl + '/comicWall'
         else:
             logger.debug("Invalid feed type")
@@ -69,6 +76,8 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None):
         myDB = database.DBConnection()
         if authorid:
             results = myDB.select(cmd, (authorid, limit))
+        elif onetitle:
+            results = myDB.select(cmd, (unquote_plus(onetitle), limit))
         else:
             results = myDB.select(cmd, (limit,))
         items = []
@@ -169,6 +178,8 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None):
         title = "%s Recent Downloads" % ftype
         if authorid and results:
             title = "%s %s Recent Downloads" % (results[0]['AuthorName'], ftype)
+        elif onetitle and results:
+            title = "%s %s Recent Downloads" % (onetitle, ftype)
 
         if podcast:
             feed = Feed(

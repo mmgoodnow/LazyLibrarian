@@ -11,6 +11,12 @@
         <a href="comicScan?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
       %endif
       <a href="comicWall?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+          %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+            <a href="rssFeed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
+            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest comics" href="rssFeed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml">
+          %endif
+        %endif
     </div>
   </div>
 </%def>

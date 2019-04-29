@@ -12,6 +12,12 @@
         <a href="pastIssues?mag=${title | u}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
       %endif
       <a href="magWall?title=${title | u}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
+      %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+        %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+           <a href="rssFeed?user=${user}&type=Magazine&onetitle=${title | u}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of ${title} recent issues"><i class="fa fa-rss"></i></a>
+           <link rel="alternate" type="application/rss+xml" title="${title} latest issues" href="rssFeed?user=${user}&type=Magazine&onetitle=${title | u}&limit=10.xml">
+         %endif
+       %endif
     </div>
   </div>
 </%def>

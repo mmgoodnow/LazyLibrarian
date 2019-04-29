@@ -3241,13 +3241,18 @@ class WebInterface(object):
         else:
             safetitle = title
 
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+        else:
+            user = 0
         # use server-side processing
         if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
             covercount = 0
         else:
             covercount = 1
         return serve_template(templatename="comicissues.html", comicid=comicid,
-                              title=safetitle, issues=[], covercount=covercount)
+                              title=safetitle, issues=[], covercount=covercount, user=user)
 
     @cherrypy.expose
     def openComic(self, comicid=None, issueid=None):
@@ -3812,7 +3817,13 @@ class WebInterface(object):
                 covercount = 0
             else:
                 covercount = 1
-            return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount)
+            cookie = cherrypy.request.cookie
+            if cookie and 'll_uid' in list(cookie.keys()):
+                user = cookie['ll_uid'].value
+            else:
+                user = 0
+            return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
+                                  user=user)
 
         myDB = database.DBConnection()
 
@@ -4392,6 +4403,11 @@ class WebInterface(object):
         else:
             authorid = None
 
+        if 'onetitle' in kwargs:
+            onetitle = kwargs['onetitle']
+        else:
+            onetitle = None
+
         # url might end in .xml
         if not limit.isdigit():
             try:
@@ -4433,7 +4449,7 @@ class WebInterface(object):
         logger.debug("RSS Feed request %s %s%s: %s %s" % (limit, ftype, plural(limit), remote_ip, userid))
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
-        res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid)
+        res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid, onetitle=onetitle)
         return makeUTF8bytes(res)[0]
 
     @cherrypy.expose
