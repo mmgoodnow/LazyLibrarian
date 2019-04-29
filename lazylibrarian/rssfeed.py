@@ -66,8 +66,8 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         elif ftype == 'Comic':
             cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues where"
             if onetitle:
-                cmd += 'Title = ? and '
-            cmd += "comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
+                cmd += ' Title = ? and'
+            cmd += " comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
             baselink = baseurl + '/comicWall'
         else:
             logger.debug("Invalid feed type")
