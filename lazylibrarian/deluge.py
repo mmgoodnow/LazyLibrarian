@@ -64,20 +64,20 @@ def addTorrent(link, data=None):
             torrentfile = ''
             if data:
                 logger.debug('Deluge: Getting .torrent data')
-                if b'announce' in data[:40]:
+                if 'announce' in data[:40]:
                     torrentfile = data
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                        logger.debug('Deluge: Contents doesn\'t look like a torrent file, maybe b64encoded')
-                    data = b64decode(data)
-                    if b'announce' in data[:40]:
+                        logger.debug('Deluge: data doesn\'t look like a torrent, maybe b64encoded')
+                    data = makeUnicode(b64decode(data))
+                    if 'announce' in data[:40]:
                         torrentfile = data
                     else:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                            logger.debug('Deluge: Contents doesn\'t look like a b64encoded torrent file either')
+                            logger.debug('Deluge: data doesn\'t look like a b64encoded torrent either')
 
             if not torrentfile:
-                logger.debug('Deluge: Getting .torrent file')
+                logger.debug('Deluge: Getting .torrent from file %s' % link)
                 with open(link, 'rb') as f:
                     torrentfile = f.read()
             # Extract torrent name from .torrent
@@ -98,7 +98,7 @@ def addTorrent(link, data=None):
                     name = name[:-len('.torrent')]
             try:
                 logger.debug('Deluge: Sending Deluge torrent with name %s and content [%s...]' %
-                             (name, str(torrentfile)[:40]))
+                             (name, torrentfile[:40]))
             except UnicodeDecodeError:
                 logger.debug('Deluge: Sending Deluge torrent with name %s and content [%s...]' %
                              (name.decode('utf-8'), str(torrentfile)[:40]))
