@@ -718,8 +718,7 @@ def seriesUpdate(restart=True):
                 logger.info('Starting series update for %s' % name)
                 lazylibrarian.bookwork.addSeriesMembers(res['SeriesID'])
                 msg = 'Updated series %s' % name
-            else:
-                logger.debug(msg)
+            logger.debug(msg)
             if restart:
                 scheduleJob("Restart", "seriesUpdate")
             return msg
