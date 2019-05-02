@@ -21,6 +21,7 @@ from string import Template
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import plural, getList
+from lazylibrarian.common import checkRunningJobs
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.cache import gr_api_sleep
 from lib.six import PY2
@@ -76,6 +77,8 @@ class grauth:
         request_token = dict(parse_qsl(content))
         if not PY2:
             request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+            logger.debug("oauth1: %s" % str(request_token))
         if 'oauth_token' in request_token:
             authorize_link = '%s?oauth_token=%s' % (authorize_url, request_token['oauth_token'])
             return authorize_link
@@ -110,7 +113,8 @@ class grauth:
         access_token = dict(parse_qsl(content))
         if not PY2:
             access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
-        # print access_token
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+            logger.debug("oauth2: %s" % str(access_token))
         lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] = access_token['oauth_token']
         lazylibrarian.CONFIG['GR_OAUTH_SECRET'] = access_token['oauth_token_secret']
         lazylibrarian.config_write('API')
@@ -425,6 +429,7 @@ def cron_sync_to_gr():
 
 def sync_to_gr():
     msg = ''
+    run_searches = False
     try:
         threading.currentThread().name = 'GRSync'
         if lazylibrarian.CONFIG['GR_OWNED'] and lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
@@ -435,6 +440,8 @@ def sync_to_gr():
                 msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
                                                       lazylibrarian.CONFIG['GR_WANTED'])
                 msg += "%s change%s to eBook Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                if ll_wanted:
+                    run_searches = True
             else:
                 msg += "Sync Wanted eBooks is disabled\n"
             if lazylibrarian.CONFIG['GR_OWNED']:
@@ -454,6 +461,8 @@ def sync_to_gr():
                     msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
                                                           lazylibrarian.CONFIG['GR_AWANTED'])
                     msg += "%s change%s to Audio Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                    if ll_wanted:
+                        run_searches = True
                 else:
                     msg += "Sync Wanted AudioBooks is disabled\n"
                 if lazylibrarian.CONFIG['GR_AOWNED']:
@@ -467,6 +476,8 @@ def sync_to_gr():
     except Exception as e:
         logger.error("Exception in sync_to_gr: %s %s" % (type(e).__name__, str(e)))
     finally:
+        if run_searches:
+            checkRunningJobs()
         threading.currentThread().name = 'WEBSERVER'
         return msg
 
