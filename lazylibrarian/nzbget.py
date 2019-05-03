@@ -50,7 +50,7 @@ def deleteNZB(nzbID, remove_data=False):
 
 def sendNZB(nzb=None, cmd=None, nzbID=None):
     # we can send a new nzb, or commands to act on an existing nzbID (or array of nzbIDs)
-    # by setting nzbID and cmd (we currently only use test, listgroups and delete)
+    # by setting nzbID and cmd (we currently only use test, history, listgroups and delete)
 
     host = lazylibrarian.CONFIG['NZBGET_HOST']
     port = check_int(lazylibrarian.CONFIG['NZBGET_PORT'], 0)
@@ -82,6 +82,10 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
 
     if cmd == "test":
         msg = "lazylibrarian connection test"
+    elif cmd == 'history':
+        msg = "lazylibrarian requesting history"
+    elif cmd == 'listgroups':
+        msg = "lazylibrarian requesting listgroups"
     elif nzbID:
         msg = "lazylibrarian connected to %s %s" % (cmd, nzbID)
     else:
@@ -89,7 +93,8 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
 
     try:
         if nzbGetRPC.writelog("INFO", msg):
-            logger.debug("Successfully connected to NZBget")
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Successfully connected to NZBget")
             if cmd == "test":
                 # should check nzbget category is valid
                 return True, ''
@@ -99,7 +104,7 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
                 logger.debug(res)
                 return False, res
             else:
-                logger.info("Successfully connected to NZBget, but unable to send %s" % (nzb.name + ".nzb"))
+                logger.warn("Successfully connected to NZBget, but unable to send %s" % (nzb.name + ".nzb"))
 
     except http_client.socket.error as e:
         res = "Please check your NZBget host and port (if it is running). "
@@ -122,13 +127,15 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         logger.error("NZBget url [%s]" % url)
         return False, res
 
-    if nzbID is not None:
+    if cmd == 'history':
+        return nzbGetRPC.history(), ''
+    elif cmd == 'listgroups':
+        return nzbGetRPC.listgroups(), ''
+    elif nzbID is not None:
         # its a command for an existing task
         id_array = [int(nzbID)]
         if cmd in ['GroupDelete', 'GroupFinalDelete', 'HistoryDelete', 'HistoryFinalDelete']:
             return nzbGetRPC.editqueue(cmd, 0, "", id_array), ''
-        elif cmd == 'listgroups':
-            return nzbGetRPC.listgroups(), ''
         else:
             res = 'Unsupported nzbget command %s' % repr(cmd)
             logger.debug(res)
@@ -140,7 +147,8 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         nzbcontent64 = makeUnicode(standard_b64encode(data))
 
     logger.info("Sending NZB to NZBget")
-    logger.debug("URL: " + url)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("URL: " + url)
 
     dupekey = ""
     dupescore = 0
@@ -150,7 +158,8 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
         # beginning with a 0.x will use the old command
         nzbget_version_str = nzbGetRPC.version()
         nzbget_version = int(nzbget_version_str[:nzbget_version_str.find(".")])
-        logger.debug("NZB Version %s" % nzbget_version)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("NZB Version %s" % nzbget_version)
         # for some reason 14 seems to not work with >= 13 method? I get invalid param autoAdd
         # PAB think its fixed now, code had autoAdd param as "False", it's not a string, it's bool so False
         if nzbget_version == 0:  # or nzbget_version == 14:
@@ -158,15 +167,6 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
                 nzbget_result = nzbGetRPC.append(nzb.name + ".nzb",
                                                  lazylibrarian.CONFIG['NZBGET_CATEGORY'], addToTop, nzbcontent64)
             else:
-                # from lazylibrarian.common.providers.generic import GenericProvider
-                # if nzb.resultType == "nzb":
-                #     genProvider = GenericProvider("")
-                #     data = genProvider.getURL(nzb.url)
-                #     if (data is None):
-                #         return False
-                #     nzbcontent64 = standard_b64encode(data)
-                # nzbget_result = nzbGetRPC.append(nzb.name + ".nzb", lazylibrarian.CONFIG['NZBGET_CATEGORY'],
-                #       addToTop, nzbcontent64)
                 return False, "No nzbcontent64 found"
         elif nzbget_version == 12:
             if nzbcontent64:
