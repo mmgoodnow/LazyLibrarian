@@ -448,7 +448,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             try:
                 for fname in os.listdir(makeBytestr(search_dir)):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
-                        return os.path.join(search_dir, fname)
+                        return os.path.join(makeBytestr(search_dir), fname)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return ""
