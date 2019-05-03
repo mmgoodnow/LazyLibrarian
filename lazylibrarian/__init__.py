@@ -292,6 +292,7 @@ CONFIG_DEFINITIONS = {
     'CACHE_AGE': ('int', 'General', 30),
     'TASK_AGE': ('int', 'General', 2),
     'OPF_TAGS': ('bool', 'General', 1),
+    'GENRE_TAGS': ('bool', 'General', 0),
     'WISHLIST_TAGS': ('bool', 'General', 1),
     'WISHLIST_GENRES': ('bool', 'General', 1),
     'GIT_HOST': ('str', 'Git', 'gitlab.com'),

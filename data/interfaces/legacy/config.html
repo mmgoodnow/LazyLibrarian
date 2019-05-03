@@ -1128,6 +1128,18 @@
             </div>
 			<div>
               <%
+                    if lazylibrarian.CONFIG['GENRE_TAGS'] == True:
+                        checked = 'checked="checked"'
+                    else:
+                        checked = ''
+                    %>
+              <input type="checkbox" id="genre_tags" name="genre_tags" value=1 ${checked} />
+              <label> Add Genre Tags</label>
+              <BR>
+              <small> Add genres as tags in Calibre</small>
+            </div>
+			<div>
+              <%
                     if lazylibrarian.CONFIG['WISHLIST_TAGS'] == True:
                         checked = 'checked="checked"'
                     else:
