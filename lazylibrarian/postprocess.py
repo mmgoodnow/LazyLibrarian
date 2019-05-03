@@ -985,7 +985,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                             (pp_path + b'.fail', type(why).__name__, str(why)))
                         try:
                             _ = safe_move(pp_path, pp_path + b'.fail')
-                            logger.warn('Residual files remain in %s.fail' % pp_path)
+                            logger.warn('Residual files remain in %s' % pp_path + b'.fail')
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
                                          (repr(pp_path), type(why).__name__, str(why)))
@@ -1454,7 +1454,7 @@ def getDownloadProgress(source, downloadid):
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
                             found = True
-                            # 100% if completed, 99% if still extracting, 0% if not found, -1 if failed
+                            # 100% if completed, 99% if still extracting, -1 if not found or failed
                             if item['status'] == 'Completed' and not item['fail_message']:
                                 progress = 100
                                 finished = True
@@ -1471,7 +1471,7 @@ def getDownloadProgress(source, downloadid):
                 progress = -1
 
         elif source == 'NZBGET':
-            res = nzbget.sendNZB(cmd='listgroups', nzbID=downloadid)
+            res = nzbget.sendNZB(cmd='listgroups')
             found = False
             if res:
                 for items in res:
@@ -1486,6 +1486,24 @@ def getDownloadProgress(source, downloadid):
                                 if progress == 100:
                                     finished = True
                             break
+            if not found:  # not in queue, try history in case completed or error
+                res = nzbget.sendNZB(cmd='history')
+                if res:
+                    for items in res:
+                        for item in items:
+                            if str(item['NZBID']) == str(downloadid):
+                                found = True
+                                # 100% if completed, -1 if not found or failed
+                                if 'SUCCESS' in item['Status']:
+                                    progress = 100
+                                    finished = True
+                                elif 'WARNING' in item['Status'] or 'FAILURE' in item['Status']:
+                                    myDB = database.DBConnection()
+                                    cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? '
+                                    cmd += 'WHERE DownloadID=? and Source=?'
+                                    myDB.action(cmd, (item['Status'], downloadid, source))
+                                    progress = -1
+                                break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = -1
@@ -1928,7 +1946,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 # we can pass an opf with all the info, and a cover image
                 myDB = database.DBConnection()
                 cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
-                cmd += 'Requester,AudioRequester from books,authors WHERE BookID=? '
+                cmd += 'Requester,AudioRequester,BookGenre from books,authors WHERE BookID=? '
                 cmd += 'and books.AuthorID = authors.AuthorID'
                 data = myDB.match(cmd, (bookid,))
                 if not data:
@@ -1939,19 +1957,30 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                     if rc:
                         logger.warn("calibredb unable to set opf")
+
+                    tags = ''
+                    if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
+                        tags = data['BookGenre']
                     if lazylibrarian.CONFIG['WISHLIST_TAGS']:
                         if data['Requester'] is not None:
-                            _, _, rc = calibredb('set_metadata',
-                                                 ['--field', 'tags:%s' % data['Requester'].replace(" ", ",")],
-                                                 [calibre_id])
-                            if rc:
-                                logger.warn("calibredb unable to set Requester")
-                        if data['AudioRequester'] is not None:
-                            _, _, rc = calibredb('set_metadata',
-                                                 ['--field', 'tags:%s' % data['AudioRequester'].replace(" ", ",")],
-                                                 [calibre_id])
-                            if rc:
-                                logger.warn("calibredb unable to set AudioRequester")
+                            tag = data['Requester'].replace(" ", ",")
+                            if tag not in tags:
+                                if tags:
+                                    tags += ', '
+                                tags += tag
+                        elif data['AudioRequester'] is not None:
+                            tag = data['AudioRequester'].replace(" ", ",")
+                            if tag not in tags:
+                                if tags:
+                                    tags += ', '
+                                tags += tag
+
+                    if ' ' in tags:
+                        tags = '"%s"' % tags
+                    if tags:
+                        _, _, rc = calibredb('set_metadata', ['--field', 'tags:%s' % tags], [calibre_id])
+                        if rc:
+                            logger.warn("calibredb unable to set tags")
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 _, _, rc = calibredb('set_metadata', ['--field', 'authors:%s' % unaccented(authorname)], [calibre_id])
