@@ -77,7 +77,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         if authorid:
             results = myDB.select(cmd, (authorid, limit))
         elif onetitle:
-            results = myDB.select(cmd, (unquote_plus(onetitle), limit))
+            results = myDB.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
         else:
             results = myDB.select(cmd, (limit,))
         items = []
