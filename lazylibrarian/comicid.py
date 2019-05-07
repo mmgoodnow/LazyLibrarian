@@ -634,7 +634,7 @@ def meta_dict(data):
     datadict = {}
     for item in ['Series', 'Title', 'Number', 'Summary', 'Year', 'Publisher', 'Web']:
         res = rootxml.find(item)
-        if res is not None:
+        if res is not None and res.text is not None:
             datadict[item] = res.text
     if 'Web' in datadict:
         if 'comicvine' in datadict['Web']:
@@ -643,7 +643,7 @@ def meta_dict(data):
             datadict['ComicID'] = 'CX' + datadict['Web'].rsplit('/', 1)[-1]
     else:
         res = rootxml.find('Notes')
-        if res is not None:
+        if res is not None and res.text is not None:
             notes = res.text
             if 'Comic Vine' in notes and 'Issue ID ' in notes:
                 datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
