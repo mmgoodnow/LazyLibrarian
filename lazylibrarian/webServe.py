@@ -4445,7 +4445,10 @@ class WebInterface(object):
             remote_ip = cherrypy.request.remote.ip
         remote_ip = remote_ip.split(',')[0]
 
-        filename = 'LazyLibrarian_RSS_' + ftype + '.xml'
+        if onetitle:
+            filename = 'LazyLibrarian_RSS_%s.xml' % unquote_plus(onetitle).replace('&amp;', '&')
+        else:
+            filename = 'LazyLibrarian_RSS_%s.xml' % ftype
         logger.debug("RSS Feed request %s %s%s: %s %s" % (limit, ftype, plural(limit), remote_ip, userid))
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename

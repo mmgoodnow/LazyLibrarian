@@ -179,7 +179,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         if authorid and results:
             title = "%s %s Recent Downloads" % (results[0]['AuthorName'], ftype)
         elif onetitle and results:
-            title = "%s %s Recent Downloads" % (onetitle, ftype)
+            title = "%s %s Recent Downloads" % (unquote_plus(onetitle).replace('&amp;', '&'), ftype)
 
         if podcast:
             feed = Feed(
