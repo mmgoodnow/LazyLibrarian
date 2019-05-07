@@ -1975,8 +1975,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                                     tags += ', '
                                 tags += tag
 
-                    if ' ' in tags:
-                        tags = '"%s"' % tags
                     if tags:
                         _, _, rc = calibredb('set_metadata', ['--field', 'tags:%s' % tags], [calibre_id])
                         if rc:
