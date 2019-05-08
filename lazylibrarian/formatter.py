@@ -21,7 +21,7 @@ import unicodedata
 import lazylibrarian
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, quote, urlencode, urlsplit, urlunsplit
+from lib.six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
 
 
 def url_fix(s, charset='utf-8'):
