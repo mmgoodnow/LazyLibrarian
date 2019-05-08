@@ -104,7 +104,7 @@ def addTorrent(link, data=None):
                              (name.decode('utf-8'), str(torrentfile)[:40]))
             result = {'type': 'torrent',
                       'name': name,
-                      'content': torrentfile}
+                      'content': makeBytestr(torrentfile)}
             retid = _add_torrent_file(result)
 
         else:
