@@ -92,12 +92,14 @@ class Apprise_Notifier:
     @staticmethod
     def notify_types():
         res = []
+        if not lazylibrarian.APPRISE:
+            return res
         try:
             apobj = Apprise()
             schemas = apobj.details()['schemas']
             for item in schemas:
                 res.append(item['service_name'])
-        except NameError:
+        except (NameError, AttributeError):
             pass
         return res
 
