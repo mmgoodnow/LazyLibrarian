@@ -119,7 +119,11 @@ def titleWords(words):
 def cv_identify(fname, best=True):
     apikey = lazylibrarian.CONFIG['CV_APIKEY']
     if not apikey:
-        logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
+        # don't nag. Show warning message no more than every 20 mins
+        timenow = int(time.time())
+        if check_int(lazylibrarian.NO_CV_MSG, 0) + 1200 < timenow:
+            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
+            lazylibrarian.NO_CV_MSG = timenow
         return []
 
     fname = makeUnicode(fname)
