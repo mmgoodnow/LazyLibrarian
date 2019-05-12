@@ -13,6 +13,7 @@
 
 import threading
 import traceback
+import time
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, now
@@ -245,9 +246,12 @@ def search_comics(comicid=None):
             total = len(foundissues)
             haveissues = myDB.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
             have = []
+            located = []
             for item in haveissues:
                 have.append(int(item['IssueID']))
             for item in foundissues.keys():
+                located.append(item)
+            for item in located:
                 if item in have:
                     foundissues.pop(item)
 
@@ -314,6 +318,7 @@ def search_comics(comicid=None):
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                     (res, item["url"]))
         logger.info("ComicSearch for Wanted items complete, found %s comic%s" % (count, plural(count)))
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
     finally:
