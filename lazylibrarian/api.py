@@ -51,6 +51,7 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
+from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lib.six import PY2, string_types
 
@@ -88,6 +89,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'forceMagSearch': '[&wait] search for all wanted magazines',
             'forceBookSearch': '[&wait] [&type=eBook/AudioBook] search for all wanted books',
             'forceRSSSearch': '[&wait] search all entries in rss feeds',
+            'forceComicSearch': '[&wait] search for all wanted comics',
             'getRSSFeed': '&feed= [&limit=] show rss feed entries',
             'forceWishlistSearch': '[&wait] search all entries in wishlists',
             'forceProcess': '[&dir] [ignorekeepseeding] process books/mags in download or named dir',
@@ -907,6 +909,15 @@ class Api(object):
                 threading.Thread(target=search_rss_book, name='API-SEARCHRSS', args=[]).start()
         else:
             self.data = 'No rss feeds set, check config'
+
+    def _forceComicSearch(self, **kwargs):
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+            if 'wait' in kwargs:
+                search_rss_book()
+            else:
+                threading.Thread(target=search_comics, name='API-SEARCHCOMICS', args=[]).start()
+        else:
+            self.data = 'No search methods set, check config'
 
     def _forceWishlistSearch(self, **kwargs):
         if lazylibrarian.USE_WISHLIST():
