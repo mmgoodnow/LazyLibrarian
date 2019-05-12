@@ -1015,7 +1015,7 @@
                 function (data) {
                 if ( data.substr(0, 4) == 'http') { bootbox.dialog({
                         title: 'GoodReads Auth',
-                        message: '<pre>When you click [Close] a new page will open to authorise lazylibrarian. Follow the prompts, then go back to LazyLibrarian and request oAuth2\nIf the page does not open, visit this link...\n'+data+'</pre>',
+                        message: '<pre>A new tab or page should open at GoodReads to authorise lazylibrarian. Follow the prompts, then go back to LazyLibrarian and request oAuth2\nIf the page does not open, visit this link...\n'+data+'</pre>',
                         buttons: {
                             primary: {
                                 label: "Close",
