@@ -519,12 +519,34 @@ def is_overdue(which="Author"):
     return overdue, total, name, days
 
 
+def ago(when):
+    """ Return human readable string of how long ago something happened
+        when = seconds count """
+
+    diff = time.time() - when
+    # calculate whole units, plus round up by adding 1(true) if remainder >= half
+    days = int(diff / 86400) + (diff % 86400 >= 43200)
+    hours = int(diff / 3600) + (diff % 3600 >= 1800)
+    minutes = int(diff / 60) + (diff % 60 >= 30)
+    seconds = int(diff)
+
+    if days > 1:
+        return "%i days ago" % days
+    elif hours > 1:
+        return "%i hours ago" % hours
+    elif minutes > 1:
+        return "%i minutes ago" % minutes
+    else:
+        return "%i seconds ago" % seconds
+
+
 def scheduleJob(action='Start', target=None):
     """ Start or stop or restart a cron job by name eg
         target=search_magazines, target=processDir, target=search_book """
     if target is None:
         return
 
+    myDB = database.DBConnection()
     if target == 'PostProcessor':  # more readable
         target = 'processDir'
 
@@ -539,93 +561,178 @@ def scheduleJob(action='Start', target=None):
             if target in str(job):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
+
+        if action == 'Start':
+            soon = datetime.datetime.fromtimestamp(time.time() + 60)
+        else:
+            soon = None
+
         if 'processDir' in target and check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0)
-            lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_processDir, minutes=minutes)
-            logger.debug("%s %s job in %s minute%s" % (action, target, minutes, plural(minutes)))
+            lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_processDir,
+                                                 minutes=minutes, start_date=soon)
+            if soon:
+                minutes = 1
+            msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+            res = myDB.match('SELECT LastRun from jobs WHERE Name="POSTPROCESS"')
+            if res and res['LastRun'] > 0:
+                msg += " (Last run %s)" % ago(res['LastRun'])
+            logger.debug(msg)
         elif 'search_magazines' in target and check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
             if lazylibrarian.USE_TOR() or lazylibrarian.USE_NZB() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
                 if minutes <= 600:  # for bigger intervals switch to hours
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines, minutes=minutes)
-                    logger.debug("%s %s job in %s minute%s" % (action, target, minutes, plural(minutes)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
+                                                         minutes=minutes, start_date=soon)
+                    if soon:
+                        minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
                 else:
                     hours = int(minutes / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines, hours=hours)
-                    if hours <= 48:
-                        logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
+                                                         hours=hours, start_date=soon)
+                    if soon:
+                        minutes = 1
+                        msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                    elif hours <= 48:
+                        msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                     else:
                         days = int(hours / 24)
-                        logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                        msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="SEARCHALLMAG"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif 'search_book' in target and check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
                 if minutes <= 600:
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book, minutes=minutes)
-                    logger.debug("%s %s job in %s minute%s" % (action, target, minutes, plural(minutes)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
+                                                         minutes=minutes, start_date=soon)
+                    if soon:
+                        minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
                 else:
                     hours = int(minutes / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book, hours=hours)
-                    if hours <= 48:
-                        logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
+                                                         hours=hours, start_date=soon)
+                    if soon:
+                        minutes = 1
+                        msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                    elif hours <= 48:
+                        msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                     else:
                         days = int(hours / 24)
-                        logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                        msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="SEARCHALLBOOKS"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif 'search_rss_book' in target and check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0):
             if lazylibrarian.USE_RSS():
                 minutes = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
                 if minutes <= 600:
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book, minutes=minutes)
-                    logger.debug("%s %s job in %s minute%s" % (action, target, minutes, plural(minutes)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
+                                                         minutes=minutes, start_date=soon)
+                    if soon:
+                        minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
                 else:
                     hours = int(minutes / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book, hours=hours)
-                    if hours <= 48:
-                        logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
+                                                         hours=hours, start_date=soon)
+                    if soon:
+                        minutes = 1
+                        msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                    elif hours <= 48:
+                        msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                     else:
                         days = int(hours / 24)
-                        logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                        msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="SEARCHALLRSS"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif 'search_wishlist' in target and check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0):
             if lazylibrarian.USE_WISHLIST():
                 hours = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist, hours=hours)
-                if hours <= 48:
-                    logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
+                                                     hours=hours, start_date=soon)
+                if soon:
+                    minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                elif hours <= 48:
+                    msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                 else:
                     days = int(hours / 24)
-                    logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                    msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="SEARCHWISHLIST"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif 'search_comics' in target and check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0):
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
                 hours = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics, hours=hours)
-                if hours <= 48:
-                    logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
+                                                     hours=hours, start_date=soon)
+                if soon:
+                    minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                elif hours <= 48:
+                    msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                 else:
                     days = int(hours / 24)
-                    logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                    msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="SEARCHALLCOMICS"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif 'checkForUpdates' in target and check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0):
             hours = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
-            lazylibrarian.SCHED.add_interval_job(
-                lazylibrarian.versioncheck.checkForUpdates, hours=hours)
-            if hours <= 48:
-                logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+            lazylibrarian.SCHED.add_interval_job(lazylibrarian.versioncheck.checkForUpdates,
+                                                 hours=hours, start_date=soon)
+            if soon:
+                minutes = 1
+                msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+            elif hours <= 48:
+                msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
             else:
                 days = int(hours / 24)
-                logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+            res = myDB.match('SELECT LastRun from jobs WHERE Name="VERSIONCHECK"')
+            if res and res['LastRun'] > 0:
+                msg += " (Last run %s)" % ago(res['LastRun'])
+            logger.debug(msg)
+
         elif 'syncToGoodreads' in target and lazylibrarian.CONFIG['GR_SYNC']:
             if check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0):
                 hours = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr, hours=hours)
-                if hours <= 48:
-                    logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr, hours=hours,
+                                                     start_date=soon)
+                if soon:
+                    minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                elif hours <= 48:
+                    msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                 else:
                     days = int(hours / 24)
-                    logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                    msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="GRSYNC"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+
         elif ('authorUpdate' in target or 'seriesUpdate' in target) and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             # Try to get all authors/series scanned evenly inside the cache age
             maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
             if maxage:
+                pl = ''
                 if 'authorUpdate' in target:
                     typ = 'Author'
                 else:
@@ -633,7 +740,9 @@ def scheduleJob(action='Start', target=None):
 
                 overdue, total, _, days = is_overdue(typ)
                 if not overdue:
-                    logger.debug("There are no %s to update" % typ)
+                    if typ == 'Author':
+                        pl = 's'
+                    logger.debug("There are no %s%s to update" % (typ, pl))
                     delay = maxage - days
                     if delay > 1:
                         if delay > 7:
@@ -642,8 +751,10 @@ def scheduleJob(action='Start', target=None):
                     else:
                         minutes = 60
                 else:
-                    logger.debug("Found %s %s from %s overdue update" % (
-                                 overdue, typ, total))
+                    if typ == 'Author' and overdue != 1:
+                        pl = 's'
+                    logger.debug("Found %s %s%s from %s overdue update" % (
+                                 overdue, typ, pl, total))
                     minutes = maxage * 60 * 24
                     minutes = int(minutes / total)
                     minutes -= 5  # average update time
@@ -652,21 +763,30 @@ def scheduleJob(action='Start', target=None):
                     minutes = 10
                 if minutes <= 600:  # for bigger intervals switch to hours
                     if typ == 'Author':
-                        lazylibrarian.SCHED.add_interval_job(authorUpdate, minutes=minutes)
+                        lazylibrarian.SCHED.add_interval_job(authorUpdate, minutes=minutes, start_date=soon)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, minutes=minutes)
-                    logger.debug("%s %s job in %s minute%s" % (action, target, minutes, plural(minutes)))
+                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, minutes=minutes, start_date=soon)
+                    if soon:
+                        minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
                 else:
                     hours = int(minutes / 60)
                     if typ == 'Author':
-                        lazylibrarian.SCHED.add_interval_job(authorUpdate, hours=hours)
+                        lazylibrarian.SCHED.add_interval_job(authorUpdate, hours=hours, start_date=soon)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, hours=hours)
-                    if hours <= 48:
-                        logger.debug("%s %s job in %s hour%s" % (action, target, hours, plural(hours)))
+                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, hours=hours, start_date=soon)
+                    if soon:
+                        minutes = 1
+                        msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                    elif hours <= 48:
+                        msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
                     else:
                         days = int(hours / 24)
-                        logger.debug("%s %s job in %s day%s" % (action, target, days, plural(days)))
+                        msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                    res = myDB.match('SELECT LastRun from jobs WHERE Name="%sUPDATE"' % typ.upper())
+                    if res and res['LastRun'] > 0:
+                        msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
             else:
                 logger.debug("No %s scheduled" % target)
 
@@ -691,6 +811,8 @@ def authorUpdate(restart=True):
                 msg = 'Updated author %s' % author['AuthorName']
             else:
                 logger.debug(msg)
+
+            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
             if restart:
                 scheduleJob("Restart", "authorUpdate")
             return msg
@@ -719,6 +841,8 @@ def seriesUpdate(restart=True):
                 lazylibrarian.bookwork.addSeriesMembers(res['SeriesID'])
                 msg = 'Updated series %s' % name
             logger.debug(msg)
+
+            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
             if restart:
                 scheduleJob("Restart", "seriesUpdate")
             return msg
@@ -922,33 +1046,45 @@ def showStats():
 
 def showJobs():
     result = []
-
+    myDB = database.DBConnection()
     for job in lazylibrarian.SCHED.get_jobs():
         job = str(job)
         if "search_magazines" in job:
             jobname = "Magazine search"
+            threadname = "SEARCHALLMAG"
         elif "search_comics" in job:
             jobname = "Comic search"
+            threadname = "SEARCHALLCOMICS"
         elif "checkForUpdates" in job:
             jobname = "Check LazyLibrarian version"
+            threadname = "VERSIONCHECK"
         elif "search_book" in job:
             jobname = "Book search"
+            threadname = "SEARCHALLBOOKS"
         elif "search_rss_book" in job:
             jobname = "RSS book search"
+            threadname = "SEARCHALLRSS"
         elif "search_wishlist" in job:
             jobname = "Wishlist search"
+            threadname = "SEARCHWISHLIST"
         elif "PostProcessor" in job:
             jobname = "PostProcessor"
+            threadname = "POSTPROCESS"
         elif "cron_processDir" in job:
             jobname = "PostProcessor"
+            threadname = "POSTPROCESS"
         elif "authorUpdate" in job:
             jobname = "Update authors"
+            threadname = "AUTHORUPDATE"
         elif "seriesUpdate" in job:
             jobname = "Update series"
+            threadname = "SERIESUPDATE"
         elif "sync_to_gr" in job:
             jobname = "Goodreads Sync"
+            threadname = "GRSYNC"
         else:
             jobname = job.split(' ')[0].split('.')[2]
+            threadname = jobname.upper()
 
         # jobinterval = job.split('[')[1].split(']')[0]
         jobtime = job.split('at: ')[1].split('.')[0].strip(')')
@@ -957,6 +1093,9 @@ def showJobs():
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
         jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
+        res = myDB.match('SELECT LastRun from jobs WHERE Name="%s"' % threadname)
+        if res and res['LastRun'] > 0:
+            jobinfo += " (Last run %s)" % ago(res['LastRun'])
         result.append(jobinfo)
 
     overdue, total, name, days = is_overdue('Author')

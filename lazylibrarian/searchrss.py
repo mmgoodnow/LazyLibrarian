@@ -10,7 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-
+import time
 import threading
 import traceback
 
@@ -216,6 +216,7 @@ def search_wishlist():
             logger.info("Wishlist marked %s book%s as Wanted" % (new_books, plural(new_books)))
         else:
             logger.debug("Wishlist marked no new books as Wanted")
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())
@@ -331,6 +332,7 @@ def search_rss_book(books=None, library=None):
                 rss_count += 1
 
         logger.info("RSS Search for Wanted items complete, found %s book%s" % (rss_count, plural(rss_count)))
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_rss_book: %s' % traceback.format_exc())

@@ -510,10 +510,11 @@ def search_magazines(mags=None, reset=False):
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                     (res, magazine["nzburl"]))
 
+        logger.info("Search for magazines complete")
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+
         if reset:
             scheduleJob(action='Restart', target='search_magazines')
-
-        logger.info("Search for magazines complete")
 
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())

@@ -430,6 +430,7 @@ def cron_sync_to_gr():
 def sync_to_gr():
     msg = ''
     run_searches = False
+
     try:
         threading.currentThread().name = 'GRSync'
         if lazylibrarian.CONFIG['GR_OWNED'] and lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
@@ -473,11 +474,17 @@ def sync_to_gr():
                 else:
                     msg += "Sync Owned AudioBooks is disabled\n"
         logger.info(msg.strip('\n').replace('\n', ', '))
+        myDB = database.DBConnection()
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "GRSYNC"})
     except Exception as e:
         logger.error("Exception in sync_to_gr: %s %s" % (type(e).__name__, str(e)))
     finally:
         if run_searches:
-            checkRunningJobs()
+            # NOTE Stop, then Start (not Restart) as this makes first_run "soon"
+            scheduleJob("Stop", "search_book")
+            scheduleJob("Start", "search_book")
+            scheduleJob("Stop", "search_rss_book")
+            scheduleJob("Start", "search_rss_book")
         threading.currentThread().name = 'WEBSERVER'
         return msg
 

@@ -27,7 +27,7 @@ try:
 except ImportError:
     import lib.requests as requests
 
-from lazylibrarian import logger, version
+from lazylibrarian import logger, version, database
 from lazylibrarian.common import getUserAgent, proxyList, walk
 from lazylibrarian.formatter import check_int, makeUnicode
 
@@ -255,6 +255,13 @@ def checkForUpdates():
                 logmsg('info', 'Auto updating %s commit%s' % (commits, plural))
                 lazylibrarian.SIGNAL = 'update'
     logmsg('debug', 'Update check complete')
+    # noinspection PyBroadException
+    try:
+        myDB = database.DBConnection()
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "VERSIONCHECK"})
+    except Exception:
+        # jobs table might not exist yet
+        pass
 
 
 def getLatestVersion():

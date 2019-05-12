@@ -341,6 +341,7 @@ def search_book(books=None, library=None):
                             {'BookID': book['bookid'], 'Library': book['library']})
 
         logger.info("Search for Wanted items complete, found %s book%s" % (book_count, plural(book_count)))
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())

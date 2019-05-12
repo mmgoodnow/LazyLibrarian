@@ -13,6 +13,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import time
 import datetime
 import os
 import platform
@@ -1098,6 +1099,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 else:
                     logger.debug('%s was sent somewhere?? %s minutes ago' % (book['NZBtitle'], mins))
 
+        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
         snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
         if len(snatched) == 0:

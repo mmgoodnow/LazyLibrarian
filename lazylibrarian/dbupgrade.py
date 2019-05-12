@@ -99,8 +99,9 @@ def upgrade_needed():
     # 50 add comics and comicissues tables
     # 51 add aka to comics table
     # 52 add updated to series table
+    # 53 add jobs table
 
-    db_current_version = 52
+    db_current_version = 53
 
     if db_version < db_current_version:
         return db_current_version
@@ -186,6 +187,7 @@ def dbupgrade(db_current_version):
                                 'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
                                 'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
                                 'Publisher TEXT, Link TEXT, aka TEXT)')
+                    myDB.action('CREATE TABLE jobs (Name TEXT, LastRun INTEGER DEFAULT 0)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -1524,5 +1526,14 @@ def db_v52(myDB, upgradelog):
         upgradelog.write("%s v52: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE series ADD COLUMN Updated INTEGER DEFAULT 0')
     upgradelog.write("%s v52: complete\n" % time.ctime())
+
+
+def db_v53(myDB, upgradelog):
+    if not has_column(myDB, "jobs", "Name"):
+        lazylibrarian.UPDATE_MSG = 'Creating jobs table'
+        upgradelog.write("%s v53: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('CREATE TABLE jobs (Name TEXT, LastRun INTEGER DEFAULT 0)')
+    upgradelog.write("%s v53: complete\n" % time.ctime())
+
 
 
