@@ -70,9 +70,9 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
     hostparts = host.split('://')
 
     url = hostparts[0] + '://' + nzbgetXMLrpc % {"host": hostparts[1],
-                                                 "username": quote(lazylibrarian.CONFIG['NZBGET_USER']),
+                                                 "username": quote(lazylibrarian.CONFIG['NZBGET_USER'], safe=''),
                                                  "port": port,
-                                                 "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'])}
+                                                 "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'], safe='')}
     try:
         nzbGetRPC = xmlrpc_client.ServerProxy(url)
     except Exception as e:
