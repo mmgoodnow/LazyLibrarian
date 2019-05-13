@@ -537,7 +537,7 @@ def ago(when):
     elif minutes > 1:
         return "%i minutes ago" % minutes
     else:
-        return "%i seconds ago" % seconds
+        return "%i second%s ago" % (seconds, plural(seconds))
 
 
 def scheduleJob(action='Start', target=None):
