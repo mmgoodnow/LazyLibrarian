@@ -837,6 +837,14 @@ def getSeriesMembers(seriesID=None, seriesname=None):
             except IndexError:
                 if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                     logger.debug('Error in series table for series %s' % seriesID)
+    valid = False
+    if api_hits:
+        for item in results:
+            if check_int(item[0], 0) == 1:
+                valid = True
+                break
+    if len(results) and not valid:
+        logger.warn("Series %s (%s) has %s members but no book 1" % (seriesID, seriesname, len(results)))
     return results, api_hits
 
 
