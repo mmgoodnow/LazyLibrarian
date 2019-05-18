@@ -340,7 +340,7 @@ class GoodReads:
             ('isbn13', 'isbn13', ''),
             ('isbn10', 'isbn', ''),
             ('img', 'image_url', '')
-            ]:
+        ]:
 
             value = default
             res = book.find(idx)

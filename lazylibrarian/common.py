@@ -548,13 +548,18 @@ def scheduleJob(action='Start', target=None):
 
     myDB = database.DBConnection()
     if target == 'PostProcessor':  # more readable
-        target = 'processDir'
+        newtarget = 'processDir'
+    elif target == 'syncToGoodreads':
+        newtarget = 'sync_to_gr'
+    else:
+        newtarget = target
 
     if action in ['Stop', 'Restart']:
         for job in lazylibrarian.SCHED.get_jobs():
-            if target in str(job):
+            if newtarget in str(job):
                 lazylibrarian.SCHED.unschedule_job(job)
                 logger.debug("Stop %s job" % target)
+                break
 
     if action in ['Start', 'Restart']:
         for job in lazylibrarian.SCHED.get_jobs():
