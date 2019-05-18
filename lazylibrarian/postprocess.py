@@ -1315,7 +1315,8 @@ def getDownloadName(title, source, downloadid):
             dlname = deluge.getTorrentFolder(downloadid)
         elif source == 'DELUGERPC':
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
-                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
@@ -1366,7 +1367,8 @@ def getDownloadFiles(source, downloadid):
             dlfiles = deluge.getTorrentFiles(downloadid)
         elif source == 'DELUGERPC':
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
-                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
@@ -1401,14 +1403,15 @@ def getDownloadFolder(source, downloadid):
             dlfolder = deluge.getTorrentFolder(downloadid)
         elif source == 'DELUGERPC':
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
-                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
-                if 'files' in result:
-                    dlfolder = result['files']
+                if 'name' in result:
+                    dlfolder = result['name']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         return dlfolder
@@ -1562,12 +1565,14 @@ def getDownloadProgress(source, downloadid):
 
         elif source == 'DELUGERPC':
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
-                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
+
                 if 'progress' in result:
                     progress = result['progress']
                     try:
@@ -1622,7 +1627,8 @@ def delete_task(Source, DownloadID, remove_data):
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'],
                                      int(lazylibrarian.CONFIG['DELUGE_PORT']),
                                      lazylibrarian.CONFIG['DELUGE_USER'],
-                                     lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 client.call('core.remove_torrent', DownloadID, remove_data)

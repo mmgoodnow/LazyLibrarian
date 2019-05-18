@@ -439,7 +439,8 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'],
                                      int(lazylibrarian.CONFIG['DELUGE_PORT']),
                                      lazylibrarian.CONFIG['DELUGE_USER'],
-                                     lazylibrarian.CONFIG['DELUGE_PASS'])
+                                     lazylibrarian.CONFIG['DELUGE_PASS'],
+                                     decode_utf8=True)
             try:
                 client.connect()
                 args = {"name": tor_title}
@@ -450,7 +451,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 elif torrent:
                     res = "Sending %s data to DelugeRPC" % tor_title
                     logger.debug(res)
-                    downloadID = client.call('core.add_torrent_file', tor_title, makeUnicode(b64encode(torrent)), args)
+                    downloadID = client.call('core.add_torrent_file', tor_title, b64encode(torrent), args)
                 else:
                     res = "Sending %s url to DelugeRPC" % tor_title
                     logger.debug(res)
