@@ -1402,7 +1402,7 @@ def db_v44(myDB, upgradelog):
 def db_v45(myDB, upgradelog):
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
         res, _ = runGit('remote -v')
-        if 'gitlab.com' not in res:
+        if not res or 'gitlab.com' not in res:
             upgradelog.write("%s v45: %s\n" % (time.ctime(), "Updating local git repo"))
             runGit('remote rm origin')
             runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
