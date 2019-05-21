@@ -14,6 +14,7 @@
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import smtplib
+import ssl
 import cherrypy
 from email.utils import formatdate, formataddr
 from email.mime.text import MIMEText
@@ -22,9 +23,11 @@ from email.mime.multipart import MIMEMultipart
 
 import lazylibrarian
 import os
+import traceback
 from lazylibrarian import logger, database
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail
-from lazylibrarian.formatter import check_int, getList
+from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
+from lib.six import PY2
 
 
 class EmailNotifier:
@@ -90,20 +93,38 @@ class EmailNotifier:
                         message.attach(part)
 
         try:
+            context = None
+            if not PY2:
+                # Create a secure SSL context
+                context = ssl.create_default_context()
+
             if lazylibrarian.CONFIG['EMAIL_SSL']:
-                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
+                if PY2:
+                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
+                else:
+                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+                                                  context=context)
             else:
                 mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                           check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
 
             if lazylibrarian.CONFIG['EMAIL_TLS']:
-                mailserver.starttls()
+                if context:
+                    mailserver.starttls(context=context)
+                else:
+                    mailserver.starttls()
             else:
                 mailserver.ehlo()
 
             if lazylibrarian.CONFIG['EMAIL_SMTP_USER']:
-                mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'], lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
+                if PY2:
+                    mailserver.login(makeUTF8bytes(lazylibrarian.CONFIG['EMAIL_SMTP_USER'])[0],
+                                     makeUTF8bytes(lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])[0])
+                else:
+                    mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
+                                     lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
 
             mailserver.sendmail(from_addr, to_addr, message.as_string())
             mailserver.quit()
@@ -113,6 +134,7 @@ class EmailNotifier:
 
         except Exception as e:
             logger.warn('Error sending Email: %s' % e)
+            logger.error('Email traceback: %s' % traceback.format_exc())
             return False
 
             #
