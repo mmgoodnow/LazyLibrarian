@@ -129,7 +129,7 @@ def processAlternate(source_dir=None, library='eBook'):
 
             # see if there is a metadata file in this folder with the info we need
             # try book_name.opf first, or fall back to any filename.opf
-            metafile = os.path.splitext(new_book)[0] + '.opf'
+            metafile = os.path.splitext(new_book)[0] + b'.opf'
             if not os.path.isfile(metafile):
                 metafile = opf_file(source_dir)
             if metafile and os.path.isfile(metafile):
@@ -143,7 +143,7 @@ def processAlternate(source_dir=None, library='eBook'):
             if 'title' not in metadata or 'creator' not in metadata:
                 # if not got both, try to get metadata from the book file
                 extn = os.path.splitext(new_book)[1]
-                if extn.lower() in [".epub", ".mobi"]:
+                if extn.lower() in [b".epub", b".mobi"]:
                     if PY2:
                         new_book = makeUTF8bytes(new_book)[0]
                     try:
