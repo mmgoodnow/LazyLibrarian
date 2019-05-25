@@ -563,7 +563,7 @@ def scheduleJob(action='Start', target=None):
 
     if action in ['Start', 'Restart']:
         for job in lazylibrarian.SCHED.get_jobs():
-            if target in str(job):
+            if newtarget in str(job):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
 
@@ -572,7 +572,7 @@ def scheduleJob(action='Start', target=None):
         else:
             soon = None
 
-        if 'processDir' in target and check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0):
+        if 'processDir' in newtarget and check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0)
             lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_processDir,
                                                  minutes=minutes, start_date=soon)
@@ -583,7 +583,7 @@ def scheduleJob(action='Start', target=None):
             if res and res['LastRun'] > 0:
                 msg += " (Last run %s)" % ago(res['LastRun'])
             logger.debug(msg)
-        elif 'search_magazines' in target and check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0):
+        elif 'search_magazines' in newtarget and check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
             if lazylibrarian.USE_TOR() or lazylibrarian.USE_NZB() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
@@ -610,7 +610,7 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif 'search_book' in target and check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
+        elif 'search_book' in newtarget and check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
             minutes = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
                 if minutes <= 600:
@@ -636,7 +636,7 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif 'search_rss_book' in target and check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0):
+        elif 'search_rss_book' in newtarget and check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0):
             if lazylibrarian.USE_RSS():
                 minutes = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
                 if minutes <= 600:
@@ -662,7 +662,7 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif 'search_wishlist' in target and check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0):
+        elif 'search_wishlist' in newtarget and check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0):
             if lazylibrarian.USE_WISHLIST():
                 hours = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
@@ -680,7 +680,7 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif 'search_comics' in target and check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0):
+        elif 'search_comics' in newtarget and check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0):
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
                 hours = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
@@ -698,7 +698,7 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif 'checkForUpdates' in target and check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0):
+        elif 'checkForUpdates' in newtarget and check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0):
             hours = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
             lazylibrarian.SCHED.add_interval_job(lazylibrarian.versioncheck.checkForUpdates,
                                                  hours=hours, start_date=soon)
@@ -715,7 +715,7 @@ def scheduleJob(action='Start', target=None):
                 msg += " (Last run %s)" % ago(res['LastRun'])
             logger.debug(msg)
 
-        elif 'syncToGoodreads' in target and lazylibrarian.CONFIG['GR_SYNC']:
+        elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG['GR_SYNC']:
             if check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0):
                 hours = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr, hours=hours,
@@ -733,7 +733,8 @@ def scheduleJob(action='Start', target=None):
                     msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
 
-        elif ('authorUpdate' in target or 'seriesUpdate' in target) and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        elif ('authorUpdate' in newtarget or 'seriesUpdate' in newtarget) and \
+                check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             # Try to get all authors/series scanned evenly inside the cache age
             maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
             if maxage:
@@ -906,8 +907,9 @@ def checkRunningJobs():
 
     myDB = database.DBConnection()
     snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
+    seeding = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Seeding'")
     wanted = myDB.match("SELECT count(*) as counter FROM books WHERE Status = 'Wanted'")
-    if snatched:
+    if snatched or seeding:
         ensureRunning('PostProcessor')
     if wanted:
         if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
