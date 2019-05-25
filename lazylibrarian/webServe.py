@@ -768,7 +768,7 @@ class WebInterface(object):
             cmd = 'SELECT series.SeriesID,AuthorName,SeriesName,series.Status,seriesauthors.AuthorID,series.SeriesID,'
             cmd += 'Have,Total from series,authors,seriesauthors,member'
             cmd += ' where authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID'
-            cmd += ' and member.seriesid=series.seriesid and seriesnum=1'
+            cmd += ' and member.seriesid=series.seriesid'  # and seriesnum=1'
             args = []
             if whichStatus == 'Empty':
                 cmd += ' and Have = 0'
@@ -1463,10 +1463,13 @@ class WebInterface(object):
 
         author = myDB.match("SELECT * from authors WHERE AuthorID=?", (AuthorID,))
 
-        types = ['eBook']
+        types = []
+        if lazylibrarian.SHOW_EBOOK:
+            types.append('eBook')
         if lazylibrarian.SHOW_AUDIO:
             types.append('AudioBook')
-
+        if not types:
+            library = None
         if not author:
             raise cherrypy.HTTPRedirect("home")
 
@@ -1589,8 +1592,15 @@ class WebInterface(object):
         authorsearch = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (AuthorID,))
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
             AuthorName = authorsearch['AuthorName']
-            library = 'eBook'
-            if 'library' in kwargs:
+            types = []
+            if lazylibrarian.SHOW_EBOOK:
+                types.append('eBook')
+            if lazylibrarian.SHOW_AUDIO:
+                types.append('AudioBook')
+            if not types:
+                raise cherrypy.HTTPRedirect('home')
+            library = types[0]
+            if 'library' in kwargs and kwargs['library'] in types:
                 library = kwargs['library']
 
             if library == 'AudioBook':
@@ -1814,10 +1824,19 @@ class WebInterface(object):
                 cmd += 'booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
                 cmd += 'bookgenre from books,authors where books.AuthorID = authors.AuthorID'
 
-            library = 'eBook'
+            types = []
+            if lazylibrarian.SHOW_EBOOK:
+                types.append('eBook')
+            if lazylibrarian.SHOW_AUDIO:
+                types.append('AudioBook')
+            if types:
+                library = types[0]
+                if 'library' in kwargs and kwargs['library'] in types:
+                    library = kwargs['library']
+            else:
+                library = None
+
             status_type = 'books.status'
-            if 'library' in kwargs:
-                library = kwargs['library']
             if library == 'AudioBook':
                 status_type = 'audiostatus'
             args = []
@@ -1856,6 +1875,8 @@ class WebInterface(object):
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
             rowlist = myDB.select(cmd, tuple(args))
 
+            if library is None:
+                rowlist = []
             # At his point we want to sort and filter _before_ adding the html as it's much quicker
             # turn the sqlite rowlist into a list of lists
             if len(rowlist):
@@ -2125,10 +2146,17 @@ class WebInterface(object):
                     else:
                         line = "%s: \n" % item
                     msg += line
-                if 'library' in kwargs and kwargs['library']:
-                    booktype = kwargs['library']
-                else:
-                    booktype = 'book'
+
+                types = []
+                if lazylibrarian.SHOW_EBOOK:
+                    types.append('eBook')
+                if lazylibrarian.SHOW_AUDIO:
+                    types.append('AudioBook')
+
+                booktype = 'book'
+                if types:
+                    if 'library' in kwargs and kwargs['library'] in types:
+                        booktype = kwargs['library']
 
                 title = "%s: %s" % (booktype, bookdata['BookName'])
 
@@ -2777,20 +2805,25 @@ class WebInterface(object):
                             myDB.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
                                         (', '.join(ToRead), ', '.join(HaveRead), cookie['ll_uid'].value))
 
-                elif action in ["Wanted", "Have", "Ignored", "Skipped"]:
+                elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook"]:
                     bookdata = myDB.match('SELECT AuthorID,BookName from books WHERE BookID=?', (bookid,))
                     if bookdata:
                         authorid = bookdata['AuthorID']
                         bookname = bookdata['BookName']
                         if authorid not in check_totals:
                             check_totals.append(authorid)
-                        if 'eBook' in library:
-                            myDB.upsert("books", {'Status': action}, {'BookID': bookid})
-                            logger.debug('Status set to "%s" for "%s"' % (action, bookname))
-                        if 'Audio' in library:
-                            myDB.upsert("books", {'AudioStatus': action}, {'BookID': bookid})
-                            logger.debug('AudioStatus set to "%s" for "%s"' % (action, bookname))
-                elif action in ["NoDelay"]:
+                        act = action
+                        if 'eBook' in library or action == 'WantEbook':
+                            if action == 'WantEbook':
+                                act = 'Wanted'
+                            myDB.upsert("books", {'Status': act}, {'BookID': bookid})
+                            logger.debug('Status set to "%s" for "%s"' % (act, bookname))
+                        if 'Audio' in library or action == 'WantAudio':
+                            if action == 'WantAudio':
+                                act = 'Wanted'
+                            myDB.upsert("books", {'AudioStatus': act}, {'BookID': bookid})
+                            logger.debug('AudioStatus set to "%s" for "%s"' % (act, bookname))
+                elif action == "NoDelay":
                     myDB.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
                     logger.debug('%s delay set to zero for %s' % (library, bookid))
                 elif action in ["Remove", "Delete"]:
@@ -4322,9 +4355,17 @@ class WebInterface(object):
 
     @cherrypy.expose
     def libraryScan(self, **kwargs):
-        library = 'eBook'
-        if 'library' in kwargs:
+        types = []
+        if lazylibrarian.SHOW_EBOOK:
+            types.append('eBook')
+        if lazylibrarian.SHOW_AUDIO:
+            types.append('AudioBook')
+        if not types:
+            raise cherrypy.HTTPRedirect('home')
+        library = types[0]
+        if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
+
         remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
         threadname = "%s_SCAN" % library.upper()
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
@@ -5284,14 +5325,18 @@ class WebInterface(object):
 
     @cherrypy.expose
     def manage(self, whichStatus=None, **kwargs):
-        library = 'eBook'
-        if 'library' in kwargs:
+        types = []
+        if lazylibrarian.SHOW_EBOOK:
+            types.append('eBook')
+        if lazylibrarian.SHOW_AUDIO:
+            types.append('AudioBook')
+        if not types:
+            raise cherrypy.HTTPRedirect('home')
+        library = types[0]
+        if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
         if not whichStatus or whichStatus == 'None':
             whichStatus = "Wanted"
-        types = ['eBook']
-        if lazylibrarian.SHOW_AUDIO:
-            types.append('AudioBook')
         return serve_template(templatename="managebooks.html", title="Manage %ss" % library,
                               books=[], types=types, library=library, whichStatus=whichStatus)
 
@@ -5528,11 +5573,13 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
             lazylibrarian.CONFIG['IMP_PREPROCESS'] = kwargs['prg']
-
-        params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], 'test', '']
-        rc, res, err = runScript(params)
-        if rc:
-            return "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
+        if len(lazylibrarian.CONFIG['IMP_PREPROCESS']):
+            params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], 'test', '']
+            rc, res, err = runScript(params)
+            if rc:
+                return "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
+        else:
+            return "No preprocessor set in config"
         return res
 
     @cherrypy.expose

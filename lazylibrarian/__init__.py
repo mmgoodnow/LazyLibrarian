@@ -28,7 +28,7 @@ import sqlite3
 
 import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
-    importer, grsync, webServe, comicsearch
+    importer, grsync, comicsearch
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob
 from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_str, makeUnicode
@@ -98,6 +98,7 @@ APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
 USER_BLOCKLIST = []
+SHOW_EBOOK = 1
 SHOW_MAGS = 1
 SHOW_SERIES = 1
 SHOW_AUDIO = 0
@@ -199,7 +200,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
-                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS']
+                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -249,6 +250,7 @@ CONFIG_DEFINITIONS = {
     'MAG_TAB': ('bool', 'General', 1),
     'COMIC_TAB': ('bool', 'General', 0),
     'AUDIO_TAB': ('bool', 'General', 1),
+    'EBOOK_TAB': ('bool', 'General', 1),
     'TOGGLES': ('bool', 'General', 1),
     'SORT_DEFINITE': ('bool', 'General', 0),
     'SORT_SURNAME': ('bool', 'General', 0),
@@ -659,7 +661,7 @@ def initialize():
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
         GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES, SHOW_COMICS, LAST_COMICVINE, CV_SLEEP, \
-        SERIES_UPDATE
+        SERIES_UPDATE, SHOW_EBOOK
 
     with INIT_LOCK:
 
@@ -812,7 +814,7 @@ def initialize():
 # noinspection PyUnresolvedReferences
 def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
-        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV
+        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK
     # legacy name conversion
     if not CFG.has_option('General', 'ebook_dir'):
         ebook_dir = check_setting('str', 'General', 'destination_dir', '')
@@ -1023,7 +1025,11 @@ def config_read(reloaded=False):
     # Or suppress if tab is disabled
     if not CONFIG['SERIES_TAB']:
         SHOW_SERIES = 0
-    # Suppress magazine tab if disabled
+    # Suppress tabs if disabled
+    if CONFIG['EBOOK_TAB']:
+        SHOW_EBOOK = 1
+    else:
+        SHOW_EBOOK = 0
     if CONFIG['MAG_TAB']:
         SHOW_MAGS = 1
     else:
@@ -1040,6 +1046,7 @@ def config_read(reloaded=False):
     if CONFIG['HTTP_LOOK'] == 'legacy':
         SHOW_AUDIO = 0
         SHOW_COMICS = 0
+        SHOW_EBOOK = 1
 
     for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
         if CONFIG[item]:
@@ -1060,7 +1067,7 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -1299,6 +1306,11 @@ def config_write(part=None):
     else:
         SHOW_COMICS = 0
 
+    if CONFIG['EBOOK_TAB']:
+        SHOW_EBOOK = 1
+    else:
+        SHOW_EBOOK = 0
+
     if CONFIG['AUDIO_TAB']:
         SHOW_AUDIO = 1
     else:
@@ -1307,6 +1319,7 @@ def config_write(part=None):
     if CONFIG['HTTP_LOOK'] == 'legacy':
         SHOW_AUDIO = 0
         SHOW_COMICS = 0
+        SHOW_EBOOK = 1
 
     msg = None
     try:
@@ -1757,34 +1770,44 @@ def launch_browser(host, port, root):
 
 
 def start():
-    global __INITIALIZED__, started, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, SHOW_COMICS
+    global __INITIALIZED__, started, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, SHOW_COMICS, SHOW_EBOOK
 
     if __INITIALIZED__:
+        if not UPDATE_MSG:
+            if CONFIG['HTTP_LOOK'] == 'legacy':
+                SHOW_EBOOK = 1
+                SHOW_AUDIO = 0
+                SHOW_COMICS = 0
+                SHOW_SERIES = 0
+            else:
+                if CONFIG['EBOOK_TAB']:
+                    SHOW_EBOOK = 1
+                else:
+                    SHOW_EBOOK = 0
+                if CONFIG['MAG_TAB']:
+                    SHOW_MAGS = 1
+                else:
+                    SHOW_MAGS = 0
+                if CONFIG['COMIC_TAB']:
+                    SHOW_COMICS = 1
+                else:
+                    SHOW_COMICS = 0
+                if CONFIG['AUDIO_TAB']:
+                    SHOW_AUDIO = 1
+                else:
+                    SHOW_AUDIO = 0
+                if CONFIG['ADD_SERIES']:
+                    SHOW_SERIES = 1
+                if not CONFIG['SERIES_TAB']:
+                    SHOW_SERIES = 0
+                myDB = database.DBConnection()
+                series_list = myDB.select('SELECT SeriesID from series')
+                SHOW_SERIES = len(series_list)
+
         # Crons and scheduled jobs started here
         SCHED.start()
+        restartJobs(start='Start')
         started = True
-        if not UPDATE_MSG:
-            myDB = database.DBConnection()
-            restartJobs(start='Start')
-            series_list = myDB.select('SELECT SeriesID from series')
-            SHOW_SERIES = len(series_list)
-            if CONFIG['ADD_SERIES']:
-                SHOW_SERIES = 1
-            if CONFIG['MAG_TAB']:
-                SHOW_MAGS = 1
-            else:
-                SHOW_MAGS = 0
-            if CONFIG['COMIC_TAB']:
-                SHOW_COMICS = 1
-            else:
-                SHOW_COMICS = 0
-            if CONFIG['AUDIO_TAB']:
-                SHOW_AUDIO = 1
-            else:
-                SHOW_AUDIO = 0
-            if CONFIG['HTTP_LOOK'] == 'legacy':
-                SHOW_AUDIO = 0
-                SHOW_COMICS = 0
 
 
 def logmsg(level, msg):

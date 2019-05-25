@@ -154,9 +154,11 @@
                     %endif
                   %endif
                 %endif
-                % if perm&lazylibrarian.perm_ebook:
-                <li><a id="books" href="books" class="navbarele">eBooks</a></li>
-                %endif
+                % if lazylibrarian.SHOW_EBOOK != 0:
+                  % if perm&lazylibrarian.perm_ebook:
+                  <li><a id="books" href="books" class="navbarele">eBooks</a></li>
+                  % endif
+                % endif
                 % if lazylibrarian.SHOW_SERIES != 0:
                   %if perm&lazylibrarian.perm_series:
                   <li><a id="series" href="series" class="navbarele">Series</a></li>
@@ -178,7 +180,11 @@
                   % endif
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
-                  <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
+                  % if lazylibrarian.SHOW_AUDIO != 0:
+                    <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
+                  % elif lazylibrarian.SHOW_EBOOK != 0:
+                    <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
+                  % endif
                 % endif
                 %if perm&lazylibrarian.perm_history:
                   <li><a id="history" href="history" class="navbarele">History</a></li>

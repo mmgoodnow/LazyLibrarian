@@ -370,6 +370,30 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
+                          if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="ebook_tab" class="control-label">
+                          <input type="checkbox" id="ebook_tab" name="ebook_tab" value="1" ${checked} />
+                          Show eBooks</label>
+                      </div>
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="audio_tab" class="control-label">
+                          <input type="checkbox" id="audio_tab" name="audio_tab" value="1" ${checked} />
+                          Show AudioBooks</label>
+                      </div>
+                    </div>
+                    <div class="row checkbox">
+                      <div class="col-md-6">
+                        <%
                           if lazylibrarian.CONFIG['MAG_TAB'] == True:
                               checked = 'checked="checked"'
                           else:
@@ -379,6 +403,7 @@
                           <input type="checkbox" id="mag_tab" name="mag_tab" value="1" ${checked} />
                           Show Magazines</label>
                       </div>
+                      %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                       <div class="col-md-6">
                         <%
                           if lazylibrarian.CONFIG['MAG_IMG'] == True:
@@ -390,6 +415,7 @@
                           <input type="checkbox" id="mag_img" name="mag_img" value="1" ${checked} />
                           Show Magazine Images</label>
                       </div>
+                      % endif
                     </div>
                     <div class="row checkbox">
                       <div class="col-md-6">
@@ -428,17 +454,6 @@
                         <label for="series_tab" class="control-label">
                           <input type="checkbox" id="series_tab" name="series_tab" value="1" ${checked} />
                           Show Series</label>
-                      </div>
-                      <div class="col-md-6">
-                        <%
-                          if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
-                              checked = 'checked="checked"'
-                          else:
-                              checked = ''
-                        %>
-                        <label for="audio_tab" class="control-label">
-                          <input type="checkbox" id="audio_tab" name="audio_tab" value="1" ${checked} />
-                          Show AudioBooks</label>
                       </div>
                     </div>
                     <div class="row checkbox">
@@ -562,10 +577,12 @@
                       <input type="text" id="gr_oauth_token" name="gr_oauth_token" value="${lazylibrarian.CONFIG['GR_OAUTH_TOKEN']}" class="form-control">
                       <label for="gr_oauth_secret">Goodreads OAuth Secret:</label>
                       <input type="text" id="gr_oauth_secret" name="gr_oauth_secret" value="${lazylibrarian.CONFIG['GR_OAUTH_SECRET']}" class="form-control">
+                      %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                       <label for="gr_wanted">Sync Wanted eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_wanted" name="gr_wanted" value="${lazylibrarian.CONFIG['GR_WANTED']}" class="form-control" placeholder="eg: to-read">
                       <label for="gr_owned">Sync Owned eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_owned" name="gr_owned" value="${lazylibrarian.CONFIG['GR_OWNED']}" class="form-control" placeholder="eg: owned">
+                      %endif
                       %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                       <fieldset id="graudio_options">
                         <label for="gr_awanted">Sync Wanted AudioBooks to Goodreads shelf:</label>
@@ -630,11 +647,13 @@
               <div class="col-md-4">
                 <fieldset>
                   <legend>File Formats</legend>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                   <div class="form-group">
                     <label for="ebook_type" class="control-label">eBooks:</label>
                     <input type="text" id="ebook_type" name="ebook_type" value="${lazylibrarian.CONFIG['EBOOK_TYPE']}" class="form-control" placeholder="eBook file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
+                  %endif
                   %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="audiobook_type" class="control-label">AudioBooks:</label>
@@ -1815,6 +1834,7 @@
                     </select>
                     <span class="help-block">Status for missing/deleted ebooks</span>
                   </div>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                   <div class="form-group">
                     <label for="newbook_status">New Book Status:</label>
                     <select id="newbook_status" name="newbook_status" class="form-control">
@@ -1829,6 +1849,7 @@
                     </select>
                     <span class="help-block">Status for new ebooks by existing authors</span>
                   </div>
+                  %endif
                   %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="newaudio_status">New AudioBook Status:</label>
@@ -1845,6 +1866,7 @@
                     <span class="help-block">Status for new audiobooks by existing authors</span>
                   </div>
                   %endif
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                   <div class="form-group">
                     <label for="newauthor_status">New Authors eBook Status:</label>
                     <select id="newauthor_status" name="newauthor_status" class="form-control">
@@ -1859,6 +1881,7 @@
                     </select>
                     <span class="help-block">Status for ebooks by new authors</span>
                   </div>
+                  %endif
                   %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="newauthor_audio">New Authors AudioBook Status:</label>
@@ -2180,10 +2203,12 @@
                     <input type="text" id="download_dir" name="download_dir" value="${lazylibrarian.CONFIG['DOWNLOAD_DIR']}" class="form-control" placeholder="Download Directory">
                     <span class="help-block">Comma separated list of folders where downloaders place books</span>
                   </div>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                   <div class="form-group">
                     <label for="ebook_dir" class="control-label">eBook Library Folder:</label>
                     <input type="text" id="ebook_dir" name="ebook_dir" value="${lazylibrarian.CONFIG['EBOOK_DIR']}" class="form-control" placeholder="eBook Library Folder">
                   </div>
+                  %endif
                   %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                   <div class="form-group">
                     <label for="audio_dir" class="control-label">AudioBook Library Folder:</label>
@@ -3161,16 +3186,18 @@
                   <input type="text" placeholder="Extended Search" id="newznab_${loop.index}_extended" name="newznab_${loop.index}_extended" value="${provider['EXTENDED']}" class="form-control">
                 </div>
                 </div>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
-                  <label for="newznab_${loop.index}_booksearch" class="control-label">Book Search:</label>
+                  <label for="newznab_${loop.index}_booksearch" class="control-label">eBook Search:</label>
                   <input type="text" placeholder="none" id="newznab_${loop.index}_booksearch" name="newznab_${loop.index}_booksearch" value="${provider['BOOKSEARCH']}" class="form-control">
                 </div>
                 <div class="col-md-6">
-                  <label for="newznab_${loop.index}_bookcat" class="control-label">Book Categories:</label>
+                  <label for="newznab_${loop.index}_bookcat" class="control-label">eBook Categories:</label>
                   <input type="text" id="newznab_${loop.index}_bookcat" name="newznab_${loop.index}_bookcat" value="${provider['BOOKCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
                 %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
@@ -3249,16 +3276,18 @@
                   <input type="text" placeholder="Extended Search" id="torznab_${loop.index}_extended" name="torznab_${loop.index}_extended" value="${provider['EXTENDED']}" class="form-control">
                 </div>
                 </div>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
-                  <label for="torznab_${loop.index}_booksearch" class="control-label">Book Search:</label>
+                  <label for="torznab_${loop.index}_booksearch" class="control-label">eBook Search:</label>
                   <input type="text" placeholder="none" id="torznab_${loop.index}_booksearch" name="torznab_${loop.index}_booksearch" value="${provider['BOOKSEARCH']}" class="form-control">
                 </div>
                 <div class="col-md-6">
-                  <label for="torznab_${loop.index}_bookcat" class="control-label">Book Categories:</label>
+                  <label for="torznab_${loop.index}_bookcat" class="control-label">eBook Categories:</label>
                   <input type="text" id="torznab_${loop.index}_bookcat" name="torznab_${loop.index}_bookcat" value="${provider['BOOKCAT']}" class="form-control">
                 </div>
                 </div>
+                %endif
                 %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
@@ -3320,6 +3349,7 @@
         <div role="tabpanel" class="tab-pane" id="filters">
           <div class="configtable">
             <div class="row">
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="col-md-6">
                 <legend>Book Reject List</legend>
                 <div class="form-group">
@@ -3330,6 +3360,7 @@
                   </span>
                 </div>
                 </div>
+                %endif
                 %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="col-md-6">
                 <legend>AudioBook Reject List</legend>
@@ -3375,6 +3406,7 @@
                   </span>
                 </div>
                 </div>
+                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="col-md-6">
                 <legend>eBook Size Limits</legend>
                   <div class="input-group">
@@ -3385,6 +3417,7 @@
                     <span class="input-group-addon">Mb</span>
                   </div>
                 </div>
+                %endif
                 %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="col-md-6">
                 <legend>AudioBook Size Limits</legend>
