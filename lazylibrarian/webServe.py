@@ -2806,23 +2806,33 @@ class WebInterface(object):
                                         (', '.join(ToRead), ', '.join(HaveRead), cookie['ll_uid'].value))
 
                 elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook"]:
-                    bookdata = myDB.match('SELECT AuthorID,BookName from books WHERE BookID=?', (bookid,))
+                    bookdata = myDB.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
+                                          (bookid,))
                     if bookdata:
                         authorid = bookdata['AuthorID']
                         bookname = bookdata['BookName']
                         if authorid not in check_totals:
                             check_totals.append(authorid)
-                        act = action
-                        if 'eBook' in library or action == 'WantEbook':
-                            if action == 'WantEbook':
-                                act = 'Wanted'
-                            myDB.upsert("books", {'Status': act}, {'BookID': bookid})
-                            logger.debug('Status set to "%s" for "%s"' % (act, bookname))
-                        if 'Audio' in library or action == 'WantAudio':
-                            if action == 'WantAudio':
-                                act = 'Wanted'
-                            myDB.upsert("books", {'AudioStatus': act}, {'BookID': bookid})
-                            logger.debug('AudioStatus set to "%s" for "%s"' % (act, bookname))
+                        if action == 'WantEbook':
+                            if bookdata['Status'] == "Open":
+                                logger.debug('eBook "%s" is already marked Open' % bookname)
+                            else:
+                                myDB.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
+                                logger.debug('Status set to "Wanted" for "%s"' % bookname)
+                        elif action == 'WantAudio':
+                            if bookdata['AudioStatus'] == "Open":
+                                logger.debug('AudioBook "%s" is already marked Open' % bookname)
+                            else:
+                                myDB.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
+                                logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
+                        elif 'eBook' in library:
+                            myDB.upsert("books", {'Status': action}, {'BookID': bookid})
+                            logger.debug('Status set to "%s" for "%s"' % (action, bookname))
+                        elif 'Audio' in library:
+                            myDB.upsert("books", {'AudioStatus': action}, {'BookID': bookid})
+                            logger.debug('AudioStatus set to "%s" for "%s"' % (action, bookname))
+                    else:
+                        logger.warn("Unable to set status %s for %s" % (action, bookid))
                 elif action == "NoDelay":
                     myDB.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
                     logger.debug('%s delay set to zero for %s' % (library, bookid))
@@ -2902,7 +2912,7 @@ class WebInterface(object):
                 update_totals(author)
 
         # start searchthreads
-        if action == 'Wanted':
+        if action in ['Wanted', 'WantEbook', 'WantAudio']:
             books = []
             for arg in ['booklang', 'library', 'ignored', 'book_table_length']:
                 args.pop(arg, None)
@@ -2911,9 +2921,9 @@ class WebInterface(object):
 
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
-                if 'eBook' in library:
+                if 'eBook' in library or action == 'WantEbook':
                     threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'eBook']).start()
-                if 'Audio' in library:
+                if 'Audio' in library or action == 'WantAudio':
                     threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'AudioBook']).start()
 
         if redirect == "author":
