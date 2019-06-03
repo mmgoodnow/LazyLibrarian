@@ -103,6 +103,7 @@ class EmailNotifier:
                     mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                                   check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
                 else:
+                    # noinspection PyArgumentList
                     mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                                   check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
                                                   context=context)
@@ -112,6 +113,7 @@ class EmailNotifier:
 
             if lazylibrarian.CONFIG['EMAIL_TLS']:
                 if context:
+                    # noinspection PyArgumentList
                     mailserver.starttls(context=context)
                 else:
                     mailserver.starttls()
