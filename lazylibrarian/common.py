@@ -500,9 +500,10 @@ def is_overdue(which="Author"):
                 days = datecompare(dtnow.strftime("%Y-%m-%d"), res[0]['DateAdded'])
                 for item in res:
                     diff = datecompare(dtnow.strftime("%Y-%m-%d"), item['DateAdded'])
-                    if diff <= maxage:
+                    if diff > maxage:
+                        overdue += 1
+                    else:
                         break
-                    overdue += 1
         if which == 'Series':
             cmd = 'SELECT SeriesName,Updated from Series where Updated > 0 order by Updated ASC'
             res = myDB.select(cmd)
@@ -510,12 +511,13 @@ def is_overdue(which="Author"):
             if total:
                 name = res[0]['SeriesName']
                 dtnow = time.time()
-                days = int((dtnow - int(res[0]['Updated'])) / (24 * 60 * 60))
+                days = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
                 for item in res:
-                    diff = (dtnow - int(item['Updated'])) / (24 * 60 * 60)
-                    if diff <= maxage:
+                    diff = (dtnow - item['Updated']) / (24 * 60 * 60)
+                    if diff > maxage:
+                        overdue += 1
+                    else:
                         break
-                    overdue += 1
     return overdue, total, name, days
 
 
@@ -835,12 +837,13 @@ def seriesUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Updated > 0 order by Updated ASC'
+        cmd = 'SELECT SeriesName,SeriesID,Updated from Series where '
+        cmd += 'Status != "Ignored" and Status != "Skipped" and Updated > 0 order by Updated ASC'
         res = myDB.match(cmd)
         if res and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             name = res['SeriesName']
             dtnow = time.time()
-            diff = int((dtnow - int(res['Updated'])) / (24 * 60 * 60))
+            diff = int((dtnow - res['Updated']) / (24 * 60 * 60))
             msg = 'Oldest series info (%s) is %s day%s old' % (name, diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
                 logger.info('Starting series update for %s' % name)
