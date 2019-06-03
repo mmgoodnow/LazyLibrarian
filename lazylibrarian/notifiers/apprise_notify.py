@@ -61,7 +61,7 @@ class Apprise_Notifier:
         else:
             notifytype = NotifyType.WARNING
 
-        return apobj.notify(title=title, body="%s\n%s" %(event,message), notify_type=notifytype)
+        return apobj.notify(title=title, body="%s\n%s" % (event, message), notify_type=notifytype)
 
     def _notify(self, event, message, url=None):
         """
