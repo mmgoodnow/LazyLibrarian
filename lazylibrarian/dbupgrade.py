@@ -467,6 +467,7 @@ def check_db(myDB):
                         ['authorid', 'books', 'authors'],
                         ['seriesid', 'member', 'series'],
                         ['seriesid', 'seriesauthors', 'series'],
+                        ['seriesid', 'series', 'seriesauthors'],
                         ['authorid', 'seriesauthors', 'authors'],
                         ['title', 'issues', 'magazines'],
                         ['genreid', 'genrebooks', 'genres'],
