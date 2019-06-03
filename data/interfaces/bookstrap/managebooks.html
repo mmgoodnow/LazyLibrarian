@@ -118,16 +118,24 @@
     </div>
     %if perm&lazylibrarian.perm_status:
     <div class="form-group">
-      <label for="markBooks" class="control-label">Change selected books to: </label>
+      <label for="markBooks" class="control-label">Mark selected ${library}s as</label>
       <select id="markBooks" class="markBooks form-control input-sm" name="action">
-        %for item in ['Skipped', 'Wanted', 'Have', 'Ignored']:
+        %if lazylibrarian.SHOW_EBOOK > 0:
+          %if library == 'AudioBook' or whichStatus != 'Wanted':
+            <option value="WantEbook">eBook Wanted</option>
+          %endif
+        %endif
+        %if lazylibrarian.SHOW_AUDIO > 0:
+          %if library != 'AudioBook' or whichStatus != 'Wanted':
+            <option value="WantAudio">Audio Wanted</option>
+          %endif
+        %endif
+        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0 and whichStatus != 'Wanted':
+            <option value="WantBoth">both Wanted</option>
+        %endif
+        %for item in ['Skipped', 'Have', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
-        %if library != 'AudioBook':
-            <option value="WantAudio">Audio Wanted</option>
-        %else:
-            <option value="WantEbook">eBook Wanted</option>
-        %endif
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>

@@ -1468,6 +1468,8 @@ class WebInterface(object):
             types.append('eBook')
         if lazylibrarian.SHOW_AUDIO:
             types.append('AudioBook')
+        if types and library not in types:
+            library = types[0]
         if not types:
             library = None
         if not author:
@@ -1535,6 +1537,10 @@ class WebInterface(object):
             AuthorName = authorsearch['AuthorName']
             logger.info("Removing all references to author: %s" % AuthorName)
             myDB.action('DELETE from authors WHERE AuthorID=?', (AuthorID,))
+            # if the author was the only remaining contributor to a series, remove the series
+            orphans = myDB.select('select seriesid from series except select seriesid from seriesauthors')
+            for orphan in orphans:
+                myDB.action('DELETE from series where seriesid=?', (orphan[0],))
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
@@ -1770,7 +1776,7 @@ class WebInterface(object):
         if not BookLang or BookLang == 'None':
             BookLang = None
         languages = myDB.select('SELECT DISTINCT BookLang from books WHERE STATUS !="Skipped" AND STATUS !="Ignored"')
-        return serve_template(templatename="books.html", title='Books', books=[],
+        return serve_template(templatename="books.html", title='eBooks', books=[],
                               languages=languages, booklang=BookLang, user=user)
 
     @cherrypy.expose
@@ -1991,40 +1997,25 @@ class WebInterface(object):
                         flag = ''
 
                     # Need to pass bookid and status twice as datatables modifies first one
-                    if status_type == 'audiostatus':
-                        thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[14], row[11],
-                                   row[6], dateFormat(row[15], lazylibrarian.CONFIG['DATE_FORMAT']),
-                                   row[14], row[16], flag]
-                        if kwargs['source'] == "Manage":
-                            cmd = "SELECT Time,Interval,Count from failedsearch WHERE Bookid=? AND Library='AudioBook'"
-                            searches = myDB.match(cmd, (row[6],))
-                            if searches:
-                                thisrow.append("%s/%s" % (searches['Count'], searches['Interval']))
-                                try:
-                                    thisrow.append(time.strftime("%d %b %Y", time.localtime(searches['Time'])))
-                                except TypeError:
-                                    thisrow.append('')
-                            else:
-                                thisrow.append('0')
+                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[5], row[11],
+                               row[6], dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
+                               row[5], row[16], flag]
+                    if kwargs['source'] == "Manage":
+                        cmd = "SELECT Time,Interval,Count from failedsearch WHERE Bookid=? AND Library='eBook'"
+                        searches = myDB.match(cmd, (row[6],))
+                        if searches:
+                            thisrow.append("%s/%s" % (searches['Count'], searches['Interval']))
+                            try:
+                                thisrow.append(time.strftime("%d %b %Y", time.localtime(float(searches['Time']))))
+                            except (ValueError, TypeError):
                                 thisrow.append('')
-                        d.append(thisrow)
-                    else:
-                        thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[5], row[11],
-                                   row[6], dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
-                                   row[5], row[16], flag]
-                        if kwargs['source'] == "Manage":
-                            cmd = "SELECT Time,Interval,Count from failedsearch WHERE Bookid=? AND Library='eBook'"
-                            searches = myDB.match(cmd, (row[6],))
-                            if searches:
-                                thisrow.append("%s/%s" % (searches['Count'], searches['Interval']))
-                                try:
-                                    thisrow.append(time.strftime("%d %b %Y", time.localtime(float(searches['Time']))))
-                                except (ValueError, TypeError):
-                                    thisrow.append('')
-                            else:
-                                thisrow.append('0')
-                                thisrow.append('')
-                        d.append(thisrow)
+                        else:
+                            thisrow.append('0')
+                            thisrow.append('')
+                    elif kwargs['source'] == 'Author':
+                        thisrow.append(row[14])
+                        thisrow.append(dateFormat(row[15], lazylibrarian.CONFIG['DATE_FORMAT']))
+                    d.append(thisrow)
                 rows = d
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -2805,7 +2796,7 @@ class WebInterface(object):
                             myDB.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
                                         (', '.join(ToRead), ', '.join(HaveRead), cookie['ll_uid'].value))
 
-                elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook"]:
+                elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook", "WantBoth"]:
                     bookdata = myDB.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
                                           (bookid,))
                     if bookdata:
@@ -2813,18 +2804,19 @@ class WebInterface(object):
                         bookname = bookdata['BookName']
                         if authorid not in check_totals:
                             check_totals.append(authorid)
-                        if action == 'WantEbook':
-                            if bookdata['Status'] == "Open":
-                                logger.debug('eBook "%s" is already marked Open' % bookname)
-                            else:
-                                myDB.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
-                                logger.debug('Status set to "Wanted" for "%s"' % bookname)
-                        elif action == 'WantAudio':
-                            if bookdata['AudioStatus'] == "Open":
-                                logger.debug('AudioBook "%s" is already marked Open' % bookname)
-                            else:
-                                myDB.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
-                                logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
+                        if action in ["WantEbook", "WantAudio", "WantBoth"]:
+                            if action in ["WantEbook", "WantBoth"]:
+                                if bookdata['Status'] == "Open":
+                                    logger.debug('eBook "%s" is already marked Open' % bookname)
+                                else:
+                                    myDB.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
+                                    logger.debug('Status set to "Wanted" for "%s"' % bookname)
+                            if action in ["WantAudio", "WantBoth"]:
+                                if bookdata['AudioStatus'] == "Open":
+                                    logger.debug('AudioBook "%s" is already marked Open' % bookname)
+                                else:
+                                    myDB.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
+                                    logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
                         elif 'eBook' in library:
                             myDB.upsert("books", {'Status': action}, {'BookID': bookid})
                             logger.debug('Status set to "%s" for "%s"' % (action, bookname))
@@ -4827,6 +4819,8 @@ class WebInterface(object):
             message += "URL: %s<br>" % match['NZBurl']
             if status == 'Processed':
                 message += "File: %s<br>" % match['DLResult']
+            elif status == 'Seeding':
+                message += status
             else:
                 message += "Error: %s<br>" % match['DLResult']
         return message

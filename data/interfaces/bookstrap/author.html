@@ -163,10 +163,18 @@
     <input type="hidden" name="ignored" value=${ignored}>
     %if perm&lazylibrarian.perm_status or  lazylibrarian.CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
-      <label for="action" class="">Mark selected as</label>
+      <label for="action" class="">Mark selected ${library}s as</label>
       <select class="markBooks form-control input-sm" id="action" name="action">
         %if perm&lazylibrarian.perm_status:
-        <option value="Wanted">Wanted</option>
+        %if lazylibrarian.SHOW_EBOOK > 0:
+            <option value="WantEbook">eBook Wanted</option>
+        %endif
+        %if lazylibrarian.SHOW_AUDIO > 0:
+            <option value="WantAudio">Audio Wanted</option>
+        %endif
+        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+            <option value="WantBoth">both Wanted</option>
+        %endif
         <option value="Have">Have</option>
         <option value="Ignored">Ignored</option>
         <option value="Skipped">Skipped</option>
@@ -311,42 +319,87 @@
                     { targets: [7],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                        var str = row[10];
-                        //var str = String(str).substr(0, 10);
-                        if (str === "null"){ str = ""}
-                        return str ;} },
+                        var edate = row[10];
+                        if (edate === "null"){ edate = ""}
+                        var adate = row[15];
+                        if (adate === "null"){ adate = ""}
+                        %if lazylibrarian.SHOW_EBOOK == 0:
+                           edate = ""
+                        %endif
+                        %if lazylibrarian.SHOW_AUDIO == 0:
+                           adate = ""
+                        %endif
+                        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+                           edate = edate + '<br>'
+                        %endif
+                        return edate + adate ;} },
                     { targets: [8],
                         'class': 'text-center',
                         'render': function(data, type, row) {
                         var btn = row[11]
                         var flag = row[13]
+                        var btn2 = row[14]
                         btn = btn + flag
                         if ( btn.indexOf('Open') >= 0 ) {
                                 btn = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
-                                    '&library=${library}" target="_self"><i class="fa fa-book"></i> ' + btn + '</a>'
+                                    '&library=eBook" target="_self"><i class="fa fa-book"></i> ' + btn + '</a>'
                         }
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=${library}" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-book"></i> ' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=${library}" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
                         else if ( btn.indexOf('Snatched') >= 0 ) {
-                            btn = '<a class="button btn btn-xs btn-info">' + btn + '</a>'}
+                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-book"></i> ' + btn + '</a>'}
                         else if ( btn.indexOf('Ignored') >= 0 ) {
                             btn = '<button onclick="dlinfo(\'' + btn + '^' + row[9] +
-                            '\')" class="button btn btn-xs btn-primary" type="button">' + btn + '</button>'}
+                            '\')" class="button btn btn-xs btn-primary" type="button"><i class="fa fa-book"></i> ' + btn + '</button>'}
                         else if ( btn.indexOf('Have') >= 0 ) {
                             %if perm&lazylibrarian.perm_status:
-                            btn = '<a class="button btn btn-xs btn-info">' + btn + '</a>'
+                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-book"></i> ' + btn + '</a>'
                             %else:
-                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=${library}" target="_self">Request</a></p>'
+                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
                             %endif
                             }
                         else {
                             %if perm&lazylibrarian.perm_status:
-                            btn = '<a class="button btn btn-xs btn-default grey">' + btn + '</a>'
+                            btn = '<a class="button btn btn-xs btn-default grey"><i class="fa fa-book"></i> ' + btn + '</a>'
                             %else:
-                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=${library}" target="_self">Request</a></p>'
+                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
                             %endif
                             }
-                        return btn;} }
+                        if ( btn2.indexOf('Open') >= 0 ) {
+                                btn2 = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
+                                    '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
+                        }
+                        else if ( btn2.indexOf('Wanted') >= 0 ) {
+                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-headphones"></i> ' + btn2 + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=${library}" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                        else if ( btn2.indexOf('Snatched') >= 0 ) {
+                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'}
+                        else if ( btn.indexOf('Ignored') >= 0 ) {
+                            btn2 = '<button onclick="dlinfo(\'' + btn2 + '^' + row[9] +
+                            '\')" class="button btn btn-xs btn-primary" type="button"><i class="fa fa-headphones"></i> ' + btn2 + '</button>'}
+                        else if ( btn2.indexOf('Have') >= 0 ) {
+                            %if perm&lazylibrarian.perm_status:
+                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
+                            %else:
+                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
+                            %endif
+                            }
+                        else {
+                            %if perm&lazylibrarian.perm_status:
+                            btn2 = '<a class="button btn btn-xs btn-default grey"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
+                            %else:
+                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
+                            %endif
+                            }
+                        %if lazylibrarian.SHOW_EBOOK == 0:
+                           btn = ''
+                        %endif
+                        %if lazylibrarian.SHOW_AUDIO == 0:
+                           btn2 = ''
+                        %endif
+                        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+                           btn = btn + '<br>'
+                        %endif
+                        return btn + btn2;} }
                     ],
                 "oLanguage": {
                     "sSearch": "Filter: ",
