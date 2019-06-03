@@ -35,7 +35,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int, makeUnicode
+from lazylibrarian.formatter import check_int, makeUnicode, makeBytestr
 from lazylibrarian.common import make_dirs
 
 delugeweb_auth = {}
