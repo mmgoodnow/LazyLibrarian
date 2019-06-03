@@ -123,6 +123,8 @@ def getTorrentFiles(torrentid):  # uses hashid
         response, _ = torrentAction(method, arguments)  # type: dict
         if response:
             if len(response['arguments']['torrents'][0]['files']):
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("getTorrentFiles: %s" % str(response['arguments']['torrents'][0]['files']))
                 return response['arguments']['torrents'][0]['files']
         else:
             logger.debug('getTorrentFiles: No response from transmission')
@@ -147,6 +149,8 @@ def getTorrentProgress(torrentid):  # uses hashid
                     err = response['arguments']['torrents'][0]['errorString']
                     res = response['arguments']['torrents'][0]['percentDone']
                     fin = (response['arguments']['torrents'][0]['status'] == 0)  # TR_STATUS_STOPPED == 0
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                        logger.debug("getTorrentProgress: %s,%s,%s" % (err, res, fin))
                     try:
                         res = int(float(res) * 100)
                         return res, err, fin
