@@ -124,37 +124,35 @@ def search_book(books=None, library=None):
                     searchterm += ': '
                 searchterm += searchbook['BookSub']
 
-            if library is None or library == 'eBook':
-                if searchbook['Status'] == "Wanted":  # not just audiobook wanted
-                    cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
-                    snatched = myDB.match(cmd, (searchbook["BookID"],))
-                    if snatched:
-                        logger.warn('eBook %s %s already marked snatched in wanted table' %
-                                    (searchbook['AuthorName'], searchbook['BookName']))
-                    else:
-                        searchlist.append(
-                            {"bookid": searchbook['BookID'],
-                             "bookName": searchbook['BookName'],
-                             "bookSub": searchbook['BookSub'],
-                             "authorName": searchbook['AuthorName'],
-                             "library": "eBook",
-                             "searchterm": searchterm})
+            if searchbook['Status'] == "Wanted":
+                cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
+                snatched = myDB.match(cmd, (searchbook["BookID"],))
+                if snatched:
+                    logger.warn('eBook %s %s already marked snatched in wanted table' %
+                                (searchbook['AuthorName'], searchbook['BookName']))
+                else:
+                    searchlist.append(
+                        {"bookid": searchbook['BookID'],
+                         "bookName": searchbook['BookName'],
+                         "bookSub": searchbook['BookSub'],
+                         "authorName": searchbook['AuthorName'],
+                         "library": "eBook",
+                         "searchterm": searchterm})
 
-            if library is None or library == 'AudioBook':
-                if searchbook['AudioStatus'] == "Wanted":  # in case we just wanted eBook
-                    cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
-                    snatched = myDB.match(cmd, (searchbook["BookID"],))
-                    if snatched:
-                        logger.warn('AudioBook %s %s already marked snatched in wanted table' %
-                                    (searchbook['AuthorName'], searchbook['BookName']))
-                    else:
-                        searchlist.append(
-                            {"bookid": searchbook['BookID'],
-                             "bookName": searchbook['BookName'],
-                             "bookSub": searchbook['BookSub'],
-                             "authorName": searchbook['AuthorName'],
-                             "library": "AudioBook",
-                             "searchterm": searchterm})
+            if searchbook['AudioStatus'] == "Wanted":
+                cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
+                snatched = myDB.match(cmd, (searchbook["BookID"],))
+                if snatched:
+                    logger.warn('AudioBook %s %s already marked snatched in wanted table' %
+                                (searchbook['AuthorName'], searchbook['BookName']))
+                else:
+                    searchlist.append(
+                        {"bookid": searchbook['BookID'],
+                         "bookName": searchbook['BookName'],
+                         "bookSub": searchbook['BookSub'],
+                         "authorName": searchbook['AuthorName'],
+                         "library": "AudioBook",
+                         "searchterm": searchterm})
 
         # only get rss results once per run, as they are not search specific
         rss_resultlist = None
@@ -162,7 +160,7 @@ def search_book(books=None, library=None):
             rss_resultlist, nprov, dltypes = IterateOverRSSSites()
             if not nprov or (library == 'Audiobook' and 'A' not in dltypes) or \
                             (library == 'eBook' and 'E' not in dltypes) or \
-                            (library is None and dltypes == 'M'):
+                            (library is None and ('E' in dltypes or 'A' in dltypes)):
                 # don't nag. Show warning message no more than every 20 mins
                 timenow = int(time.time())
                 if check_int(lazylibrarian.NO_RSS_MSG, 0) + 1200 < timenow:
