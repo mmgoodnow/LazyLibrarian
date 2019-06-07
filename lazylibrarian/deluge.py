@@ -37,6 +37,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, makeUnicode, makeBytestr
 from lazylibrarian.common import make_dirs
+from lib.six import PY2
 
 delugeweb_auth = {}
 delugeweb_url = ''
@@ -46,9 +47,8 @@ headers = {'Accept': 'application/json', 'Content-Type': 'application/json'}
 
 def addTorrent(link, data=None):
     try:
-        result = {}
         retid = False
-
+        result = {}
         if link and link.startswith('magnet:'):
             logger.debug('Deluge: Got a magnet link: %s' % link)
             result = {'type': 'magnet',
@@ -101,7 +101,7 @@ def addTorrent(link, data=None):
                              (name, torrentfile[:40]))
             except UnicodeDecodeError:
                 logger.debug('Deluge: Sending Deluge torrent with name %s and content [%s...]' %
-                             (name.decode('utf-8'), str(torrentfile)[:40]))
+                             (name.decode('utf-8'), torrentfile)[:40].decode('utf-8'))
             result = {'type': 'torrent',
                       'name': name,
                       'content': makeBytestr(torrentfile)}
@@ -451,9 +451,13 @@ def _add_torrent_file(result):
 
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
     try:
-        # content is torrent file contents that needs to be encoded to base64
+        # content is torrent file contents (bytes) that needs to be encoded to base64
+        # b64encode input/output is bytes, and python3 json serialiser doesnt like bytes
+        content = b64encode(result['content'])
+        if not PY2:
+            content = makeUnicode(content)
         post_json = {"method": "core.add_torrent_file",
-                     "params": [result['name'] + '.torrent', b64encode(result['content']), {}],
+                     "params": [result['name'] + '.torrent', content, {}],
                      "id": 2}
 
         response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
