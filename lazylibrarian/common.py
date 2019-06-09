@@ -812,7 +812,8 @@ def authorUpdate(restart=True):
         if author and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             dtnow = datetime.datetime.now()
             diff = datecompare(dtnow.strftime("%Y-%m-%d"), author['DateAdded'])
-            msg = 'Oldest author info (%s) is %s day%s old' % (author['AuthorName'], diff, plural(diff))
+            msg = 'Oldest author info (%s) is %s day%s old, no update due' % (author['AuthorName'],
+                                                                              diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
                 logger.info('Starting update for %s' % author['AuthorName'])
                 lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=author['AuthorID'])
@@ -844,7 +845,8 @@ def seriesUpdate(restart=True):
             name = res['SeriesName']
             dtnow = time.time()
             diff = int((dtnow - res['Updated']) / (24 * 60 * 60))
-            msg = 'Oldest series info (%s) is %s day%s old' % (name, diff, plural(diff))
+            msg = 'Oldest series info (%s) is %s day%s old, no update due' % (name,
+                                                                              diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
                 logger.info('Starting series update for %s' % name)
                 lazylibrarian.bookwork.addSeriesMembers(res['SeriesID'])
