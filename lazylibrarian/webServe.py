@@ -1996,6 +1996,9 @@ class WebInterface(object):
                     else:
                         flag = ''
 
+                    if status_type == 'audiostatus':
+                        row[5] = row[14]
+                        row[13] = row[15]
                     # Need to pass bookid and status twice as datatables modifies first one
                     thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[5], row[11],
                                row[6], dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
