@@ -529,10 +529,12 @@ class GoogleBooks:
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                                     setSeries(serieslist, bookid)
 
-                                new_status = setStatus(bookid, serieslist, bookstatus)
+                                new_status, new_astatus = setStatus(bookid, serieslist, bookstatus, audiostatus)
 
                                 if not new_status == book_status:
                                     book_status = new_status
+                                if not new_astatus == audio_status:
+                                    audio_status = new_astatus
 
                                 worklink = getWorkPage(bookid)
                                 if worklink:
@@ -541,13 +543,16 @@ class GoogleBooks:
                                     myDB.upsert("books", newValueDict, controlValueDict)
 
                                 if not existing_book:
-                                    logger.debug("[%s] Added book: %s [%s] status %s" %
-                                                 (authorname, bookname, booklang, book_status))
+                                    typ = 'Added'
                                     added_count += 1
                                 else:
-                                    logger.debug("[%s] Updated book: %s [%s] status %s" %
-                                                 (authorname, bookname, booklang, book_status))
+                                    typ = 'Updated'
                                     updated_count += 1
+                                msg = "[%s] %s book: %s [%s] status %s" % (authorname, typ, bookname,
+                                                                           booklang, book_status)
+                                if lazylibrarian.SHOW_AUDIO:
+                                    msg += " audio %s" % audio_status
+                                logger.debug(msg)
             except KeyError:
                 pass
 

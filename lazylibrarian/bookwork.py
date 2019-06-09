@@ -196,24 +196,28 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
         return api_hits, originalpubdate
 
 
-def setStatus(bookid=None, serieslist=None, default=None):
+def setStatus(bookid=None, serieslist=None, default=None, adefault=None):
     """ Set the status of a book according to series/author/newbook/newauthor preferences
-        return default if unchanged, default is passed in as newbook or newauthor status """
+        return defaults if unchanged, defaults are passed in as newbook or newauthor status """
     myDB = database.DBConnection()
     if not bookid:
-        return default
+        return default, adefault
 
-    match = myDB.match('SELECT Status,AuthorID,BookName from books WHERE BookID=?', (bookid,))
+    match = myDB.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
     if not match:
-        return default
+        return default, adefault
 
     # Don't update status if we already have the book but allow status change if ignored
     # might be we had ignore author set, but want to allow this series
     current_status = match['Status']
+    current_astatus = match['AudioStatus']
     if current_status in ['Have', 'Open']:
-        return current_status
+        default = current_status
+    if current_astatus in ['Have', 'Open']:
+        adefault = current_astatus
 
     new_status = ''
+    new_astatus = ''
     authorid = match['AuthorID']
     bookname = match['BookName']
     # Is the book part of any series we want or don't want?
@@ -221,12 +225,18 @@ def setStatus(bookid=None, serieslist=None, default=None):
         match = myDB.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
         if match:
             if match['Status'] == 'Wanted':
-                new_status = 'Wanted'
                 logger.debug('Marking %s as %s, series %s' % (bookname, new_status, item[2]))
+                if lazylibrarian.SHOW_EBOOK:
+                    new_status = 'Wanted'
+                if lazylibrarian.SHOW_AUDIO:
+                    new_astatus = 'Wanted'
                 break
             if match['Status'] == 'Skipped':
-                new_status = 'Skipped'
                 logger.debug('Marking %s as %s, series %s' % (bookname, new_status, item[2]))
+                if lazylibrarian.SHOW_EBOOK:
+                    new_status = 'Skipped'
+                if lazylibrarian.SHOW_AUDIO:
+                    new_astatus = 'Skipped'
                 break
 
     if not new_status:
@@ -234,18 +244,27 @@ def setStatus(bookid=None, serieslist=None, default=None):
         match = myDB.match('SELECT Status from authors where AuthorID=?', (authorid,))
         if match:
             if match['Status'] in ['Paused', 'Ignored']:
-                new_status = 'Skipped'
                 logger.debug('Marking %s as %s, author %s' % (bookname, new_status, match['Status']))
+                if lazylibrarian.SHOW_EBOOK:
+                    new_status = 'Skipped'
+                if lazylibrarian.SHOW_AUDIO:
+                    new_astatus = 'Skipped'
             if match['Status'] == 'Wanted':
-                new_status = 'Wanted'
                 logger.debug('Marking %s as %s, author %s' % (bookname, new_status, match['Status']))
+                if lazylibrarian.SHOW_EBOOK:
+                    new_status = 'Wanted'
+                if lazylibrarian.SHOW_AUDIO:
+                    new_astatus = 'Wanted'
 
     # If none of these, leave default "newbook" or "newauthor" status
     if new_status:
         myDB.action('UPDATE books SET Status=? WHERE BookID=?', (new_status, bookid))
-        return new_status
+        default = new_status
+    if new_astatus:
+        myDB.action('UPDATE books SET AudioStatus=? WHERE BookID=?', (new_astatus, bookid))
+        adefault = new_astatus
 
-    return default
+    return default, adefault
 
 
 def deleteEmptySeries():

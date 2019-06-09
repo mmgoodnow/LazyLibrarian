@@ -852,9 +852,11 @@ class GoodReads:
                                     if pubdate and pubdate != originalpubdate:
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                new_status = setStatus(bookid, serieslist, book_status)
+                                new_status, new_astatus = setStatus(bookid, serieslist, book_status, audio_status)
                                 if new_status != book_status:
                                     updateValueDict["Status"] = new_status
+                                if new_astatus != audio_status:
+                                    updateValueDict["AudioStatus"] = new_astatus
 
                                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                                     # try to get a cover from another source
@@ -887,13 +889,16 @@ class GoodReads:
                                     myDB.upsert("books", updateValueDict, controlValueDict)
 
                                 if not existing:
-                                    logger.debug("[%s] Added book: %s [%s] status %s" %
-                                                 (authorname, bookname, bookLanguage, book_status))
+                                    typ = 'Added'
                                     added_count += 1
                                 else:
-                                    logger.debug("[%s] Updated book: %s [%s] status %s" %
-                                                 (authorname, bookname, bookLanguage, book_status))
+                                    typ = 'Updated'
                                     updated_count += 1
+                                msg = "[%s] %s book: %s [%s] status %s" % (authorname, typ, bookname,
+                                                                           bookLanguage, book_status)
+                                if lazylibrarian.SHOW_AUDIO:
+                                    msg += " audio %s" % audio_status
+                                logger.debug(msg)
                     loopCount += 1
                     if 0 < lazylibrarian.CONFIG['MAX_BOOKPAGES'] < loopCount:
                         resultxml = None
