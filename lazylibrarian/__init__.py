@@ -25,6 +25,7 @@ import threading
 import time
 import webbrowser
 import sqlite3
+import traceback
 
 import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
