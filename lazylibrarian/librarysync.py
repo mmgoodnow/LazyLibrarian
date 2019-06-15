@@ -24,7 +24,7 @@ from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, split_title, now, makeUnicode, makeBytestr
+    cleanName, replace_all, split_title, now, makeUnicode, makeBytestr, formatAuthorName
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
@@ -837,31 +837,20 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         rescan_count += 1
                                         base_url = 'https://www.goodreads.com/search.xml?q='
                                         params = {"key": lazylibrarian.CONFIG['GR_API']}
-                                        if len(author) > 1 and author[1] in '. ':
-                                            surname = author
-                                            forename = ''
-                                            while len(surname) > 1 and surname[1] in '. ':
-                                                forename = forename + surname[0] + '.'
-                                                surname = surname[2:].strip()
-                                            if author != forename + ' ' + surname:
-                                                logger.debug('Stripped authorname [%s] to [%s %s]' %
-                                                             (author, forename, surname))
-                                                author = forename + ' ' + surname
-
-                                        author = ' '.join(author.split())  # ensure no extra whitespace
-
+                                        author = formatAuthorName(author)
                                         searchname = author + ' ' + book
                                         searchname = cleanName(unaccented(searchname))
                                         if PY2:
                                             searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
                                         searchterm = quote_plus(searchname)
                                         set_url = base_url + searchterm + '&' + urlencode(params)
+                                        # if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+                                        logger.debug("Rescan url: %s" % set_url)
                                         # noinspection PyBroadException
                                         try:
                                             rootxml, _ = gr_xml_request(set_url)
                                             if rootxml is None:
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
-                                                logger.debug(set_url)
                                             else:
                                                 book, _ = split_title(author, book)
                                                 dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '',
@@ -875,15 +864,22 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                         booktitle = replace_all(booktitle, dic)
                                                     except (KeyError, AttributeError):
                                                         booktitle = ""
-                                                    book_fuzz = fuzz.token_set_ratio(booktitle, book)
-                                                    if book_fuzz >= 98:
+                                                    try:
+                                                        bookauthor = item.find('./best_book/author/name').text
+                                                    except (KeyError, AttributeError):
+                                                        bookauthor = ""
+
+                                                    book_fuzz = fuzz.ratio(booktitle, book)
+                                                    author_fuzz = fuzz.ratio(bookauthor, author)
+                                                    if book_fuzz >= lazylibrarian.CONFIG['NAME_RATIO'] and \
+                                                         author_fuzz  >= lazylibrarian.CONFIG['NAME_RATIO']:
                                                         rescan_hits += 1
                                                         try:
                                                             bookid = item.find('./best_book/id').text
                                                         except (KeyError, AttributeError):
                                                             bookid = ""
-                                                        logger.debug("Rescan found %s : %s: %s" %
-                                                                     (booktitle, language, bookid))
+                                                        logger.debug("Rescan found %s [%s] : %s: %s" %
+                                                                     (bookauthor, booktitle, language, bookid))
 
                                                         if bookid:
                                                             cmd = 'SELECT * from books WHERE BookID=?'
