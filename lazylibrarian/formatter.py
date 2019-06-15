@@ -578,7 +578,9 @@ def split_title(author, book):
 def formatAuthorName(author):
     """ get authorname in a consistent format """
     author = makeUnicode(author)
-
+    # if multiple authors assume the first one is primary
+    if '&' in author:
+        author = author.split('&')[0].strip()
     if "," in author:
         postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
         words = author.split(',')
