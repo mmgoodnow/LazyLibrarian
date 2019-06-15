@@ -1151,39 +1151,6 @@ def clearLog():
             lazylibrarian.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
 
 
-def reverse_readline(filename, buf_size=8192):
-    """a generator that returns the lines of a file in reverse order"""
-    with open(filename) as fh:
-        segment = None
-        offset = 0
-        fh.seek(0, os.SEEK_END)
-        file_size = remaining_size = fh.tell()
-        while remaining_size > 0:
-            offset = min(file_size, offset + buf_size)
-            fh.seek(file_size - offset)
-            buf = fh.read(min(remaining_size, buf_size))
-            remaining_size -= buf_size
-            lines = buf.split('\n')
-            # the first line of the buffer is probably not a complete line so
-            # we'll save it and append it to the last line of the next buffer
-            # we read
-            if segment is not None:
-                # if the previous chunk starts right from the beginning of line
-                # do not concact the segment to the last line of new chunk
-                # instead, yield the segment first
-                if buf[-1] is not '\n':
-                    lines[-1] += segment
-                else:
-                    yield segment
-            segment = lines[0]
-            for index in range(len(lines) - 1, 0, -1):
-                if len(lines[index]):
-                    yield lines[index]
-        # Don't yield None if the file was empty
-        if segment is not None:
-            yield segment
-
-
 # noinspection PyUnresolvedReferences
 def logHeader():
     popen_list = [sys.executable, lazylibrarian.FULL_PATH]
@@ -1378,7 +1345,12 @@ def saveLog():
             else:
                 logger.debug('Processing logfile [%s]' % fname)
                 linecount = 0
-                for line in reverse_readline(fname):
+
+                if PY2:
+                    lines = reversed(open(fname).readlines())
+                else:
+                    lines = reversed(list(open(fname)))
+                for line in lines:
                     for item in redactlist:
                         startpos = line.find(item)
                         if startpos >= 0:
@@ -1392,7 +1364,7 @@ def saveLog():
                                 line = line[:startpos] + '<redacted>' + line[endpos:]
                                 redacts += 1
 
-                    out.write("%s\n" % line)
+                    out.write(line)
                     if "Debug log ON" in line:
                         logger.debug('Found "Debug log ON" line %s in %s' % (linecount, fname))
                         nextfile = False
@@ -1402,7 +1374,11 @@ def saveLog():
 
         if os.path.exists(lazylibrarian.CONFIGFILE):
             out.write('---END-CONFIG---------------------------------\n')
-            for line in reverse_readline(lazylibrarian.CONFIGFILE):
+            if PY2:
+                lines = reversed(open(lazylibrarian.CONFIGFILE).readlines())
+            else:
+                lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
+            for line in lines:
                 for item in redactlist:
                     item = item.replace('->', '=')
                     startpos = line.find(item)
@@ -1416,18 +1392,22 @@ def saveLog():
                         if endpos != startpos:
                             line = line[:startpos] + '<redacted>' + line[endpos:]
                             redacts += 1
-                out.write("%s\n" % line)
+                out.write(line)
             out.write('---CONFIG-------------------------------------\n')
 
     with open(outfile + '.log', 'w') as logfile:
         logfile.write(logHeader())
-        lines = 0
-        for line in reverse_readline(outfile + '.tmp'):
-            logfile.write("%s\n" % line)
-            lines += 1
+        linecount = 0
+        if PY2:
+            lines = reversed(open(outfile + '.tmp').readlines())
+        else:
+            lines = reversed(list(open(outfile + '.tmp')))
+        for line in lines:
+            logfile.write(line)
+            linecount += 1
     os.remove(outfile + '.tmp')
     logger.debug("Redacted %s passwords/apikeys" % redacts)
-    logger.debug("%s log lines written to %s" % (lines, outfile + '.log'))
+    logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
     with zipfile.ZipFile(outfile + '.zip', 'w') as myzip:
         myzip.write(outfile + '.log', 'debug.log')
     os.remove(outfile + '.log')
