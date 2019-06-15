@@ -872,7 +872,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                     book_fuzz = fuzz.ratio(booktitle, book)
                                                     author_fuzz = fuzz.ratio(bookauthor, author)
                                                     if book_fuzz >= lazylibrarian.CONFIG['NAME_RATIO'] and \
-                                                         author_fuzz  >= lazylibrarian.CONFIG['NAME_RATIO']:
+                                                            author_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
                                                         rescan_hits += 1
                                                         try:
                                                             bookid = item.find('./best_book/id').text
@@ -902,7 +902,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                                         (language, bookid))
                                                             break
                                                 if not bookid:
-                                                    logger.warn("GoodReads doesn't know about %s" % book)
+                                                    logger.warn("Rescan no match for [%s] %s" % (author, book))
                                         except Exception:
                                             logger.error('Error finding rescan results: %s' % traceback.format_exc())
                                     elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
