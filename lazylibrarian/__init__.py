@@ -1765,7 +1765,7 @@ def launch_browser(host, port, root):
         protocol = 'http'
 
     try:
-        webbrowser.open('%s://%s:%i%s' % (protocol, host, port, root))
+        webbrowser.open('%s://%s:%i%s/home' % (protocol, host, port, root))
     except Exception as e:
         logger.error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
 
