@@ -1026,6 +1026,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                     logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     delete_task(book['Source'], book['DownloadID'], True)
+                    if book['BookID'] != 'unknown':
+                        cmd = 'UPDATE wanted SET status="Processed",NZBDate=? WHERE status="Seeding" and BookID=?'
+                        myDB.action(cmd, (now(), book['BookID']))
+                        abort = False
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
                     to_delete = True
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
