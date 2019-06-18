@@ -93,12 +93,13 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
             # author_gr, so store in LL db under that
             # fuzz.ratio doesn't lowercase for us
             match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
-            if match_fuzz < 90:
+            match_limit = 80
+            if match_fuzz < match_limit:
                 logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if (author != "Unknown") and (match_fuzz >= 90):
+            if (author != "Unknown") and (match_fuzz >= match_limit):
                 # use "intact" name for author that we stored in
                 # GR author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!

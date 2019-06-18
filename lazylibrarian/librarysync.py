@@ -832,7 +832,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 if not bookid:
                                     if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                                         # Either goodreads doesn't have the book or it didn't match language prefs
-                                        # or it's under a different author (pseudonym)
+                                        # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
                                         rescan_count += 1
                                         base_url = 'https://www.goodreads.com/search.xml?q='
@@ -878,31 +878,77 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                             bookid = item.find('./best_book/id').text
                                                         except (KeyError, AttributeError):
                                                             bookid = ""
-                                                        logger.debug("Rescan found %s [%s] : %s: %s" %
+                                                        logger.debug("Rescan found [%s] %s : %s: %s" %
                                                                      (bookauthor, booktitle, language, bookid))
 
                                                         if bookid:
                                                             cmd = 'SELECT * from books WHERE BookID=?'
                                                             check_status = myDB.match(cmd, (bookid,))
                                                             if check_status:
-                                                                logger.debug("%s matched on rescan for %s" %
-                                                                             (bookid, booktitle))
+                                                                logger.debug("%s matched on rescan for %s %s" %
+                                                                             (bookid, author, book))
                                                             else:
-                                                                logger.debug("Adding %s on rescan for %s" %
-                                                                             (bookid, booktitle))
+                                                                logger.debug("Adding %s on rescan for %s %s" %
+                                                                             (bookid, author, book))
                                                                 GR_ID = GoodReads(bookid)
                                                                 GR_ID.find_book(bookid)
                                                                 if language and language != "Unknown":
                                                                     # set language from book metadata
                                                                     logger.debug(
                                                                         "Setting language from metadata %s : %s" % (
-                                                                            booktitle, language))
+                                                                            book, language))
                                                                     myDB.action(
                                                                         'UPDATE books SET BookLang=? WHERE BookID=?',
                                                                         (language, bookid))
                                                             break
                                                 if not bookid:
                                                     logger.warn("Rescan no match for [%s] %s" % (author, book))
+
+                                                    # see if title was found under a different author
+                                                    resultxml = rootxml.getiterator('work')
+                                                    for item in resultxml:
+                                                        try:
+                                                            booktitle = item.find('./best_book/title').text
+                                                            booktitle, _ = split_title(author, booktitle)
+                                                            booktitle = replace_all(booktitle, dic)
+                                                        except (KeyError, AttributeError):
+                                                            booktitle = ""
+                                                        try:
+                                                            bookauthor = item.find('./best_book/author/name').text
+                                                        except (KeyError, AttributeError):
+                                                            bookauthor = ""
+
+                                                        book_fuzz = fuzz.ratio(booktitle, book)
+                                                        if book_fuzz >= 98:
+                                                            rescan_hits += 1
+                                                            try:
+                                                                bookid = item.find('./best_book/id').text
+                                                            except (KeyError, AttributeError):
+                                                                bookid = ""
+                                                            logger.debug("Rescan found [%s] %s : %s: %s" %
+                                                                         (bookauthor, booktitle, language, bookid))
+
+                                                            if bookid:
+                                                                cmd = 'SELECT * from books WHERE BookID=?'
+                                                                check_status = myDB.match(cmd, (bookid,))
+                                                                if check_status:
+                                                                    logger.debug("%s [%s] matched on rescan for %s" %
+                                                                                 (bookid, bookauthor, booktitle))
+                                                                else:
+                                                                    logger.debug("Adding %s [%s] on rescan for %s" %
+                                                                                 (bookid, bookauthor, booktitle))
+                                                                    GR_ID = GoodReads(bookid)
+                                                                    GR_ID.find_book(bookid)
+                                                                    if language and language != "Unknown":
+                                                                        # set language from book metadata
+                                                                        msg = "Setting language from metadata %s : %s"
+                                                                        logger.debug(msg % (booktitle, language))
+                                                                        cmd = 'UPDATE books SET BookLang=?'
+                                                                        cmd += ' WHERE BookID=?'
+                                                                        myDB.action(cmd, (language, bookid))
+                                                                break
+                                                if not bookid:
+                                                    logger.warn("Rescan no match for %s" % book)
                                         except Exception:
                                             logger.error('Error finding rescan results: %s' % traceback.format_exc())
                                     elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
