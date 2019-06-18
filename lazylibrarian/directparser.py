@@ -189,11 +189,12 @@ def GEN(book=None, prov=None, test=False):
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text
-                            newsoup = BeautifulSoup(str(td[9]), 'html5lib')
-                            for res in newsoup.find_all('a'):
-                                d = res.get('href')
-                                if 'md5' in d:
-                                    links.append(d)
+                            td = td[9:-1]
+                            for lnk in td:
+                                newsoup = BeautifulSoup(str(lnk), 'html5lib')
+                                data = newsoup.find_all('a')
+                                for d in data:
+                                    links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen search.php results; %s' % str(e))
 
@@ -239,6 +240,9 @@ def GEN(book=None, prov=None, test=False):
                                             break
                                         elif '/download/book' in output:
                                             url = '/download/book' + output.split('/download/book')[1]
+                                            break
+                                        elif '/book/' in output:
+                                            url = '/book/' + output.split('/book/')[1]
                                             break
                                         elif output.startswith('http') and '/download' in output:
                                             url = output
