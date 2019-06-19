@@ -852,7 +852,8 @@ class GoodReads:
                                     if pubdate and pubdate != originalpubdate:
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                new_status, new_astatus = setStatus(bookid, serieslist, book_status, audio_status)
+                                new_status, new_astatus = setStatus(bookid, serieslist, book_status, audio_status,
+                                                                    entrystatus)
                                 if new_status != book_status:
                                     updateValueDict["Status"] = new_status
                                 if new_astatus != audio_status:

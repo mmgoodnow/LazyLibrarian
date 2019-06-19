@@ -529,7 +529,8 @@ class GoogleBooks:
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                                     setSeries(serieslist, bookid)
 
-                                new_status, new_astatus = setStatus(bookid, serieslist, bookstatus, audiostatus)
+                                new_status, new_astatus = setStatus(bookid, serieslist, bookstatus, audiostatus,
+                                                                    entrystatus)
 
                                 if not new_status == book_status:
                                     book_status = new_status
