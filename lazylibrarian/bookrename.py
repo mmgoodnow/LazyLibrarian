@@ -46,19 +46,19 @@ def id3read(filename):
         comment = id3r.comment
 
         if artist:
-            artist = artist.strip()
+            artist = artist.strip().rstrip('\x00')
         else:
             artist = ''
         if composer:
-            composer = composer.strip()
+            composer = composer.strip().rstrip('\x00')
         else:
             composer = ''
         if book:
-            book = book.strip()
+            book = book.strip().rstrip('\x00')
         else:
             book = ''
         if albumartist:
-            albumartist = albumartist.strip()
+            albumartist = albumartist.strip().rstrip('\x00')
         else:
             albumartist = ''
 
@@ -158,13 +158,13 @@ def audioProcess(bookid, rename=False, playlist=False):
                     total = check_int(total, 0)
 
                     if artist:
-                        artist = artist.strip()
+                        artist = artist.strip().rstrip('\x00')
                     if composer:
-                        composer = composer.strip()
+                        composer = composer.strip().rstrip('\x00')
                     if book:
-                        book = book.strip()
+                        book = book.strip().rstrip('\x00')
                     if albumartist:
-                        albumartist = albumartist.strip()
+                        albumartist = albumartist.strip().rstrip('\x00')
 
                 if composer:  # if present, should be author
                     author = composer
