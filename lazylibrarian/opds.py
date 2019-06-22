@@ -1345,6 +1345,8 @@ class OPDS(object):
             cmd += "and CAST(BookRate AS INTEGER) > 0 order by BookRate DESC, BookDate DESC"
 
         results = myDB.select(cmd)
+        if results and lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("Initial select found %s" % len(results))
 
         readfilter = None
         if sorder == 'Read' and 'user' in kwargs:
@@ -1361,11 +1363,15 @@ class OPDS(object):
                 readfilter = []
 
         if readfilter is not None:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Filter length %s" % len(readfilter))
             filtered = []
             for res in results:
                 if res['BookID'] in readfilter:
                     filtered.append(res)
             results = filtered
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Filter matches %s" % len(results))
 
         if limit:
             page = results[index:(index + limit)]
