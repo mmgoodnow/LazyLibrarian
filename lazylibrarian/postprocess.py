@@ -811,8 +811,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                             global_name, book['BookID'], book_type)
                     if success:
                         logger.debug("Processed %s: %s, %s" % (book['NZBmode'], global_name, book['NZBurl']))
-                        if not PY2:
-                            dest_file = makeUnicode(dest_file)
+                        dest_file = makeUnicode(dest_file)
                         # only update the snatched ones in case some already marked failed/processed in history
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
@@ -1725,8 +1724,7 @@ def process_book(pp_path=None, bookID=None):
                                                     global_name, bookID, book_type)
             if success:
                 # update nzbs
-                if not PY2:
-                    dest_file = makeUnicode(dest_file)
+                dest_file = makeUnicode(dest_file)
                 if was_snatched:
                     snatched_from = was_snatched[0]['NZBprov']
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
