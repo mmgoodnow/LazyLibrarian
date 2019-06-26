@@ -77,6 +77,8 @@ def GEN(book=None, prov=None, test=False):
     page = 1
     results = []
     next_page = True
+    if test:
+        book['bookid'] = '0'
 
     while next_page:
         if 'index.php' in search:
@@ -123,9 +125,6 @@ def GEN(book=None, prov=None, test=False):
                 errmsg = result
             result = False
 
-        if test:
-            return success
-
         if result:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
             try:
@@ -152,22 +151,7 @@ def GEN(book=None, prov=None, test=False):
                     td = row.find_all('td')
                     links = []
 
-                    if 'index.php' in search and len(td) > 3:
-                        # Foreign fiction
-                        try:
-                            author = formatAuthorName(td[0].text)
-                            title = td[2].text
-                            extn = td[4].text.split('(')[0].strip()
-                            size = td[4].text.split('(')[1].split(')')[0]
-                            size = size.upper()
-                            newsoup = BeautifulSoup(str(td[4]), 'html5lib')
-                            data = newsoup.find_all('a')
-                            for d in data:
-                                links.append(d.get('href'))
-                        except IndexError as e:
-                            logger.debug('Error parsing libgen index.php results: %s' % str(e))
-
-                    elif 'fiction' in search and len(td) > 3:
+                    if 'fiction' in search and len(td) > 3:
                         # Foreign fiction
                         try:
                             author = formatAuthorName(td[0].text)
@@ -181,6 +165,22 @@ def GEN(book=None, prov=None, test=False):
                                 links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen fiction results: %s' % str(e))
+                            pass
+
+                    elif 'index.php' in search and len(td) > 3:
+                        try:
+                            author = formatAuthorName(td[0].text)
+                            title = td[2].text
+                            extn = td[4].text.split('(')[0].strip()
+                            size = td[4].text.split('(')[1].split(')')[0]
+                            size = size.upper()
+                            newsoup = BeautifulSoup(str(td[4]), 'html5lib')
+                            data = newsoup.find_all('a')
+                            for d in data:
+                                links.append(d.get('href'))
+                        except IndexError as e:
+                            logger.debug('Error parsing libgen index.php results: %s' % str(e))
+                            pass
 
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
@@ -197,6 +197,7 @@ def GEN(book=None, prov=None, test=False):
                                     links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen search.php results; %s' % str(e))
+                            pass
 
                     size = size_in_bytes(size)
                     if links and title:
@@ -272,6 +273,9 @@ def GEN(book=None, prov=None, test=False):
             except Exception as e:
                 logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+        if test:
+            return success
 
         page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
