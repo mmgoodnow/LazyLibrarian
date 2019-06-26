@@ -20,7 +20,8 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
-from lazylibrarian.formatter import check_int, check_year, replace_all, makeUnicode, unaccented
+from lazylibrarian.formatter import check_int, check_year, makeUnicode, unaccented
+# noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
 
 

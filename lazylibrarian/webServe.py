@@ -2235,7 +2235,7 @@ class WebInterface(object):
             target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
             return self.send_file(target, name='lazylibrarian.png')
 
-        if ftype == 'comic':
+        elif ftype == 'comic':
             try:
                 comicid, issueid = itemid.split('_')
                 cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
@@ -2251,7 +2251,7 @@ class WebInterface(object):
                     logger.debug('Opening %s %s' % (ftype, target))
                     return self.send_file(target)
 
-        if ftype == 'audio':
+        elif ftype == 'audio':
             res = myDB.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
                 cnt = 0
@@ -2267,14 +2267,16 @@ class WebInterface(object):
 
                 if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
                     target = zipAudio(os.path.dirname(basefile), res['BookName'])
+                    logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(target, name=res['BookName'] + '.zip')
                 else:
                     target = basefile
                     _, extn = os.path.splitext(basefile)
+                    logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(target, name=res['BookName'] + extn)
 
-        if ftype == 'book':
-            res = myDB.match('SELECT BookFile from books WHERE BookID=?', (itemid,))
+        elif ftype == 'book':
+            res = myDB.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
                 basefile = res['BookFile']
                 basename, extn = os.path.splitext(basefile)
@@ -2286,10 +2288,11 @@ class WebInterface(object):
 
                 # serve user preferred type if available, or system preferred type
                 if preftype and preftype in types:
-                    basefile = basename + '.' + preftype
+                    extn = preftype
                 else:
-                    basefile = basename + '.' + types[0]
-                if basefile and os.path.isfile(basefile):
+                    extn = types[0]
+                basefile = basename + '.' + extn
+                if os.path.isfile(basefile):
                     logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(basefile)
 

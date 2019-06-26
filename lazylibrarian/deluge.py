@@ -101,7 +101,7 @@ def addTorrent(link, data=None):
                              (name, torrentfile[:40]))
             except UnicodeDecodeError:
                 logger.debug('Deluge: Sending Deluge torrent with name %s and content [%s...]' %
-                             (name.decode('utf-8'), torrentfile)[:40].decode('utf-8'))
+                             (name.decode('utf-8'), torrentfile[:40].decode('utf-8')))
             result = {'type': 'torrent',
                       'name': name,
                       'content': makeBytestr(torrentfile)}
@@ -210,7 +210,7 @@ def getTorrentStatus(torrentid, data):
 
     except Exception as err:
         logger.debug('Deluge %s: Could not get torrent info %s: %s' % (str(data), type(err).__name__, str(err)))
-        return False
+        return ''
 
 
 def removeTorrent(torrentid, remove_data=False):

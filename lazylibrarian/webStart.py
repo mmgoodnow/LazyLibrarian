@@ -165,6 +165,7 @@ def initialize(options=None):
             user_list[options['opds_username']] = options['opds_password']
         if options['http_pass'] is not None and options['http_user'] != options['opds_username']:
             user_list[options['http_user']] = options['http_pass']
+        # noinspection PyUnresolvedReferences
         conf['/opds'] = {'tools.auth_basic.on': True,
                          'tools.auth_basic.realm': 'LazyLibrarian OPDS',
                          'tools.auth_basic.checkpassword': cherrypy.lib.auth_basic.checkpassword_dict(user_list)}

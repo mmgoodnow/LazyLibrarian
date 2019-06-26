@@ -13,15 +13,15 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import time
 import datetime
+import json
 import os
 import platform
 import shutil
 import tarfile
 import threading
+import time
 import traceback
-import json
 
 import lazylibrarian
 from lib.six import PY2
@@ -40,7 +40,7 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, runScript, multibook, walk
+    safe_copy, safe_move, make_dirs, runScript, multibook
 from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes, \
     makeBytestr
@@ -985,7 +985,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                             (pp_path + b'.fail', type(why).__name__, str(why)))
                         try:
                             _ = safe_move(pp_path, pp_path + b'.fail')
-                            logger.warn('Residual files remain in %s' % pp_path + b'.fail')
+                            logger.warn('Residual files remain in %s.fail' % pp_path)
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
                                          (repr(pp_path), type(why).__name__, str(why)))

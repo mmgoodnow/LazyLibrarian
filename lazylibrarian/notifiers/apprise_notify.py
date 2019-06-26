@@ -1,9 +1,9 @@
-import os
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
 from lazylibrarian.formatter import plural
 try:
+    # noinspection PyUnresolvedReferences
     import apprise
     from apprise import NotifyType, AppriseAsset, Apprise
     lazylibrarian.APPRISE = getattr(apprise, '__version__', 'Unknown Version')

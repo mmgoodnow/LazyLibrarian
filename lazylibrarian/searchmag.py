@@ -16,17 +16,17 @@ import re
 import threading
 import time
 import traceback
-from lib.six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
-from lazylibrarian.formatter import plural, now, unaccented_str, replace_all, unaccented, \
+from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, getList, month2num, datecompare, check_int, check_year, age
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
     IterateOverDirectSites
+from lib.six import PY2
 
 
 def cron_search_magazines():
