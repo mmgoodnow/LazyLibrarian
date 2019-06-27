@@ -312,6 +312,7 @@ def unpack_archive(archivename, download_dir, title):
     targetdir = ''
     # noinspection PyBroadException
     try:
+        # noinspection PyUnresolvedReferences
         from unrar import rarfile
         unrarlib = 1
     except Exception:
@@ -816,10 +817,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
-
-                        if bookname:  # it's ebook or audiobook
+                        issueid = 0
+                        if bookname and dest_file:  # it's ebook or audiobook, and we know the location
                             processExtras(dest_file, global_name, book['BookID'], book_type)
-                            issueid = 0
                         elif book_type == 'comic':
                             try:
                                 comicid, issueid = book['BookID'].split('_')
@@ -848,7 +848,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                 "IssueFile": dest_file
                                                 }
                                 myDB.upsert("comicissues", newValueDict, controlValueDict)
-                        else:  # magazine
+                        elif not bookname:  # magazine
                             if mostrecentissue:
                                 if mostrecentissue.isdigit() and str(book['AuxInfo']).isdigit():
                                     older = (int(mostrecentissue) > int(book['AuxInfo']))  # issuenumber
@@ -1740,7 +1740,8 @@ def process_book(pp_path=None, bookID=None):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                         logger.debug("%s %s was %s" % (book_type, global_name, snatched_from))
 
-                processExtras(dest_file, global_name, bookID, book_type)
+                if dest_file:  # do we know the location (not calibre already exists)
+                    processExtras(dest_file, global_name, bookID, book_type)
 
                 if not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
                     if os.path.isdir(pp_path):
@@ -1943,7 +1944,13 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB'])
             elif 'already exist' in err or 'already exist' in res:  # needed for different calibredb versions
-                return False, 'Calibre failed to import %s %s, already exists' % (authorname, bookname)
+                logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
+                            (authorname, bookname))
+                myDB = database.DBConnection()
+                controlValueDict = {"BookID": bookid}
+                newValueDict = {"Status": "Have"}
+                myDB.upsert("books", newValueDict, controlValueDict)
+                return True, ''
             elif 'Added book ids' not in res:
                 return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname)
 
