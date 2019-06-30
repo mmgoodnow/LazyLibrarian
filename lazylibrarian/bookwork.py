@@ -85,7 +85,9 @@ def setBookAuthors(book):
                 authorid = exists['authorid']
             else:
                 # try to add new author to database by name
-                authorname, authorid, new = lazylibrarian.importer.addAuthorNameToDB(authorname, False, False)
+                authorname, authorid, new = lazylibrarian.importer.addAuthorNameToDB(authorname,
+                                                                                     refresh=False,
+                                                                                     addbooks=False)
                 if new and authorid:
                     newauthors += 1
             if authorid:
@@ -223,32 +225,33 @@ def setStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
     # Is the book part of any series we want or don't want?
     for item in serieslist:
         match = myDB.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
-        if match and match['Status'] in ['Wanted', 'Skipped']:
-            logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
-            if lazylibrarian.SHOW_EBOOK:
+        if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
+            if lazylibrarian.SHOW_EBOOK and current_status not in ['Have', 'Open']:
                 new_status = match['Status']
-            if lazylibrarian.SHOW_AUDIO:
+            if lazylibrarian.SHOW_AUDIO and current_astatus not in ['Have', 'Open']:
                 new_astatus = match['Status']
-            msg = "Series %s [%s]" % (match['Status'], item[2])
-            myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
-            break
+            if new_status or new_astatus:
+                logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
+                msg = "Series %s [%s]" % (match['Status'], item[2])
+                myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+                break
 
-    if not new_status:
+    if not new_status and not new_astatus:
         # Author we want or don't want?
         if authstatus in ['Paused', 'Ignored', 'Wanted']:
             wanted_status = 'Skipped'
             if authstatus == 'Wanted':
                 wanted_status = authstatus
-            logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
-            if lazylibrarian.SHOW_EBOOK:
+            if lazylibrarian.SHOW_EBOOK and current_status not in ['Have', 'Open']:
                 new_status = wanted_status
-            if lazylibrarian.SHOW_AUDIO:
+            if lazylibrarian.SHOW_AUDIO and current_astatus not in ['Have', 'Open']:
                 new_astatus = wanted_status
-            match = myDB.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
-            msg = "Author %s [%s]" % (authstatus, match['AuthorName'])
-            myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
+            if new_status or new_astatus:
+                logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
+                match = myDB.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
+                msg = "Author %s [%s]" % (authstatus, match['AuthorName'])
+                myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
 
-    # If none of these, leave default "newbook" or "newauthor" status
     if new_status:
         myDB.action('UPDATE books SET Status=? WHERE BookID=?', (new_status, bookid))
         default = new_status
@@ -550,7 +553,7 @@ def getWorkPage(bookID=None):
 
 def getAllSeriesAuthors():
     """ For each entry in the series table, get a list of authors contributing to the series
-        and import those authors (and their books) into the database """
+        and import those authors (but NOT their books) into the database """
     myDB = database.DBConnection()
     series = myDB.select('select SeriesID from series')
     if series:
@@ -670,7 +673,7 @@ def addSeriesMembers(seriesid):
 
 def getSeriesAuthors(seriesid):
     """ Get a list of authors contributing to a series
-        and import those authors (and their books) into the database
+        and import those authors (but NOT their books) into the database
         Return how many authors you added """
     myDB = database.DBConnection()
     result = myDB.match("select count(*) as counter from authors")
@@ -774,7 +777,7 @@ def getSeriesAuthors(seriesid):
                     logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
 
             if authorid:
-                lazylibrarian.importer.addAuthorToDB(refresh=False, authorid=authorid)
+                lazylibrarian.importer.addAuthorToDB(refresh=False, authorid=authorid, addbooks=False)
 
     result = myDB.match("select count(*) as counter from authors")
     finish = int(result['counter'])
@@ -849,11 +852,10 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                 if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                     logger.debug('Error in series table for series %s' % seriesID)
     valid = False
-    if api_hits:
-        for item in results:
-            if check_int(item[0], 0) == 1:
-                valid = True
-                break
+    for item in results:
+        if check_int(item[0], 0) == 1:
+            valid = True
+            break
     if len(results) and not valid:
         logger.warn("Series %s (%s) has %s members but no book 1" % (seriesID, seriesname, len(results)))
     return results, api_hits

@@ -1852,12 +1852,12 @@ class WebInterface(object):
                 elif kwargs['whichStatus'] == 'Read':
                     cmd += ' and books.bookID in (' + ', '.join(HaveRead) + ')'
                 else:
-                    cmd += ' and ' + status_type + '="' + kwargs['whichStatus'] + '"'
+                    cmd += " and " + status_type + "='" + kwargs['whichStatus'] + "'"
 
             elif kwargs['source'] == "Books":
-                cmd += ' and books.STATUS !="Skipped" AND books.STATUS !="Ignored"'
+                cmd += " and books.STATUS !='Skipped' AND books.STATUS !='Ignored'"
             elif kwargs['source'] == "Audio":
-                cmd += ' and AUDIOSTATUS !="Skipped" AND AUDIOSTATUS !="Ignored"'
+                cmd += " and AUDIOSTATUS !='Skipped' AND AUDIOSTATUS !='Ignored'"
             elif kwargs['source'] == "Author":
                 cmd += ' and books.AuthorID=?'
                 args.append(kwargs['AuthorID'])
@@ -2045,6 +2045,7 @@ class WebInterface(object):
 
         # noinspection PyShadowingNames
         def get_alphanum_key_func(key):
+            # noinspection PyPep8
             convert = lambda text: int(text) if text and text.isdigit() else text
             return lambda s: [convert(c) for c in re.split('([0-9]+)', key(s))]
 

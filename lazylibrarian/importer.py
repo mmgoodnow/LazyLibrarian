@@ -119,6 +119,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
                             new = True
                     except Exception as e:
                         logger.error('Failed to add author [%s] to db: %s %s' % (author, type(e).__name__, str(e)))
+
     # check author exists in db, either newly loaded or already there
     if not check_exist_author:
         logger.debug("Failed to match author [%s] in database" % author)
@@ -141,7 +142,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
         match = False
         authorimg = ''
         new_author = not refresh
-        entry_status = ''
+        entry_status = 'Active'
 
         if authorid:
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
@@ -190,7 +191,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                 if not dbauthor:  # goodreads may have changed authorid?
                     myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
 
-        if not match and authorname and authorname.lower() != 'unknown':
+        if not match and authorname and 'unknown' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             GR = GoodReads(authorname)
             author = GR.find_author_id(refresh=refresh)
@@ -208,7 +209,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                     "Status": "Loading"
                 }
                 logger.debug("Now adding new author: %s to database" % authorname)
-                entry_status = lazylibrarian.CONFIG['NEWAUTHOR_STATUS']
+                entry_status = 'Active'
                 new_author = True
             else:
                 newValueDict = {"Status": "Loading"}

@@ -538,17 +538,17 @@ def grsync(status, shelf, library='eBook', reset=False):
         if library == 'eBook':
             cmd = 'select bookid from books where status=?'
             if status == 'Open':
-                cmd += ' or status="Have"'
+                cmd += " or status='Have'"
             results = myDB.select(cmd, (status,))
         elif library == 'AudioBook':
             cmd = 'select bookid from books where audiostatus=?'
             if status == 'Open':
-                cmd += ' or audiostatus="Have"'
+                cmd += " or audiostatus='Have'"
             results = myDB.select(cmd, (status,))
         else:  # 'Audio/eBook'
             cmd = 'select bookid from books where audiostatus=? or status=?'
             if status == 'Open':
-                cmd += ' or audiostatus="Have" or status="Have"'
+                cmd += " or audiostatus='Have' or status='Have'"
             results = myDB.select(cmd, (status, status))
         ll_list = []
         for terms in results:
@@ -703,7 +703,7 @@ def grsync(status, shelf, library='eBook', reset=False):
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
-                            myDB.action('UPDATE books SET Status="Have" WHERE BookID=?', (book,))
+                            myDB.action("UPDATE books SET Status='Have' WHERE BookID=?", (book,))
                             ll_changed += 1
                             logger.debug("%10s set to Have" % book)
                     elif status == 'Wanted':
@@ -734,7 +734,7 @@ def grsync(status, shelf, library='eBook', reset=False):
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
-                            myDB.action('UPDATE books SET AudioStatus="Have" WHERE BookID=?', (book,))
+                            myDB.action("UPDATE books SET AudioStatus='Have' WHERE BookID=?", (book,))
                             ll_changed += 1
                             logger.debug("%10s set to Have" % book)
                     elif status == 'Wanted':
@@ -764,18 +764,18 @@ def grsync(status, shelf, library='eBook', reset=False):
         if 'eBook' in library:
             cmd = 'select bookid from books where status=?'
             if status == 'Open':
-                cmd += ' or status="Have"'
+                cmd += " or status='Have'"
             if 'Audio' in library:
                 cmd += ' or audiostatus=?'
                 if status == 'Open':
-                    cmd += ' or audiostatus="Have"'
+                    cmd += " or audiostatus='Have'"
                 results = myDB.select(cmd, (status, status))
             else:
                 results = myDB.select(cmd, (status,))
         else:
             cmd = 'select bookid from books where audiostatus=?'
             if status == 'Open':
-                cmd += ' or audiostatus="Have"'
+                cmd += " or audiostatus='Have'"
             results = myDB.select(cmd, (status,))
         ll_list = []
         for terms in results:

@@ -174,7 +174,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, _ = addAuthorNameToDB(author, False, False)
+        newauthor, authorid, _ = addAuthorNameToDB(author, False, addbooks=True)
         if len(newauthor) and newauthor != author:
             logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
             author = makeUnicode(newauthor)
@@ -749,7 +749,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 else:
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
-                            newauthor, authorid, _ = addAuthorNameToDB(author)  # get the author name as we know it...
+                            newauthor, authorid, _ = addAuthorNameToDB(author, addbooks=True)
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
