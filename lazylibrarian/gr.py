@@ -24,7 +24,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, isbn_from_words, thingLang, getBookPubdate, get_gb_info, \
+    setSeries, getStatus, isbn_from_words, thingLang, getBookPubdate, get_gb_info, \
     get_gr_genres, setGenres, genreFilter
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gr_xml_request, cache_img
@@ -852,11 +852,10 @@ class GoodReads:
                                     if pubdate and pubdate != originalpubdate:
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                new_status, new_astatus = setStatus(bookid, serieslist, book_status, audio_status,
-                                                                    entrystatus)
-                                if new_status != book_status:
+                                if not existing:
+                                    new_status, new_astatus = getStatus(bookid, serieslist, book_status, audio_status,
+                                                                        entrystatus)
                                     updateValueDict["Status"] = new_status
-                                if new_astatus != audio_status:
                                     updateValueDict["AudioStatus"] = new_astatus
 
                                 if 'nocover' in bookimg or 'nophoto' in bookimg:
@@ -1154,6 +1153,7 @@ class GoodReads:
                         "AuthorBorn": author['authorborn'],
                         "AuthorDeath": author['authordeath'],
                         "DateAdded": today(),
+                        "Updated": int(time.time()),
                         "Status": newauthor_status
                     }
                     authorname = author['authorname']

@@ -16,6 +16,7 @@
 
 import re
 import traceback
+import time
 
 try:
     import urllib3
@@ -26,7 +27,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
-    setSeries, setStatus, thingLang, googleBookDict
+    setSeries, getStatus, thingLang, googleBookDict
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_str, is_valid_isbn, \
@@ -529,19 +530,20 @@ class GoogleBooks:
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                                     setSeries(serieslist, bookid)
 
-                                new_status, new_astatus = setStatus(bookid, serieslist, bookstatus, audiostatus,
-                                                                    entrystatus)
-
-                                if not new_status == book_status:
-                                    book_status = new_status
-                                if not new_astatus == audio_status:
-                                    audio_status = new_astatus
+                                updateValueDict = {}
+                                controlValueDict = {"BookID": bookid}
+                                if not existing:
+                                    book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
+                                                                          entrystatus)
+                                    updateValueDict["Status"] = book_status
+                                    updateValueDict["AudioStatus"] = audio_status
 
                                 worklink = getWorkPage(bookid)
                                 if worklink:
-                                    controlValueDict = {"BookID": bookid}
-                                    newValueDict = {"WorkPage": worklink}
-                                    myDB.upsert("books", newValueDict, controlValueDict)
+                                    updateValueDict["WorkPage"] = worklink
+
+                                if updateValueDict:
+                                    myDB.upsert("books", updateValueDict, controlValueDict)
 
                                 if not existing_book:
                                     typ = 'Added'
@@ -676,6 +678,7 @@ class GoogleBooks:
                         "AuthorBorn": author['authorborn'],
                         "AuthorDeath": author['authordeath'],
                         "DateAdded": today(),
+                        "Updated": int(time.time()),
                         "Status": newauthor_status
                     }
                     authorname = author['authorname']

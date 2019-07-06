@@ -198,25 +198,13 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
         return api_hits, originalpubdate
 
 
-def setStatus(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
-    """ Set the status of a book according to series/author/newbook/newauthor preferences
-        return defaults if unchanged, defaults are passed in as newbook or newauthor status """
+def getStatus(bookid=None, serieslist=None, default=None, adefault=None, authstatus=None):
+    """ Get the status of a book according to series/author/newbook/newauthor preferences
+        defaults are passed in as newbook or newauthor status """
     myDB = database.DBConnection()
-    if not bookid:
-        return default, adefault
-
     match = myDB.match('SELECT Status,AudioStatus,AuthorID,BookName from books WHERE BookID=?', (bookid,))
     if not match:
         return default, adefault
-
-    # Don't update status if we already have the book but allow status change if ignored
-    # might be we had ignore author set, but want to allow this series
-    current_status = match['Status']
-    current_astatus = match['AudioStatus']
-    if current_status in ['Have', 'Open']:
-        default = current_status
-    if current_astatus in ['Have', 'Open']:
-        adefault = current_astatus
 
     new_status = ''
     new_astatus = ''
@@ -226,9 +214,9 @@ def setStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
     for item in serieslist:
         match = myDB.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
         if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
-            if lazylibrarian.SHOW_EBOOK and current_status not in ['Have', 'Open']:
+            if lazylibrarian.SHOW_EBOOK:
                 new_status = match['Status']
-            if lazylibrarian.SHOW_AUDIO and current_astatus not in ['Have', 'Open']:
+            if lazylibrarian.SHOW_AUDIO:
                 new_astatus = match['Status']
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
@@ -242,9 +230,9 @@ def setStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
             wanted_status = 'Skipped'
             if authstatus == 'Wanted':
                 wanted_status = authstatus
-            if lazylibrarian.SHOW_EBOOK and current_status not in ['Have', 'Open']:
+            if lazylibrarian.SHOW_EBOOK:
                 new_status = wanted_status
-            if lazylibrarian.SHOW_AUDIO and current_astatus not in ['Have', 'Open']:
+            if lazylibrarian.SHOW_AUDIO:
                 new_astatus = wanted_status
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
@@ -253,10 +241,8 @@ def setStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
                 myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
 
     if new_status:
-        myDB.action('UPDATE books SET Status=? WHERE BookID=?', (new_status, bookid))
         default = new_status
     if new_astatus:
-        myDB.action('UPDATE books SET AudioStatus=? WHERE BookID=?', (new_astatus, bookid))
         adefault = new_astatus
 
     return default, adefault
