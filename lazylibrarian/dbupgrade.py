@@ -100,8 +100,9 @@ def upgrade_needed():
     # 51 add aka to comics table
     # 52 add updated to series table
     # 53 add jobs table
+    # 54 separated author added date from updated timestamp
 
-    db_current_version = 53
+    db_current_version = 54
 
     if db_version < db_current_version:
         return db_current_version
@@ -163,7 +164,8 @@ def dbupgrade(db_current_version):
                                 'AuthorImg TEXT, AuthorLink TEXT, DateAdded TEXT, Status TEXT, LastBook TEXT, ' +
                                 'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
                                 'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
-                                'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, LastBookID TEXT)')
+                                'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, ' +
+                                'LastBookID TEXT, Updated INTEGER DEFAULT 0)')
                     myDB.action('CREATE TABLE wanted (BookID TEXT, NZBurl TEXT, NZBtitle TEXT, NZBdate TEXT, ' +
                                 'NZBprov TEXT, Status TEXT, NZBsize TEXT, AuxInfo TEXT, NZBmode TEXT, ' +
                                 'Source TEXT, DownloadID TEXT, DLResult TEXT)')
@@ -264,6 +266,7 @@ def dbupgrade(db_current_version):
                     index += 1
 
                 # a few quick sanity checks...
+                lazylibrarian.UPDATE_MSG = 'Checking Database'
                 check_db(myDB)
 
                 myDB.action('PRAGMA user_version=%s' % db_current_version)
@@ -287,6 +290,7 @@ def dbupgrade(db_current_version):
 
 def check_db(myDB):
     cnt = 0
+    lazylibrarian.UPDATE_MSG = 'Checking unique authors'
     unique = False
     indexes = myDB.select("PRAGMA index_list('authors')")
     for item in indexes:
@@ -308,6 +312,7 @@ def check_db(myDB):
         cnt = 1
     try:
         # replace faulty/html language results with Unknown
+        lazylibrarian.UPDATE_MSG = 'Checking languages'
         filt = 'BookLang is NULL or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
         cmd = 'SELECT count(*) as counter from books WHERE ' + filt
         res = myDB.match(cmd)
@@ -332,6 +337,7 @@ def check_db(myDB):
             myDB.action(cmd)
 
         # suppress duplicate entries in language table
+        lazylibrarian.UPDATE_MSG = 'Checking unique languages'
         filt = 'rowid not in (select max(rowid) from languages group by isbn)'
         cmd = 'SELECT count(*) as counter from languages WHERE ' + filt
         res = myDB.match(cmd)
@@ -344,6 +350,7 @@ def check_db(myDB):
             myDB.action(cmd)
 
         #  remove books with no bookid
+        lazylibrarian.UPDATE_MSG = 'Removing books with no bookid'
         books = myDB.select('SELECT * FROM books WHERE BookID is NULL or BookID=""')
         if books:
             cnt += len(books)
@@ -352,6 +359,7 @@ def check_db(myDB):
             myDB.action('DELETE from books WHERE BookID is NULL or BookID=""')
 
         #  remove books with no authorid
+        lazylibrarian.UPDATE_MSG = 'Removing books with no authorid'
         books = myDB.select('SELECT BookID FROM books WHERE AuthorID is NULL or AuthorID=""')
         if books:
             cnt += len(books)
@@ -361,6 +369,7 @@ def check_db(myDB):
                 myDB.action('DELETE from books WHERE BookID=?', (book["BookID"],))
 
         # remove authors with no authorid
+        lazylibrarian.UPDATE_MSG = 'Removing authors with no authorid'
         authors = myDB.select('SELECT * FROM authors WHERE AuthorID IS NULL or AuthorID=""')
         if authors:
             cnt += len(authors)
@@ -369,6 +378,7 @@ def check_db(myDB):
             myDB.action('DELETE from authors WHERE AuthorID is NULL or AuthorID=""')
 
         # remove authors with no name
+        lazylibrarian.UPDATE_MSG = 'Removing authors with no name'
         authors = myDB.select('SELECT AuthorID FROM authors WHERE AuthorName IS NULL or AuthorName = ""')
         if authors:
             cnt += len(authors)
@@ -378,6 +388,7 @@ def check_db(myDB):
                 myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove authors with no books
+        lazylibrarian.UPDATE_MSG = 'Removing authors with no books'
         authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
         if authors:
             for author in authors:  # check we haven't mis-counted
@@ -391,6 +402,7 @@ def check_db(myDB):
                     myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
         # remove series with no members
+        lazylibrarian.UPDATE_MSG = 'Removing series with no members'
         series = myDB.select('SELECT SeriesID,SeriesName FROM series WHERE Total=0')
         if series:
             for ser in series:  # check we haven't mis-counted
@@ -409,6 +421,7 @@ def check_db(myDB):
                     myDB.action('DELETE from series WHERE SeriesID=?', (item["SeriesID"],))
 
         # check if genre exclusions/translations have altered
+        lazylibrarian.UPDATE_MSG = 'Checking for invalid genres'
         if lazylibrarian.GRGENRES:
             for item in lazylibrarian.GRGENRES.get('genreExclude', []):
                 match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
@@ -452,6 +465,7 @@ def check_db(myDB):
                             lst.append(newitem)
                         setGenres(lst, bk['bookid'])
         # remove genres with no books
+        lazylibrarian.UPDATE_MSG = 'Removing genres with no books'
         cmd = 'select GenreID, (select count(*) as counter from genrebooks where genres.genreid = genrebooks.genreid)'
         cmd += ' as cnt from genres where cnt = 0'
         genres = myDB.select(cmd)
@@ -463,6 +477,7 @@ def check_db(myDB):
                 myDB.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
 
         # remove orphan entries (needed if foreign key not available)
+        lazylibrarian.UPDATE_MSG = 'Removing orphans'
         for entry in [
                         ['authorid', 'books', 'authors'],
                         ['seriesid', 'member', 'series'],
@@ -487,6 +502,7 @@ def check_db(myDB):
         logger.error(msg)
 
     logger.info("Database check found %s error%s" % (cnt, plural(cnt)))
+    lazylibrarian.UPDATE_MSG = ''
 
 
 def db_v2(myDB, upgradelog):
@@ -1535,6 +1551,35 @@ def db_v53(myDB, upgradelog):
         upgradelog.write("%s v53: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('CREATE TABLE jobs (Name TEXT, LastRun INTEGER DEFAULT 0)')
     upgradelog.write("%s v53: complete\n" % time.ctime())
+
+
+def db_v54(myDB, upgradelog):
+    if not has_column(myDB, "authors", "Updated"):
+        lazylibrarian.UPDATE_MSG = 'Separating dates in authors table'
+        upgradelog.write("%s v54: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE authors ADD COLUMN Updated INTEGER DEFAULT 0')
+        lazylibrarian.UPDATE_MSG = 'Updating author dates'
+        upgradelog.write("%s v54: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        authors = myDB.select('SELECT AuthorID,AuthorImg,DateAdded from authors')
+        cnt = 0
+        if authors:
+            tot = len(authors)
+            for author in authors:
+                cnt += 1
+                lazylibrarian.UPDATE_MSG = "Updating Author dates: %s of %s" % (cnt, tot)
+                updated = 0
+                # noinspection PyBroadException
+                try:
+                    updated = int(time.mktime(datetime.datetime.strptime(author['DateAdded'],
+                                                                         "%Y-%m-%d").timetuple()))
+                except Exception:
+                    upgradelog.write("%s v54: Error getting date from [%s] %s\n" %
+                                     (time.ctime(), author['DateAdded'], author['AuthorID']))
+                finally:
+                    myDB.action('UPDATE authors SET Updated=? WHERE AuthorID=?',
+                                (updated, author['AuthorID']))
+            upgradelog.write("%s v54: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+    upgradelog.write("%s v54: complete\n" % time.ctime())
 
 
 

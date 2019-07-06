@@ -14,18 +14,19 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import datetime
-import os
 import glob
-import sys
+import os
 import platform
-import string
 import random
 import shutil
+import string
+import sys
 import threading
 import time
 import traceback
-from lib.six import PY2, text_type
 from subprocess import Popen, PIPE
+
+from lib.six import PY2, text_type
 
 try:
     import zipfile
@@ -50,7 +51,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger, database, version
-from lazylibrarian.formatter import plural, next_run, is_valid_booktype, datecompare, check_int, \
+from lazylibrarian.formatter import plural, next_run, is_valid_booktype, check_int, \
     getList, makeUnicode, unaccented, replace_all, makeBytestr
 
 # Notification Types
@@ -490,16 +491,16 @@ def is_overdue(which="Author"):
     if maxage:
         myDB = database.DBConnection()
         if which == 'Author':
-            cmd = 'SELECT AuthorName,DateAdded from authors WHERE Status="Active" or Status="Loading"'
-            cmd += ' or Status="Wanted" and DateAdded is not null order by DateAdded ASC'
+            cmd = 'SELECT AuthorName,Updated from authors WHERE Status="Active" or Status="Loading"'
+            cmd += ' or Status="Wanted" order by Updated ASC'
             res = myDB.select(cmd)
             total = len(res)
             if total:
                 name = res[0]['AuthorName']
-                dtnow = datetime.datetime.now()
-                days = datecompare(dtnow.strftime("%Y-%m-%d"), res[0]['DateAdded'])
+                dtnow = time.time()
+                days = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
                 for item in res:
-                    diff = datecompare(dtnow.strftime("%Y-%m-%d"), item['DateAdded'])
+                    diff = (dtnow - item['Updated']) / (24 * 60 * 60)
                     if diff > maxage:
                         overdue += 1
                     else:
@@ -806,12 +807,12 @@ def authorUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        cmd = 'SELECT AuthorID, AuthorName, DateAdded from authors WHERE Status="Active" or Status="Loading"'
-        cmd += ' or Status="Wanted" and DateAdded is not null order by DateAdded ASC'
+        cmd = 'SELECT AuthorID, AuthorName,Updated from authors WHERE Status="Active" or Status="Loading"'
+        cmd += ' or Status="Wanted" order by Updated ASC'
         author = myDB.match(cmd)
         if author and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-            dtnow = datetime.datetime.now()
-            diff = datecompare(dtnow.strftime("%Y-%m-%d"), author['DateAdded'])
+            dtnow = time.time()
+            diff = (dtnow - author['Updated']) / (24 * 60 * 60)
             msg = 'Oldest author info (%s) is %s day%s old, no update due' % (author['AuthorName'],
                                                                               diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
@@ -868,7 +869,7 @@ def aaUpdate(refresh=False):
     try:
         myDB = database.DBConnection()
         cmd = 'SELECT AuthorID from authors WHERE Status="Active" or Status="Loading" or Status="Wanted"'
-        cmd += ' order by DateAdded ASC'
+        cmd += ' order by Updated ASC'
         activeauthors = myDB.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = True
         logger.info('Starting update for %i active author%s' % (len(activeauthors), plural(len(activeauthors))))

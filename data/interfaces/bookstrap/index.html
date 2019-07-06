@@ -60,10 +60,11 @@
       %if lazylibrarian.CONFIG['TOGGLES'] == True:
         &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Image</a>
         <a class="toggle-vis" data-column="2"> Author</a>
-        <a class="toggle-vis" data-column="3"> Latest</a>
-        <a class="toggle-vis" data-column="4"> Released</a>
-        <a class="toggle-vis" data-column="5"> Downloaded</a>
-        <a class="toggle-vis" data-column="6"> Status</a>
+        <a class="toggle-vis" data-column="3"> Added</a>
+        <a class="toggle-vis" data-column="4"> Latest</a>
+        <a class="toggle-vis" data-column="5"> Released</a>
+        <a class="toggle-vis" data-column="6"> Downloaded</a>
+        <a class="toggle-vis" data-column="7"> Status</a>
         <p>&nbsp;</p>
       %endif
   </div>
@@ -87,6 +88,7 @@
             %endif
           <th class="authorimg no-sort ${hidden}">Image</th>
           <th class="authorname">Author</th>
+          <th class="date text-center">Added</th>
           <th class="bookname">Latest Book</th>
           <th class="date text-center">Released</th>
           <th class="have text-center">Downloaded</th>
@@ -138,15 +140,19 @@
                      %endif
                      return btn ;}
                      },
-                     { targets: [3], 'render': function(data, type, row) {
+                     { targets: [3],
+                        'class': 'text-center',
+                        'render': function(data, type, row) {
+                            return row[13];} },
+                     { targets: [4], 'render': function(data, type, row) {
                         if (row[2] == null) {return ''};
                             return '<button onclick="bookinfo(\'' + row[11] +
                                 '\')" class="button btn-link text-left" type="button">' + row[2] + '</button>';} },
-                     { targets: [4],
+                     { targets: [5],
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             return row[3];} },
-                     { targets: [5],
+                     { targets: [6],
                         'class': 'text-center',
                         'render': function(data, type, row) {
                         var have = +row[8] || 0;
@@ -163,11 +169,11 @@
                         '% Complete</span><span class="progressbar-front-text">' + have + '/' + tot +
                         '</span></div></div>';
                         return bar;} },
-                     { targets: [6],
+                     { targets: [7],
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             return row[5];} },
-                     { type: 'natural-nohtml', targets: 5 }],
+                     { type: 'natural-nohtml', targets: [3,5] }],
                 "oLanguage": {
                     "sSearch": "Filter: ",
                     "sLengthMenu":"_MENU_ rows per page",

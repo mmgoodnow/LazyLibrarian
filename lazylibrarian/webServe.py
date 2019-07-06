@@ -217,8 +217,8 @@ class WebInterface(object):
             iDisplayLength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
 
-            cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status'
-            cmd += ',AuthorLink,LastLink,HaveBooks,UnignoredBooks,AuthorID,LastBookID from authors '
+            cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
+            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded from authors '
             if lazylibrarian.IGNORED_AUTHORS:
                 cmd += 'where Status == "Ignored" or Status == "Paused" '
             else:
@@ -258,7 +258,7 @@ class WebInterface(object):
                         css = 'success'
 
                     nrow.append(percent)
-                    nrow.extend(arow[4:])
+                    nrow.extend(arow[4:-1])
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
                         bar = '<div class="progress-container %s">' % css
                         bar += '<div style="width:%s%%"><span class="progressbar-front-text">' % percent
@@ -266,6 +266,8 @@ class WebInterface(object):
                     else:
                         bar = ''
                     nrow.append(bar)
+                    if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
+                        nrow.append(arow[11])
                     rows.append(nrow)  # add each rowlist to the masterlist
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -278,6 +280,10 @@ class WebInterface(object):
                     sortcolumn = int(iSortCol_0)
                 else:
                     sortcolumn = int(iSortCol_0) - 1
+                    if sortcolumn == 2:
+                        sortcolumn = 13
+                    elif sortcolumn > 2:
+                        sortcolumn = sortcolumn - 1
 
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)

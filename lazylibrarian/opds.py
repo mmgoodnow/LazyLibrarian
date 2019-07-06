@@ -17,19 +17,20 @@
 #  along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 #  Adapted for LazyLibrarian from Mylar
 
-import lazylibrarian
-from lazylibrarian import logger, database
-import cherrypy
-import os
 import datetime
-from cherrypy.lib.static import serve_file
-from lazylibrarian.formatter import makeUnicode, check_int, plural, getList
-from lazylibrarian.common import mimeType, zipAudio
-from lazylibrarian.cache import cache_img
+import os
+
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus, urlsplit
-from lib.six import text_type, string_types
 
+import cherrypy
+import lazylibrarian
+from cherrypy.lib.static import serve_file
+from lazylibrarian import logger, database
+from lazylibrarian.cache import cache_img
+from lazylibrarian.common import mimeType, zipAudio
+from lazylibrarian.formatter import makeUnicode, check_int, plural, getList
+from lib.six import text_type, string_types
 
 searchable = ['Authors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
               'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres', 'Comics',
@@ -565,7 +566,7 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getLink(href='%s/opensearchauthors.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Authors'))
-        cmd = "SELECT AuthorName,AuthorID,HaveBooks,TotalBooks,DateAdded,AuthorImg from Authors WHERE "
+        cmd = "SELECT AuthorName,AuthorID,HaveBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
         if 'query' in kwargs:
             cmd += "AuthorName LIKE '%" + kwargs['query'] + "%' AND "
         cmd += "CAST(HaveBooks AS INTEGER) > 0 order by AuthorName"
@@ -578,7 +579,7 @@ class OPDS(object):
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
             havebooks = check_int(author['HaveBooks'], 0)
-            lastupdated = author['DateAdded']
+            lastupdated = datetime.datetime.utcfromtimestamp(author['Updated']).strftime("%Y-%m-%d")
             name = makeUnicode(author['AuthorName'])
             entry = {
                     'title': escape('%s (%s/%s)' % (name, havebooks, totalbooks)),

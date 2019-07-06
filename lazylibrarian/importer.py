@@ -12,6 +12,7 @@
 
 import threading
 import traceback
+import time
 from operator import itemgetter
 
 import lazylibrarian
@@ -171,13 +172,15 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                 authorimg = author['authorimg']
                 controlValueDict = {"AuthorID": authorid}
                 newValueDict = {
-                    "AuthorLink": author['authorlink'],
-                    "DateAdded": today()
+                    "AuthorLink": author['authorlink']
                 }
+                if new_author:
+                    newValueDict["DateAdded"] = today()
                 if not dbauthor or (dbauthor and not dbauthor['manual']):
                     newValueDict["AuthorImg"] = author['authorimg']
                     newValueDict["AuthorBorn"] = author['authorborn']
                     newValueDict["AuthorDeath"] = author['authordeath']
+                    newValueDict['Updated'] = int(time.time())
                     if not dbauthor:
                         newValueDict["AuthorName"] = author['authorname']
                     elif dbauthor['authorname'] != author['authorname']:
@@ -226,6 +229,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                     "AuthorID": author['authorid'],
                     "AuthorLink": author['authorlink'],
                     "DateAdded": today(),
+                    "Updated": int(time.time()),
                     "Status": "Loading"
                 }
                 if dbauthor:
