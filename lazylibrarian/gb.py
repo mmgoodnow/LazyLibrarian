@@ -522,7 +522,7 @@ class GoogleBooks:
 
                                 serieslist = []
                                 if book['series']:
-                                    serieslist = [('', book['seriesNum'], cleanName(unaccented(book['series']), '&/'))]
+                                    serieslist = [('', book['seriesNum'], cleanName(book['series'], '&/'))]
                                 if lazylibrarian.CONFIG['ADD_SERIES']:
                                     newserieslist = getWorkSeries(bookid)
                                     if newserieslist:
@@ -732,7 +732,7 @@ class GoogleBooks:
 
         serieslist = []
         if book['series']:
-            serieslist = [('', book['seriesNum'], cleanName(unaccented(book['series']), '&/'))]
+            serieslist = [('', book['seriesNum'], cleanName(book['series'], '&/'))]
         if lazylibrarian.CONFIG['ADD_SERIES']:
             newserieslist = getWorkSeries(bookid)
             if newserieslist:

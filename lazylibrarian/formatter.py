@@ -651,7 +651,9 @@ def cleanName(name, extras=None):
     if not PY2:
         cleanedName = cleanedName.decode('utf-8')
     cleaned = u''.join(c for c in cleanedName if c in validNameChars)
-    return cleaned.strip()
+    if len(cleaned):
+        return cleaned.strip()
+    return name
 
 
 def unaccented(str_or_unicode):
@@ -683,6 +685,8 @@ def unaccented_str(str_or_unicode):
     stripped = replace_all(stripped, dic)
     # now get rid of any other non-ascii
     stripped = stripped.encode('ASCII', 'ignore')
+    if not len(stripped):
+        stripped = str_or_unicode
     if PY2:
         return stripped  # return bytestring
     else:

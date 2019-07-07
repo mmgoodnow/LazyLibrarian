@@ -2702,7 +2702,7 @@ class WebInterface(object):
                 dict_counter = 0
                 while "series[%s][name]" % dict_counter in kwargs:
                     s_name = kwargs["series[%s][name]" % dict_counter]
-                    s_name = cleanName(unaccented(s_name), '&/')
+                    s_name = cleanName(s_name, '&/')
                     s_num = kwargs["series[%s][number]" % dict_counter]
                     match = myDB.match('SELECT SeriesID from series WHERE SeriesName=?', (s_name,))
                     if match:
@@ -2713,7 +2713,7 @@ class WebInterface(object):
                 if 'series[new][name]' in kwargs and 'series[new][number]' in kwargs:
                     if kwargs['series[new][name]']:
                         s_name = kwargs["series[new][name]"]
-                        s_name = cleanName(unaccented(s_name), '&/')
+                        s_name = cleanName(s_name, '&/')
                         s_num = kwargs['series[new][number]']
                         new_list.append(['', s_num, s_name])
                 for item in old_series:

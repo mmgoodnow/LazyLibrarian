@@ -838,8 +838,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         base_url = 'https://www.goodreads.com/search.xml?q='
                                         params = {"key": lazylibrarian.CONFIG['GR_API']}
                                         author = formatAuthorName(author)
-                                        searchname = author + ' ' + book
-                                        searchname = cleanName(unaccented(searchname))
+                                        searchname = "%s %s" % (cleanName(author),
+                                                                cleanName(book))
                                         if PY2:
                                             searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
                                         searchterm = quote_plus(searchname)

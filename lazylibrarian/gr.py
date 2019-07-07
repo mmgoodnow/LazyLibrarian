@@ -841,7 +841,7 @@ class GoodReads:
                                 # need to run getWorkSeries AFTER adding to book table (foreign key constraint)
                                 serieslist = []
                                 if series:
-                                    serieslist = [('', seriesNum, cleanName(unaccented(series), '&/'))]
+                                    serieslist = [('', seriesNum, cleanName(series, '&/'))]
                                 if lazylibrarian.CONFIG['ADD_SERIES']:
                                     newserieslist = getWorkSeries(workid)
                                     if newserieslist:
@@ -1247,7 +1247,7 @@ class GoodReads:
 
         serieslist = []
         if series:
-            serieslist = [('', seriesNum, cleanName(unaccented(series), '&/'))]
+            serieslist = [('', seriesNum, cleanName(series, '&/'))]
         if lazylibrarian.CONFIG['ADD_SERIES']:
             newserieslist = getWorkSeries(workid)
             if newserieslist:

@@ -22,7 +22,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
 from lazylibrarian.common import proxyList
-from lazylibrarian.formatter import safe_unicode, plural, cleanName, unaccented, formatAuthorName, \
+from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList
 try:
     from fuzzywuzzy import fuzz
@@ -687,8 +687,7 @@ def getSeriesAuthors(seriesid):
                 # goodreads gives us all the info we need, librarything/google doesn't
                 base_url = 'https://www.goodreads.com/search.xml?q='
                 params = {"key": lazylibrarian.CONFIG['GR_API']}
-                searchname = bookname + ' ' + authorname
-                searchname = cleanName(unaccented(searchname))
+                searchname = "%s %s" % (cleanName(bookname), cleanName(authorname))
                 if PY2:
                     searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
                 searchterm = quote_plus(searchname)
@@ -725,7 +724,9 @@ def getSeriesAuthors(seriesid):
                                              (author, booktitle, authorid))
                                 break
                     if not authorid:  # try again with title only
-                        searchname = cleanName(unaccented(bookname))
+                        searchname = cleanName(bookname)
+                        if not searchname:
+                            searchname = bookname
                         if PY2:
                             searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
                         searchterm = quote_plus(searchname)
@@ -1022,9 +1023,9 @@ def getWorkSeries(bookID=None):
                 except (KeyError, AttributeError):
                     continue
                 if seriesname and seriesid:
-                    seriesname = cleanName(unaccented(seriesname), '&/')
+                    seriesname = cleanName(seriesname, '&/')
                     if seriesname:
-                        seriesnum = cleanName(unaccented(seriesnum))
+                        seriesnum = cleanName(seriesnum)
                         serieslist.append((seriesid, seriesnum, seriesname))
                         match = myDB.match('SELECT SeriesID from series WHERE SeriesName=?', (seriesname,))
                         if not match:
@@ -1056,8 +1057,8 @@ def getWorkSeries(bookID=None):
                         else:
                             seriesnum = ''
                             series = series.strip()
-                        seriesname = cleanName(unaccented(series), '&/')
-                        seriesnum = cleanName(unaccented(seriesnum))
+                        seriesname = cleanName(series, '&/')
+                        seriesnum = cleanName(seriesnum)
                         if seriesname:
                             serieslist.append(('', seriesnum, seriesname))
                     except IndexError:
