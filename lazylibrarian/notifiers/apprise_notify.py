@@ -5,6 +5,7 @@ from lazylibrarian.formatter import plural
 try:
     # noinspection PyUnresolvedReferences
     import apprise
+    # noinspection PyUnresolvedReferences
     from apprise import NotifyType, AppriseAsset, Apprise
     lazylibrarian.APPRISE = getattr(apprise, '__version__', 'Unknown Version')
 except ImportError as e:
