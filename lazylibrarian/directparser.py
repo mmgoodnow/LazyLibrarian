@@ -113,7 +113,8 @@ def GEN(book=None, prov=None, test=False):
         if not success:
             # may return 404 if no results, not really an error
             if '404' in result:
-                logger.debug("No results found from %s for %s" % (provider, sterm))
+                logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
+                                                                                  searchURL))
                 success = True
             elif '111' in result:
                 # looks like libgen has ip based access limits
@@ -143,6 +144,7 @@ def GEN(book=None, prov=None, test=False):
                 if len(rows) > 1:  # skip table headers
                     rows = rows[1:]
 
+                logger.debug("libgen returned %s rows" % len(rows))
                 for row in rows:
                     author = ''
                     title = ''
@@ -151,35 +153,26 @@ def GEN(book=None, prov=None, test=False):
                     td = row.find_all('td')
                     links = []
 
-                    if 'fiction' in search and len(td) > 3:
-                        # Foreign fiction
+                    if ('fiction' in search or'index.php' in search) and len(td) > 3:
                         try:
                             author = formatAuthorName(td[0].text)
                             title = td[2].text
-                            extn = td[4].text.split('/')[0].strip()
-                            size = td[4].text.split('/')[1].strip()
+                            newsoup = None
+                            if '/' in td[4].text:
+                                extn = td[4].text.split('/')[0].strip()
+                                size = td[4].text.split('/')[1].strip()
+                                newsoup = BeautifulSoup(str(td[5]), 'html5lib')
+                            elif '(' in td[4].text:
+                                extn = td[4].text.split('(')[0].strip()
+                                size = td[4].text.split('(')[1].split(')')[0]
+                                newsoup = BeautifulSoup(str(td[4]), 'html5lib')
                             size = size.upper()
-                            newsoup = BeautifulSoup(str(td[5]), 'html5lib')
-                            data = newsoup.find_all('a')
-                            for d in data:
-                                links.append(d.get('href'))
+                            if newsoup:
+                                data = newsoup.find_all('a')
+                                for d in data:
+                                    links.append(d.get('href'))
                         except IndexError as e:
                             logger.debug('Error parsing libgen fiction results: %s' % str(e))
-                            pass
-
-                    elif 'index.php' in search and len(td) > 3:
-                        try:
-                            author = formatAuthorName(td[0].text)
-                            title = td[2].text
-                            extn = td[4].text.split('(')[0].strip()
-                            size = td[4].text.split('(')[1].split(')')[0]
-                            size = size.upper()
-                            newsoup = BeautifulSoup(str(td[4]), 'html5lib')
-                            data = newsoup.find_all('a')
-                            for d in data:
-                                links.append(d.get('href'))
-                        except IndexError as e:
-                            logger.debug('Error parsing libgen index.php results: %s' % str(e))
                             pass
 
                     elif 'search.php' in search and len(td) > 8:
@@ -200,6 +193,7 @@ def GEN(book=None, prov=None, test=False):
                             pass
 
                     size = size_in_bytes(size)
+
                     if links and title:
                         if author:
                             title = author.strip() + ' ' + title.strip()
@@ -208,6 +202,7 @@ def GEN(book=None, prov=None, test=False):
 
                         success = False
                         bookresult = None
+                        url = None
                         for link in links:
                             if link.startswith('http'):
                                 url = redirect_url(host, link)
@@ -219,6 +214,12 @@ def GEN(book=None, prov=None, test=False):
                                 else:
                                     url = url_fix(host + "/ads.php?" + link)
 
+                            if "booksdescr.org" in url:
+                                # booksdescr is a direct link to book
+                                success = True
+                                break
+
+                            # redirect page for other sources [libgen.me, library1.org]
                             bookresult, success = fetchURL(url)
                             if not success:
                                 logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))
@@ -226,12 +227,12 @@ def GEN(book=None, prov=None, test=False):
                             else:
                                 break
 
-                        url = None
                         if success and bookresult:
                             try:
                                 new_soup = BeautifulSoup(bookresult, 'html5lib')
                                 for link in new_soup.find_all('a'):
                                     output = link.get('href')
+
                                     if output:
                                         if output.startswith('http') and '/get.php' in output:
                                             url = output
@@ -275,6 +276,7 @@ def GEN(book=None, prov=None, test=False):
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
         if test:
+            logger.debug("Test found %s result%s" % (len(results), plural(len(results))))
             return success
 
         page += 1
