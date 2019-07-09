@@ -20,7 +20,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import proxyList
-from lazylibrarian.formatter import check_int, unaccented_str
+from lazylibrarian.formatter import check_int, unaccented_str, makeUTF8bytes
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
 
@@ -69,6 +69,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         HOST = HOST + "/" + lazylibrarian.CONFIG['SAB_SUBDIR']
 
     params = {}
+
     if nzburl == 'auth' or nzburl == 'get_cats':
         # connection test, check auth mode or get_cats
         params['mode'] = nzburl
@@ -103,7 +104,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         params['mode'] = 'queue'
         params['output'] = 'json'
         params['name'] = nzburl
-        params['value'] = title
+        params['value'] = makeUTF8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -117,7 +118,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         params['mode'] = 'history'
         params['output'] = 'json'
         params['name'] = 'delete'
-        params['value'] = title
+        params['value'] = makeUTF8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -131,9 +132,9 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         params['mode'] = 'addurl'
         params['output'] = 'json'
         if nzburl:
-            params['name'] = nzburl
+            params['name'] = makeUTF8bytes(nzburl)[0]
         if title:
-            params['nzbname'] = title
+            params['nzbname'] = makeUTF8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -151,9 +152,11 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
 #    if lazylibrarian.SAB_PP:
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('sab params: %s' % repr(params))
+
     URL = HOST + "/api?" + urlencode(params)
 
-    # to debug because of api
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Request url for <a href="%s">SABnzbd</a>' % URL)
     proxies = proxyList()
@@ -183,10 +186,9 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("Result text from SAB: " + str(result))
 
-    if title:
-        title = unaccented_str(title)
-        if title.startswith('LL.('):
-            return result, ''
+    if unaccented_str(title).startswith('LL.('):
+        return result, ''
+
     if result['status'] is True:
         logger.info("%s sent to SAB successfully." % title)
         # sab versions earlier than 0.8.0 don't return nzo_ids
