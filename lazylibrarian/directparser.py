@@ -219,7 +219,7 @@ def GEN(book=None, prov=None, test=False):
                                 success = True
                                 break
 
-                            # redirect page for other sources [libgen.me, library1.org]
+                            # redirect page for other sources [libgen.me, library1.org, booksdl.org]
                             bookresult, success = fetchURL(url)
                             if not success:
                                 logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))

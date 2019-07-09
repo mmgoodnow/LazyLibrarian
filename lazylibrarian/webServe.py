@@ -2676,7 +2676,7 @@ class WebInterface(object):
                     newcoverfile = os.path.join(cachedir, "book", bookid + covertype + '.jpg')
                     if os.path.exists(newcoverfile):
                         copyfile(newcoverfile, coverfile)
-                    edited += 'Cover '
+                    edited += 'Cover (%s)' % cover
                 else:
                     coverlink = bookdata['BookImg']
 
