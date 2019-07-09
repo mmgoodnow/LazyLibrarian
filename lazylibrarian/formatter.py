@@ -659,10 +659,10 @@ def cleanName(name, extras=None):
 def unaccented(str_or_unicode):
     if not str_or_unicode:
         return u''
-    if not PY2:
-        return unaccented_str(str_or_unicode)
-    return unaccented_str(str_or_unicode).decode(lazylibrarian.SYS_ENCODING)
-    # returns unicode
+    res = unaccented_str(str_or_unicode)
+    if PY2:
+        res = makeUnicode(res)
+    return res
 
 
 def unaccented_str(str_or_unicode):
