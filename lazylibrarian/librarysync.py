@@ -448,6 +448,10 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
             'Fuzz failed [%s - %s] ratio [%d,%s,%s], partial [%d,%s,%s], partname [%d,%s,%s]' %
             (author, book, best_ratio, ratio_name, ratio_id, best_partial, partial_name, partial_id,
              best_partname, partname_name, partname_id))
+
+    if not check_exist_author:
+        # we auto-added a new author but they don't have the book so we should remove them again
+        myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
     return 0, ''
 
 
