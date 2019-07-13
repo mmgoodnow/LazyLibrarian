@@ -654,6 +654,9 @@ def addSeriesMembers(seriesid):
     myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
     lazylibrarian.SERIES_UPDATE = False
     logger.debug("Found %s series member%s, %s new for %s" % (len(members), plural(len(members)), count, seriesname))
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+        for member in members:
+            logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
     return count
 
 

@@ -742,7 +742,7 @@ class WebInterface(object):
         threadname = 'SERIESMEMBERS_%s' % SeriesID
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             threading.Thread(target=addSeriesMembers, name=threadname, args=[SeriesID]).start()
-        raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s" % SeriesID)
+        raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s&ignored=False" % SeriesID)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -879,7 +879,7 @@ class WebInterface(object):
                               whichStatus=whichStatus)
 
     @cherrypy.expose
-    def seriesMembers(self, seriesid):
+    def seriesMembers(self, seriesid, ignored=False):
         myDB = database.DBConnection()
         cmd = 'SELECT SeriesName,series.SeriesID,AuthorName,seriesauthors.AuthorID'
         cmd += ' from series,authors,seriesauthors'
@@ -890,7 +890,11 @@ class WebInterface(object):
         cmd += 'BookLink,WorkPage,AudioStatus'
         cmd += ' from member,series,books,authors'
         cmd += ' where series.SeriesID=member.SeriesID and books.BookID=member.BookID'
-        cmd += ' and books.AuthorID=authors.AuthorID and (books.Status != "Ignored" or AudioStatus != "Ignored")'
+        cmd += ' and books.AuthorID=authors.AuthorID and '
+        if not ignored:
+            cmd += '(books.Status != "Ignored" or AudioStatus != "Ignored")'
+        else:
+            cmd += '(books.Status == "Ignored" and AudioStatus == "Ignored")'
         cmd += ' and series.SeriesID=? order by SeriesName'
         members = myDB.select(cmd, (seriesid,))
         # is it a multi-author series?
@@ -934,7 +938,7 @@ class WebInterface(object):
                 rows.append(newrow)  # add the new dict to the masterlist
 
         return serve_template(templatename="members.html", title=series['SeriesName'],
-                              members=rows, series=series, multi=multi)
+                              members=rows, series=series, multi=multi, ignored=ignored)
 
     @cherrypy.expose
     def markSeries(self, action=None, **args):
@@ -2570,7 +2574,8 @@ class WebInterface(object):
         authors = myDB.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
+        cmd += 'books.AuthorID,BookDate,ScanResult from books,authors '
+        cmd += 'WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = myDB.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '
         cmd += 'where series.SeriesID=member.SeriesID and BookID=?'
@@ -2939,7 +2944,7 @@ class WebInterface(object):
         elif redirect in ["books", "audio"]:
             raise cherrypy.HTTPRedirect(redirect)
         elif redirect == "members":
-            raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s" % seriesid)
+            raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s&ignored=False" % seriesid)
         elif 'Audio' in library:
             raise cherrypy.HTTPRedirect("manage?library=%s" % 'AudioBook')
         raise cherrypy.HTTPRedirect("manage?library=%s" % 'eBook')

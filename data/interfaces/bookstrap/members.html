@@ -14,6 +14,11 @@
       <a href="refreshSeries?SeriesID=${series['SeriesID']}" class="btn btn-sm btn-primary">
       <i class="fa fa-sync"></i> Refresh Series</a>
     %endif
+    %if ignored == 'True':
+        <a href="seriesMembers?seriesid=${series['SeriesID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+    %else:
+        <a href="seriesMembers?seriesid=${series['SeriesID']}&amp;ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+    %endif
   </div>
 </%def>
 <%def name="body()">
