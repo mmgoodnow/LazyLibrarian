@@ -134,7 +134,7 @@ def addTorrent(link, data=None):
 def getTorrentFolder(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent folder name')
-    res = getTorrentStatus(torrentid, ["name", "state"])
+    res = getTorrentStatus(torrentid, ["name", "state"])  # type: dict
     if res:
         return res['result']['name']
     return ''
@@ -143,7 +143,7 @@ def getTorrentFolder(torrentid):
 def getTorrentFiles(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent files')
-    res = getTorrentStatus(torrentid, ["files", "state"])
+    res = getTorrentStatus(torrentid, ["files", "state"])  # type: dict
     if res:
         return res['result']['files']
     return ''
@@ -153,9 +153,9 @@ def getTorrentProgress(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent progress')
     res = getTorrentStatus(torrentid, ["progress", "message", "state", "is_auto_managed",
-                                       "stop_at_ratio", "ratio", "stop_ratio"])
+                                       "stop_at_ratio", "ratio", "stop_ratio"])  # type: dict
     if res:
-        info = res['result']
+        info = res['result']  # type: dict
         if 'progress' in info:
             finished = info['is_auto_managed'] and info['stop_at_ratio'] and \
                 info['state'].lower() == 'paused' and info['ratio'] >= info['stop_ratio']

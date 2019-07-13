@@ -566,6 +566,7 @@ def comic_metadata(archivename, xml=False):
     RarFile = None
     # noinspection PyBroadException
     try:
+        # noinspection PyUnresolvedReferences
         from unrar import rarfile
         unrarlib = 1
     except Exception:

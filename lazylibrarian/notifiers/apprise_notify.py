@@ -12,6 +12,7 @@ except ImportError as e:
     lazylibrarian.APPRISE = str(e)
 
 
+# noinspection PyUnresolvedReferences
 class Apprise_Notifier:
 
     def __init__(self):
@@ -75,6 +76,7 @@ class Apprise_Notifier:
 #
 # Public functions
 #
+    # noinspection PyUnresolvedReferences
     def notify_snatch(self, title):
         if lazylibrarian.APPRISE:
             self._notify(event=notifyStrings[NOTIFY_SNATCH], message=title, url=None)
@@ -82,6 +84,7 @@ class Apprise_Notifier:
             return True
 
     def notify_download(self, title):
+        # noinspection PyUnresolvedReferences
         if lazylibrarian.APPRISE:
             self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
         else:
@@ -90,6 +93,7 @@ class Apprise_Notifier:
     def test_notify(self, url=None):
         return self._notify(event="Test", message="Testing Apprise settings from LazyLibrarian", url=url)
 
+    # noinspection PyUnresolvedReferences
     @staticmethod
     def notify_types():
         res = []

@@ -507,6 +507,7 @@ def createMagCovers(refresh=False):
     return "Checked covers for %s issue%s" % (cnt, plural(cnt))
 
 
+# noinspection PyUnresolvedReferences
 def createMagCover(issuefile=None, refresh=False, pagenum=1):
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
         return 'unwanted'
