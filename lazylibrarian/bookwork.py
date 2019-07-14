@@ -156,7 +156,7 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                     seriesid = str(res + 1)
                     members = []
                 myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?)',
-                            (seriesid, item[2], "Active", 0, 0, time.time()), suppress='UNIQUE')
+                            (seriesid, item[2], "Skipped", 0, 0, 0), suppress='UNIQUE')
 
             if not workid or not authorid:
                 book = myDB.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
