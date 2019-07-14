@@ -1218,6 +1218,18 @@ def getBookPubdate(bookid, refresh=False):
             bookdate = rootxml.find('book/work/original_publication_year').text
             if bookdate is None:
                 bookdate = '0000'
+            elif check_year(bookdate, past=1800, future=0):
+                try:
+                    mn = check_int(rootxml.find(
+                        './book/work/original_publication_month').text, 0)
+                    dy = check_int(rootxml.find(
+                        './book/work/original_publication_day').text, 0)
+                    if mn and dy:
+                        bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                except (KeyError, AttributeError):
+                    pass
+            else:
+                bookdate = '0000'
         except (KeyError, AttributeError):
             logger.error("Error reading pubdate for GoodReads bookid %s pubdate [%s]" % (bookid, bookdate))
 

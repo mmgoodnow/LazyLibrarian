@@ -86,8 +86,17 @@ class GoodReads:
                         try:
                             if author.find('original_publication_year').text is None:
                                 bookdate = "0000"
-                            else:
+                            elif check_year(author.find('original_publication_year').text, past=1800, future=0):
                                 bookdate = author.find('original_publication_year').text
+                                try:
+                                    bookmonth = check_int(author.find('original_publication_month').text, 0)
+                                    bookday = check_int(author.find('original_publication_day').text, 0)
+                                    if bookmonth and bookday:
+                                        bookdate = "%s-%02d-%02d" % (bookdate, bookmonth, bookday)
+                                except (KeyError, AttributeError):
+                                    pass
+                            else:
+                                bookdate = "0000"
                         except (KeyError, AttributeError):
                             bookdate = "0000"
 
@@ -553,14 +562,21 @@ class GoodReads:
                                                 # if bookLanguage and not isbnhead:
                                                 #     print(BOOK_URL)
 
-                                                # might as well get the original publication year from here
+                                                # might as well get the original publication date from here
                                                 # noinspection PyBroadException
                                                 try:
-                                                    res = BOOK_rootxml.find(
+                                                    bookdate = BOOK_rootxml.find(
                                                         './book/work/original_publication_year').text
-                                                    if check_year(res, past=1800, future=0):
-                                                        bookdate = res
-                                                        originalpubdate = res
+                                                    if check_year(bookdate, past=1800, future=0):
+                                                        try:
+                                                            mn = check_int(BOOK_rootxml.find(
+                                                                './book/work/original_publication_month').text, 0)
+                                                            dy = check_int(BOOK_rootxml.find(
+                                                                './book/work/original_publication_day').text, 0)
+                                                            if mn and dy:
+                                                                bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                                                        except (KeyError, AttributeError):
+                                                            pass
                                                 except Exception:
                                                     pass
 
@@ -764,7 +780,7 @@ class GoodReads:
 
                             if not rejected:
                                 if lazylibrarian.CONFIG['NO_FUTURE']:
-                                    if bookdate > today()[:4]:
+                                    if bookdate > today()[:len(bookdate)]:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
@@ -1098,8 +1114,22 @@ class GoodReads:
                 bookdate = "0000"
             else:
                 bookdate = rootxml.find('./book/publication_year').text
+                try:
+                    bookmonth = rootxml.find('./book/publication_month').text
+                    bookday = rootxml.find('./book/publication_day').text
+                    bookdate = "%s-%s-%s" % (bookdate, bookmonth, bookday)
+                except (KeyError, AttributeError):
+                    pass
         else:
             originalpubdate = rootxml.find('./book/work/original_publication_year').text
+            if check_year(originalpubdate, past=1800, future=0):
+                try:
+                    mn = check_int(rootxml.find('./book/work/original_publication_month').text, 0)
+                    dy = check_int(rootxml.find('./book/work/original_publication_day').text, 0)
+                    if mn and dy:
+                        originalpubdate = "%s-%02d-%02d" % (originalpubdate, mn, dy)
+                except (KeyError, AttributeError):
+                    pass
             bookdate = originalpubdate
 
         if lazylibrarian.CONFIG['NO_PUBDATE']:
@@ -1108,7 +1138,8 @@ class GoodReads:
                 logger.warn('Book %s, %s' % (bookname, reason))
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
-            if bookdate > today()[:4]:
+            # may have yyyy or yyyy-mm-dd
+            if bookdate > today()[:len(bookdate)]:
                 reason = 'Future publication date [%s] does not match preference' % bookdate
                 logger.warn('Book %s, %s' % (bookname, reason))
         try:
