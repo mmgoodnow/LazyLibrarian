@@ -42,6 +42,7 @@ def redirect_url(genhost, url):
         return url
 
     host = urlparse(genhost)
+
     # genhost http://93.174.95.27 -> scheme http, netloc 93.174.95.27, path ""
     # genhost 93.174.95.27 -> scheme "", netloc "", path 93.174.95.27
     if host.netloc:
@@ -216,6 +217,7 @@ def GEN(book=None, prov=None, test=False):
 
                             if "booksdescr.org" in url:
                                 # booksdescr is a direct link to book
+                                logger.debug(url)
                                 success = True
                                 break
 
@@ -232,28 +234,27 @@ def GEN(book=None, prov=None, test=False):
                                 new_soup = BeautifulSoup(bookresult, 'html5lib')
                                 for link in new_soup.find_all('a'):
                                     output = link.get('href')
-
                                     if output:
-                                        if output.startswith('http') and '/get.php' in output:
-                                            url = output
-                                            break
-                                        elif '/get.php' in output:
-                                            url = '/get.php' + output.split('/get.php')[1]
-                                            break
-                                        elif '/download/book' in output:
-                                            url = '/download/book' + output.split('/download/book')[1]
-                                            break
-                                        elif '/book/' in output:
-                                            url = '/book/' + output.split('/book/')[1]
-                                            break
-                                        elif output.startswith('http') and '/download' in output:
-                                            url = output
-                                            break
+                                        if '/get.php' in output or '/download/' in output or \
+                                                '/book/' in output or '/fiction/' in output:
+                                            if output.startswith('http'):
+                                                url = output
+                                                break
+                                            else:
+                                                nhost = urlparse(url)
+                                                nurl = urlparse(output)
+                                                # noinspection PyProtectedMember
+                                                nurl = nurl._replace(**{"scheme": nhost.scheme})
+                                                # noinspection PyProtectedMember
+                                                nurl = nurl._replace(**{"netloc": nhost.netloc})
+                                                url = nurl.geturl()
+                                                break
                                 if url:
                                     if not url.startswith('http'):
                                         url = url_fix(host + url)
                                     else:
                                         url = redirect_url(host, url)
+                                    logger.debug("Download URL: %s" % url)
                             except Exception as e:
                                 logger.error('%s parsing bookresult: %s' % (type(e).__name__, str(e)))
                                 url = None
