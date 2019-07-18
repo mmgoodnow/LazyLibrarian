@@ -1906,7 +1906,7 @@ class WebInterface(object):
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                        logger.debug("filter %s" % sSearch)
+                        logger.debug("filter [%s]" % sSearch)
                     if library is not None:
                         searchFields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
                                         'BookLang', 'BookSub', 'AuthorID', 'SeriesDisplay', 'BookGenre']
