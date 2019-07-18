@@ -133,7 +133,11 @@
               %endif
             %endif
             % if lazylibrarian.SHOW_AUDIO != 0:
+              % if lazylibrarian.SHOW_EBOOK != 0:
               <br>
+              %else:
+                <td class="status text-center">
+              %endif
               %if 'Open' in result['AudioStatus']:
                 <a class="button green btn btn-xs btn-warning" href="openBook?bookid=${result['BookID']}&library=AudioBook"
                 target="_self"><i class="fa fa-headphones"></i> Open</a>
