@@ -78,8 +78,10 @@ def GEN(book=None, prov=None, test=False):
     page = 1
     results = []
     next_page = True
+    maxresults = 100
     if test:
         book['bookid'] = '0'
+        maxresults = 25
 
     while next_page:
         if 'index.php' in search:
@@ -95,7 +97,8 @@ def GEN(book=None, prov=None, test=False):
                 "open": 0,
                 "phrase": 0,
                 "column": "def",
-                "res": 100,
+                "lg_topic": "libgen",
+                "res": maxresults,
                 "req": book['searchterm']
             }
         else:  # elif 'fiction' in search:
@@ -145,7 +148,7 @@ def GEN(book=None, prov=None, test=False):
                 if len(rows) > 1:  # skip table headers
                     rows = rows[1:]
 
-                logger.debug("libgen returned %s rows" % len(rows))
+                logger.debug("libgen returned %s row%s" % (len(rows), plural(len(rows))))
                 for row in rows:
                     author = ''
                     title = ''
@@ -236,7 +239,8 @@ def GEN(book=None, prov=None, test=False):
                                     output = link.get('href')
                                     if output:
                                         if '/get.php' in output or '/download/' in output or \
-                                                '/book/' in output or '/fiction/' in output:
+                                                '/book/' in output or '/fiction/' in output or \
+                                                    '/main/' in output:
                                             if output.startswith('http'):
                                                 url = output
                                                 break
