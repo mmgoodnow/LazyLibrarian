@@ -974,6 +974,8 @@ def showStats():
     series_stats.append(['Ignored', res['counter']])
     res = myDB.match("SELECT count(*) as counter FROM series WHERE Total=0")
     series_stats.append(['Blank', res['counter']])
+    res = myDB.match("SELECT count(*) as counter FROM series WHERE Updated>0")
+    series_stats.append(['Monitor', res['counter']])
     overdue, _, _, _ = is_overdue('Series')
     series_stats.append(['Overdue', overdue])
 
