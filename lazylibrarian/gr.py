@@ -576,6 +576,7 @@ class GoodReads:
                                                             if mn and dy:
                                                                 bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
                                                         except (KeyError, AttributeError):
+                                                            logger.debug("No extended date info")
                                                             pass
                                                 except Exception:
                                                     pass
@@ -744,7 +745,7 @@ class GoodReads:
                         if not rejected or (rejected and rejected[0] in ignorable and
                                             lazylibrarian.CONFIG['IMP_IGNORE']):
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
-                            cmd += 'OriginalPubDate,BookDesc,BookGenre FROM books WHERE BookID=?'
+                            cmd += 'OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?'
                             existing = myDB.match(cmd, (bookid,))
                             if existing:
                                 book_status = existing['Status']
@@ -770,8 +771,14 @@ class GoodReads:
                                 added = today()
                                 locked = False
 
-                            if not originalpubdate:  # already set with language code or existing book?
-                                originalpubdate, in_cache = getBookPubdate(bookid)
+                            if not originalpubdate or len(originalpubdate) < 5:
+                                # already set with language code or existing book?
+                                newdate, in_cache = getBookPubdate(bookid)
+                                if not originalpubdate:
+                                    originalpubdate = newdate
+                                elif originalpubdate < newdate:  # more detailed date
+                                    originalpubdate = newdate
+                                    logger.debug("Extended date info found: %s" % newdate)
                                 if not in_cache:
                                     api_hits += 1
 
@@ -848,7 +855,6 @@ class GoodReads:
                                     "ScanResult": reason,
                                     "OriginalPubDate": originalpubdate
                                 }
-
                                 myDB.upsert("books", newValueDict, controlValueDict)
 
                                 setGenres(getList(bookgenre, ','), bookid)
@@ -865,10 +871,14 @@ class GoodReads:
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
                                     _api_hits, pubdate = setSeries(serieslist, bookid, authorid, workid)
                                     api_hits += _api_hits
-                                    if pubdate and pubdate != originalpubdate:
+                                    if pubdate and pubdate > originalpubdate:  # more detailed
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                if not existing:
+                                if not existing or (existing['ScanResult'] and
+                                                    ' publication date' in existing['ScanResult'] and
+                                                    bookdate and bookdate != '0000' and
+                                                    bookdate <= today()[:len(bookdate)]):
+                                                    # was rejected on previous scan but bookdate is now valid
                                     new_status, new_astatus = getStatus(bookid, serieslist, book_status, audio_status,
                                                                         entrystatus)
                                     updateValueDict["Status"] = new_status

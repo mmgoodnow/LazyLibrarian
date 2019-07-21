@@ -443,7 +443,7 @@ class GoogleBooks:
                         if check_status or rejected is None or (
                                 lazylibrarian.CONFIG['IMP_IGNORE'] and rejected[0] in ignorable):  # dates, isbn
 
-                            cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName '
+                            cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,ScanResult '
                             cmd += 'FROM books WHERE BookID=?'
                             existing = myDB.match(cmd, (bookid,))
                             if existing:
@@ -532,7 +532,11 @@ class GoogleBooks:
 
                                 updateValueDict = {}
                                 controlValueDict = {"BookID": bookid}
-                                if not existing:
+                                if not existing or (existing['ScanResult'] and
+                                                    ' publication date' in existing['ScanResult'] and
+                                                    book['date'] and book['date'] != '0000' and
+                                                    book['date'] <= today()[:len(book['date'])]):
+                                                    # was rejected on previous scan but bookdate is now valid
                                     book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
                                                                           entrystatus)
                                     updateValueDict["Status"] = book_status
