@@ -167,10 +167,13 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                 for member in members:
                     if member[3] == workid:
                         if check_year(member[5], past=1800, future=0):
+                            bookdate = member[5]
+                            if check_int(member[6], 0) and check_int(member[7], 0):
+                                bookdate = "%s-%s-%s" % (member[5], member[6], member[7])
                             controlValueDict = {"BookID": bookid}
-                            newValueDict = {"BookDate": member[5], "OriginalPubDate": member[5]}
+                            newValueDict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
                             myDB.upsert("books", newValueDict, controlValueDict)
-                            originalpubdate = member[5]
+                            originalpubdate = bookdate
                         break
 
                 controlValueDict = {"BookID": bookid, "SeriesID": seriesid}
@@ -778,8 +781,8 @@ def getSeriesAuthors(seriesid):
 
 def getSeriesMembers(seriesID=None, seriesname=None):
     """ Ask librarything or goodreads for details on all books in a series
-        order, bookname, authorname, workid, authorid, pubyear, bookid
-        (workid, authorid, pubyear, bookid are currently goodreads only)
+        order, bookname, authorname, workid, authorid, pubdate, bookid
+        (workid, authorid, pubdate, bookid are currently goodreads only)
         Return as a list of lists """
     results = []
     api_hits = 0
@@ -810,6 +813,8 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                                     ('workid', 'work/id'),
                                     ('authorid', 'work/best_book/author/id'),
                                     ('pubyear', 'work/original_publication_year'),
+                                    ('pubmonth', 'work/original_publication_month'),
+                                    ('pubday', 'work/original_publication_day'),
                                     ('bookid', 'work/best_book/id')
                                     ]:
                 if book.find(location) is not None:
@@ -817,7 +822,8 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                 else:
                     mydict[mykey] = ""
             results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
-                            mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['bookid']])
+                            mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
+                            mydict['pubday'], mydict['bookid']])
     else:
         api_hits = 0
         data = getBookWork(None, "SeriesPage", seriesID)
