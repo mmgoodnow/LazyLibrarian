@@ -1427,7 +1427,7 @@ def db_v45(myDB, upgradelog):
             runGit('config master.merge refs/heads/master')
             runGit('stash clear')
             res, err = runGit('pull origin master')
-            if 'CONFLICT' in res:
+            if not res or 'CONFLICT' in res:
                 upgradelog.write("Forcing reset to fix merge conflicts\n")
                 runGit('reset --hard origin/master')
             runGit('branch --set-upstream-to=origin/master master')
