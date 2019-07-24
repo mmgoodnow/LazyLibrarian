@@ -28,7 +28,7 @@ except ImportError:
     import lib.requests as requests
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import getUserAgent, proxyList, walk
+from lazylibrarian.common import getUserAgent, proxyList, walk, listdir
 from lazylibrarian.formatter import check_int, makeUnicode
 
 
@@ -552,7 +552,7 @@ def update():
         os.remove(tar_download_path)
 
         # Find update dir name
-        update_dir_contents = [x for x in os.listdir(update_dir) if os.path.isdir(os.path.join(update_dir, x))]
+        update_dir_contents = [x for x in listdir(update_dir) if os.path.isdir(os.path.join(update_dir, x))]
         if len(update_dir_contents) != 1:
             logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
             return False

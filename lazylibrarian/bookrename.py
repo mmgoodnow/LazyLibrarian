@@ -16,7 +16,7 @@ import string
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook
+from lazylibrarian.common import safe_move, multibook, listdir, namedic
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
     makeUnicode, makeUTF8bytes, sortDefinite, surnameFirst
 from lib.six import PY2
@@ -25,12 +25,6 @@ try:
     from lib.tinytag import TinyTag
 except ImportError:
     TinyTag = None
-
-
-# Need to remove characters we don't want in the filename BEFORE adding to EBOOK_DIR
-# as windows drive identifiers have colon, eg c:  but no colons allowed elsewhere?
-__dic__ = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's',
-           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'}
 
 
 def id3read(filename):
@@ -128,7 +122,7 @@ def audioProcess(bookid, rename=False, playlist=False):
     book = ''
     audio_file = ''
     abridged = ''
-    for f in os.listdir(makeUTF8bytes(r)[0]):
+    for f in listdir(r):
         f = makeUnicode(f)
         if is_valid_booktype(f, booktype='audiobook'):
             cnt += 1
@@ -396,7 +390,7 @@ def bookRename(bookid):
 
     if book_basename != new_basename:
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
-        for fname in os.listdir(makeUTF8bytes(dest_path)[0]):
+        for fname in listdir(dest_path):
             fname = makeUnicode(fname)
             extn = ''
             if is_valid_booktype(fname, booktype='ebook'):
@@ -584,7 +578,7 @@ def nameVars(bookid, abridged=''):
             mydict['SortTitle'] = ''
 
     dest_path = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'], mydict)
-    dest_path = replace_all(dest_path, __dic__)
+    dest_path = replace_all(dest_path, namedic)
     mydict['FolderName'] = stripspaces(dest_path)
 
     bookfile = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'], mydict)

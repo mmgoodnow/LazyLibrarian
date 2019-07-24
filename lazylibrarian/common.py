@@ -61,7 +61,7 @@ NOTIFY_DOWNLOAD = 2
 notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library"}
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
-__dic__ = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
+namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
            ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'}
 
 
@@ -90,7 +90,7 @@ def multibook(foldername, recurse=False):
                         if counter > 1:
                             return item
     else:
-        flist = os.listdir(makeBytestr(foldername))
+        flist = listdir(foldername)
         flist = [makeUnicode(item) for item in flist]
         for item in filetypes:
             counter = 0
@@ -102,6 +102,20 @@ def multibook(foldername, recurse=False):
     return ''
 
 
+def listdir(name):
+    """
+    listdir ensuring bytestring for unix and path requirements for windows
+    """
+    if os.path.__name__ == 'ntpath':
+        name = syspath(name)
+        if not name.endswith('\\'):
+            name = name + '\\'
+    else:
+        name = makeBytestr(name)
+
+    return os.listdir(name)
+
+
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """
     duplicate of os.walk, except we do a forced decode to utf-8 bytes after listdir
@@ -110,7 +124,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
 
     try:
         top = makeBytestr(top)
-        names = os.listdir(top)
+        names = listdir(top)
         names = [makeBytestr(name) for name in names]
     except os.error as err:
         if onerror is not None:
@@ -250,7 +264,7 @@ def safe_move(src, dst, action='move'):
             if e.errno == 22:  # bad mode or filename
                 drive, path = os.path.splitdrive(dst)
                 # strip some characters windows can't handle
-                newpath = replace_all(path, __dic__)
+                newpath = replace_all(path, namedic)
                 # windows filenames can't end in space or dot
                 while newpath and newpath[-1] in '. ':
                     newpath = newpath[:-1]
@@ -373,7 +387,7 @@ def any_file(search_dir=None, extn=None):
     if search_dir is None or extn is None:
         return ""
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeBytestr(search_dir)):
+        for fname in listdir(search_dir):
             fname = makeUnicode(fname)
             if fname.endswith(extn):
                 return os.path.join(search_dir, fname)
@@ -387,7 +401,7 @@ def opf_file(search_dir=None):
     res = ''
     meta = ''
     if os.path.isdir(search_dir):
-        for fname in os.listdir(makeBytestr(search_dir)):
+        for fname in listdir(search_dir):
             fname = makeUnicode(fname)
             if fname.endswith('.opf'):
                 if fname == 'metadata.opf':
@@ -414,7 +428,7 @@ def bts_file(search_dir=None):
 def csv_file(search_dir=None, library=None):
     if search_dir and os.path.isdir(search_dir):
         try:
-            for fname in os.listdir(makeBytestr(search_dir)):
+            for fname in listdir(search_dir):
                 fname = makeUnicode(fname)
                 if fname.endswith('.csv'):
                     if not library or library in fname:
@@ -447,7 +461,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
         else:
             # noinspection PyBroadException
             try:
-                for fname in os.listdir(makeBytestr(search_dir)):
+                for fname in listdir(search_dir):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
                         return os.path.join(makeBytestr(search_dir), fname)
             except Exception:

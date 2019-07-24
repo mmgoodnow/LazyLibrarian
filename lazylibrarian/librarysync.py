@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setWorkPages
 from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file, any_file, walk
+from lazylibrarian.common import opf_file, any_file, walk, listdir
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
     cleanName, replace_all, split_title, now, makeUnicode, makeBytestr, formatAuthorName
 from lazylibrarian.gb import GoogleBooks
@@ -1025,7 +1025,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
                                                 if tokmatch:
                                                     break
-                                                for e in os.listdir(makeBytestr(rootdir)):
+                                                for e in listdir(rootdir):
                                                     e = makeUnicode(e)
                                                     if is_valid_booktype(e, booktype='audiobook') and token in e:
                                                         book_filename = os.path.join(rootdir, e)

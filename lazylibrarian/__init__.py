@@ -31,7 +31,7 @@ import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
     importer, grsync, comicsearch
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import restartJobs, logHeader, scheduleJob
+from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir
 from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_str, makeUnicode
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.providers import ProviderIsBlocked
@@ -116,6 +116,8 @@ FOREIGN_KEY = 0
 HIST_REFRESH = 1000
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}
+GC_BEFORE = {}
+GC_AFTER = {}
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -743,7 +745,7 @@ def initialize():
                     except OSError as e:
                         if not os.path.isdir(cachelocation):
                             logger.error('Could not create %s: %s' % (cachelocation, e))
-            for itm in os.listdir(pth):
+            for itm in listdir(pth):
                 if len(itm) > 2:
                     os.rename(os.path.join(pth, itm), os.path.join(pth, itm[0], itm[1], itm))
 
@@ -1463,7 +1465,6 @@ def DIRECTORY(dirname):
         logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
         usedir = DATADIR
 
-    # return directory as unicode so we get unicode results from listdir
     return makeUnicode(usedir)
 
 

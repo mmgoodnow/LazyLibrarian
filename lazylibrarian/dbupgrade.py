@@ -20,11 +20,11 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import restartJobs, pwd_generator
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, md5_utf8, getList, check_int
+from lazylibrarian.bookwork import setGenres
+from lazylibrarian.common import restartJobs, pwd_generator, listdir
+from lazylibrarian.formatter import plural, makeUnicode, md5_utf8, getList, check_int
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
-from lazylibrarian.bookwork import setGenres
 
 
 def upgrade_needed():
@@ -845,7 +845,7 @@ def db_v14(myDB, upgradelog):
     # at this point there should be no more .jpg files in the root of the cachedir
     # any that are still there are for books/authors deleted from database
     # or magazine latest issue cover files that get copied as required
-    for image in os.listdir(makeBytestr(src)):
+    for image in listdir(src):
         image = makeUnicode(image)
         if image.endswith('.jpg'):
             os.remove(os.path.join(src, image))
