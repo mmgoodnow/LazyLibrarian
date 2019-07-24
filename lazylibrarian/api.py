@@ -31,11 +31,13 @@ from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, set
     setWorkID, get_gb_info, setGenres, genreFilter, getBookPubdate, addSeriesMembers
 from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
+from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
+from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
-    logHeader, authorUpdate, showStats, seriesUpdate
+    logHeader, authorUpdate, showStats, seriesUpdate, listdir
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, makeUnicode, \
-    makeBytestr, replace_all
+    replace_all
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
@@ -51,8 +53,6 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
-from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lib.six import PY2, string_types
 
 cmd_dict = {'help': 'list available commands. ' +
@@ -177,6 +177,9 @@ cmd_dict = {'help': 'list available commands. ' +
             'comicid': '&name= &source= [&best] try to identify comic from name',
             'comicmeta': '&name= [&xml] get metadata from comic archive, xml or dictionary',
             'getBookPubdate': '&id= get original publication date of a book by bookid',
+            'gc_init': 'Initialise gc_before state',
+            'gc_stats': 'Show difference since gc_init',
+            'gc_collect': 'Run garbage collection & return how many items',
             }
 
 
@@ -271,6 +274,39 @@ class Api(object):
             rows_as_dic.append(row_as_dic)
 
         return rows_as_dic
+
+    @staticmethod
+    def _gc_init():
+        from collections import defaultdict
+        from gc import get_objects
+        lazylibrarian.GC_BEFORE = defaultdict(int)
+        for i in get_objects():
+            lazylibrarian.GC_BEFORE[type(i)] += 1
+
+    def _gc_collect(self):
+        from gc import collect
+        self.data = collect()
+
+    def _gc_stats(self):
+        if not lazylibrarian.GC_BEFORE:
+            self.data = 'Not initialised'
+            return
+        from collections import defaultdict
+        from gc import get_objects
+        lazylibrarian.GC_AFTER = defaultdict(int)
+        for i in get_objects():
+            lazylibrarian.GC_AFTER[type(i)] += 1
+
+        res = ''
+        for k in lazylibrarian.GC_AFTER.keys():
+            if k in lazylibrarian.GC_BEFORE:
+                n = int(lazylibrarian.GC_AFTER[k] - lazylibrarian.GC_BEFORE[k])
+            else:
+                n = int(lazylibrarian.GC_AFTER[k])
+            if n:
+                changed = "%s %s<br>" % (n, str(k).split("'")[1])
+                res = res + changed
+        self.data = res
 
     def _getRSSFeed(self, **kwargs):
         if 'feed' in kwargs:
@@ -654,7 +690,7 @@ class Api(object):
         # now the ones with an error page
         cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
         if os.path.isdir(cache):
-            for cached_file in os.listdir(makeBytestr(cache)):
+            for cached_file in listdir(cache):
                 cached_file = makeUnicode(cached_file)
                 target = os.path.join(cache, cached_file)
                 if os.path.isfile(target):
