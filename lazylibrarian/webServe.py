@@ -44,7 +44,7 @@ from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_str, plural, now, today, check_int, replace_all, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
-    check_year, dispName, is_valid_booktype
+    check_year, dispName, is_valid_booktype, makeBytestr
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import getBookCover, createMagCover
@@ -1035,7 +1035,7 @@ class WebInterface(object):
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(lazylibrarian.PROG_DIR, 'data' + os.path.sep + 'interfaces')
         http_look_list = [name for name in listdir(http_look_dir)
-                          if os.path.isdir(os.path.join(http_look_dir, name))]
+                          if os.path.isdir(os.path.join(makeBytestr(http_look_dir), name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
         apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
 
