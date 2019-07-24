@@ -172,7 +172,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                 authorimg = author['authorimg']
                 controlValueDict = {"AuthorID": authorid}
                 newValueDict = {
-                    "AuthorLink": author['authorlink']
+                    "AuthorLink": author['authorlink'],
+                    "Updated": int(time.time())
                 }
                 if new_author:
                     newValueDict["DateAdded"] = today()
@@ -180,7 +181,6 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                     newValueDict["AuthorImg"] = author['authorimg']
                     newValueDict["AuthorBorn"] = author['authorborn']
                     newValueDict["AuthorDeath"] = author['authordeath']
-                    newValueDict['Updated'] = int(time.time())
                     if not dbauthor:
                         newValueDict["AuthorName"] = author['authorname']
                     elif dbauthor['authorname'] != author['authorname']:
