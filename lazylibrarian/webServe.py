@@ -38,7 +38,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk, listdir
+    zipAudio, runScript, walk
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -1034,8 +1034,8 @@ class WebInterface(object):
     def config(self):
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(lazylibrarian.PROG_DIR, 'data' + os.path.sep + 'interfaces')
-        http_look_list = [name for name in listdir(http_look_dir)
-                          if os.path.isdir(os.path.join(makeBytestr(http_look_dir), name))]
+        http_look_list = [name for name in os.listdir(http_look_dir)
+                          if os.path.isdir(os.path.join(http_look_dir, name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
         apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
 
