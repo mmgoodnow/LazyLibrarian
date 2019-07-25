@@ -831,10 +831,10 @@ class WebInterface(object):
 
                     row.append(percent)
 
-                    if sortcolumn == 4:  # status
-                        sortcolumn = 3
-                    elif sortcolumn == 3:  # percent
-                        sortcolumn = 8
+                if sortcolumn == 3:  # percent
+                    sortcolumn = 8
+                if sortcolumn == 4:  # status
+                    sortcolumn = 3
 
                 if sortcolumn == 8:  # sort on percent,-total
                     if sSortDir_0 == "desc":
