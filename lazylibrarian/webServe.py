@@ -2278,13 +2278,12 @@ class WebInterface(object):
 
                 if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
                     target = zipAudio(os.path.dirname(basefile), res['BookName'])
-                    logger.debug('Opening %s %s' % (ftype, basefile))
+                    logger.debug('Opening %s %s' % (ftype, target))
                     return self.send_file(target, name=res['BookName'] + '.zip')
-                else:
-                    target = basefile
-                    _, extn = os.path.splitext(basefile)
+
+                if basefile and os.path.isfile(basefile):
                     logger.debug('Opening %s %s' % (ftype, basefile))
-                    return self.send_file(target, name=res['BookName'] + extn)
+                    return self.send_file(basefile)
 
         elif ftype == 'book':
             res = myDB.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
