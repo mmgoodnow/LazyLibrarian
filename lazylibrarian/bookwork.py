@@ -648,7 +648,9 @@ def addSeriesMembers(seriesid):
         # workid = member[3]
         # authorid = member[4]
         # pubyear = member[5]
-        bookid = member[6]
+        # pubmonth = member[6]
+        # pubday = member[7]
+        bookid = member[8]
         result = myDB.match("select * from books where bookid=?", (bookid,))
         if not result:
             # import with default statuses
@@ -687,7 +689,9 @@ def getSeriesAuthors(seriesid):
             # workid = member[3]
             authorid = member[4]
             # pubyear = member[5]
-            # bookid = member[6]
+            # pubmonth = member[6]
+            # pubday = member[7]
+            # bookid = member[8]
             bookname = replace_all(bookname, dic)
             if not authorid:
                 # goodreads gives us all the info we need, librarything/google doesn't
