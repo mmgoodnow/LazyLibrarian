@@ -539,32 +539,12 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             logger.error("Failed to read zip file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
             data = ''
     elif extn in ['.cbr']:
-        rarfile = None
-        RarFile = None
-        # noinspection PyBroadException
-        try:
-            from unrar import rarfile
-            unrarlib = 1
-        except Exception:
-            # noinspection PyBroadException
+        if lazylibrarian.UNRARLIB:
             try:
-                from lib.unrar import rarfile
-                unrarlib = 1
-            except Exception:
-                unrarlib = 0
-        if not unrarlib:
-            # noinspection PyBroadException
-            try:
-                from lib.UnRAR2 import RarFile
-                unrarlib = 2
-            except Exception:
-                unrarlib = 0
-        if unrarlib:
-            try:
-                if unrarlib == 1:
-                    data = rarfile.RarFile(issuefile)
-                elif unrarlib == 2:
-                    data = RarFile(issuefile)
+                if lazylibrarian.UNRARLIB == 1:
+                    data = lazylibrarian.RARFILE.RarFile(issuefile)
+                elif lazylibrarian.UNRARLIB == 2:
+                    data = lazylibrarian.RARFILE(issuefile)
             except Exception as why:
                 logger.error("Failed to read rar file %s, %s %s" % (issuefile, type(why).__name__, str(why)))
                 data = ''

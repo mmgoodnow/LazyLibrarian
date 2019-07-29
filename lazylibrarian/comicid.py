@@ -562,27 +562,6 @@ def cx_identify(fname, best=True):
 
 
 def comic_metadata(archivename, xml=False):
-    rarfile = None
-    RarFile = None
-    # noinspection PyBroadException
-    try:
-        # noinspection PyUnresolvedReferences
-        from unrar import rarfile
-        unrarlib = 1
-    except Exception:
-        # noinspection PyBroadException
-        try:
-            from lib.unrar import rarfile
-            unrarlib = 1
-        except Exception:
-            unrarlib = 0
-    if not unrarlib:
-        # noinspection PyBroadException
-        try:
-            from lib.UnRAR2 import RarFile
-            unrarlib = 2
-        except Exception:
-            unrarlib = 0
 
     archivename = makeUnicode(archivename)
     if not os.path.isfile(archivename):  # regular files only
@@ -604,11 +583,11 @@ def comic_metadata(archivename, xml=False):
                     return z.read(item)
                 return meta_dict(z.read(item))
 
-    elif unrarlib == 1 and rarfile.is_rarfile(archivename):
+    elif unrarlib == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('%s is a rar file' % archivename)
         try:
-            z = rarfile.RarFile(archivename)
+            z = lazylibrarian.RARFILE.RarFile(archivename)
         except Exception as e:
             logger.error("Failed to unrar %s: %s" % (archivename, e))
             return {}
@@ -623,7 +602,7 @@ def comic_metadata(archivename, xml=False):
     elif unrarlib == 2:
         # noinspection PyBroadException
         try:
-            rarc = RarFile(archivename)
+            rarc = lazylibrarian.RARFILE(archivename)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                 logger.debug('%s is a rar file' % archivename)
         except Exception:

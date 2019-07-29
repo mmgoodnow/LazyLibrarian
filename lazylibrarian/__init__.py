@@ -32,9 +32,11 @@ from lazylibrarian import logger, database, versioncheck, postprocess, searchboo
     importer, grsync, comicsearch
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir
-from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_str, makeUnicode
+from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_bytes, \
+    makeUnicode, makeBytestr
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.providers import ProviderIsBlocked
+
 from lib.apscheduler.scheduler import Scheduler
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
@@ -118,6 +120,8 @@ GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}
 GC_BEFORE = {}
 GC_AFTER = {}
+UNRARLIB = 0
+RARFILE = None
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -188,7 +192,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['NAME_POSTFIX', 'BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
-                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS']
+                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS', 'PREF_UNRARLIB']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -585,6 +589,7 @@ CONFIG_DEFINITIONS = {
     'RSS_ENABLED': ('bool', 'RSS', 1),
     'RSS_PODCAST': ('bool', 'RSS', 1),
     'RSS_HOST': ('str', 'RSS', ''),
+    'PREF_UNRARLIB': ('int', 'General', 1),
     'USER_AGENT': ('str', 'General', ''),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
@@ -657,6 +662,38 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
     return my_val
 
 
+def get_unrarlib():
+    """ Detect presence of unrar library
+        Return type of library and rarfile()
+    """
+    UNRARLIB = 0
+    rarfile = None
+    # noinspection PyBroadException
+    try:
+        # noinspection PyUnresolvedReferences
+        from unrar import rarfile
+        if CONFIG['PREF_UNRARLIB'] == 1:
+            return 1, rarfile
+    except Exception:
+        # noinspection PyBroadException
+        try:
+            from lib.unrar import rarfile
+            if CONFIG['PREF_UNRARLIB'] == 1:
+                return 1, rarfile
+        except Exception:
+            pass
+
+    if not rarfile or CONFIG['PREF_UNRARLIB'] == 2:
+        # noinspection PyBroadException
+        try:
+            from lib.UnRAR2 import RarFile
+            return 2, RarFile
+        except Exception:
+            if rarfile:
+                return 1, rarfile
+    return 0, None
+
+
 def initialize():
     global FULL_PATH, PROG_DIR, ARGS, DAEMON, SIGNAL, PIDFILE, DATADIR, CONFIGFILE, SYS_ENCODING, LOGLEVEL, \
         CONFIG, CFG, DBFILE, COMMIT_LIST, SCHED, INIT_LOCK, __INITIALIZED__, started, LOGLIST, LOGTOGGLE, \
@@ -664,7 +701,7 @@ def initialize():
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
         GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES, SHOW_COMICS, LAST_COMICVINE, CV_SLEEP, \
-        SERIES_UPDATE, SHOW_EBOOK
+        SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE
 
     with INIT_LOCK:
 
@@ -761,6 +798,8 @@ def initialize():
         LT_SLEEP = 0.0
         CV_SLEEP = 0.0
         GB_CALLS = 0
+
+        UNRARLIB, RARFILE = get_unrarlib()
 
         # Initialize the database
         try:
@@ -1129,7 +1168,10 @@ def config_write(part=None):
                     value = value.encode(SYS_ENCODING)
                 except UnicodeError:
                     logger.debug("Unable to convert value of %s (%s) to SYS_ENCODING" % (key, repr(value)))
-                    value = unaccented_str(value)
+                    if PY2:
+                        value = unaccented_bytes(value)
+                    else:
+                        value = unaccented(value)
             value = value.strip()
             if 'DLTYPES' in key:
                 value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
