@@ -109,7 +109,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 if user:
                     link = '%s/serveAudio/%s%s%s' % (baseurl, user, res['BookID'], extn)
 
-                if TinyTag:
+                if TinyTag and TinyTag.is_supported(res['AudioFile']):
                     id3r = TinyTag.get(res['AudioFile'])
                     secs = id3r.duration
                     duration = time.strftime('%H:%M:%S', time.gmtime(secs))

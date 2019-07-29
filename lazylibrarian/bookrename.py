@@ -13,6 +13,7 @@
 
 import os
 import string
+import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -29,6 +30,11 @@ except ImportError:
 
 def id3read(filename):
     if not TinyTag:
+        logger.warn("TinyTag library not available")
+        return None, None
+
+    if not TinyTag.is_supported(filename):
+        logger.warn("TinyTag:unsupported [%s]" % filename)
         return None, None
 
     try:
@@ -78,8 +84,8 @@ def id3read(filename):
             author = author[0]  # if multiple authors, just use the first one
         if author and book:
             return makeUnicode(author), makeUnicode(book)
-    except Exception as e:
-        logger.error("tinytag error %s %s [%s]" % (type(e).__name__, str(e), filename))
+    except Exception:
+        logger.error("tinytag error %s" % traceback.format_exc())
     return None, None
 
 
