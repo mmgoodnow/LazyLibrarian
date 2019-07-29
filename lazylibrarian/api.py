@@ -1142,10 +1142,12 @@ class Api(object):
 
         if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
             GB = GoogleBooks(kwargs['id'])
-            threading.Thread(target=GB.find_book, name='API-GBRESULTS', args=[kwargs['id']]).start()
+            threading.Thread(target=GB.find_book, name='API-GBRESULTS', args=[kwargs['id'],
+                                                                              None, None, "Added by API"]).start()
         else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             GR = GoodReads(kwargs['id'])
-            threading.Thread(target=GR.find_book, name='API-GRRESULTS', args=[kwargs['id']]).start()
+            threading.Thread(target=GR.find_book, name='API-GRRESULTS', args=[kwargs['id'],
+                                                                              None, None, "Added by API"]).start()
 
     def _moveBook(self, **kwargs):
         if 'id' not in kwargs:

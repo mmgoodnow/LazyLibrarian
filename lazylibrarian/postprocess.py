@@ -42,7 +42,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic
-from lazylibrarian.formatter import unaccented_str, unaccented, plural, now, today, is_valid_booktype, \
+from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes, \
     makeBytestr
 from lazylibrarian.gr import GoodReads
@@ -219,9 +219,11 @@ def processAlternate(source_dir=None, library='eBook'):
                                 (match['book_fuzz'], match['authorname'], match['bookname'],
                                     authorname, bookname))
                     if library == 'eBook':
-                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True)
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                    reason="Added from alternate dir")
                     else:
-                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True)
+                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                    reason="Added from alternate dir")
                     imported = myDB.match('select * from books where BookID=?', (match['bookid'],))
                     if imported:
                         bookid = match['bookid']
@@ -307,26 +309,6 @@ def unpack_archive(archivename, download_dir, title):
     targetdir = ''
     # noinspection PyBroadException
     try:
-        # noinspection PyUnresolvedReferences
-        from unrar import rarfile
-        unrarlib = 1
-    except Exception:
-        # noinspection PyBroadException
-        try:
-            from lib.unrar import rarfile
-            unrarlib = 1
-        except Exception:
-            unrarlib = 0
-    if not unrarlib:
-        # noinspection PyBroadException
-        try:
-            from lib.UnRAR2 import RarFile
-            unrarlib = 2
-        except Exception:
-            unrarlib = 0
-
-    # noinspection PyBroadException
-    try:
         if zipfile.is_zipfile(archivename):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug('%s is a zip file' % archivename)
@@ -378,11 +360,11 @@ def unpack_archive(archivename, download_dir, title):
                     with open(dst, "wb") as f:
                         f.write(z.extractfile(item).read())
 
-        elif unrarlib == 1 and rarfile.is_rarfile(archivename):
+        elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug('%s is a rar file' % archivename)
             try:
-                z = rarfile.RarFile(archivename)
+                z = lazylibrarian.RARFILE.RarFile(archivename)
             except Exception as e:
                 logger.error("Failed to unrar %s: %s" % (archivename, e))
                 return ''
@@ -403,10 +385,10 @@ def unpack_archive(archivename, download_dir, title):
                     with open(dst, "wb") as f:
                         f.write(z.read(item))
 
-        elif unrarlib == 2:
+        elif lazylibrarian.UNRARLIB == 2:
             # noinspection PyBroadException
             try:
-                z = RarFile(archivename)
+                z = lazylibrarian.RARFILE(archivename)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug('%s is a rar file' % archivename)
             except Exception:
@@ -498,7 +480,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 # see if we can get current status from the downloader as the name
                 # may have been changed once magnet resolved, or download started or completed
                 # depending on torrent downloader. Usenet doesn't change the name. We like usenet.
-                matchtitle = unaccented_str(book['NZBtitle'])
+                if PY2:
+                    matchtitle = unaccented_bytes(book['NZBtitle'])
+                else:
+                    matchtitle = unaccented(book['NZBtitle'])
                 dlname = getDownloadName(matchtitle, book['Source'], book['DownloadID'])
 
                 if dlname and dlname != matchtitle:
@@ -546,7 +531,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 for book in snatched:
                     book_type = bookType(book)
                     # remove accents and convert not-ascii apostrophes
-                    matchtitle = unaccented_str(book['NZBtitle'])
+                    if PY2:
+                        matchtitle = unaccented_bytes(book['NZBtitle'])
+                    else:
+                        matchtitle = unaccented(book['NZBtitle'])
                     # torrent names might have words_separated_by_underscores
                     matchtitle = matchtitle.split(' LL.(')[0].replace('_', ' ')
                     # strip noise characters
@@ -564,8 +552,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             # Usenet is ok, but Torrents aren't always returned with the name we searched for
                             # We ask the torrent downloader for the torrent name, but don't always get an answer
                             # so we try to do a "best match" on the name, there might be a better way...
-
-                            matchname = unaccented_str(fname)
+                            if PY2:
+                                matchname = unaccented_bytes(fname)
+                            else:
+                                matchname = unaccented(fname)
                             matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                             matchname = replace_all(matchname, namedic)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
@@ -729,7 +719,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 # but if multiple files are downloading, there will be an error in post-processing
                                 # trying to go to the same directory.
                                 mostrecentissue = data['IssueDate']  # keep for processing issues arriving out of order
-                                mag_name = unaccented_str(replace_all(book['BookID'], namedic))
+                                if PY2:
+                                    mag_name = unaccented_bytes(replace_all(book['BookID'], namedic))
+                                else:
+                                    mag_name = unaccented(replace_all(book['BookID'], namedic))
                                 # book auxinfo is a cleaned date, eg 2015-01-01
                                 dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
                                     '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
@@ -764,7 +757,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 if data:  # it's a comic
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
                                     mostrecentissue = data['LatestIssue']
-                                    comic_name = unaccented_str(replace_all(data['Title'], namedic))
+                                    if PY2:
+                                        comic_name = unaccented_bytes(replace_all(data['Title'], namedic))
+                                    else:
+                                        comic_name = unaccented(replace_all(data['Title'], namedic))
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
@@ -1321,7 +1317,10 @@ def getDownloadName(title, source, downloadid):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
-                    dlname = unaccented_str(result['name'])
+                    if PY2:
+                        dlname = unaccented_bytes(result['name'])
+                    else:
+                        dlname = unaccented(result['name'])
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         elif source == 'SABNZBD':
@@ -2019,7 +2018,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 # calibre does not like accents or quotes in names
                 if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
                     authorname = authorname[:-1] + '_'
-                author_dir = os.path.join(dest_dir, unaccented_str(authorname.replace('"', '_')), '')
+                if PY2:
+                    author_dir = os.path.join(dest_dir, unaccented_bytes(authorname.replace('"', '_')), '')
+                else:
+                    author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_')), '')
                 if os.path.isdir(author_dir):  # assumed author directory
                     entries = listdir(author_dir)
                     our_id = '(%s)' % calibre_id
@@ -2386,11 +2388,11 @@ def processOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
 
-    opfinfo = unaccented_str(replace_all(opfinfo, dic))
-
     if PY2:
+        opfinfo = unaccented_bytes(replace_all(opfinfo, dic))
         fmode = 'wb'
     else:
+        opfinfo = unaccented(replace_all(opfinfo, dic))
         fmode = 'w'
     with open(opfpath, fmode) as opf:
         opf.write(opfinfo)

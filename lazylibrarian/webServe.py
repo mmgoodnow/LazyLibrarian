@@ -42,9 +42,9 @@ from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, sch
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
-from lazylibrarian.formatter import unaccented, unaccented_str, plural, now, today, check_int, replace_all, \
+from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, replace_all, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
-    check_year, dispName, is_valid_booktype, makeBytestr
+    check_year, dispName, is_valid_booktype
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import getBookCover, createMagCover
@@ -2074,11 +2074,13 @@ class WebInterface(object):
         else:
             if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                 GB = GoogleBooks(bookid)
-                t = threading.Thread(target=GB.find_book, name='GB-BOOK', args=[bookid, "Wanted"])
+                t = threading.Thread(target=GB.find_book, name='GB-BOOK', args=[bookid, "Wanted",
+                                                                                None, "Added by webserver"])
                 t.start()
             else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                 GR = GoodReads(bookid)
-                t = threading.Thread(target=GR.find_book, name='GR-BOOK', args=[bookid, "Wanted"])
+                t = threading.Thread(target=GR.find_book, name='GR-BOOK', args=[bookid, "Wanted",
+                                                                                None, "Added by webserver"])
                 t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
         if lazylibrarian.CONFIG['IMP_AUTOSEARCH']:
@@ -2894,7 +2896,7 @@ class WebInterface(object):
                                             if res and not rc:
                                                 logger.debug('%s reports: %s' %
                                                              (lazylibrarian.CONFIG['IMP_CALIBREDB'],
-                                                              unaccented_str(res)))
+                                                              unaccented_bytes(res)))
                                             else:
                                                 logger.debug('No response from %s' %
                                                              lazylibrarian.CONFIG['IMP_CALIBREDB'])
@@ -3427,6 +3429,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def findComic(self, title=None):
+        # noinspection PyGlobalUndefined
         global comicresults
         myDB = database.DBConnection()
         if not title or title == 'None':
@@ -4775,6 +4778,19 @@ class WebInterface(object):
                         row.append(rowid)
                         row.append(row[4])  # keep full datetime for tooltip
                         row[4] = dateFormat(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+
+                        if row[1] in ['eBook', 'AudioBook']:
+                            btn = '<button onclick="bookinfo(\'' + row[2]
+                            btn += '\')" class="button btn-link text-left" type="button" '
+                            btn += '>' + row[2] + '</button>'
+                            row[2] = btn
+                        elif row[1] == 'comic':
+                            btn = '<a href=\'openComic?comicid=' + row[2] + '\'">' + row[2] + '</a>'
+                            row[2] = btn
+                        elif re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
+                            btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
+                            row[2] = btn
+
                     rows.append(row)
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:

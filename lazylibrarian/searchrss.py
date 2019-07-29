@@ -195,7 +195,8 @@ def search_wishlist():
                                 bookmatch = result
                                 break
                 if bookmatch:
-                    import_book(bookmatch['bookid'], ebook_status, audio_status)
+                    import_book(bookmatch['bookid'], ebook_status, audio_status,
+                                reason="Added from wishlist %s" % book["dispname"])
                     new_books += 1
                     newValueDict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
                     controlValueDict = {"BookID": bookmatch['bookid']}

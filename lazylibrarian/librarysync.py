@@ -798,10 +798,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             logger.debug(msg % (book, author))
                                             if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
                                                 GR_ID = GoodReads(gr_id)
-                                                GR_ID.find_book(gr_id)
+                                                GR_ID.find_book(gr_id, None, None, "Added by librarysync")
                                             elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
                                                 GB_ID = GoogleBooks(gb_id)
-                                                GB_ID.find_book(gb_id)
+                                                GB_ID.find_book(gb_id, None, None, "Added by librarysync")
                                             # see if it's there now...
                                             match = myDB.match('SELECT BookID from books where BookID=?', (bookid,))
                                             if not match:

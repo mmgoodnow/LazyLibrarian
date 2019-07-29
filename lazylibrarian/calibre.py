@@ -144,7 +144,7 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
                             logger.debug("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
                                                                        result['authorname'], result['bookname']))
                             bookid = result['bookid']
-                            import_book(bookid)
+                            import_book(bookid, reason="Added by calibre sync")
                 if bookid:
                     # NOTE: calibre bookid is always an integer, lazylibrarian bookid is a string
                     # (goodreads could be used as an int, but googlebooks can't as it's alphanumeric)

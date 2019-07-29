@@ -1087,9 +1087,8 @@ class GoodReads:
             if res:
                 logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None):
+    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason=''):
         myDB = database.DBConnection()
-        reason = ''
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
 
         try:

@@ -369,7 +369,8 @@ def import_CSV(search_dir=None, library='eBook'):
                                         (bookmatch['book_fuzz'], bookmatch['authorname'], bookmatch['bookname'],
                                          authorname, title))
                             if library == 'eBook':
-                                import_book(bookmatch['bookid'], ebook="Wanted", wait=True)
+                                import_book(bookmatch['bookid'], ebook="Wanted", wait=True,
+                                            reason="Added by import_CSV")
                             else:
                                 import_book(bookmatch['bookid'], audio="Wanted", wait=True)
                             imported = myDB.match('select * from books where BookID=?', (bookmatch['bookid'],))

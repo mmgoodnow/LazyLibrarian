@@ -646,7 +646,7 @@ def grsync(status, shelf, library='eBook', reset=False):
                 logger.debug('Adding new %s %s to database' % (library, book))
                 if not GR:
                     GR = GoodReads(book)
-                GR.find_book(book)
+                GR.find_book(book, None, None, "Added by grsync")
                 res = myDB.match(cmd, (book,))
             if not res:
                 logger.warn('%s %s not found in database' % (library, book))
@@ -692,7 +692,7 @@ def grsync(status, shelf, library='eBook', reset=False):
                 logger.debug('Adding new book %s to database' % book)
                 if not GR:
                     GR = GoodReads(book)
-                GR.find_book(book)
+                GR.find_book(book, None, None, "Added by grsync")
                 res = myDB.match(cmd, (book,))
             if not res:
                 logger.warn('Book %s not found in database' % book)

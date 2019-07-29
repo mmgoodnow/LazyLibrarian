@@ -30,7 +30,7 @@ from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries
     setSeries, getStatus, thingLang, googleBookDict
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
-from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_str, is_valid_isbn, \
+from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
     getList, cleanName, makeUnicode, makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 try:
@@ -38,6 +38,7 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 
+from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
 
@@ -247,7 +248,10 @@ class GoogleBooks:
         try:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
             # google doesnt like accents in author names
-            set_url = self.url + quote('inauthor:"%s"' % unaccented_str(authorname))
+            if PY2:
+                set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname))
+            else:
+                set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname))
 
             api_hits = 0
             gr_lang_hits = 0
@@ -536,7 +540,7 @@ class GoogleBooks:
                                                     ' publication date' in existing['ScanResult'] and
                                                     book['date'] and book['date'] != '0000' and
                                                     book['date'] <= today()[:len(book['date'])]):
-                                                    # was rejected on previous scan but bookdate is now valid
+                                    # was rejected on previous scan but bookdate is now valid
                                     book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
                                                                           entrystatus)
                                     updateValueDict["Status"] = book_status
@@ -617,7 +621,7 @@ class GoogleBooks:
         except Exception:
             logger.error('Unhandled exception in GB.get_author_books: %s' % traceback.format_exc())
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None):
+    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason=''):
         myDB = database.DBConnection()
         if not lazylibrarian.CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
@@ -647,15 +651,18 @@ class GoogleBooks:
         # warn if language is in ignore list, but user said they wanted this book
         valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
         if book['lang'] not in valid_langs and 'All' not in valid_langs:
-            logger.debug('Book %s googlebooks language does not match preference, %s' % (bookname, book['lang']))
+            reason = 'Book %s googlebooks language does not match preference, %s' % (bookname, book['lang'])
+            logger.warn(reason)
 
         if lazylibrarian.CONFIG['NO_PUBDATE']:
             if not book['date'] or book['date'] == '0000':
-                logger.warn('Book %s Publication date does not match preference, %s' % (bookname, book['date']))
+                reason = 'Book %s Publication date does not match preference, %s' % (bookname, book['date'])
+                logger.warn(reason)
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
             if book['date'] > today()[:4]:
-                logger.warn('Book %s Future publication date does not match preference, %s' % (bookname, book['date']))
+                reason = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])
+                logger.warn(reason)
 
         authorname = book['author']
         GR = GoodReads(authorname)
@@ -710,6 +717,7 @@ class GoogleBooks:
             "BookLang": book['lang'],
             "Status": bookstatus,
             "AudioStatus": audiostatus,
+            "ScanResult": reason,
             "BookAdded": today()
         }
 

@@ -654,7 +654,7 @@ def addSeriesMembers(seriesid):
         result = myDB.match("select * from books where bookid=?", (bookid,))
         if not result:
             # import with default statuses
-            lazylibrarian.importer.import_book(bookid, wait=True)
+            lazylibrarian.importer.import_book(bookid, wait=True, reason="Series: %s" % seriesname)
             count += 1
     myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
     lazylibrarian.SERIES_UPDATE = False
