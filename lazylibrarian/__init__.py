@@ -666,8 +666,6 @@ def get_unrarlib():
     """ Detect presence of unrar library
         Return type of library and rarfile()
     """
-    UNRARLIB = 0
-    rarfile = None
     # noinspection PyBroadException
     try:
         # noinspection PyUnresolvedReferences

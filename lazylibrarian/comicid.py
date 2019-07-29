@@ -583,7 +583,7 @@ def comic_metadata(archivename, xml=False):
                     return z.read(item)
                 return meta_dict(z.read(item))
 
-    elif unrarlib == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
+    elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('%s is a rar file' % archivename)
         try:
@@ -599,7 +599,7 @@ def comic_metadata(archivename, xml=False):
                     return z.read(item)
                 return meta_dict(z.read(item))
 
-    elif unrarlib == 2:
+    elif lazylibrarian.UNRARLIB == 2:
         # noinspection PyBroadException
         try:
             rarc = lazylibrarian.RARFILE(archivename)

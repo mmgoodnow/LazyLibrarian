@@ -878,7 +878,7 @@ class GoodReads:
                                                     ' publication date' in existing['ScanResult'] and
                                                     bookdate and bookdate != '0000' and
                                                     bookdate <= today()[:len(bookdate)]):
-                                                    # was rejected on previous scan but bookdate is now valid
+                                    # was rejected on previous scan but bookdate is now valid
                                     new_status, new_astatus = getStatus(bookid, serieslist, book_status, audio_status,
                                                                         entrystatus)
                                     updateValueDict["Status"] = new_status
