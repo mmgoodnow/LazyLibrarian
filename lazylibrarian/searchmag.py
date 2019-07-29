@@ -80,13 +80,7 @@ def search_magazines(mags=None, reset=False):
 
             if not searchterm:
                 dic = {'...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '', ',': '', '*': ''}
-                """
-                # strip accents from the magazine title for easier name-matching
-                searchterm = unaccented_str(searchmag['Title'])
-                if not searchterm:
-                    # unless there are no ascii characters left
-                    searchterm = searchmag['Title']
-                """
+
                 searchterm = replace_all(searchmag['Title'], dic)
 
                 searchterm = re.sub(r'[.\-/]', ' ', searchterm)
@@ -191,15 +185,7 @@ def search_magazines(mags=None, reset=False):
                 for nzb in resultlist:
                     total_nzbs += 1
                     bookid = nzb['bookid']
-                    # strip accents from the magazine title for easier name-matching
-                    """
-                    nzbtitle = unaccented_str(nzb['nzbtitle'])
-                    if not nzbtitle:
-                        # unless it's not a latin-1 encodable name
-                        nzbtitle = nzb['nzbtitle']
-                    """
                     nzbtitle = nzb['nzbtitle']
-
                     nzbtitle = nzbtitle.replace('"', '').replace("'", "")  # suppress " in titles
                     nzburl = nzb['nzburl']
                     nzbprov = nzb['nzbprov']

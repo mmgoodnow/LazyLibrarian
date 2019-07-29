@@ -13,13 +13,15 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, unaccented_str, plural, dateFormat
+from lazylibrarian.formatter import getList, unaccented_bytes, unaccented, plural, dateFormat
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
     IterateOverDirectSites
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
+
+from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
 
@@ -38,7 +40,10 @@ def searchItem(item=None, bookid=None, cat=None):
         return results
 
     book = {}
-    searchterm = unaccented_str(item)
+    if PY2:
+        searchterm = unaccented_bytes(item)
+    else:
+        searchterm = unaccented(item)
 
     book['searchterm'] = searchterm
     if bookid:

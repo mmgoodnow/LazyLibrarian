@@ -40,7 +40,7 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs
-from lazylibrarian.formatter import cleanName, unaccented_str, getList, makeUnicode
+from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode
 from lazylibrarian.postprocess import delete_task, check_contents
 try:
     from deluge_client import DelugeRPCClient
@@ -48,7 +48,7 @@ except ImportError:
     from lib.deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
-from lib.six import text_type
+from lib.six import PY2, text_type
 
 
 def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
@@ -482,7 +482,10 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
             if makeUnicode(downloadID).upper() in makeUnicode(tor_title).upper():
                 logger.warn('%s: name contains hash, probably unresolved magnet' % Source)
             else:
-                tor_title = unaccented_str(tor_title)
+                if PY2:
+                    tor_title = unaccented_bytes(tor_title)
+                else:
+                    tor_title = unaccented(tor_title)
                 # need to check against reject words list again as the name may have changed
                 # library = magazine eBook AudioBook to determine which reject list
                 # but we can't easily do the per-magazine rejects

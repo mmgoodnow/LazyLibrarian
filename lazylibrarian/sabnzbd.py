@@ -20,7 +20,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import proxyList
-from lazylibrarian.formatter import check_int, unaccented_str, makeUTF8bytes
+from lazylibrarian.formatter import check_int, makeUTF8bytes
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
 
@@ -186,7 +186,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("Result text from SAB: " + str(result))
 
-    if unaccented_str(title).startswith('LL.('):
+    if title and title.startswith('LL.('):
         return result, ''
 
     if result['status'] is True:

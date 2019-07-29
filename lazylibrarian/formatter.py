@@ -659,13 +659,10 @@ def cleanName(name, extras=None):
 def unaccented(str_or_unicode):
     if not str_or_unicode:
         return u''
-    res = unaccented_str(str_or_unicode)
-    if PY2:
-        res = makeUnicode(res)
-    return res
+    return makeUnicode(unaccented_bytes(str_or_unicode))
 
 
-def unaccented_str(str_or_unicode):
+def unaccented_bytes(str_or_unicode):
     if not str_or_unicode:
         return ''.encode('ASCII')  # ensure bytestring for python3
     try:
@@ -687,10 +684,7 @@ def unaccented_str(str_or_unicode):
     stripped = stripped.encode('ASCII', 'ignore')
     if not len(stripped):
         stripped = str_or_unicode
-    if PY2:
-        return stripped  # return bytestring
-    else:
-        return stripped.decode(lazylibrarian.SYS_ENCODING)  # return unicode
+    return stripped  # return bytestring
 
 
 def replace_all(text, dic):
