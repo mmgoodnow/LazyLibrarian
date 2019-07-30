@@ -4782,10 +4782,15 @@ class WebInterface(object):
                         if row[1] in ['eBook', 'AudioBook']:
                             btn = '<button onclick="bookinfo(\'' + row[2]
                             btn += '\')" class="button btn-link text-left" type="button" '
-                            btn += '>' + row[2] + '</button>'
+                            btn += '>' + row[1] + '</button>'
+                            row[1] = btn
+                            auth = myDB.match('SELECT authorid from books where bookid=?', (row[2],))
+                            btn ='<a href=\'authorPage?AuthorID='
+                            btn += auth['authorid']
+                            btn += '\'">' + row[2] + '</a>'
                             row[2] = btn
                         elif row[1] == 'comic':
-                            btn = '<a href=\'openComic?comicid=' + row[2] + '\'">' + row[2] + '</a>'
+                            btn = '<a href=\'openComic?comicid=' + row[2].split('_')[0] + '\'">' + row[2] + '</a>'
                             row[2] = btn
                         elif re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
                             btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
