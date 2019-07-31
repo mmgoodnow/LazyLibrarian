@@ -174,9 +174,13 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, _ = addAuthorNameToDB(author, False, addbooks=True)
+        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=True)
         if len(newauthor) and newauthor != author:
-            logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
+            if new:
+                logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
+            else:
+                logger.debug("Authorname changed from [%s] to existing [%s]" % (author, newauthor))
+                check_exist_author = {'AuthorID': authorid}
             author = makeUnicode(newauthor)
 
     if not authorid:
