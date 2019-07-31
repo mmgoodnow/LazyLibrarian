@@ -4785,14 +4785,20 @@ class WebInterface(object):
                             btn += '>' + row[1] + '</button>'
                             row[1] = btn
                             auth = myDB.match('SELECT authorid from books where bookid=?', (row[2],))
-                            btn ='<a href=\'authorPage?AuthorID='
-                            btn += auth['authorid']
-                            btn += '\'">' + row[2] + '</a>'
-                            row[2] = btn
+                            if auth:
+                                # noinspection PyBroadException
+                                try:
+                                    btn = '<a href=\'authorPage?AuthorID='
+                                    btn += auth['authorid']
+                                    btn += '\'">' + row[2] + '</a>'
+                                    row[2] = btn
+                                except Exception:
+                                    logger.debug("Unexpected authorid [%s]" % repr(auth))
                         elif row[1] == 'comic':
                             btn = '<a href=\'openComic?comicid=' + row[2].split('_')[0] + '\'">' + row[2] + '</a>'
                             row[2] = btn
                         else:
+                            # noinspection PyBroadException
                             try:
                                 if re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
                                     btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
