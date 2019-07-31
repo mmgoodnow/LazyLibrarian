@@ -4792,9 +4792,13 @@ class WebInterface(object):
                         elif row[1] == 'comic':
                             btn = '<a href=\'openComic?comicid=' + row[2].split('_')[0] + '\'">' + row[2] + '</a>'
                             row[2] = btn
-                        elif re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
-                            btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
-                            row[2] = btn
+                        else:
+                            try:
+                                if re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
+                                    btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
+                                    row[2] = btn
+                            except Exception:
+                                logger.debug("Unexpected auxinfo [%s]" % row[1])
 
                     rows.append(row)
 
