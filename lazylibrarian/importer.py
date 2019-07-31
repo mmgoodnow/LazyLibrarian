@@ -111,6 +111,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
                 check_exist_author = myDB.match('SELECT AuthorID FROM authors where AuthorID=?', (authorid,))
                 if check_exist_author:
                     logger.debug('Found goodreads authorname %s in database' % author)
+                    new = False
                 else:
                     logger.info("Adding new author [%s]" % author)
                     try:
