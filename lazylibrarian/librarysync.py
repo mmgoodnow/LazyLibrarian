@@ -174,7 +174,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=True)
+        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
         if len(newauthor) and newauthor != author:
             if new:
                 logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))

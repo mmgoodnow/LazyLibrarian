@@ -666,11 +666,11 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
 
     elif result:
         logger.debug('Parsing results from %s' % URL)
-        data = result.split('class="book-body"')
+        data = result.split('itemProp="itemListElement"')
         for entry in data[1:]:
             try:
-                title = makeUnicode(entry.split('itemprop="name">')[1].split('<')[0])
-                author_name = makeUnicode(entry.split('itemprop="author">by ')[1].split('<')[0])
+                title = makeUnicode(entry.split('itemProp="name">')[1].split('<')[0])
+                author_name = makeUnicode(entry.split('itemProp="author">by ')[1].split('<')[0])
                 author_name = author_name.split(' and ')[0].strip()  # multi-author, use first one
                 results.append({
                     'rss_prov': provider,
