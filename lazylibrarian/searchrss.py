@@ -19,7 +19,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.csvfile import finditem
 from lazylibrarian.formatter import plural, unaccented, formatAuthorName, check_int, split_title
-from lazylibrarian.importer import import_book, search_for
+from lazylibrarian.importer import import_book, search_for, addAuthorNameToDB
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverWishLists
 from lazylibrarian.resultlist import processResultList
 
@@ -163,6 +163,17 @@ def search_wishlist():
             else:  # not in database yet
                 results = []
                 authorname = formatAuthorName(book['rss_author'])
+                authmatch = myDB.match('SELECT * FROM authors where AuthorName=?', (authorname,))
+                if authmatch:
+                    logger.debug("Author %s found in database" % authorname)
+                else:
+                    logger.debug("Author %s not found" % authorname)
+                    newauthor, _, _ = addAuthorNameToDB(author=authorname,
+                                                        addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                    if len(newauthor) and newauthor != authorname:
+                        logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
+                        authorname = newauthor
+
                 if book['rss_isbn']:
                     results = search_for(book['rss_isbn'])
                     for result in results:
