@@ -62,8 +62,8 @@ AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/
 QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
 ## Docker packages
-armhf version here : https://hub.docker.com/r/lsioarmhf/lazylibrarian/  
-x64 version here   : https://hub.docker.com/r/linuxserver/lazylibrarian/    
-with calibredb here: https://hub.docker.com/r/thraxis/lazylibrarian-calibre/  
-The above docker packages all include ghostscript for magazine cover generation but only the thraxis version includes calibredb  
+By LinuxServer : https://hub.docker.com/r/linuxserver/lazylibrarian/
+By thraxis : https://hub.docker.com/r/thraxis/lazylibrarian-calibre/
+The above docker packages both include ghostscript for magazine cover generation and calibredb (via optional variable in LinuxServer version)
+LinuxServer version is multi-arch and works on X86_64, armhf and aarch64 (calibredb only available on X86_64)
 The dockers can be upgraded using the lazylibrarian internal upgrade mechanism
