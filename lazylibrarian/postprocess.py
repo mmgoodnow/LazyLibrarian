@@ -304,8 +304,6 @@ def unpack_archive(archivename, download_dir, title):
     if not os.path.isfile(archivename):  # regular files only
         return ''
 
-    rarfile = None
-    RarFile = None
     targetdir = ''
     # noinspection PyBroadException
     try:

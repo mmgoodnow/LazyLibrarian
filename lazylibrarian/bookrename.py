@@ -37,6 +37,7 @@ def id3read(filename):
         logger.warn("TinyTag:unsupported [%s]" % filename)
         return None, None
 
+    # noinspection PyBroadException
     try:
         id3r = TinyTag.get(filename)
         artist = id3r.artist

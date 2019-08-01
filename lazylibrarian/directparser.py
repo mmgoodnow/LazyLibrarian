@@ -240,7 +240,7 @@ def GEN(book=None, prov=None, test=False):
                                     if output:
                                         if '/get.php' in output or '/download/' in output or \
                                                 '/book/' in output or '/fiction/' in output or \
-                                                    '/main/' in output:
+                                                '/main/' in output:
                                             if output.startswith('http'):
                                                 url = output
                                                 break
