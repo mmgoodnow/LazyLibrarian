@@ -48,6 +48,7 @@ except ImportError:
 def get_book_info(fname):
     # only handles epub, mobi, azw3 and opf for now,
     # for pdf see notes below
+    fname = makeUnicode(fname)
     res = {}
     extn = os.path.splitext(fname)[1]
     if not extn:
@@ -642,8 +643,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                         # if it's an epub or a mobi we can try to read metadata from it
                         if extn in [".epub", ".mobi"]:
                             book_filename = os.path.join(rootdir, files)
-                            if PY2:
-                                book_filename = book_filename.encode(lazylibrarian.SYS_ENCODING)
                             try:
                                 res = get_book_info(book_filename)
                             except Exception as e:
