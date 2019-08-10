@@ -1090,7 +1090,6 @@ class GoodReads:
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason=''):
         myDB = database.DBConnection()
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
-
         try:
             rootxml, _ = gr_xml_request(URL)
             if rootxml is None:
@@ -1113,9 +1112,11 @@ class GoodReads:
         # user has said they want this book, don't block for unwanted language, just warn
         #
         valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
-        if bookLanguage not in valid_langs:
-            reason = 'Language [%s] does not match preference' % bookLanguage
-            logger.warn('Book %s, %s' % (bookname, reason))
+        if bookLanguage not in valid_langs  and 'All' not in valid_langs:
+            msg = 'Book %s Language [%s] does not match preference' % (bookname, bookLanguage)
+            logger.warn(msg)
+            if reason.startswith("Series:"):
+                return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
             originalpubdate = ''
@@ -1143,14 +1144,26 @@ class GoodReads:
 
         if lazylibrarian.CONFIG['NO_PUBDATE']:
             if not bookdate or bookdate == '0000':
-                reason = 'Publication date [%s] does not match preference' % bookdate
-                logger.warn('Book %s, %s' % (bookname, reason))
+                msg = 'Book %s Publication date [%s] does not match preference' % (bookname, bookdate)
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
             # may have yyyy or yyyy-mm-dd
             if bookdate > today()[:len(bookdate)]:
-                reason = 'Future publication date [%s] does not match preference' % bookdate
-                logger.warn('Book %s, %s' % (bookname, reason))
+                msg = 'Book %s Future publication date [%s] does not match preference' % (bookname, bookdate)
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
+
+        if lazylibrarian.CONFIG['NO_SETS']:
+            if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
+                msg = 'Book %s Set or Part'
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
+
         try:
             bookimg = rootxml.find('./book/img_url').text
             if 'assets/nocover' in bookimg:

@@ -651,18 +651,32 @@ class GoogleBooks:
         # warn if language is in ignore list, but user said they wanted this book
         valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
         if book['lang'] not in valid_langs and 'All' not in valid_langs:
-            reason = 'Book %s googlebooks language does not match preference, %s' % (bookname, book['lang'])
-            logger.warn(reason)
+            msg = 'Book %s googlebooks language does not match preference, %s' % (bookname, book['lang'])
+            logger.warn(msg)
+            if reason.startswith("Series:"):
+                return
 
         if lazylibrarian.CONFIG['NO_PUBDATE']:
             if not book['date'] or book['date'] == '0000':
-                reason = 'Book %s Publication date does not match preference, %s' % (bookname, book['date'])
-                logger.warn(reason)
+                msg = 'Book %s Publication date does not match preference, %s' % (bookname, book['date'])
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
+
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
             if book['date'] > today()[:4]:
-                reason = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])
-                logger.warn(reason)
+                msg = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                return
+
+        if lazylibrarian.CONFIG['NO_SETS']:
+            if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
+                msg = 'Book %s Set or Part'
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
 
         authorname = book['author']
         GR = GoodReads(authorname)
