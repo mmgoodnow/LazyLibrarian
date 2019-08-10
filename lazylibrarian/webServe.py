@@ -4804,8 +4804,8 @@ class WebInterface(object):
                                     btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
                                     row[2] = btn
                             except Exception:
-                                logger.debug("Unexpected auxinfo [%s]" % row[1])
-
+                                logger.debug("Unexpected auxinfo [%s] %s" % (row[1], row[2]))
+                                continue
                     rows.append(row)
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
