@@ -170,7 +170,9 @@ class Mobi:
 
   def __init__(self, filename):
     try:
-      if isinstance(filename, str):
+      if PY2 and isinstance(filename, basestring):
+        self.f = open(filename, "rb");
+      elif not PY2 and (isinstance(filename, str) or isinstance(filename, bytes)):
         self.f = open(filename, "rb");
       else:
         self.f = filename;
