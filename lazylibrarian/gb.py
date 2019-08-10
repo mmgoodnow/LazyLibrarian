@@ -669,7 +669,7 @@ class GoogleBooks:
                 msg = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])
                 logger.warn(msg)
                 if reason.startswith("Series:"):
-                return
+                    return
 
         if lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
