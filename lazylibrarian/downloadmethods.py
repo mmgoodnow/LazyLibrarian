@@ -221,6 +221,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
     torrent = ''
 
     full_url = tor_url  # keep the url as stored in "wanted" table
+    tor_url = makeUnicode(tor_url)
     if 'magnet:?' in tor_url:
         # discard any other parameters and just use the magnet link
         tor_url = 'magnet:?' + tor_url.split('magnet:?')[1]
@@ -236,7 +237,6 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
             # had a problem with torznab utf-8 encoded strings not matching
             # our utf-8 strings because of long/short form differences
             url, value = tor_url.split('&file=', 1)
-            value = makeUnicode(value)  # ensure unicode
             value = unicodedata.normalize('NFC', value)  # normalize to short form
             value = value.encode('unicode-escape')  # then escape the result
             value = makeUnicode(value)  # ensure unicode
