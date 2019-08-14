@@ -105,10 +105,10 @@ def magazineScan(title=None):
                 booktypes = booktypes + '|' + book_type
 
         match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
-            "\\$\\T\\i\\t\\l\\e", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
+            "\\$\\T\\i\\t\\l\\e", "(?P<title>.*?)") + "[.][%s]" % booktypes
         title_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
         match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
-            "\\$\\T\\i\\t\\l\\e", "") + r'\.[' + booktypes + ']'
+            "\\$\\T\\i\\t\\l\\e", "") + '[.][%s]' % booktypes
         date_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
 
         for rootdir, _, filenames in walk(mag_path):
@@ -227,6 +227,10 @@ def magazineScan(title=None):
                                 filedate = str(issuedate).zfill(4)
 
                         extn = os.path.splitext(fname)[1]
+                        # suppress the "-01" day on monthly magazines
+                        if re.match(r'\d+-\d\d-01', str(filedate)):
+                            filedate = filedate[:-3]
+
                         newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
                                                                                  '$IssueDate', filedate)
                         newfname = newfname + extn

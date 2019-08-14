@@ -16,6 +16,7 @@
 import datetime
 import json
 import os
+import re
 import platform
 import shutil
 import tarfile
@@ -722,8 +723,12 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 else:
                                     mag_name = unaccented(replace_all(book['BookID'], namedic))
                                 # book auxinfo is a cleaned date, eg 2015-01-01
+                                iss_date = book['AuxInfo']
+                                # suppress the "-01" day on monthly magazines
+                                if re.match(r'\d+-\d\d-01', str(iss_date)):
+                                    iss_date = iss_date[:-3]
                                 dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
-                                    '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
+                                    '$IssueDate', iss_date).replace('$Title', mag_name)
 
                                 if lazylibrarian.CONFIG['MAG_RELATIVE']:
                                     dest_dir = lazylibrarian.DIRECTORY('eBook')
@@ -740,7 +745,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                                 if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
                                     global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
-                                        '$IssueDate', book['AuxInfo']).replace('$Title', mag_name)
+                                        '$IssueDate', iss_date).replace('$Title', mag_name)
                                 else:
                                     global_name = "%s %s" % (mag_name, book['AuxInfo'])
                                 global_name = unaccented(global_name)
