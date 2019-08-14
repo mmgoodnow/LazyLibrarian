@@ -2540,7 +2540,7 @@ class WebInterface(object):
                             # cache image from url
                             extn = os.path.splitext(authorimg)[1].lower()
                             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                                authorimg, success, _ = cache_img("author", authorid, authorimg)
+                                authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
                                 if success:
                                     rejected = False
 
