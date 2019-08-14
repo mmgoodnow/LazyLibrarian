@@ -1045,7 +1045,7 @@ def getWorkSeries(bookID=None):
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
                                 myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
-                                            (seriesid, seriesname, "Active", 0, 0, time.time()))
+                                            (seriesid, seriesname, "Skipped", 0, 0, 0))
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
@@ -1055,7 +1055,7 @@ def getWorkSeries(bookID=None):
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
                                 myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
-                                            (seriesid, seriesname, "Active", 0, 0, time.time()))
+                                            (seriesid, seriesname, "Skipped", 0, 0, 0))
     else:
         work = getBookWork(bookID, "Series")
         if work:
