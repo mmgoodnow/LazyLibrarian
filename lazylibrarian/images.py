@@ -605,9 +605,11 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             GS = os.path.join(os.getcwd(), "gswin64c.exe")
             generator = "local gswin64c"
             if not os.path.isfile(GS):
+                logger.debug("%s not found" % GS)
                 GS = os.path.join(os.getcwd(), "gswin32c.exe")
                 generator = "local gswin32c"
             if not os.path.isfile(GS):
+                logger.debug("%s not found" % GS)
                 params = ["where", "gswin64c"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -682,7 +684,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     GS = os.path.join(os.getcwd(), "gs")
                     generator = "local gs"
                     if not os.path.isfile(GS):
-                        logger.debug("gs not found in %s" % os.getcwd())
+                        logger.debug("%s not found" % GS)
                         GS = ""
                         params = ["which", "gs"]
                         try:
