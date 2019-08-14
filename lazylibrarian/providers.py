@@ -508,7 +508,10 @@ def IterateOverTorrentSites(book=None, searchType=None):
 
     if searchType not in ['mag', 'general', 'comic']:
         authorname, bookname = get_searchterm(book, searchType)
-        book['searchterm'] = authorname + ' ' + bookname
+        if 'title' in searchType:
+            book['searchterm'] = bookname
+        else:
+            book['searchterm'] = authorname + ' ' + bookname
 
     for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         if lazylibrarian.CONFIG[prov]:
@@ -557,7 +560,10 @@ def IterateOverDirectSites(book=None, searchType=None):
     providers = 0
     if searchType not in ['mag', 'general', 'comic']:
         authorname, bookname = get_searchterm(book, searchType)
-        book['searchterm'] = authorname + ' ' + bookname
+        if 'title' in searchType:
+            book['searchterm'] = bookname
+        else:
+            book['searchterm'] = authorname + ' ' + bookname
 
     for prov in ['GEN', 'GEN2']:
         if lazylibrarian.CONFIG[prov]:
@@ -1145,6 +1151,9 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
         if provider['GENERALSEARCH']:
             if searchType == "shortgeneral":
                 searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''))
+            elif 'title' in searchType:
+                _, searchterm = get_searchterm(book, searchType)
+                searchterm = unaccented(searchterm.replace(':', ''))
             else:
                 searchterm = unaccented(book['searchterm'].replace(':', ''))
             params = {
