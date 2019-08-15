@@ -163,7 +163,7 @@ def get_book_info(fname):
     return res
 
 
-def find_book_in_db(author, book, ignored=None, library='eBook'):
+def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
     # Fuzzy search for book in library, return LL bookid and status if found or zero
     # prefer an exact match on author & book
     # prefer 'Have' if the user has marked the one they want
@@ -175,7 +175,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook'):
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=False)
+        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=False, reason=reason)
         if len(newauthor) and newauthor != author:
             if new:
                 logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
@@ -756,7 +756,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 else:
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
-                            newauthor, authorid, _ = addAuthorNameToDB(author, addbooks=True)
+                            newauthor, authorid, _ = addAuthorNameToDB(author, addbooks=True,
+                                                                       reason="libraryScan: %s" % book)
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
@@ -778,7 +779,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # First try and find it under author and bookname
                                 # as we may have it under a different bookid or isbn to goodreads/googlebooks
                                 # which might have several bookid/isbn for the same book
-                                bookid, mtype = find_book_in_db(author, book)
+                                bookid, mtype = find_book_in_db(author, book, reason='libraryScan: %s' % book)
                                 if bookid and mtype == "Ignored":
                                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %
                                                 (book, author))
@@ -826,7 +827,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         newauthor = newauthor[:-1] + '.'
                                     if author.lower() != newauthor.lower():
                                         logger.debug("Trying authorname [%s]" % newauthor)
-                                        bookid, mtype = find_book_in_db(newauthor, book, ignored=False)
+                                        bookid, mtype = find_book_in_db(newauthor, book, ignored=False,
+                                                                        reason='libraryScan: %s' % book)
                                         if bookid and mtype == "Ignored":
                                             msg = "Book %s by %s is marked Ignored in database, importing anyway"
                                             logger.warn(msg % (book, newauthor))

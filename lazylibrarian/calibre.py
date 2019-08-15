@@ -124,13 +124,15 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
 
     for item in calibre_list:
         if toreadcol and toreadcol in item or readcol and readcol in item:
-            authorname, _, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False)
+            authorname, _, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False,
+                                                     reason="syncCalibreList: %s" % item['title'])
             if authorname:
                 if authorname != item['authors']:
                     logger.debug("Changed authorname for [%s] from [%s] to [%s]" %
                                  (item['title'], item['authors'], authorname))
                     item['authors'] = authorname
-                bookid, mtype = find_book_in_db(authorname, item['title'], ignored=False, library='eBook')
+                bookid, mtype = find_book_in_db(authorname, item['title'], ignored=False, library='eBook',
+                                                reason='syncCalibreList: %s' % item['title'])
                 if bookid and mtype == "Ignored":
                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %
                                 (item['title'], authorname))

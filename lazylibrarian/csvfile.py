@@ -214,7 +214,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
         return msg
 
 
-def finditem(item, preferred_authorname, library='eBook'):
+def finditem(item, preferred_authorname, library='eBook', reason=''):
     """
     Try to find book matching the csv item in the database
     Return database entry, or False if not found
@@ -249,7 +249,8 @@ def finditem(item, preferred_authorname, library='eBook'):
             fullcmd = cmd + 'and BookIsbn=?'
             bookmatch = myDB.match(fullcmd, (isbn13,))
     if not bookmatch:
-        bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library)
+        bookid, _ = find_book_in_db(preferred_authorname, bookname, ignored=False, library=library,
+                                    reason=reason)
         if bookid:
             fullcmd = cmd + 'and BookID=?'
             bookmatch = myDB.match(fullcmd, (bookid,))
@@ -314,14 +315,15 @@ def import_CSV(search_dir=None, library='eBook'):
                     else:
                         logger.debug("CSV: Author %s not found" % authorname)
                         newauthor, authorid, new = addAuthorNameToDB(author=authorname,
-                                                                     addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                                                                     addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
+                                                                     reason="import_CSV")
                         if len(newauthor) and newauthor != authorname:
                             logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                             authorname = newauthor
                         if new:
                             authcount += 1
 
-                    bookmatch = finditem(item, authorname, library=library)
+                    bookmatch = finditem(item, authorname, library=library, reason='import_CSV: %s' % csvFile)
                     imported = False
                     results = []
                     if bookmatch:

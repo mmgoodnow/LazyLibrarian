@@ -101,8 +101,9 @@ def upgrade_needed():
     # 52 add updated to series table
     # 53 add jobs table
     # 54 separated author added date from updated timestamp
+    # 55 Add Reason to author table
 
-    db_current_version = 54
+    db_current_version = 55
 
     if db_version < db_current_version:
         return db_current_version
@@ -165,7 +166,7 @@ def dbupgrade(db_current_version):
                                 'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
                                 'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
                                 'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, ' +
-                                'LastBookID TEXT, Updated INTEGER DEFAULT 0)')
+                                'LastBookID TEXT, Updated INTEGER DEFAULT 0, Reason TEXT)')
                     myDB.action('CREATE TABLE wanted (BookID TEXT, NZBurl TEXT, NZBtitle TEXT, NZBdate TEXT, ' +
                                 'NZBprov TEXT, Status TEXT, NZBsize TEXT, AuxInfo TEXT, NZBmode TEXT, ' +
                                 'Source TEXT, DownloadID TEXT, DLResult TEXT)')
@@ -1582,4 +1583,10 @@ def db_v54(myDB, upgradelog):
     upgradelog.write("%s v54: complete\n" % time.ctime())
 
 
+def db_v55(myDB, upgradelog):
+    if not has_column(myDB, "authors", "Reason"):
+        lazylibrarian.UPDATE_MSG = 'Adding Reason column to authors table'
+        upgradelog.write("%s v55: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE authors ADD COLUMN Reason TEXT')
+    upgradelog.write("%s v55: complete\n" % time.ctime())
 

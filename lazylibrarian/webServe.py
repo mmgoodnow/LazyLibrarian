@@ -1663,12 +1663,14 @@ class WebInterface(object):
 
     @cherrypy.expose
     def addAuthor(self, AuthorName):
-        threading.Thread(target=addAuthorNameToDB, name='ADDAUTHOR', args=[AuthorName, False]).start()
+        threading.Thread(target=addAuthorNameToDB, name='ADDAUTHOR',
+                         args=[AuthorName, False, True, 'WebServer addAuthor %s' % AuthorName]).start()
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
     def addAuthorID(self, AuthorID):
-        threading.Thread(target=addAuthorToDB, name='ADDAUTHOR', args=['', False, AuthorID]).start()
+        threading.Thread(target=addAuthorToDB, name='ADDAUTHOR',
+                         args=['', False, AuthorID, True, 'WebServer addAuthorID %s' % AuthorID]).start()
         time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
         # raise cherrypy.HTTPRedirect("home")
@@ -4309,7 +4311,7 @@ class WebInterface(object):
             if exists:
                 logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
             else:
-                title = title.title()
+                # title = title.title()
                 controlValueDict = {"Title": title}
                 newValueDict = {
                     "Regex": None,

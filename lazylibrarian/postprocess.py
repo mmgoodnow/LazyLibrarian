@@ -17,7 +17,6 @@ import datetime
 import json
 import os
 import re
-import platform
 import shutil
 import tarfile
 import threading
@@ -185,14 +184,17 @@ def processAlternate(source_dir=None, library='eBook'):
             else:
                 logger.debug("Author %s not found, adding to database" % authorname)
                 if authorid:
-                    addAuthorToDB(authorid=authorid, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                    addAuthorToDB(authorid=authorid, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
+                                  reason="processAlternate: %s" % bookname)
                 else:
                     aname, authorid, _ = addAuthorNameToDB(author=authorname,
-                                                           addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                                                           addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
+                                                           reason="processAlternate: %s" % bookname)
                     if aname and aname != authorname:
                         authorname = aname
 
-            bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library)
+            bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
+                                        reason="processAlternate: %s" % bookname)
             results = []
             if not bookid:
                 # new book, or new author where we didn't want to load their back catalog
@@ -696,8 +698,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             authorname = data['AuthorName']
                             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
                             bookname = data['BookName']
-                            if 'windows' in platform.system().lower() and '/' in \
-                                    lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+                            if os.name == 'nt' and '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
                                 logger.warn('Please check your EBOOK_DEST_FOLDER setting')
                                 lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                                     'EBOOK_DEST_FOLDER'].replace('/', '\\')
@@ -1706,7 +1707,7 @@ def process_book(pp_path=None, bookID=None):
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             bookname = data['BookName']
             # DEST_FOLDER pattern is the same for ebook and audiobook
-            if 'windows' in platform.system().lower() and '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+            if os.name == 'nt' and '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
                 logger.warn('Please check your EBOOK_DEST_FOLDER setting')
                 lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'].replace('/', '\\')
 

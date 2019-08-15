@@ -75,7 +75,7 @@ def search_wishlist():
             if book.get('rss_isbn'):
                 item['ISBN'] = book['rss_isbn']
 
-            bookmatch = finditem(item, book['rss_author'])
+            bookmatch = finditem(item, book['rss_author'], reason="wishlist: %s" % book['dispname'])
             if bookmatch:  # it's already in the database
                 bookid = bookmatch['BookID']
                 authorname = bookmatch['AuthorName']
@@ -169,7 +169,8 @@ def search_wishlist():
                 else:
                     logger.debug("Author %s not found" % authorname)
                     newauthor, _, _ = addAuthorNameToDB(author=authorname,
-                                                        addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'])
+                                                        addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
+                                                        reason="wishlist: %s" % book['rss_title'])
                     if len(newauthor) and newauthor != authorname:
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                         authorname = newauthor

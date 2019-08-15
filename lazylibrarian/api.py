@@ -915,7 +915,7 @@ class Api(object):
             self.id = kwargs['name']
 
         try:
-            addAuthorToDB(self.id, refresh=refresh)
+            addAuthorToDB(self.id, refresh=refresh, reason="API refreshAuthor %s" % self.id)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
@@ -1247,7 +1247,7 @@ class Api(object):
         else:
             self.id = kwargs['name']
         try:
-            self.data = addAuthorNameToDB(author=self.id, refresh=False)
+            self.data = addAuthorNameToDB(author=self.id, refresh=False, reason="API addAuthor %s" % self.id)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
@@ -1258,7 +1258,7 @@ class Api(object):
         else:
             self.id = kwargs['id']
         try:
-            self.data = addAuthorToDB(refresh=False, authorid=self.id)
+            self.data = addAuthorToDB(refresh=False, authorid=self.id, reason="API addAuthorID %s" % self.id)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 

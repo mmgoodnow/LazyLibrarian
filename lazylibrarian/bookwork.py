@@ -87,7 +87,8 @@ def setBookAuthors(book):
                 # try to add new author to database by name
                 authorname, authorid, new = lazylibrarian.importer.addAuthorNameToDB(authorname,
                                                                                      refresh=False,
-                                                                                     addbooks=False)
+                                                                                     addbooks=False,
+                                                                                     reason="setBookAuthors: %s" % book['bookname'])
                 if new and authorid:
                     newauthors += 1
             if authorid:
@@ -774,7 +775,8 @@ def getSeriesAuthors(seriesid):
                     logger.error("Error finding goodreads results: %s %s" % (type(e).__name__, str(e)))
 
             if authorid:
-                lazylibrarian.importer.addAuthorToDB(refresh=False, authorid=authorid, addbooks=False)
+                lazylibrarian.importer.addAuthorToDB(refresh=False, authorid=authorid, addbooks=False,
+                                                     reason="getSeriesAuthors: %s" % seriesname)
 
     result = myDB.match("select count(*) as counter from authors")
     finish = int(result['counter'])

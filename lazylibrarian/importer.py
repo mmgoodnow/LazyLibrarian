@@ -31,7 +31,7 @@ except ImportError:
 from lib.six.moves import queue
 
 
-def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
+def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=''):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
@@ -113,9 +113,10 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
                     logger.debug('Found goodreads authorname %s in database' % author)
                     new = False
                 else:
-                    logger.info("Adding new author [%s]" % author)
+                    logger.info("Adding new author [%s] %s" % (author, reason))
                     try:
-                        addAuthorToDB(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks)
+                        addAuthorToDB(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
+                                      reason=reason)
                         check_exist_author = myDB.match('SELECT AuthorID FROM authors where AuthorID=?', (authorid,))
                         if check_exist_author:
                             new = True
@@ -130,7 +131,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True):
     return author, check_exist_author['AuthorID'], new
 
 
-def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
+def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason=''):
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
@@ -150,7 +151,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
                 authorname = 'unknown author'
-                logger.debug("Adding new author id %s to database" % authorid)
+                logger.debug("Adding new author id %s to database %s" % (authorid, reason))
                 new_author = True
             else:
                 entry_status = dbauthor['Status']
@@ -163,6 +164,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
             if new_author:
                 newValueDict["AuthorName"] = "Loading"
                 newValueDict["AuthorImg"] = "images/nophoto.png"
+                newValueDict['Reason'] = reason
             myDB.upsert("authors", newValueDict, controlValueDict)
 
             GR = GoodReads(authorid)
@@ -212,7 +214,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True):
                     "AuthorID": "0: %s" % authorname,
                     "Status": "Loading"
                 }
-                logger.debug("Now adding new author: %s to database" % authorname)
+                logger.debug("Now adding new author: %s to database %s" % (authorname, reason))
+                newValueDict['Reason'] = reason
                 entry_status = 'Active'
                 new_author = True
             else:
