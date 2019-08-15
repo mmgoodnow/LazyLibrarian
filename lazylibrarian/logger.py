@@ -13,7 +13,6 @@
 import inspect
 import logging
 import os
-import platform
 import threading
 
 import lazylibrarian
@@ -46,7 +45,7 @@ class RotatingLogger(object):
 
         # concurrentLogHandler/0.8.7 (to deal with windows locks)
         # since this only happens on windows boxes, if it's nix/mac use the default logger.
-        if 'windows' in platform.system().lower():
+        if os.name == 'nt':
             try:
                 from lib.concurrent_log_handler import ConcurrentRotatingFileHandler as RotatingFileHandler
                 lazylibrarian.LOGTYPE = 'Concurrent'
@@ -99,7 +98,7 @@ class RotatingLogger(object):
             method = ""
             lineno = ""
 
-        if 'windows' in platform.system().lower():  # windows cp1252 can't handle some accents
+        if os.name == 'nt':  # windows cp1252 can't handle some accents
             message = formatter.unaccented(message)
         elif PY2:
             message = formatter.safe_unicode(message)

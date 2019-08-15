@@ -13,7 +13,6 @@
 
 import os
 import traceback
-import platform
 import subprocess
 import json
 
@@ -601,7 +600,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     logger.debug(params)
                 logger.warn('External "convert" failed %s %s' % (type(e).__name__, str(e)))
 
-        elif platform.system() == "Windows":
+        elif os.name == 'nt':
             GS = os.path.join(os.getcwd(), "gswin64c.exe")
             generator = "local gswin64c"
             if not os.path.isfile(GS):

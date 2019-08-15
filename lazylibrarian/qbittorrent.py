@@ -14,7 +14,6 @@
 import json
 import mimetypes
 import os
-import platform
 import random
 import string
 import time
@@ -419,7 +418,7 @@ def getFolder(hashid):
         torrent_folder = qbclient.get_savepath(hashid)
         return torrent_folder
     else:
-        if 'windows' not in platform.system().lower():
+        if os.name != 'nt':
             torrent_folder = torrent_folder.replace('\\', '/')
         return os.path.basename(os.path.normpath(torrent_folder))
 

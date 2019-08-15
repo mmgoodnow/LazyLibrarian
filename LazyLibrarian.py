@@ -5,7 +5,6 @@ from __future__ import print_function
 
 import locale
 import os
-import platform
 import sys
 import threading
 import time
@@ -14,6 +13,7 @@ import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
 from lazylibrarian.formatter import check_int
 from lazylibrarian.versioncheck import runGit
+# noinspection PyUnresolvedReferences
 from lib.six.moves import configparser
 
 
@@ -102,7 +102,7 @@ def main():
         lazylibrarian.LOGLEVEL = 0
 
     if options.daemon:
-        if 'windows' not in platform.system().lower():
+        if os.name != 'nt':
             lazylibrarian.DAEMON = True
             # lazylibrarian.daemonize()
         else:

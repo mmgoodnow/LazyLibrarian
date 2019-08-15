@@ -1148,7 +1148,7 @@ def showJobs():
 def clearLog():
     lazylibrarian.LOGLIST = []
     error = False
-    if 'windows' in platform.system().lower():
+    if os.name == 'nt':
         return "Screen log cleared"
 
     logger.lazylibrarian_log.stopLogger()
@@ -1238,7 +1238,7 @@ def logHeader():
         import lib.UnRAR2 as UnRAR2
         vers = getattr(UnRAR2, '__version__', None)
         header += "unrar2: library version %s\n" % vers
-        if platform.system() == "Windows":
+        if os.name == 'nt':
             vers = UnRAR2.windows.RARGetDllVersion()
             header += "windows dll version %s\n" % vers
     else:
@@ -1438,7 +1438,7 @@ def zipAudio(source, zipname):
 
 
 def runScript(params):
-    if platform.system() == "Windows" and params[0].endswith('.py'):
+    if os.name == 'nt' and params[0].endswith('.py'):
         params.insert(0, sys.executable)
     logger.debug(str(params))
     try:

@@ -126,6 +126,10 @@ def magazineScan(title=None):
                             issuedate = match.group("issuedate")
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("Title pattern [%s][%s]" % (title, issuedate))
+                            parent = os.path.basename(rootdir)
+                            if parent.lower() == title.lower():
+                                # assume folder name is in users preferred case
+                                title = parent
                             match = True
                         else:
                             logger.debug("Title pattern match failed for [%s]" % fname)
@@ -185,7 +189,7 @@ def magazineScan(title=None):
                     mag_entry = myDB.match(cmd, (title,))
                     if not mag_entry:
                         # need to add a new magazine to the database
-                        title = title.title()
+                        # title = title.title()
                         controlValueDict = {"Title": title}
                         newValueDict = {
                             "Reject": None,
@@ -243,10 +247,13 @@ def magazineScan(title=None):
                             new_path = new_path.encode(lazylibrarian.SYS_ENCODING)
 
                         newissuefile = os.path.join(new_path, newfname)
+                        # check for windows case insensitive
+                        if os.name == 'nt' and newissuefile.lower() == issuefile.lower():
+                            newissuefile = issuefile
                         if newissuefile != issuefile:
                             if not os.path.isdir(new_path):
                                 make_dirs(new_path)
-                            logger.debug("Rename %s -> %s" % (issuefile, newissuefile))
+                            logger.debug("Rename %s -> %s" % (repr(issuefile), repr(newissuefile)))
                             newissuefile = safe_move(issuefile, newissuefile)
                             for e in ['.jpg', '.opf']:
                                 if os.path.exists(issuefile.replace(extn, e)):
@@ -279,6 +286,8 @@ def magazineScan(title=None):
                             "IssueFile": issuefile
                         }
                         myDB.upsert("Issues", newValueDict, controlValueDict)
+                    else:
+                        logger.debug("Issue %s %s already exists" % (title, issuedate))
 
                     ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                     with open(ignorefile, 'a'):
@@ -290,7 +299,7 @@ def magazineScan(title=None):
                     # see if this issues date values are useful
                     controlValueDict = {"Title": title}
                     if not mag_entry:  # new magazine, this is the only issue
-                        controlValueDict = {"Title": title.title()}
+                        # controlValueDict = {"Title": title.title()}
                         newValueDict = {
                             "MagazineAdded": iss_acquired,
                             "LastAcquired": iss_acquired,

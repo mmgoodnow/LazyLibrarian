@@ -279,6 +279,9 @@ def audioProcess(bookid, rename=False, playlist=False):
     dest_path = seriesinfo['FolderName']
     dest_dir = lazylibrarian.DIRECTORY('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
+    # check for windows case insensitive
+    if os.name == 'nt' and r.lower() == dest_path.lower():
+        dest_path = r
     if rename and r != dest_path:
         try:
             logger.debug("Moving [%s] to [%s]" % (repr(r), repr(dest_path)))
@@ -314,6 +317,9 @@ def audioProcess(bookid, rename=False, playlist=False):
         if rename:
             n = os.path.join(makeUnicode(r), makeUnicode(pattern))
             o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
+            # check for windows case insensitive
+            if os.name == 'nt' and n.lower() == o.lower():
+                n = o
             if o != n:
                 try:
                     n = safe_move(o, n)
@@ -409,6 +415,9 @@ def bookRename(bookid):
             if extn:
                 ofname = os.path.join(dest_path, fname)
                 nfname = os.path.join(dest_path, new_basename + extn)
+                # check for windows case insensitive
+                if os.name == 'nt' and nfname.lower() == ofname.lower():
+                    nfname = ofname
                 if ofname != nfname:
                     try:
                         nfname = safe_move(ofname, nfname)

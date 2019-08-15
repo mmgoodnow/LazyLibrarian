@@ -18,7 +18,6 @@ import json
 import locale
 import os
 import signal
-import platform
 import subprocess
 import sys
 import threading
@@ -1035,7 +1034,7 @@ def config_read(reloaded=False):
     CONFIG['REJECT_COMIC'] = CONFIG['REJECT_COMIC'].lower()
     CONFIG['BANNED_EXT'] = CONFIG['BANNED_EXT'].lower()
 
-    if 'windows' in platform.system().lower():
+    if os.name == 'nt':
         for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
             if '/' in CONFIG[k]:
                 logger.warn('Please check your %s setting' % k)
@@ -1909,7 +1908,7 @@ def shutdown(restart=False, update=False):
                     prg = "python2"
                 else:
                     prg = "python3"
-                if 'windows' in platform.system().lower():
+                if os.name == 'nt':
                     params = ["where", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
