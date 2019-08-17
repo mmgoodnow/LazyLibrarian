@@ -118,7 +118,7 @@ def listdir(name):
 
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """
-    duplicate of os.walk, except we do a forced decode to utf-8 bytes after listdir
+    duplicate of os.walk, except we do a forced decode to bytestring after listdir
     """
     islink, join, isdir = os.path.islink, os.path.join, os.path.isdir
 
@@ -444,15 +444,16 @@ def jpg_file(search_dir=None):
 
 def book_file(search_dir=None, booktype=None, recurse=False):
     # find a book/mag file in this directory (tree), any book will do
-    # return full pathname of book/mag, or empty string if none found
+    # return full pathname of book/mag as bytes, or empty bytestring if none found
     if booktype is None:
-        return ""
+        return b""
 
     if os.path.isdir(search_dir):
         if recurse:
             # noinspection PyBroadException
             try:
                 for r, _, f in walk(search_dir):
+                    # our walk returns bytestrings
                     for item in f:
                         if is_valid_booktype(makeUnicode(item), booktype=booktype):
                             return os.path.join(r, item)
@@ -463,10 +464,10 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             try:
                 for fname in listdir(search_dir):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
-                        return os.path.join(makeBytestr(search_dir), fname)
+                        return os.path.join(makeBytestr(search_dir), makeBytestr(fname))
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-    return ""
+    return b""
 
 
 def mimeType(filename):
