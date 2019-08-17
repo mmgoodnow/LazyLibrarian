@@ -412,7 +412,8 @@ def search_magazines(mags=None, reset=False):
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
                                 else:
-                                    logger.debug('This issue of %s is already flagged for download' % issue)
+                                    logger.debug('This issue of %s is already flagged for download; skipping' % issue)
+                                    continue
                             else:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
@@ -425,10 +426,10 @@ def search_magazines(mags=None, reset=False):
 
                             mag_entry = myDB.match('SELECT Status from %s WHERE NZBtitle=? and NZBprov=?' %
                                                    insert_table, (nzbtitle, nzbprov))
-                            if mag_entry:
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug('%s is already in %s marked %s' %
-                                                 (nzbtitle, insert_table, mag_entry['Status']))
+                            if mag_entry and insert_table != 'wanted':
+                                logger.info('%s is already in %s marked %s; skipping' %
+                                             (nzbtitle, insert_table, mag_entry['Status']))
+                                continue
                             else:
                                 controlValueDict = {
                                     "NZBtitle": nzbtitle,
@@ -454,8 +455,7 @@ def search_magazines(mags=None, reset=False):
                                     "NZBmode": nzbmode
                                 }
                                 myDB.upsert(insert_table, newValueDict, controlValueDict)
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug('Added %s to %s marked %s' % (nzbtitle, insert_table, insert_status))
+                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table, insert_status))
 
                 msg = 'Found %i result%s for %s. %i new,' % (total_nzbs, plural(total_nzbs), bookid, new_date)
                 msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
