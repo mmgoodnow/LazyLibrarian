@@ -62,6 +62,8 @@ class utorrentclient(object):
         self.password = lazylibrarian.CONFIG['UTORRENT_PASS']
         self.opener = self._make_opener('uTorrent', self.base_url, self.username, self.password)
         self.token = self._get_token()
+        if not PY2 and self.token is not None:
+            self.token = self.token.decode('utf-8')
         # TODO refresh token, when necessary
 
     @staticmethod
@@ -148,7 +150,6 @@ class utorrentclient(object):
         params = [('action', 'setprio'), ('hash', hashid), ('p', str(priority))]
         for file_index in files:
             params.append(('f', str(file_index)))
-
         return self._action(params)
 
     def _action(self, params, body=None, content_type=None):
@@ -180,7 +181,12 @@ def checkLink():
     """ Check we can talk to utorrent"""
     try:
         client = utorrentclient()
-        if client.token:
+        if client.token is not None:
+            try:
+                _ = client.list()
+            except Exception as err:
+                return "uTorrent list FAILED: %s %s" % (type(err).__name__, str(err))
+
             # we would also like to check lazylibrarian.utorrent_label
             # but uTorrent only sends us a list of labels that have active torrents
             # so we can't tell if our label is known, or does it get created anyway?
