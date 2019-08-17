@@ -85,10 +85,11 @@ def setBookAuthors(book):
                 authorid = exists['authorid']
             else:
                 # try to add new author to database by name
+                reason = "setBookAuthors: %s" % book['bookname']
                 authorname, authorid, new = lazylibrarian.importer.addAuthorNameToDB(authorname,
                                                                                      refresh=False,
                                                                                      addbooks=False,
-                                                                                     reason="setBookAuthors: %s" % book['bookname'])
+                                                                                     reason=reason)
                 if new and authorid:
                     newauthors += 1
             if authorid:

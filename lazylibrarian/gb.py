@@ -663,7 +663,6 @@ class GoogleBooks:
                 if reason.startswith("Series:"):
                     return
 
-
         if lazylibrarian.CONFIG['NO_FUTURE']:
             if book['date'] > today()[:4]:
                 msg = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])

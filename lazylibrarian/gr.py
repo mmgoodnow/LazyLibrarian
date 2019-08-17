@@ -1112,7 +1112,7 @@ class GoodReads:
         # user has said they want this book, don't block for unwanted language, just warn
         #
         valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
-        if bookLanguage not in valid_langs  and 'All' not in valid_langs:
+        if bookLanguage not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s Language [%s] does not match preference' % (bookname, bookLanguage)
             logger.warn(msg)
             if reason.startswith("Series:"):
