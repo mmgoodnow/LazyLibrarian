@@ -428,7 +428,7 @@ def search_magazines(mags=None, reset=False):
                                                    insert_table, (nzbtitle, nzbprov))
                             if mag_entry and insert_table != 'wanted':
                                 logger.info('%s is already in %s marked %s; skipping' %
-                                             (nzbtitle, insert_table, mag_entry['Status']))
+                                            (nzbtitle, insert_table, mag_entry['Status']))
                                 continue
                             else:
                                 controlValueDict = {
