@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
-from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
+from lazylibrarian.formatter import plural, now, replace_all, unaccented, makeUnicode, \
     nzbdate2format, getList, month2num, datecompare, check_int, check_year, age
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
@@ -274,16 +274,17 @@ def search_magazines(mags=None, reset=False):
                                 rejected = True
 
                         if not rejected:
-                            reject_list = getList(str(results['Reject']).lower())
+                            reject_list = getList(results['Reject'])
                             reject_list += getList(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
                             lower_title = unaccented(nzbtitle_formatted).lower()
                             lower_bookid = unaccented(bookid).lower()
                             if reject_list:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug('Reject: %s' % str(reject_list))
+                                    logger.debug('Reject: %s' % reject_list)
                                     logger.debug('Title: %s' % lower_title)
                                     logger.debug('Bookid: %s' % lower_bookid)
                             for word in reject_list:
+                                word = unaccented(word).lower()
                                 if word in lower_title and word not in lower_bookid:
                                     rejected = True
                                     logger.debug("Rejecting %s, contains %s" % (nzbtitle_formatted, word))
