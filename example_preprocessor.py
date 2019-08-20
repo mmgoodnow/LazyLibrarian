@@ -20,6 +20,11 @@ try:
     from lib.tinytag import TinyTag
 except ImportError:
     TinyTag = None
+try:
+    from PyPDF3 import PdfFileWriter, PdfFileReader
+except ImportError:
+    PdfFileWriter = None
+    PdfFileReader = None
 
 if sys.version_info[0] == 3:
     text_type = str
@@ -42,7 +47,9 @@ ffmpeg = 'ffmpeg'  # if not in your "path", put the full pathname here
 audio_options = ['-ab', '320k']
 keep_original_audiofiles = True
 audiotypes = ['mp3', 'flac', 'm4a', 'm4b']
-
+###########################################################################
+# magazine options
+swap_page1 = False
 
 ###########################################################################
 # should not need to alter anything below here
@@ -206,6 +213,9 @@ def main():
         elif booktype == 'audiobook':
             if not write_singlefile and not write_tags:
                 print("audiobook preprocessing is disabled")
+                exit(0)
+            if not TinyTag:
+                print("TinyTag library not found")
                 exit(0)
 
             # this produces a single file audiobook
@@ -412,9 +422,48 @@ def main():
                     for part in parts:
                         os.remove(os.path.join(bookfolder, part[3]))
 
-        elif booktype in ['magazine', 'comic']:
-            # maybe you want to split the pages and turn them into jpeg like a comic?
-            print("This example preprocessor only preprocesses eBooks and audiobooks")
+        elif booktype == 'magazine':
+            if swap_page1:
+                if not PdfFileWriter:
+                    print("PyPDF3 library not found")
+                    exit(0)
+                try:
+                    sourcefile = None
+                    for fname in os.listdir(makeBytestr(bookfolder)):
+                        fname = makeUnicode(fname)
+                        filename, extn = os.path.splitext(fname)
+                        if extn == '.pdf':
+                            sourcefile = fname
+                            break
+
+                    if not sourcefile:
+                        sys.stderr.write("%s %s\n" % ("No suitable sourcefile found in", bookfolder))
+                        pplog.write("%s: %s %s\n" % (time.ctime(), "No suitable sourcefile found in", bookfolder))
+                        return
+
+                    fname = os.path.join(bookfolder, sourcefile)
+                    output = PdfFileWriter()
+                    input1 = PdfFileReader(open(fname, "rb"))
+                    cnt = input1.getNumPages()
+                    output.addPage(input1.getPage(1))
+                    output.addPage(input1.getPage(0))
+                    p = 2
+                    while p < cnt:
+                        output.addPage(input1.getPage(p))
+                        p = p + 1
+                    outputStream = file(fname + 'new', "wb")
+                    output.write(outputStream)
+                    msg = "%s has %d pages." % (fname, cnt)
+                    print(msg)
+                    pplog.write("%s: %s\n" % (time.ctime(), msg))
+                    os.remove(fname)
+                    os.rename(fname + 'new', fname)
+                except Exception as e:
+                    sys.stderr.write("%s\n" % e)
+                    pplog.write("%s: %s\n" % (time.ctime(), e))
+
+        else:
+            print("This example preprocessor only preprocesses eBooks, audiobooks and magazines")
 
     exit(0)
 
