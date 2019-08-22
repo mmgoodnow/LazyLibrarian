@@ -53,8 +53,9 @@ class PushbulletNotifier:
             devices = pb.getDevices()
             ret = ""
             for device in devices:
-                logger.info("Pushbullet: %s [%s]" % (device["nickname"], device["iden"]))
-                ret += "\nPushbullet: %s [%s]" % (device["nickname"], device["iden"])
+                if device["active"]:
+                    logger.info("Pushbullet: %s [%s]" % (device["nickname"], device["iden"]))
+                    ret += "\nPushbullet: %s [%s]" % (device["nickname"], device["iden"])
             _ = pb.pushNote(pushbullet_deviceid, str(event), str(message))
             return ret
         else:
