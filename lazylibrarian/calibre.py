@@ -373,33 +373,42 @@ def calibreTest():
         res = res.split('(calibre ')[1]
         vernum = res[:-1]
         res = 'calibredb ok, version ' + vernum
-        # get a list of categories and counters from the database
-        cats, err, rc = calibredb('list_categories', ['-i'])
+
+        # get a list of categories and counters from the database in CSV format
+        cats, err, rc = calibredb('list_categories', ['-ic'])
+        logger.debug("Calibredb list_categories " + cats)
         cnt = 0
         if not len(cats):
             res = res + '\nDatabase READ Failed'
         else:
             for entry in cats.split('\n'):
-                words = entry.split()
-                if 'ITEMS' in words:
-                    idx = words.index('ITEMS') + 1
-                    if words[idx].isdigit():
-                        cnt += int(words[idx])
+                words = entry.split(',')
+                if len(words) >= 2:  # Filter out header and footer
+                    item_count = words[2]
+                    if item_count.isdigit():
+                        cnt += int(item_count)
         if cnt:
             res = res + '\nDatabase READ ok'
             wrt, err, rc = calibredb('add', ['--authors', 'LazyLibrarian', '--title', 'dummy', '--empty'], [])
-            if 'Added book ids' not in wrt:
+            logger.debug("Calibredb add  " + wrt)
+            # Answer should look like "Added book ids : (bookID)" (string may be translated!)
+            if ': ' not in wrt:
                 res = res + '\nDatabase WRITE Failed'
+                return res
+
+            # Try to fetch the added book and delete it
+            calibre_id = wrt.split(": ", 1)[1].split("\n", 1)[0]
+            if not calibre_id.isdigit():
+                res = res + '\nDatabase WRITE Failed'
+                return res
+            if vernum.startswith('2'):
+                _, err, rc = calibredb('remove', [calibre_id], [])
             else:
-                calibre_id = wrt.split("book ids: ", 1)[1].split("\n", 1)[0]
-                if vernum.startswith('2'):
-                    _, err, rc = calibredb('remove', [calibre_id], [])
-                else:
-                    rmv, err, rc = calibredb('remove', ['--permanent', calibre_id], [])
-                if not rc:
-                    res = res + '\nDatabase WRITE ok'
-                else:
-                    res = res + '\nDatabase WRITE2 Failed: '
+                rmv, err, rc = calibredb('remove', ['--permanent', calibre_id], [])
+            if not rc:
+                res = res + '\nDatabase WRITE ok'
+            else:
+                res = res + '\nDatabase WRITE2 Failed: '
         else:
             res = res + '\nDatabase READ Failed or database is empty'
     else:
