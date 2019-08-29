@@ -276,7 +276,7 @@ def audioProcess(bookid, rename=False, playlist=False):
         abridged = ' (%s)' % abridged
     # if we get here, looks like we have all the parts needed to rename properly
     seriesinfo = nameVars(bookid, abridged)
-    dest_path = seriesinfo['FolderName']
+    dest_path = seriesinfo['AudioFolderName']
     dest_dir = lazylibrarian.DIRECTORY('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
     # check for windows case insensitive
@@ -596,6 +596,9 @@ def nameVars(bookid, abridged=''):
     dest_path = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'], mydict)
     dest_path = replace_all(dest_path, namedic)
     mydict['FolderName'] = stripspaces(dest_path)
+    dest_path = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'], mydict)
+    dest_path = replace_all(dest_path, namedic)
+    mydict['AudioFolderName'] = stripspaces(dest_path)
 
     bookfile = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'], mydict)
     # replace all '/' with '_' as '/' is a directory separator but also used in some multi-book titles

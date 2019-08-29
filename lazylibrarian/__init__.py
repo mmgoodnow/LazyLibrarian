@@ -483,6 +483,7 @@ CONFIG_DEFINITIONS = {
     'EBOOK_DEST_FOLDER': ('str', 'PostProcess', '$Author/$Title'),
     'EBOOK_DEST_FILE': ('str', 'PostProcess', '$Title - $Author'),
     'AUDIOBOOK_DEST_FILE': ('str', 'PostProcess', '$Author - $Title Part $Part of $Total'),
+    'AUDIOBOOK_DEST_FOLDER': ('str', 'PostProcess', 'None'),
     'ONE_FORMAT': ('bool', 'PostProcess', 0),
     'COMIC_DEST_FOLDER': ('str', 'PostProcess', '_Comics/$Title/$Issue'),
     'COMIC_RELATIVE': ('bool', 'PostProcess', 1),
@@ -1018,6 +1019,12 @@ def config_read(reloaded=False):
     for key in list(CONFIG_DEFINITIONS.keys()):
         item_type, section, default = CONFIG_DEFINITIONS[key]
         CONFIG[key.upper()] = check_setting(item_type, section, key.lower(), default)
+
+    # new config options...
+    if CONFIG['AUDIOBOOK_DEST_FOLDER'] == 'None':
+        CFG.set('PostProcess', 'audiobook_dest_folder', CONFIG['EBOOK_DEST_FOLDER'])
+        CONFIG['AUDIOBOOK_DEST_FOLDER'] = CONFIG['EBOOK_DEST_FOLDER']
+
     if not CONFIG['LOGDIR']:
         CONFIG['LOGDIR'] = os.path.join(DATADIR, 'Logs')
     if CONFIG['HTTP_PORT'] < 21 or CONFIG['HTTP_PORT'] > 65535:

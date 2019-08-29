@@ -698,16 +698,24 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             authorname = data['AuthorName']
                             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
                             bookname = data['BookName']
-                            if os.name == 'nt' and '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                                logger.warn('Please check your EBOOK_DEST_FOLDER setting')
-                                lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                                    'EBOOK_DEST_FOLDER'].replace('/', '\\')
+                            if os.name == 'nt':
+                                if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+                                    logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+                                    lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                                        'EBOOK_DEST_FOLDER'].replace('/', '\\')
+                                if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
+                                    logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+                                    lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                                        'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
                             # Default destination path, should be allowed change per config file.
                             seriesinfo = nameVars(book['BookID'])
-                            dest_path = seriesinfo['FolderName']
-                            dest_dir = lazylibrarian.DIRECTORY('eBook')
                             if book_type == 'AudioBook' and lazylibrarian.DIRECTORY('Audio'):
+                                dest_path = seriesinfo['AudioFolderName']
                                 dest_dir = lazylibrarian.DIRECTORY('Audio')
+                            else:
+                                dest_path = seriesinfo['FolderName']
+                                dest_dir = lazylibrarian.DIRECTORY('eBook')
+
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = makeUTF8bytes(dest_path)[0]
                             global_name = seriesinfo['BookFile']
@@ -1706,16 +1714,25 @@ def process_book(pp_path=None, bookID=None):
             authorname = data['AuthorName']
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             bookname = data['BookName']
-            # DEST_FOLDER pattern is the same for ebook and audiobook
-            if os.name == 'nt' and '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                logger.warn('Please check your EBOOK_DEST_FOLDER setting')
-                lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'].replace('/', '\\')
+
+            if os.name == 'nt':
+                if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+                    logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+                    lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                        'EBOOK_DEST_FOLDER'].replace('/', '\\')
+                if '/' in lazylibrarian.CONFIG['AUIDOBOOK_DEST_FOLDER']:
+                    logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+                    lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                        'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
 
             seriesinfo = nameVars(bookID)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
             global_name = seriesinfo['BookFile']
-            dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['FolderName']))
+            if book_type == "AudioBook":
+                dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['AudioFolderName']))
+            else:
+                dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['FolderName']))
             dest_path = makeUTF8bytes(dest_path)[0]
 
             success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
