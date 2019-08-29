@@ -19,7 +19,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook, listdir, namedic
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
-    makeUnicode, makeUTF8bytes, sortDefinite, surnameFirst
+    makeUnicode, makeBytestr, makeUTF8bytes, sortDefinite, surnameFirst
 from lib.six import PY2
 
 try:
@@ -33,6 +33,7 @@ def id3read(filename):
         logger.warn("TinyTag library not available")
         return None, None
 
+    filename = makeBytestr(filename)
     if not TinyTag.is_supported(filename):
         logger.warn("TinyTag:unsupported [%s]" % filename)
         return None, None
