@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# NOTE make sure the above path to python is correct for your environment
 # The parameter list is a list of database columns (column_name and data)
 # for the snatched or downloaded book/mag
 # This example reads the parameters back into a dictionary, then uses "ebook-convert"

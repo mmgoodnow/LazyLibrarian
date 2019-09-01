@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# NOTE make sure the above path to python is correct for your environment
 # The parameter list passed is a list of database columns (name and data)
 # for a book or magazine. Read them back into a dictionary.
 # For this example, just return the formatted dictionary

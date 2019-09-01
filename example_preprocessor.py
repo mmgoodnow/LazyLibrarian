@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# NOTE make sure the above path to python is correct for your environment
 # The parameter list is type, folder, authorname, bookname
 # where "type" is one of 'ebook', 'audiobook', 'magazine', 'comic', 'test'
 # and "folder" is the folder ready to be processed
@@ -160,7 +161,6 @@ def main():
                     sys.stderr.write("%s %s\n" % ("No suitable sourcefile found in", bookfolder))
                 pplog.write("%s: %s %s\n" % (time.ctime(), "No suitable sourcefile found in", bookfolder))
             else:
-                sourcefile = makeBytestr(sourcefile)
                 basename, source_extn = os.path.splitext(sourcefile)
                 for ftype in wanted_formats:
                     if not os.path.exists(os.path.join(bookfolder, basename + ftype)):
@@ -451,8 +451,8 @@ def main():
                     while p < cnt:
                         output.addPage(input1.getPage(p))
                         p = p + 1
-                    outputStream = file(fname + 'new', "wb")
-                    output.write(outputStream)
+                    with open(fname + 'new', "wb") as outputStream:
+                        output.write(outputStream)
                     msg = "%s has %d pages." % (fname, cnt)
                     print(msg)
                     pplog.write("%s: %s\n" % (time.ctime(), msg))
