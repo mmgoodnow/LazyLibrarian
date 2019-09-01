@@ -1,10 +1,10 @@
-#!/bin/python
-import sys
+#!/usr/bin/python
+# NOTE make sure the above path to python is correct for your environment
 import os
 import subprocess
 
 converter = "ebook-convert"  # if not in your "path", put the full pathname here
-books_parent_dir = '/home/phil/Test_Library' # change to your dir
+books_parent_dir = '/home/phil/Test_Library'  # change to your dir
 
 for root, subFolders, files in os.walk(books_parent_dir):
     for name in files:
