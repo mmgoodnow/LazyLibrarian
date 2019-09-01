@@ -74,10 +74,10 @@ def id3read(filename):
 
         if composer:  # if present, should be author
             author = composer
-        elif artist:  # author, or narrator if composer == author
-            author = artist
-        elif albumartist:
+        elif albumartist:  # author, or narrator if composer == author
             author = albumartist
+        elif artist:
+            author = artist
         else:
             author = None
         if author and type(author) is list:
@@ -170,14 +170,14 @@ def audioProcess(bookid, rename=False, playlist=False):
 
                 if composer:  # if present, should be author
                     author = composer
-                elif artist:  # author, or narrator if composer == author
-                    author = artist
-                elif albumartist:
+                elif albumartist:  # author, or narrator if composer == author
                     author = albumartist
+                elif artist:
+                    author = artist
                 if author and book:
                     parts.append([track, book, author, f])
                 if not abridged:
-                    # unabridged is sometimes shortened to unabr
+                    # unabridged is sometimes shortened to unabr.
                     for tag in [book, title, albumartist, artist, composer, comment]:
                         if tag and 'unabr' in tag.lower():
                             abridged = 'Unabridged'
