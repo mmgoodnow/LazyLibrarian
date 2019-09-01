@@ -86,10 +86,10 @@ def addTorrent(link, data=None):
             try:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug('Deluge: Getting torrent name length')
-                name_length = int(re.findall('name([0-9]*):.*?:', torrentfile)[0])
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                name_length = int(re.findall(b'name([0-9]*):.*?:', torrentfile)[0])
+                if name_length and lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug('Deluge: Getting torrent name')
-                name = re.findall('name[0-9]*:(.*?):', torrentfile)[0][:name_length]
+                name = makeUnicode(re.findall(b'name[0-9]*:(.*?):', torrentfile)[0][:name_length])
             except (re.error, IndexError, TypeError):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug('Deluge: Could not get torrent name, getting file name')
