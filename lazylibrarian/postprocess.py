@@ -2112,7 +2112,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     if booktype in ['audiobook', 'comic']:
                         destfile = os.path.join(udest_path, ufname)  # don't rename, just copy it
                     else:
-                        destfile = os.path.join(udest_path, makeUnicode(global_name + os.path.splitext(fname)[1]))
+                        destfile = os.path.join(udest_path, makeUnicode(global_name) + os.path.splitext(ufname)[1]))
                     try:
                         # if lazylibrarian.CONFIG['DESTINATION_COPY']:
                         #     typ = 'copy'
