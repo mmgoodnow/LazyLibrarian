@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
-from lazylibrarian.formatter import plural, now, replace_all, unaccented, makeUnicode, \
+from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, getList, month2num, datecompare, check_int, check_year, age
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
