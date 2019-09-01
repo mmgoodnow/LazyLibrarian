@@ -122,7 +122,9 @@ def get_book_info(fname):
 
     elif extn == ".opf":
         res['type'] = "opf"
-        txt = open(fname).read()
+        txt = open(fname, 'rb').read()
+        if not PY2:
+            txt = makeUnicode(txt)
         # sanitize any unmatched html tags or ElementTree won't parse
         dic = {'<br>': '', '</br>': ''}
         txt = replace_all(txt, dic)
@@ -560,17 +562,19 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         # keep track of which directories we've already looked at
         processed_subdirectories = []
         warned_no_new_authors = False  # only warn about the setting once
-        matchString = ''
-        for char in lazylibrarian.CONFIG['EBOOK_DEST_FILE']:
-            matchString = matchString + '\\' + char
-        # massage the EBOOK_DEST_FILE config parameter into something we can use
-        # with regular expression matching
         booktypes = ''
         count = -1
+        matchString = ''
+        # massage the EBOOK_DEST_FILE config parameter into something we can use
+        # with regular expression matching
         if library == 'eBook':
             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
+            for char in lazylibrarian.CONFIG['EBOOK_DEST_FILE']:
+                matchString = matchString + '\\' + char
         else:
             booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+            for char in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+                matchString = matchString + '\\' + char
         for book_type in booktype_list:
             count += 1
             if count == 0:
