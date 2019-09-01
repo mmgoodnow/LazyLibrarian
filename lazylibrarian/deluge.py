@@ -17,7 +17,7 @@
 # Adapted for Headphones by <noamgit@gmail.com>
 # URL: https://github.com/noam09
 # Adapted for LazyLibrarian by Phil Borman
-# URL: https://github.com/philborman
+# URL: https://gitlab.com/philborman
 #
 
 from __future__ import unicode_literals
@@ -35,7 +35,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int, makeUnicode, makeBytestr
+from lazylibrarian.formatter import check_int, makeUnicode
 from lazylibrarian.common import make_dirs
 from lib.six import PY2
 
@@ -64,13 +64,15 @@ def addTorrent(link, data=None):
             torrentfile = ''
             if data:
                 logger.debug('Deluge: Getting .torrent data')
-                if 'announce' in data[:40]:
+                if b'announce' in data[:40]:
                     torrentfile = data
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                         logger.debug('Deluge: data doesn\'t look like a torrent, maybe b64encoded')
-                    data = makeUnicode(b64decode(data))
-                    if 'announce' in data[:40]:
+                    data = b64decode(data)
+                    if b'announce' in data[:40]:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                            logger.debug('Deluge: data looks like a b64encoded torrent')
                         torrentfile = data
                     else:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -104,7 +106,7 @@ def addTorrent(link, data=None):
                              (name.decode('utf-8'), torrentfile[:40].decode('utf-8')))
             result = {'type': 'torrent',
                       'name': name,
-                      'content': makeBytestr(torrentfile)}
+                      'content': torrentfile}
             retid = _add_torrent_file(result)
 
         else:
