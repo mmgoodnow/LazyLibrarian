@@ -842,8 +842,8 @@ def initialize():
 
         try:  # optional module, check database health, could also be upgraded to modify/repair db or run other code
             # noinspection PyUnresolvedReferences
-            from .dbcheck import dbcheck
-            dbcheck()
+            from lazylibrarian import dbcheck
+            dbcheck.dbcheck()
         except ImportError:
             pass
 
