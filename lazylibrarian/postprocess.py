@@ -43,8 +43,7 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
-    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes, \
-    makeBytestr
+    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
@@ -2097,7 +2096,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         global_name, encoding = makeUTF8bytes(global_name)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("global_name was %s" % encoding)
-        pp_path = makeBytestr(pp_path)
+
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
         for fname in listdir(pp_path):
@@ -2109,11 +2108,11 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                         ((ufname.lower().endswith(".jpg") or ufname.lower().endswith(".opf"))
                          and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
                     # typ = ''
-                    srcfile = os.path.join(pp_path, fname)
+                    srcfile = os.path.join(pp_path, ufname)
                     if booktype in ['audiobook', 'comic']:
-                        destfile = os.path.join(dest_path, fname)  # don't rename, just copy it
+                        destfile = os.path.join(udest_path, ufname)  # don't rename, just copy it
                     else:
-                        destfile = os.path.join(dest_path, global_name + os.path.splitext(fname)[1])
+                        destfile = os.path.join(udest_path, makeUnicode(global_name + os.path.splitext(fname)[1]))
                     try:
                         # if lazylibrarian.CONFIG['DESTINATION_COPY']:
                         #     typ = 'copy'
@@ -2133,9 +2132,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             logger.error("Sourcefile [%s] is not writeable" % repr(srcfile))
                         parent = os.path.dirname(destfile)
                         try:
-                            with open(os.path.join(parent, b'll_temp'), 'w') as f:
+                            with open(os.path.join(parent, 'll_temp'), 'w') as f:
                                 f.write('test')
-                            os.remove(os.path.join(parent, b'll_temp'))
+                            os.remove(os.path.join(parent, 'll_temp'))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
