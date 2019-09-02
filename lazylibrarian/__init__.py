@@ -565,6 +565,7 @@ CONFIG_DEFINITIONS = {
     'CV_WEBSEARCH': ('bool', 'API', 0),
     'GR_API': ('str', 'API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     'GR_SYNC': ('bool', 'API', 0),
+    'GR_SYNCREADONLY': ('bool', 'API', 0),
     'GR_SECRET': ('str', 'API', ''),  # tied to users own api key
     'GR_OAUTH_TOKEN': ('str', 'API', ''),  # gives access to users bookshelves
     'GR_OAUTH_SECRET': ('str', 'API', ''),  # gives access to users bookshelves

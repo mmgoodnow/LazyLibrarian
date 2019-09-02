@@ -572,6 +572,17 @@
                         Enable GoodReads Sync</label>
                     </div>
                     <fieldset id="grsync_options">
+                      <div class="checkbox">
+                        <%
+                          if lazylibrarian.CONFIG['GR_SYNCREADONLY'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="gr_syncreadonly" class="control-label">
+                          <input type="checkbox" id="gr_syncreadonly" name="gr_syncreadonly" value="1" ${checked} />
+                          Use GoodReads shelves as read-only</label>
+                      </div>
                       <label for="gr_secret">Goodreads Secret:</label>
                       <input type="text" id="gr_secret" name="gr_secret" value="${lazylibrarian.CONFIG['GR_SECRET']}" class="form-control">
                       <label for="gr_oauth_token">Goodreads OAuth Token:</label>

@@ -577,7 +577,7 @@ def grsync(status, shelf, library='eBook', reset=False):
         logger.info("There are %s %s %ss, %s on goodreads %s shelf" %
                     (len(ll_list), dstatus, library, len(gr_shelf), shelf))
 
-        if reset:
+        if reset and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
             logger.info("Removing old goodreads shelf contents")
             for book in gr_shelf:
                 try:
@@ -621,21 +621,22 @@ def grsync(status, shelf, library='eBook', reset=False):
         removed_from_ll = list(set(last_sync) - set(ll_list))
 
         logger.info("%s missing from lazylibrarian %s" % (len(removed_from_ll), shelf))
-        for book in removed_from_ll:
-            # first the deletions since last sync...
-            try:
-                res, content = GA.BookToList(book, shelf, action='remove')
-            except Exception as e:
-                logger.error("Error removing %s from %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
-                res = None
-                content = ''
-            if res:
-                logger.debug("%10s removed from %s shelf" % (book, shelf))
-                shelf_changed += 1
-            else:
-                if '404' not in content:  # already removed is ok
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
-                        logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
+        if not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+            for book in removed_from_ll:
+                # first the deletions since last sync...
+                try:
+                    res, content = GA.BookToList(book, shelf, action='remove')
+                except Exception as e:
+                    logger.error("Error removing %s from %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
+                    res = None
+                    content = ''
+                if res:
+                    logger.debug("%10s removed from %s shelf" % (book, shelf))
+                    shelf_changed += 1
+                else:
+                    if '404' not in content:  # already removed is ok
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                            logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
 
         logger.info("%s missing from goodreads %s" % (len(removed_from_shelf), shelf))
         for book in removed_from_shelf:
@@ -670,18 +671,19 @@ def grsync(status, shelf, library='eBook', reset=False):
 
         # new additions to lazylibrarian
         logger.info("%s new in lazylibrarian %s" % (len(added_to_ll), shelf))
-        for book in added_to_ll:
-            try:
-                res, content = GA.BookToList(book, shelf, action='add')
-            except Exception as e:
-                logger.error("Error adding %s to %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
-                res = None
-                content = ''
-            if res:
-                logger.debug("%10s added to %s shelf" % (book, shelf))
-                shelf_changed += 1
-            else:
-                logger.warn("Failed to add %s to %s shelf: %s" % (book, shelf, content))
+        if not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+            for book in added_to_ll:
+                try:
+                    res, content = GA.BookToList(book, shelf, action='add')
+                except Exception as e:
+                    logger.error("Error adding %s to %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
+                    res = None
+                    content = ''
+                if res:
+                    logger.debug("%10s added to %s shelf" % (book, shelf))
+                    shelf_changed += 1
+                else:
+                    logger.warn("Failed to add %s to %s shelf: %s" % (book, shelf, content))
 
         # new additions to goodreads shelf
         logger.info("%s new in goodreads %s" % (len(added_to_shelf), shelf))
@@ -709,7 +711,8 @@ def grsync(status, shelf, library='eBook', reset=False):
                     elif status == 'Wanted':
                         # if in "wanted" and already marked "Open/Have", optionally delete from "wanted"
                         # (depending on user prefs, to-read and wanted might not be the same thing)
-                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['Status'] in ['Open', 'Have']:
+                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['Status'] in ['Open', 'Have'] \
+                                and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
                             try:
                                 r, content = GA.BookToList(book, shelf, action='remove')
                             except Exception as e:
@@ -740,7 +743,8 @@ def grsync(status, shelf, library='eBook', reset=False):
                     elif status == 'Wanted':
                         # if in "wanted" and already marked "Open/Have", optionally delete from "wanted"
                         # (depending on user prefs, to-read and wanted might not be the same thing)
-                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['AudioStatus'] in ['Open', 'Have']:
+                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['AudioStatus'] in ['Open', 'Have'] \
+                                and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
                             try:
                                 r, content = GA.BookToList(book, shelf, action='remove')
                             except Exception as e:
