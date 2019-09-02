@@ -104,16 +104,14 @@ def multibook(foldername, recurse=False):
 
 def listdir(name):
     """
-    listdir ensuring bytestring for unix and path requirements for windows
+    listdir ensuring bytestring so we get bytestring returned,
+    and adding path requirements for windows
     """
     if os.path.__name__ == 'ntpath':
         name = syspath(name)
         if not name.endswith('\\'):
             name = name + '\\'
-    else:
-        name = makeBytestr(name)
-
-    return os.listdir(name)
+    return os.listdir(makeBytestr(name))
 
 
 def walk(top, topdown=True, onerror=None, followlinks=False):
@@ -464,7 +462,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             try:
                 for fname in listdir(search_dir):
                     if is_valid_booktype(makeUnicode(fname), booktype=booktype):
-                        return os.path.join(makeBytestr(search_dir), makeBytestr(fname))
+                        return os.path.join(makeBytestr(search_dir), fname)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return b""
