@@ -216,6 +216,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 }
                 logger.debug("Now adding new author: %s to database %s" % (authorname, reason))
                 newValueDict['Reason'] = reason
+                newValueDict['DateAdded'] = today()
                 entry_status = 'Active'
                 new_author = True
             else:
@@ -232,7 +233,6 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 newValueDict = {
                     "AuthorID": author['authorid'],
                     "AuthorLink": author['authorlink'],
-                    "DateAdded": today(),
                     "Updated": int(time.time()),
                     "Status": "Loading"
                 }
