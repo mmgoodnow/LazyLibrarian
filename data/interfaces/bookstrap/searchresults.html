@@ -82,7 +82,11 @@
                         value = "Add Author"
                         but_class = "btn-success"
 
-                    if booklist:
+                    if value == "Loading":
+                        value2 = value
+                        destination2 = "#"
+                        but_class2 = "btn-info hidden"
+                    elif booklist:
                         if result['bookid'] in booklist:
                             for item in booksearch:
                                 if item['BookID'] == result['bookid']:
@@ -109,15 +113,10 @@
                             destination2 = "addBook?bookid="+result['bookid']
                             value2 = "Add Book"
                             but_class2 = "btn-success"
-
-                    if value == "Loading":
+                    else:
                         value2 = value
                         destination2 = "#"
                         but_class2 = "btn-info hidden"
-                    else:
-                        destination2 = "addBook?bookid="+result['bookid']
-                        value2 = "Add Book"
-                        but_class2 = "btn-success"
                     %>
 <tr>
   <td class="bookart text-center"><a href="${result['bookimg']}" target="_blank" rel="noreferrer"><img src="${result['bookimg']}" alt="Cover"></a></td>
