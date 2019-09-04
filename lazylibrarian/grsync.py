@@ -322,7 +322,7 @@ class grauth:
                 if page_books == 0:
                     break
 
-            logger.debug('Found %s' % total_books)
+            logger.debug('Found %s books on shelf' % total_books)
             return gr_list
 
     #############################
