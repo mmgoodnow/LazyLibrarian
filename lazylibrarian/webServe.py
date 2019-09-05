@@ -218,7 +218,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
 
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
-            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded from authors '
+            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
             if lazylibrarian.IGNORED_AUTHORS:
                 cmd += 'where Status == "Ignored" or Status == "Paused" '
             else:
@@ -258,7 +258,7 @@ class WebInterface(object):
                         css = 'success'
 
                     nrow.append(percent)
-                    nrow.extend(arow[4:-1])
+                    nrow.extend(arow[4:-2])
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
                         bar = '<div class="progress-container %s">' % css
                         bar += '<div style="width:%s%%"><span class="progressbar-front-text">' % percent
@@ -267,7 +267,7 @@ class WebInterface(object):
                         bar = ''
                     nrow.append(bar)
                     if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
-                        nrow.append(arow[11])
+                        nrow.extend(arow[11:])
                     rows.append(nrow)  # add each rowlist to the masterlist
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -1832,15 +1832,15 @@ class WebInterface(object):
             if lazylibrarian.GROUP_CONCAT:
                 cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
                 cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-                cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre'
-                cmd += ' FROM books, authors'
+                cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
+                cmd += 'bookadded FROM books, authors'
                 cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
                 cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
                 cmd += ' WHERE books.AuthorID = authors.AuthorID'
             else:
                 cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,bookid,booklang,'
                 cmd += 'booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-                cmd += 'bookgenre from books,authors where books.AuthorID = authors.AuthorID'
+                cmd += 'bookgenre,bookadded from books,authors where books.AuthorID = authors.AuthorID'
 
             types = []
             if lazylibrarian.SHOW_EBOOK:
@@ -1887,7 +1887,7 @@ class WebInterface(object):
             if lazylibrarian.GROUP_CONCAT:
                 cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
                 cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
-                cmd += ' audiostatus, audiolibrary, bookgenre'
+                cmd += ' audiostatus, audiolibrary, bookgenre, bookadded'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
@@ -2011,6 +2011,11 @@ class WebInterface(object):
                     if status_type == 'audiostatus':
                         row[5] = row[14]
                         row[13] = row[15]
+
+                    # if no "added to library" date, show "added to database" date
+                    # if not row[13]:
+                    #    row[13] = row[18]
+
                     # Need to pass bookid and status twice as datatables modifies first one
                     thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[5], row[11],
                                row[6], dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
@@ -2577,7 +2582,7 @@ class WebInterface(object):
         authors = myDB.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate,ScanResult from books,authors '
+        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded from books,authors '
         cmd += 'WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = myDB.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '

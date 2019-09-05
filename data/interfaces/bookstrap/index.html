@@ -143,7 +143,7 @@
                      { targets: [3],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return row[13];} },
+                            return '<a data-toggle="tooltip" title="' + row[14] + '">' + row[13] + '</a>';} },
                      { targets: [4], 'render': function(data, type, row) {
                         if (row[2] == null) {return ''};
                             return '<button onclick="bookinfo(\'' + row[11] +
