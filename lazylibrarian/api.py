@@ -180,6 +180,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'gc_init': 'Initialise gc_before state',
             'gc_stats': 'Show difference since gc_init',
             'gc_collect': 'Run garbage collection & return how many items',
+            'listNewAuthors': '[&limit=] List newest authors and show when added and reason for adding',
+            'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
             }
 
 
@@ -390,6 +392,22 @@ class Api(object):
     def _getHistory(self):
         self.data = self._dic_from_query(
             "SELECT * from wanted WHERE Status != 'Skipped' and Status != 'Ignored'")
+
+    def _listNewAuthors(self, **kwargs):
+        if 'limit' in kwargs:
+            limit = "limit %s" % kwargs['limit']
+        else:
+            limit = ''
+        self.data = self._dic_from_query(
+            "SELECT authorid,authorname,dateadded,reason,status from authors order by dateadded desc %s" % limit)
+
+    def _listNewBooks(self, **kwargs):
+        if 'limit' in kwargs:
+            limit = "limit %s" % kwargs['limit']
+        else:
+            limit = ''
+        self.data = self._dic_from_query(
+            "SELECT bookid,bookname,bookadded,scanresult,status from books order by bookadded desc %s" % limit)
 
     def _showThreads(self):
         self.data = [n.name for n in [t for t in threading.enumerate()]]
