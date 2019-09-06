@@ -234,8 +234,10 @@ def dateFormat(datestr, formatstr="$Y-$m-$d"):
     except ValueError:
         m = "%02d" % month2num(m)
 
-    datestr = "%s-%s-%s %s:%s:00" % (y, m, d, hh, mm)
+    datestr = "%s-%s-%s %s:%s:00" % (y, m.zfill(2), d.zfill(2), hh, mm)
     if not formatstr:
+        if len(dateparts) == 1:
+            return datestr[:4]  # only year
         return datestr[:11]  # default yyyy-mm-dd
 
     # noinspection PyBroadException
