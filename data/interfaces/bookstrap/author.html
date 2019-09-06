@@ -315,7 +315,10 @@
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             return '<img src="images/' + data + '-stars.png" alt="Rating">';} },
-                    { targets: [6], 'class': "text-center" },
+                    { targets: [6],
+                        'class': "text-center",
+                        'render': function(data, type, row) {
+                            return '<a data-toggle="tooltip" title="Listed: ' + row[16] + '\n' + row[17] + '">' + row[6] + '</a>';} },
                     { targets: [7],
                         'class': 'text-center',
                         'render': function(data, type, row) {

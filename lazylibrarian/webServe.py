@@ -1833,14 +1833,14 @@ class WebInterface(object):
                 cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
                 cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
                 cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
-                cmd += 'bookadded FROM books, authors'
+                cmd += 'bookadded,scanresult FROM books, authors'
                 cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
                 cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
                 cmd += ' WHERE books.AuthorID = authors.AuthorID'
             else:
                 cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,bookid,booklang,'
                 cmd += 'booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-                cmd += 'bookgenre,bookadded from books,authors where books.AuthorID = authors.AuthorID'
+                cmd += 'bookgenre,bookadded,scanresult from books,authors where books.AuthorID = authors.AuthorID'
 
             types = []
             if lazylibrarian.SHOW_EBOOK:
@@ -1887,7 +1887,7 @@ class WebInterface(object):
             if lazylibrarian.GROUP_CONCAT:
                 cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
                 cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
-                cmd += ' audiostatus, audiolibrary, bookgenre, bookadded'
+                cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
@@ -1911,7 +1911,8 @@ class WebInterface(object):
                         logger.debug("filter [%s]" % sSearch)
                     if library is not None:
                         searchFields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
-                                        'BookLang', 'BookSub', 'AuthorID', 'SeriesDisplay', 'BookGenre']
+                                        'BookLang', 'BookSub', 'AuthorID', 'SeriesDisplay', 'BookGenre',
+                                        'ScanResult']
                         if library == 'AudioBook':
                             searchFields[3] = 'AudioStatus'
 
@@ -1988,7 +1989,7 @@ class WebInterface(object):
                     if row[8]:  # is there a sub-title
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
                     title = title + '<br>' + sitelink + ' ' + worklink
-                    bookgenre = row[-1]
+                    bookgenre = row[17]
 
                     if perm & lazylibrarian.perm_edit:
                         title = title + ' ' + editpage
@@ -2017,8 +2018,9 @@ class WebInterface(object):
                     #    row[13] = row[18]
 
                     # Need to pass bookid and status twice as datatables modifies first one
-                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, row[4], row[5], row[11],
-                               row[6], dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
+                    thisrow = [row[6], row[0], row[1], title, row[12], bookrate, dateFormat(row[4], ''),
+                               row[5], row[11], row[6],
+                               dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
                                row[5], row[16], flag]
                     if kwargs['source'] == "Manage":
                         cmd = "SELECT Time,Interval,Count from failedsearch WHERE Bookid=? AND Library='eBook'"
@@ -2035,6 +2037,11 @@ class WebInterface(object):
                     elif kwargs['source'] == 'Author':
                         thisrow.append(row[14])
                         thisrow.append(dateFormat(row[15], lazylibrarian.CONFIG['DATE_FORMAT']))
+                        thisrow.append(row[18])
+                        thisrow.append(row[19])
+                    elif kwargs['source'] in ['Books', 'Audio']:
+                        thisrow.append(row[18])
+                        thisrow.append(row[19])
                     d.append(thisrow)
                 rows = d
 
