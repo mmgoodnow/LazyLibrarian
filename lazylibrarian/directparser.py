@@ -289,5 +289,21 @@ def GEN(book=None, prov=None, test=False):
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 
+        # try to detect libgen mirrors looping (not honouring "page=")
+        if results:
+            last_result_url = results[-1]['tor_url']
+            cnt = 0
+            for item in results:
+                if item['tor_url'] == last_result_url:
+                    cnt += 1
+                if cnt > 1:
+                    break
+            if cnt > 1:
+                logger.warn('Duplicate results page found from provider')
+                next_page = False
+        else:
+            logger.warn('No results found from provider')
+            next_page = False
+
     logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
     return results, errmsg
