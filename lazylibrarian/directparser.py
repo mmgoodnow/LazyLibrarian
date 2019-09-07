@@ -289,7 +289,7 @@ def GEN(book=None, prov=None, test=False):
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 
-        # try to detect libgen mirrors looping (not honouring "page=")
+        # try to detect libgen mirrors not honouring "page="
         if results:
             last_result_url = results[-1]['tor_url']
             cnt = 0
