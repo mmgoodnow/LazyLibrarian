@@ -197,9 +197,9 @@ def processAlternate(source_dir=None, library='eBook'):
             results = []
             if not bookid:
                 # new book, or new author where we didn't want to load their back catalog
-                searchterm = "%s <ll> %s" % (bookname, authorname)
+                searchterm = "%s <ll> %s" % (unaccented(bookname), unaccented(authorname))
                 match = {}
-                results = search_for(unaccented(searchterm))
+                results = search_for(searchterm)
                 for result in results:
                     if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
                             and result['authorid'] == authorid:
@@ -209,8 +209,8 @@ def processAlternate(source_dir=None, library='eBook'):
                     newtitle, _ = split_title(authorname, bookname)
                     if newtitle != bookname:
                         bookname = newtitle
-                        searchterm = "%s <ll> %s" % (bookname, authorname)
-                        results = search_for(unaccented(searchterm))
+                        searchterm = "%s <ll> %s" % (unaccented(bookname), unaccented(authorname))
+                        results = search_for(searchterm)
                         for result in results:
                             if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
                                     and result['authorid'] == authorid:
