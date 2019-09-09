@@ -825,7 +825,7 @@ def authorUpdate(restart=True):
         author = myDB.match(cmd)
         if author and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             dtnow = time.time()
-            diff = (dtnow - author['Updated']) / (24 * 60 * 60)
+            diff = int((dtnow - author['Updated']) / (24 * 60 * 60))
             msg = 'Oldest author info (%s) is %s day%s old, no update due' % (author['AuthorName'],
                                                                               diff, plural(diff))
             if diff > check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
