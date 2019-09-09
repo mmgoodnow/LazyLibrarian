@@ -1943,18 +1943,21 @@ class WebInterface(object):
                         sortcolumn = 14
                     else:
                         sortcolumn = 5
-                elif sortcolumn == 7:  # added
-                    if status_type == 'audiostatus':
-                        sortcolumn = 15
+                elif sortcolumn == 7:  # added or listed
+                    if kwargs['source'] == "Manage":
+                        sortcolumn = 18
                     else:
-                        sortcolumn = 13
+                        if status_type == 'audiostatus':
+                            sortcolumn = 15
+                        else:
+                            sortcolumn = 13
                 else:  # rating, date
                     sortcolumn -= 2
 
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("final sortcolumn %d" % sortcolumn)
 
-                if sortcolumn in [12, 13, 15]:  # series, date
+                if sortcolumn in [12, 13, 15, 18]:  # series, dates
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 elif sortcolumn in [2]:  # title
@@ -2037,11 +2040,9 @@ class WebInterface(object):
                     elif kwargs['source'] == 'Author':
                         thisrow.append(row[14])
                         thisrow.append(dateFormat(row[15], lazylibrarian.CONFIG['DATE_FORMAT']))
-                        thisrow.append(row[18])
-                        thisrow.append(row[19])
-                    elif kwargs['source'] in ['Books', 'Audio']:
-                        thisrow.append(row[18])
-                        thisrow.append(row[19])
+
+                    thisrow.append(row[18])
+                    thisrow.append(row[19])
                     d.append(thisrow)
                 rows = d
 

@@ -85,9 +85,10 @@
       <a class="toggle-vis" data-column="4"> Series</a>
       <a class="toggle-vis hidden-sm hidden-xs" data-column="5"> Rating</a>
       <a class="toggle-vis" data-column="6"> Released</a>
+      <a class="toggle-vis" data-column="7"> Listed</a>
       %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
-        <a class="toggle-vis" data-column="7"> Delay</a>
-        <a class="toggle-vis" data-column="8"> Search</a>
+        <a class="toggle-vis" data-column="8"> Delay</a>
+        <a class="toggle-vis" data-column="9"> Search</a>
       %endif
     %endif
   </form>
@@ -106,6 +107,7 @@
             <th class="series">Series</th>
             <th class="stars text-center hidden-sm hidden-xs">Rating</th>
             <th class="date text-center">Released</th>
+            <th class="date text-center">Listed</th>
             %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
                 %if whichStatus == 'Wanted':
                     <th class="stars text-center no-sort">Delay</th>
@@ -283,13 +285,17 @@
                         return '<img src="images/' + data + '-stars.png" alt="Rating">';} },
                     { targets: [6],
                         'class': 'text-center'},
+                    { targets: [7],
+                        'class': 'text-center',
+                        'render': function(data, type, row) {
+                            return row[16] + '<br>' + row[17];} },
                     %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
                         %if whichStatus == 'Wanted':
-                            { targets: [7],
+                            { targets: [8],
                                 'class': 'text-center',
                                 'render': function(data, type, row) {
                                     return row[14];} },
-                            { targets: [8],
+                            { targets: [9],
                                 'class': 'text-center',
                                 'render': function(data, type, row) {
                                     return row[15];} }
