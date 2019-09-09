@@ -313,7 +313,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     book_api = GoogleBooks()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
-                                              refresh=refresh)
+                                              refresh=refresh, reason=reason)
                 # if lazylibrarian.CONFIG['GR_API']:
                 #     book_api = GoodReads(authorname)
                 #     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
@@ -324,7 +324,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     book_api = GoodReads(authorname)
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
-                                              refresh=refresh)
+                                              refresh=refresh, reason=reason)
                 # if lazylibrarian.CONFIG['GB_API']:
                 #     book_api = GoogleBooks()
                 #     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,

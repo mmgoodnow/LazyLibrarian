@@ -364,9 +364,10 @@ class GoodReads:
         return mydict
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
-                         entrystatus='Active', refresh=False):
+                         entrystatus='Active', refresh=False, reason=''):
         # noinspection PyBroadException
         try:
+            entryreason = reason
             api_hits = 0
             gr_lang_hits = 0
             lt_lang_hits = 0
@@ -804,7 +805,7 @@ class GoodReads:
                                     audio_status = 'Ignored'
                                     book_ignore_count += 1
                             else:
-                                reason = ''
+                                reason = entryreason
 
                             # Leave alone if locked
                             if locked:
@@ -1213,7 +1214,8 @@ class GoodReads:
                     myDB.upsert("authors", newValueDict, controlValueDict)
 
                     if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']:
-                        self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'])
+                        self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
+                                              reason=reason)
         else:
             logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
             return

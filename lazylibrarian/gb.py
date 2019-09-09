@@ -243,7 +243,7 @@ class GoogleBooks:
             logger.error('Unhandled exception in GB.find_results: %s' % traceback.format_exc())
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped",
-                         audiostatus="Skipped", entrystatus='Active', refresh=False):
+                         audiostatus="Skipped", entrystatus='Active', refresh=False, reason=''):
         # noinspection PyBroadException
         try:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
@@ -252,7 +252,7 @@ class GoogleBooks:
                 set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname))
             else:
                 set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname))
-
+            entryreason = reason
             api_hits = 0
             gr_lang_hits = 0
             lt_lang_hits = 0
@@ -477,7 +477,7 @@ class GoogleBooks:
                                     audio_status = 'Ignored'
                                     book_ignore_count += 1
                             else:
-                                reason = ''
+                                reason = entryreason
 
                             if locked:
                                 locked_count += 1
@@ -708,7 +708,8 @@ class GoogleBooks:
                     authorname = author['authorname']
                     myDB.upsert("authors", newValueDict, controlValueDict)
                     if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']:
-                        self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'])
+                        self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
+                                              reason=reason)
         else:
             logger.warn("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
             return
