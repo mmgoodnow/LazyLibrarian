@@ -569,26 +569,42 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         # with regular expression matching
         if library == 'eBook':
             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
+            for book_type in booktype_list:
+                count += 1
+                if count == 0:
+                    booktypes = book_type
+                else:
+                    booktypes = booktypes + '|' + book_type
             for char in lazylibrarian.CONFIG['EBOOK_DEST_FILE']:
                 matchString = matchString + '\\' + char
+            matchString = matchString.replace("\\$\\A\\u\\t\\h\\o\\r", "(?P<author>.*?)").replace(
+                "\\$\\T\\i\\t\\l\\e", "(?P<book>.*?)").replace(
+                "\\$\\S\\e\\r\\i\\e\\s", "").replace(
+                "\\$\\S\\e\\r\\N\\u\\m", "").replace(
+                "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
+                "\\$\\$", "") + r'\.[' + booktypes + ']'  # ignore any series, we just want author/title
         else:
             booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+            for book_type in booktype_list:
+                count += 1
+                if count == 0:
+                    booktypes = book_type
+                else:
+                    booktypes = booktypes + '|' + book_type
             for char in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
                 matchString = matchString + '\\' + char
-        for book_type in booktype_list:
-            count += 1
-            if count == 0:
-                booktypes = book_type
-            else:
-                booktypes = booktypes + '|' + book_type
+            matchString = matchString.replace("\\$\\A\\u\\t\\h\\o\\r", "(?P<author>.*?)").replace(
+                "\\$\\T\\i\\t\\l\\e", "(?P<book>.*?)").replace(
+                "\\$\\S\\e\\r\\i\\e\\s", "").replace(
+                "\\$\\P\\a\\r\\t", "").replace(
+                "\\P\\a\\r\\t", "").replace(
+                "\\o\\f", "").replace(
+                "\\$\\T\\o\\t\\a\\l", "").replace(
+                "\\$\\S\\e\\r\\N\\u\\m", "").replace(
+                "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
+                "\\$\\$", "") + r'\.[' + booktypes + ']'  # we just want author/title
 
-        matchString = matchString.replace("\\$\\A\\u\\t\\h\\o\\r", "(?P<author>.*?)").replace(
-            "\\$\\T\\i\\t\\l\\e", "(?P<book>.*?)").replace(
-            "\\$\\S\\e\\r\\i\\e\\s", "").replace(
-            "\\$\\S\\e\\r\\N\\u\\m", "").replace(
-            "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
-            "\\$\\$", "") + r'\.[' + booktypes + ']'  # ignore any series, we just want author/title
-
+        print(matchString)
         pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
         last_authorid = None
         for rootdir, dirnames, filenames in walk(startdir):
