@@ -564,9 +564,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
         warned_no_new_authors = False  # only warn about the setting once
         booktypes = ''
         count = -1
-        matchString = ''
-        # massage the EBOOK_DEST_FILE config parameter into something we can use
-        # with regular expression matching
         if library == 'eBook':
             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
             for book_type in booktype_list:
@@ -575,14 +572,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     booktypes = book_type
                 else:
                     booktypes = booktypes + '|' + book_type
-            for char in lazylibrarian.CONFIG['EBOOK_DEST_FILE']:
-                matchString = matchString + '\\' + char
-            matchString = matchString.replace("\\$\\A\\u\\t\\h\\o\\r", "(?P<author>.*?)").replace(
-                "\\$\\T\\i\\t\\l\\e", "(?P<book>.*?)").replace(
-                "\\$\\S\\e\\r\\i\\e\\s", "").replace(
-                "\\$\\S\\e\\r\\N\\u\\m", "").replace(
-                "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
-                "\\$\\$", "") + r'\.[' + booktypes + ']'  # ignore any series, we just want author/title
+            matchString = lazylibrarian.CONFIG['EBOOK_DEST_FILE']
+            matchString = matchString.replace("$Author", "(?P<author>.*?)").replace(
+                "$Title", "(?P<book>.*?)").replace(
+                "$Series", "(?P<series>.*?)").replace(
+                "$SerNum", "(?P<sernum>.*?)").replace(
+                "$SerName", "(?P<sername>.*?)").replace(
+                "$$", "") + r'\.[' + booktypes + ']'
         else:
             booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
             for book_type in booktype_list:
@@ -591,20 +587,16 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     booktypes = book_type
                 else:
                     booktypes = booktypes + '|' + book_type
-            for char in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                matchString = matchString + '\\' + char
-            matchString = matchString.replace("\\$\\A\\u\\t\\h\\o\\r", "(?P<author>.*?)").replace(
-                "\\$\\T\\i\\t\\l\\e", "(?P<book>.*?)").replace(
-                "\\$\\S\\e\\r\\i\\e\\s", "").replace(
-                "\\$\\P\\a\\r\\t", "").replace(
-                "\\P\\a\\r\\t", "").replace(
-                "\\o\\f", "").replace(
-                "\\$\\T\\o\\t\\a\\l", "").replace(
-                "\\$\\S\\e\\r\\N\\u\\m", "").replace(
-                "\\$\\S\\e\\r\\N\\a\\m\\e", "").replace(
-                "\\$\\$", "") + r'\.[' + booktypes + ']'  # we just want author/title
+            matchString = lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']
+            matchString = matchString.replace("$Author", "(?P<author>.*?)").replace(
+                "$Title", "(?P<book>.*?)").replace(
+                "$Series", "(?P<series>.*?)").replace(
+                "$Part", "(?P<part>.*?)").replace(
+                "$Total", "(?P<total>.*?)").replace(
+                "$SerNum", "(?P<sernum>.*?)").replace(
+                "$SerName", "(?P<sername>.*?)").replace(
+                "$$", "") + r'\.[' + booktypes + ']'
 
-        print(matchString)
         pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
         last_authorid = None
         for rootdir, dirnames, filenames in walk(startdir):
