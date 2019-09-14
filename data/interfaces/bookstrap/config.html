@@ -902,8 +902,14 @@
                       </div>
                       <div class="row">
                         <div class="col-md-6">
+                        <div class="input-group">
+                          <span class="input-group-addon">Ext Host/Port</span>
+                          <input type="text" id="sab_external_host" name="sab_external_host" value="${lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']}" class="form-control" placeholder="mywebsite.org:port">
+                        </div>
+                        <span class="help-block">Use if you need to get sab to download the nzb file from lazylibrarian</span>
+                        </div>
+                        <div class="col-md-6">
                           <button class="button btn btn-sm btn-primary" type="button" value="Test SABnzbd" id="testSABnzbd"><i class="fa fa-list-ul"></i> Test SABnzbd</button>
-                          <br>
                           <br>
                         </div>
                       </div>
@@ -3364,7 +3370,7 @@
         <div role="tabpanel" class="tab-pane" id="filters">
           <div class="configtable">
             <div class="row">
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="col-md-6">
                 <legend>Book Reject List</legend>
                 <div class="form-group">
@@ -3375,6 +3381,17 @@
                   </span>
                 </div>
                 </div>
+                <div class="col-md-6">
+                <legend>Publisher Reject List</legend>
+                <div class="form-group">
+                  <input type="text" id="reject_publisher" name="reject_publisher" value="${lazylibrarian.CONFIG['REJECT_PUBLISHER']}" class="form-control" placeholder="Reject publishers">
+                  <span class="help-block">Comma separated list of publishers to reject:<br/>
+                    Libraryscan will ignore books by these publishers <br>
+                    if found in opf files<br/>
+                  </span>
+                </div>
+                </div>
+                <br>
                 %endif
                 %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
                 <div class="col-md-6">

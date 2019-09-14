@@ -49,6 +49,8 @@ except ImportError:
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
 from lib.six import PY2, text_type
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_parse import quote
 
 
 def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
@@ -58,7 +60,35 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
 
     if lazylibrarian.CONFIG['NZB_DOWNLOADER_SABNZBD'] and lazylibrarian.CONFIG['SAB_HOST']:
         Source = "SABNZBD"
-        downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzburl, False)  # returns nzb_ids or False
+        if lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']:
+            # new method, download nzb data, write to file, send file to sab, delete file
+            data, success = fetchURL(nzburl, raw=True)
+            if not success:
+                res = 'Failed to read nzb data for sabnzbd: %s' % data
+                logger.debug(res)
+                downloadID = ''
+            else:
+                logger.debug("Got %s bytes data" % len(data))
+                temp_filename = os.path.join(lazylibrarian.CACHEDIR, "tempfile.nzb")
+                with open(temp_filename, 'wb') as f:
+                    f.write(data)
+                logger.debug("Data written to file")
+                nzb_url = lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']
+                if not nzb_url.startswith('http'):
+                    if lazylibrarian.CONFIG['HTTPS_ENABLED']:
+                        nzb_url = 'https://' + nzb_url
+                    else:
+                        nzb_url = 'http://' + nzb_url
+                if lazylibrarian.CONFIG['HTTP_ROOT']:
+                    nzb_url = nzb_url + '/' + lazylibrarian.CONFIG['HTTP_ROOT']
+                nzb_url = nzb_url + '/cache/tempfile.nzb'
+                logger.debug("nzb_url [%s]" % nzb_url)
+                downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzb_url, False)  # returns nzb_ids or False
+                logger.debug("Sab returned %s/%s" % (downloadID, res))
+                #os.unlink(temp_filename)
+                #logger.debug("Temp file deleted")
+        else:
+            downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzburl, False)  # returns nzb_ids or False
 
     if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET'] and lazylibrarian.CONFIG['NZBGET_HOST']:
         Source = "NZBGET"

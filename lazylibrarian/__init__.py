@@ -206,7 +206,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
-                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB']
+                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
+                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -321,6 +322,7 @@ CONFIG_DEFINITIONS = {
     'SAB_PASS': ('str', 'SABnzbd', ''),
     'SAB_API': ('str', 'SABnzbd', ''),
     'SAB_CAT': ('str', 'SABnzbd', ''),
+    'SAB_EXTERNAL_HOST': ('str', 'SABnzbd', ''),
     'NZBGET_HOST': ('str', 'NZBGet', ''),
     'NZBGET_PORT': ('int', 'NZBGet', '0'),
     'NZBGET_USER': ('str', 'NZBGet', ''),
@@ -440,6 +442,7 @@ CONFIG_DEFINITIONS = {
     'EBOOK_TYPE': ('str', 'General', 'epub, mobi, pdf'),
     'AUDIOBOOK_TYPE': ('str', 'General', 'mp3'),
     'MAG_TYPE': ('str', 'General', 'pdf'),
+    'REJECT_PUBLISHER': ('str', 'General', ''),
     'REJECT_WORDS': ('str', 'General', 'audiobook, mp3'),
     'REJECT_AUDIO': ('str', 'General', 'epub, mobi'),
     'REJECT_MAGS': ('str', 'General', ''),
@@ -1041,6 +1044,7 @@ def config_read(reloaded=False):
     CONFIG['REJECT_AUDIO'] = CONFIG['REJECT_AUDIO'].lower()
     CONFIG['REJECT_COMIC'] = CONFIG['REJECT_COMIC'].lower()
     CONFIG['BANNED_EXT'] = CONFIG['BANNED_EXT'].lower()
+    CONFIG['REJECT_PUBLISHER'] = CONFIG['REJECT_PUBLISHER'].lower()
 
     if os.name == 'nt':
         for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
@@ -1159,7 +1163,8 @@ def config_write(part=None):
             if key == 'LOGLEVEL':
                 LOGLEVEL = check_int(value, 1)
             elif key in ['REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_MAGS', 'REJECT_COMIC',
-                         'MAG_TYPE', 'EBOOK_TYPE', 'COMIC_TYPE', 'BANNED_EXT', 'AUDIOBOOK_TYPE']:
+                         'MAG_TYPE', 'EBOOK_TYPE', 'COMIC_TYPE', 'BANNED_EXT', 'AUDIOBOOK_TYPE',
+                         'REJECT_PUBLISHER']:
                 value = value.lower()
         else:
             # keep the old value

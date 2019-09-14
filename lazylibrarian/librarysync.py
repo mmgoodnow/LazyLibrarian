@@ -153,6 +153,8 @@ def get_book_info(fname):
                 res['title'] = txt
             elif 'language' in tag:
                 res['language'] = txt
+            elif 'publisher' in tag:
+                res['publisher'] = txt
             elif 'creator' in tag and 'creator' not in res:
                 # take the first author name if multiple authors
                 res['creator'] = txt
@@ -650,6 +652,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                         author = ""
                         gr_id = ""
                         gb_id = ""
+                        publisher = ""
                         extn = os.path.splitext(files)[1]
 
                         # if it's an epub or a mobi we can try to read metadata from it
@@ -704,10 +707,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 language = res['language']
                             if 'identifier' in res:
                                 isbn = res['identifier']
+                            if 'publisher' in res:
+                                publisher = res['publisher']
                             if 'gr_id' in res:
                                 gr_id = res['gr_id']
                             logger.debug(
-                                "file meta [%s] [%s] [%s] [%s] [%s]" % (isbn, language, author, book, gr_id))
+                                "file meta [%s] [%s] [%s] [%s] [%s] [%s]" % (
+                                    isbn, language, author, book, gr_id, publisher))
                             if not match:
                                 logger.debug("File meta incomplete in %s" % metafile)
 
@@ -746,6 +752,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     match = False
                             if not match:
                                 logger.debug("Pattern match failed [%s]" % files)
+
+                        if publisher:
+                            print(publisher.lower())
+                            print(getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']))
+                            if publisher.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
+                                logger.warn("Ignoring %s: Publisher %s" % (files, publisher))
+                                match = False
 
                         if match:
                             # flag that we found a book in this subdirectory
