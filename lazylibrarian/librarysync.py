@@ -722,8 +722,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             # or audiobook which may have id3 tags
                             if is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
-                                if PY2:
-                                    filename = filename.encode(lazylibrarian.SYS_ENCODING)
                                 author, book = id3read(filename)
                                 if author and book:
                                     match = True

@@ -33,8 +33,16 @@ def id3read(filename):
         logger.warn("TinyTag library not available")
         return None, None
 
-    filename = makeBytestr(filename)
-    if not TinyTag.is_supported(filename):
+    if PY2:
+        filename = makeBytestr(filename)
+    else:
+        filename = makeUnicode(filename)
+    res = False
+    try:
+        res = TinyTag.is_supported(filename)
+    except Exception:
+        res = False
+    if not res:
         logger.warn("TinyTag:unsupported [%s]" % filename)
         return None, None
 
