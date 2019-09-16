@@ -752,8 +752,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 logger.debug("Pattern match failed [%s]" % files)
 
                         if publisher:
-                            print(publisher.lower())
-                            print(getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']))
                             if publisher.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
                                 logger.warn("Ignoring %s: Publisher %s" % (files, publisher))
                                 match = False
@@ -923,7 +921,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                                 logger.debug("Adding %s on rescan for %s %s" %
                                                                              (bookid, author, book))
                                                                 GR_ID = GoodReads(bookid)
-                                                                GR_ID.find_book(bookid)
+                                                                GR_ID.find_book(bookid, reason="Librarysync rescan")
                                                                 if language and language != "Unknown":
                                                                     # set language from book metadata
                                                                     logger.debug(
@@ -970,7 +968,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                                     logger.debug("Adding %s [%s] on rescan for %s" %
                                                                                  (bookid, bookauthor, booktitle))
                                                                     GR_ID = GoodReads(bookid)
-                                                                    GR_ID.find_book(bookid)
+                                                                    GR_ID.find_book(bookid,
+                                                                                    reason="Librarysync rescan %s" %
+                                                                                    bookauthor)
                                                                     if language and language != "Unknown":
                                                                         # set language from book metadata
                                                                         msg = "Setting language from metadata %s : %s"
