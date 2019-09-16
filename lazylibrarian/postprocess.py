@@ -258,8 +258,11 @@ def processAlternate(source_dir=None, library='eBook'):
                         msg += ' wrong authorid'
                     logger.warn(msg)
         else:
-            logger.warn('%s %s has no metadata, unable to import' % (library, new_book))
-        return False
+            logger.warn('%s %s has no metadata' % (library, new_book))
+            res = check_residual(source_dir)
+            if not res:
+                logger.warn('%s has no book with LL.number' % source_dir)
+                return False
 
     except Exception:
         logger.error('Unhandled exception in processAlternate: %s' % traceback.format_exc())
