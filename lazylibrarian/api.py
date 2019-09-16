@@ -102,7 +102,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'forceActiveAuthorsUpdate': '[&wait] [&refresh] reload all active authors and book data, refresh cache',
             'forceLibraryScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library',
             'forceAudioBookScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library',
-            'forceMagazineScan': '[&wait] rescan whole magazine library',
+            'forceMagazineScan': '[&wait] [&title=] rescan whole or part magazine library',
             'getVersion': 'show lazylibrarian current/git version',
             'shutdown': 'stop lazylibrarian',
             'restart': 'restart lazylibrarian',
@@ -156,8 +156,10 @@ cmd_dict = {'help': 'list available commands. ' +
             'setAllBookSeries': '[&wait] Set the series details from goodreads or librarything workpages',
             'setAllBookAuthors': '[&wait] Set all authors for all books from book workpages',
             'setWorkID': '[&wait] [&bookids] Set WorkID for all books that dont have one, or bookids',
-            'importAlternate': '[&wait] [&dir=] Import books from named or alternate folder and any subfolders',
-            'includeAlternate': '[&wait] [&dir=] Include books from named or alternate folder and any subfolders',
+            'importAlternate': '[&wait] [&dir=] [&library=] Import ebooks/audiobooks from named or alternate folder' +
+                                ' and any subfolders',
+            'includeAlternate': '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named or ' +
+                                ' alternate folder and any subfolders',
             'importCSVwishlist': '[&wait] [&dir=] Import a CSV wishlist from named or alternate directory',
             'exportCSVwishlist': '[&wait] [&dir=] Export a CSV wishlist to named or alternate directory',
             'grSync': '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads shelf, ' +
@@ -1041,10 +1043,13 @@ class Api(object):
 
     @staticmethod
     def _forceMagazineScan(**kwargs):
+        title = None
+        if 'title' in kwargs:
+            title = kwargs['title']
         if 'wait' in kwargs:
-            magazineScan()
+            magazineScan(title)
         else:
-            threading.Thread(target=magazineScan, name='API-MAGSCAN', args=[]).start()
+            threading.Thread(target=magazineScan, name='API-MAGSCAN', args=[title]).start()
 
     def _deleteEmptySeries(self):
         self.data = deleteEmptySeries()
@@ -1608,21 +1613,29 @@ class Api(object):
             usedir = kwargs['dir']
         else:
             usedir = lazylibrarian.CONFIG['ALTERNATE_DIR']
-        if 'wait' in kwargs:
-            self.data = processAlternate(usedir)
+        if 'library' in kwargs:
+            library = kwargs['library']
         else:
-            threading.Thread(target=processAlternate, name='API-IMPORTALT', args=[usedir]).start()
+            library = 'eBook'
+        if 'wait' in kwargs:
+            self.data = processAlternate(usedir, library)
+        else:
+            threading.Thread(target=processAlternate, name='API-IMPORTALT', args=[usedir, library]).start()
 
     def _includeAlternate(self, **kwargs):
         if 'dir' in kwargs:
             startdir = kwargs['dir']
         else:
             startdir = lazylibrarian.CONFIG['ALTERNATE_DIR']
+        if 'library' in kwargs:
+            library = kwargs['library']
+        else:
+            library = 'eBook'
         if 'wait' in kwargs:
-            self.data = LibraryScan(startdir, 'eBook', None, False)
+            self.data = LibraryScan(startdir, library, None, False)
         else:
             threading.Thread(target=LibraryScan, name='API-INCLUDEALT',
-                             args=[startdir, 'eBook', None, False]).start()
+                             args=[startdir, library, None, False]).start()
 
     def _importCSVwishlist(self, **kwargs):
         if 'dir' in kwargs:
