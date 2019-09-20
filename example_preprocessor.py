@@ -50,7 +50,7 @@ keep_original_audiofiles = True
 audiotypes = ['mp3', 'flac', 'm4a', 'm4b']
 ###########################################################################
 # magazine options
-swap_page1 = False
+swap_page1 = True
 
 ###########################################################################
 # should not need to alter anything below here
@@ -178,8 +178,7 @@ def main():
                             sys.stderr.write("%s\n" % e)
                             pplog.write("%s: %s\n" % (time.ctime(), e))
                             pplog.write(repr(params))
-                            if e.errno == 2:
-                                pplog.write("Is path to ebook-convert correct?")
+                            pplog.write("Is path to ebook-convert correct?")
                             exit(1)
                     else:
                         pplog.write("Found %s\n" % ftype)
@@ -370,8 +369,7 @@ def main():
                                 print("Metadata written to %s" % part[3])
                             except Exception as e:
                                 pplog.write("%s: %s\n" % (time.ctime(), e))
-                                if e.errno == 2:
-                                    pplog.write("Is path to ffmpeg correct?")
+                                pplog.write("Is path to ffmpeg correct?")
                                 sys.stderr.write("%s\n" % e)
 
             if write_singlefile:
@@ -383,9 +381,8 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
-                    if e.errno == 2:
-                        pplog.write("Is path to ffmpeg correct?")
                     pplog.write(repr(params))
+                    pplog.write("Is path to ffmpeg correct?")
                     exit(1)
 
                 params = [ffmpeg]
@@ -405,9 +402,8 @@ def main():
                 except Exception as e:
                     sys.stderr.write("%s\n" % e)
                     pplog.write("%s: %s\n" % (time.ctime(), e))
-                    if e.errno == 2:
-                        pplog.write("Is path to ffmpeg correct?")
                     pplog.write(repr(params))
+                    pplog.write("Is path to ffmpeg correct?")
                     exit(1)
 
                 msg = "%d files merged into %s" % (len(parts), outfile)
@@ -432,7 +428,7 @@ def main():
                     for fname in os.listdir(makeBytestr(bookfolder)):
                         fname = makeUnicode(fname)
                         filename, extn = os.path.splitext(fname)
-                        if extn == '.pdf':
+                        if extn.lower() == '.pdf':
                             sourcefile = fname
                             break
 
@@ -453,7 +449,7 @@ def main():
                         p = p + 1
                     with open(fname + 'new', "wb") as outputStream:
                         output.write(outputStream)
-                    msg = "%s has %d pages." % (fname, cnt)
+                    msg = "%s has %d pages. Swapped pages 1 and 2" % (fname, cnt)
                     print(msg)
                     pplog.write("%s: %s\n" % (time.ctime(), msg))
                     os.remove(fname)
