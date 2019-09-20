@@ -89,7 +89,11 @@ def magazineScan(title=None):
 
         logger.info(' Checking [%s] for magazines' % mag_path)
 
-        matchString = lazylibrarian.CONFIG['MAG_DEST_FILE']
+        matchString = ''
+        for char in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+            matchString = matchString + '\\' + char
+        # massage the MAG_DEST_FILE config parameter into something we can use
+        # with regular expression matching
         booktypes = ''
         count = -1
         booktype_list = getList(lazylibrarian.CONFIG['MAG_TYPE'])
@@ -100,11 +104,11 @@ def magazineScan(title=None):
             else:
                 booktypes = booktypes + '|' + book_type
 
-        match = matchString.replace("$IssueDate", "(?P<issuedate>.*?)").replace(
-            "$Title", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
+        match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
+            "\\$\\T\\i\\t\\l\\e", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
         title_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
-        match = matchString.replace("$IssueDate", "(?P<issuedate>.*?)").replace(
-            "$Title", "") + r'\.[' + booktypes + ']'
+        match = matchString.replace("\\$\\I\\s\\s\\u\\e\\D\\a\\t\\e", "(?P<issuedate>.*?)").replace(
+            "\\$\\T\\i\\t\\l\\e", "") + r'\.[' + booktypes + ']'
         date_pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
 
         for rootdir, _, filenames in walk(mag_path):
@@ -122,12 +126,15 @@ def magazineScan(title=None):
                             issuedate = match.group("issuedate").strip()
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("Title pattern [%s][%s]" % (title, issuedate))
-                            parent = os.path.basename(rootdir).strip()
-                            if parent.lower() == title.lower():
-                                # assume folder name is in users preferred case
-                                title = parent
-                            match = True
-                        else:
+                            if title.isdigit():
+                                match = False
+                            else:
+                                parent = os.path.basename(rootdir).strip()
+                                if parent.lower() == title.lower():
+                                    # assume folder name is in users preferred case
+                                    title = parent
+                                match = True
+                        if not match:
                             logger.debug("Title pattern match failed for [%s]" % fname)
                     except Exception:
                         match = False
@@ -153,6 +160,7 @@ def magazineScan(title=None):
 
                     dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
                            '#': '# '}
+
                     if issuedate:
                         exploded = replace_all(issuedate, dic).split()
                         regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded)
