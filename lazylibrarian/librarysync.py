@@ -574,13 +574,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     booktypes = book_type
                 else:
                     booktypes = booktypes + '|' + book_type
-            matchString = lazylibrarian.CONFIG['EBOOK_DEST_FILE']
-            matchString = matchString.replace("$Author", "(?P<author>.*?)").replace(
-                "$Title", "(?P<book>.*?)").replace(
-                "$Series", "(?P<series>.*?)").replace(
-                "$SerNum", "(?P<sernum>.*?)").replace(
-                "$SerName", "(?P<sername>.*?)").replace(
-                "$$", "") + r'\.[' + booktypes + ']'
+
+            matchto = lazylibrarian.CONFIG['EBOOK_DEST_FILE']
         else:
             booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
             for book_type in booktype_list:
@@ -589,15 +584,32 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     booktypes = book_type
                 else:
                     booktypes = booktypes + '|' + book_type
-            matchString = lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']
-            matchString = matchString.replace("$Author", "(?P<author>.*?)").replace(
-                "$Title", "(?P<book>.*?)").replace(
-                "$Series", "(?P<series>.*?)").replace(
-                "$Part", "(?P<part>.*?)").replace(
-                "$Total", "(?P<total>.*?)").replace(
-                "$SerNum", "(?P<sernum>.*?)").replace(
-                "$SerName", "(?P<sername>.*?)").replace(
-                "$$", "") + r'\.[' + booktypes + ']'
+
+            matchto = lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']
+
+        matchString = ''
+        for char in matchto:
+            if not char.isalpha():
+                matchString = matchString + '\\'
+            matchString = matchString + char
+
+        matchString = matchString.replace(
+            "\\$Author", "(?P<author>.*?)").replace(
+            "\\$SortAuthor", "(?P<sauthor>.*?)").replace(
+            "\\$Title", "(?P<book>.*?)").replace(
+            "\\$SortTitle", "(?P<sbook>.*?)").replace(
+            "\\$Series", "(?P<series>.*?)").replace(
+            "\\$SerNum", "(?P<sernum>.*?)").replace(
+            "\\$SerName", "(?P<sername>.*?)").replace(
+            "\\$FmtName", "(?P<fmtname>.*?)").replace(
+            "\\$FmtNum", "(?P<fmtnum>.*?)").replace(
+            "\\$PadNum", "(?P<padnum>.*?)").replace(
+            "\\$PubYear", "(?P<pubyear>.*?)").replace(
+            "\\$SerYear", "(?P<seryear>.*?)").replace(
+            "\\$Part", "(?P<part>.*?)").replace(
+            "\\$Total", "(?P<total>.*?)").replace(
+            "\\$Abridged", "(?P<abridged>.*?)").replace(
+            "\\$\\$", "\\ ") + r'\.[' + booktypes + ']'
 
         pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
         last_authorid = None
@@ -737,10 +749,20 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     author = match.group("author")
                                 except IndexError:
                                     author = ''
+                                if not author:
+                                    try:
+                                        author = match.group("sauthor")
+                                    except IndexError:
+                                        author = ''
                                 try:
                                     book = match.group("book")
                                 except IndexError:
                                     book = ''
+                                if not book:
+                                    try:
+                                        book = match.group("sbook")
+                                    except IndexError:
+                                        book = ''
 
                                 book = makeUnicode(book)
                                 author = makeUnicode(author)
