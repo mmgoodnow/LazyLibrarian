@@ -207,7 +207,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
-                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST']
+                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -493,6 +493,7 @@ CONFIG_DEFINITIONS = {
     'COMIC_DELFOLDER': ('bool', 'PostProcess', 1),
     'COMIC_TYPE': ('str', 'General', 'cbr, cbz'),
     'COMIC_SINGLE': ('bool', 'General', 1),
+    'MAG_COVERSWAP': ('str', 'PostProcess', ''),
     'MAG_DEST_FOLDER': ('str', 'PostProcess', '_Magazines/$Title/$IssueDate'),
     'MAG_DEST_FILE': ('str', 'PostProcess', '$IssueDate - $Title'),
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),

@@ -20,6 +20,7 @@ import re
 import threading
 import time
 import traceback
+import subprocess
 from shutil import copyfile, rmtree
 
 # noinspection PyUnresolvedReferences
@@ -4158,6 +4159,14 @@ class WebInterface(object):
                     title = issue['Title']
                     if 'reCover' in action:
                         createMagCover(issue['IssueFile'], refresh=True, pagenum=check_int(action[-1], 1))
+                    if action == 'coverswap':
+                        params = [lazylibrarian.CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
+                        try:
+                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                            logger.info(res)
+                            createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
+                        except subprocess.CalledProcessError as e:
+                            logger.warn(e.output)
                     if action == "Delete":
                         result = self.deleteIssue(issue['IssueFile'])
                         if result:
