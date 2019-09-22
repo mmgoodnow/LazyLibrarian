@@ -48,7 +48,7 @@ from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, t
     check_year, dispName, is_valid_booktype
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.images import getBookCover, createMagCover
+from lazylibrarian.images import getBookCover, createMagCover, coverswap
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
@@ -4160,13 +4160,19 @@ class WebInterface(object):
                     if 'reCover' in action:
                         createMagCover(issue['IssueFile'], refresh=True, pagenum=check_int(action[-1], 1))
                     if action == 'coverswap':
-                        params = [lazylibrarian.CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
-                        try:
-                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                            logger.info(res)
-                            createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
-                        except subprocess.CalledProcessError as e:
-                            logger.warn(e.output)
+                        if lazylibrarian.CONFIG['MAG_COVERSWAP']:
+                            params = [lazylibrarian.CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
+                            logger.debug("Coverswap %s" % params)
+                            try:
+                                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                logger.info(res)
+                                createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
+                            except subprocess.CalledProcessError as e:
+                                logger.warn(e.output)
+                        else:
+                            res = coverswap(issue['IssueFile'])
+                            if res:
+                                createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
                     if action == "Delete":
                         result = self.deleteIssue(issue['IssueFile'])
                         if result:

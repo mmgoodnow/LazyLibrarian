@@ -35,9 +35,49 @@ except ImportError:
     else:
         import lib3.zipfile as zipfile
 
+try:
+    from PyPDF3 import PdfFileWriter, PdfFileReader
+except ImportError:
+    try:
+        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
+    except ImportError:
+        PdfFileWriter = None
+        PdfFileReader = None
+
 GS = ''
 GS_VER = ''
 generator = ''
+
+
+def coverswap(sourcefile):
+    if PdfFileWriter is None:
+        logger.warn("PyPDF3 is not loaded")
+        return False
+
+    _, extn = os.path.splitext(sourcefile)
+    if extn.lower() != '.pdf':
+        logger.warn("Cannot swap cover on [%s]" % sourcefile)
+        return False
+    try:
+        output = PdfFileWriter()
+        input1 = PdfFileReader(open(sourcefile, "rb"))
+        cnt = input1.getNumPages()
+        output.addPage(input1.getPage(1))
+        output.addPage(input1.getPage(0))
+        p = 2
+        while p < cnt:
+            output.addPage(input1.getPage(p))
+            p = p + 1
+        with open(sourcefile + 'new', "wb") as outputStream:
+            output.write(outputStream)
+        os.remove(sourcefile)
+        os.rename(sourcefile + 'new', sourcefile)
+        logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
+        return True
+
+    except Exception as e:
+        logger.warn(e)
+        return False
 
 
 def getAuthorImages():
