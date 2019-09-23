@@ -36,9 +36,11 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 try:
+    # noinspection PyProtectedMember
     from PyPDF3 import PdfFileWriter, PdfFileReader
 except ImportError:
     try:
+        # noinspection PyProtectedMember
         from lib.PyPDF3 import PdfFileWriter, PdfFileReader
     except ImportError:
         PdfFileWriter = None
@@ -59,8 +61,9 @@ def coverswap(sourcefile):
         logger.warn("Cannot swap cover on [%s]" % sourcefile)
         return False
     try:
+        f = open(sourcefile, "rb")
         output = PdfFileWriter()
-        input1 = PdfFileReader(open(sourcefile, "rb"))
+        input1 = PdfFileReader(f)
         cnt = input1.getNumPages()
         output.addPage(input1.getPage(1))
         output.addPage(input1.getPage(0))
@@ -70,13 +73,14 @@ def coverswap(sourcefile):
             p = p + 1
         with open(sourcefile + 'new', "wb") as outputStream:
             output.write(outputStream)
+        f.close()
         os.remove(sourcefile)
         os.rename(sourcefile + 'new', sourcefile)
         logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
         return True
 
     except Exception as e:
-        logger.warn(e)
+        logger.warn(str(e))
         return False
 
 

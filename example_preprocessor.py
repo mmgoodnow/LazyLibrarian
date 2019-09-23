@@ -18,14 +18,22 @@ import sys
 import time
 
 try:
-    from lib.tinytag import TinyTag
+    from tinytag import TinyTag
 except ImportError:
-    TinyTag = None
+    try:
+        from lib.tinytag import TinyTag
+    except ImportError:
+        TinyTag = None
 try:
+    # noinspection PyProtectedMember
     from PyPDF3 import PdfFileWriter, PdfFileReader
 except ImportError:
-    PdfFileWriter = None
-    PdfFileReader = None
+    try:
+        # noinspection PyProtectedMember
+        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
+    except ImportError:
+        PdfFileWriter = None
+        PdfFileReader = None
 
 if sys.version_info[0] == 3:
     text_type = str
@@ -439,7 +447,8 @@ def main():
 
                     fname = os.path.join(bookfolder, sourcefile)
                     output = PdfFileWriter()
-                    input1 = PdfFileReader(open(fname, "rb"))
+                    f = open(fname, "rb")
+                    input1 = PdfFileReader(f)
                     cnt = input1.getNumPages()
                     output.addPage(input1.getPage(1))
                     output.addPage(input1.getPage(0))
@@ -452,6 +461,7 @@ def main():
                     msg = "%s has %d pages. Swapped pages 1 and 2" % (fname, cnt)
                     print(msg)
                     pplog.write("%s: %s\n" % (time.ctime(), msg))
+                    f.close()
                     os.remove(fname)
                     os.rename(fname + 'new', fname)
                 except Exception as e:
