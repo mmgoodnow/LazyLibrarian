@@ -14,14 +14,16 @@
 import datetime
 import os
 import traceback
+import uuid
 
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, check_int, now
-from lazylibrarian.common import walk
+from lazylibrarian.common import walk, setperm
 from lazylibrarian.images import createMagCover
 from lib.six import PY2
+from shutil import copyfile
 
 
 def comicScan(comicid=None):
@@ -171,24 +173,28 @@ def comicScan(comicid=None):
                         issuefile = os.path.join(rootdir, fname)  # full path to issue.cbr
                         mtime = os.path.getmtime(issuefile)
                         iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+                        myhash = uuid.uuid4().hex
 
                         if not iss_entry or (iss_entry['IssueFile'] != issuefile):
-                            if not iss_entry:
-                                logger.debug("Adding issue %s %s" % (title, issue))
-                            else:
-                                logger.debug("Updating issue %s %s" % (title, issue))
-                            controlValueDict = {"ComicID": comicid, "IssueID": issue}
                             newValueDict = {
                                 "IssueAcquired": iss_acquired,
                                 "IssueFile": issuefile
                             }
+                            if not iss_entry:
+                                logger.debug("Adding issue %s %s" % (title, issue))
+                                coverfile = createMagCover(issuefile, refresh=True)
+                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                copyfile(coverfile, hashname)
+                                setperm(hashname)
+                                newValueDict['Cover'] = 'cache/comic/%s.jpg' % myhash
+                            else:
+                                logger.debug("Updating issue %s %s" % (title, issue))
+                            controlValueDict = {"ComicID": comicid, "IssueID": issue}
                             myDB.upsert("comicissues", newValueDict, controlValueDict)
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         with open(ignorefile, 'a'):
                             os.utime(ignorefile, None)
-
-                        createMagCover(issuefile, refresh=True)
 
                         # see if this issues date values are useful
                         controlValueDict = {"ComicID": comicid}
@@ -196,7 +202,7 @@ def comicScan(comicid=None):
                             newValueDict = {
                                 "Added": iss_acquired,
                                 "LastAcquired": iss_acquired,
-                                "LatestCover": os.path.splitext(issuefile)[0] + '.jpg',
+                                "LatestCover": 'cache/comic/%s.jpg' % myhash,
                                 "LatestIssue": latestissue,
                                 "IssueStatus": "Open"
                             }
@@ -215,7 +221,7 @@ def comicScan(comicid=None):
 
                             if not latestissue or issue >= latestissue:
                                 newValueDict["LatestIssue"] = issue
-                                newValueDict["LatestCover"] = os.path.splitext(issuefile)[0] + '.jpg'
+                                newValueDict["LatestCover"] = 'cache/comic/%s.jpg' % myhash
                             myDB.upsert("comics", newValueDict, controlValueDict)
                     else:
                         logger.debug("No match for %s" % fname)

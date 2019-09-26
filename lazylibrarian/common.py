@@ -809,8 +809,22 @@ def scheduleJob(action='Start', target=None):
                     if res and res['LastRun'] > 0:
                         msg += " (Last run %s)" % ago(res['LastRun'])
                 logger.debug(msg)
-            else:
-                logger.debug("No %s scheduled" % target)
+        elif 'cleanCache' in newtarget:
+            days = lazylibrarian.CONFIG['CACHE_AGE']
+            hours = days * 24
+            if days:
+                if soon:
+                    minutes = 1
+                    msg = "%s %s job in %s minute%s" % (action, target, minutes, plural(minutes))
+                else:
+                    msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.cleanCache, hours=hours, start_date=soon)
+                res = myDB.match('SELECT LastRun from jobs WHERE Name="CLEANCACHE"')
+                if res and res['LastRun'] > 0:
+                    msg += " (Last run %s)" % ago(res['LastRun'])
+                logger.debug(msg)
+        else:
+            logger.debug("No %s scheduled" % target)
 
 
 def authorUpdate(restart=True):
@@ -901,7 +915,8 @@ def aaUpdate(refresh=False):
 
 def restartJobs(start='Restart'):
     for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'seriesUpdate',
-                 'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads']:
+                 'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads',
+                 'cleanCache']:
         scheduleJob(start, item)
 
 
@@ -1110,6 +1125,9 @@ def showJobs():
         elif "sync_to_gr" in job:
             jobname = "Goodreads Sync"
             threadname = "GRSYNC"
+        elif "cleanCache" in job:
+            jobname = "Clean cache"
+            threadname = "CLEANCACHE"
         else:
             jobname = job.split(' ')[0].split('.')[2]
             threadname = jobname.upper()

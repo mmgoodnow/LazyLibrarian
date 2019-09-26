@@ -19,10 +19,9 @@ import json
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getBookWork
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int, md5_utf8
+from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int
 from lazylibrarian.common import safe_copy, setperm
 from lazylibrarian.cache import cache_img, fetchURL
-from shutil import copyfile
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
@@ -163,18 +162,23 @@ def getBookCover(bookID=None, src=None):
     logger.debug("Getting %s cover for %s" % (src, bookID))
     # noinspection PyBroadException
     try:
+        myDB = database.DBConnection()
         cachedir = lazylibrarian.CACHEDIR
-        coverfile = os.path.join(cachedir, "book", bookID + '.jpg')
+        item = myDB.match('select BookImg from books where bookID=?', (bookID,))
+        if item:
+            coverlink = item['BookImg']
+            coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
+        else:
+            coverlink = "cache/book/" + bookID + ".jpg"
+            coverfile = os.path.join(cachedir, "book", bookID + '.jpg')
         if not src or src == 'cache' or src == 'current':
             if os.path.isfile(coverfile):  # use cached image if there is one
                 lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-                coverlink = 'cache/book/' + bookID + '.jpg'
                 return coverlink, 'cache'
             elif src:
                 lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
                 return None, src
 
-        myDB = database.DBConnection()
         if not src or src == 'cover':
             item = myDB.match('select BookFile from books where bookID=?', (bookID,))
             if item:
@@ -560,13 +564,13 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
         return 'unwanted'
     if not issuefile or not os.path.isfile(issuefile):
-        logger.debug('No issuefile %s' % issuefile)
-        return 'failed'
+        logger.warn('No issuefile %s' % issuefile)
+        return ''
 
     base, extn = os.path.splitext(issuefile)
     if not extn:
-        logger.debug('Unable to create cover for %s, no extension?' % issuefile)
-        return 'failed'
+        logger.warn('Unable to create cover for %s, no extension?' % issuefile)
+        return ''
 
     coverfile = base + '.jpg'
 
@@ -575,7 +579,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             os.remove(coverfile)
         else:
             logger.debug('Cover for %s exists' % issuefile)
-            return 'exists'  # quit if cover already exists and we didn't want to refresh
+            return coverfile  # quit if cover already exists and we didn't want to refresh
 
     logger.debug('Creating cover for %s' % issuefile)
     data = ''  # result from unzip or unrar
@@ -616,7 +620,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             if img:
                 with open(coverfile, 'wb') as f:
                     f.write(img)
-                return 'ok'
+                return coverfile
             else:
                 logger.debug("Failed to find image in %s" % issuefile)
         except Exception as why:
@@ -789,11 +793,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         if os.path.isfile(coverfile):
             setperm(coverfile)
             logger.debug("Created cover (page %d) for %s using %s" % (check_int(pagenum, 1), issuefile, generator))
-            myhash = md5_utf8(coverfile)
-            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-            copyfile(coverfile, hashname)
-            setperm(hashname)
-            return hashname
+            return coverfile
 
     # if not recognised extension or cover creation failed
     try:
@@ -801,4 +801,4 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         setperm(coverfile)
     except Exception as why:
         logger.error("Failed to copy nocover file, %s %s" % (type(why).__name__, str(why)))
-    return 'Failed'
+    return ''

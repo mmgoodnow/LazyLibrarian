@@ -22,10 +22,12 @@ import tarfile
 import threading
 import time
 import traceback
+import uuid
 
 import lazylibrarian
 from lazylibrarian.common import listdir
 from lib.six import PY2
+from shutil import copyfile
 
 try:
     import zipfile
@@ -837,7 +839,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 else:
                                     older = False
 
-                                createMagCover(dest_file, refresh=True)
+                                coverfile = createMagCover(dest_file, refresh=True)
+                                myhash = uuid.uuid4().hex
+                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                copyfile(coverfile, hashname)
+                                setperm(hashname)
 
                                 controlValueDict = {"ComicID": comicid}
                                 if older:  # check this in case processing issues arriving out of order
@@ -845,12 +851,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 else:
                                     newValueDict = {"LatestIssue": issueid, "LastAcquired": today(),
-                                                    "LatestCover": os.path.splitext(dest_file)[0] + '.jpg',
+                                                    "LatestCover": 'cache/comic/%s.jpg' % myhash,
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 myDB.upsert("comics", newValueDict, controlValueDict)
                                 controlValueDict = {"ComicID": comicid, "IssueID": issueid}
                                 newValueDict = {"IssueAcquired": today(),
-                                                "IssueFile": dest_file
+                                                "IssueFile": dest_file,
+                                                "Cover": 'cache/comic/%s.jpg' % myhash
                                                 }
                                 myDB.upsert("comicissues", newValueDict, controlValueDict)
                         elif not bookname:  # magazine
@@ -862,27 +869,33 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                             else:
                                 older = False
 
+                            maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
+                            # create a thumbnail cover for the new issue
+                            coverfile = createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
+                            myhash = uuid.uuid4().hex
+                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                            copyfile(coverfile, hashname)
+                            setperm(hashname)
+                            issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
+                            controlValueDict = {"Title": book['BookID'], "IssueDate": book['AuxInfo']}
+                            newValueDict = {"IssueAcquired": today(),
+                                            "IssueFile": dest_file,
+                                            "IssueID": issueid,
+                                            "Cover": 'cache/magazine/%s.jpg' % myhash
+                                            }
+                            myDB.upsert("issues", newValueDict, controlValueDict)
+
                             controlValueDict = {"Title": book['BookID']}
                             if older:  # check this in case processing issues arriving out of order
                                 newValueDict = {"LastAcquired": today(),
                                                 "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                             else:
-                                newValueDict = {"IssueDate": book['AuxInfo'], "LastAcquired": today(),
-                                                "LatestCover": os.path.splitext(dest_file)[0] + '.jpg',
-                                                "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
+                                newValueDict = {"LastAcquired": today(),
+                                                "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS'],
+                                                "IssueDate": book['AuxInfo'],
+                                                "LatestCover": 'cache/magazine/%s.jpg' % myhash}
                             myDB.upsert("magazines", newValueDict, controlValueDict)
 
-                            issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
-                            controlValueDict = {"Title": book['BookID'], "IssueDate": book['AuxInfo']}
-                            newValueDict = {"IssueAcquired": today(),
-                                            "IssueFile": dest_file,
-                                            "IssueID": issueid
-                                            }
-                            myDB.upsert("issues", newValueDict, controlValueDict)
-
-                            maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
-                            # create a thumbnail cover for the new issue
-                            createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
                             processMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)

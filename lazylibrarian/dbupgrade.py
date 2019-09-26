@@ -17,11 +17,14 @@ import os
 import shutil
 import time
 import traceback
+import uuid
+
+from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setGenres
-from lazylibrarian.common import restartJobs, pwd_generator, listdir
+from lazylibrarian.common import restartJobs, pwd_generator, listdir, setperm
 from lazylibrarian.formatter import plural, makeUnicode, md5_utf8, getList, check_int
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
@@ -102,8 +105,9 @@ def upgrade_needed():
     # 53 add jobs table
     # 54 separated author added date from updated timestamp
     # 55 Add Reason to author table
+    # 56 Add Cover column to comicissues and issues tables
 
-    db_current_version = 55
+    db_current_version = 56
 
     if db_version < db_current_version:
         return db_current_version
@@ -203,7 +207,7 @@ def dbupgrade(db_current_version):
                                     'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
                         myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
                                     'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
-                                    'IssueFile TEXT)')
+                                    'IssueFile TEXT, Cover TEXT)')
                         myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
                                     'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
                                     'WorkID TEXT, SeriesNum TEXT)')
@@ -220,7 +224,7 @@ def dbupgrade(db_current_version):
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
                                     'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
-                                    'UNIQUE (ComicID, IssueID))')
+                                    'Cover TEXT, UNIQUE (ComicID, IssueID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
                         # so orphans get cleaned up at program startup
@@ -232,8 +236,8 @@ def dbupgrade(db_current_version):
                                     'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
                                     'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
                                     'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
-                        myDB.action('CREATE TABLE issues (Title TEXT, ' +
-                                    'IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT)')
+                        myDB.action('CREATE TABLE issues (Title TEXT, IssueID TEXT UNIQUE, ' +
+                                    'IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT, Cover TEXT)')
                         myDB.action('CREATE TABLE member (SeriesID INTEGER, BookID TEXT, WorkID TEXT, ' +
                                     'SeriesNum TEXT)')
                         myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, AuthorID TEXT, ' +
@@ -244,7 +248,8 @@ def dbupgrade(db_current_version):
                         myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
-                                    'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
+                                    'IssueAcquired TEXT, IssueFile TEXT, Cover TEXT, ' +
+                                    'UNIQUE (ComicID, IssueID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -1589,4 +1594,55 @@ def db_v55(myDB, upgradelog):
         upgradelog.write("%s v55: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE authors ADD COLUMN Reason TEXT')
     upgradelog.write("%s v55: complete\n" % time.ctime())
+
+
+def db_v56(myDB, upgradelog):
+    if not has_column(myDB, "issues", "Cover"):
+        lazylibrarian.UPDATE_MSG = 'Adding Cover column to issues table'
+        upgradelog.write("%s v56: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE issues ADD COLUMN Cover TEXT')
+
+        issues = myDB.select('SELECT IssueFile from issues')
+        tot = len(issues)
+        start_time = time.time()
+        cnt = 0
+        for issue in issues:
+            cnt += 1
+            lazylibrarian.UPDATE_MSG = 'Updating issue cover for %s: %s' % (issue['IssueFile'],
+                                                                            calc_eta(start_time, tot, cnt))
+            coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
+            if not os.path.exists(coverfile):
+                coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
+            myhash = uuid.uuid4().hex
+            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+            cachefile = 'cache/magazine/%s.jpg' % myhash
+            copyfile(coverfile, hashname)
+            setperm(hashname)
+            myDB.action('UPDATE issues SET Cover=? WHERE IssueFile=?', (cachefile, issue['IssueFile']))
+
+    if not has_column(myDB, "comicissues", "Cover"):
+        lazylibrarian.UPDATE_MSG = 'Adding Cover column to comicissues table'
+        upgradelog.write("%s v56: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE comicissues ADD COLUMN Cover TEXT')
+
+        issues = myDB.select('SELECT * from comicissues')
+        tot = len(issues)
+        start_time = time.time()
+        cnt = 0
+        for issue in issues:
+            cnt += 1
+            lazylibrarian.UPDATE_MSG = 'Updating comicissue cover for %s: %s' % (issue['IssueFile'],
+                                                                                 calc_eta(start_time,
+                                                                                          tot, cnt))
+            coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
+            if not os.path.exists(coverfile):
+                coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
+            myhash = uuid.uuid4().hex
+            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+            cachefile = 'cache/comic/%s.jpg' % myhash
+            copyfile(coverfile, hashname)
+            setperm(hashname)
+            myDB.action('UPDATE comicissues SET Cover=? WHERE IssueFile=?', (cachefile, issue['IssueFile']))
+
+    upgradelog.write("%s v56: complete\n" % time.ctime())
 

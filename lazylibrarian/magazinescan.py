@@ -14,13 +14,15 @@ import datetime
 import os
 import re
 import traceback
+import uuid
 from hashlib import sha1
+from shutil import copyfile
 
 import lazylibrarian
 from lib.six import PY2
 
 from lazylibrarian import database, logger
-from lazylibrarian.common import safe_move, walk, make_dirs
+from lazylibrarian.common import safe_move, walk, make_dirs, setperm
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeUnicode, makeBytestr, \
     replace_all, check_year
 from lazylibrarian.images import createMagCover
@@ -265,8 +267,14 @@ def magazineScan(title=None):
                     issue_id = create_id("%s %s" % (title, issuedate))
                     iss_entry = myDB.match('SELECT Title,IssueFile from issues WHERE Title=? and IssueDate=?',
                                            (title, issuedate))
+
                     new_entry = False
+                    myhash = uuid.uuid4().hex
                     if not iss_entry or iss_entry['IssueFile'] != issuefile:
+                        coverfile = createMagCover(issuefile,  pagenum=magcoverpage, refresh=new_entry)
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                        copyfile(coverfile, hashname)
+                        setperm(hashname)
                         new_entry = True  # new entry or name changed
                         if not iss_entry:
                             logger.debug("Adding issue %s %s" % (title, issuedate))
@@ -276,7 +284,8 @@ def magazineScan(title=None):
                         newValueDict = {
                             "IssueAcquired": iss_acquired,
                             "IssueID": issue_id,
-                            "IssueFile": issuefile
+                            "IssueFile": issuefile,
+                            "Cover": 'cache/magazine/%s.jpg' % myhash
                         }
                         myDB.upsert("Issues", newValueDict, controlValueDict)
                     else:
@@ -286,7 +295,6 @@ def magazineScan(title=None):
                     with open(ignorefile, 'a'):
                         os.utime(ignorefile, None)
 
-                    createMagCover(issuefile,  pagenum=magcoverpage, refresh=new_entry)
                     lazylibrarian.postprocess.processMAGOPF(issuefile, title, issuedate, issue_id, overwrite=new_entry)
 
                     # see if this issues date values are useful
@@ -296,7 +304,7 @@ def magazineScan(title=None):
                         newValueDict = {
                             "MagazineAdded": iss_acquired,
                             "LastAcquired": iss_acquired,
-                            "LatestCover": os.path.splitext(issuefile)[0] + '.jpg',
+                            "LatestCover": 'cache/magazine/%s.jpg' % myhash,
                             "IssueDate": issuedate,
                             "IssueStatus": "Open"
                         }
@@ -312,9 +320,9 @@ def magazineScan(title=None):
                             newValueDict["MagazineAdded"] = iss_acquired
                         if not maglastacquired or iss_acquired > maglastacquired:
                             newValueDict["LastAcquired"] = iss_acquired
-                        if not magissuedate or issuedate >= magissuedate:
+                        if not magissuedate or magissuedate == 'None' or issuedate >= magissuedate:
                             newValueDict["IssueDate"] = issuedate
-                            newValueDict["LatestCover"] = os.path.splitext(issuefile)[0] + '.jpg'
+                            newValueDict["LatestCover"] = 'cache/magazine/%s.jpg' % myhash
                         myDB.upsert("magazines", newValueDict, controlValueDict)
 
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:

@@ -21,6 +21,7 @@ import threading
 import time
 import traceback
 import subprocess
+import uuid
 from shutil import copyfile, rmtree
 
 # noinspection PyUnresolvedReferences
@@ -2693,8 +2694,9 @@ class WebInterface(object):
 
                 if covertype:
                     cachedir = lazylibrarian.CACHEDIR
-                    coverlink = 'cache/book/' + bookid + '.jpg'
-                    coverfile = os.path.join(cachedir, "book", bookid + '.jpg')
+                    coverid = uuid.uuid4().hex
+                    coverlink = 'cache/book/' + coverid + '.jpg'
+                    coverfile = os.path.join(cachedir, "book", coverid + '.jpg')
                     newcoverfile = os.path.join(cachedir, "book", bookid + covertype + '.jpg')
                     if os.path.exists(newcoverfile):
                         copyfile(newcoverfile, coverfile)
@@ -3184,17 +3186,12 @@ class WebInterface(object):
 
             if len(rowlist):
                 for mag in rowlist:
-                    magimg = mag['LatestCover']
-                    if not magimg or not os.path.isfile(magimg):
-                        magimg = 'images/nocover.jpg'
+                    cover = myDB.match('SELECT Cover from comicissues WHERE ComicID=? and IssueID=?',
+                                       (mag['ComicID'], mag['LatestIssue']))
+                    if cover and cover['Cover']:
+                        magimg = cover['Cover']
                     else:
-                        myhash = md5_utf8(magimg)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
-                        # if not os.path.isfile(hashname):
-                        copyfile(magimg, hashname)
-                        setperm(hashname)
-                        magimg = 'cache/comic/' + myhash + '.jpg'
-
+                        magimg = 'images/nocover.jpg'
                     this_mag = dict(mag)
                     this_mag['Cover'] = magimg
                     mags.append(this_mag)
@@ -3643,21 +3640,18 @@ class WebInterface(object):
             myDB = database.DBConnection()
             cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
             cmd += ' as Iss_Cnt from magazines order by Title'
-
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(cmd)
             rowlist = myDB.select(cmd)
 
             if len(rowlist):
                 for mag in rowlist:
-                    magimg = mag['LatestCover']
-                    if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not magimg or not os.path.isfile(magimg):
-                        magimg = 'images/nocover.jpg'
+                    cover = myDB.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
+                                       (mag['Title'], mag['IssueDate']))
+                    if cover and cover['Cover']:
+                        magimg = cover['Cover']
                     else:
-                        myhash = md5_utf8(magimg)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                        if not os.path.isfile(hashname):
-                            copyfile(magimg, hashname)
-                            setperm(hashname)
-                        magimg = 'cache/magazine/' + myhash + '.jpg'
+                        magimg = 'images/nocover.jpg'
 
                     this_mag = dict(mag)
                     this_mag['Cover'] = magimg
@@ -3751,17 +3745,13 @@ class WebInterface(object):
         covercount = 0
         if magazines:
             for mag in magazines:
-                magimg = mag['LatestCover']
-                if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not magimg or not os.path.isfile(magimg):
-                    magimg = 'images/nocover.jpg'
-                else:
-                    myhash = md5_utf8(magimg)
-                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                    if not os.path.isfile(hashname):
-                        copyfile(magimg, hashname)
-                        setperm(hashname)
-                    magimg = 'cache/magazine/' + myhash + '.jpg'
+                cover = myDB.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
+                                   (mag['Title'], mag['IssueDate']))
+                if cover and cover['Cover']:
+                    magimg = cover['Cover']
                     covercount += 1
+                else:
+                    magimg = 'images/nocover.jpg'
 
                 this_mag = dict(mag)
                 this_mag['Cover'] = magimg
@@ -3795,26 +3785,27 @@ class WebInterface(object):
                 mod_issues = []
                 covercount = 0
                 for issue in rowlist:
-                    magfile = issue['IssueFile']
-                    extn = os.path.splitext(magfile)[1]
-                    if extn:
-                        magimg = magfile.replace(extn, '.jpg')
-                        if not magimg or not os.path.isfile(magimg):
-                            magimg = 'images/nocover.jpg'
-                        else:
-                            myhash = md5_utf8(magimg)
-                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', myhash + ".jpg")
-                            if not os.path.isfile(hashname):
-                                copyfile(magimg, hashname)
-                                setperm(hashname)
-                            magimg = 'cache/magazine/' + myhash + '.jpg'
-                            covercount += 1
-                    else:
-                        logger.debug('No extension found on %s' % magfile)
-                        magimg = 'images/nocover.jpg'
-
                     this_issue = dict(issue)
-                    this_issue['Cover'] = magimg
+                    magfile = issue['IssueFile']
+                    if issue['Cover']:
+                        covercount += 1
+                    else:
+                        extn = os.path.splitext(magfile)[1]
+                        if extn:
+                            magimg = magfile.replace(extn, '.jpg')
+                            if not magimg or not os.path.isfile(magimg):
+                                this_issue['Cover'] = 'images/nocover.jpg'
+                            else:
+                                myhash = md5_utf8(magimg)
+                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', myhash + ".jpg")
+                                if not os.path.isfile(hashname):
+                                    copyfile(magimg, hashname)
+                                    setperm(hashname)
+                                this_issue['Cover'] = 'cache/magazine/' + myhash + '.jpg'
+                                covercount += 1
+                        else:
+                            logger.debug('No extension found on %s' % magfile)
+                            this_issue['Cover'] = 'images/nocover.jpg'
                     mod_issues.append(this_issue)
 
                 rowlist = []
@@ -4158,21 +4149,44 @@ class WebInterface(object):
                 if issue:
                     title = issue['Title']
                     if 'reCover' in action:
-                        createMagCover(issue['IssueFile'], refresh=True, pagenum=check_int(action[-1], 1))
+                        coverfile = createMagCover(issue['IssueFile'], refresh=True,
+                                                   pagenum=check_int(action[-1], 1))
+                        myhash = uuid.uuid4().hex
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                        copyfile(coverfile, hashname)
+                        setperm(hashname)
+                        controlValueDict = {"IssueFile": issue['IssueFile']}
+                        newValueDict = {
+                            "Cover": 'cache/magazine/%s.jpg' % myhash
+                        }
+                        myDB.upsert("Issues", newValueDict, controlValueDict)
+
                     if action == 'coverswap':
+                        coverfile = None
                         if lazylibrarian.CONFIG['MAG_COVERSWAP']:
                             params = [lazylibrarian.CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
                             logger.debug("Coverswap %s" % params)
                             try:
                                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                                 logger.info(res)
-                                createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
+                                coverfile = createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
                             except subprocess.CalledProcessError as e:
                                 logger.warn(e.output)
                         else:
                             res = coverswap(issue['IssueFile'])
                             if res:
-                                createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
+                                coverfile = createMagCover(issue['IssueFile'], refresh=True, pagenum=1)
+                        if coverfile:
+                            myhash = uuid.uuid4().hex
+                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                            copyfile(coverfile, hashname)
+                            setperm(hashname)
+                            controlValueDict = {"IssueFile": issue['IssueFile']}
+                            newValueDict = {
+                                "Cover": 'cache/magazine/%s.jpg' % myhash
+                            }
+                            myDB.upsert("Issues", newValueDict, controlValueDict)
+
                     if action == "Delete":
                         result = self.deleteIssue(issue['IssueFile'])
                         if result:

@@ -319,8 +319,9 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
 
 def cleanCache():
     """ Remove unused files from the cache - delete if expired or unused.
-        Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine
-        Check covers and authorimages referenced in the database exist and change database entry if missing """
+        Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic
+        Check covers and authorimages etc referenced in the database exist
+        and change database entry if missing """
 
     myDB = database.DBConnection()
     result = []
@@ -419,17 +420,16 @@ def cleanCache():
     cleaned = 0
     kept = 0
     if os.path.isdir(cache):
-        # we can clear the magazine cache, it gets rebuilt as required
-        # this does not delete our magazine cover files, only the small cached copy
         for cached_file in listdir(cache):
             cached_file = makeUnicode(cached_file)
-            target = os.path.join(cache, cached_file)
-            if target.endswith('.jpg'):
+            item = myDB.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
+            if not item:
+                target = os.path.join(cache, cached_file)
                 os.remove(target)
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i temporary file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -442,12 +442,7 @@ def cleanCache():
             cached_file = makeUnicode(cached_file)
             target = os.path.join(cachedir, cached_file)
             if os.path.isfile(target):
-                try:
-                    imgid = cached_file.split('.')[0].rsplit(os.path.sep)[-1]
-                except IndexError:
-                    logger.error('Clean Cache: Error splitting %s' % cached_file)
-                    continue
-                item = myDB.match('select AuthorID from authors where AuthorID=?', (imgid,))
+                item = myDB.match('select * from authors where AuthorImg=?', ('cache/author/%s' % cached_file,))
                 if not item:
                     # Author Image no longer referenced in database, delete cached_file
                     os.remove(target)
@@ -460,12 +455,7 @@ def cleanCache():
             cached_file = makeUnicode(cached_file)
             target = os.path.join(cachedir, cached_file)
             if os.path.isfile(target):
-                try:
-                    imgid = cached_file.split('.')[0].rsplit(os.path.sep)[-1]
-                except IndexError:
-                    logger.error('Clean Cache: Error splitting %s' % cached_file)
-                    continue
-                item = myDB.match('select BookID from books where BookID=?', (imgid,))
+                item = myDB.match('select * from books where BookImg=?', ('cache/book/%s' % cached_file,))
                 if not item:
                     # Book Image no longer referenced in database, delete cached_file
                     os.remove(target)
@@ -537,4 +527,5 @@ def cleanCache():
     msg = "Cleaned %i missing author image%s, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
+    myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "CLEANCACHE"})
     return result
