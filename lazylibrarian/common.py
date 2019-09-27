@@ -124,7 +124,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         top = makeBytestr(top)
         names = listdir(top)
         names = [makeBytestr(name) for name in names]
-    except os.error as err:
+    except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
         if onerror is not None:
             onerror(err)
         return
