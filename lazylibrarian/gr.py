@@ -65,6 +65,8 @@ class GoodReads:
             url = quote_plus(makeUTF8bytes(searchterm)[0])
             set_url = 'https://www.goodreads.com/search.xml?q=' + url + '&' + urlencode(self.params)
             logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                logger.debug(set_url)
 
             resultcount = 0
             try:

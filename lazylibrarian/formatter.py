@@ -684,7 +684,7 @@ def unaccented_bytes(str_or_unicode):
     stripped = replace_all(stripped, dic)
     # now get rid of any other non-ascii
     stripped = stripped.encode('ASCII', 'ignore')
-    if not len(stripped):
+    if not len(stripped.strip()):
         stripped = str_or_unicode
     return stripped  # return bytestring
 
