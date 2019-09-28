@@ -2997,11 +2997,10 @@ class WebInterface(object):
                     if not magimg or not os.path.isfile(magimg):
                         magimg = 'images/nocover.jpg'
                     else:
-                        myhash = md5_utf8(magimg)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', myhash + ".jpg")
-                        if not os.path.isfile(hashname):
-                            copyfile(magimg, hashname)
-                            setperm(hashname)
+                        myhash = uuid.uuid4().hex
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                        copyfile(magimg, hashname)
+                        setperm(hashname)
                         magimg = 'cache/magazine/' + myhash + '.jpg'
                 else:
                     logger.debug('No extension found on %s' % magfile)
@@ -3044,14 +3043,13 @@ class WebInterface(object):
                 extn = os.path.splitext(magfile)[1]
                 if extn:
                     magimg = magfile.replace(extn, '.jpg')
-                    if not magimg or not os.path.isfile(magimg):
+                    if not os.path.isfile(magimg):
                         magimg = 'images/nocover.jpg'
                     else:
-                        myhash = md5_utf8(magimg)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', myhash + ".jpg")
-                        if not os.path.isfile(hashname):
-                            copyfile(magimg, hashname)
-                            setperm(hashname)
+                        myhash = uuid.uuid4().hex
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                        copyfile(magimg, hashname)
+                        setperm(hashname)
                         magimg = 'cache/comic/' + myhash + '.jpg'
                 else:
                     logger.debug('No extension found on %s' % magfile)
@@ -3376,12 +3374,11 @@ class WebInterface(object):
                     extn = os.path.splitext(magfile)[1]
                     if extn:
                         magimg = magfile.replace(extn, '.jpg')
-                        if not magimg or not os.path.isfile(magimg):
+                        if not os.path.isfile(magimg):
                             magimg = 'images/nocover.jpg'
                         else:
-                            myhash = md5_utf8(magimg)
-                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', myhash + ".jpg")
-                            # if not os.path.isfile(hashname):
+                            myhash = uuid.uuid4().hex
+                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
                             copyfile(magimg, hashname)
                             setperm(hashname)
                             magimg = 'cache/comic/' + myhash + '.jpg'
@@ -3793,14 +3790,13 @@ class WebInterface(object):
                         extn = os.path.splitext(magfile)[1]
                         if extn:
                             magimg = magfile.replace(extn, '.jpg')
-                            if not magimg or not os.path.isfile(magimg):
+                            if not os.path.isfile(magimg):
                                 this_issue['Cover'] = 'images/nocover.jpg'
                             else:
-                                myhash = md5_utf8(magimg)
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', myhash + ".jpg")
-                                if not os.path.isfile(hashname):
-                                    copyfile(magimg, hashname)
-                                    setperm(hashname)
+                                myhash = uuid.uuid4().hex
+                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                copyfile(magimg, hashname)
+                                setperm(hashname)
                                 this_issue['Cover'] = 'cache/magazine/' + myhash + '.jpg'
                                 covercount += 1
                         else:
@@ -3901,14 +3897,13 @@ class WebInterface(object):
                 extn = os.path.splitext(magfile)[1]
                 if extn:
                     magimg = magfile.replace(extn, '.jpg')
-                    if not magimg or not os.path.isfile(magimg):
+                    if not os.path.isfile(magimg):
                         magimg = 'images/nocover.jpg'
                     else:
-                        myhash = md5_utf8(magimg)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', myhash + ".jpg")
-                        if not os.path.isfile(hashname):
-                            copyfile(magimg, hashname)
-                            setperm(hashname)
+                        myhash = uuid.uuid4().hex
+                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                        copyfile(magimg, hashname)
+                        setperm(hashname)
                         magimg = 'cache/magazine/' + myhash + '.jpg'
                         covercount += 1
                 else:

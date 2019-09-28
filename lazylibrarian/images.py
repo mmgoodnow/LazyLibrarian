@@ -35,6 +35,13 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 try:
+    import PIL
+    # noinspection PyUnresolvedReferences
+    from PIL import Image as PILImage
+except ImportError:
+    PIL = None
+
+try:
     # noinspection PyProtectedMember
     from PyPDF3 import PdfFileWriter, PdfFileReader
 except ImportError:
@@ -48,6 +55,22 @@ except ImportError:
 GS = ''
 GS_VER = ''
 generator = ''
+
+
+def createthumb(jpeg):
+    if not PIL:
+        return ''
+
+    basewidth = 300
+    img = PILImage.open(jpeg)
+    wpercent = (basewidth / float(img.size[0]))
+    hsize = int((float(img.size[1]) * float(wpercent)))
+    # noinspection PyUnresolvedReferences
+    img = img.resize((basewidth, hsize), PIL.Image.ANTIALIAS)
+    fname, extn = os.path.splitext(jpeg)
+    outfile = fname + '_thumb' + extn
+    img.save(outfile)
+    return outfile
 
 
 def coverswap(sourcefile):
@@ -562,7 +585,7 @@ def createMagCovers(refresh=False):
 def createMagCover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
-        return 'unwanted'
+        return ''
     if not issuefile or not os.path.isfile(issuefile):
         logger.warn('No issuefile %s' % issuefile)
         return ''
@@ -620,6 +643,9 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             if img:
                 with open(coverfile, 'wb') as f:
                     f.write(img)
+                thumb = createthumb(coverfile)
+                if thumb:
+                    return thumb
                 return coverfile
             else:
                 logger.debug("Failed to find image in %s" % issuefile)
@@ -793,6 +819,11 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         if os.path.isfile(coverfile):
             setperm(coverfile)
             logger.debug("Created cover (page %d) for %s using %s" % (check_int(pagenum, 1), issuefile, generator))
+            thumb = createthumb(coverfile)
+            if thumb:
+                logger.debug("Created thumbnail for cache")
+                setperm(thumb)
+                return thumb
             return coverfile
 
     # if not recognised extension or cover creation failed
