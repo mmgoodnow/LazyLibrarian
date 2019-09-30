@@ -1,0 +1,90 @@
+name: lazylibrarian # you probably want to 'snapcraft register <name>'
+version: '1.7.1' # just for humans, typically '1.2+git' or '1.3.2'
+summary: LazyLibrarian eBook and magazine manager # 79 char long summary
+description: |
+  Library manager, search and download tool for ebooks and magazines
+
+base: core18
+grade: stable # must be 'stable' to release into candidate/stable channels
+confinement: strict # use 'strict' once you have the right plugs and slots
+
+apps:
+  lazylibrarian:
+    command: python3 /snap/lazylibrarian/current/LazyLibrarian.py --datadir=/home/$USER/.lazylibrarian $*
+    environment:
+        UNRAR_LIB_PATH: /snap/lazylibrarian/current/usr/lib/libunrar.so
+    plugs: [home, network]
+
+parts:
+  source:
+    plugin: dump
+    source: https://gitlab.com/LazyLibrarian/LazyLibrarian.git
+    #source-tag: 1.7.1
+    #source-commit: b7b58e267ca9812da53b14cb6fab29137fa38eb6
+    override-build: |
+            echo 'LAZYLIBRARIAN_VERSION = "package"' > ./lazylibrarian/version.py
+            echo 'PACKAGED_BY = "snapcraft 2.43.1+18.10"' >> ./lazylibrarian/version.py
+            echo 'PACKAGE_VERSION = "1.7.1"' >> ./lazylibrarian/version.py
+            echo 'LAZYLIBRARIAN_HASH = "b7b58e267ca9812da53b14cb6fab29137fa38eb6"' >> ./lazylibrarian/version.py
+            rm -rf ./lazylibrarian/cherrypy
+            rm -rf ./lazylibrarian/lib/bs4
+            rm -rf ./lazylibrarian/lib/deluge_client
+            rm -rf ./lazylibrarian/lib/fuzzywuzzy
+            rm -rf ./lazylibrarian/lib/gntp
+            rm -rf ./lazylibrarian/lib/html5lib
+            rm -rf ./lazylibrarian/lib/httplib2
+            rm -rf ./lazylibrarian/lib/magic
+            rm -rf ./lazylibrarian/lib/oauth2
+            rm -rf ./lazylibrarian/lib/pynma
+            rm -rf ./lazylibrarian/lib/requests
+            rm -rf ./lazylibrarian/lib/unrar
+            rm -rf ./lazylibrarian/lib/webencodings
+            rm -f ./lazylibrarian/lib/cherrypy_cors.py
+            rm -f ./lazylibrarian/lib/csv.py
+            rm -f ./lazylibrarian/lib/feedparser.py
+            rm -f ./lazylibrarian/lib/httpagentparser.py
+            rm -f ./lazylibrarian/lib/rfeed.py
+            rm -f ./lazylibrarian/lib/zipfile.py
+            rm -rf ./lazylibrarian/lib3/bs4
+            rm -rf ./lazylibrarian/lib3/httplib2
+            rm -f ./lazylibrarian/lib3/csv.py
+            rm -f ./lazylibrarian/lib3/zipfile.py
+            snapcraftctl build
+
+  unrar:
+    plugin: make
+    source: https://www.rarlab.com/rar/unrarsrc-5.6.8.tar.gz
+    source-type: tar
+    override-build: |
+          make lib
+          mkdir -p $SNAPCRAFT_PART_INSTALL/usr/lib/
+          cp libunrar.so $SNAPCRAFT_PART_INSTALL/usr/lib/
+
+  python:
+    plugin: python
+    python-version: python3
+    python-packages:
+      - oauth2
+      - bs4
+      - html5lib
+      - cherrypy
+      - cherrypy_cors
+      - deluge_client
+      - gntp
+      - python-magic
+      - pynma
+      - pyOpenSSL
+      - requests
+      - requests_auth
+      - urllib3
+      - fuzzywuzzy
+      - python-Levenshtein
+      - rfeed
+      - unrar
+      - apprise
+      - pillow
+    stage-packages:
+      #- libc6
+      - libmagic1
+      - python3-distutils
+      - python3-pip
