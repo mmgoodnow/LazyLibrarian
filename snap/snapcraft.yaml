@@ -86,5 +86,5 @@ parts:
     stage-packages:
       #- libc6
       - libmagic1
-      - python3-distutils
+      #- python3-distutils
       - python3-pip
