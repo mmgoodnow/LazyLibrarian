@@ -86,9 +86,13 @@ parts:
     build-packages:
       - libffi-dev
       - zlib1g-dev
+      - libjpeg-turbo8-dev
+      - libssl-dev
     stage-packages:
       #- libc6
       - libmagic1
       #- python3-distutils
       - python3-pip
       - zlib1g
+      - libjpeg-turbo8
+      - libssl1.0.0
