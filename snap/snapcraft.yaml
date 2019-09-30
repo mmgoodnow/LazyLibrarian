@@ -83,8 +83,12 @@ parts:
       - unrar
       - apprise
       - pillow
+    build-packages:
+      - libffi-dev
+      - zlib1g-dev
     stage-packages:
       #- libc6
       - libmagic1
       #- python3-distutils
       - python3-pip
+      - zlib1g
