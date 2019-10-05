@@ -585,6 +585,7 @@ def createMagCovers(refresh=False):
 def createMagCover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
+        logger.warn('No cover required for %s' % issuefile)
         return ''
     if not issuefile or not os.path.isfile(issuefile):
         logger.warn('No issuefile %s' % issuefile)
