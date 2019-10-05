@@ -272,9 +272,13 @@ def magazineScan(title=None):
                     myhash = uuid.uuid4().hex
                     if not iss_entry or iss_entry['IssueFile'] != issuefile:
                         coverfile = createMagCover(issuefile,  pagenum=magcoverpage, refresh=new_entry)
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                        copyfile(coverfile, hashname)
-                        setperm(hashname)
+                        if coverfile:
+                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                            copyfile(coverfile, hashname)
+                            setperm(hashname)
+                            cover = 'cache/magazine/%s.jpg' % myhash
+                        else:
+                            cover = 'data/images/nocover.jpg'
                         new_entry = True  # new entry or name changed
                         if not iss_entry:
                             logger.debug("Adding issue %s %s" % (title, issuedate))
@@ -285,7 +289,7 @@ def magazineScan(title=None):
                             "IssueAcquired": iss_acquired,
                             "IssueID": issue_id,
                             "IssueFile": issuefile,
-                            "Cover": 'cache/magazine/%s.jpg' % myhash
+                            "Cover": cover
                         }
                         myDB.upsert("Issues", newValueDict, controlValueDict)
                     else:
