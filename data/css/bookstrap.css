@@ -63,6 +63,3 @@ body.modal-open-noscroll {
 .modal-open-noscroll .navbar-fixed-top, .modal-open .navbar-fixed-bottom {
   margin-right: 0!important;
 }
-select {
-    font-family: 'FontAwesome', 'sans-serif';
-}
