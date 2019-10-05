@@ -107,7 +107,8 @@ def serve_template(templatename, **kwargs):
             res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
         else:
             cnt = myDB.match("select count(*) as counter from users")
-            if cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER']:
+            if cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
+                    templatename not in ["register.html", "response.html", "opds.html"]:
                 res = myDB.match('SELECT UserName,Perms,UserID from users')
                 cherrypy.response.cookie['ll_uid'] = res['UserID']
                 logger.debug("Auto-login for %s" % res['UserName'])
@@ -240,6 +241,7 @@ class WebInterface(object):
                         arow[1] = surnameFirst(arow[1])
                     if lazylibrarian.CONFIG['SORT_DEFINITE']:
                         arow[2] = sortDefinite(arow[2])
+                    arow[3] = dateFormat(arow[3], '')
                     nrow = arow[:4]
                     havebooks = check_int(arow[7], 0)
                     totalbooks = check_int(arow[8], 0)
