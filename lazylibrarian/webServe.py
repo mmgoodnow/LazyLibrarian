@@ -121,46 +121,23 @@ def serve_template(templatename, **kwargs):
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
             templatename = "login.html"
-        elif templatename == 'config.html' and not perm & lazylibrarian.perm_config:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'logs.html' and not perm & lazylibrarian.perm_logs:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'history.html' and not perm & lazylibrarian.perm_history:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'managebooks.html' and not perm & lazylibrarian.perm_managebooks:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'books.html' and not perm & lazylibrarian.perm_ebook:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'author.html' and not perm & lazylibrarian.perm_ebook \
-                and not perm & lazylibrarian.perm_audio:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename in ['magazines.html', 'issues.html', 'manageissues.html'] \
-                and not perm & lazylibrarian.perm_magazines:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename in ['comics.html', 'comicissues.html', 'comicresults.html'] \
-                and not perm & lazylibrarian.perm_comics:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'audio.html' and not perm & lazylibrarian.perm_audio:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename == 'choosetype.html' and not perm & lazylibrarian.perm_download:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename in ['series.html', 'members.html'] and not perm & lazylibrarian.perm_series:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename in ['editauthor.html', 'editbook.html'] and not perm & lazylibrarian.perm_edit:
-            logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
-        elif templatename in ['manualsearch.html', 'searchresults.html'] and not perm & lazylibrarian.perm_search:
+        elif (templatename == 'config.html' and not perm & lazylibrarian.perm_config) or \
+                (templatename == 'logs.html' and not perm & lazylibrarian.perm_logs) or \
+                (templatename == 'history.html' and not perm & lazylibrarian.perm_history) or \
+                (templatename == 'managebooks.html' and not perm & lazylibrarian.perm_managebooks) or \
+                (templatename == 'books.html' and not perm & lazylibrarian.perm_ebook) or \
+                (templatename == 'author.html' and not perm & lazylibrarian.perm_ebook
+                    and not perm & lazylibrarian.perm_audio) or \
+                (templatename in ['magazines.html', 'issues.html', 'manageissues.html']
+                    and not perm & lazylibrarian.perm_magazines) or \
+                (templatename in ['comics.html', 'comicissues.html', 'comicresults.html']
+                    and not perm & lazylibrarian.perm_comics) or \
+                (templatename == 'audio.html' and not perm & lazylibrarian.perm_audio) or \
+                (templatename == 'choosetype.html' and not perm & lazylibrarian.perm_download) or \
+                (templatename in ['series.html', 'members.html'] and not perm & lazylibrarian.perm_series) or \
+                (templatename in ['editauthor.html', 'editbook.html'] and not perm & lazylibrarian.perm_edit) or \
+                (templatename in ['manualsearch.html', 'searchresults.html']
+                    and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
             templatename = "login.html"
 
@@ -188,7 +165,10 @@ class WebInterface(object):
     def home(self):
         title = 'Authors'
         if lazylibrarian.IGNORED_AUTHORS:
-            title = 'Ignored Authors'
+            if lazylibrarian.CONFIG['IGNORE_PAUSED']:
+                title = 'Inactive Authors'
+            else:
+                title = 'Ignored Authors'
         return serve_template(templatename="index.html", title=title, authors=[])
 
     @cherrypy.expose
@@ -223,9 +203,13 @@ class WebInterface(object):
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
             cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
             if lazylibrarian.IGNORED_AUTHORS:
-                cmd += 'where Status == "Ignored" or Status == "Paused" '
+                cmd += 'where Status == "Ignored" '
+                if lazylibrarian.CONFIG['IGNORE_PAUSED']:
+                    cmd += 'or Status == "Paused" '
             else:
-                cmd += 'where Status != "Ignored" and  Status != "Paused" '
+                cmd += 'where Status != "Ignored" '
+                if lazylibrarian.CONFIG['IGNORE_PAUSED']:
+                    cmd += 'and  Status != "Paused" '
             cmd += 'order by AuthorName COLLATE NOCASE'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:

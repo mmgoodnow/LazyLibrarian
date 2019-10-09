@@ -518,6 +518,17 @@
                         <input type="checkbox" id="sort_definite" name="sort_definite" value="1" ${checked} />
                         Show titles ignoring definite article (The, A)</label>
                       </div>
+                      <div class="col-md-12">
+                      <%
+                        if lazylibrarian.CONFIG['IGNORE_PAUSED'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="ignore_paused" class="control-label">
+                        <input type="checkbox" id="ignore_paused" name="ignore_paused" value="1" ${checked} />
+                        Ignore paused authors</label>
+                      </div>
                     </div>
                   </fieldset>
                 </div>

@@ -207,7 +207,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
-                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP']
+                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -262,6 +262,7 @@ CONFIG_DEFINITIONS = {
     'SORT_DEFINITE': ('bool', 'General', 0),
     'SORT_SURNAME': ('bool', 'General', 0),
     'SHOW_GENRES': ('bool', 'General', 0),
+    'IGNORE_PAUSED': ('bool', 'General', 0),
     'LAUNCH_BROWSER': ('bool', 'General', 1),
     'API_ENABLED': ('bool', 'General', 0),
     'API_KEY': ('str', 'General', ''),
