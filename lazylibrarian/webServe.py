@@ -4776,10 +4776,15 @@ class WebInterface(object):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
+                # use rowid to get most recently added first (monitoring progress)
                 if sortcolumn == 6:
                     sortcolumn = 9
 
-                filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                if sortcolumn == 5:
+                    self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                      reverse=sSortDir_0 == "desc")
+                else:
+                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     nrows = filtered
