@@ -200,6 +200,12 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
         whichstatus = 'Status'
     else:
         whichstatus = 'AudioStatus'
+
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+        logger.debug("Found %s exact match" % len(res))
+        for item in res:
+            logger.debug("%s [%s]" % (book, item[whichstatus]))
+
     match = None
     for item in res:
         if item[whichstatus] == 'Have':
@@ -221,7 +227,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
                 match = item
                 break
     if match:
-        logger.debug('Exact match [%s]' % book)
+        logger.debug('Exact match [%s] %s' % (book, match[whichstatus]))
         return match['BookID'], match[whichstatus]
 
     # Try a more complex fuzzy match against each book in the db by this author
@@ -247,6 +253,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
     if not len(books):
         logger.warn("No books by %s in database" % author)
         return 0, ''
+
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+        logger.debug(cmd)
 
     best_ratio = 0
     best_partial = 0
@@ -279,7 +288,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
 
     logger.debug('Searching %s %sbook%s by [%s] in database for [%s]' %
                  (len(books), ign, plural(len(books)), author, book))
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
         logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
     if book_partname == book_lower:
         book_partname = ''
@@ -291,6 +300,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
                 ]
 
     for a_book in books:
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+            logger.debug("Checking [%s]" % a_book['BookName'])
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
         a_book_lower = unaccented(a_book['BookName'].lower())
