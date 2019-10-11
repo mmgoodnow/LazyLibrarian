@@ -667,6 +667,17 @@ def get_issue_date(nzbtitle_exploded):
                         else:
                             regex_pass = 11  # Issue/No/Nr/Vol nn
                         break
+                    # No. 19.2 -> 2019 02 but 02 might be a number, not a month
+                    issue = nzbtitle_exploded[pos + 1]
+                    if issue.count('.') == 1 and issue.replace('.', '').isdigit():
+                        year, issuedate = issue.split('.')
+                        if len(year) == 2:
+                            year = '20%s' % year
+                        if len(issuedate) == 1:
+                            issuedate = '0%s' % issuedate
+                        if len(year) == 4 and len(issuedate) == 2:
+                            regex_pass = 10
+                            break
             pos += 1
 
     # nn YYYY issue number without "Nr" before it
