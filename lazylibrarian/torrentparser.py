@@ -70,7 +70,7 @@ def TRF(book=None, test=False):
     results = []
     minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
 
-    searchURL = "%s/%s" % (host, quote_plus(sterm))
+    searchURL = "%s/%s" % (host, quote_plus("%s %s" % (book['searchterm'], cat)))
 
     result, success = fetchURL(searchURL)
 
