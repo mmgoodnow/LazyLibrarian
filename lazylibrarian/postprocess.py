@@ -1039,8 +1039,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                 abort = True
             elif book['Status'] == "Seeding":
                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
-                if finished:
-                    logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
+                if finished or not lazylibrarian.CONFIG['SEED_WAIT']:
+                    if finished:
+                        logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
+                    else:
+                        logger.debug('%s not seeding at %s' % (book['NZBtitle'], book['Source']))
                     pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     delete_task(book['Source'], book['DownloadID'], True)
                     if book['BookID'] != 'unknown':
@@ -2125,6 +2128,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                          and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
                     # typ = ''
                     srcfile = os.path.join(pp_path, ufname)
+                    # logger.debug("pp_path %s[%s]" % (type(pp_path), repr(pp_path)))
+                    # logger.debug("fname %s[%s]" % (type(fname), repr(fname)))
+                    # logger.debug("ufname %s[%s]" % (type(ufname), repr(ufname)))
+                    # logger.debug("srcfile %s[%s]" % (type(srcfile), repr(srcfile)))
                     if booktype in ['audiobook', 'comic']:
                         destfile = os.path.join(udest_path, ufname)  # don't rename, just copy it
                     else:
