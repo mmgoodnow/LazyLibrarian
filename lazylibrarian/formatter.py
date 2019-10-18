@@ -675,7 +675,7 @@ def unaccented_bytes(str_or_unicode):
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
     # replace all non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-    dic = {u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+    dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
     # Other characters not converted by unicodedata.combining
     # c6 Ae, d0 Eth, d7 multiply, d8 Ostroke, de Thorn, df sharpS
     dic.update({u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'})
