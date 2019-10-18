@@ -40,7 +40,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk
+    zipAudio, runScript, walk, quotes
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -3431,9 +3431,7 @@ class WebInterface(object):
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
         else:
-            # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-            dic = {'\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"'}
-            title = replace_all(title, dic)
+            title = replace_all(title, quotes)
             exists = myDB.match('SELECT Title from comics WHERE Title=?', (title,))
             if exists:
                 logger.debug("Comic %s already exists (%s)" % (title, exists['Title']))
@@ -4328,7 +4326,7 @@ class WebInterface(object):
                 title = title.split('~', 1)[0].strip()
 
             # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-            dic = {'\u2018': "'", '\u2019': "'", '\u201c': '"', '\u201d': '"'}
+            dic = {u'\u0060': "'", u'\u2018': "'", u'\u2019': "'", u'\u201c': '"', u'\u201d': '"'}
             title = replace_all(title, dic)
             exists = myDB.match('SELECT Title from magazines WHERE Title=? COLLATE NOCASE', (title,))
             if exists:
