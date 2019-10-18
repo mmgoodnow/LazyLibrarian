@@ -24,7 +24,7 @@ from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, split_title, now, makeUnicode, makeBytestr, formatAuthorName
+    cleanName, replace_all, replace_with, split_title, now, makeUnicode, makeBytestr, formatAuthorName
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
@@ -276,7 +276,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     prefix_type = ''
 
     book_lower = unaccented(book.lower())
-    book_lower = replace_all(book_lower, quotes)
+    book_lower = replace_with(book_lower, quotes, '')
     book_partname, book_sub = split_title(author, book_lower)
 
     # We want to match a book on disk with a subtitle to a shorter book in the DB
@@ -304,7 +304,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
         a_book_lower = unaccented(a_book['BookName'].lower())
-        a_book_lower = replace_all(a_book_lower, quotes)
+        a_book_lower = replace_with(a_book_lower, quotes, '')
 
         for entry in translates:
             if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
@@ -825,7 +825,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # some books might be stored under a different author name
                                 # eg books by multiple authors, books where author is "writing as"
                                 # or books we moved to "merge" authors
-                                book = replace_all(book, quotes)
+                                book = replace_with(book, quotes, '')
 
                                 # First try and find it under author and bookname
                                 # as we may have it under a different bookid or isbn to goodreads/googlebooks
@@ -913,13 +913,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
                                             else:
                                                 book, _ = split_title(author, book)
-                                                book = replace_all(book, quotes)
+                                                book = replace_with(book, quotes, '')
                                                 resultxml = rootxml.getiterator('work')
                                                 for item in resultxml:
                                                     try:
                                                         booktitle = item.find('./best_book/title').text
                                                         booktitle, _ = split_title(author, booktitle)
-                                                        booktitle = replace_all(booktitle, quotes)
+                                                        booktitle = replace_with(booktitle, quotes, '')
                                                     except (KeyError, AttributeError):
                                                         booktitle = ""
                                                     try:
@@ -969,7 +969,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                         try:
                                                             booktitle = item.find('./best_book/title').text
                                                             booktitle, _ = split_title(author, booktitle)
-                                                            booktitle = replace_all(booktitle, quotes)
+                                                            booktitle = replace_with(booktitle, quotes, '')
                                                         except (KeyError, AttributeError):
                                                             booktitle = ""
                                                         try:

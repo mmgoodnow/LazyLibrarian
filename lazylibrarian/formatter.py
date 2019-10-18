@@ -697,6 +697,13 @@ def replace_all(text, dic):
     return text
 
 
+def replace_with(text, lst, char):
+    if not text:
+        return ''
+    replaces = re.compile('[%s]' % re.escape(''.join(lst)))
+    return replaces.sub(char, text)
+
+
 def dispName(provider):
     provname = ''
     for item in lazylibrarian.NEWZNAB_PROV:

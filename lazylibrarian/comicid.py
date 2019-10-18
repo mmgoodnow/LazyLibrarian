@@ -21,6 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, makeUnicode, unaccented
+from lazylibrarian.common import quotes
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
 
@@ -78,13 +79,12 @@ def getIssueNum(words, skipped):
 
 def nameWords(name):
     # sanitize for better matching
+    # allow #num and word! or word? but strip other punctuation
+    punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').replace('?', '')))
+    name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
-    stripchars = u'\u2018\u2019\u201c\u201d"\''
-    # allow #num and word! or word?
-    punct = string.punctuation.replace('#', '').replace('!', '').replace('?', '')
-    punct += stripchars
-    regex = re.compile('[%s]' % re.escape(punct))
-    name = regex.sub(' ', name)
+    strip = re.compile('[%s]' % re.escape(''.join(quotes)))
+    name = strip.sub('', name)
     # special cases, probably need a configurable translation table like we do for genres
     name = name.replace('40 000', '40,000').replace("X Men", "X-Men").replace("X Factor", "X-Factor")
     tempwords = name.lower().split()

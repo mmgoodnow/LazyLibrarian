@@ -64,40 +64,41 @@ notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to L
 namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
            ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'}
 
-# dictionary to strip all ascii and non-ascii quotes/apostrophes
+# list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
-quotes = {
-    u'\u0022': "",  # quotation mark (")
-    u'\u0027': "",  # apostrophe (')
-    u'\u0060': "",  # grave-accent
-    u'\u00ab': "",  # left-pointing double-angle quotation mark
-    u'\u00bb': "",  # right-pointing double-angle quotation mark
-    u'\u2018': "",  # left single quotation mark
-    u'\u2019': "",  # right single quotation mark
-    u'\u201a': "",  # single low-9 quotation mark
-    u'\u201b': "",  # single high-reversed-9 quotation mark
-    u'\u201c': "",  # left double quotation mark
-    u'\u201d': "",  # right double quotation mark
-    u'\u201e': "",  # double low-9 quotation mark
-    u'\u201f': "",  # double high-reversed-9 quotation mark
-    u'\u2039': "",  # single left-pointing angle quotation mark
-    u'\u203a': "",  # single right-pointing angle quotation mark
-    u'\u300c': "",  # left corner bracket
-    u'\u300d': "",  # right corner bracket
-    u'\u300e': "",  # left white corner bracket
-    u'\u300f': "",  # right white corner bracket
-    u'\u301d': "",  # reversed double prime quotation mark
-    u'\u301e': "",  # double prime quotation mark
-    u'\u301f': "",  # low double prime quotation mark
-    u'\ufe41': "",  # presentation form for vertical left corner bracket
-    u'\ufe42': "",  # presentation form for vertical right corner bracket
-    u'\ufe43': "",  # presentation form for vertical left corner white bracket
-    u'\ufe44': "",  # presentation form for vertical right corner white bracket
-    u'\uff02': "",  # fullwidth quotation mark
-    u'\uff07': "",  # fullwidth apostrophe
-    u'\uff62': "",  # halfwidth left corner bracket
-    u'\uff63': "",  # halfwidth right corner bracket
-}
+quotes = [
+    u'\u0022',  # quotation mark (")
+    u'\u0027',  # apostrophe (')
+    u'\u0060',  # grave-accent
+    u'\u00ab',  # left-pointing double-angle quotation mark
+    u'\u00bb',  # right-pointing double-angle quotation mark
+    u'\u2018',  # left single quotation mark
+    u'\u2019',  # right single quotation mark
+    u'\u201a',  # single low-9 quotation mark
+    u'\u201b',  # single high-reversed-9 quotation mark
+    u'\u201c',  # left double quotation mark
+    u'\u201d',  # right double quotation mark
+    u'\u201e',  # double low-9 quotation mark
+    u'\u201f',  # double high-reversed-9 quotation mark
+    u'\u2039',  # single left-pointing angle quotation mark
+    u'\u203a',  # single right-pointing angle quotation mark
+    u'\u300c',  # left corner bracket
+    u'\u300d',  # right corner bracket
+    u'\u300e',  # left white corner bracket
+    u'\u300f',  # right white corner bracket
+    u'\u301d',  # reversed double prime quotation mark
+    u'\u301e',  # double prime quotation mark
+    u'\u301f',  # low double prime quotation mark
+    u'\ufe41',  # presentation form for vertical left corner bracket
+    u'\ufe42',  # presentation form for vertical right corner bracket
+    u'\ufe43',  # presentation form for vertical left corner white bracket
+    u'\ufe44',  # presentation form for vertical right corner white bracket
+    u'\uff02',  # fullwidth quotation mark
+    u'\uff07',  # fullwidth apostrophe
+    u'\uff62',  # halfwidth left corner bracket
+    u'\uff63',  # halfwidth right corner bracket
+]
+
 
 def getUserAgent():
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
@@ -1367,6 +1368,7 @@ def logHeader():
         except Exception:
             vers = "None"
         header += "Levenshtein: %s\n" % vers
+    # noinspection PyBroadException
     try:
         import magic
     except Exception:

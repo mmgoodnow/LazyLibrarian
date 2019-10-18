@@ -32,7 +32,8 @@ from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
-    getList, cleanName, makeUnicode, makeUTF8bytes
+    getList, cleanName, makeUnicode, makeUTF8bytes, replace_with
+from lazylibrarian.common import quotes
 from lazylibrarian.gr import GoodReads
 try:
     from fuzzywuzzy import fuzz
@@ -96,7 +97,8 @@ class GoogleBooks:
                     if title:  # just search for title
                         title = title.split(' (')[0]  # without any series info
                         searchterm = title
-                    searchterm = searchterm.replace("'", "").replace('"', '').strip()  # and no quotes
+                    # strip all ascii and non-ascii quotes/apostrophes
+                    searchterm = replace_with(searchterm, quotes, '')
                     set_url = set_url + quote(makeUTF8bytes(api_value + '"' + searchterm + '"')[0])
                 elif api_value == 'inauthor:':
                     searchterm = fullterm
@@ -486,7 +488,7 @@ class GoogleBooks:
                                 locked_count += 1
                             else:
                                 threadname = threading.currentThread().getName()
-                                reason = "[%s] % " % (threadname, reason)
+                                reason = "[%s] %s" % (threadname, reason)
                                 controlValueDict = {"BookID": bookid}
                                 newValueDict = {
                                     "AuthorID": authorid,
@@ -720,7 +722,7 @@ class GoogleBooks:
             return
 
         threadname = threading.currentThread().getName()
-        reason = "[%s] % " % (threadname, reason)
+        reason = "[%s] %s" % (threadname, reason)
         controlValueDict = {"BookID": bookid}
         newValueDict = {
             "AuthorID": AuthorID,
