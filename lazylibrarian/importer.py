@@ -31,7 +31,7 @@ except ImportError:
 from lib.six.moves import queue
 
 
-def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=''):
+def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason='addAuthorNameToDB'):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
@@ -131,7 +131,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=''):
     return author, check_exist_author['AuthorID'], new
 
 
-def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason=''):
+def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason='addAuthorToDB'):
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
@@ -406,7 +406,7 @@ def update_totals(AuthorID):
     logger.debug('Updated totals for [%s]' % res['AuthorName'])
 
 
-def import_book(bookid, ebook=None, audio=None, wait=False, reason=''):
+def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes find_book use configured default """
     if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":

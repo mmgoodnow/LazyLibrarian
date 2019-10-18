@@ -214,7 +214,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
         return msg
 
 
-def finditem(item, preferred_authorname, library='eBook', reason=''):
+def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem'):
     """
     Try to find book matching the csv item in the database
     Return database entry, or False if not found
@@ -316,7 +316,7 @@ def import_CSV(search_dir=None, library='eBook'):
                         logger.debug("CSV: Author %s not found" % authorname)
                         newauthor, authorid, new = addAuthorNameToDB(author=authorname,
                                                                      addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
-                                                                     reason="import_CSV")
+                                                                     reason="import_CSV %s" % csvFile)
                         if len(newauthor) and newauthor != authorname:
                             logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                             authorname = newauthor
@@ -372,9 +372,10 @@ def import_CSV(search_dir=None, library='eBook'):
                                          authorname, title))
                             if library == 'eBook':
                                 import_book(bookmatch['bookid'], ebook="Wanted", wait=True,
-                                            reason="Added by import_CSV")
+                                            reason="Added by import_CSV %s" % csvFile)
                             else:
-                                import_book(bookmatch['bookid'], audio="Wanted", wait=True)
+                                import_book(bookmatch['bookid'], audio="Wanted", wait=True,
+                                            reason="Added by import_CSV %s" % csvFile)
                             imported = myDB.match('select * from books where BookID=?', (bookmatch['bookid'],))
                             if imported:
                                 bookcount += 1

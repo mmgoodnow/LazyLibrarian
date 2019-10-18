@@ -17,6 +17,7 @@
 import re
 import traceback
 import time
+import threading
 
 try:
     import urllib3
@@ -243,7 +244,7 @@ class GoogleBooks:
             logger.error('Unhandled exception in GB.find_results: %s' % traceback.format_exc())
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped",
-                         audiostatus="Skipped", entrystatus='Active', refresh=False, reason=''):
+                         audiostatus="Skipped", entrystatus='Active', refresh=False, reason='gb.get_author_books'):
         # noinspection PyBroadException
         try:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
@@ -471,17 +472,21 @@ class GoogleBooks:
                                 locked = False
 
                             if rejected:
-                                reason = rejected[1]
                                 if rejected[0] in ignorable:
                                     book_status = 'Ignored'
                                     audio_status = 'Ignored'
                                     book_ignore_count += 1
+                                    reason = "Ignored: %s" % rejected[1]
+                                else:
+                                    reason = "Rejected: %s" % rejected[1]
                             else:
                                 reason = entryreason
 
                             if locked:
                                 locked_count += 1
                             else:
+                                threadname = threading.currentThread().getName()
+                                reason = "[%s] % " % (threadname, reason)
                                 controlValueDict = {"BookID": bookid}
                                 newValueDict = {
                                     "AuthorID": authorid,
@@ -621,7 +626,7 @@ class GoogleBooks:
         except Exception:
             logger.error('Unhandled exception in GB.get_author_books: %s' % traceback.format_exc())
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason=''):
+    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.find_book'):
         myDB = database.DBConnection()
         if not lazylibrarian.CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
@@ -714,6 +719,8 @@ class GoogleBooks:
             logger.warn("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
             return
 
+        threadname = threading.currentThread().getName()
+        reason = "[%s] % " % (threadname, reason)
         controlValueDict = {"BookID": bookid}
         newValueDict = {
             "AuthorID": AuthorID,

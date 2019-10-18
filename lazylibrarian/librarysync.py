@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setWorkPages
 from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file, any_file, walk, listdir
+from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
     cleanName, replace_all, split_title, now, makeUnicode, makeBytestr, formatAuthorName
 from lazylibrarian.gb import GoogleBooks
@@ -167,7 +167,7 @@ def get_book_info(fname):
     return res
 
 
-def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
+def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_book_in_db'):
     # Fuzzy search for book in library, return LL bookid and status if found or zero
     # prefer an exact match on author & book
     # prefer 'Have' if the user has marked the one they want
@@ -275,9 +275,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
     partname_type = ''
     prefix_type = ''
 
-    dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
     book_lower = unaccented(book.lower())
-    book_lower = replace_all(book_lower, dic)
+    book_lower = replace_all(book_lower, quotes)
     book_partname, book_sub = split_title(author, book_lower)
 
     # We want to match a book on disk with a subtitle to a shorter book in the DB
@@ -305,7 +304,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason=''):
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
         a_book_lower = unaccented(a_book['BookName'].lower())
-        a_book_lower = replace_all(a_book_lower, dic)
+        a_book_lower = replace_all(a_book_lower, quotes)
 
         for entry in translates:
             if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
@@ -811,7 +810,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
                             newauthor, authorid, _ = addAuthorNameToDB(author, addbooks=True,
-                                                                       reason="libraryScan: %s" % book)
+                                                                       reason="Add author of %s" % book)
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
@@ -826,14 +825,12 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # some books might be stored under a different author name
                                 # eg books by multiple authors, books where author is "writing as"
                                 # or books we moved to "merge" authors
-                                # strip all ascii and non-ascii quotes/apostrophes
-                                dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
-                                book = replace_all(book, dic)
+                                book = replace_all(book, quotes)
 
                                 # First try and find it under author and bookname
                                 # as we may have it under a different bookid or isbn to goodreads/googlebooks
                                 # which might have several bookid/isbn for the same book
-                                bookid, mtype = find_book_in_db(author, book, reason='libraryScan: %s' % book)
+                                bookid, mtype = find_book_in_db(author, book, reason='Author exists for %s' % book)
                                 if bookid and mtype == "Ignored":
                                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %
                                                 (book, author))
@@ -882,7 +879,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     if author.lower() != newauthor.lower():
                                         logger.debug("Trying authorname [%s]" % newauthor)
                                         bookid, mtype = find_book_in_db(newauthor, book, ignored=False,
-                                                                        reason='libraryScan: %s' % book)
+                                                                        reason='New author for %s' % book)
                                         if bookid and mtype == "Ignored":
                                             msg = "Book %s by %s is marked Ignored in database, importing anyway"
                                             logger.warn(msg % (book, newauthor))
@@ -916,15 +913,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
                                             else:
                                                 book, _ = split_title(author, book)
-                                                dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '',
-                                                       "'": "", '"': ''}
-                                                book = replace_all(book, dic)
+                                                book = replace_all(book, quotes)
                                                 resultxml = rootxml.getiterator('work')
                                                 for item in resultxml:
                                                     try:
                                                         booktitle = item.find('./best_book/title').text
                                                         booktitle, _ = split_title(author, booktitle)
-                                                        booktitle = replace_all(booktitle, dic)
+                                                        booktitle = replace_all(booktitle, quotes)
                                                     except (KeyError, AttributeError):
                                                         booktitle = ""
                                                     try:
@@ -954,7 +949,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                                 logger.debug("Adding %s on rescan for %s %s" %
                                                                              (bookid, author, book))
                                                                 GR_ID = GoodReads(bookid)
-                                                                GR_ID.find_book(bookid, reason="Librarysync rescan")
+                                                                GR_ID.find_book(bookid,
+                                                                                reason="Librarysync rescan %s" % book)
                                                                 if language and language != "Unknown":
                                                                     # set language from book metadata
                                                                     logger.debug(
@@ -973,7 +969,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                         try:
                                                             booktitle = item.find('./best_book/title').text
                                                             booktitle, _ = split_title(author, booktitle)
-                                                            booktitle = replace_all(booktitle, dic)
+                                                            booktitle = replace_all(booktitle, quotes)
                                                         except (KeyError, AttributeError):
                                                             booktitle = ""
                                                         try:

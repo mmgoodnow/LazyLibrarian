@@ -14,6 +14,7 @@ import re
 import time
 import traceback
 import unicodedata
+import threading
 
 try:
     import urllib3
@@ -366,7 +367,7 @@ class GoodReads:
         return mydict
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
-                         entrystatus='Active', refresh=False, reason=''):
+                         entrystatus='Active', refresh=False, reason='gr.get_author_books'):
         # noinspection PyBroadException
         try:
             entryreason = reason
@@ -801,11 +802,13 @@ class GoodReads:
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
                             if rejected:
-                                reason = rejected[1]
                                 if rejected[0] in ignorable:
                                     book_status = 'Ignored'
                                     audio_status = 'Ignored'
                                     book_ignore_count += 1
+                                    reason = "Ignored: %s" % rejected[1]
+                                else:
+                                    reason = "Rejected: %s" % rejected[1]
                             else:
                                 reason = entryreason
 
@@ -836,6 +839,8 @@ class GoodReads:
                                                 logger.debug("No genre from googlebooks")
                                                 bookgenre = "Unknown"
 
+                                threadname = threading.currentThread().getName()
+                                reason = "[%s] %s" % (threadname, reason)
                                 controlValueDict = {"BookID": bookid}
                                 newValueDict = {
                                     "AuthorID": authorid,
@@ -1090,7 +1095,7 @@ class GoodReads:
             if res:
                 logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
 
-    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason=''):
+    def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
         myDB = database.DBConnection()
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
         try:
@@ -1118,7 +1123,7 @@ class GoodReads:
         if bookLanguage not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s Language [%s] does not match preference' % (bookname, bookLanguage)
             logger.warn(msg)
-            if reason.startswith("Series:"):
+            if "Series:" in reason:
                 return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
@@ -1149,7 +1154,7 @@ class GoodReads:
             if not bookdate or bookdate == '0000':
                 msg = 'Book %s Publication date [%s] does not match preference' % (bookname, bookdate)
                 logger.warn(msg)
-                if reason.startswith("Series:"):
+                if "Series:" in reason:
                     return
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
@@ -1157,14 +1162,14 @@ class GoodReads:
             if bookdate > today()[:len(bookdate)]:
                 msg = 'Book %s Future publication date [%s] does not match preference' % (bookname, bookdate)
                 logger.warn(msg)
-                if reason.startswith("Series:"):
+                if "Series:" in reason:
                     return
 
         if lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
                 msg = 'Book %s Set or Part'
                 logger.warn(msg)
-                if reason.startswith("Series:"):
+                if "Series:" in reason:
                     return
 
         try:
@@ -1258,6 +1263,9 @@ class GoodReads:
                         bookgenre = genreFilter(infodict['genre'])
                     else:
                         bookgenre = 'Unknown'
+
+        threadname = threading.currentThread().getName()
+        reason = "[%s] %s" % (threadname, reason)
         controlValueDict = {"BookID": bookid}
         newValueDict = {
             "AuthorID": AuthorID,

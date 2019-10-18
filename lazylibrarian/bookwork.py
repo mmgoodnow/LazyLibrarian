@@ -14,6 +14,7 @@
 import os
 import re
 import time
+import threading
 
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
@@ -21,7 +22,7 @@ from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
-from lazylibrarian.common import proxyList
+from lazylibrarian.common import proxyList, quotes
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList
 try:
@@ -215,6 +216,7 @@ def getStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
     new_astatus = ''
     authorid = match['AuthorID']
     bookname = match['BookName']
+    threadname = threading.currentThread().getName()
     # Is the book part of any series we want or don't want?
     for item in serieslist:
         match = myDB.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
@@ -225,7 +227,7 @@ def getStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
                 new_astatus = match['Status']
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
-                msg = "Series %s [%s]" % (match['Status'], item[2])
+                msg = "[%s] Series (%s) is %s" % (threadname, item[2], match['Status'])
                 myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
                 break
 
@@ -242,7 +244,7 @@ def getStatus(bookid=None, serieslist=None, default=None, adefault=None, authsta
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
                 match = myDB.match('SELECT AuthorName from authors where AuthorID=?', (authorid,))
-                msg = "Author %s [%s]" % (authstatus, match['AuthorName'])
+                msg = "[%s] Author (%s) is %s" % (threadname, match['AuthorName'], authstatus)
                 myDB.action("UPDATE books SET ScanResult=? WHERE BookID=?", (msg, bookid))
 
     if new_status:
@@ -380,7 +382,7 @@ ALLOW_NEW = False
 LAST_NEW = 0
 
 
-def getBookWork(bookID=None, reason=None, seriesID=None):
+def getBookWork(bookID=None, reason='', seriesID=None):
     """ return the contents of the LibraryThing workpage for the given bookid, or seriespage if seriesID given
         preferably from the cache. If not already cached cache the results
         Return None if no workpage/seriespage available """
@@ -388,9 +390,6 @@ def getBookWork(bookID=None, reason=None, seriesID=None):
     if not bookID and not seriesID:
         logger.error("getBookWork - No bookID or seriesID")
         return None
-
-    if not reason:
-        reason = ""
 
     myDB = database.DBConnection()
     if bookID:
@@ -683,7 +682,6 @@ def getSeriesAuthors(seriesid):
     members, api_hits = getSeriesMembers(seriesid, seriesname)
 
     if members:
-        dic = {u'\u2018': "", u'\u2019': "", u'\u201c': '', u'\u201d': '', "'": "", '"': ''}
         for member in members:
             # order = member[0]
             bookname = member[1]
@@ -694,7 +692,7 @@ def getSeriesAuthors(seriesid):
             # pubmonth = member[6]
             # pubday = member[7]
             # bookid = member[8]
-            bookname = replace_all(bookname, dic)
+            bookname = replace_all(bookname, quotes)
             if not authorid:
                 # goodreads gives us all the info we need, librarything/google doesn't
                 base_url = 'https://www.goodreads.com/search.xml?q='
@@ -715,7 +713,7 @@ def getSeriesAuthors(seriesid):
                         for item in resultxml:
                             try:
                                 booktitle = item.find('./best_book/title').text
-                                booktitle = replace_all(booktitle, dic)
+                                booktitle = replace_all(booktitle, quotes)
                             except (KeyError, AttributeError):
                                 booktitle = ""
                             book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
@@ -752,7 +750,7 @@ def getSeriesAuthors(seriesid):
                             resultxml = rootxml.getiterator('work')
                             for item in resultxml:
                                 booktitle = item.find('./best_book/title').text
-                                booktitle = replace_all(booktitle, dic)
+                                booktitle = replace_all(booktitle, quotes)
                                 book_fuzz = fuzz.token_set_ratio(booktitle, bookname)
                                 if book_fuzz >= 98:
                                     try:
