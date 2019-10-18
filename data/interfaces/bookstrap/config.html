@@ -2090,6 +2090,12 @@
               <div class="col-md-4">
                 <fieldset>
                   <legend>Name Formatting</legend>
+                  <div class="form-group">
+                    <label for="name_postfix">Author Name suffix</label>
+                    <input type="text" id="name_postfix" name="name_postfix" value="${lazylibrarian.CONFIG['NAME_POSTFIX']}" class="form-control" placeholder="eg snr, jnr">
+                    <span class="help-block">Comma separated list of suffixes to ignore when showing surname first</span>
+                  </div>
+                  <legend>Filename Formatting</legend>
                     <span class="help-block">Note: Calibre may override ebook folder and filename patterns</span>
                   <div class="form-group">
                     <label for="fmt_series">Series Pattern: ($Series variable)</label>
