@@ -1396,13 +1396,13 @@ def config_write(part=None):
     try:
         os.remove(CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno is not 2:  # doesn't exist is ok
+        if e.errno != 2:  # doesn't exist is ok
             msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', CONFIGFILE, '.bak', e.strerror)
             logger.warn(msg)
     try:
         os.rename(CONFIGFILE, CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno is not 2:  # doesn't exist is ok as wouldn't exist until first save
+        if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
             msg = '{} {} {} {}'.format('Unable to backup config file:', CONFIGFILE, type(e).__name__, e.strerror)
             logger.warn(msg)
     try:
