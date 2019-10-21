@@ -475,7 +475,8 @@ def search_magazines(mags=None, reset=False):
                             magazine['bookid'],
                             magazine['nzbtitle'],
                             magazine['nzburl'],
-                            'magazine')
+                            'magazine',
+                            magazine['nzbprov'])
                     elif magazine['nzbmode'] == 'nzb':
                         snatch, res = NZBDownloadMethod(
                             magazine['bookid'],

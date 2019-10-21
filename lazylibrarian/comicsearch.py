@@ -294,7 +294,8 @@ def search_comics(comicid=None):
                             bookid,
                             item['title'],
                             item['url'],
-                            'comic')
+                            'comic',
+                            item['provider'])
                     elif item['mode'] == 'nzb':
                         snatch, res = NZBDownloadMethod(
                             bookid,

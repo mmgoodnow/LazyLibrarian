@@ -867,6 +867,15 @@
               <input type="checkbox" id="gen2" name="gen2" value=1 ${checked} style="margin-bottom:4px;" /> libgen (2)
               <input type="text" placeholder="Enter URL Here" id="gen2_host" name="gen2_host" value="${lazylibrarian.CONFIG['GEN2_HOST']}" size="26">
               <input type="text" placeholder="Search option" id="gen2_search" name="gen2_search" value="${lazylibrarian.CONFIG['GEN2_SEARCH']}" size="26">
+              <br><br>
+              <%
+                if lazylibrarian.CONFIG['BOK'] == True:
+                    checked = 'checked="checked"'
+                else:
+                    checked = ''
+              %>
+              <input type="checkbox" id="bok" name="bok" value=1 ${checked} style="margin-bottom:4px;" /> zlibrary
+              <input type="text" placeholder="Enter URL Here" id="bok_host" name="bok_host" value="${lazylibrarian.CONFIG['BOK_HOST']}" size="26">
             </td>
           </tr>
         </table>

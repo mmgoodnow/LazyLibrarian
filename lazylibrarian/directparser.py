@@ -58,6 +58,133 @@ def redirect_url(genhost, url):
     return myurl.geturl()
 
 
+def BOK(book=None, prov=None, test=False):
+    errmsg = ''
+    provider = "zlibrary"
+    if not prov:
+        prov = 'BOK'
+    host = lazylibrarian.CONFIG[prov + '_HOST']
+    if not host.startswith('http'):
+        host = 'http://' + host
+
+    sterm = makeUnicode(book['searchterm'])
+    results = []
+    page = 1
+    removed = 0
+    next_page = True
+    if test:
+        book['bookid'] = '0'
+
+    while next_page:
+        params = {
+            "q": book['searchterm']
+        }
+        if page > 1:
+            params['page'] = page
+
+        providerurl = url_fix(host + "/s/")
+        searchURL = providerurl + "?%s" % urlencode(params)
+
+        next_page = False
+        result, success = fetchURL(searchURL)
+        if not success:
+            # may return 404 if no results, not really an error
+            if '404' in result:
+                logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
+                                                                                  searchURL))
+                success = True
+            elif '111' in result:
+                # may have ip based access limits
+                logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+                errmsg = result
+            else:
+                logger.debug(searchURL)
+                logger.debug('Error fetching page data from %s: %s' % (provider, result))
+                errmsg = result
+            result = False
+
+        if result:
+            logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+            try:
+                soup = BeautifulSoup(result, "html5lib")
+                try:
+                    rows = soup.find_all('table', {"class": "resItemTable"})
+                except IndexError:  # no results table in result page
+                    rows = []
+
+                for row in rows:
+                    url = None
+                    newsoup = BeautifulSoup(str(row), 'html5lib')
+                    title = newsoup.find('h3', itemprop='name').text
+                    for tr in newsoup.find_all('tr'):
+                        for a in tr.find_all('a'):
+                            link = a['href']
+                            if link:
+                                url = host + link
+                                break
+                    author = newsoup.find('a', itemprop='author').text
+                    detail = newsoup.find("div", {"class": "bookProperty property__file"}).text
+                    try:
+                        extn, size = detail.split('\n')[-2].strip().split(',')
+                        extn = extn.lower()
+                        size = size_in_bytes(size.upper())
+                    except IndexError:
+                        extn = ''
+                        size = 0
+
+                    if url:
+                        res, succ = fetchURL(url)
+                        if succ:
+                            try:
+                                newsoup = BeautifulSoup(res, "html5lib")
+                                a = newsoup.find('a', {"class": "dlButton"})
+                                link = a['href']
+                                if link and len(link) > 2:
+                                    url = host + link
+                                else:
+                                    logger.debug("Link unavailable for %s" % title)
+                                    url = None
+                                    removed += 1
+                            except Exception as e:
+                                logger.error("An error occurred parsing %s in the %s parser: %s" %
+                                             (url, provider, str(e)))
+                                url = None
+
+                    if url:
+                        if author:
+                            title = author.strip() + ' ' + title.strip()
+                        if extn:
+                            title = title + '.' + extn
+
+                        results.append({
+                            'bookid': book['bookid'],
+                            'tor_prov': provider,
+                            'tor_title': title,
+                            'tor_url': url,
+                            'tor_size': str(size),
+                            'tor_type': 'direct',
+                            'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                        })
+                        logger.debug('Found %s, Size %s' % (title, size))
+                    next_page = True
+
+            except Exception as e:
+                logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
+                logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+        if test:
+            logger.debug("Test found %s result%s (%s removed)" % (len(results), plural(len(results)), removed))
+            return success
+
+        page += 1
+        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
+            logger.warn('Maximum results page search reached, still more results available')
+            next_page = False
+
+    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    return results, errmsg
+
+
 def GEN(book=None, prov=None, test=False):
     errmsg = ''
     provider = "libgen.io"

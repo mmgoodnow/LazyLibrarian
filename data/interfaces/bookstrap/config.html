@@ -1768,6 +1768,31 @@
                         </span>
                       </div>
                     </div>
+                    <%
+                      if lazylibrarian.CONFIG['BOK'] == True:
+                        checked = 'checked="checked"'
+                      else:
+                        checked = ''
+                    %>
+                    <div class="col-md-4 form-group">
+                      <label for="bok_host" class="sr-only">zlibrary host</label>
+                      <div class="input-group">
+                        <span class="input-group-addon">ZLibrary</span>
+                        <input type="text" placeholder="zlibrary host" id="bok_host" name="bok_host" value="${lazylibrarian.CONFIG['BOK_HOST']}" class="form-control">
+                        <span class="input-group-addon">
+                        <input type="checkbox" id="bok" name="bok" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="bok_dlpriority" name="bok_dlpriority" value="${lazylibrarian.CONFIG['BOK_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="bok_dltypes" name="bok_dltypes" value="${lazylibrarian.CONFIG['BOK_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="BOK"> Test</button>
+                        </span>
+                      </div>
+                    </div>
                   </fieldset>
                 </div>
               </div>

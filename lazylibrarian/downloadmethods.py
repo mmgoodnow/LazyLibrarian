@@ -85,8 +85,8 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                 logger.debug("nzb_url [%s]" % nzb_url)
                 downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzb_url, False)  # returns nzb_ids or False
                 logger.debug("Sab returned %s/%s" % (downloadID, res))
-                #os.unlink(temp_filename)
-                #logger.debug("Temp file deleted")
+                # os.unlink(temp_filename)
+                # logger.debug("Temp file deleted")
         else:
             downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzburl, False)  # returns nzb_ids or False
 
@@ -154,12 +154,15 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
         return False, res
 
 
-def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook'):
+def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=''):
     myDB = database.DBConnection()
     Source = "DIRECT"
     logger.debug("Starting Direct Download for [%s]" % dl_title)
     proxies = proxyList()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': getUserAgent()}
+    logger.info(provider)
+    if provider == 'zlibrary':  # needs a referer header from a zlibrary host
+        headers['Referer'] = dl_url
     try:
         if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
             r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies,
@@ -181,6 +184,10 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         return False, res
     elif len(r.content) < 1000:
         res = "Only got %s bytes for %s" % (len(r.content), dl_title)
+        logger.debug(res)
+        return False, res
+    elif 'application/octet-stream' not in r.headers['Content-Type']:
+        res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
         logger.debug(res)
         return False, res
     else:

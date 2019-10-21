@@ -433,6 +433,10 @@ CONFIG_DEFINITIONS = {
     'GEN2': ('bool', 'GEN', 0),
     'GEN2_DLPRIORITY': ('int', 'GEN', 0),
     'GEN2_DLTYPES': ('str', 'GEN2', 'EM'),
+    'BOK_HOST': ('str', 'BOK', 'b-ok.cc'),
+    'BOK': ('bool', 'BOK', 0),
+    'BOK_DLPRIORITY': ('int', 'BOK', 0),
+    'BOK_DLTYPES': ('str', 'BOK', 'E'),
     'LIME_HOST': ('str', 'LIME', 'https://www.limetorrents.cc'),
     'LIME': ('bool', 'LIME', 0),
     'LIME_DLPRIORITY': ('int', 'LIME', 0),
@@ -1396,13 +1400,13 @@ def config_write(part=None):
     try:
         os.remove(CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno != 2:  # doesn't exist is ok
+        if e.errno is not 2:  # doesn't exist is ok
             msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', CONFIGFILE, '.bak', e.strerror)
             logger.warn(msg)
     try:
         os.rename(CONFIGFILE, CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
+        if e.errno is not 2:  # doesn't exist is ok as wouldn't exist until first save
             msg = '{} {} {} {}'.format('Unable to backup config file:', CONFIGFILE, type(e).__name__, e.strerror)
             logger.warn(msg)
     try:
@@ -1609,7 +1613,7 @@ def USE_TOR():
 
 def USE_DIRECT():
     count = 0
-    for provider in ['GEN', 'GEN2']:
+    for provider in ['GEN', 'GEN2', 'BOK']:
         if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
             count += 1
     return count

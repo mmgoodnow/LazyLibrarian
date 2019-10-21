@@ -291,7 +291,8 @@ def downloadResult(match, book):
         myDB.upsert("wanted", newValueDict, controlValueDict)
         if newValueDict['NZBmode'] == 'direct':
             snatch, res = DirectDownloadMethod(newValueDict["BookID"], newValueDict["NZBtitle"],
-                                               controlValueDict["NZBurl"], newValueDict["AuxInfo"])
+                                               controlValueDict["NZBurl"], newValueDict["AuxInfo"],
+                                               newValueDict['NZBprov'])
         elif newValueDict['NZBmode'] in ["torznab", "torrent", "magnet"]:
             snatch, res = TORDownloadMethod(newValueDict["BookID"], newValueDict["NZBtitle"],
                                             controlValueDict["NZBurl"], newValueDict["AuxInfo"])

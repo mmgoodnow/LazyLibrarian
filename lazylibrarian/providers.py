@@ -17,7 +17,7 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.directparser import GEN
+from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
     makeUnicode, seconds_to_midnight
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
@@ -82,6 +82,11 @@ def test_provider(name, host=None, api=None):
         if api:
             lazylibrarian.CONFIG['GEN2_SEARCH'] = api
         return GEN(book, prov='GEN2', test=True), "LibGen 2"
+    if name == 'BOK':
+        logger.debug("Testing provider %s" % name)
+        if host:
+            lazylibrarian.CONFIG['BOK_HOST'] = host
+        return BOK(book, prov='BOK', test=True), "ZLibrary"
     if name.startswith('rss_'):
         try:
             prov = name.split('_')[1]
@@ -565,7 +570,7 @@ def IterateOverDirectSites(book=None, searchType=None):
         else:
             book['searchterm'] = authorname + ' ' + bookname
 
-    for prov in ['GEN', 'GEN2']:
+    for prov in ['GEN', 'GEN2', 'BOK']:
         if lazylibrarian.CONFIG[prov]:
             if ProviderIsBlocked(prov):
                 logger.debug('[IterateOverDirectSites] - %s %s is BLOCKED' % (lazylibrarian.CONFIG[prov + '_HOST'],
@@ -579,9 +584,13 @@ def IterateOverDirectSites(book=None, searchType=None):
             elif "comic" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % prov)
             else:
-                logger.debug('[IterateOverDirectSites] - %s %s' % (lazylibrarian.CONFIG[prov + '_HOST'],
-                                                                   lazylibrarian.CONFIG[prov + '_SEARCH']))
-                results, error = GEN(book, prov)
+                if prov == 'BOK':
+                    logger.debug('[IterateOverDirectSites] - %s' % (lazylibrarian.CONFIG[prov + '_HOST']))
+                    results, error = BOK(book, prov)
+                else:
+                    logger.debug('[IterateOverDirectSites] - %s %s' % (lazylibrarian.CONFIG[prov + '_HOST'],
+                                                                       lazylibrarian.CONFIG[prov + '_SEARCH']))
+                    results, error = GEN(book, prov)
                 if error:
                     BlockProvider(prov, error)
                 else:

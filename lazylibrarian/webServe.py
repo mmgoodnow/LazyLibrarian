@@ -1729,7 +1729,7 @@ class WebInterface(object):
             myDB.upsert("wanted", newValueDict, controlValueDict)
             AuthorID = bookdata["AuthorID"]
             if mode == 'direct':
-                snatch, res = DirectDownloadMethod(bookid, bookdata["BookName"], url, library)
+                snatch, res = DirectDownloadMethod(bookid, bookdata["BookName"], url, library, provider)
             elif mode in ["torznab", "torrent", "magnet"]:
                 snatch, res = TORDownloadMethod(bookid, bookdata["BookName"], url, library)
             elif mode == 'nzb':
@@ -4088,7 +4088,8 @@ class WebInterface(object):
                         items['bookid'],
                         items['nzbtitle'],
                         items['nzburl'],
-                        'magazine')
+                        'magazine',
+                        items['nzbprov'])
                 elif items['nzbmode'] in ['torznab', 'torrent', 'magnet']:
                     snatch, res = TORDownloadMethod(
                         items['bookid'],

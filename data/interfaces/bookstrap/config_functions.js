@@ -415,7 +415,7 @@
             var prov = $(this).val();
             var host = ""
             var api = ""
-            if ( 'KAT TPB WWT ZOO TDL TRF LIME GEN GEN2'.indexOf(prov) >= 0 ) {
+            if ( 'KAT TPB WWT ZOO TDL TRF LIME GEN GEN2 BOK'.indexOf(prov) >= 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
             }
             if ( 'GEN GEN2'.indexOf(prov) >= 0 ) {
