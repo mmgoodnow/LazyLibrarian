@@ -101,16 +101,26 @@ def BOK(book=None, prov=None, test=False):
                 logger.debug(searchURL)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
-            result = False
+            result = ''
 
-        if result:
+        if len(result):
             logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
             try:
-                soup = BeautifulSoup(result, "html5lib")
-                try:
-                    rows = soup.find_all('table', {"class": "resItemTable"})
-                except IndexError:  # no results table in result page
-                    rows = []
+                rows = []
+                if 'class="fuzzyMatchesLine"' in result:
+                    subset = result.split('class="fuzzyMatchesLine"')[0]
+                    soup = BeautifulSoup(subset, "html5lib")
+                    try:
+                        rows = soup.find_all('table', {"class": "resItemTable"})
+                    except IndexError:
+                        rows = []
+
+                if not rows and not results:  # nothing found in earlier pages or before the cutoff line
+                    soup = BeautifulSoup(result, "html5lib")
+                    try:
+                        rows = soup.find_all('table', {"class": "resItemTable"})
+                    except IndexError:
+                        rows = []
 
                 for row in rows:
                     url = None
