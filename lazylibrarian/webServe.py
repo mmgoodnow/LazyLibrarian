@@ -1382,26 +1382,30 @@ class WebInterface(object):
         if not name:
             raise cherrypy.HTTPRedirect("home")
 
-        myDB = database.DBConnection()
+        if name.lower().startswith('authorid:'):
+            self.addAuthorID(name[9:])
+        elif name.lower().startswith('bookid:'):
+            self.addBook(name[7:])
+        else:
+            myDB = database.DBConnection()
+            authorids = myDB.select("SELECT AuthorID from authors where status != 'Loading'")
+            authorlist = []
+            for item in authorids:
+                authorlist.append(item['AuthorID'])
+            authorids = myDB.select("SELECT AuthorID from authors where status = 'Loading'")
+            loadlist = []
+            for item in authorids:
+                loadlist.append(item['AuthorID'])
 
-        authorids = myDB.select("SELECT AuthorID from authors where status != 'Loading'")
-        authorlist = []
-        for item in authorids:
-            authorlist.append(item['AuthorID'])
-        authorids = myDB.select("SELECT AuthorID from authors where status = 'Loading'")
-        loadlist = []
-        for item in authorids:
-            loadlist.append(item['AuthorID'])
+            booksearch = myDB.select("SELECT Status,BookID from books")
+            booklist = []
+            for item in booksearch:
+                booklist.append(item['BookID'])
 
-        booksearch = myDB.select("SELECT Status,BookID from books")
-        booklist = []
-        for item in booksearch:
-            booklist.append(item['BookID'])
-
-        searchresults = search_for(name)
-        return serve_template(templatename="searchresults.html", title='Search Results: "' + name + '"',
-                              searchresults=searchresults, authorlist=authorlist, loadlist=loadlist,
-                              booklist=booklist, booksearch=booksearch)
+            searchresults = search_for(name)
+            return serve_template(templatename="searchresults.html", title='Search Results: "' + name + '"',
+                                  searchresults=searchresults, authorlist=authorlist, loadlist=loadlist,
+                                  booklist=booklist, booksearch=booksearch)
 
     # AUTHOR ############################################################
 
