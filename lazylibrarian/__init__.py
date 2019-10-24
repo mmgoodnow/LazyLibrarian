@@ -191,7 +191,8 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
-                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS', 'PREF_UNRARLIB']
+                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS',
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -470,6 +471,7 @@ CONFIG_DEFINITIONS = {
     'VERSIONCHECK_INTERVAL': ('int', 'SearchScan', '24'),
     'GOODREADS_INTERVAL': ('int', 'SearchScan', '48'),
     'DELAYSEARCH': ('bool', 'SearchScan', 0),
+    'SEARCH_RATELIMIT': ('int', 'SearchScan', 0),
     'FULL_SCAN': ('bool', 'LibraryScan', 0),
     'ADD_AUTHOR': ('bool', 'LibraryScan', 1),
     'ADD_SERIES': ('bool', 'LibraryScan', 1),

@@ -358,6 +358,8 @@ def search_book(books=None, library=None):
                             {'Count': 0, 'Interval': interval + 1, 'Time': time.time()},
                             {'BookID': book['bookid'], 'Library': book['library']})
 
+            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+
         logger.info("Search for Wanted items complete, found %s book%s" % (book_count, plural(book_count)))
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 

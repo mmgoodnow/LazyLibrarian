@@ -498,6 +498,8 @@ def search_magazines(mags=None, reset=False):
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                     (res, magazine["nzburl"]))
 
+            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+
         logger.info("Search for magazines complete")
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
