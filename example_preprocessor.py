@@ -38,6 +38,7 @@ except ImportError:
 if sys.version_info[0] == 3:
     text_type = str
 else:
+    # noinspection PyUnresolvedReferences
     text_type = unicode
 
 # eBook options
@@ -154,10 +155,10 @@ def main():
             for fname in os.listdir(makeBytestr(bookfolder)):
                 fname = makeUnicode(fname)
                 filename, extn = os.path.splitext(fname)
-                if extn == '.epub':
+                if extn.lower() == '.epub':
                     sourcefile = fname
                     break
-                elif extn == '.mobi':
+                elif extn.lower() == '.mobi':
                     sourcefile = fname
                     break
 
