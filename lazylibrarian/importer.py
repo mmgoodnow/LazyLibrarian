@@ -417,6 +417,7 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             GB.find_book(bookid, ebook, audio, reason)
     else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
         GR = GoodReads(bookid)
+        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
         if not wait:
             threading.Thread(target=GR.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:

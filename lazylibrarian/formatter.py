@@ -403,11 +403,11 @@ def makeUTF8bytes(txt):
             # Detect UTF-8
             if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
                 return name, 'UTF-8'
-        # Detect CP850
+        # Detect CP850 or Windows CP1252 (latin-1)
         if (ch >= '\x80') & (ch <= '\xA5'):
             name = name.decode('cp850')
             return name.encode('utf-8'), 'CP850'
-        # Detect ISO-8859-15
+        # Detect ISO-8859-15 (latin-9)
         if (ch >= '\xA6') & (ch <= '\xFF'):
             name = name.decode('iso-8859-15')
             return name.encode('utf-8'), 'ISO-8859-15'

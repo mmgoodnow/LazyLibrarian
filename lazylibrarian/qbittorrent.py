@@ -203,6 +203,8 @@ def getProgress(hashid):
         return -1, '', False
     # noinspection PyProtectedMember
     preferences = qbclient._get_settings()
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug(str(preferences))
     max_ratio = 0.0
     if 'max_ratio_enabled' in preferences and 'max_ratio' in preferences:
         # noinspection PyTypeChecker
@@ -214,6 +216,8 @@ def getProgress(hashid):
     if torrentList:
         for torrent in torrentList:
             if torrent['hash'].lower() == hashid:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug(str(torrent))
                 if 'state' in torrent:
                     state = torrent['state']
                 else:

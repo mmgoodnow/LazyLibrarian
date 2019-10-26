@@ -36,7 +36,7 @@ class EmailNotifier:
 
     @staticmethod
     def _notify(message, event, force=False, files=None, to_addr=None):
-
+        logger.debug("to_addr=%s" % to_addr)
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
             return False
@@ -63,6 +63,7 @@ class EmailNotifier:
 
         if not to_addr:
             to_addr = lazylibrarian.CONFIG['EMAIL_TO']
+            logger.debug("Using default to_addr=%s" % to_addr)
         if not isValidEmail(to_addr):
             logger.warn("Invalid TO address, check users email and/or config")
             return False
@@ -128,6 +129,7 @@ class EmailNotifier:
                     mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
                                      lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
 
+            logger.debug("Sending email to %s" % to_addr)
             mailserver.sendmail(from_addr, to_addr, message.as_string())
             mailserver.quit()
             if oversize:
@@ -147,7 +149,8 @@ class EmailNotifier:
         return self._notify(message=message, event=subject, force=True, to_addr=to_addr)
 
     def email_file(self, subject, message, to_addr, files):
-        res = self._notify(message=message, event=subject, force=True, to_addr=to_addr, files=files)
+        logger.debug("to_addr=%s" % to_addr)
+        res = self._notify(message=message, event=subject, force=True, files=files, to_addr=to_addr)
         return res
 
     def notify_snatch(self, title):

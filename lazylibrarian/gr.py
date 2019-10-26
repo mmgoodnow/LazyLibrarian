@@ -1096,6 +1096,7 @@ class GoodReads:
                 logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
+        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         myDB = database.DBConnection()
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
         try:
@@ -1109,8 +1110,11 @@ class GoodReads:
 
         if not bookstatus:
             bookstatus = lazylibrarian.CONFIG['NEWBOOK_STATUS']
+            logger.debug("No bookstatus passed, using default %s" % bookstatus)
         if not audiostatus:
             audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
+            logger.debug("No audiostatus passed, using default %s" % audiostatus)
+        logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         bookLanguage = rootxml.find('./book/language_code').text
         bookname = rootxml.find('./book/title').text
 

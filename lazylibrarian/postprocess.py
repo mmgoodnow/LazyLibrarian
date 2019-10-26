@@ -45,7 +45,8 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
-    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, makeUTF8bytes
+    replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
+    makeUTF8bytes, makeBytestr
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
@@ -1029,16 +1030,21 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         # Now check for any that are still marked snatched, seeding, or any aborted...
         cmd = 'SELECT * from wanted WHERE Status="Snatched" or Status="Aborted" or Status="Seeding"'
         snatched = myDB.select(cmd)
-
+        logger.info("Found %s unprocessed")
         for book in snatched:
             book_type = bookType(book)
             abort = False
             hours = 0
             mins = 0
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                logger.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
             if book['Status'] == "Aborted":
                 abort = True
             elif book['Status'] == "Seeding":
                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                    logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
+                                                                         lazylibrarian.CONFIG['SEED_WAIT']))
                 if finished or not lazylibrarian.CONFIG['SEED_WAIT']:
                     if finished:
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
@@ -2149,6 +2155,17 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                         if is_valid_booktype(makeUnicode(destfile), booktype=booktype):
                             newbookfile = destfile
                     except Exception as why:
+                        # extra debugging to see if we can figure out a windows encoding issue
+                        newsrc = os.path.join(makeBytestr(pp_path), fname)
+                        for enc in ['utf-8', 'latin-1', 'CP850', 'iso-8859-15']:
+                            try:
+                                acc = os.access(newsrc.decode(enc), os.R_OK)
+                                if acc:
+                                    logger.error("%s is readable" % enc)
+                                else:
+                                    logger.error("%s is not readable" % enc)
+                            except Exception as e:
+                                logger.error("%s: %s" % (enc, str(e)))
                         if not os.access(srcfile, os.R_OK):
                             logger.error("Sourcefile [%s] is not readable" % repr(srcfile))
                         if not os.access(srcfile, os.W_OK):

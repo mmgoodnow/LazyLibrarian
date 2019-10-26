@@ -32,7 +32,7 @@ else:
 
 
 def test_provider(name, host=None, api=None):
-    book = {'searchterm': 'Agatha+Christie', 'library': 'eBook'}
+    book = {'searchterm': 'Agatha Christie', 'library': 'eBook'}
     if name == 'TPB':
         logger.debug("Testing provider %s" % name)
         if host:
