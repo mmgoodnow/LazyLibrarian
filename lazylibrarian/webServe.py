@@ -5682,7 +5682,8 @@ class WebInterface(object):
                 res = myDB.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
                 if res and res['SendTo']:
                     fsize = check_int(os.path.getsize(basefile), 0)
-                    if fsize > 20000000:
+                    limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+                    if limit and fsize > limit * 1024 * 1024:
                         msg = '%s is too large (%s) to email' % (os.path.split(basefile)[1], fsize)
                         logger.debug(msg)
                     else:
