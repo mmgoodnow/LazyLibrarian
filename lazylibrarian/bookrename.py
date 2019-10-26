@@ -37,7 +37,7 @@ def id3read(filename):
         filename = makeBytestr(filename)
     else:
         filename = makeUnicode(filename)
-    res = False
+    # noinspection PyBroadException
     try:
         res = TinyTag.is_supported(filename)
     except Exception:

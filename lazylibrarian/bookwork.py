@@ -632,15 +632,14 @@ def addSeriesMembers(seriesid):
     """ Add all members of a series to the database
         Return how many books you added
     """
+    count = 0
+    myDB = database.DBConnection()
+    series = myDB.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
+    if not series:
+        logger.error("Error getting series name for %s" % seriesid)
+        return 0
     try:
-        myDB = database.DBConnection()
-        series = myDB.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
-        if not series:
-            logger.error("Error getting series name for %s" % seriesid)
-            return 0
-
         lazylibrarian.SERIES_UPDATE = True
-        count = 0
         seriesname = series['SeriesName']
         logger.debug("Updating series members for %s" % seriesname)
         members, api_hits = getSeriesMembers(seriesid, seriesname)
@@ -693,12 +692,13 @@ def addSeriesMembers(seriesid):
                                          (member[4], wanted_status, member[1]))
                 count += 1
         myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
-        logger.debug("Found %s series member%s, %s new for %s" % (len(members), plural(len(members)), count, seriesname))
+        logger.debug("Found %s series member%s, %s new for %s" % (len(members), plural(len(members)),
+                                                                  count, seriesname))
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
             for member in members:
                 logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
     except Exception as e:
-        logger.error("%s adding series %s: %s" % (type(e).__name__, seriesID, str(e)))
+        logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
     finally:
         lazylibrarian.SERIES_UPDATE = False
         return count
