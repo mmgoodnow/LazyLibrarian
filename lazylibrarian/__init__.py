@@ -192,7 +192,7 @@ CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
                  'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT']
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -208,7 +208,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
-                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED', 'NAME_POSTFIX']
+                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
+                     'NAME_POSTFIX', 'NEWSERIES_STATUS']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -477,6 +478,7 @@ CONFIG_DEFINITIONS = {
     'ADD_SERIES': ('bool', 'LibraryScan', 1),
     'NOTFOUND_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'FOUND_STATUS': ('str', 'LibraryScan', 'Open'),
+    'NEWSERIES_STATUS': ('str', 'LibraryScan', 'Paused'),
     'NEWBOOK_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'NEWAUDIO_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'NEWAUTHOR_STATUS': ('str', 'LibraryScan', 'Skipped'),
@@ -570,6 +572,7 @@ CONFIG_DEFINITIONS = {
     'EMAIL_TLS': ('bool', 'Email', 0),
     'EMAIL_SMTP_USER': ('str', 'Email', ''),
     'EMAIL_SMTP_PASSWORD': ('str', 'Email', ''),
+    'EMAIL_LIMIT': ('int', 'Email', 20),
     'BOOK_API': ('str', 'API', 'GoodReads'),
     'LT_DEVKEY': ('str', 'API', ''),
     'CV_APIKEY': ('str', 'API', ''),
@@ -1402,13 +1405,13 @@ def config_write(part=None):
     try:
         os.remove(CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno is not 2:  # doesn't exist is ok
+        if e.errno != 2:  # doesn't exist is ok
             msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', CONFIGFILE, '.bak', e.strerror)
             logger.warn(msg)
     try:
         os.rename(CONFIGFILE, CONFIGFILE + '.bak')
     except OSError as e:
-        if e.errno is not 2:  # doesn't exist is ok as wouldn't exist until first save
+        if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
             msg = '{} {} {} {}'.format('Unable to backup config file:', CONFIGFILE, type(e).__name__, e.strerror)
             logger.warn(msg)
     try:

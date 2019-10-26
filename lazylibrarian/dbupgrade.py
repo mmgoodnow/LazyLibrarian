@@ -316,7 +316,15 @@ def check_db(myDB):
             msg = 'Unable to create unique index on AuthorID: %i vs %i' % (res['d'], res['c'])
             logger.error(msg)
         cnt = 1
+
     try:
+        # update any series "Skipped" to series "Paused"
+        res = myDB.match('SELECT count(*) as counter from series WHERE Status="Skipped"')
+        tot = res['counter']
+        if tot:
+            cnt += tot
+            logger.warn("Found %s series marked Skipped, updating to Paused" % tot)
+            myDB.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
         # replace faulty/html language results with Unknown
         lazylibrarian.UPDATE_MSG = 'Checking languages'
         filt = 'BookLang is NULL or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
@@ -327,8 +335,7 @@ def check_db(myDB):
             cnt += tot
             msg = 'Updating %s book%s with no language to "Unknown"' % (tot, plural(tot))
             logger.warn(msg)
-            cmd = 'UPDATE books SET BookLang="Unknown" WHERE ' + filt
-            myDB.action(cmd)
+            myDB.action('UPDATE books SET BookLang="Unknown" WHERE ' + filt)
 
         # delete html error pages
         filt = 'length(lang) > 30'

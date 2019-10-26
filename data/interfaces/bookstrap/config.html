@@ -1966,6 +1966,20 @@
                     </select>
                     <span class="help-block">Status for new downloads and items found on scan</span>
                   </div>
+                  <div class="form-group">
+                    <label for="newseries_status">New Series Status:</label>
+                    <select id="newseries_status" name="newseries_status" class="form-control">
+                      %for na_status in ['Active', 'Paused']:
+                      <%
+                        selected = ''
+                        if na_status == lazylibrarian.CONFIG['NEWSERIES_STATUS']:
+                            selected = 'selected="selected"'
+                      %>
+                      <option value="${na_status}" ${selected}>${na_status}</option>
+                      %endfor
+                    </select>
+                    <span class="help-block">Should we monitor for new books in the series</span>
+                  </div>
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] == True:

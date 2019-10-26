@@ -36,7 +36,7 @@
     <div class="form-group">
       <label for="whichStatus" class="control-label">Status:</label>
       <select name="whichStatus" id="whichStatus" class="form-control input-sm">
-        %for item in ['All', 'Complete', 'Partial', 'Empty', 'Skipped', 'Wanted', 'Active', 'Ignored']:
+        %for item in ['All', 'Complete', 'Partial', 'Empty', 'Paused', 'Wanted', 'Active', 'Ignored']:
         <option value="${item}"
             %if whichStatus == item:
                 selected = "selected"
@@ -75,7 +75,7 @@
     <div class="form-group">
       <label for="markSeries" class="control-label">Change selected series to: </label>
       <select id="markSeries" class="markSeries form-control input-sm" name="action">
-        %for item in ['Skipped', 'Wanted', 'Active', 'Ignored']:
+        %for item in ['Paused', 'Wanted', 'Active', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:

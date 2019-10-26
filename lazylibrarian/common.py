@@ -555,7 +555,8 @@ def is_overdue(which="Author"):
                     else:
                         break
         if which == 'Series':
-            cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Updated > 0 order by Updated ASC'
+            cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Status="Active" or Status="Wanted"'
+            cmd += ' order by Updated ASC'
             res = myDB.select(cmd)
             total = len(res)
             if total:
@@ -871,10 +872,7 @@ def authorUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        cmd = 'SELECT AuthorID, AuthorName,Updated from authors WHERE Status="Active" or Status="Loading"'
-        cmd += ' or Status="Wanted" order by Updated ASC'
-        author = myDB.match(cmd)
-        if author and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, _, name, ident, days = is_overdue('Author')
             if not overdue:
                 msg = 'Oldest author info (%s) is %s day%s old, no update due' % (name,
@@ -901,10 +899,7 @@ def seriesUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        cmd = 'SELECT SeriesName,SeriesID,Updated from Series where '
-        cmd += 'Status != "Ignored" and Status != "Skipped" and Updated > 0 order by Updated ASC'
-        res = myDB.match(cmd)
-        if res and check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, _, name, ident, days = is_overdue('Series')
             if not overdue:
                 msg = 'Oldest series info (%s) is %s day%s old, no update due' % (name,
