@@ -138,7 +138,13 @@
                                 btn = '<a class="button green btn btn-xs btn-warning" href="openMag?bookid=' +
                                         row[0] + '" target="_self"><i class="fa fa-book"></i>'
                                 %if lazylibrarian.CONFIG['MAG_SINGLE']:
-                                    if ( row[3] == 1) { btn = btn + ' Open</a>' }
+                                    if ( row[3] == 1) {
+                                        btn = btn + ' Open</a>'
+                                        %if len(email):
+                                            btn += '<a class="button green btn btn-xs btn-info" href="sendMag?bookid=' +
+                                                    row[0] + '" target="_self">Send</a>'
+                                        %endif
+                                        }
                                     else { btn = btn + ' Show</a>' }
                                 %else:
                                     btn = btn + ' Show</a>'

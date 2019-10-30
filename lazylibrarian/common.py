@@ -879,7 +879,7 @@ def authorUpdate(restart=True):
                                                                                   days, plural(days))
             else:
                 logger.info('Starting update for %s' % name)
-                lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=ident)
+                lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=ident, reason="authorUpdate %s" % name)
                 msg = 'Updated author %s' % name
 
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
@@ -930,7 +930,7 @@ def aaUpdate(refresh=False):
         lazylibrarian.AUTHORS_UPDATE = True
         logger.info('Starting update for %i active author%s' % (len(activeauthors), plural(len(activeauthors))))
         for author in activeauthors:
-            lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'])
+            lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'], reason="aaUpdate")
         logger.info('Active author update complete')
         lazylibrarian.AUTHORS_UPDATE = False
         msg = 'Updated %i active author%s' % (len(activeauthors), plural(len(activeauthors)))

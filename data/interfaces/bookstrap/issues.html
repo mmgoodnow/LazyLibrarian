@@ -106,6 +106,10 @@
                         'render': function(data, type, row) {
                         btn = '<a class="button green btn btn-xs btn-warning" href="openMag?bookid=' + data +
                                 '" target="_self"><i class="fa fa-book"></i> Open</a>'
+                            %if len(email):
+                                btn += '<a class="button green btn btn-xs btn-info" href="sendMag?bookid=' + data +
+                                    '" target="_self">Send</a>'
+                            %endif
                         return btn;} },
                 ],
                 "oLanguage": {

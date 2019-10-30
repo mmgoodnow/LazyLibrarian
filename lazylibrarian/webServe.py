@@ -1451,11 +1451,15 @@ class WebInterface(object):
     def authorPage(self, AuthorID, BookLang=None, library='eBook', Ignored=False):
         global lastauthor
         myDB = database.DBConnection()
+        user = 0
+        email = ''
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
-        else:
-            user = 0
+            res = myDB.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
+
         if Ignored:
             languages = myDB.select(
                 "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status ='Ignored'", (AuthorID,))
@@ -1494,7 +1498,7 @@ class WebInterface(object):
         return serve_template(
             templatename="author.html", title=quote_plus(authorname),
             author=author, languages=languages, booklang=BookLang, types=types, library=library, ignored=Ignored,
-            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user)
+            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user, email=email)
 
     @cherrypy.expose
     def setAuthor(self, AuthorID, status):
@@ -1550,7 +1554,8 @@ class WebInterface(object):
         myDB = database.DBConnection()
         authorsearch = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (AuthorID,))
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
-            threading.Thread(target=addAuthorToDB, name='REFRESHAUTHOR', args=[None, True, AuthorID]).start()
+            threading.Thread(target=addAuthorToDB, name='REFRESHAUTHOR',
+                             args=[None, True, AuthorID, True, "WebServer refreshAuthor %s" % AuthorID]).start()
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
         else:
             logger.debug('refreshAuthor Invalid authorid [%s]' % AuthorID)
@@ -2325,7 +2330,13 @@ class WebInterface(object):
         logger.warn("No file found for %s %s" % (ftype, itemid))
 
     @cherrypy.expose
-    def openBook(self, bookid=None, library=None, redirect=None, booktype=None):
+    def sendBook(self, bookid=None, library=None, redirect=None, booktype=None):
+        print(1, bookid, library, redirect, booktype)
+        return self.openBook(bookid=bookid, library=library, redirect=redirect, booktype=booktype, email=True)
+
+    @cherrypy.expose
+    def openBook(self, bookid=None, library=None, redirect=None, booktype=None, email=False):
+        print(2, bookid, library, redirect, booktype, email)
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         myDB = database.DBConnection()
@@ -2363,22 +2374,38 @@ class WebInterface(object):
                         if os.path.isfile(index):
                             if booktype == 'zip':
                                 zipfile = zipAudio(parentdir, bookName)
-                                logger.debug('Opening %s %s' % (library, zipfile))
-                                return self.send_file(zipfile, name="Audiobook zip of %s" % bookName)
+                                if email:
+                                    logger.debug('Emailing %s %s' % (library, zipfile))
+                                else:
+                                    logger.debug('Opening %s %s' % (library, zipfile))
+                                return self.send_file(zipfile, name="Audiobook zip of %s" % bookName,
+                                                      email=email)
                             idx = check_int(booktype, 0)
                             if idx:
                                 with open(index, 'r') as f:
                                     part = f.read().splitlines()[idx - 1]
                                 bookfile = os.path.join(parentdir, part)
-                                logger.debug('Opening %s %s' % (library, bookfile))
-                                return self.send_file(bookfile, name="Audiobook part %s of %s" % (idx, bookName))
+                                if email:
+                                    logger.debug('Emailing %s %s' % (library, bookfile))
+                                else:
+                                    logger.debug('Opening %s %s' % (library, bookfile))
+                                return self.send_file(bookfile, name="Audiobook part %s of %s" % (idx, bookName),
+                                                      email=email)
                             # noinspection PyUnusedLocal
                             cnt = sum(1 for line in open(index))
                             if cnt <= 1:
-                                logger.debug('Opening %s %s' % (library, bookfile))
-                                return self.send_file(bookfile, name="Audiobook %s" % bookName)
+                                if email:
+                                    logger.debug('Emailing %s %s' % (library, bookfile))
+                                else:
+                                    logger.debug('Opening %s %s' % (library, bookfile))
+                                return self.send_file(bookfile, name="Audiobook %s" % bookName,
+                                                      email=email)
                             else:
-                                msg = "Please select which part to download"
+                                msg = "Please select which part to "
+                                if email:
+                                    msg += "email"
+                                else:
+                                    msg += "download"
                                 item = 1
                                 partlist = ''
                                 while item <= cnt:
@@ -2394,8 +2421,12 @@ class WebInterface(object):
                                                   pop_types=partlist, bookid=bookid,
                                                   valid=getList(partlist.replace(' ', ',')))
                         else:
-                            logger.debug('Opening %s %s' % (library, bookfile))
-                            return self.send_file(bookfile, name="Audiobook %s" % bookName)
+                            if email:
+                                logger.debug('Emailing %s %s' % (library, bookfile))
+                            else:
+                                logger.debug('Opening %s %s' % (library, bookfile))
+                            return self.send_file(bookfile, name="Audiobook %s" % bookName,
+                                                  email=email)
                 else:
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
@@ -2423,7 +2454,11 @@ class WebInterface(object):
                                                       pop_types=typestr, bookid=bookid,
                                                       valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
                         elif len(types) > 1:
-                            msg = "Please select format to download"
+                            msg = "Please select format to "
+                            if email:
+                                msg += "email"
+                            else:
+                                msg += "download"
                             typestr = ''
                             for item in types:
                                 if typestr:
@@ -2434,8 +2469,12 @@ class WebInterface(object):
                                                   pop_types=typestr, bookid=bookid,
                                                   valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
 
-                        logger.debug('Opening %s %s' % (library, bookfile))
-                        return self.send_file(bookfile, name="eBook %s" % bookName)
+                        if email:
+                            logger.debug('Emailing %s %s' % (library, bookfile))
+                        else:
+                            logger.debug('Opening %s %s' % (library, bookfile))
+                        return self.send_file(bookfile, name="eBook %s" % bookName,
+                                              email=email)
 
                 logger.info('Missing %s %s, %s [%s]' % (library, authorName, bookName, bookfile))
             else:
@@ -3709,17 +3748,21 @@ class WebInterface(object):
     @cherrypy.expose
     def magazines(self):
         if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
+            user = 0
+            email = ''
+            myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
                 user = cookie['ll_uid'].value
-            else:
-                user = 0
+                res = myDB.match('SELECT SendTo from users where UserID=?', (user,))
+                if res and res['SendTo']:
+                    email = res['SendTo']
             # use server-side processing
             covers = 1
             if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
                 covers = 0
             return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
-                                  covercount=covers, user=user)
+                                  covercount=covers, user=user, email=email)
 
         myDB = database.DBConnection()
 
@@ -3863,13 +3906,18 @@ class WebInterface(object):
                 covercount = 0
             else:
                 covercount = 1
+
+            user = 0
+            email = ''
+            myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
                 user = cookie['ll_uid'].value
-            else:
-                user = 0
+                res = myDB.match('SELECT SendTo from users where UserID=?', (user,))
+                if res and res['SendTo']:
+                    email = res['SendTo']
             return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
-                                  user=user)
+                                  user=user, email=email)
 
         myDB = database.DBConnection()
 
@@ -3992,7 +4040,11 @@ class WebInterface(object):
             return mydict
 
     @cherrypy.expose
-    def openMag(self, bookid=None):
+    def sendMag(self, bookid=None):
+        return self.openMag(bookid=bookid, email=True)
+
+    @cherrypy.expose
+    def openMag(self, bookid=None, email=False):
         bookid = unquote_plus(bookid)
         myDB = database.DBConnection()
         # we may want to open an issue with a hashed bookid
@@ -4000,8 +4052,13 @@ class WebInterface(object):
         if mag_data:
             IssueFile = mag_data["IssueFile"]
             if IssueFile and os.path.isfile(IssueFile):
-                logger.debug('Opening file %s' % IssueFile)
-                return self.send_file(IssueFile, name="Magazine %s %s" % (mag_data["Title"], mag_data["IssueDate"]))
+                if email:
+                    logger.debug('Emailing file %s' % IssueFile)
+                else:
+                    logger.debug('Opening file %s' % IssueFile)
+                return self.send_file(IssueFile,
+                                      name="Magazine %s %s" % (mag_data["Title"], mag_data["IssueDate"]),
+                                      email=email)
 
         # or we may just have a title to find magazine in issues table
         mag_data = myDB.select('SELECT * from issues WHERE Title=?', (bookid,))
@@ -4010,8 +4067,12 @@ class WebInterface(object):
         if len(mag_data) == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:  # we only have one issue, get it
             IssueDate = mag_data[0]["IssueDate"]
             IssueFile = mag_data[0]["IssueFile"]
-            logger.debug('Opening %s - %s' % (bookid, IssueDate))
-            return self.send_file(IssueFile, name="Magazine %s %s" % (bookid, IssueDate))
+            if email:
+                logger.debug('Emailing %s - %s' % (bookid, IssueDate))
+            else:
+                logger.debug('Opening %s - %s' % (bookid, IssueDate))
+            return self.send_file(IssueFile, name="Magazine %s %s" % (bookid, IssueDate),
+                                  email=email)
         else:  # multiple issues, show a list
             logger.debug("%s has %s issue%s" % (bookid, len(mag_data), plural(len(mag_data))))
             if PY2:
@@ -5674,11 +5735,11 @@ class WebInterface(object):
         return data
 
     @staticmethod
-    def send_file(basefile, name=None):
+    def send_file(basefile, name=None, email=False):
         if lazylibrarian.CONFIG['USER_ACCOUNTS']:
             myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
+            if email and cookie and 'll_uid' in list(cookie.keys()):
                 res = myDB.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
                 if res and res['SendTo']:
                     fsize = check_int(os.path.getsize(basefile), 0)
