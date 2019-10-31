@@ -187,6 +187,10 @@
                     if ( btn.indexOf('Open') >= 0 ) {
                         btn = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
                             '&library=eBook" target="_self"><i class="fa fa-book"></i> ' + btn + '</a>'
+                        %if len(email):
+                            btn += '<a class="button green btn btn-xs btn-info" href="sendBook?bookid=' + row[9] +
+                                '&library=eBook" target="_self">Send</a>'
+                        %endif
                     }
                     else if ( btn.indexOf('Wanted') >= 0 ) {
                         %if perm&lazylibrarian.perm_force:

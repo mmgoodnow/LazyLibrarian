@@ -1761,32 +1761,38 @@ class WebInterface(object):
 
     @cherrypy.expose
     def audio(self, BookLang=None):
+        user = 0
+        email = ''
+        myDB = database.DBConnection()
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
-        else:
-            user = 0
-        myDB = database.DBConnection()
+            res = myDB.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
         if not BookLang or BookLang == 'None':
             BookLang = None
         languages = myDB.select(
             'SELECT DISTINCT BookLang from books WHERE AUDIOSTATUS !="Skipped" AND AUDIOSTATUS !="Ignored"')
         return serve_template(templatename="audio.html", title='AudioBooks', books=[],
-                              languages=languages, booklang=BookLang, user=user)
+                              languages=languages, booklang=BookLang, user=user, email=email)
 
     @cherrypy.expose
     def books(self, BookLang=None):
+        user = 0
+        email = ''
+        myDB = database.DBConnection()
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
-        else:
-            user = 0
-        myDB = database.DBConnection()
+            res = myDB.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
         if not BookLang or BookLang == 'None':
             BookLang = None
         languages = myDB.select('SELECT DISTINCT BookLang from books WHERE STATUS !="Skipped" AND STATUS !="Ignored"')
         return serve_template(templatename="books.html", title='eBooks', books=[],
-                              languages=languages, booklang=BookLang, user=user)
+                              languages=languages, booklang=BookLang, user=user, email=email)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
