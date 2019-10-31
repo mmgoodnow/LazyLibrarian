@@ -22,7 +22,6 @@ import subprocess
 import sys
 import threading
 import time
-import webbrowser
 import sqlite3
 import traceback
 
@@ -1822,6 +1821,7 @@ def daemonize():
 
 
 def launch_browser(host, port, root):
+    import webbrowser
     if host == '0.0.0.0':
         host = 'localhost'
 
