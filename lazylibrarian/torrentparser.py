@@ -17,7 +17,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, \
-    replace_all, getList, month2num, check_year
+    replace_all, getList, month2num, check_year, makeBytestr
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
@@ -233,7 +233,7 @@ def TPB(book=None, test=False):
 
     while next_page:
 
-        searchURL = providerurl + "%s/%s/99/%s" % (quote(book['searchterm']), page, cat)
+        searchURL = providerurl + "%s/%s/99/%s" % (quote(makeBytestr(book['searchterm'])), page, cat)
 
         next_page = False
         result, success = fetchURL(searchURL)
@@ -351,7 +351,7 @@ def KAT(book=None, test=False):
     if not host.startswith('http'):
         host = 'http://' + host
 
-    providerurl = url_fix(host + "/usearch/" + quote(book['searchterm']))
+    providerurl = url_fix(host + "/usearch/" + quote(makeBytestr(book['searchterm'])))
 
     params = {
         "category": "books",
