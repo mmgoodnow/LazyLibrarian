@@ -56,7 +56,7 @@
     <div class="form-group">
       <label for="whichStatus" class="control-label">Status:</label>
       <select name="whichStatus" id="whichStatus" class="form-control input-sm">
-        %for item in ['Skipped', 'Wanted', 'Open', 'Have', 'Ignored']:
+        %for item in ['All', 'Skipped', 'Wanted', 'Open', 'Have', 'Ignored']:
         <option value="${item}"
                 %if whichStatus == item:
                     selected = "selected"
