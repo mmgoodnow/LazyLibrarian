@@ -18,7 +18,7 @@ import json
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookwork import getBookWork
+from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int
 from lazylibrarian.common import safe_copy, setperm
 from lazylibrarian.cache import cache_img, fetchURL
@@ -143,18 +143,24 @@ def getBookCovers():
     """ Try to get a cover image for all books """
 
     myDB = database.DBConnection()
-    books = myDB.select('select BookID,BookImg from books where BookImg like "%nocover%" and Manual is not "1"')
+    cmd = 'select BookID,BookImg from books where BookImg like "%nocover%" '
+    cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
+    books = myDB.select(cmd)
     if books:
         logger.info('Checking covers for %s book%s' % (len(books), plural(len(books))))
         counter = 0
         for book in books:
             bookid = book['BookID']
             coverlink, _ = getBookCover(bookid)
-            if coverlink and "nocover" not in coverlink:
+            if coverlink and "nocover" not in coverlink and "nophoto" not in coverlink:
                 controlValueDict = {"BookID": bookid}
                 newValueDict = {"BookImg": coverlink}
                 myDB.upsert("books", newValueDict, controlValueDict)
                 counter += 1
+            if not coverlink and "http" in book['BookImg']:
+                controlValueDict = {"BookID": bookid}
+                newValueDict = {"BookImg": "images/nocover.png"}
+                myDB.upsert("books", newValueDict, controlValueDict)
         msg = 'Updated %s cover%s' % (counter, plural(counter))
         logger.info('Cover check complete: ' + msg)
     else:
@@ -191,6 +197,10 @@ def getBookCover(bookID=None, src=None):
         if item:
             coverlink = item['BookImg']
             coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
+            if coverlink.startswith('http') and 'nocover' in coverlink or 'nophoto' in coverlink:
+                coverfile = os.path.join(lazylibrarian.DATADIR, 'images', 'nocover.png')
+                coverlink = 'images/nocover.png'
+                myDB.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookID))
         else:
             coverlink = "cache/book/" + bookID + ".jpg"
             coverfile = os.path.join(cachedir, "book", bookID + '.jpg')
@@ -211,12 +221,13 @@ def getBookCover(bookID=None, src=None):
                     coverimg = os.path.join(bookdir, "cover.jpg")
                     if os.path.isfile(coverimg):
                         if src:
-                            coverfile = os.path.join(cachedir, "book", bookID + '_cover.jpg')
-                            coverlink = 'cache/book/' + bookID + '_cover.jpg'
-                            logger.debug("Caching cover.jpg for %s" % bookID)
+                            extn = '_cover.jpg'
                         else:
-                            coverlink = 'cache/book/' + bookID + '.jpg'
-                            logger.debug("Caching cover.jpg for %s" % coverfile)
+                            extn = '.jpg'
+
+                        coverfile = os.path.join(cachedir, "book", bookID + extn)
+                        coverlink = 'cache/book/' + bookID + extn
+                        logger.debug("Caching %s for %s" % (extn, bookID))
                         _ = safe_copy(coverimg, coverfile)
                         return coverlink, src
             if src:
@@ -255,7 +266,7 @@ def getBookCover(bookID=None, src=None):
                 return None, src
 
         # see if librarything workpage has a cover
-        if not src or src == 'whatwork':
+        if NEW_WHATWORK and (not src or src == 'whatwork'):
             work = getBookWork(bookID, "Cover")
             if work:
                 try:
