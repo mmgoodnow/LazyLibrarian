@@ -1515,6 +1515,14 @@ def DIRECTORY(dirname):
     else:
         return usedir
 
+    if usedir and not os.path.isdir(usedir):
+        try:
+            os.makedirs(usedir)
+            logger.info("Created new %s folder: %s" % (dirname, usedir))
+        except OSError as e:
+            logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
+            usedir = DATADIR
+
     if usedir and os.path.isdir(usedir):
         try:
             with open(os.path.join(usedir, 'll_temp'), 'w') as f:
