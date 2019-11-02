@@ -667,11 +667,13 @@ def addSeriesMembers(seriesid):
                     wanted_status = 'Skipped'
                     if series['Status'] == 'Wanted':
                         wanted_status = 'Wanted'
-                    if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status:
+                    if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status and \
+                            book['Status'] not in ['Open', 'Have']:
                         myDB.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                         logger.debug("Series [%s] set status to %s for %s" %
                                      (seriesname, wanted_status, member[1]))
-                    if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status:
+                    if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status and \
+                            book['AudioStatus'] not in ['Open', 'Have']:
                         myDB.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
                         logger.debug("Series [%s] set audiostatus to %s for %s" %
                                      (seriesname, wanted_status, member[1]))
@@ -682,11 +684,13 @@ def addSeriesMembers(seriesid):
                         wanted_status = 'Skipped'
                         if author['Status'] == 'Wanted':
                             wanted_status = 'Wanted'
-                        if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status:
+                        if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status and \
+                                book['Status'] not in ['Open', 'Have']:
                             myDB.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                             logger.debug("Author %s set status to %s for %s" %
                                          (member[4], wanted_status, member[1]))
-                        if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status:
+                        if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status and \
+                                book['AudioStatus'] not in ['Open', 'Have']:
                             myDB.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
                             logger.debug("Author %s set audiostatus to %s for %s" %
                                          (member[4], wanted_status, member[1]))
