@@ -18,14 +18,13 @@ import shutil
 import time
 import traceback
 import uuid
-
 from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setGenres
 from lazylibrarian.common import restartJobs, pwd_generator, listdir, setperm
-from lazylibrarian.formatter import plural, makeUnicode, md5_utf8, getList, check_int
+from lazylibrarian.formatter import plural, md5_utf8, getList, check_int
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
 
@@ -859,7 +858,6 @@ def db_v14(myDB, upgradelog):
     # any that are still there are for books/authors deleted from database
     # or magazine latest issue cover files that get copied as required
     for image in listdir(src):
-        image = makeUnicode(image)
         if image.endswith('.jpg'):
             os.remove(os.path.join(src, image))
     upgradelog.write("%s v14: complete\n" % time.ctime())

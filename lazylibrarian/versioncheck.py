@@ -552,6 +552,7 @@ def update():
         os.remove(tar_download_path)
 
         # Find update dir name
+        update_dir = makeUnicode(update_dir)
         update_dir_contents = [x for x in listdir(update_dir) if os.path.isdir(os.path.join(update_dir, x))]
         if len(update_dir_contents) != 1:
             logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
@@ -560,9 +561,7 @@ def update():
 
         # walk temp folder and move files to main folder
         for rootdir, _, filenames in walk(content_dir):
-            rootdir = makeUnicode(rootdir[len(content_dir) + 1:])
             for curfile in filenames:
-                curfile = makeUnicode(curfile)
                 old_path = os.path.join(content_dir, rootdir, curfile)
                 new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
 

@@ -23,11 +23,11 @@ import threading
 import time
 import traceback
 import uuid
+from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian.common import listdir
 from lib.six import PY2
-from shutil import copyfile
 
 try:
     import zipfile
@@ -46,7 +46,7 @@ from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
-    makeUTF8bytes, makeBytestr
+    makeUTF8bytes
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
@@ -90,7 +90,6 @@ def processAlternate(source_dir=None, library='eBook'):
         logger.debug('Processing %s directory %s' % (library, source_dir))
         # first, recursively process any books in subdirectories
         flist = listdir(source_dir)
-        flist = [makeUnicode(item) for item in flist]
         for fname in flist:
             subdir = os.path.join(source_dir, fname)
             if os.path.isdir(subdir):
@@ -112,7 +111,6 @@ def processAlternate(source_dir=None, library='eBook'):
             if not new_book:
                 # check if an archive in this directory
                 for f in listdir(source_dir):
-                    f = makeUnicode(f)
                     if not is_valid_type(f):
                         # Is file an archive, if so look inside and extract to new dir
                         res = unpack_archive(os.path.join(source_dir, f), source_dir, f)
@@ -279,7 +277,6 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     # return how many files you moved
     cnt = 0
     list_dir = listdir(sourcedir)
-    list_dir = [makeUnicode(item) for item in list_dir]
     for ourfile in list_dir:
         if ourfile.startswith(fname) or is_valid_booktype(ourfile, booktype="audiobook"):
             if is_valid_type(ourfile):
@@ -457,6 +454,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         logger.debug("POSTPROCESS is already running")
         return
 
+    if lazylibrarian.NONEWJOBS:
+        logger.debug("No new jobs is set, aborting")
+        return
+
     threading.currentThread().name = "POSTPROCESS"
     # noinspection PyBroadException,PyStatementEffect
     try:
@@ -523,7 +524,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         for download_dir in dirlist:
             try:
                 downloads = listdir(download_dir)
-                downloads = [makeUnicode(item) for item in downloads]
             except OSError as why:
                 logger.error('Could not access directory [%s] %s' % (download_dir, why.strerror))
                 threading.currentThread().name = "WEBSERVER"
@@ -625,7 +625,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     # unpack if archive found in top directory, but not comics
                                     # only unpack first archive, we are only matching one download
                                     for f in listdir(pp_path):
-                                        f = makeUnicode(f)
                                         if not is_valid_type(f, extras='cbr, cbz'):
                                             res = unpack_archive(os.path.join(pp_path, f), download_dir, f)
                                             if res:
@@ -1261,7 +1260,6 @@ def check_residual(download_dir):
     skipped_extensions = getList(lazylibrarian.CONFIG['SKIPPED_EXT'])
     ppcount = 0
     downloads = listdir(download_dir)
-    downloads = [makeUnicode(item) for item in downloads]
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
         logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
                                                             plural(len(downloads), 'entry'),
@@ -1918,7 +1916,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         for btype in booktype_list:
             if not bestmatch:
                 for fname in listdir(pp_path):
-                    fname = makeUnicode(fname)
                     extn = os.path.splitext(fname)[1].lstrip('.')
                     if extn and extn.lower() == btype:
                         bestmatch = btype
@@ -1929,7 +1926,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
-            fname = makeUnicode(fname)
             if is_valid_booktype(fname, booktype=booktype):
                 match = True
                 break
@@ -1959,7 +1955,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             # and ignores opf data if there is data embedded in the book file
             # so we send separate "set_metadata" commands after the import
             for fname in listdir(pp_path):
-                fname = makeUnicode(fname)
                 extn = os.path.splitext(fname)[1]
                 srcfile = os.path.join(pp_path, fname)
                 if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
@@ -2068,10 +2063,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 else:
                     author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_')), '')
                 if os.path.isdir(author_dir):  # assumed author directory
-                    entries = listdir(author_dir)
                     our_id = '(%s)' % calibre_id
+                    entries = listdir(author_dir)
                     for entry in entries:
-                        entry = makeUnicode(entry)
                         if entry.endswith(our_id):
                             target_dir = os.path.join(author_dir, entry)
                             break
@@ -2089,7 +2083,6 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             if newbookfile:
                 setperm(target_dir)
                 for fname in listdir(target_dir):
-                    fname = makeUnicode(fname)
                     setperm(os.path.join(target_dir, fname))
                 return True, newbookfile
             return False, "Failed to find a valid ebook in [%s]" % target_dir
@@ -2125,51 +2118,25 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
         for fname in listdir(pp_path):
-            ufname = makeUnicode(fname)
-            if bestmatch and is_valid_booktype(ufname, booktype=booktype) and not ufname.endswith(bestmatch):
-                logger.debug("Ignoring %s as not %s" % (ufname, bestmatch))
+            if bestmatch and is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
+                logger.debug("Ignoring %s as not %s" % (fname, bestmatch))
             else:
-                if is_valid_booktype(ufname, booktype=booktype) or \
-                        ((ufname.lower().endswith(".jpg") or ufname.lower().endswith(".opf"))
+                if is_valid_booktype(fname, booktype=booktype) or \
+                        ((fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"))
                          and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
-                    # typ = ''
-                    srcfile = os.path.join(pp_path, ufname)
-                    # logger.debug("pp_path %s[%s]" % (type(pp_path), repr(pp_path)))
-                    # logger.debug("fname %s[%s]" % (type(fname), repr(fname)))
-                    # logger.debug("ufname %s[%s]" % (type(ufname), repr(ufname)))
-                    # logger.debug("srcfile %s[%s]" % (type(srcfile), repr(srcfile)))
+                    srcfile = os.path.join(pp_path, fname)
                     if booktype in ['audiobook', 'comic']:
-                        destfile = os.path.join(udest_path, ufname)  # don't rename, just copy it
+                        destfile = os.path.join(udest_path, fname)  # don't rename, just copy it
                     else:
-                        destfile = os.path.join(udest_path, makeUnicode(global_name) + os.path.splitext(ufname)[1])
+                        destfile = os.path.join(udest_path, makeUnicode(global_name) + os.path.splitext(fname)[1])
                     try:
-                        # if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                        #     typ = 'copy'
-                        logger.debug('Copying %s to directory %s' % (ufname, udest_path))
+                        logger.debug('Copying %s to directory %s' % (fname, udest_path))
                         destfile = safe_copy(srcfile, destfile)
-                        # else:
-                        #     typ = 'move'
-                        #     logger.debug('Moving %s to directory %s' % (ufname, udest_path))
-                        #     destfile = safe_move(srcfile, destfile)
                         setperm(destfile)
                         if is_valid_booktype(makeUnicode(destfile), booktype=booktype):
                             newbookfile = destfile
                     except Exception as why:
                         # extra debugging to see if we can figure out a windows encoding issue
-                        newsrc = os.path.join(makeBytestr(pp_path), fname)
-                        for enc in ['utf-8', 'latin-1', 'CP850', 'iso-8859-15']:
-                            try:
-                                acc = os.access(newsrc.decode(enc), os.R_OK)
-                                if acc:
-                                    logger.error("%s is readable" % enc)
-                                else:
-                                    logger.error("%s is not readable" % enc)
-                            except Exception as e:
-                                logger.error("%s: %s" % (enc, str(e)))
-                        if not os.access(srcfile, os.R_OK):
-                            logger.error("Sourcefile [%s] is not readable" % repr(srcfile))
-                        if not os.access(srcfile, os.W_OK):
-                            logger.error("Sourcefile [%s] is not writeable" % repr(srcfile))
                         parent = os.path.dirname(destfile)
                         try:
                             with open(os.path.join(parent, 'll_temp'), 'w') as f:
@@ -2180,7 +2147,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
                                                                                type(why).__name__, str(why))
                 else:
-                    logger.debug('Ignoring unwanted file: %s' % ufname)
+                    logger.debug('Ignoring unwanted file: %s' % fname)
 
         # for ebooks, prefer the first book_type found in ebook_type list
         if booktype == 'ebook':
@@ -2200,10 +2167,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if tokmatch:
                     break
                 for f in listdir(dest_path):
-                    uf = makeUnicode(f)
-                    if is_valid_booktype(uf, booktype='audiobook') and token in uf:
-                        firstfile = os.path.join(dest_path, f)
-                        logger.debug("Link to first part [%s], %s" % (token, uf))
+                    if is_valid_booktype(f, booktype='audiobook') and token in f:
+                        firstfile = os.path.join(udest_path, f)
+                        logger.debug("Link to first part [%s], %s" % (token, f))
                         tokmatch = token
                         break
         if firstfile:
@@ -2226,7 +2192,6 @@ def processAutoAdd(src_path=None, booktype='book'):
     # Now try and copy all the book files into a single dir.
     try:
         names = listdir(src_path)
-        names = [makeUnicode(item) for item in names]
         # files jpg, opf & book(s) should have same name
         # Caution - book may be pdf, mobi, epub or all 3.
         # for now simply copy all files, and let the autoadder sort it out

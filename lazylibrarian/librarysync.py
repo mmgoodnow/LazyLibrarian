@@ -627,18 +627,15 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             for directory in dirnames:
                 # prevent magazine being scanned
                 c = directory[0]
-                ignorefile = b'.ll_ignore'
-                if c in [b"_", b"."]:
+                ignorefile = '.ll_ignore'
+                if c in ["_", "."]:
                     logger.debug('Skipping %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)
                     # ignore directories containing this special file
                 elif os.path.exists(os.path.join(rootdir, directory, ignorefile)):
                     logger.debug('Found .ll_ignore file in %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)
-
-            rootdir = makeUnicode(rootdir)
-            filenames = [makeUnicode(item) for item in filenames]
-            subdirectory = rootdir.replace(startdir, '')
+            subdirectory = rootdir.replace(makeUnicode(startdir), '')
 
             for files in filenames:
                 file_count += 1
@@ -1083,7 +1080,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 if tokmatch:
                                                     break
                                                 for e in listdir(rootdir):
-                                                    e = makeUnicode(e)
                                                     if is_valid_booktype(e, booktype='audiobook') and token in e:
                                                         book_filename = os.path.join(rootdir, e)
                                                         logger.debug("Librarysync link to preferred part %s: %s" %

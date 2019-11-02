@@ -15,15 +15,15 @@ import datetime
 import os
 import traceback
 import uuid
+from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
-from lazylibrarian.formatter import is_valid_booktype, plural, makeUnicode, check_int, now
 from lazylibrarian.common import walk, setperm
+from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now
 from lazylibrarian.images import createMagCover
 from lib.six import PY2
-from shutil import copyfile
 
 
 def comicScan(comicid=None):
@@ -92,8 +92,6 @@ def comicScan(comicid=None):
         logger.info(' Checking [%s] for comics' % mag_path)
 
         for rootdir, _, filenames in walk(mag_path):
-            rootdir = makeUnicode(rootdir)
-            filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:
                 if is_valid_booktype(fname, booktype='comic'):
                     issue = ''

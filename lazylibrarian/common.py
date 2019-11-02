@@ -115,7 +115,7 @@ def multibook(foldername, recurse=False):
 
     if recurse:
         for _, _, f in walk(foldername):
-            flist = [makeUnicode(item) for item in f]
+            flist = [item for item in f]
             for item in filetypes:
                 counter = 0
                 for fname in flist:
@@ -125,7 +125,6 @@ def multibook(foldername, recurse=False):
                             return item
     else:
         flist = listdir(foldername)
-        flist = [makeUnicode(item) for item in flist]
         for item in filetypes:
             counter = 0
             for fname in flist:
@@ -138,26 +137,33 @@ def multibook(foldername, recurse=False):
 
 def listdir(name):
     """
-    listdir ensuring bytestring so we get bytestring returned,
-    and adding path requirements for windows
+    listdir ensuring bytestring for unix
+    so we don't baulk if filename doesn't fit utf-8 on return
+    and ensuring utf-8 and adding path requirements for windows
+    All returns are unicode
     """
     if os.path.__name__ == 'ntpath':
         name = syspath(name)
         if not name.endswith('\\'):
             name = name + '\\'
-    return os.listdir(makeBytestr(name))
+        return os.listdir(name)
+    return [makeUnicode(item) for item in os.listdir(makeBytestr(name))]
 
 
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """
-    duplicate of os.walk, except we do a forced decode to bytestring after listdir
+    duplicate of os.walk, except for unix we use bytestrings for listdir
+    return top, dirs, nondirs as unicode
     """
     islink, join, isdir = os.path.islink, os.path.join, os.path.isdir
 
     try:
-        top = makeBytestr(top)
-        names = listdir(top)
-        names = [makeBytestr(name) for name in names]
+        top = makeUnicode(top)
+        if os.path.__name__ != 'ntpath':
+            names = os.listdir(makeBytestr(top))
+            names = [makeUnicode(name) for name in names]
+        else:
+            names = os.listdir(top)
     except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
         if onerror is not None:
             onerror(err)
@@ -420,7 +426,6 @@ def any_file(search_dir=None, extn=None):
         return ""
     if os.path.isdir(search_dir):
         for fname in listdir(search_dir):
-            fname = makeUnicode(fname)
             if fname.endswith(extn):
                 return os.path.join(search_dir, fname)
     return ""
@@ -434,7 +439,6 @@ def opf_file(search_dir=None):
     meta = ''
     if os.path.isdir(search_dir):
         for fname in listdir(search_dir):
-            fname = makeUnicode(fname)
             if fname.endswith('.opf'):
                 if fname == 'metadata.opf':
                     meta = os.path.join(search_dir, fname)
@@ -461,7 +465,6 @@ def csv_file(search_dir=None, library=None):
     if search_dir and os.path.isdir(search_dir):
         try:
             for fname in listdir(search_dir):
-                fname = makeUnicode(fname)
                 if fname.endswith('.csv'):
                     if not library or library in fname:
                         return os.path.join(search_dir, fname)
@@ -485,9 +488,9 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             # noinspection PyBroadException
             try:
                 for r, _, f in walk(search_dir):
-                    # our walk returns bytestrings
+                    # our walk returns unicode
                     for item in f:
-                        if is_valid_booktype(makeUnicode(item), booktype=booktype):
+                        if is_valid_booktype(item, booktype=booktype):
                             return os.path.join(r, item)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
@@ -495,7 +498,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             # noinspection PyBroadException
             try:
                 for fname in listdir(search_dir):
-                    if is_valid_booktype(makeUnicode(fname), booktype=booktype):
+                    if is_valid_booktype(fname, booktype=booktype):
                         return os.path.join(makeBytestr(search_dir), fname)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
@@ -943,6 +946,7 @@ def aaUpdate(refresh=False):
 
 
 def restartJobs(start='Restart'):
+    lazylibrarian.NONEWJOBS = start == 'Stop'
     for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'seriesUpdate',
                  'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads',
                  'cleanCache']:
@@ -950,6 +954,7 @@ def restartJobs(start='Restart'):
 
 
 def ensureRunning(jobname):
+    lazylibrarian.NONEWJOBS = False
     found = False
     for job in lazylibrarian.SCHED.get_jobs():
         if jobname in str(job):
@@ -968,6 +973,7 @@ def checkRunningJobs():
     # and cancels itself once everything is processed so should be ok
     # but check anyway for completeness...
 
+    lazylibrarian.NONEWJOBS = False
     myDB = database.DBConnection()
     snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
     seeding = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Seeding'")
@@ -1492,8 +1498,6 @@ def zipAudio(source, zipname):
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
             for rootdir, _, filenames in walk(source):
-                rootdir = makeUnicode(rootdir)
-                filenames = [makeUnicode(item) for item in filenames]
                 for filename in filenames:
                     # don't include self or our special index file
                     if not filename.endswith('.zip') and not filename.endswith('.ll'):

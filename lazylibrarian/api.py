@@ -36,8 +36,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
     logHeader, authorUpdate, showStats, seriesUpdate, listdir
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
-from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, makeUnicode, \
-    replace_all
+from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, replace_all
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
@@ -711,7 +710,6 @@ class Api(object):
         cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
         if os.path.isdir(cache):
             for cached_file in listdir(cache):
-                cached_file = makeUnicode(cached_file)
                 target = os.path.join(cache, cached_file)
                 if os.path.isfile(target):
                     if os.path.getsize(target) < 500 and '.' in cached_file:

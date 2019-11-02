@@ -19,13 +19,12 @@ from hashlib import sha1
 from shutil import copyfile
 
 import lazylibrarian
-from lib.six import PY2
-
 from lazylibrarian import database, logger
 from lazylibrarian.common import safe_move, walk, make_dirs, setperm
-from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeUnicode, makeBytestr, \
+from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeBytestr, \
     replace_all, check_year
 from lazylibrarian.images import createMagCover
+from lib.six import PY2
 
 
 def create_id(issuename=None):
@@ -118,8 +117,6 @@ def magazineScan(title=None):
         pattern = re.compile(match, re.VERBOSE | re.IGNORECASE)
 
         for rootdir, _, filenames in walk(mag_path):
-            rootdir = makeUnicode(rootdir)
-            filenames = [makeUnicode(item) for item in filenames]
             for fname in filenames:
                 # maybe not all magazines will be pdf?
                 if is_valid_booktype(fname, booktype='mag'):

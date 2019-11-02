@@ -120,6 +120,7 @@ GC_BEFORE = {}
 GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
+NONEWJOBS = False
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -797,8 +798,8 @@ def initialize():
                             logger.error('Could not create %s: %s' % (cachelocation, e))
             for itm in listdir(pth):
                 if len(itm) > 2:
-                    os.rename(os.path.join(makeBytestr(pth), itm),
-                              os.path.join(makeBytestr(pth), itm[0], itm[1], itm))
+                    os.rename(os.path.join(pth, itm),
+                              os.path.join(pth, itm[0], itm[1], itm))
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either

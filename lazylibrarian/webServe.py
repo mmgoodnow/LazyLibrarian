@@ -33,7 +33,7 @@ from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
 from lazylibrarian.bookrename import nameVars
-from lazylibrarian.bookwork import setSeries, deleteEmptySeries, addSeriesMembers
+from lazylibrarian.bookwork import setSeries, deleteEmptySeries, addSeriesMembers, NEW_WHATWORK
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
@@ -107,7 +107,7 @@ def serve_template(templatename, **kwargs):
             res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
         else:
             cnt = myDB.match("select count(*) as counter from users")
-            if cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
+            if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
                     templatename not in ["register.html", "response.html", "opds.html"]:
                 res = myDB.match('SELECT UserName,Perms,UserID from users')
                 cherrypy.response.cookie['ll_uid'] = res['UserID']
@@ -1866,7 +1866,7 @@ class WebInterface(object):
                     cmd += ' and books.bookID in (' + ', '.join(ToRead) + ')'
                 elif kwargs['whichStatus'] == 'Read':
                     cmd += ' and books.bookID in (' + ', '.join(HaveRead) + ')'
-                else:
+                elif kwargs['whichStatus'] != 'All':
                     cmd += " and " + status_type + "='" + kwargs['whichStatus'] + "'"
 
             elif kwargs['source'] == "Books":
@@ -2291,7 +2291,6 @@ class WebInterface(object):
                 if basefile and os.path.isfile(basefile):
                     parentdir = os.path.dirname(basefile)
                     for _, _, filenames in walk(parentdir):
-                        filenames = [makeUnicode(item) for item in filenames]
                         for filename in filenames:
                             if is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
@@ -2635,8 +2634,11 @@ class WebInterface(object):
         seriesdict = myDB.select(cmd, (bookid,))
         if bookdata:
             covers = []
-            for source in ['current', 'cover', 'goodreads', 'librarything', 'whatwork',
-                           'openlibrary', 'googleisbn', 'googleimage']:
+            sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
+                       'googleisbn', 'googleimage']
+            if NEW_WHATWORK:
+                sources.append('whatwork')
+            for source in sources:
                 cover, _ = getBookCover(bookid, source)
                 if cover:
                     covers.append([source, cover])

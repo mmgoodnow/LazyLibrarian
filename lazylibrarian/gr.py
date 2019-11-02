@@ -116,7 +116,7 @@ class GoodReads:
 
                         try:
                             bookimg = author.find('./best_book/image_url').text
-                            if bookimg == 'https://www.goodreads.com/assets/nocover/111x148.png':
+                            if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
                                 bookimg = 'images/nocover.png'
                         except (KeyError, AttributeError):
                             bookimg = 'images/nocover.png'
@@ -468,7 +468,7 @@ class GoodReads:
                             rejected = 'chars', 'Bad characters in bookname'
 
                         if not rejected:
-                            if not bookimg or 'nocover' in bookimg:
+                            if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
                                 bookimg = 'images/nocover.png'
 
                             if isbn13:
@@ -1178,7 +1178,7 @@ class GoodReads:
 
         try:
             bookimg = rootxml.find('./book/img_url').text
-            if 'assets/nocover' in bookimg:
+            if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
                 bookimg = 'images/nocover.png'
         except (KeyError, AttributeError):
             bookimg = 'images/nocover.png'

@@ -25,7 +25,7 @@ from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import getUserAgent, proxyList, listdir
-from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, makeUnicode, seconds_to_midnight, plural
+from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, seconds_to_midnight, plural
 
 
 def gr_api_sleep():
@@ -333,7 +333,6 @@ def cleanCache():
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 for cached_file in listdir(os.path.join(cache, i, j)):
-                    cached_file = makeUnicode(cached_file)
                     target = os.path.join(cache, i, j, cached_file)
                     cache_modified_time = os.stat(target).st_mtime
                     time_now = time.time()
@@ -354,7 +353,6 @@ def cleanCache():
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 for cached_file in listdir(os.path.join(cache, i, j)):
-                    cached_file = makeUnicode(cached_file)
                     target = os.path.join(cache, i, j, cached_file)
                     cache_modified_time = os.stat(target).st_mtime
                     time_now = time.time()
@@ -375,7 +373,6 @@ def cleanCache():
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 for cached_file in listdir(os.path.join(cache, i, j)):
-                    cached_file = makeUnicode(cached_file)
                     target = os.path.join(cache, i, j, cached_file)
                     try:
                         bookid = cached_file.split('.')[0]
@@ -398,7 +395,6 @@ def cleanCache():
     kept = 0
     if os.path.isdir(cache):
         for cached_file in listdir(cache):
-            cached_file = makeUnicode(cached_file)
             target = os.path.join(cache, cached_file)
             try:
                 seriesid = cached_file.split('.')[0]
@@ -421,7 +417,6 @@ def cleanCache():
     kept = 0
     if os.path.isdir(cache):
         for cached_file in listdir(cache):
-            cached_file = makeUnicode(cached_file)
             item = myDB.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
             if not item:
                 target = os.path.join(cache, cached_file)
@@ -439,7 +434,6 @@ def cleanCache():
     cachedir = os.path.join(cache, 'author')
     if os.path.isdir(cachedir):
         for cached_file in listdir(cachedir):
-            cached_file = makeUnicode(cached_file)
             target = os.path.join(cachedir, cached_file)
             if os.path.isfile(target):
                 item = myDB.match('select * from authors where AuthorImg=?', ('cache/author/%s' % cached_file,))
@@ -452,7 +446,6 @@ def cleanCache():
     cachedir = os.path.join(cache, 'book')
     if os.path.isdir(cachedir):
         for cached_file in listdir(cachedir):
-            cached_file = makeUnicode(cached_file)
             target = os.path.join(cachedir, cached_file)
             if os.path.isfile(target):
                 item = myDB.match('select * from books where BookImg=?', ('cache/book/%s' % cached_file,))
@@ -466,7 +459,6 @@ def cleanCache():
     # at this point there should be no more .jpg files in the root of the cachedir
     # any that are still there are for books/authors deleted from database
     for cached_file in listdir(cache):
-        cached_file = makeUnicode(cached_file)
         if cached_file.endswith('.jpg'):
             os.remove(os.path.join(cache, cached_file))
             cleaned += 1

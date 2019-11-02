@@ -983,7 +983,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
 
     host = provider['HOST']
     api_key = provider['API']
-    logger.debug('[NewzNabPlus] searchType [%s] with Host [%s] mode [%s] using api [%s] for item [%s]' % (
+    logger.debug('SearchType [%s] with Host [%s] mode [%s] using api [%s] for item [%s]' % (
         searchType, host, searchMode, api_key, str(book)))
 
     results = []
@@ -1000,7 +1000,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
         sterm = makeUnicode(book['searchterm'])
 
         rootxml = None
-        logger.debug("[NewzNabPlus] URL = %s" % URL)
+        logger.debug("URL = %s" % URL)
         result, success = fetchURL(URL, raw=True)
 
         if test:
@@ -1172,9 +1172,9 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
                 "extended": provider['EXTENDED'],
             }
     if params:
-        logger.debug('[NewzNabPlus] - %s Search parameters set to %s' % (searchMode, str(params)))
+        logger.debug('%s Search parameters set to %s' % (searchMode, str(params)))
     else:
-        logger.debug('[NewzNabPlus] - %s No matching search parameters for %s' % (searchMode, searchType))
+        logger.debug('%s No matching search parameters for %s' % (searchMode, searchType))
 
     return params
 
@@ -1323,5 +1323,5 @@ def ReturnResultsFieldsBySearchType(book=None, nzbdetails=None, host=None, searc
     if seeders is not None:  # only if torznab
         resultFields['seeders'] = check_int(seeders, 0)
 
-    logger.debug('[NewzNabPlus] - result fields from NZB are ' + str(resultFields))
+    logger.debug('Result fields from NZB are ' + str(resultFields))
     return resultFields

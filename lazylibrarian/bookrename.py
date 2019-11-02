@@ -139,7 +139,6 @@ def audioProcess(bookid, rename=False, playlist=False):
     audio_file = ''
     abridged = ''
     for f in listdir(r):
-        f = makeUnicode(f)
         if is_valid_booktype(f, booktype='audiobook'):
             cnt += 1
             audio_file = f
@@ -413,7 +412,6 @@ def bookRename(bookid):
     if book_basename != new_basename:
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
         for fname in listdir(dest_path):
-            fname = makeUnicode(fname)
             extn = ''
             if is_valid_booktype(fname, booktype='ebook'):
                 extn = os.path.splitext(fname)[1]
