@@ -380,7 +380,7 @@ def librarything_wait():
 # Feb 2018 librarything have disabled "whatwork"
 # might only be temporary, but for now disable looking for new workpages
 # and do not expire cached ones
-ALLOW_NEW = False
+NEW_WHATWORK = False
 LAST_NEW = 0
 
 
@@ -388,7 +388,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
     """ return the contents of the LibraryThing workpage for the given bookid, or seriespage if seriesID given
         preferably from the cache. If not already cached cache the results
         Return None if no workpage/seriespage available """
-    global ALLOW_NEW, LAST_NEW
+    global NEW_WHATWORK, LAST_NEW
     if not bookID and not seriesID:
         logger.error("getBookWork - No bookID or seriesID")
         return None
@@ -419,7 +419,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                 expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
-                    if ALLOW_NEW:
+                    if NEW_WHATWORK:
                         os.remove(workfile)
 
         if os.path.isfile(workfile):
@@ -443,7 +443,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
             return source
         else:
             lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-            if not ALLOW_NEW:
+            if not NEW_WHATWORK:
                 # don't nag. Show message no more than every 12 hrs
                 timenow = int(time.time())
                 if check_int(LAST_NEW, 0) + 43200 < timenow:
