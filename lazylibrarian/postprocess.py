@@ -1,3 +1,4 @@
+
 #  This file is part of Lazylibrarian.
 #
 #  Lazylibrarian is free software':'you can redistribute it and/or modify
@@ -943,14 +944,14 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
                                     to_delete = False
 
-                        if to_delete or pp_path.endswith(b'.unpack'):
+                        if to_delete or pp_path.endswith('.unpack'):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
                             # always delete files we unpacked from an archive
                             if lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
                             if pp_path == download_dir:
                                 to_delete = False
-                            if pp_path.endswith(b'.unpack'):
+                            if pp_path.endswith('.unpack'):
                                 to_delete = True
                             if to_delete:
                                 if os.path.isdir(pp_path):
@@ -995,14 +996,14 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
                         # at this point, as it failed we should move it or it will get postprocessed
                         # again (and fail again)
-                        if os.path.isdir(pp_path + b'.fail'):
+                        if os.path.isdir(pp_path + '.fail'):
                             try:
-                                shutil.rmtree(pp_path + b'.fail')
+                                shutil.rmtree(pp_path + '.fail')
                             except Exception as why:
                                 logger.warn("Unable to remove %s, %s %s" %
-                                            (pp_path + b'.fail', type(why).__name__, str(why)))
+                                            (pp_path + '.fail', type(why).__name__, str(why)))
                         try:
-                            _ = safe_move(pp_path, pp_path + b'.fail')
+                            _ = safe_move(pp_path, pp_path + '.fail')
                             logger.warn('Residual files remain in %s.fail' % pp_path)
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
@@ -1015,9 +1016,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                 logger.error("%s is not executable" % repr(pp_path))
                             parent = os.path.dirname(pp_path)
                             try:
-                                with open(os.path.join(parent, b'll_temp'), 'w') as f:
+                                with open(os.path.join(parent, 'll_temp'), 'w') as f:
                                     f.write('test')
-                                os.remove(os.path.join(parent, b'll_temp'))
+                                os.remove(os.path.join(parent, 'll_temp'))
                             except Exception as why:
                                 logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                             logger.warn('Residual files remain in %s' % pp_path)
