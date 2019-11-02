@@ -1030,7 +1030,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         # Now check for any that are still marked snatched, seeding, or any aborted...
         cmd = 'SELECT * from wanted WHERE Status="Snatched" or Status="Aborted" or Status="Seeding"'
         snatched = myDB.select(cmd)
-        logger.info("Found %s unprocessed")
+        logger.info("Found %s unprocessed" % len(snatched))
         for book in snatched:
             book_type = bookType(book)
             abort = False

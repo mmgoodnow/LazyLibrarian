@@ -49,6 +49,10 @@ class Apprise_Notifier:
             logger.warn("Apprise notifier is not initialised")
             return False
 
+        if len(apobj) == 0:
+            logger.debug("Apprise notifier has no services set")
+            return False
+
         title = "LazyLibrarian"
 
         logger.debug("Apprise: event: " + event)

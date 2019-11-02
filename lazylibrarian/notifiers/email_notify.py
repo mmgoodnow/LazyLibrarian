@@ -36,7 +36,6 @@ class EmailNotifier:
 
     @staticmethod
     def _notify(message, event, force=False, files=None, to_addr=None):
-        logger.debug("to_addr=%s" % to_addr)
         # suppress notifications if the notifier is disabled but the notify options are checked
         if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
             return False
