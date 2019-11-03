@@ -333,6 +333,11 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
             update_totals(authorid)
 
+            if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
+                msg = "[%s] Author update aborted, status %s" % (authorname, entry_status)
+                logger.debug(msg)
+                return msg
+
             if new_author and lazylibrarian.CONFIG['GR_FOLLOWNEW']:
                 res = grfollow(authorid, True)
                 if res.startswith('Unable'):

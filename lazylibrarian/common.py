@@ -883,8 +883,9 @@ def authorUpdate(restart=True):
             else:
                 logger.info('Starting update for %s' % name)
                 lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=ident, reason="authorUpdate %s" % name)
+                if lazylibrarian.STOPTHREADS:
+                    return ''
                 msg = 'Updated author %s' % name
-
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
             if restart:
                 scheduleJob("Restart", "authorUpdate")
@@ -914,7 +915,7 @@ def seriesUpdate(restart=True):
             logger.debug(msg)
 
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
-            if restart:
+            if restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "seriesUpdate")
             return msg
         return ''
@@ -946,7 +947,7 @@ def aaUpdate(refresh=False):
 
 
 def restartJobs(start='Restart'):
-    lazylibrarian.NONEWJOBS = start == 'Stop'
+    lazylibrarian.STOPTHREADS = start == 'Stop'
     for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'seriesUpdate',
                  'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads',
                  'cleanCache']:
@@ -954,7 +955,7 @@ def restartJobs(start='Restart'):
 
 
 def ensureRunning(jobname):
-    lazylibrarian.NONEWJOBS = False
+    lazylibrarian.STOPTHREADS = False
     found = False
     for job in lazylibrarian.SCHED.get_jobs():
         if jobname in str(job):
@@ -973,7 +974,7 @@ def checkRunningJobs():
     # and cancels itself once everything is processed so should be ok
     # but check anyway for completeness...
 
-    lazylibrarian.NONEWJOBS = False
+    lazylibrarian.STOPTHREADS = False
     myDB = database.DBConnection()
     snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
     seeding = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Seeding'")

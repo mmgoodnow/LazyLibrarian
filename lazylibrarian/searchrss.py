@@ -60,6 +60,10 @@ def search_wishlist():
             # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
             # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
             # eg NYTimes wishlist
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHWISHLIST":
+                logger.debug("Aborting %s" % threadname)
+                break
+
             if 'E' in book['types']:
                 ebook_status = "Wanted"
             else:
@@ -289,6 +293,10 @@ def search_rss_book(books=None, library=None):
 
         searchlist = []
         for searchbook in searchbooks:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLRSS":
+                logger.debug("Aborting %s" % threadname)
+                break
+
             # searchterm is only used for display purposes
             searchterm = searchbook['AuthorName'] + ' ' + searchbook['BookName']
             if searchbook['BookSub']:
@@ -328,6 +336,9 @@ def search_rss_book(books=None, library=None):
 
         rss_count = 0
         for book in searchlist:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLRSS":
+                logger.debug("Aborting %s" % threadname)
+                break
             if book['library'] == 'AudioBook':
                 searchtype = 'audio'
             else:

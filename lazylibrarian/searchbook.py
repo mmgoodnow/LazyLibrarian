@@ -85,6 +85,7 @@ def search_book(books=None, library=None):
         if "Thread-" in threadname:
             if not books:
                 threading.currentThread().name = "SEARCHALLBOOKS"
+                threadname = "SEARCHALLBOOKS"
             else:
                 threading.currentThread().name = "SEARCHBOOKS"
 
@@ -139,6 +140,10 @@ def search_book(books=None, library=None):
                                                            plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
 
         for searchbook in searchbooks:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":
+                logger.debug("Aborting %s" % threadname)
+                break
+
             # searchterm is only used for display purposes
             searchterm = ''
             if searchbook['AuthorName']:
@@ -199,6 +204,9 @@ def search_book(books=None, library=None):
 
         book_count = 0
         for book in searchlist:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":
+                logger.debug("Aborting %s" % threadname)
+                break
             do_search = True
             if lazylibrarian.CONFIG['DELAYSEARCH'] and not force:
                 res = myDB.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',

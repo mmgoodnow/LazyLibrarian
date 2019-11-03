@@ -281,8 +281,11 @@ class GoogleBooks:
             myDB.upsert("authors", newValueDict, controlValueDict)
 
             try:
+                threadname = threading.currentThread().name
                 while startindex < number_results:
-
+                    if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
+                        logger.debug("Aborting %s" % threadname)
+                        break
                     self.params['startIndex'] = startindex
                     URL = set_url + '&' + urlencode(self.params)
 
@@ -308,7 +311,9 @@ class GoogleBooks:
                     startindex += 40
 
                     for item in jsonresults['items']:
-
+                        if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
+                            logger.debug("Aborting %s" % threadname)
+                            break
                         total_count += 1
                         book = googleBookDict(item)
                         # skip if no author, no author is no book.

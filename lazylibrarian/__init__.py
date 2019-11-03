@@ -120,7 +120,7 @@ GC_BEFORE = {}
 GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
-NONEWJOBS = False
+STOPTHREADS = False
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching

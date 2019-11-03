@@ -428,7 +428,10 @@ def unpack_archive(archivename, download_dir, title):
 
 
 def cron_processDir():
-    if 'POSTPROCESS' not in [n.name for n in [t for t in threading.enumerate()]]:
+    if lazylibrarian.STOPTHREADS:
+        logger.debug("STOPTHREADS is set, not starting postprocessor")
+        scheduleJob(action='Stop', target='PostProcessor')
+    else:
         processDir()
 
 
@@ -453,10 +456,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         count -= 1
     if count:
         logger.debug("POSTPROCESS is already running")
-        return
-
-    if lazylibrarian.NONEWJOBS:
-        logger.debug("No new jobs is set, aborting")
         return
 
     threading.currentThread().name = "POSTPROCESS"
@@ -1028,7 +1027,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         logger.info('%s download%s processed.' % (ppcount, plural(ppcount)))
 
         # Now check for any that are still marked snatched, seeding, or any aborted...
-        cmd = 'SELECT * from wanted WHERE Status="Snatched" or Status="Aborted" or Status="Seeding"'
+        cmd = 'SELECT * from wanted WHERE Status IN ("Snatched", "Aborted", "Seeding")'
         snatched = myDB.select(cmd)
         logger.info("Found %s unprocessed" % len(snatched))
         for book in snatched:
@@ -1123,7 +1122,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         myDB.action(q, (book['NZBurl'],))
 
                     delete_task(book['Source'], book['DownloadID'], True)
-            else:
+            elif mins:
                 if book['Source']:
                     logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'], mins))
                 else:
@@ -1131,7 +1130,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
-        snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched" or Status="Seeding"')
+        snatched = myDB.select('SELECT * from wanted WHERE Status IN ("Snatched", "Seeding")')
         if len(snatched) == 0:
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             scheduleJob(action='Stop', target='PostProcessor')

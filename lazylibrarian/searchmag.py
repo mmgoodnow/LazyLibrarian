@@ -42,6 +42,7 @@ def search_magazines(mags=None, reset=False):
         if "Thread-" in threadname:
             if not mags:
                 threading.currentThread().name = "SEARCHALLMAG"
+                threadname = "SEARCHALLMAG"
             else:
                 threading.currentThread().name = "SEARCHMAG"
 
@@ -62,12 +63,6 @@ def search_magazines(mags=None, reset=False):
         if len(searchmags) == 0:
             threading.currentThread().name = "WEBSERVER"
             return
-
-        # should clear old search results as might not be available any more
-        # ie torrent not available, changed providers, out of news server retention etc.
-        # Only delete the "skipped" ones, not wanted/snatched/processed/ignored
-        # logger.debug("Removing old magazine search results")
-        # myDB.action('DELETE from pastissues WHERE Status="Skipped"')
 
         logger.info('Searching for %i magazine%s' % (len(searchmags), plural(len(searchmags))))
 
@@ -94,6 +89,9 @@ def search_magazines(mags=None, reset=False):
             logger.warn('There is nothing to search for.  Mark some magazines as active.')
 
         for book in searchlist:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLMAG":
+                logger.debug("Aborting %s" % threadname)
+                break
 
             resultlist = []
 

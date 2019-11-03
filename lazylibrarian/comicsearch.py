@@ -211,6 +211,9 @@ def search_comics(comicid=None):
             logger.debug("Found %s active comics" % len(comics))
 
         for comic in comics:
+            if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLCOMICS":
+                logger.debug("Aborting %s" % threadname)
+                break
             comicid = comic['ComicID']
             aka = getList(comic['aka'])
             id_list = comicid

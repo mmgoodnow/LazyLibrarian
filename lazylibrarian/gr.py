@@ -428,9 +428,15 @@ class GoodReads:
                 authorNameResult = ' '.join(authorNameResult.split())
                 logger.debug("GoodReads author name [%s]" % authorNameResult)
                 loopCount = 1
-
+                threadname = threading.currentThread().name
                 while resultxml:
+                    if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
+                        logger.debug("Aborting %s" % threadname)
+                        break
                     for book in resultxml:
+                        if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
+                            logger.debug("Aborting %s" % threadname)
+                            break
                         total_count += 1
                         rejected = None
                         booksub = ''
