@@ -656,44 +656,40 @@ def addSeriesMembers(seriesid):
             bookid = member[8]
             book = myDB.match("select * from books where bookid=?", (bookid,))
             if not book:
-                # try to import with default newbook/newauthor statuses
+                # new additionn to series, try to import with default newbook/newauthor statuses
                 lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason="Series: %s" % seriesname)
-                book = myDB.match("select * from books where bookid=?", (bookid,))
-            if book:
-                logger.debug("Status=%s, AudioStatus=%s, Series=%s" % (book['Status'], book['AudioStatus'],
-                                                                       series['Status']))
-                # see if this series status overrides defaults
-                if series['Status'] in ['Paused', 'Ignored', 'Wanted']:
-                    wanted_status = 'Skipped'
-                    if series['Status'] == 'Wanted':
-                        wanted_status = 'Wanted'
-                    if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status and \
-                            book['Status'] not in ['Open', 'Have']:
-                        myDB.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
-                        logger.debug("Series [%s] set status to %s for %s" %
-                                     (seriesname, wanted_status, member[1]))
-                    if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status and \
-                            book['AudioStatus'] not in ['Open', 'Have']:
-                        myDB.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
-                        logger.debug("Series [%s] set audiostatus to %s for %s" %
-                                     (seriesname, wanted_status, member[1]))
-                else:
-                    # see if author status overrides defaults
-                    author = myDB.match('select Status from authors WHERE AuthorID=?', (member[4],))
-                    if author['Status'] in ['Paused', 'Ignored', 'Wanted']:
+                newbook = myDB.match("select * from books where bookid=?", (bookid,))
+                if newbook:
+                    logger.debug("Status=%s, AudioStatus=%s, Series=%s" % (newbook['Status'], newbook['AudioStatus'],
+                                                                           series['Status']))
+                    # see if this series status overrides defaults
+                    if series['Status'] in ['Paused', 'Ignored', 'Wanted']:
                         wanted_status = 'Skipped'
-                        if author['Status'] == 'Wanted':
+                        if series['Status'] == 'Wanted':
                             wanted_status = 'Wanted'
-                        if lazylibrarian.SHOW_EBOOK and book['Status'] != wanted_status and \
-                                book['Status'] not in ['Open', 'Have']:
+                        if lazylibrarian.SHOW_EBOOK and newbook['Status'] != wanted_status:
                             myDB.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
-                            logger.debug("Author %s set status to %s for %s" %
-                                         (member[4], wanted_status, member[1]))
-                        if lazylibrarian.SHOW_AUDIO and book['AudioStatus'] != wanted_status and \
-                                book['AudioStatus'] not in ['Open', 'Have']:
+                            logger.debug("Series [%s] set status to %s for %s" %
+                                         (seriesname, wanted_status, member[1]))
+                        if lazylibrarian.SHOW_AUDIO and newbook['AudioStatus'] != wanted_status:
                             myDB.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
-                            logger.debug("Author %s set audiostatus to %s for %s" %
-                                         (member[4], wanted_status, member[1]))
+                            logger.debug("Series [%s] set audiostatus to %s for %s" %
+                                         (seriesname, wanted_status, member[1]))
+                    else:
+                        # see if author status overrides defaults
+                        author = myDB.match('select Status from authors WHERE AuthorID=?', (member[4],))
+                        if author['Status'] in ['Paused', 'Ignored', 'Wanted']:
+                            wanted_status = 'Skipped'
+                            if author['Status'] == 'Wanted':
+                                wanted_status = 'Wanted'
+                            if lazylibrarian.SHOW_EBOOK and newbook['Status'] != wanted_status:
+                                myDB.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
+                                logger.debug("Author %s set status to %s for %s" %
+                                             (member[4], wanted_status, member[1]))
+                            if lazylibrarian.SHOW_AUDIO and newbook['AudioStatus'] != wanted_status:
+                                myDB.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
+                                logger.debug("Author %s set audiostatus to %s for %s" %
+                                             (member[4], wanted_status, member[1]))
                 count += 1
         myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
         logger.debug("Found %s series member%s, %s new for %s" % (len(members), plural(len(members)),
