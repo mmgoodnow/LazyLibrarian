@@ -481,7 +481,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     # find a book/mag file in this directory (tree), any book will do
     # return full pathname of book/mag as bytes, or empty bytestring if none found
     if booktype is None:
-        return b""
+        return ""
 
     if os.path.isdir(search_dir):
         if recurse:
@@ -499,10 +499,10 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             try:
                 for fname in listdir(search_dir):
                     if is_valid_booktype(fname, booktype=booktype):
-                        return os.path.join(makeBytestr(search_dir), fname)
+                        return os.path.join(makeUnicode(search_dir), fname)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-    return b""
+    return ""
 
 
 def mimeType(filename):

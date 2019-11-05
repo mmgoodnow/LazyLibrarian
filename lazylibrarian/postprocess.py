@@ -125,7 +125,7 @@ def processAlternate(source_dir=None, library='eBook'):
 
             # see if there is a metadata file in this folder with the info we need
             # try book_name.opf first, or fall back to any filename.opf
-            metafile = os.path.splitext(new_book)[0] + b'.opf'
+            metafile = os.path.splitext(new_book)[0] + '.opf'
             if not os.path.isfile(metafile):
                 metafile = opf_file(source_dir)
             if metafile and os.path.isfile(metafile):
@@ -139,7 +139,7 @@ def processAlternate(source_dir=None, library='eBook'):
             if 'title' not in metadata or 'creator' not in metadata:
                 # if not got both, try to get metadata from the book file
                 extn = os.path.splitext(new_book)[1]
-                if extn.lower() in [b".epub", b".mobi"]:
+                if extn.lower() in [".epub", ".mobi"]:
                     if PY2:
                         new_book = makeUTF8bytes(new_book)[0]
                     try:
@@ -1272,23 +1272,12 @@ def check_residual(download_dir):
                 logger.debug("Book with id: %s found in download directory" % bookID)
                 pp_path = os.path.join(download_dir, entry)
                 # At this point we don't know if we want audio or ebook or both since it wasn't snatched
-                is_audio = False
-                is_ebook = False
-                if os.path.isdir(pp_path):
-                    if book_file(pp_path, "audiobook"):
-                        is_audio = True
-                    if book_file(pp_path, "ebook"):
-                        is_ebook = True
+                is_audio = (book_file(pp_path, "audiobook") != '')
+                is_ebook = (book_file(pp_path, "ebook") != '')
                 logger.debug("Contains ebook=%s audio=%s" % (is_ebook, is_audio))
                 data = myDB.match('SELECT BookFile,AudioFile from books WHERE BookID=?', (bookID,))
-                if data and data['BookFile'] and os.path.isfile(data['BookFile']):
-                    have_ebook = True
-                else:
-                    have_ebook = False
-                if data and data['AudioFile'] and os.path.isfile(data['AudioFile']):
-                    have_audio = True
-                else:
-                    have_audio = False
+                have_ebook = (data and data['BookFile'] and os.path.isfile(data['BookFile']))
+                have_audio = (data and data['AudioFile'] and os.path.isfile(data['AudioFile']))
                 logger.debug("Already have ebook=%s audio=%s" % (have_ebook, have_audio))
 
                 if have_ebook and have_audio:
@@ -1684,12 +1673,8 @@ def process_book(pp_path=None, bookID=None):
         # Called from "import_alternate" or if we find a "LL.(xxx)" folder that doesn't match a snatched book/mag
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("process_book %s" % pp_path)
-        is_audio = False
-        is_ebook = False
-        if book_file(pp_path, "audiobook"):
-            is_audio = True
-        if book_file(pp_path, "ebook"):
-            is_ebook = True
+        is_audio = (book_file(pp_path, "audiobook") != '')
+        is_ebook = (book_file(pp_path, "ebook") != '')
 
         myDB = database.DBConnection()
         cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
