@@ -196,6 +196,7 @@ def make_dirs(dest_path):
         return True or False """
 
     to_make = []
+    dest_path = syspath(dest_path)
     while not os.path.isdir(dest_path):
         # noinspection PyUnresolvedReferences
         to_make.insert(0, dest_path)
@@ -816,8 +817,12 @@ def scheduleJob(action='Start', target=None):
                 else:
                     if typ == 'Author' and overdue != 1:
                         pl = 's'
-                    logger.debug("Found %s %s%s from %s overdue update" % (
-                                 overdue, typ, pl, total))
+                    if days == maxage:
+                        due = "due"
+                    else:
+                        due = "overdue"
+                    logger.debug("Found %s %s%s from %s %s update" % (
+                                 overdue, typ, pl, total, due))
                     minutes = maxage * 60 * 24
                     minutes = int(minutes / total)
                     minutes -= 5  # average update time
@@ -876,8 +881,10 @@ def authorUpdate(restart=True):
     try:
         myDB = database.DBConnection()
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-            overdue, _, name, ident, days = is_overdue('Author')
-            if not overdue:
+            overdue, total, name, ident, days = is_overdue('Author')
+            if not total:
+                msg = "There are no monitored authors"
+            elif not overdue:
                 msg = 'Oldest author info (%s) is %s day%s old, no update due' % (name,
                                                                                   days, plural(days))
             else:
@@ -887,7 +894,7 @@ def authorUpdate(restart=True):
                     return ''
                 msg = 'Updated author %s' % name
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
-            if restart:
+            if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "authorUpdate")
             return msg
         return ''
@@ -904,8 +911,10 @@ def seriesUpdate(restart=True):
     try:
         myDB = database.DBConnection()
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-            overdue, _, name, ident, days = is_overdue('Series')
-            if not overdue:
+            overdue, total, name, ident, days = is_overdue('Series')
+            if not total:
+                msg = "There are no monitored series"
+            elif not overdue:
                 msg = 'Oldest series info (%s) is %s day%s old, no update due' % (name,
                                                                                   days, plural(days))
             else:
@@ -915,7 +924,7 @@ def seriesUpdate(restart=True):
             logger.debug(msg)
 
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
-            if restart and not lazylibrarian.STOPTHREADS:
+            if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "seriesUpdate")
             return msg
         return ''
@@ -1184,7 +1193,9 @@ def showJobs():
     if name:
         result.append('Oldest author info (%s) is %s day%s old' % (name, days, plural(days)))
     if not overdue:
-        result.append("There are no authors overdue update")
+        result.append("There are no authors needing update")
+    elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        result.append("Found %s author%s from %s due update" % (overdue, plural(overdue), total))
     else:
         result.append("Found %s author%s from %s overdue update" % (overdue, plural(overdue), total))
 
@@ -1192,7 +1203,9 @@ def showJobs():
     if name:
         result.append('Oldest series info (%s) is %s day%s old' % (name, days, plural(days)))
     if not overdue:
-        result.append("There are no series overdue update")
+        result.append("There are no series needing update")
+    elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        result.append("Found %s series from %s due update" % (overdue, total))
     else:
         result.append("Found %s series from %s overdue update" % (overdue, total))
     return result
