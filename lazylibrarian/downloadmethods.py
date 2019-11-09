@@ -17,7 +17,6 @@ import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
 
-# noinspection PyBroadException
 try:
     import urllib3
     import requests
@@ -40,8 +39,11 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs
-from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode
+from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode, md5_utf8, \
+    seconds_to_midnight
 from lazylibrarian.postprocess import delete_task, check_contents
+from lazylibrarian.providers import BlockProvider
+
 try:
     from deluge_client import DelugeRPCClient
 except ImportError:
@@ -160,10 +162,14 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     logger.debug("Starting Direct Download for [%s]" % dl_title)
     proxies = proxyList()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': getUserAgent()}
-    logger.info(provider)
     if provider == 'zlibrary':  # needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
+        if lazylibrarian.BOK_DLCOUNT >= lazylibrarian.CONFIG['BOK_DLLIMIT']:
+            res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
+            BlockProvider('BOK', res, delay=seconds_to_midnight())
+            return False, res
     try:
+        logger.debug("%s %s" % (provider, str(headers)))
         if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
             r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies,
                              verify=lazylibrarian.CONFIG['SSL_CERTS'])
@@ -189,6 +195,13 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     elif 'application/octet-stream' not in r.headers['Content-Type']:
         res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
         logger.debug(res)
+        if 'text/html' in r.headers['Content-Type']:
+            cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
+            myhash = md5_utf8(dl_url)
+            hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + ".html")
+            with open(hashfilename, "wb") as cachefile:
+                cachefile.write(r.content)
+            logger.debug(hashfilename)
         return False, res
     else:
         extn = ''
@@ -213,6 +226,8 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             basename = dl_title
 
         logger.debug("File download got %s bytes for %s" % (len(r.content), dl_title))
+        if provider == 'zlibrary':
+            lazylibrarian.BOK_DLCOUNT += 1
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
         if not os.path.isdir(destdir):
             _ = make_dirs(destdir)

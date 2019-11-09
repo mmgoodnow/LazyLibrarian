@@ -399,6 +399,7 @@ def ProviderIsBlocked(name):
     # Reset api counters if it's a new day
     if lazylibrarian.NABAPICOUNT != today():
         lazylibrarian.NABAPICOUNT = today()
+        lazylibrarian.BOK_DLCOUNT = 0
         for provider in lazylibrarian.NEWZNAB_PROV:
             provider['APICOUNT'] = 0
         for provider in lazylibrarian.TORZNAB_PROV:
@@ -573,8 +574,12 @@ def IterateOverDirectSites(book=None, searchType=None):
     for prov in ['GEN', 'GEN2', 'BOK']:
         if lazylibrarian.CONFIG[prov]:
             if ProviderIsBlocked(prov):
-                logger.debug('[IterateOverDirectSites] - %s %s is BLOCKED' % (lazylibrarian.CONFIG[prov + '_HOST'],
-                                                                              lazylibrarian.CONFIG[prov + '_SEARCH']))
+                if prov == 'BOK':
+                    logger.debug('[IterateOverDirectSites] - BOK is BLOCKED')
+                else:
+                    logger.debug('[IterateOverDirectSites] - %s %s is BLOCKED' %
+                                 (lazylibrarian.CONFIG[prov + '_HOST'],
+                                  lazylibrarian.CONFIG[prov + '_SEARCH']))
             elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
             elif "audio" in searchType and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:

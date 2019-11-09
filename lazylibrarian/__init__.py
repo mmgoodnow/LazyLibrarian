@@ -94,6 +94,7 @@ CACHEDIR = ''
 NEWZNAB_PROV = []
 TORZNAB_PROV = []
 NABAPICOUNT = ''
+BOK_DLCOUNT = 0
 RSS_PROV = []
 APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
@@ -438,6 +439,7 @@ CONFIG_DEFINITIONS = {
     'BOK_HOST': ('str', 'BOK', 'b-ok.cc'),
     'BOK': ('bool', 'BOK', 0),
     'BOK_DLPRIORITY': ('int', 'BOK', 0),
+    'BOK_DLLIMIT': ('int', 'BOK', 5),
     'BOK_DLTYPES': ('str', 'BOK', 'E'),
     'LIME_HOST': ('str', 'LIME', 'https://www.limetorrents.cc'),
     'LIME': ('bool', 'LIME', 0),
