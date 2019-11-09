@@ -40,7 +40,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk, quotes
+    zipAudio, runScript, walk, quotes, ensureRunning
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -944,6 +944,7 @@ class WebInterface(object):
                             if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
                                 threading.Thread(target=addSeriesMembers, name=threadname,
                                                  args=[seriesid]).start()
+                            ensureRunning('seriesUpdate')
                         else:
                             # stop monitoring
                             myDB.action("UPDATE series SET Updated=0 WHERE SeriesID=?", (seriesid,))
