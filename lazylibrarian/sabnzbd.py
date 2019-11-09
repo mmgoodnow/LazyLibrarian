@@ -66,7 +66,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
     HOST = "%s:%s" % (hostname, port)
 
     if lazylibrarian.CONFIG['SAB_SUBDIR']:
-        HOST = HOST + "/" + lazylibrarian.CONFIG['SAB_SUBDIR']
+        HOST = HOST + "/" + lazylibrarian.CONFIG['SAB_SUBDIR'].strip('/')
 
     params = {}
 
