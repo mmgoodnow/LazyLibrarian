@@ -656,7 +656,7 @@ def addSeriesMembers(seriesid):
             bookid = member[8]
             book = myDB.match("select * from books where bookid=?", (bookid,))
             if not book:
-                # new additionn to series, try to import with default newbook/newauthor statuses
+                # new addition to series, try to import with default newbook/newauthor statuses
                 lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason="Series: %s" % seriesname)
                 newbook = myDB.match("select * from books where bookid=?", (bookid,))
                 if newbook:
