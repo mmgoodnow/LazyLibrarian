@@ -400,7 +400,7 @@ class GoogleBooks:
                             logger.debug('Rejecting bookid %s for %s, no bookname' % (bookid, authorname))
                             rejected = 'name', 'No bookname'
                         else:
-                            bookname = replace_all(unaccented(bookname), {':': '.', '"': '', '\'': ''}).strip()
+                            bookname = replace_all(unaccented(bookname), {':': ' ', '"': '', '\'': ''}).strip()
                             if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
                                 logger.debug("[%s] removed book for bad characters" % bookname)
                                 rejected = 'chars', 'Bad characters in bookname'
@@ -706,6 +706,9 @@ class GoogleBooks:
                     newauthor_status = 'Active'
                     if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
+                    # also set paused if adding author as a series contributor
+                    if reason.startswith('Series:'):
+                        newauthor_status = 'Paused'
                     controlValueDict = {"AuthorID": AuthorID}
                     newValueDict = {
                         "AuthorName": author['authorname'],
@@ -719,7 +722,7 @@ class GoogleBooks:
                     }
                     authorname = author['authorname']
                     myDB.upsert("authors", newValueDict, controlValueDict)
-                    if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']:
+                    if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] and newauthor_status != 'Paused':
                         self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
                                               reason=reason)
         else:

@@ -469,6 +469,7 @@ class GoodReads:
                                          (bookid, authorNameResult))
                             rejected = 'name', 'No bookname'
 
+                        bookname = replace_all(unaccented(bookname), {':': ' ', '"': '', '\'': ''}).strip()
                         if not rejected and re.match(r'[^\w-]', bookname):  # reject books with bad characters in title
                             logger.debug("removed result [" + bookname + "] for bad characters")
                             rejected = 'chars', 'Bad characters in bookname'
@@ -1127,13 +1128,14 @@ class GoodReads:
         if not bookLanguage:
             bookLanguage = "Unknown"
         #
-        # user has said they want this book, don't block for unwanted language, just warn
+        # user has said they want this book, don't block for unwanted language etc
+        # Ignore book if adding as part of a series, else just warn and include it
         #
         valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
         if bookLanguage not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s Language [%s] does not match preference' % (bookname, bookLanguage)
             logger.warn(msg)
-            if "Series:" in reason:
+            if reason.startswith("Series:"):
                 return
 
         if rootxml.find('./book/work/original_publication_year').text is None:
@@ -1164,7 +1166,7 @@ class GoodReads:
             if not bookdate or bookdate == '0000':
                 msg = 'Book %s Publication date [%s] does not match preference' % (bookname, bookdate)
                 logger.warn(msg)
-                if "Series:" in reason:
+                if reason.startswith("Series:"):
                     return
 
         if lazylibrarian.CONFIG['NO_FUTURE']:
@@ -1172,14 +1174,14 @@ class GoodReads:
             if bookdate > today()[:len(bookdate)]:
                 msg = 'Book %s Future publication date [%s] does not match preference' % (bookname, bookdate)
                 logger.warn(msg)
-                if "Series:" in reason:
+                if reason.startswith("Series:"):
                     return
 
         if lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
                 msg = 'Book %s Set or Part'
                 logger.warn(msg)
-                if "Series:" in reason:
+                if reason.startswith("Series:"):
                     return
 
         try:
@@ -1216,6 +1218,9 @@ class GoodReads:
                     newauthor_status = 'Active'
                     if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
+                    # also pause author if adding as a series contributor
+                    if reason.startswith("Series:"):
+                        newauthor_status = 'Paused'
                     controlValueDict = {"AuthorID": AuthorID}
                     newValueDict = {
                         "AuthorName": author['authorname'],
@@ -1230,7 +1235,7 @@ class GoodReads:
                     authorname = author['authorname']
                     myDB.upsert("authors", newValueDict, controlValueDict)
 
-                    if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']:
+                    if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] and newauthor_status != 'Paused':
                         self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
                                               reason=reason)
         else:
