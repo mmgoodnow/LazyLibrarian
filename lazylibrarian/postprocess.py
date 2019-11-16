@@ -239,13 +239,12 @@ def processAlternate(source_dir=None, library='eBook'):
                     if res and res['Status'] == 'Ignored':
                         logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
-                    return process_book(source_dir, bookid)
                 else:
                     res = myDB.match("SELECT AudioStatus from books WHERE BookID=?", (bookid,))
                     if res and res['AudioStatus'] == 'Ignored':
                         logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
-                    return process_book(source_dir, bookid)
+                return process_book(source_dir, bookid, library)
             else:
                 msg = "%s %s by %s not found in database" % (library, bookname, authorname)
                 if not results:
@@ -1666,7 +1665,7 @@ def delete_task(Source, DownloadID, remove_data):
         return False
 
 
-def process_book(pp_path=None, bookID=None):
+def process_book(pp_path=None, bookID=None, library=None):
     # noinspection PyBroadException
     try:
         # Move a book into LL folder structure given just the folder and bookID, returns True or False
@@ -1686,12 +1685,15 @@ def process_book(pp_path=None, bookID=None):
             want_audio = False
             want_ebook = False
             book_type = None
+            if library == 'eBook':
+                want_ebook = True
+            if library == 'Audio':
+                want_audio = True
             for item in was_snatched:
                 if item['AuxInfo'] == 'AudioBook':
                     want_audio = True
                 elif item['AuxInfo'] == 'eBook' or item['AuxInfo'] == '':
                     want_ebook = True
-
             if not is_audio and not is_ebook:
                 logger.debug('Bookid %s, failed to find valid booktype' % bookID)
             elif want_audio and is_audio:
@@ -1702,6 +1704,7 @@ def process_book(pp_path=None, bookID=None):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
                                  (bookID, is_ebook, is_audio))
+
                 if is_audio and not lazylibrarian.SHOW_AUDIO:
                     is_audio = False
                 if is_audio:
