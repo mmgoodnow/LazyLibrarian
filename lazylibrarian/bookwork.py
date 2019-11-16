@@ -137,6 +137,7 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
     myDB = database.DBConnection()
     api_hits = 0
     originalpubdate = ''
+    newserieslist = []
     if bookid:
         # delete any old series-member entries
         myDB.action('DELETE from member WHERE BookID=?', (bookid,))
@@ -158,9 +159,14 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                     res = check_int(cnt['counter'], 0)
                     seriesid = str(res + 1)
                     members = []
-                myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?)',
-                            (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'], 0, 0, 0),
-                            suppress='UNIQUE')
+                if len(members) < 2 and lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
+                    logger.debug("Ignoring unknown single-book-series %s" % item[2])
+                    continue
+                else:
+                    newserieslist.append(item)
+                    myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?)',
+                                (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'],
+                                 0, 0, 0), suppress='UNIQUE')
 
             if not workid or not authorid:
                 book = myDB.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
@@ -195,7 +201,7 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                 return api_hits, originalpubdate
 
         series = ''
-        for item in serieslist:
+        for item in newserieslist:
             newseries = "%s %s" % (item[2], item[1])
             newseries.strip()
             if series and newseries:
@@ -1072,9 +1078,12 @@ def getWorkSeries(bookID=None):
                     seriesname = seriesname.strip('\n').strip('\n').strip()
                     seriesid = item.find('./series/id').text
                     seriesnum = item.find('./user_position').text
+                    seriescount = item.find('./series/series_works_count').text
                 except (KeyError, AttributeError):
                     continue
-                if seriesname and seriesid:
+                if seriescount == '1' and lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
+                    logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
+                elif seriesname and seriesid:
                     seriesname = cleanName(seriesname, '&/')
                     if seriesname:
                         seriesnum = cleanName(seriesnum)

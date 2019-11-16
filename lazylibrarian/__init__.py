@@ -210,7 +210,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
-                     'NAME_POSTFIX', 'NEWSERIES_STATUS']
+                     'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -480,6 +480,7 @@ CONFIG_DEFINITIONS = {
     'ADD_SERIES': ('bool', 'LibraryScan', 1),
     'NOTFOUND_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'FOUND_STATUS': ('str', 'LibraryScan', 'Open'),
+    'NO_SINGLE_BOOK_SERIES': ('bool', 'LibraryScan', 0),
     'NEWSERIES_STATUS': ('str', 'LibraryScan', 'Paused'),
     'NEWBOOK_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'NEWAUDIO_STATUS': ('str', 'LibraryScan', 'Skipped'),
@@ -1390,6 +1391,9 @@ def config_write(part=None):
         SHOW_AUDIO = 0
         SHOW_COMICS = 0
         SHOW_EBOOK = 1
+
+    if CONFIG['NO_SINGLE_BOOK_SERIES']:
+        myDB.action('DELETE from series where total=1')
 
     msg = None
     try:

@@ -2481,6 +2481,17 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="no_single_book_series" class="control-label">
+                      <input type="checkbox" id="no_single_book_series" name="no_single_book_series" value="1" ${checked} />
+                      Ignore single-book series</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['IMP_AUTOSEARCH'] == True:
                             checked = 'checked="checked"'
                         else:
