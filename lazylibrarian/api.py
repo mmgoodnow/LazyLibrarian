@@ -32,6 +32,7 @@ from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, set
 from lazylibrarian.cache import cache_img, cleanCache
 from lazylibrarian.calibre import syncCalibreList, calibreList
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
+from lazylibrarian.comicscan import comicScan
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
     logHeader, authorUpdate, showStats, seriesUpdate, listdir
@@ -100,6 +101,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'seriesUpdate': 'update the oldest series, if any are overdue',
             'forceActiveAuthorsUpdate': '[&wait] [&refresh] reload all active authors and book data, refresh cache',
             'forceLibraryScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library',
+            'forceComicScan': '[&wait] [&id=] rescan whole or part comic library',
             'forceAudioBookScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library',
             'forceMagazineScan': '[&wait] [&title=] rescan whole or part magazine library',
             'getVersion': 'show lazylibrarian current/git version',
@@ -1021,6 +1023,17 @@ class Api(object):
         else:
             threading.Thread(target=LibraryScan, name='API-LIBRARYSCAN',
                              args=[startdir, 'eBook', authid, remove]).start()
+
+    @staticmethod
+    def _forceComicScan(**kwargs):
+        comicid = None
+        if 'id' in kwargs:
+            comicid = kwargs['id']
+        if 'wait' in kwargs:
+            comicScan(comicid=comicid)
+        else:
+            threading.Thread(target=comicScan, name='API-COMICSCAN',
+                             args=[comicid]).start()
 
     @staticmethod
     def _forceAudioBookScan(**kwargs):
