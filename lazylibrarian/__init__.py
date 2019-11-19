@@ -193,7 +193,8 @@ CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
                  'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'USER_AGENT', 'SSL_CERTS',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'NOTIFY_WITH_TITLE',
+                 'NOTIFY_WITH_URL']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -309,6 +310,8 @@ CONFIG_DEFINITIONS = {
     'GENRE_TAGS': ('bool', 'General', 0),
     'WISHLIST_TAGS': ('bool', 'General', 1),
     'WISHLIST_GENRES': ('bool', 'General', 1),
+    'NOTIFY_WITH_TITLE': ('bool', 'General', 0),
+    'NOTIFY_WITH_URL': ('bool', 'General', 0),
     'GIT_HOST': ('str', 'Git', 'gitlab.com'),
     'GIT_USER': ('str', 'Git', 'LazyLibrarian'),
     'GIT_REPO': ('str', 'Git', 'lazylibrarian'),
@@ -1115,7 +1118,8 @@ def config_read(reloaded=False):
         SHOW_COMICS = 0
         SHOW_EBOOK = 1
 
-    for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
+    for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES',
+                 'NOTIFY_WITH_TITLE', 'NOTIFY_WITH_URL']:
         if CONFIG[item]:
             CONFIG[item] = 1
         else:

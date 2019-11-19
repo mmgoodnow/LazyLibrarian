@@ -1751,7 +1751,8 @@ class WebInterface(object):
             if snatch:
                 logger.info('Downloading %s %s from %s' % (library, bookdata["BookName"], provider))
                 custom_notify_snatch("%s %s" % (bookid, library))
-                notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"]), provider, now()))
+                notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"]), dispName(provider),
+                                                    now()))
                 scheduleJob(action='Start', target='PostProcessor')
             else:
                 myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?', (res, url))

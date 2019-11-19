@@ -16,7 +16,8 @@ import traceback
 import time
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, now
+from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, \
+    now, dispName
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
     IterateOverDirectSites
 from lazylibrarian.common import scheduleJob
@@ -316,7 +317,7 @@ def search_comics(comicid=None):
                         myDB.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
                         custom_notify_snatch("%s %s" % (bookid, item['url']))
                         notify_snatch("Comic %s from %s at %s" %
-                                      (unaccented(item['title']), item["provider"], now()))
+                                      (unaccented(item['title']), dispName(item["provider"]), now()))
                         scheduleJob(action='Start', target='PostProcessor')
                     else:
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',

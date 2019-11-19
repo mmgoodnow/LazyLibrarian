@@ -47,7 +47,7 @@ from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
-    makeUTF8bytes
+    makeUTF8bytes, dispName
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
@@ -973,11 +973,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         if bookname:
                             custom_notify_download("%s %s" % (book['BookID'], book_type))
                             notify_download("%s %s from %s at %s" %
-                                            (book_type, global_name, book['NZBprov'], now()), book['BookID'])
+                                            (book_type, global_name, dispName(book['NZBprov']),
+                                             now()), book['BookID'])
                         else:
                             custom_notify_download("%s %s" % (book['BookID'], book['NZBUrl']))
                             notify_download("%s %s from %s at %s" %
-                                            (book_type, global_name, book['NZBprov'], now()), issueid)
+                                            (book_type, global_name, dispName(book['NZBprov']), 
+                                             now()), issueid)
 
                         update_downloads(book['NZBprov'])
                     else:
@@ -1751,7 +1753,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 # update nzbs
                 dest_file = makeUnicode(dest_file)
                 if was_snatched:
-                    snatched_from = was_snatched[0]['NZBprov']
+                    snatched_from = dispName(was_snatched[0]['NZBprov'])
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                         logger.debug("%s was snatched from %s" % (global_name, snatched_from))
                     controlValueDict = {"BookID": bookID}

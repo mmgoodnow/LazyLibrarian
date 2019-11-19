@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, getList, month2num, datecompare, check_int, check_year, age
+    nzbdate2format, getList, month2num, datecompare, check_int, check_year, age, dispName
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
     IterateOverDirectSites
@@ -490,7 +490,8 @@ def search_magazines(mags=None, reset=False):
                         logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
                         custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                         notify_snatch("Magazine %s from %s at %s" %
-                                      (unaccented(magazine['nzbtitle']), magazine["nzbprov"], now()))
+                                      (unaccented(magazine['nzbtitle']), dispName(magazine["nzbprov"]),
+                                       now()))
                         scheduleJob(action='Start', target='PostProcessor')
                     else:
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
