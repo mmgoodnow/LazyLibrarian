@@ -3242,6 +3242,35 @@
                   %endfor
                 </div>
               %endif
+              <div id="notifieroptions">
+                <div class="col-md-12">
+                  <legend>Options</legend>
+                    <div class="row checkbox">
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="notify_with_title" class="control-label">
+                          <input type="checkbox" id="notify_with_title" name="notify_with_title" value="1" ${checked} />
+                          Show title in download notification</label>
+                      </div>
+                      <div class="col-md-6">
+                         <%
+                          if lazylibrarian.CONFIG['NOTIFY_WITH_URL'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="notify_with_url" class="control-label">
+                          <input type="checkbox" id="notify_with_url" name="notify_with_url" value="1" ${checked} />
+                          Show url in download notification<br><small>(WARNING may contain api key)</small></label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
           </div>
         </div>
