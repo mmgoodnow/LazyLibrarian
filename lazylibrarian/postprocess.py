@@ -970,16 +970,19 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         logger.info('Successfully processed: %s' % global_name)
 
                         ppcount += 1
+                        dispname = dispName(book['NZBprov'])
+                        if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE']:
+                            dispname = "%s: %s" % (dispname, book['NZBtitle'])
+                        if lazylibrarian.CONFIG['NOTIFY_WITH_URL']:
+                            dispname = "%s: %s" % (dispname, book['NZBUrl'])
                         if bookname:
                             custom_notify_download("%s %s" % (book['BookID'], book_type))
                             notify_download("%s %s from %s at %s" %
-                                            (book_type, global_name, dispName(book['NZBprov']),
-                                             now()), book['BookID'])
+                                            (book_type, global_name, dispname, now()), book['BookID'])
                         else:
                             custom_notify_download("%s %s" % (book['BookID'], book['NZBUrl']))
                             notify_download("%s %s from %s at %s" %
-                                            (book_type, global_name, dispName(book['NZBprov']), 
-                                             now()), issueid)
+                                            (book_type, global_name, dispname, now()), issueid)
 
                         update_downloads(book['NZBprov'])
                     else:
