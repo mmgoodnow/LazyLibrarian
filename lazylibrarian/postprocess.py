@@ -1735,7 +1735,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                     logger.warn('Please check your EBOOK_DEST_FOLDER setting')
                     lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                         'EBOOK_DEST_FOLDER'].replace('/', '\\')
-                if '/' in lazylibrarian.CONFIG['AUIDOBOOK_DEST_FOLDER']:
+                if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
                     logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
                     lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                         'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
