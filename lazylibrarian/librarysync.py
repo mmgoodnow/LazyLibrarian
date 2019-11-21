@@ -24,7 +24,8 @@ from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, replace_with, split_title, now, makeUnicode, makeBytestr, formatAuthorName
+    cleanName, replace_all, replace_with, split_title, now, makeUnicode, makeBytestr, \
+    formatAuthorName, makeUTF8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
@@ -897,9 +898,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         author = formatAuthorName(author)
                                         searchname = "%s %s" % (cleanName(author),
                                                                 cleanName(book))
-                                        if PY2:
-                                            searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
-                                        searchterm = quote_plus(searchname)
+                                        searchterm = quote_plus(makeUTF8bytes(searchname)[0])
                                         set_url = base_url + searchterm + '&' + urlencode(params)
                                         # if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                                         logger.debug("Rescan url: %s" % set_url)

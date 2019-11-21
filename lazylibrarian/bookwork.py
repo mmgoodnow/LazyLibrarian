@@ -24,7 +24,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
 from lazylibrarian.common import proxyList, quotes
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
-    check_int, replace_all, check_year, getList
+    check_int, replace_all, check_year, getList, makeUTF8bytes
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -742,9 +742,7 @@ def getSeriesAuthors(seriesid):
                 base_url = 'https://www.goodreads.com/search.xml?q='
                 params = {"key": lazylibrarian.CONFIG['GR_API']}
                 searchname = "%s %s" % (cleanName(bookname), cleanName(authorname))
-                if PY2:
-                    searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
-                searchterm = quote_plus(searchname)
+                searchterm = quote_plus(makeUTF8bytes(searchname)[0])
                 set_url = base_url + searchterm + '&' + urlencode(params)
                 try:
                     rootxml, in_cache = gr_xml_request(set_url)
@@ -781,9 +779,7 @@ def getSeriesAuthors(seriesid):
                         searchname = cleanName(bookname)
                         if not searchname:
                             searchname = bookname
-                        if PY2:
-                            searchname = searchname.encode(lazylibrarian.SYS_ENCODING)
-                        searchterm = quote_plus(searchname)
+                        searchterm = quote_plus(makeUTF8bytes(searchname)[0])
                         set_url = base_url + searchterm + '&' + urlencode(params)
                         rootxml, in_cache = gr_xml_request(set_url)
                         if not in_cache:

@@ -19,7 +19,7 @@ from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
-    makeUnicode, seconds_to_midnight
+    makeUnicode, seconds_to_midnight, makeUTF8bytes
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
@@ -1116,15 +1116,15 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             params = {
                 "t": provider['BOOKSEARCH'],
                 "apikey": api_key,
-                "title": bookname,
-                "author": authorname,
+                "title": makeUTF8bytes(bookname)[0],
+                "author": makeUTF8bytes(authorname)[0],
                 "cat": provider['BOOKCAT']
             }
         elif provider['GENERALSEARCH'] and provider['BOOKCAT']:  # if not, try general search
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
-                "q": authorname + ' ' + bookname,
+                "q": "%s %s" % (makeUTF8bytes(authorname)[0], makeUTF8bytes(bookname)[0]),
                 "cat": provider['BOOKCAT']
             }
     elif searchType in ["audio", "shortaudio"]:
@@ -1133,15 +1133,15 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             params = {
                 "t": provider['AUDIOSEARCH'],
                 "apikey": api_key,
-                "title": bookname,
-                "author": authorname,
+                "title": makeUTF8bytes(bookname)[0],
+                "author": makeUTF8bytes(authorname)[0],
                 "cat": provider['AUDIOCAT']
             }
         elif provider['GENERALSEARCH'] and provider['AUDIOCAT']:  # if not, try general search
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
-                "q": authorname + ' ' + bookname,
+                "q": "%s %s" % (makeUTF8bytes(authorname)[0], makeUTF8bytes(bookname)[0]),
                 "cat": provider['AUDIOCAT']
             }
     elif searchType == "mag":
@@ -1150,7 +1150,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
                 "t": provider['MAGSEARCH'],
                 "apikey": api_key,
                 "cat": provider['MAGCAT'],
-                "q": unaccented(book['searchterm'].replace(':', '')),
+                "q": makeUTF8bytes(book['searchterm'].replace(':', ''))[0],
                 "extended": provider['EXTENDED'],
             }
         elif provider['GENERALSEARCH'] and provider['MAGCAT']:
@@ -1158,7 +1158,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
                 "cat": provider['MAGCAT'],
-                "q": unaccented(book['searchterm'].replace(':', '')),
+                "q": makeUTF8bytes(book['searchterm'].replace(':', ''))[0],
                 "extended": provider['EXTENDED'],
             }
     else:
@@ -1173,7 +1173,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
-                "q": searchterm,
+                "q": makeUTF8bytes(searchterm)[0],
                 "extended": provider['EXTENDED'],
             }
     if params:

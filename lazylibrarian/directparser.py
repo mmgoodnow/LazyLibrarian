@@ -15,7 +15,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix
+from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, makeUTF8bytes
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlparse, urlencode
@@ -77,7 +77,7 @@ def BOK(book=None, prov=None, test=False):
 
     while next_page:
         params = {
-            "q": book['searchterm']
+            "q": makeUTF8bytes(book['searchterm'])[0]
         }
         if page > 1:
             params['page'] = page
@@ -223,7 +223,7 @@ def GEN(book=None, prov=None, test=False):
     while next_page:
         if 'index.php' in search:
             params = {
-                "s": book['searchterm'],
+                "s": makeUTF8bytes(book['searchterm'])[0],
                 "f_lang": "All",
                 "f_columns": 0,
                 "f_ext": "All"
@@ -236,11 +236,11 @@ def GEN(book=None, prov=None, test=False):
                 "column": "def",
                 "lg_topic": "libgen",
                 "res": maxresults,
-                "req": book['searchterm']
+                "req": makeUTF8bytes(book['searchterm'])[0]
             }
         else:  # elif 'fiction' in search:
             params = {
-                "q": book['searchterm']
+                "q": makeUTF8bytes(book['searchterm'])[0]
             }
 
         if page > 1:

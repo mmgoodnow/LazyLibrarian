@@ -17,7 +17,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, \
-    replace_all, getList, month2num, check_year, makeBytestr
+    replace_all, getList, month2num, check_year, makeUTF8bytes
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
@@ -70,7 +70,7 @@ def TRF(book=None, test=False):
     results = []
     minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
 
-    searchURL = "%s/%s" % (host, quote_plus("%s %s" % (book['searchterm'], cat)))
+    searchURL = "%s/%s" % (host, quote_plus(makeUTF8bytes(sterm)[0]))
 
     result, success = fetchURL(searchURL)
 
@@ -233,8 +233,8 @@ def TPB(book=None, test=False):
 
     while next_page:
 
-        searchURL = providerurl + "%s/%s/99/%s" % (quote(makeBytestr(book['searchterm'])), page, cat)
-
+        searchURL = providerurl + "%s/%s/99/%s" % (quote(makeUTF8bytes(book['searchterm'])[0]),
+                                                   page, cat)
         next_page = False
         result, success = fetchURL(searchURL)
 
@@ -351,7 +351,7 @@ def KAT(book=None, test=False):
     if not host.startswith('http'):
         host = 'http://' + host
 
-    providerurl = url_fix(host + "/usearch/" + quote(makeBytestr(book['searchterm'])))
+    providerurl = url_fix(host + "/usearch/" + quote(makeUTF8bytes(book['searchterm'])[0]))
 
     params = {
         "category": "books",
@@ -480,7 +480,7 @@ def WWT(book=None, test=False):
 
     while next_page:
         params = {
-            "search": book['searchterm'],
+            "search": makeUTF8bytes(book['searchterm'])[0],
             "page": page,
             "cat": cat
         }
@@ -596,7 +596,7 @@ def EXTRA(book=None, test=False):
     params = {
         "type": "search",
         "s_cat": "2",
-        "search": book['searchterm']
+        "search": makeUTF8bytes(book['searchterm'])[0]
     }
     searchURL = providerurl + "/?%s" % urlencode(params)
 
@@ -677,7 +677,7 @@ def ZOO(book=None, test=False):
     providerurl = url_fix(host + "/search")
 
     params = {
-        "q": book['searchterm'],
+        "q": makeUTF8bytes(book['searchterm'])[0],
         "category": "books",
         "fmt": "rss"
     }
@@ -762,7 +762,7 @@ def LIME(book=None, test=False):
         host = 'http://' + host
 
     params = {
-        "q": book['searchterm']
+        "q": makeUTF8bytes(book['searchterm'])[0]
     }
     providerurl = url_fix(host + "/searchrss/other")
     searchURL = providerurl + "?%s" % urlencode(params)
@@ -860,7 +860,7 @@ def TDL(book=None, test=False):
     params = {
         "type": "search",
         "cid": "2",
-        "search": book['searchterm']
+        "search": makeUTF8bytes(book['searchterm'])[0]
     }
     searchURL = providerurl + "/rss.xml?%s" % urlencode(params)
 
