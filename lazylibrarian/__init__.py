@@ -136,6 +136,7 @@ log_grsync = 1 << 10  # 1024 detailed goodreads sync
 log_cache = 1 << 11  # 2048 cache results
 log_libsync = 1 << 12  # 4096 librarysync details
 log_admin = 1 << 13  # 8192 admin logging
+log_cherrypy = 1 << 14 # 16384 cherrypy logging
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page
