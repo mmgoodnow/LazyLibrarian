@@ -136,7 +136,7 @@ log_grsync = 1 << 10  # 1024 detailed goodreads sync
 log_cache = 1 << 11  # 2048 cache results
 log_libsync = 1 << 12  # 4096 librarysync details
 log_admin = 1 << 13  # 8192 admin logging
-log_cherrypy = 1 << 14 # 16384 cherrypy logging
+log_cherrypy = 1 << 14  # 16384 cherrypy logging
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page
@@ -430,13 +430,13 @@ CONFIG_DEFINITIONS = {
     'TDL': ('bool', 'TDL', 0),
     'TDL_DLPRIORITY': ('int', 'TDL', 0),
     'TDL_DLTYPES': ('str', 'TDL', 'A,E,M'),
-    'GEN_HOST': ('str', 'GEN', 'libgen.io'),
-    'GEN_SEARCH': ('str', 'GEN', 'search.php'),
+    'GEN_HOST': ('str', 'GEN', 'gen.lib.rus.ec'),
+    'GEN_SEARCH': ('str', 'GEN', 'foreignfiction/index.php'),
     'GEN': ('bool', 'GEN', 0),
     'GEN_DLPRIORITY': ('int', 'GEN', 0),
     'GEN_DLTYPES': ('str', 'GEN', 'EM'),
-    'GEN2_HOST': ('str', 'GEN', 'libgen.io'),
-    'GEN2_SEARCH': ('str', 'GEN', 'foreignfiction/index.php'),
+    'GEN2_HOST': ('str', 'GEN', ''),
+    'GEN2_SEARCH': ('str', 'GEN', ''),
     'GEN2': ('bool', 'GEN', 0),
     'GEN2_DLPRIORITY': ('int', 'GEN', 0),
     'GEN2_DLTYPES': ('str', 'GEN2', 'EM'),
