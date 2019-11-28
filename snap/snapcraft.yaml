@@ -20,12 +20,12 @@ parts:
     plugin: dump
     source: https://gitlab.com/LazyLibrarian/LazyLibrarian.git
     #source-tag: 1.7.1
-    #source-commit: b7b58e267ca9812da53b14cb6fab29137fa38eb6
+    #source-commit: 1c6163a598bb91a7df560c77f0a293f72e9fe783
     override-build: |
             echo 'LAZYLIBRARIAN_VERSION = "package"' > ./lazylibrarian/version.py
-            echo 'PACKAGED_BY = "snapcraft 2.43.1+18.10"' >> ./lazylibrarian/version.py
+            echo 'PACKAGED_BY = "snapcraft 3.8"' >> ./lazylibrarian/version.py
             echo 'PACKAGE_VERSION = "1.7.1"' >> ./lazylibrarian/version.py
-            echo 'LAZYLIBRARIAN_HASH = "b7b58e267ca9812da53b14cb6fab29137fa38eb6"' >> ./lazylibrarian/version.py
+            echo 'LAZYLIBRARIAN_HASH = "1c6163a598bb91a7df560c77f0a293f72e9fe783"' >> ./lazylibrarian/version.py
             rm -rf ./lazylibrarian/cherrypy
             rm -rf ./lazylibrarian/lib/bs4
             rm -rf ./lazylibrarian/lib/deluge_client
@@ -96,3 +96,4 @@ parts:
       - zlib1g
       - libjpeg-turbo8
       - libssl1.0.0
+      - libdb-5.3.so
