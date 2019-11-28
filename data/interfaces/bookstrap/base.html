@@ -225,9 +225,9 @@
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] < 0:
                   msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 1:
-                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a></div>'
+                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] == 1:
-                  msg = '<div class="input-group">New version available. You are one commit behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a></div>'
+                  msg = '<div class="input-group">New version available. You are one commit behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
               % endif
           % endif
       % endif
@@ -253,6 +253,21 @@
 
         $('#doUpdate').click(function () {
             createCookie("ignoreUpdate", true, 0.01);  // suppress popup while updating
+        });
+       $('#getChangelog').on('click', function(e) {
+            $.get('checkForUpdates', function(data) {
+                bootbox.dialog({
+                    title: 'Check Version',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(){ location.reload(true); }
+                        },
+                    }
+                });
+            });
         });
       });
 
