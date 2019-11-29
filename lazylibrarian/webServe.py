@@ -3068,14 +3068,12 @@ class WebInterface(object):
             count = 0
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
-                magimg = ''
                 this_issue = dict(issue)
                 if this_issue['Cover']:
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
                 if not magimg or not os.path.isfile(magimg):
                     this_issue['Cover'] = 'images/nocover.jpg'
-
                 mod_issues.append(this_issue)
                 count += 1
                 if maxcount and count >= maxcount:
@@ -3387,26 +3385,12 @@ class WebInterface(object):
             rowlist = myDB.select('SELECT * from comicissues WHERE ComicID=? order by IssueID DESC', (comicid,))
             if len(rowlist):
                 mod_issues = []
-                covercount = 0
                 for issue in rowlist:
-                    magfile = issue['IssueFile']
-                    extn = os.path.splitext(magfile)[1]
-                    if extn:
-                        magimg = magfile.replace(extn, '.jpg')
-                        if not os.path.isfile(magimg):
-                            magimg = 'images/nocover.jpg'
-                        else:
-                            myhash = uuid.uuid4().hex
-                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
-                            copyfile(magimg, hashname)
-                            setperm(hashname)
-                            magimg = 'cache/comic/' + myhash + '.jpg'
-                            covercount += 1
-                    else:
-                        logger.debug('No extension found on %s' % magfile)
-                        magimg = 'images/nocover.jpg'
                     this_issue = dict(issue)
-                    this_issue['Cover'] = magimg
+                    magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                          this_issue['Cover'].replace('cache/', ''))
+                    if not magimg or not os.path.isfile(magimg):
+                        this_issue['Cover'] = 'images/nocover.jpg'
                     mod_issues.append(this_issue)
 
                 rowlist = []
@@ -3801,28 +3785,12 @@ class WebInterface(object):
             rowlist = myDB.select('SELECT * from issues WHERE Title=? order by IssueDate DESC', (title,))
             if len(rowlist):
                 mod_issues = []
-                covercount = 0
                 for issue in rowlist:
                     this_issue = dict(issue)
-                    magfile = issue['IssueFile']
-                    if issue['Cover']:
-                        covercount += 1
-                    else:
-                        extn = os.path.splitext(magfile)[1]
-                        if extn:
-                            magimg = magfile.replace(extn, '.jpg')
-                            if not os.path.isfile(magimg):
-                                this_issue['Cover'] = 'images/nocover.jpg'
-                            else:
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                                copyfile(magimg, hashname)
-                                setperm(hashname)
-                                this_issue['Cover'] = 'cache/magazine/' + myhash + '.jpg'
-                                covercount += 1
-                        else:
-                            logger.debug('No extension found on %s' % magfile)
-                            this_issue['Cover'] = 'images/nocover.jpg'
+                    magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                          this_issue['Cover'].replace('cache/', ''))
+                    if not magimg or not os.path.isfile(magimg):
+                        this_issue['Cover'] = 'images/nocover.jpg'
                     mod_issues.append(this_issue)
 
                 rowlist = []
@@ -3919,27 +3887,14 @@ class WebInterface(object):
             mod_issues = []
             covercount = 0
             for issue in issues:
-                magfile = issue['IssueFile']
-                extn = os.path.splitext(magfile)[1]
-                if extn:
-                    magimg = magfile.replace(extn, '.jpg')
-                    if not os.path.isfile(magimg):
-                        magimg = 'images/nocover.jpg'
-                    else:
-                        myhash = uuid.uuid4().hex
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                        copyfile(magimg, hashname)
-                        setperm(hashname)
-                        magimg = 'cache/magazine/' + myhash + '.jpg'
-                        covercount += 1
-                else:
-                    logger.debug('No extension found on %s' % magfile)
-                    magimg = 'images/nocover.jpg'
-
                 this_issue = dict(issue)
-                this_issue['Cover'] = magimg
+                magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                      this_issue['Cover'].replace('cache/', ''))
+                if not magimg or not os.path.isfile(magimg):
+                    this_issue['Cover'] = 'images/nocover.jpg'
+                else:
+                    covercount += 1
                 mod_issues.append(this_issue)
-            logger.debug("Found %s cover%s" % (covercount, plural(covercount)))
 
             if not lazylibrarian.CONFIG['MAG_IMG'] or not lazylibrarian.CONFIG['IMP_MAGCOVER']:
                 covercount = 0
