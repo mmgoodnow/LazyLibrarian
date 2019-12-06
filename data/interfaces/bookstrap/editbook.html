@@ -55,15 +55,15 @@
         </div>
         <div class="form-group">
             <label for="bookname" class="control-label">Book Title:</label>
-            <input type="text" id="bookname" name="bookname" value="${config['BookName']}" class="form-control" placeholder="Book Title">
+            <input type="text" id="bookname" name="bookname" value="${config['BookName']}" class="form-control" placeholder="">
         </div>
         <div class="form-group">
             <label for="booksub" class="control-label">Subtitle:</label>
-            <input type="text" id="booksub" name="booksub" value="${config['BookSub']}" class="form-control" placeholder="Subtitle">
+            <input type="text" id="booksub" name="booksub" value="${config['BookSub']}" class="form-control" placeholder="">
         </div>
         <div class="form-group">
             <label for="bookgenre" class="control-label">Genre:</label>
-            <input type="text" id="bookgenre" name="bookgenre" value="${config['BookGenre']}" class="form-control" placeholder="Genre">
+            <input type="text" id="bookgenre" name="bookgenre" value="${config['BookGenre']}" class="form-control" placeholder="Comma separated list of genres">
         </div>
         <div class="form-group">
             <label for="scanresult">Added by</label>
@@ -73,11 +73,21 @@
         <fieldset  class="form-group">
           <div class="form-group col-md-6">
             <label for="booklang" class="control-label">Language:</label>
-            <input type="text" id="booklang" name="booklang" value="${config['BookLang']}" class="form-control" placeholder="Language">
+            <input type="text" id="booklang" name="booklang" value="${config['BookLang']}" class="form-control" placeholder="">
           </div>
           <div class="form-group col-md-6">
             <label for="bookdate" class="control-label">Publication Date:</label>
             <input type="text" id="bookdate" name="bookdate" value="${config['BookDate']}" class="form-control" placeholder="Publication Date (YYYY or YYYY-MM-DD)">
+          </div>
+        </fieldset>
+        <fieldset  class="form-group">
+          <div class="form-group col-md-6"">
+              <label for="bookisbn" class="control-label">ISBN:</label>
+              <input type="text" id="bookisbn" name="bookisbn" value="${config['BookIsbn']}" class="form-control" placeholder="ISBN10 or ISBN13">
+          </div>
+          <div class="form-group col-md-6"">
+              <label for="workid" class="control-label">WorkID:</label>
+              <input type="text" id="workid" name="workid" value="${config['WorkID']}" class="form-control" placeholder="">
           </div>
         </fieldset>
         <div class="form-group">

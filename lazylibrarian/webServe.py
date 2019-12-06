@@ -192,9 +192,6 @@ class WebInterface(object):
         rowlist = []
         # noinspection PyBroadException
         try:
-            # kwargs is used by datatables to pass params
-            # for arg in kwargs:
-            #     print arg, kwargs[arg]
             myDB = database.DBConnection()
             iDisplayStart = int(iDisplayStart)
             iDisplayLength = int(iDisplayLength)
@@ -1077,10 +1074,6 @@ class WebInterface(object):
 
     @cherrypy.expose
     def configUpdate(self, **kwargs):
-        # print len(kwargs)
-        # for arg in kwargs:
-        #    print arg
-
         myDB = database.DBConnection()
         adminmsg = ''
         if 'user_accounts' in kwargs:
@@ -1198,11 +1191,11 @@ class WebInterface(object):
                     pass
                 # no key is returned for empty tickboxes...
                 elif item_type == 'bool':
-                    # print "No entry for bool " + key
+                    # print("No entry for bool " + key)
                     lazylibrarian.CONFIG[key] = 0
                 # or empty string values
                 else:
-                    # print "No entry for str " + key
+                    # print("No entry for str " + key)
                     lazylibrarian.CONFIG[key] = ''
 
         magazines = myDB.select('SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by upper(Title)')
@@ -1799,9 +1792,6 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def getBooks(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
-        # kwargs is used by datatables to pass params
-        # for arg in kwargs:
-        #     print arg, kwargs[arg]
         rows = []
         filtered = []
         rowlist = []
@@ -2338,12 +2328,12 @@ class WebInterface(object):
 
     @cherrypy.expose
     def sendBook(self, bookid=None, library=None, redirect=None, booktype=None):
-        print(1, bookid, library, redirect, booktype)
         return self.openBook(bookid=bookid, library=library, redirect=redirect, booktype=booktype, email=True)
 
     @cherrypy.expose
     def openBook(self, bookid=None, library=None, redirect=None, booktype=None, email=False):
-        print(2, bookid, library, redirect, booktype, email)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
+            logger.debug("%s %s %s %s %s" % (bookid, library, redirect, booktype, email))
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         myDB = database.DBConnection()
@@ -2628,7 +2618,7 @@ class WebInterface(object):
         authors = myDB.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded from books,authors '
+        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID from books,authors '
         cmd += 'WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = myDB.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '
@@ -2652,13 +2642,15 @@ class WebInterface(object):
 
     @cherrypy.expose
     def bookUpdate(self, bookname='', bookid='', booksub='', bookgenre='', booklang='', bookdate='',
-                   manual='0', authorname='', cover='', newid='', editordata='', **kwargs):
+                   manual='0', authorname='', cover='', newid='', editordata='', bookisbn='', workid='',
+                   **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         myDB = database.DBConnection()
 
         if bookid:
             cmd = 'SELECT BookName,BookSub,BookGenre,BookLang,BookImg,BookDate,BookDesc,books.Manual,AuthorName,'
-            cmd += 'books.AuthorID from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
+            cmd += 'books.AuthorID, BookIsbn, WorkID'
+            cmd += ' from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
             bookdata = myDB.match(cmd, (bookid,))
             if bookdata:
                 edited = ''
@@ -2687,6 +2679,10 @@ class WebInterface(object):
                     edited += "Genre "
                 if not (bookdata["BookLang"] == booklang):
                     edited += "Language "
+                if not (bookdata["BookIsbn"] == bookisbn):
+                    edited += "ISBN "
+                if not (bookdata["WorkID"] == workid):
+                    edited += "WorkID "
                 if not (bookdata["BookDate"] == bookdate):
                     if bookdate == '0000':
                         edited += "Date "
@@ -2752,6 +2748,8 @@ class WebInterface(object):
                         'BookLang': booklang,
                         'BookDate': bookdate,
                         'BookDesc': editordata,
+                        'BookIsbn': bookisbn,
+                        'WorkID': workid,
                         'BookImg': coverlink,
                         'Manual': bool(manual)
                     }
@@ -3181,9 +3179,6 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def getComics(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
-        # kwargs is used by datatables to pass params
-        # for arg in kwargs:
-        #     print arg, kwargs[arg]
         rows = []
         filtered = []
         rowlist = []
@@ -3623,9 +3618,6 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def getMags(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
-        # kwargs is used by datatables to pass params
-        # for arg in kwargs:
-        #     print arg, kwargs[arg]
         rows = []
         filtered = []
         rowlist = []
@@ -4742,9 +4734,6 @@ class WebInterface(object):
     @cherrypy.expose
     @cherrypy.tools.json_out()
     def getHistory(self, iDisplayStart=0, iDisplayLength=100, iSortCol_0=0, sSortDir_0="desc", sSearch="", **kwargs):
-        # kwargs is used by datatables to pass params
-        # for arg in kwargs:
-        #     print arg, kwargs[arg]
         rows = []
         filtered = []
         rowlist = []

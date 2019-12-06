@@ -1,4 +1,3 @@
-
 #  This file is part of Lazylibrarian.
 #
 #  Lazylibrarian is free software':'you can redistribute it and/or modify
@@ -895,7 +894,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                 "LatestCover": 'cache/magazine/%s.jpg' % myhash}
                             myDB.upsert("magazines", newValueDict, controlValueDict)
 
-                            processMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
+                            _ = createMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 processAutoAdd(dest_path, booktype='mag')
@@ -1888,7 +1887,7 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     # do we want to create metadata - there may already be one in pp_path, but it was downloaded and might
     # not contain our choice of authorname/title/identifier, so we ignore it and write our own
     if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
-        _ = processOPF(dest_path, data, global_name, overwrite=True)
+        _ = createOPF(dest_path, data, global_name, overwrite=True)
 
     # If you use auto add by Calibre you need the book in a single directory, not nested
     # So take the files you Copied/Moved to Dest_path and copy/move into Calibre auto add folder.
@@ -1940,10 +1939,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
 
     # If ebook, do we want calibre to import the book for us
     newbookfile = ''
-    if booktype == 'ebook' and len(lazylibrarian.CONFIG['IMP_CALIBREDB']):
+    if booktype in ['ebook', 'comic'] and len(lazylibrarian.CONFIG['IMP_CALIBREDB']):
         dest_dir = lazylibrarian.DIRECTORY('eBook')
         try:
-            logger.debug('Importing %s into calibre library' % global_name)
+            logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
             # and ignores opf data if there is data embedded in the book file
             # so we send separate "set_metadata" commands after the import
@@ -1961,10 +1960,16 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
                     os.remove(srcfile)
-            if bookid.isdigit():
-                identifier = "goodreads:%s" % bookid
-            else:
-                identifier = "google:%s" % bookid
+            if booktype == 'ebook':
+                if bookid.isdigit():
+                    identifier = "goodreads:%s" % bookid
+                else:
+                    identifier = "google:%s" % bookid
+            elif booktype == 'comic':
+                if bookid.startswith('CV'):
+                    identifier = "ComicVine:%s" % bookid[2:]
+                elif bookid.startswith('CX'):
+                    identifier = "Comixology:%s" % bookid[2:]
 
             res, err, rc = calibredb('add', ['-1'], [pp_path])
 
@@ -1997,7 +2002,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     logger.error('processDestination: No data found for bookid %s' % bookid)
                 else:
                     processIMG(pp_path, data['BookID'], data['BookImg'], global_name)
-                    opfpath, our_opf = processOPF(pp_path, data, global_name, True)
+                    opfpath, our_opf = createOPF(pp_path, data, global_name, True)
                     _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                     if rc:
                         logger.warn("calibredb unable to set opf")
@@ -2273,7 +2278,44 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, over
         return
 
 
-def processMAGOPF(issuefile, title, issue, issueID, overwrite=False):
+def createComicOPF(issuefile, title, issue, issueID, overwrite=False):
+    """ Needs calibre to be configured to read metadata from file contents, not filename """
+    if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+        return
+    dest_path, global_name = os.path.split(issuefile)
+    global_name = os.path.splitext(global_name)[0]
+
+    if len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
+        yr = issue[0:4]
+        mn = issue[5:7]
+        month = lazylibrarian.MONTHNAMES[int(mn)][0]
+        iname = "%s - %s%s %s" % (title, month[0].upper(), month[1:], yr)  # The Magpi - January 2017
+    elif title in issue:
+        iname = issue  # 0063 - Android Magazine -> 0063
+    else:
+        iname = "%s - %s" % (title, issue)  # Android Magazine - 0063
+
+    mtime = os.path.getmtime(issuefile)
+    iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
+
+    data = {
+        'AuthorName': title,
+        'BookID': issueID,
+        'BookName': iname,
+        'BookDesc': '',
+        'BookIsbn': '',
+        'BookDate': iss_acquired,
+        'BookLang': 'eng',
+        'BookImg': global_name + '.jpg',
+        'BookPub': '',
+        'Series': title,
+        'Series_index': issue
+    }  # type: dict
+    # noinspection PyTypeChecker
+    _ = createOPF(dest_path, data, global_name, overwrite=overwrite)
+
+
+def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
         return
@@ -2307,10 +2349,10 @@ def processMAGOPF(issuefile, title, issue, issueID, overwrite=False):
         'Series_index': issue
     }  # type: dict
     # noinspection PyTypeChecker
-    _ = processOPF(dest_path, data, global_name, overwrite=overwrite)
+    _ = createOPF(dest_path, data, global_name, overwrite=overwrite)
 
 
-def processOPF(dest_path=None, data=None, global_name=None, overwrite=False):
+def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     opfpath = os.path.join(dest_path, global_name + '.opf')
     if lazylibrarian.CONFIG['OPF_TAGS']:
         if not overwrite and os.path.exists(opfpath):
@@ -2318,8 +2360,7 @@ def processOPF(dest_path=None, data=None, global_name=None, overwrite=False):
             setperm(opfpath)
             return opfpath, False
 
-    # Horrible hack to work around the limitations of sqlite3's row object
-    data = {k: data[k] for k in data.keys()}
+    data = dict(data)
 
     bookid = data['BookID']
     if bookid.isdigit():
