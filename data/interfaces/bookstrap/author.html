@@ -352,7 +352,7 @@
                             %endif
                         }
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-book"></i> ' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=${library}" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-book"></i> ' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
                         else if ( btn.indexOf('Snatched') >= 0 ) {
                             btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-book"></i> ' + btn + '</a>'}
                         else if ( btn.indexOf('Ignored') >= 0 ) {
@@ -377,15 +377,15 @@
                                     '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
                         }
                         else if ( btn2.indexOf('Wanted') >= 0 ) {
-                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-headphones"></i> ' + btn2 + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=${library}" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                            btn2 = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-headphones"></i> ' + btn2 + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
                         else if ( btn2.indexOf('Snatched') >= 0 ) {
-                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'}
+                            btn2 = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'}
                         else if ( btn.indexOf('Ignored') >= 0 ) {
                             btn2 = '<button onclick="dlinfo(\'' + btn2 + '^' + row[9] +
                             '\')" class="button btn btn-xs btn-primary" type="button"><i class="fa fa-headphones"></i> ' + btn2 + '</button>'}
                         else if ( btn2.indexOf('Have') >= 0 ) {
                             %if perm&lazylibrarian.perm_status:
-                            btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
+                            btn2 = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
                             %else:
                             btn2 = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
                             %endif
