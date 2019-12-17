@@ -625,7 +625,9 @@ def only_punctuation(value):
 def replacevars(base, mydict):
     res = base.replace(
         '$Author', mydict['Author']).replace(
+        '$SortAuthor', mydict['SortAuthor']).replace(
         '$Title', mydict['Title']).replace(
+        '$SortTitle', mydict['SortTitle']).replace(
         '$Series', mydict['Series']).replace(
         '$FmtName', mydict['FmtName']).replace(
         '$FmtNum', mydict['FmtNum']).replace(
