@@ -47,7 +47,7 @@ from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_tota
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.magazinescan import magazineScan
 from lazylibrarian.manualbook import searchItem
-from lazylibrarian.postprocess import processDir, processAlternate, processOPF, processIMG
+from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -492,7 +492,7 @@ class Api(object):
             if 'refresh' in kwargs:
                 refresh = True
             processIMG(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
-            self.data = processOPF(dest_path, res, global_name, refresh)
+            self.data = createOPF(dest_path, res, global_name, refresh)
 
     @staticmethod
     def _dumpMonths():
