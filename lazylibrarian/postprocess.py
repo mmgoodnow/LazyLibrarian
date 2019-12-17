@@ -1882,7 +1882,7 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     dest_path = os.path.dirname(dest_file)
 
     # download and cache image if http link
-    processIMG(dest_path, data['BookID'], data['BookImg'], global_name)
+    processIMG(dest_path, data['BookID'], data['BookImg'], global_name, 'book')
 
     # do we want to create metadata - there may already be one in pp_path, but it was downloaded and might
     # not contain our choice of authorname/title/identifier, so we ignore it and write our own
@@ -1903,6 +1903,8 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     booktype = booktype.lower()
     pp_path = makeUnicode(pp_path)
     bestmatch = ''
+    comicid = ''
+    issueid = ''
     if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
@@ -1960,16 +1962,19 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
                     os.remove(srcfile)
+
+            identifier = ''
             if booktype == 'ebook':
                 if bookid.isdigit():
                     identifier = "goodreads:%s" % bookid
                 else:
                     identifier = "google:%s" % bookid
-            elif booktype == 'comic':
-                if bookid.startswith('CV'):
-                    identifier = "ComicVine:%s" % bookid[2:]
-                elif bookid.startswith('CX'):
-                    identifier = "Comixology:%s" % bookid[2:]
+            else:  # if booktype == 'comic':
+                comicid, issueid = bookid.split('_')
+                if comicid.startswith('CV'):
+                    identifier = "ComicVine:%s" % comicid[2:]
+                elif comicid.startswith('CX'):
+                    identifier = "Comixology:%s" % comicid[2:]
 
             res, err, rc = calibredb('add', ['-1'], [pp_path])
 
@@ -1994,36 +1999,48 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
                 # we can pass an opf with all the info, and a cover image
                 myDB = database.DBConnection()
-                cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
-                cmd += 'Requester,AudioRequester,BookGenre from books,authors WHERE BookID=? '
-                cmd += 'and books.AuthorID = authors.AuthorID'
-                data = myDB.match(cmd, (bookid,))
+                if booktype == 'ebook':
+                    cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
+                    cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
+                    cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                else:  # if booktype == 'comic':
+                    cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
+                    cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
+                    cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
+                data = myDB.match(cmd, (issueid, comicid))
                 if not data:
                     logger.error('processDestination: No data found for bookid %s' % bookid)
                 else:
-                    processIMG(pp_path, data['BookID'], data['BookImg'], global_name)
-                    opfpath, our_opf = createOPF(pp_path, data, global_name, True)
+                    if booktype == 'ebook':
+                        processIMG(pp_path, data['BookID'], data['BookImg'], global_name, 'book')
+                        opfpath, our_opf = createOPF(pp_path, data, global_name, True)
+                    else:  # booktype == 'comic':
+                        processIMG(pp_path, data['BookID'], data['Cover'], global_name, 'comic')
+                        opfpath, our_opf = createComicOPF(pp_path, data, global_name, True)
                     _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                     if rc:
                         logger.warn("calibredb unable to set opf")
 
-                    tags = ''
-                    if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
-                        tags = data['BookGenre']
-                    if lazylibrarian.CONFIG['WISHLIST_TAGS']:
-                        if data['Requester'] is not None:
-                            tag = data['Requester'].replace(" ", ",")
-                            if tag not in tags:
-                                if tags:
-                                    tags += ', '
-                                tags += tag
-                        elif data['AudioRequester'] is not None:
-                            tag = data['AudioRequester'].replace(" ", ",")
-                            if tag not in tags:
-                                if tags:
-                                    tags += ', '
-                                tags += tag
+                    if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
+                        return True, data['IssueFile']
 
+                    tags = ''
+                    if booktype == 'ebook':
+                        if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
+                            tags = data['BookGenre']
+                        if lazylibrarian.CONFIG['WISHLIST_TAGS']:
+                            if data['Requester'] is not None:
+                                tag = data['Requester'].replace(" ", ",")
+                                if tag not in tags:
+                                    if tags:
+                                        tags += ', '
+                                    tags += tag
+                            elif data['AudioRequester'] is not None:
+                                tag = data['AudioRequester'].replace(" ", ",")
+                                if tag not in tags:
+                                    if tags:
+                                        tags += ', '
+                                    tags += tag
                     if tags:
                         _, _, rc = calibredb('set_metadata', ['--field', 'tags:%s' % tags], [calibre_id])
                         if rc:
@@ -2251,7 +2268,7 @@ def processAutoAdd(src_path=None, booktype='book'):
     return True
 
 
-def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, overwrite=False):
+def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cache='book', overwrite=False):
     """ cache the bookimg from url or filename, and optionally copy it to bookdir """
     if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
         logger.debug('Not creating coverfile, bookonly is set')
@@ -2263,12 +2280,15 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, over
         setperm(jpgfile)
         return
 
-    link, success, _ = cache_img('book', bookid, bookimg, False)
-    if not success:
-        logger.error('Error caching cover from %s, %s' % (bookimg, link))
-        return
+    if bookimg.startswith('cache/'):
+        cachefile = os.path.join(lazylibrarian.CACHEDIR, bookimg.replace('cache/', ''))
+    else:
+        link, success, _ = cache_img(cache, bookid, bookimg, False)
+        if not success:
+            logger.error('Error caching cover from %s, %s' % (bookimg, link))
+            return
+        cachefile = os.path.join(lazylibrarian.CACHEDIR, cache, bookid + '.jpg')
 
-    cachefile = os.path.join(lazylibrarian.CACHEDIR, 'book', bookid + '.jpg')
     coverfile = os.path.join(dest_path, global_name + '.jpg')
     try:
         coverfile = safe_copy(cachefile, coverfile)
@@ -2278,47 +2298,44 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, over
         return
 
 
-def createComicOPF(issuefile, title, issue, issueID, overwrite=False):
+def createComicOPF(pp_path, data, global_name, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     if not lazylibrarian.CONFIG['IMP_COMICOPF']:
-        return
-    dest_path, global_name = os.path.split(issuefile)
-    global_name = os.path.splitext(global_name)[0]
-
-    if len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
-        yr = issue[0:4]
-        mn = issue[5:7]
-        month = lazylibrarian.MONTHNAMES[int(mn)][0]
-        iname = "%s - %s%s %s" % (title, month[0].upper(), month[1:], yr)  # The Magpi - January 2017
-    elif title in issue:
-        iname = issue  # 0063 - Android Magazine -> 0063
-    else:
-        iname = "%s - %s" % (title, issue)  # Android Magazine - 0063
-
-    mtime = os.path.getmtime(issuefile)
+        return "", False
+    
+    title = data['Title']
+    issue = data['IssueID']
+    contributors = data['Contributors']
+    issueID = "%s_%s" % (data['ComicID'], data['IssueID'])
+    iname = "%s: %s" % (data['Title'], data['IssueID'])
+    publisher = data['Publisher']
+    mtime = os.path.getmtime(data['IssueFile'])
     iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
     data = {
         'AuthorName': title,
         'BookID': issueID,
         'BookName': iname,
+        'FileAs': iname,
         'BookDesc': '',
         'BookIsbn': '',
         'BookDate': iss_acquired,
-        'BookLang': 'eng',
+        'BookLang': '',
         'BookImg': global_name + '.jpg',
-        'BookPub': '',
+        'BookPub': publisher,
         'Series': title,
         'Series_index': issue
     }  # type: dict
+    if contributors:
+        data['Contributors'] = contributors
     # noinspection PyTypeChecker
-    _ = createOPF(dest_path, data, global_name, overwrite=overwrite)
+    return createOPF(pp_path, data, global_name, overwrite=overwrite)
 
 
 def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
-        return
+        return "", False
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
@@ -2339,6 +2356,7 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
         'AuthorName': title,
         'BookID': issueID,
         'BookName': iname,
+        'FileAs': iname,
         'BookDesc': '',
         'BookIsbn': '',
         'BookDate': iss_acquired,
@@ -2349,7 +2367,7 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
         'Series_index': issue
     }  # type: dict
     # noinspection PyTypeChecker
-    _ = createOPF(dest_path, data, global_name, overwrite=overwrite)
+    return createOPF(dest_path, data, global_name, overwrite=overwrite)
 
 
 def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
@@ -2363,7 +2381,11 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     data = dict(data)
 
     bookid = data['BookID']
-    if bookid.isdigit():
+    if bookid.startswith('CV'):
+        scheme = "COMICVINE"
+    elif bookid.startswith('CX'):
+        scheme = "COMIXOLOGY"
+    elif bookid.isdigit():
         scheme = 'GOODREADS'
     else:
         scheme = 'GoogleBooks'
@@ -2409,12 +2431,34 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
         <dc:title>%s</dc:title>\n\
-        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n\
         <dc:language>%s</dc:language>\n\
-        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (data['BookName'], surnameFirst(data['AuthorName']),
-                                                            data['AuthorName'], data['BookLang'], scheme, bookid)
+        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (data['BookName'], 
+                                                            data['BookLang'], scheme, bookid)
 
-    if 'BookIsbn' in data:
+    if "Contributors" in data:  # split into individuals and add each eg
+        # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
+        # opf:role="aut">Das Pastoras</dc:creator>
+        # 
+        entries = []
+        names = ''
+        for contributor in getList(data['Contributors'], ','):
+            role, name = contributor.split(':')
+            if name and role:
+                entries.append([name.strip(), role.strip()])
+                if names:
+                    names = names + ' &amp; '
+                names = names + surnameFirst(name)
+        for entry in entries:
+            opfinfo += '        <dc:creator opf:file-as="%s" opf:role="%s">%s</dc:creator>\n' % \
+                        (names, entry[1], entry[0])
+    elif "FileAs" in data:
+        opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
+                    (data['FileAs'], data['FileAs'])
+    else:
+        opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
+                        (surnameFirst(data['AuthorName']), data['AuthorName'])
+        
+    if 'BookIsbn' in data and data['BookIsbn']:
         opfinfo += '        <dc:identifier scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 
     if 'BookPub' in data:

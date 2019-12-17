@@ -155,7 +155,7 @@ def serve_template(templatename, **kwargs):
         return exceptions.html_error_template().render()
 
 
-# noinspection PyProtectedMember
+# noinspection PyProtectedMember,PyGlobalUndefined,PyGlobalUndefined
 class WebInterface(object):
     @cherrypy.expose
     def index(self):
@@ -1441,6 +1441,7 @@ class WebInterface(object):
     # noinspection PyRedeclaration
     lastauthor = ''
 
+    # noinspection PyGlobalUndefined
     @cherrypy.expose
     def authorPage(self, AuthorID, BookLang=None, library='eBook', Ignored=False):
         global lastauthor
@@ -2065,7 +2066,7 @@ class WebInterface(object):
 
         # noinspection PyShadowingNames
         def get_alphanum_key_func(key):
-            # noinspection PyPep8
+            # noinspection PyPep8,PyPep8
             convert = lambda text: int(text) if text and text.isdigit() else text
             return lambda s: [convert(c) for c in re.split('([0-9]+)', key(s))]
 
@@ -2434,8 +2435,8 @@ class WebInterface(object):
                             target = basename + '.' + item
                             if os.path.isfile(target):
                                 types.append(item)
-
-                        if preftype:
+                        logger.debug('Preftype:%s Types:%s' % (preftype, str(types)))
+                        if preftype and len(types):
                             if preftype in types:
                                 bookfile = basename + '.' + preftype
                             else:
@@ -2465,14 +2466,16 @@ class WebInterface(object):
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
                                                   valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
-
-                        if email:
-                            logger.debug('Emailing %s %s' % (library, bookfile))
+                        elif len(types):
+                            if email:
+                                logger.debug('Emailing %s %s' % (library, bookfile))
+                            else:
+                                logger.debug('Opening %s %s' % (library, bookfile))
+                            return self.send_file(bookfile, name="eBook %s" % bookName,
+                                                  email=email)
                         else:
-                            logger.debug('Opening %s %s' % (library, bookfile))
-                        return self.send_file(bookfile, name="eBook %s" % bookName,
-                                              email=email)
-
+                            logger.debug('Unable to send %s %s, no valid types?' % (library, bookName))
+                            
                 logger.info('Missing %s %s, %s [%s]' % (library, authorName, bookName, bookfile))
             else:
                 return self.requestBook(library=library, bookid=bookid, redirect=redirect)
@@ -3067,6 +3070,7 @@ class WebInterface(object):
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
                 this_issue = dict(issue)
+                magimg = ""
                 if this_issue['Cover']:
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
@@ -4852,18 +4856,40 @@ class WebInterface(object):
 
     @cherrypy.expose
     def bookdesc(self, bookid=None):
+        # noinspection PyGlobalUndefined
         global lastauthor
+        img = 'nocover.jpg'
+        title = 'BookID not found'
+        text = 'No Description'
         myDB = database.DBConnection()
-        if not bookid:
-            return 'No BookID^No BookID'
-        res = myDB.match("SELECT BookName,BookDesc,AuthorID from books WHERE bookid=?", (bookid,))
-        if not res:
-            return 'BookID not found^No Details'
-        text = res['BookDesc']
-        if not text:
-            text = "No Description"
-        lastauthor = res['AuthorID']
-        return res['BookName'] + '^' + text
+        if bookid:
+            if bookid.startswith('CV') or bookid.startswith('CX'):
+                try:
+                    comicid, issueid = bookid.split('_')
+                    cmd = "SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
+                    cmd += "Contributors from comics,comicissues where "
+                    cmd += "comics.comicid = comicissues.comicid and comics.comicid=? and issueid=?"
+                    res = myDB.match(cmd, (comicid, issueid))
+                except ValueError:
+                    cmd = "SELECT Title as BookName,Description as BookDesc,LatestCover as BookImg"
+                    cmd += " from comics where comicid=?"
+                    res = myDB.match(cmd, (bookid,))
+            else:
+                cmd = "SELECT BookName,BookDesc,BookImg,AuthorID from books WHERE bookid=?"
+                res = myDB.match(cmd, (bookid,))
+            if res:
+                res = dict(res) 
+                if res['BookDesc']:
+                    text = res['BookDesc']
+                if 'Contributors' in res and res['Contributors']:
+                    text += '<br><br>' + res['Contributors']
+                if res['BookImg']:
+                    img = res['BookImg']
+                if res['BookName']:
+                    title = res['BookName']
+                if 'AuthorID' in res:
+                    lastauthor = res['AuthorID']
+        return img + '^' + title + '^' + text
 
     @cherrypy.expose
     def dlinfo(self, target=None):

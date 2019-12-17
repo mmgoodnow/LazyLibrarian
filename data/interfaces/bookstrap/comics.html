@@ -125,7 +125,7 @@
                     { targets: [2],
                         'class': 'text-left',
                         'render': function(data, type, row) {
-                            btn = '<a href=\'openComic?comicid=' + row[0] + '\'">' + row[2] + '</a>'
+                            btn = '<button onclick="bookinfo(\'' + row[0] + '\')" class="button btn-link text-left" type="button" ' + '>' + row[2] + '</button>'
                             if ( row[8]) { btn = btn + ' (' + row[8] + ')' }
                             if ( row[10]) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
                                 if ( row[0].indexOf('CV') >= 0) { btn = btn + 'ComicVine</a></small>'}

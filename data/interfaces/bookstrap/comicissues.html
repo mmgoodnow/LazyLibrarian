@@ -95,7 +95,13 @@
                         'visible': showimg,
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
-                    { targets: [2, 3],
+                    { targets: [2],
+                        'class': 'text-center',
+                        'render': function(data, type, row) {
+                            btn = '<button onclick="bookinfo(\'' + row[4] + '_' + row[2] + '\')" class="button btn-link text-left" type="button" ' + '>' + row[2] + '</button>'
+                            return btn
+                        ;} },
+                    { targets: [3],
                         'class': 'text-center'},
                     { targets: [4],
                         'class': 'text-center',

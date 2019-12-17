@@ -300,6 +300,7 @@ CONFIG_DEFINITIONS = {
     'IMP_RENAME': ('bool', 'General', 0),
     'MAG_RENAME': ('bool', 'General', 0),
     'IMP_MAGOPF': ('bool', 'General', 1),
+    'IMP_COMICOPF': ('bool', 'General', 0),
     'IMP_MAGCOVER': ('bool', 'General', 1),
     'IMP_COMICCOVER': ('bool', 'General', 1),
     'IMP_CONVERT': ('str', 'General', ''),

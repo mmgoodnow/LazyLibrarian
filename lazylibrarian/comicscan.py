@@ -19,10 +19,11 @@ from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
+from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.common import walk, setperm
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now
 from lazylibrarian.images import createMagCover
+from lazylibrarian.postprocess import createComicOPF
 from lib.six import PY2
 
 
@@ -100,8 +101,12 @@ def comicScan(comicid=None):
                     last = ''
                     publisher = ''
                     searchterm = ''
-                    link = ''
+                    serieslink = ''
+                    issuelink = ''
                     comicid = ''
+                    seriesdescription = ''
+                    issuedescription = ''
+                    contributors = ''
                     aka = []
                     res = comic_metadata(os.path.join(rootdir, fname))
                     if res:
@@ -112,7 +117,8 @@ def comicScan(comicid=None):
                             publisher = res.get('Publisher')
                             start = res.get('Year')
                             searchterm = title
-                            link = res.get('Web')
+                            issuelink = res.get('Web')
+                            issuedescription = res.get('Summary')
                             logger.debug("Metadata found %s (%s) Issue %s" % (title, comicid, issue))
 
                     res = cv_identify(fname)
@@ -129,7 +135,8 @@ def comicScan(comicid=None):
                         first = res[3]['first']
                         last = res[3]['last']
                         searchterm = res[3]['searchterm']
-                        link = res[3]['link']
+                        serieslink = res[3]['link']
+                        seriesdescription = res[3]['description']
                         logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
                     if res:
                         controlValueDict = {"ComicID": comicid}
@@ -152,7 +159,8 @@ def comicScan(comicid=None):
                                 "Last": last,
                                 "Publisher": publisher,
                                 "SearchTerm": searchterm,
-                                "Link": link,
+                                "Link": serieslink,
+                                "Description": seriesdescription,
                                 "aka": ', '.join(aka)
                             }
                             logger.debug("Adding comic %s (%s)" % (title, comicid))
@@ -185,10 +193,32 @@ def comicScan(comicid=None):
                                 copyfile(coverfile, hashname)
                                 setperm(hashname)
                                 newValueDict['Cover'] = 'cache/comic/%s.jpg' % myhash
+                                newValueDict['Description'] = issuedescription
+                                newValueDict['Link'] = issuelink
                             else:
                                 logger.debug("Updating issue %s %s" % (title, issue))
+                            if not issuedescription or not issuelink or not contributors:
+                                # get issue details from series page
+                                res = ''
+                                if comicid.startswith('CV'):
+                                    res = cv_issue(comicid[2:], issue)
+                                elif comicid.startswith('CX'):
+                                    res = cx_issue(serieslink, issue)
+                                if res:
+                                    for item in ['Description', 'Link', 'Contributors']:
+                                        if res[item]:
+                                            newValueDict[item] = res[item]
+
                             controlValueDict = {"ComicID": comicid, "IssueID": issue}
                             myDB.upsert("comicissues", newValueDict, controlValueDict)
+                            if not iss_entry:
+                                dest_path, global_name = os.path.split(issuefile)
+                                global_name = os.path.splitext(global_name)[0]
+                                data = controlValueDict
+                                data.update(newValueDict)
+                                data['Title'] = title
+                                data['Publisher'] = publisher
+                                _ = createComicOPF(dest_path, data, global_name, overwrite=True)
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         with open(ignorefile, 'a'):

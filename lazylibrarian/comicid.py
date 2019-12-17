@@ -64,9 +64,9 @@ def getIssueNum(words, skipped):
                 except ValueError:
                     pass
 
-    for l in (3, 2, 1):
+    for ln in (3, 2, 1):
         for word in words:
-            if len(word) == l and word not in skipped:
+            if len(word) == ln and word not in skipped:
                 try:
                     return int(word)
                 except ValueError:
@@ -634,3 +634,49 @@ def meta_dict(data):
             if 'Comic Vine' in notes and 'Issue ID ' in notes:
                 datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
     return datadict
+
+
+def cv_issue(seriesid, issuenum):
+    res = {'Description': '', 'Link': '', 'Contributors': ''}
+    apikey = lazylibrarian.CONFIG['CV_APIKEY']
+    url = 'https://comicvine.gamespot.com/api/issues/?api_key=%s' % apikey
+    url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
+    cv_api_sleep()
+    data, _ = gb_json_request(url)
+    # extract site-detail-url from data, then page scrape
+    # <h3>Creators</h3> to get href text and <span class="credits-role"> text
+    
+    return res
+
+
+def cx_issue(url, issuenum):
+    res = {'Description': '', 'Link': '', 'Contributors': ''}
+    data, _ = html_request(url)
+    if data:
+        issue_links = get_series_links_from_search(data)
+        for link in issue_links:
+            if "-%s/" % issuenum in link or "-%s-" % issuenum in link:
+                res['Link'] = link
+                break
+    if res['Link']:
+        data, _ = html_request(res['Link'])
+        if data:
+            soup = BeautifulSoup(data, "html5lib")
+            desc = soup.find('section', class_='item-description')
+            if desc:
+                res['Description'] = desc.text.strip()
+            cred = soup.find_all('div', class_='credits')
+            contributors = ''
+            for item in cred:
+                title = item.find('h2')
+                if title:
+                    title = str(title).split('"')[1]
+                else:
+                    title = ''
+                name = item.find('a').text.strip('\n').strip().strip('\n')
+                if name and title:
+                    if contributors:
+                        contributors += ', '
+                    contributors += title + ': ' + name
+            res['Contributors'] = contributors       
+    return res

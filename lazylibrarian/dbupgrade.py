@@ -105,8 +105,9 @@ def upgrade_needed():
     # 54 separated author added date from updated timestamp
     # 55 Add Reason to author table
     # 56 Add Cover column to comicissues and issues tables
+    # 57 Add Description to comics and Description/Contributors to comicissues
 
-    db_current_version = 56
+    db_current_version = 57
 
     if db_version < db_current_version:
         return db_current_version
@@ -192,7 +193,7 @@ def dbupgrade(db_current_version):
                     myDB.action('CREATE TABLE comics (ComicID TEXT UNIQUE, Title TEXT, Status TEXT, ' +
                                 'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
                                 'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
-                                'Publisher TEXT, Link TEXT, aka TEXT)')
+                                'Publisher TEXT, Link TEXT, aka TEXT, Description TEXT)')
                     myDB.action('CREATE TABLE jobs (Name TEXT, LastRun INTEGER DEFAULT 0)')
 
                     if lazylibrarian.FOREIGN_KEY:
@@ -223,7 +224,7 @@ def dbupgrade(db_current_version):
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
                                     'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
-                                    'Cover TEXT, UNIQUE (ComicID, IssueID))')
+                                    'Cover TEXT, Description TEXT, Contributors Text, UNIQUE (ComicID, IssueID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
                         # so orphans get cleaned up at program startup
@@ -248,7 +249,7 @@ def dbupgrade(db_current_version):
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
                                     'IssueAcquired TEXT, IssueFile TEXT, Cover TEXT, ' +
-                                    'UNIQUE (ComicID, IssueID))')
+                                    'Description TEXT, Contributors TEXT, UNIQUE (ComicID, IssueID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -1651,3 +1652,16 @@ def db_v56(myDB, upgradelog):
 
     upgradelog.write("%s v56: complete\n" % time.ctime())
 
+
+def db_v57(myDB, upgradelog):
+    if not has_column(myDB, "comicissues", "Description"):
+        lazylibrarian.UPDATE_MSG = 'Adding Description, Link and Contributors columns to comicissues table'
+        upgradelog.write("%s v57: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE comicissues ADD COLUMN Description TEXT')
+        myDB.action('ALTER TABLE comicissues ADD COLUMN Link TEXT')
+        myDB.action('ALTER TABLE comicissues ADD COLUMN Contributors TEXT')
+    if not has_column(myDB, "comics", "Description"):
+        lazylibrarian.UPDATE_MSG = 'Adding Description column to comics table'
+        upgradelog.write("%s v57: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE comics ADD COLUMN Description TEXT')
+    upgradelog.write("%s v57: complete\n" % time.ctime())
