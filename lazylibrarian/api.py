@@ -92,7 +92,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'forceComicSearch': '[&wait] search for all wanted comics',
             'getRSSFeed': '&feed= [&limit=] show rss feed entries',
             'forceWishlistSearch': '[&wait] search all entries in wishlists',
-            'forceProcess': '[&dir] [ignorekeepseeding] process books/mags in download or named dir',
+            'forceProcess': '[&dir] [ignorekeepseeding] [wait] [&downloadid=] process books/mags in download or named dir',
             'pauseAuthor': '&id= pause author by AuthorID',
             'resumeAuthor': '&id= resume author by AuthorID',
             'ignoreAuthor': '&id= ignore author by AuthorID',
@@ -997,15 +997,21 @@ class Api(object):
         else:
             self.data = "No search methods set, check config"
 
-    @staticmethod
-    def _forceProcess(**kwargs):
+    def _forceProcess(self, **kwargs):
         startdir = None
+        wait = False
+        downloadid = None
         if 'dir' in kwargs:
             startdir = kwargs['dir']
         ignore = False
         if 'ignoreclient' in kwargs:
             ignore = True
-        processDir(startdir=startdir, ignoreclient=ignore)
+        if 'downloadid' in kwargs:
+            downloadid = kwargs['downloadid']
+        if 'wait' in kwargs:
+            self.data = processDir(startdir=startdir, ignoreclient=ignore, downloadid=downloadid)
+        else:
+            processDir(startdir=startdir, ignoreclient=ignore, downloadid=downloadid)
 
     @staticmethod
     def _forceLibraryScan(**kwargs):
