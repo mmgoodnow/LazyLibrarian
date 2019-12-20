@@ -204,9 +204,11 @@ def comicScan(comicid=None):
                                     res = cv_issue(comicid[2:], issue)
                                 elif comicid.startswith('CX'):
                                     res = cx_issue(serieslink, issue)
-                                if res:
+                                if res:  # type: dict
                                     for item in ['Description', 'Link', 'Contributors']:
+                                        # noinspection PyTypeChecker
                                         if res[item]:
+                                            # noinspection PyTypeChecker
                                             newValueDict[item] = res[item]
 
                             controlValueDict = {"ComicID": comicid, "IssueID": issue}
@@ -218,7 +220,10 @@ def comicScan(comicid=None):
                                 data.update(newValueDict)
                                 data['Title'] = title
                                 data['Publisher'] = publisher
-                                _ = createComicOPF(dest_path, data, global_name, overwrite=True)
+                                if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                                    logger.debug('createComicOPF is disabled')
+                                else:
+                                    _ = createComicOPF(dest_path, data, global_name, overwrite=True)
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         with open(ignorefile, 'a'):

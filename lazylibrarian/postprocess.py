@@ -894,7 +894,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                                 "LatestCover": 'cache/magazine/%s.jpg' % myhash}
                             myDB.upsert("magazines", newValueDict, controlValueDict)
 
-                            _ = createMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
+                            if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                                logger.debug('createMAGOPF is disabled')
+                            else:
+                                _ = createMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 processAutoAdd(dest_path, booktype='mag')
@@ -929,12 +932,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                                             (book['NZBtitle'], book['Source']))
                             elif book['Source'] != 'DIRECT':
                                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+                                logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
                                 if progress == 100 and finished:
                                     logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
                                     delete_task(book['Source'], book['DownloadID'], False)
                                 elif progress < 0:
                                     logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
-                                else:
+                                elif book['NZBmode'] in ['torrent', 'magnet', 'torznab']:
                                     cmd = 'UPDATE wanted SET Status="Seeding", DLResult=?'
                                     cmd += ' WHERE NZBurl=? and Status="Processed"'
                                     myDB.action(cmd, (pp_path, book['NZBurl']))
@@ -2011,15 +2015,20 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if not data:
                     logger.error('processDestination: No data found for bookid %s' % bookid)
                 else:
+                    opfpath = ''
                     if booktype == 'ebook':
                         processIMG(pp_path, data['BookID'], data['BookImg'], global_name, 'book')
                         opfpath, our_opf = createOPF(pp_path, data, global_name, True)
                     else:  # booktype == 'comic':
                         processIMG(pp_path, data['BookID'], data['Cover'], global_name, 'comic')
-                        opfpath, our_opf = createComicOPF(pp_path, data, global_name, True)
-                    _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
-                    if rc:
-                        logger.warn("calibredb unable to set opf")
+                        if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                            logger.debug('createComicOPF is disabled')
+                        else:
+                            opfpath, our_opf = createComicOPF(pp_path, data, global_name, True)
+                    if opfpath:
+                        _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
+                        if rc:
+                            logger.warn("calibredb unable to set opf")
 
                     if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
                         return True, data['IssueFile']
@@ -2300,9 +2309,6 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
 
 def createComicOPF(pp_path, data, global_name, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
-    if not lazylibrarian.CONFIG['IMP_COMICOPF']:
-        return "", False
-    
     title = data['Title']
     issue = data['IssueID']
     contributors = data['Contributors']
@@ -2334,8 +2340,6 @@ def createComicOPF(pp_path, data, global_name, overwrite=False):
 
 def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
-    if not lazylibrarian.CONFIG['IMP_MAGOPF']:
-        return "", False
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
