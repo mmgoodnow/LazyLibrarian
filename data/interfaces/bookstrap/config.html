@@ -104,21 +104,204 @@
                     <fieldset>
                       <legend>Logs</legend>
                       <div class="input-group">
-                        <span class="input-group-addon">Logdir</span>
-                        <input type="text" id="logdir" name="logdir" value="${lazylibrarian.CONFIG['LOGDIR']}" class="form-control" placeholder="Log Dir">
+                        <span id="log_label" class="input-group-addon">Folder</span>
+                        <input type="text" id="logdir" name="logdir" value="${lazylibrarian.CONFIG['LOGDIR']}" class="form-control" placeholder="Log Folder">
                       </div>
                       <div class="input-group">
-                        <span class="input-group-addon">Log Files</span>
+                        <span id="log_label" class="input-group-addon">Level</span>
+                          <select id="log_type" name="log_type" class="form-control">
+                          <%
+                            if lazylibrarian.LOGLEVEL == 0:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Quiet" ${selected}>Quiet</option>
+                          <%
+                            if lazylibrarian.LOGLEVEL == 1:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Normal" ${selected}>Normal</option>
+                          <%
+                            if lazylibrarian.LOGLEVEL > 1:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Debug" ${selected}>Debug</option>
+                          </select>
+                        <span class="input-group-addon">Screen Log</span>
+                        <input type="number" id="loglimit" name="loglimit" value="${lazylibrarian.CONFIG['LOGLIMIT']}" class="form-control" placeholder="Number of lines">
+                      </div>
+                      <div class="input-group">
+                        <span id="log_label" class="input-group-addon">Files</span>
                         <input type="number" id="logfiles" name="logfiles" value="${lazylibrarian.CONFIG['LOGFILES']}" class="form-control"             placeholder="Number of files">
-                        <span class="input-group-addon">Log Lines</span>
-                        <input type="number" id="loglimit" name="loglimit" value="${lazylibrarian.CONFIG['LOGLIMIT']}" class="form-control"             placeholder="Number of lines">
+                        <span class="input-group-addon">File Size</span>
+                        <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Log Size</span>
-                        <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control"             placeholder="Log File Size">
-                        <span class="input-group-addon">Log Level</span>
-                        <input type="number" id="loglevel" name="loglevel" value="${lazylibrarian.LOGLEVEL}" class="form-control" placeholder="0=quiet,1=Normal,2=Debug">
+                      %if lazylibrarian.LOGLEVEL > 1:
+                      <br>
+                      <legend>Detailed Debug Options</legend>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_matching" class="control-label">
+                          <input type="checkbox" id="log_matching" name="log_matching" value="1" ${checked} />
+                          Name Matching</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_searching" class="control-label">
+                          <input type="checkbox" id="log_searching" name="log_searching" value="1" ${checked} />
+                          Search Results</label>
+                        </div>
                       </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_dlcomms" class="control-label">
+                          <input type="checkbox" id="log_dlcomms" name="log_dlcomms" value="1" ${checked} />
+                          Downloader Messages</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_dbcomms" class="control-label">
+                          <input type="checkbox" id="log_dbcomms" name="log_dbcomms" value="1" ${checked} />
+                          Database Commands</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_postprocess" class="control-label">
+                          <input type="checkbox" id="log_postprocess" name="log_postprocess" value="1" ${checked} />
+                          PostProcessor</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_fuzz" class="control-label">
+                          <input type="checkbox" id="log_fuzz" name="log_fuzz" value="1" ${checked} />
+                          Fuzzy Matching</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_serverside" class="control-label">
+                          <input type="checkbox" id="log_serverside" name="log_serverside" value="1" ${checked} />
+                          Serverside Processing</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_fileperms" class="control-label">
+                          <input type="checkbox" id="log_fileperms" name="log_fileperms" value="1" ${checked} />
+                          File Permissions</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_grsync" class="control-label">
+                          <input type="checkbox" id="log_grsync" name="log_grsync" value="1" ${checked} />
+                          Goodreads Sync</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_cache" class="control-label">
+                          <input type="checkbox" id="log_cache" name="log_cache" value="1" ${checked} />
+                          Caching</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_libsync" class="control-label">
+                          <input type="checkbox" id="log_libsync" name="log_libsync" value="1" ${checked} />
+                          Library Scan</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_admin" class="control-label">
+                          <input type="checkbox" id="log_admin" name="log_admin" value="1" ${checked} />
+                          Admin Messages</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cherrypy:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_cherrypy" class="control-label">
+                          <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
+                          Cherrypy Logging (needs restart)</label>
+                        </div>
+                      </div>
+                      %endif
                     </fieldset>
                   </fieldset>
                   <br>
