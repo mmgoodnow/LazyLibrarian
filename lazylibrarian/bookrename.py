@@ -292,7 +292,7 @@ def audioProcess(bookid, rename=False, playlist=False):
         dest_path = r
     if rename and r != dest_path:
         try:
-            logger.debug("Moving [%s] to [%s]" % (repr(r), repr(dest_path)))
+            logger.debug("Moving folder [%s] to [%s]" % (repr(r), repr(dest_path)))
             dest_path = safe_move(r, dest_path)
             r = dest_path
         except Exception as why:
@@ -398,6 +398,7 @@ def bookRename(bookid):
     if oldpath != dest_path:
         try:
             dest_path = safe_move(oldpath, dest_path)
+            logger.debug("bookRename folder %s to %s" % (oldpath, dest_path))
         except Exception as why:
             if not os.path.isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
@@ -428,7 +429,7 @@ def bookRename(bookid):
                 if ofname != nfname:
                     try:
                         nfname = safe_move(ofname, nfname)
-                        logger.debug("bookRename %s to %s" % (ofname, nfname))
+                        logger.debug("bookRename file %s to %s" % (ofname, nfname))
                         oldname = os.path.join(oldpath, fname)
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
                             f = nfname
