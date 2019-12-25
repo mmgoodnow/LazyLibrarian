@@ -1359,6 +1359,15 @@ class WebInterface(object):
             lazylibrarian.APPRISE_PROV[count]['URL'] = kwargs.get('apprise_%i_url' % count, '')
             count += 1
 
+        # Convert legacy log settings
+        if 'loglevel' in kwargs:
+            if kwargs['loglevel'] == '0':
+                kwargs['log_type'] = 'Quiet'
+            elif kwargs['loglevel'] == '1':
+                kwargs['log_type'] = 'Normal'
+            elif kwargs['loglevel'] == '2':
+                kwargs['log_type'] = 'Debug'
+
         if kwargs['log_type'] == 'Quiet':
             newloglevel = 0
         elif kwargs['log_type'] == 'Normal':
