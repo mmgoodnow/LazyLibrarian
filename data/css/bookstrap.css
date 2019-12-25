@@ -63,3 +63,7 @@ body.modal-open-noscroll {
 .modal-open-noscroll .navbar-fixed-top, .modal-open .navbar-fixed-bottom {
   margin-right: 0!important;
 }
+
+.input-group + .input-group {
+    margin-top: 2px;
+}
