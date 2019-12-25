@@ -64,6 +64,10 @@ body.modal-open-noscroll {
   margin-right: 0!important;
 }
 
-.input-group + .input-group {
+form .input-group + .input-group {
     margin-top: 2px;
+}
+
+form label {
+    cursor: pointer;
 }
