@@ -1691,6 +1691,7 @@ class WebInterface(object):
     def addAuthor(self, AuthorName):
         threading.Thread(target=addAuthorNameToDB, name='ADDAUTHOR',
                          args=[AuthorName, False, True, 'WebServer addAuthor %s' % AuthorName]).start()
+        time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
