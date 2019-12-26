@@ -63,3 +63,23 @@ body.modal-open-noscroll {
 .modal-open-noscroll .navbar-fixed-top, .modal-open .navbar-fixed-bottom {
   margin-right: 0!important;
 }
+
+.toggle-vis {
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+@media screen and (max-width:767px) {
+    .toggles {
+        text-align: left;
+        margin-top: 1rem;
+    }
+
+    div.dataTables_wrapper div.dataTables_length {
+        text-align: left;
+    }
+
+    div.dataTables_wrapper div.dataTables_filter {
+        text-align: right;
+    }
+}
