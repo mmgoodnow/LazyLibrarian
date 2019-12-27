@@ -1359,6 +1359,15 @@ class WebInterface(object):
             lazylibrarian.APPRISE_PROV[count]['URL'] = kwargs.get('apprise_%i_url' % count, '')
             count += 1
 
+        # Convert legacy log settings
+        if 'loglevel' in kwargs:
+            if kwargs['loglevel'] == '0':
+                kwargs['log_type'] = 'Quiet'
+            elif kwargs['loglevel'] == '1':
+                kwargs['log_type'] = 'Normal'
+            elif kwargs['loglevel'] == '2':
+                kwargs['log_type'] = 'Debug'
+
         if kwargs['log_type'] == 'Quiet':
             newloglevel = 0
         elif kwargs['log_type'] == 'Normal':
@@ -1691,6 +1700,7 @@ class WebInterface(object):
     def addAuthor(self, AuthorName):
         threading.Thread(target=addAuthorNameToDB, name='ADDAUTHOR',
                          args=[AuthorName, False, True, 'WebServer addAuthor %s' % AuthorName]).start()
+        time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
