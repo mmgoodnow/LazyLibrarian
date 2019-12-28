@@ -82,7 +82,7 @@ def processAlternate(source_dir=None, library='eBook'):
             return False
         if not os.path.isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
- rd           return False
+            return False
         if source_dir == lazylibrarian.DIRECTORY('eBook'):
             logger.warn('Alternate directory must not be the same as Destination')
             return False
