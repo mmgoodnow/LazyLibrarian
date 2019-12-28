@@ -643,9 +643,26 @@ def cv_issue(seriesid, issuenum):
     url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
     cv_api_sleep()
     data, _ = gb_json_request(url)
-    # extract site-detail-url from data, then page scrape
-    # <h3>Creators</h3> to get href text and <span class="credits-role"> text
-    
+    # comicvine api "/issue" and "issue_detail_url" seem broken, always get 404
+    # so extract site-detail-url from data, then page scrape
+    # to get names and roles
+    contributors = ''
+    res['Link'] = data['results'][0]['site_detail_url']
+    res['Description'] = data['results'][0]['description']
+    data, _ = html_request(res['Link'])
+    if data:
+        soup = BeautifulSoup(data, "html5lib")
+        table = soup.find('div', attrs={'id': 'wiki-relatedList'}
+                          ).find('div', attrs={'class': 'wiki-details-object'})
+        for entry in table.find_all('li'):
+            name = entry.find('a').text.replace('\n', '').strip()
+            role = entry.find('span').text.replace('\n', '').replace(',', '')
+            role = " ".join(role.split()).strip()
+            if name and role:
+                if contributors:
+                    contributors += ', '
+                contributors += role + ': ' + name
+        res['Contributors'] = contributors
     return res
 
 
@@ -668,15 +685,15 @@ def cx_issue(url, issuenum):
             cred = soup.find_all('div', class_='credits')
             contributors = ''
             for item in cred:
-                title = item.find('h2')
-                if title:
-                    title = str(title).split('"')[1]
+                role = item.find('h2')
+                if role:
+                    role = str(role).split('"')[1]
                 else:
-                    title = ''
+                    role = ''
                 name = item.find('a').text.strip('\n').strip().strip('\n')
-                if name and title:
+                if name and role:
                     if contributors:
                         contributors += ', '
-                    contributors += title + ': ' + name
+                    contributors += role + ': ' + name
             res['Contributors'] = contributors       
     return res

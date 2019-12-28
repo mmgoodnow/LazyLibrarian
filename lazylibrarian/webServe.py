@@ -1359,6 +1359,49 @@ class WebInterface(object):
             lazylibrarian.APPRISE_PROV[count]['URL'] = kwargs.get('apprise_%i_url' % count, '')
             count += 1
 
+        # Convert legacy log settings
+        if 'loglevel' in kwargs:
+            if kwargs['loglevel'] == '0':
+                kwargs['log_type'] = 'Quiet'
+            elif kwargs['loglevel'] == '1':
+                kwargs['log_type'] = 'Normal'
+            elif kwargs['loglevel'] == '2':
+                kwargs['log_type'] = 'Debug'
+
+        if kwargs['log_type'] == 'Quiet':
+            newloglevel = 0
+        elif kwargs['log_type'] == 'Normal':
+            newloglevel = 1
+        else:
+            newloglevel = 2
+            if 'log_matching' in kwargs:
+                newloglevel += lazylibrarian.log_matching
+            if 'log_searching' in kwargs:
+                newloglevel += lazylibrarian.log_searching
+            if 'log_dbcomms' in kwargs:
+                newloglevel += lazylibrarian.log_dbcomms
+            if 'log_dlcomms' in kwargs:
+                newloglevel += lazylibrarian.log_dlcomms
+            if 'log_postprocess' in kwargs:
+                newloglevel += lazylibrarian.log_postprocess
+            if 'log_fuzz' in kwargs:
+                newloglevel += lazylibrarian.log_fuzz
+            if 'log_serverside' in kwargs:
+                newloglevel += lazylibrarian.log_serverside
+            if 'log_fileperms' in kwargs:
+                newloglevel += lazylibrarian.log_fileperms
+            if 'log_grsync' in kwargs:
+                newloglevel += lazylibrarian.log_grsync
+            if 'log_cache' in kwargs:
+                newloglevel += lazylibrarian.log_cache
+            if 'log_libsync' in kwargs:
+                newloglevel += lazylibrarian.log_libsync
+            if 'log_admin' in kwargs:
+                newloglevel += lazylibrarian.log_admin
+            if 'log_cherrypy' in kwargs:
+                newloglevel += lazylibrarian.log_cherrypy
+        lazylibrarian.LOGLEVEL = newloglevel
+        lazylibrarian.CONFIG['LOGLEVEL'] = newloglevel
         lazylibrarian.config_write()
         checkRunningJobs()
 
@@ -1657,6 +1700,7 @@ class WebInterface(object):
     def addAuthor(self, AuthorName):
         threading.Thread(target=addAuthorNameToDB, name='ADDAUTHOR',
                          args=[AuthorName, False, True, 'WebServer addAuthor %s' % AuthorName]).start()
+        time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose

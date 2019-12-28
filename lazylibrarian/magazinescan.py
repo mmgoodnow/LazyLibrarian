@@ -296,7 +296,11 @@ def magazineScan(title=None):
                     with open(ignorefile, 'a'):
                         os.utime(ignorefile, None)
 
-                    lazylibrarian.postprocess.createMAGOPF(issuefile, title, issuedate, issue_id, overwrite=new_entry)
+                    if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                        logger.debug('createMAGOPF is disabled')
+                    else:
+                        lazylibrarian.postprocess.createMAGOPF(issuefile, title, issuedate,
+                                                               issue_id, overwrite=new_entry)
 
                     # see if this issues date values are useful
                     controlValueDict = {"Title": title}
