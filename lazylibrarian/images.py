@@ -87,15 +87,21 @@ def coverswap(sourcefile):
         output = PdfFileWriter()
         input1 = PdfFileReader(f)
         cnt = input1.getNumPages()
+        logger.debug("Found %s pages in %s" % (cnt, sourcefile))
         output.addPage(input1.getPage(1))
+        # logger.debug("Added page 1")
         output.addPage(input1.getPage(0))
+        # logger.debug("Added page 0")
         p = 2
         while p < cnt:
             output.addPage(input1.getPage(p))
+            # logger.debug("Added page %s" % p)
             p = p + 1
+        logger.debug("Writing new output file")
         with open(sourcefile + 'new', "wb") as outputStream:
             output.write(outputStream)
         f.close()
+        logger.debug("Renaming output file")
         os.remove(sourcefile)
         os.rename(sourcefile + 'new', sourcefile)
         logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
@@ -842,6 +848,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
     try:
         coverfile = safe_copy(os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg'), coverfile)
         setperm(coverfile)
+        return coverfile
     except Exception as why:
         logger.error("Failed to copy nocover file, %s %s" % (type(why).__name__, str(why)))
     return ''

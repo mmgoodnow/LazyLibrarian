@@ -56,13 +56,13 @@
                     <legend>Server Details</legend>
                     <input type="text" id="current_tab" name="current_tab" value="${lazylibrarian.CURRENT_TAB}" class="hidden">
                     <div class="input-group">
-                      <span class="input-group-addon">Host</span>
+                      <label for="http_host" class="input-group-addon">Host</label>
                       <input type="text" id="http_host" name="http_host" value="${lazylibrarian.CONFIG['HTTP_HOST']}" class="form-control" placeholder="Hostname">
-                      <span class="input-group-addon">Port</span>
+                      <label for="http_port" class="input-group-addon">Port</label>
                       <input type="number" id="http_port" name="http_port" value="${lazylibrarian.CONFIG['HTTP_PORT']}" class="form-control" placeholder="Port Number (Default 5299)">
                     </div>
                     <div class="input-group">
-                      <span class="input-group-addon">Web Root</span>
+                      <label for="http_root" class="input-group-addon">Web Root</label>
                       <input type="text" id="http_root" name="http_root" value="${lazylibrarian.CONFIG['HTTP_ROOT']}" class="form-control" placeholder="Web Root">
                     </div>
                     <fieldset>
@@ -104,21 +104,205 @@
                     <fieldset>
                       <legend>Logs</legend>
                       <div class="input-group">
-                        <span class="input-group-addon">Logdir</span>
-                        <input type="text" id="logdir" name="logdir" value="${lazylibrarian.CONFIG['LOGDIR']}" class="form-control" placeholder="Log Dir">
+                        <label for="logdir" id="log_label" class="input-group-addon">Folder</label>
+                        <input type="text" id="logdir" name="logdir" value="${lazylibrarian.CONFIG['LOGDIR']}" class="form-control" placeholder="Log Folder">
                       </div>
                       <div class="input-group">
-                        <span class="input-group-addon">Log Files</span>
+                        <label for="log_type" id="log_label" class="input-group-addon">Level</label>
+                        <select id="log_type" name="log_type" class="form-control">
+                          <%
+                            if lazylibrarian.LOGLEVEL == 0:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Quiet" ${selected}>Quiet</option>
+                          <%
+                            if lazylibrarian.LOGLEVEL == 1:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Normal" ${selected}>Normal</option>
+                          <%
+                            if lazylibrarian.LOGLEVEL > 1:
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="Debug" ${selected}>Debug</option>
+                        </select>
+
+                        <label for="loglimit" class="input-group-addon">Screen Log</label>
+                        <input type="number" id="loglimit" name="loglimit" value="${lazylibrarian.CONFIG['LOGLIMIT']}" class="form-control" placeholder="Number of lines">
+                      </div>
+                      <div class="input-group">
+                        <label for="logfiles" id="log_label" class="input-group-addon">Files</label>
                         <input type="number" id="logfiles" name="logfiles" value="${lazylibrarian.CONFIG['LOGFILES']}" class="form-control"             placeholder="Number of files">
-                        <span class="input-group-addon">Log Lines</span>
-                        <input type="number" id="loglimit" name="loglimit" value="${lazylibrarian.CONFIG['LOGLIMIT']}" class="form-control"             placeholder="Number of lines">
+                        <label for="logsize" class="input-group-addon">File Size</label>
+                        <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Log Size</span>
-                        <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control"             placeholder="Log File Size">
-                        <span class="input-group-addon">Log Level</span>
-                        <input type="number" id="loglevel" name="loglevel" value="${lazylibrarian.LOGLEVEL}" class="form-control" placeholder="0=quiet,1=Normal,2=Debug">
+                      %if lazylibrarian.LOGLEVEL > 1:
+                      <br>
+                      <legend>Detailed Debug Options</legend>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_matching" class="control-label">
+                          <input type="checkbox" id="log_matching" name="log_matching" value="1" ${checked} />
+                          Name Matching</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_searching" class="control-label">
+                          <input type="checkbox" id="log_searching" name="log_searching" value="1" ${checked} />
+                          Search Results</label>
+                        </div>
                       </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_dlcomms" class="control-label">
+                          <input type="checkbox" id="log_dlcomms" name="log_dlcomms" value="1" ${checked} />
+                          Downloader Messages</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_dbcomms" class="control-label">
+                          <input type="checkbox" id="log_dbcomms" name="log_dbcomms" value="1" ${checked} />
+                          Database Commands</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_postprocess" class="control-label">
+                          <input type="checkbox" id="log_postprocess" name="log_postprocess" value="1" ${checked} />
+                          PostProcessor</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_fuzz" class="control-label">
+                          <input type="checkbox" id="log_fuzz" name="log_fuzz" value="1" ${checked} />
+                          Fuzzy Matching</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_serverside" class="control-label">
+                          <input type="checkbox" id="log_serverside" name="log_serverside" value="1" ${checked} />
+                          Serverside Processing</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_fileperms" class="control-label">
+                          <input type="checkbox" id="log_fileperms" name="log_fileperms" value="1" ${checked} />
+                          File Permissions</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_grsync" class="control-label">
+                          <input type="checkbox" id="log_grsync" name="log_grsync" value="1" ${checked} />
+                          Goodreads Sync</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_cache" class="control-label">
+                          <input type="checkbox" id="log_cache" name="log_cache" value="1" ${checked} />
+                          Caching</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_libsync" class="control-label">
+                          <input type="checkbox" id="log_libsync" name="log_libsync" value="1" ${checked} />
+                          Library Scan</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_admin" class="control-label">
+                          <input type="checkbox" id="log_admin" name="log_admin" value="1" ${checked} />
+                          Admin Messages</label>
+                        </div>
+                      </div>
+                      <div class="row checkbox">
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cherrypy:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_cherrypy" class="control-label">
+                          <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
+                          Cherrypy Logging (needs restart)</label>
+                        </div>
+                      </div>
+                      %endif
                     </fieldset>
                   </fieldset>
                   <br>
@@ -197,9 +381,9 @@
                             <div id="opdscredentials">
                               <small>If the user/pass below are blank the webserver user/pass will be used</small>
                               <div class="input-group">
-                                <span class="input-group-addon">User</span>
+                                <label for="opds_username" class="input-group-addon">User</label>
                                 <input type="text" id="opds_username" name="opds_username" value="${lazylibrarian.CONFIG['OPDS_USERNAME']}" class="form-control" placeholder="Username">
-                                <span class="input-group-addon">Pass</span>
+                                <label for="opds_password" class="input-group-addon">Pass</label>
                                 <input type="password" id="opds_password" name="opds_password" value="${lazylibrarian.CONFIG['OPDS_PASSWORD']}" class="form-control" placeholder="Password">
                               </div>
                               <small>NOTE - some OPDS readers do not send authentication for cover images or searches, so we don't send them. If you are getting lists with no images try disabling authentication or upgrading your reader</small>
@@ -216,13 +400,13 @@
                               OPDS Include MetaInfo</label><br><small>This will include book summary, cover, author details</small>
                             </div>
                             <div class="input-group col-md-6">
-                            <span class="input-group-addon">Page Size</span>
+                            <label for="opds_page" class="input-group-addon">Page Size</label>
                             <input type="number" id="opds_page" name="opds_page" value="${lazylibrarian.CONFIG['OPDS_PAGE']}" class="form-control" placeholder="Page Size">
                             </div>
                         </fieldset>
                     </fieldset>
                 </div>
-                <div>
+                <div class="col-md-6">
                   <fieldset>
                     <legend>Access Control</legend>
                     <div class="row checkbox">
@@ -260,9 +444,9 @@
                     <fieldset id="webserver_options">
                     WebServer Options:
                     <div class="input-group">
-                      <span class="input-group-addon">User</span>
+                      <label for="http_user" class="input-group-addon">User</label>
                       <input type="text" id="http_user" name="http_user" value="${lazylibrarian.CONFIG['HTTP_USER']}" class="form-control" placeholder="Username">
-                      <span class="input-group-addon">Pass</span>
+                      <label for="http_pass" class="input-group-addon">Pass</label>
                       <input type="password" id="http_pass" name="http_pass" value="${lazylibrarian.CONFIG['HTTP_PASS']}" class="form-control" placeholder="Password">
                     </div>
                     </fieldset>
@@ -298,7 +482,7 @@
                   <fieldset>
                     <fieldset id="api_options">
                       <div class="form-group">
-                        <label>API key</label>
+                        <label for="api_key">API key</label>
                         <input type="text" name="api_key" id="api_key" value="${lazylibrarian.CONFIG['API_KEY']}" size="36">
                         <input class="button btn btn-sm btn-primary" type="button" value="Generate" id="generateAPI" onClick="document.location.reload(true)">
                         <br>
@@ -1062,7 +1246,7 @@
                       </div>
                     </fieldset>
                     <div class="input-group col-md-8">
-                      <span class="input-group-addon">Usenet Retention</span>
+                      <label for="usenet_retention" class="input-group-addon">Usenet Retention</label>
                       <input type="number" id="usenet_retention" name="usenet_retention" value="${lazylibrarian.CONFIG['USENET_RETENTION']}" class="form-control" placeholder="Retention Maximum Age">
                       <span class="input-group-addon">Days</span>
                     </div>
@@ -1381,7 +1565,7 @@
                       Do not delete if still seeding</label>
                     </div>
                     <div class="input-group col-md-6">
-                      <span class="input-group-addon">Minimum Seeders</span>
+                      <label for="numberofseeders" class="input-group-addon">Minimum Seeders</label>
                       <input type="number" id="numberofseeders" name="numberofseeders" value="${lazylibrarian.CONFIG['NUMBEROFSEEDERS']}" class="form-control" placeholder="0 to disable">
                     </div>
                   </fieldset>
@@ -3542,9 +3726,9 @@
                 <div class="col-md-6">
                 <legend>eBook Size Limits</legend>
                   <div class="input-group">
-                    <span class="input-group-addon">Min size</span>
+                    <label for="reject_minsize" class="input-group-addon">Min size</label>
                     <input type="number" id="reject_minsize" name="reject_minsize" value="${lazylibrarian.CONFIG['REJECT_MINSIZE']}" class="form-control" placeholder="Reject minimum size">
-                    <span class="input-group-addon">Max size</span>
+                    <label for="reject_maxsize" class="input-group-addon">Max size</label>
                     <input type="number" id="reject_maxsize" name="reject_maxsize" value="${lazylibrarian.CONFIG['REJECT_MAXSIZE']}" class="form-control" placeholder="Reject maximum size">
                     <span class="input-group-addon">Mb</span>
                   </div>
@@ -3554,9 +3738,9 @@
                 <div class="col-md-6">
                 <legend>AudioBook Size Limits</legend>
                  <div class="input-group">
-                    <span class="input-group-addon">Min size</span>
+                    <label for="reject_minaudio" class="input-group-addon">Min size</label>
                     <input type="number" id="reject_minaudio" name="reject_minaudio" value="${lazylibrarian.CONFIG['REJECT_MINAUDIO']}" class="form-control" placeholder="Reject minimum size">
-                    <span class="input-group-addon">Max size</span>
+                    <label for="reject_maxaudio" class="input-group-addon">Max size</label>
                     <input type="number" id="reject_maxaudio" name="reject_maxaudio" value="${lazylibrarian.CONFIG['REJECT_MAXAUDIO']}" class="form-control" placeholder="Reject maximum size">
                     <span class="input-group-addon">Mb</span>
                   </div>
@@ -3566,9 +3750,9 @@
                 <div class="col-md-6">
                 <legend>Comic Size Limits</legend>
                  <div class="input-group">
-                    <span class="input-group-addon">Min size</span>
+                    <label for="reject_mincomic" class="input-group-addon">Min size</label>
                     <input type="number" id="reject_mincomic" name="reject_mincomic" value="${lazylibrarian.CONFIG['REJECT_MINCOMIC']}" class="form-control" placeholder="Reject minimum size">
-                    <span class="input-group-addon">Max size</span>
+                    <label for="reject_maxcomic" class="input-group-addon">Max size</label>
                     <input type="number" id="reject_maxcomic" name="reject_maxcomic" value="${lazylibrarian.CONFIG['REJECT_MAXCOMIC']}" class="form-control" placeholder="Reject maximum size">
                     <span class="input-group-addon">Mb</span>
                   </div>
@@ -3579,9 +3763,9 @@
                 <br>
                 <legend>Magazine Size Limits</legend>
                   <div class="input-group">
-                    <span class="input-group-addon">Min size</span>
+                    <label for="reject_magmin" class="input-group-addon">Min size</label>
                     <input type="number" id="reject_magmin" name="reject_magmin" value="${lazylibrarian.CONFIG['REJECT_MAGMIN']}" class="form-control" placeholder="Reject minimum size">
-                    <span class="input-group-addon">Max size</span>
+                    <label for="reject_magsize" class="input-group-addon">Max size</label>
                     <input type="number" id="reject_magsize" name="reject_magsize" value="${lazylibrarian.CONFIG['REJECT_MAGSIZE']}" class="form-control" placeholder="Reject maximum size">
                     <span class="input-group-addon">Mb</span>
                   </div>
@@ -3594,17 +3778,17 @@
                 <div class="col-md-6">
                 <label>${mag['Title']}</label>
                   <div class="input-group">
-                    <span class="input-group-addon">Reject&nbsp;</span>
+                    <label for="reject_list[${mag['Title']}]" class="input-group-addon">Reject&nbsp;</label>
                     <input type="text" id="reject_list[${mag['Title']}]" name="reject_list[${mag['Title']}]" value="${mag['Reject']}" class="form-control" placeholder="Reject word list">
                   </div>
                   <div class="input-group">
-                    <span class="input-group-addon">Search</span>
+                    <label for="regex[${mag['Title']}]" class="input-group-addon">Search</label>
                     <input type="text" id="regex[${mag['Title']}]" name="regex[${mag['Title']}]" value="${mag['Regex']}" class="form-control" placeholder="Search expression">
                   </div>
                   <div class="input-group">
-                    <span class="input-group-addon">Date Style</span>
+                    <label for="datetype[${mag['Title']}]" class="input-group-addon">Date Style</label>
                     <input type="text" id="datetype[${mag['Title']}]" name="datetype[${mag['Title']}]" value="${mag['DateType']}" class="form-control" placeholder="auto">
-                    <span class="input-group-addon">Cover Page</span>
+                    <label for="coverpage[${mag['Title']}]" class="input-group-addon">Cover Page</label>
                     <input type="number" id="coverpage[${mag['Title']}]" name="coverpage[${mag['Title']}]" value="${mag['CoverPage']}" class="form-control" placeholder="1">
                   </div>
                 </div>

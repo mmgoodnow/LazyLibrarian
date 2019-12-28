@@ -553,18 +553,22 @@ def update():
 
         # Find update dir name
         update_dir = makeUnicode(update_dir)
+        logger.debug("update_dir [%s]" % update_dir)
         update_dir_contents = [x for x in listdir(update_dir) if os.path.isdir(os.path.join(update_dir, x))]
         if len(update_dir_contents) != 1:
             logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
             return False
         content_dir = os.path.join(update_dir, update_dir_contents[0])
-
+        logger.debug("update_dir_contents [%s]" % str(update_dir_contents))
+        logger.debug("Walking %s" % content_dir)
         # walk temp folder and move files to main folder
         for rootdir, _, filenames in walk(content_dir):
             for curfile in filenames:
                 old_path = os.path.join(content_dir, rootdir, curfile)
                 new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
-
+                if old_path == new_path:
+                    logger.error("PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
+                        lazylibrarian.PROG_DIR, content_dir, rootdir, curfile))
                 if os.path.isfile(new_path):
                     os.remove(new_path)
                 os.renames(old_path, new_path)

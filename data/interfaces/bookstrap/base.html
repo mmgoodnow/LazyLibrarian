@@ -15,7 +15,7 @@
     <link rel="manifest" href="images/manifest.json">
     <link rel="stylesheet" type="text/css" href="css/datatables.min.css"/>
     %if lazylibrarian.BOOKSTRAP_THEMELIST:
-    <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.6/${lazylibrarian.CONFIG['BOOKSTRAP_THEME']}/bootstrap.min.css" rel="stylesheet">
+    <link id="theme" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.6/${lazylibrarian.CONFIG['BOOKSTRAP_THEME']}/bootstrap.min.css" rel="stylesheet">
     %else:
     <link href="css/bootstrap.min.css" rel="stylesheet">
     %endif
@@ -125,6 +125,15 @@
   opacity: 1.0;
   filter: alpha(opacity=100); /* For IE8 and earlier */
 }
+
+#log_type{
+  min-width: 90px;
+}
+
+#log_label{
+  min-width: 70px;
+}
+
 </style>
 </head>
   <body>
@@ -369,7 +378,6 @@
         }
         return vars;
     }
-
     </script>
   </body>
 </html>

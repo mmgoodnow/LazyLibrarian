@@ -53,46 +53,52 @@
 <%def name="body()">
   <h1>${title}</h1>
   <form action="manage" method="get" class="form-inline">
-    <div class="form-group">
-      <label for="whichStatus" class="control-label">Status:</label>
-      <select name="whichStatus" id="whichStatus" class="form-control input-sm">
-        %for item in ['All', 'Skipped', 'Wanted', 'Open', 'Have', 'Ignored']:
-        <option value="${item}"
-                %if whichStatus == item:
+    <div class="row">
+      <div class="col-xs-12 col-sm-5">
+        <div class="form-group">
+          <label for="whichStatus" class="control-label">Status:</label>
+          <select name="whichStatus" id="whichStatus" class="form-control input-sm">
+            %for item in ['All', 'Skipped', 'Wanted', 'Open', 'Have', 'Ignored']:
+            <option value="${item}"
+                    %if whichStatus == item:
+                        selected = "selected"
+                    %endif
+                >${item}</option>
+            %endfor
+            %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+            <option value="Read"
+                %if whichStatus == "Read":
                     selected = "selected"
                 %endif
-            >${item}</option>
-        %endfor
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-        <option value="Read"
-            %if whichStatus == "Read":
-                selected = "selected"
+                >Read</option>
+            <option value="ToRead"
+                %if whichStatus == "ToRead":
+                    selected = "selected"
+                %endif
+                >To Read</option >
             %endif
-            >Read</option>
-        <option value="ToRead"
-            %if whichStatus == "ToRead":
-                selected = "selected"
-            %endif
-            >To Read</option >
-        %endif
-      </select>
-    </div>
+          </select>
+        </div>
+      </div>
 
-    %if lazylibrarian.CONFIG['TOGGLES'] == True:
-      &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
-      <a class="toggle-vis" data-column="2"> Author</a>
-      <a class="toggle-vis" data-column="3"> Title</a>
-      <a class="toggle-vis" data-column="4"> Series</a>
-      <a class="toggle-vis hidden-sm hidden-xs" data-column="5"> Rating</a>
-      <a class="toggle-vis" data-column="6"> Released</a>
-      <a class="toggle-vis" data-column="7"> Listed</a>
-      %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
-        <a class="toggle-vis" data-column="8"> Delay</a>
-        <a class="toggle-vis" data-column="9"> Search</a>
+      %if lazylibrarian.CONFIG['TOGGLES'] == True:
+        <div class="toggles col-xs-12 col-sm-7 text-right">
+          Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
+          <a class="toggle-vis" data-column="2"> Author</a>
+          <a class="toggle-vis" data-column="3"> Title</a>
+          <a class="toggle-vis" data-column="4"> Series</a>
+          <a class="toggle-vis hidden-sm hidden-xs" data-column="5"> Rating</a>
+          <a class="toggle-vis" data-column="6"> Released</a>
+          <a class="toggle-vis" data-column="7"> Listed</a>
+          %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+            <a class="toggle-vis" data-column="8"> Delay</a>
+            <a class="toggle-vis" data-column="9"> Search</a>
+          %endif
+        </div>
       %endif
-    %endif
+    </div>
   </form>
-  <br>
+  <br/>
   <form action="markBooks" method="get" class="form-inline">
     <input type="hidden" name="redirect" value="manage">
     <input type="hidden" name="library" value="${library}">
@@ -242,6 +248,7 @@
 
          var table = $('#book_table').DataTable(
             {
+                "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
                 "bAutoWidth": false,
                 "stateSave": true,
                 "order": [[ 2, 'asc' ]],

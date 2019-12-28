@@ -42,32 +42,36 @@
   %endif
 
 <form name="markAuthors" id="markAuthors" action="markAuthors" method="get" class="form-inline" onsubmit="return false;">
-  <div class="indented">
+  <div class="row">
     %if perm&lazylibrarian.perm_status:
-      <div class="form-group">
-        <label for="markAuthors" class="control-label">Mark selected as</label>
-        <select class="markAuthors form-control input-sm" id="action" name="action">
-          <option value="Active">Active</option>
-          <option value="Wanted">Wanted</option>
-          <option value="Ignored">Ignored</option>
-          <option value="Paused">Paused</option>
-          <option value="Remove">Remove</option>
-          <option value="Delete">Delete</option>
-        </select>
+      <div class="col-xs-12 col-sm-5">
+          <div class="form-group">
+            <label for="markAuthors" class="control-label">Mark selected as</label>
+            <select class="markAuthors form-control input-sm" id="action" name="action">
+              <option value="Active">Active</option>
+              <option value="Wanted">Wanted</option>
+              <option value="Ignored">Ignored</option>
+              <option value="Paused">Paused</option>
+              <option value="Remove">Remove</option>
+              <option value="Delete">Delete</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
       </div>
-      <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
-      %endif
-      %if lazylibrarian.CONFIG['TOGGLES'] == True:
-        &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Image</a>
+    %endif
+    %if lazylibrarian.CONFIG['TOGGLES'] == True:
+      <div class="toggles col-xs-12 col-sm-7 text-right">
+        Toggle: <a class="toggle-vis" data-column="1"> Image</a>
         <a class="toggle-vis" data-column="2"> Author</a>
         <a class="toggle-vis" data-column="3"> Added</a>
         <a class="toggle-vis" data-column="4"> Latest</a>
         <a class="toggle-vis" data-column="5"> Released</a>
         <a class="toggle-vis" data-column="6"> Downloaded</a>
         <a class="toggle-vis" data-column="7"> Status</a>
-        <p>&nbsp;</p>
-      %endif
+      </div>
+    %endif
   </div>
+  <br/>
   <div class="table-responsive">
     <table class="display table table-striped table-hover table-bordered" id="author_table">
         <%
@@ -117,6 +121,7 @@
 
         var table = $('#author_table').DataTable(
             {
+                "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
                 "responsive": true,
                 "bAutoWidth": false,
                 "stateSave": true,
