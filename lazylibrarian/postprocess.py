@@ -82,7 +82,7 @@ def processAlternate(source_dir=None, library='eBook'):
             return False
         if not os.path.isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
-            return False
+ rd           return False
         if source_dir == lazylibrarian.DIRECTORY('eBook'):
             logger.warn('Alternate directory must not be the same as Destination')
             return False
@@ -480,7 +480,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
         if not dirlist:
             logger.error("No download directories are configured")
         if downloadid:
-            snatched = myDB.select('SELECT * from wanted where DownloadID=?', (downloadid,))
+            snatched = myDB.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
         else:
             snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
         logger.debug('Found %s file%s marked "Snatched"' % (len(snatched), plural(len(snatched))))
@@ -535,7 +535,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
             # any books left to look for...
 
-            snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
+            if downloadid:
+                snatched = myDB.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
+            else:
+                snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
             if len(snatched):
                 for book in snatched:
                     book_type = bookType(book)
@@ -827,6 +830,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
+                        status['status'] = 'success'
                         issueid = 0
                         if bookname and dest_file:  # it's ebook or audiobook, and we know the location
                             processExtras(dest_file, global_name, book['BookID'], book_type)
