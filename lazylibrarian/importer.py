@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import inspect
 import threading
 import traceback
 import time
@@ -31,11 +32,20 @@ except ImportError:
 from lib.six.moves import queue
 
 
-def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason='addAuthorNameToDB'):
+def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
     # authorname returned is our preferred name, or empty string if not found or unable to add
+    if not reason:
+        if len(inspect.stack()) > 2:
+            frame = inspect.getframeinfo(inspect.stack()[2][0])
+            program = os.path.basename(frame.filename)
+            method = frame.function
+            lineno = frame.lineno        
+            reason = "%s:%s:%s" % (program, method, lineno)
+        else:
+            reason ='Unknown reason in addAuthorNameToDB'
 
     new = False
     if not author or len(author) < 2 or author.lower() == 'unknown':
@@ -131,11 +141,21 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason='addAuth
     return author, check_exist_author['AuthorID'], new
 
 
-def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason='addAuthorToDB'):
+def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason=None):
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
     """
+    if not reason:
+        if len(inspect.stack()) > 2:
+            frame = inspect.getframeinfo(inspect.stack()[2][0])
+            program = os.path.basename(frame.filename)
+            method = frame.function
+            lineno = frame.lineno        
+            reason = "%s:%s:%s" % (program, method, lineno)
+        else:
+            reason = "Unknown reason in addAuthorToDB"
+
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "AddAuthorToDB"
@@ -179,6 +199,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     "Updated": int(time.time())
                 }
                 if new_author:
+                    newValueDict['Reason'] = reason
                     newValueDict["DateAdded"] = today()
                 if not dbauthor or (dbauthor and not dbauthor['manual']):
                     newValueDict["AuthorImg"] = author['authorimg']
