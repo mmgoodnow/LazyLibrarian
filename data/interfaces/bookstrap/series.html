@@ -33,26 +33,32 @@
 <%def name="body()">
   <h1>${title}</h1>
   <form action="series" method="get" class="form-inline">
-    <div class="form-group">
-      <label for="whichStatus" class="control-label">Status:</label>
-      <select name="whichStatus" id="whichStatus" class="form-control input-sm">
-        %for item in ['All', 'Complete', 'Partial', 'Empty', 'Paused', 'Wanted', 'Active', 'Ignored']:
-        <option value="${item}"
-            %if whichStatus == item:
-                selected = "selected"
-            %endif
-        >${item}</option>
-        %endfor
-      </select>
+    <div class="row">
+      <div class="col-xs-12 col-sm-5">
+        <div class="form-group">
+          <label for="whichStatus" class="control-label">Status:</label>
+          <select name="whichStatus" id="whichStatus" class="form-control input-sm">
+            %for item in ['All', 'Complete', 'Partial', 'Empty', 'Paused', 'Wanted', 'Active', 'Ignored']:
+            <option value="${item}"
+                %if whichStatus == item:
+                    selected = "selected"
+                %endif
+            >${item}</option>
+            %endfor
+          </select>
+        </div>
+      </div>
+      %if lazylibrarian.CONFIG['TOGGLES'] == True:
+        <div class="toggles col-xs-12 col-sm-7 text-right">
+          Toggle: <a class="toggle-vis" data-column="1"> Author</a>
+          <a class="toggle-vis" data-column="2"> Series</a>
+          <a class="toggle-vis" data-column="3"> Have</a>
+          <a class="toggle-vis" data-column="4"> Status</a>
+        </div>
+      %endif
     </div>
-    %if lazylibrarian.CONFIG['TOGGLES'] == True:
-    &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Author</a>
-    <a class="toggle-vis" data-column="2"> Series</a>
-    <a class="toggle-vis" data-column="3"> Have</a>
-    <a class="toggle-vis" data-column="4"> Status</a>
-    %endif
   </form>
-  <br>
+  <br/>
   <form action="markSeries" method="get" class="form-inline">
     <div class="table-responsive">
       <table class="display table table-striped table-hover table-bordered" id="book_table">
@@ -106,6 +112,7 @@
 
         var oTable = $('#book_table').DataTable(
             {
+                "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
                 "order": [[3, 'desc']],
                 "bAutoWidth": false,
                 "stateSave": true,

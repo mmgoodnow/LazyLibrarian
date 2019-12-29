@@ -443,7 +443,8 @@ def bookType(book):
     return book_type
 
 
-def processDir(reset=False, startdir=None, ignoreclient=False):
+def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
+    status = {'status': 'failed'}
     count = 0
     for threadname in [n.name for n in [t for t in threading.enumerate()]]:
         if threadname == 'POSTPROCESS':
@@ -454,7 +455,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
         count -= 1
     if count:
         logger.debug("POSTPROCESS is already running")
-        return
+        status['status'] = 'running'
+        return status
 
     threading.currentThread().name = "POSTPROCESS"
     # noinspection PyBroadException,PyStatementEffect
@@ -477,8 +479,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
         if not dirlist:
             logger.error("No download directories are configured")
-
-        snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
+        if downloadid:
+            snatched = myDB.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
+        else:
+            snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
         logger.debug('Found %s file%s marked "Snatched"' % (len(snatched), plural(len(snatched))))
         if len(snatched):
             for book in snatched:
@@ -525,12 +529,16 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
             except OSError as why:
                 logger.error('Could not access directory [%s] %s' % (download_dir, why.strerror))
                 threading.currentThread().name = "WEBSERVER"
-                return
+                return status
 
             logger.debug('Found %s file%s in %s' % (len(downloads), plural(len(downloads)), download_dir))
 
             # any books left to look for...
-            snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
+
+            if downloadid:
+                snatched = myDB.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
+            else:
+                snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
             if len(snatched):
                 for book in snatched:
                     book_type = bookType(book)
@@ -822,6 +830,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
+                        status['status'] = 'success'
                         issueid = 0
                         if bookname and dest_file:  # it's ebook or audiobook, and we know the location
                             processExtras(dest_file, global_name, book['BookID'], book_type)
@@ -1150,6 +1159,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False):
 
     finally:
         threading.currentThread().name = threadname
+        logger.info('Returning %s' % status)
+        return status
 
 
 def check_contents(source, downloadid, book_type, title):
