@@ -92,7 +92,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'forceComicSearch': '[&wait] search for all wanted comics',
             'getRSSFeed': '&feed= [&limit=] show rss feed entries',
             'forceWishlistSearch': '[&wait] search all entries in wishlists',
-            'forceProcess': '[&dir] [ignorekeepseeding] [wait] [&downloadid=] process books/mags in download or named dir',
+            'forceProcess': '[&dir] [ignorekeepseeding] process books/mags in download or named dir',
             'pauseAuthor': '&id= pause author by AuthorID',
             'resumeAuthor': '&id= resume author by AuthorID',
             'ignoreAuthor': '&id= ignore author by AuthorID',
@@ -949,7 +949,8 @@ class Api(object):
             threading.Thread(target=aaUpdate, name='API-AAUPDATE', args=[refresh]).start()
 
     def _forceMagSearch(self, **kwargs):
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
+                lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
             if 'wait' in kwargs:
                 search_magazines(None, True)
             else:
@@ -967,7 +968,8 @@ class Api(object):
             self.data = 'No rss feeds set, check config'
 
     def _forceComicSearch(self, **kwargs):
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
+                lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
             if 'wait' in kwargs:
                 search_rss_book()
             else:
@@ -989,7 +991,8 @@ class Api(object):
             library = kwargs['type']
         else:
             library = None
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
+                lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
             if 'wait' in kwargs:
                 search_book(library=library)
             else:
@@ -997,21 +1000,15 @@ class Api(object):
         else:
             self.data = "No search methods set, check config"
 
-    def _forceProcess(self, **kwargs):
+    @staticmethod
+    def _forceProcess(**kwargs):
         startdir = None
-        wait = False
-        downloadid = None
         if 'dir' in kwargs:
             startdir = kwargs['dir']
         ignore = False
         if 'ignoreclient' in kwargs:
             ignore = True
-        if 'downloadid' in kwargs:
-            downloadid = kwargs['downloadid']
-        if 'wait' in kwargs:
-            self.data = processDir(startdir=startdir, ignoreclient=ignore, downloadid=downloadid)
-        else:
-            processDir(startdir=startdir, ignoreclient=ignore, downloadid=downloadid)
+        processDir(startdir=startdir, ignoreclient=ignore)
 
     @staticmethod
     def _forceLibraryScan(**kwargs):
@@ -1381,7 +1378,8 @@ class Api(object):
         else:
             library = None
 
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
+                lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
             if 'wait' in kwargs:
                 search_book(books=books, library=library)
             else:

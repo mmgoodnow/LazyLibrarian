@@ -1350,6 +1350,22 @@ class WebInterface(object):
                     'rss_%i_dispname' % count, '')
             count += 1
 
+        if interface != 'legacy':
+            count = 0
+            while count < len(lazylibrarian.IRC_PROV):
+                lazylibrarian.IRC_PROV[count]['ENABLED'] = bool(kwargs.get('irc_%i_enabled' % count, False))
+                lazylibrarian.IRC_PROV[count]['SERVER'] = kwargs.get('irc_%i_server' % count, '')
+                lazylibrarian.IRC_PROV[count]['CHANNEL'] = kwargs.get('irc_%i_channel' % count, '')
+                lazylibrarian.IRC_PROV[count]['BOTNICK'] = kwargs.get('irc_%i_botnick' % count, '')
+                lazylibrarian.IRC_PROV[count]['BOTPASS'] = kwargs.get('irc_%i_botpass' % count, '')
+                lazylibrarian.IRC_PROV[count]['DLPRIORITY'] = check_int(kwargs.get(
+                    'irc_%i_dlpriority' % count, 0), 0)
+                lazylibrarian.IRC_PROV[count]['DLTYPES'] = kwargs.get(
+                    'irc_%i_dltypes' % count, 'E')
+                lazylibrarian.IRC_PROV[count]['DISPNAME'] = kwargs.get(
+                    'irc_%i_dispname' % count, '')
+                count += 1
+
         count = 0
         while count < len(lazylibrarian.APPRISE_PROV):
             lazylibrarian.APPRISE_PROV[count]['NAME'] = kwargs.get('apprise_%i_name' % count, '')
@@ -1752,7 +1768,8 @@ class WebInterface(object):
     @cherrypy.expose
     def countProviders(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        count = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS() + lazylibrarian.USE_DIRECT()
+        count = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
+        count += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
         return "Searching %s providers, please wait..." % count
 
     @cherrypy.expose
@@ -2151,7 +2168,8 @@ class WebInterface(object):
     def startBookSearch(self, books=None, library=None, force=False):
         if books:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 if force:
                     name = 'FORCE-SEARCHBOOK'
                 else:
@@ -2299,7 +2317,7 @@ class WebInterface(object):
                 res = myDB.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
                 if res:
                     target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
-                    return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                    return self.send_file(target,  name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
             target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
             return self.send_file(target, name='lazylibrarian.png')
 
@@ -3033,7 +3051,8 @@ class WebInterface(object):
                 books.append({"bookid": arg})
 
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 if 'eBook' in library or action == 'WantEbook':
                     threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'eBook']).start()
                 if 'Audio' in library or action == 'WantAudio':
@@ -3201,7 +3220,8 @@ class WebInterface(object):
     def startComicSearch(self, comicid=None):
         if comicid:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 threading.Thread(target=search_comics, name='SEARCHCOMIC', args=[comicid]).start()
                 logger.debug("Searching for comic ID %s" % comicid)
             else:
@@ -4357,7 +4377,8 @@ class WebInterface(object):
     def startMagazineSearch(self, mags=None):
         if mags:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 threading.Thread(target=search_magazines, name='SEARCHMAG', args=[mags, False]).start()
                 logger.debug("Searching for magazine with title: %s" % mags[0]["bookid"])
             else:
@@ -5440,7 +5461,8 @@ class WebInterface(object):
     def forceSearch(self, source=None, title=None):
         if source in ["magazines", 'comics']:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 if title:
                     title = title.replace('&amp;', '&')
                     if source == 'magazines':
@@ -5459,7 +5481,8 @@ class WebInterface(object):
                 logger.warn('Search called but no download providers set')
         elif source in ["books", "audio"]:
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
-                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+                    or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
+                    or lazylibrarian.USE_IRC():
                 if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
                     threading.Thread(target=search_book, name='SEARCHALLBOOKS', args=[]).start()
                     scheduleJob(action='Restart', target='search_book')

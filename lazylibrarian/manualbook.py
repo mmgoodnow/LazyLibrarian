@@ -15,7 +15,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import getList, unaccented_bytes, unaccented, plural, dateFormat
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
-    IterateOverDirectSites
+    IterateOverDirectSites, IterateOverIRCSites
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -64,7 +64,8 @@ def searchItem(item=None, bookid=None, cat=None):
             logger.debug('Forcing general search')
             cat = 'general'
 
-    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS() + lazylibrarian.USE_DIRECT()
+    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
+    nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
     logger.debug('Searching %s provider%s (%s) for %s' % (nprov, plural(nprov), cat, searchterm))
 
     if lazylibrarian.USE_NZB():
@@ -77,6 +78,10 @@ def searchItem(item=None, bookid=None, cat=None):
             results += resultlist
     if lazylibrarian.USE_DIRECT():
         resultlist, nprov = IterateOverDirectSites(book, cat)
+        if nprov:
+            results += resultlist
+    if lazylibrarian.USE_IRC():
+        resultlist, nprov = IterateOverIRCSites(book, cat)
         if nprov:
             results += resultlist
     if lazylibrarian.USE_RSS():

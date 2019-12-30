@@ -432,6 +432,14 @@
             if ( prov.indexOf('rss_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
             }
+            if ( prov.indexOf('irc_') == 0 ) {
+                var server = $("#" + prov.toLowerCase() + "_server").val();
+                var channel = $("#" + prov.toLowerCase() + "_channel").val();
+                var host = server + ' : ' + channel
+                var nick = $("#" + prov.toLowerCase() + "_botnick").val();
+                var pass = $("#" + prov.toLowerCase() + "_botpass").val();
+                var api = nick + ' : ' + pass
+            }
             if ( prov.indexOf('apprise_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_url").val();
                 var s = ($("#" + prov.toLowerCase() + "_snatch").prop('checked') == true) ? '1' : '0';

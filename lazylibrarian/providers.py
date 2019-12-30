@@ -21,6 +21,7 @@ from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
     makeUnicode, seconds_to_midnight, makeUTF8bytes
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
+from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
@@ -175,6 +176,24 @@ def test_provider(name, host=None, api=None):
                     return success, provider['DISPNAME']
         except IndexError:
             pass
+
+    if name.startswith('irc_'):
+        try:
+            prov = name.split('_')[1]
+            for provider in lazylibrarian.IRC_PROV:
+                if provider['NAME'] == 'IRC_%s' % prov:
+                    if provider['DISPNAME']:
+                        name = provider['DISPNAME']
+                        if host:
+                            provider['SERVER'], provider['CHANNEL'] = host.split(' : ', 1)
+                        if api:
+                            provider['BOTNICK'], provider['BOTPASS'] = api.split(' : ', 1)
+                    logger.debug("Testing provider %s" % name)
+                    success, _ = IRCSEARCH(book, provider, "book", True)
+                    return success, name
+        except IndexError:
+            pass
+
     msg = "Unknown provider [%s]" % name
     logger.error(msg)
     return False, msg
@@ -655,6 +674,62 @@ def IterateOverWishLists():
                                            provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
 
     return resultslist, providers
+
+
+def IterateOverIRCSites(book=None, searchType=None):
+    resultslist = []
+    providers = 0
+    for provider in lazylibrarian.IRC_PROV:
+        if provider['ENABLED']:
+            if ProviderIsBlocked(provider['SERVER']):
+                logger.debug('[IterateOverIRCSites] - %s is BLOCKED' % provider['SERVER'])
+            elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
+            elif "audio" in searchType and 'A' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for AudioBook" % provider['DISPNAME'])
+            elif "mag" in searchType and 'M' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for Magazine" % provider['DISPNAME'])
+            elif "comic" in searchType and 'M' not in provider['DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % provider['DISPNAME'])
+            else:
+                providers += 1
+                logger.debug('[IterateOverIRCSites] - %s' % provider['SERVER'])
+                success, results = IRCSEARCH(book, provider, searchType)
+                if success:
+                    resultslist += results
+    return resultslist, providers
+
+
+def IRCSEARCH(book, provider, searchType, test=False):
+    results = []
+    if not provider['SERVER']:
+        logger.error("No server for %s" % provider['NAME'])
+        return False, results
+    if not provider['CHANNEL']:
+        logger.error("No channel for %s" % provider['NAME'])
+        return False, results
+
+    irc = ircConnect(provider['SERVER'], 6667, provider['CHANNEL'],
+                     provider['BOTNICK'], provider['BOTPASS'])
+    if not irc:
+        return False, results
+    if test:
+        return True, results
+
+    if searchType not in ['mag', 'general', 'comic']:
+        authorname, bookname = get_searchterm(book, searchType)
+        if 'title' in searchType:
+            book['searchterm'] = bookname
+        else:
+            book['searchterm'] = authorname + ' ' + bookname
+        logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
+                                                 provider['CHANNEL'], book['searchterm']))
+        fname, data = ircSearch(irc, provider['CHANNEL'], book['searchterm'])
+        if fname and data:
+            results = ircResults(provider, fname, data)
+
+    logger.debug("Found %i result%s from %s" % (len(results), plural(len(results)), provider['SERVER']))
+    return True, results
 
 
 def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=False):

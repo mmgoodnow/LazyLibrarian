@@ -18,7 +18,8 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import scheduleJob
-from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
+from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, \
+    DirectDownloadMethod, IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, replace_all, getList, now, check_int, dispName
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
@@ -115,28 +116,28 @@ def findBestResult(resultlist, book, searchtype, source):
                 blacklisted = myDB.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (url,))
                 if blacklisted:
                     logger.debug("Rejecting %s, url blacklisted (Failed) at %s" %
-                                 (resultTitle, blacklisted['NZBprov']))
+                                 (res[prefix + 'title'], blacklisted['NZBprov']))
                     rejected = True
                 if not rejected:
                     blacklisted = myDB.match('SELECT * from wanted WHERE NZBprov=? and NZBtitle=? and Status="Failed"',
-                                             (res[prefix + 'prov'], resultTitle))
+                                             (res[prefix + 'prov'], res[prefix + 'title']))
                     if blacklisted:
                         logger.debug("Rejecting %s, title blacklisted (Failed) at %s" %
-                                     (resultTitle, blacklisted['NZBprov']))
+                                     (res[prefix + 'title'], blacklisted['NZBprov']))
                         rejected = True
 
             if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
                 blacklisted = myDB.match('SELECT * from wanted WHERE NZBurl=?', (url,))
                 if blacklisted:
                     logger.debug("Rejecting %s, url blacklisted (%s) at %s" %
-                                 (resultTitle, blacklisted['Status'], blacklisted['NZBprov']))
+                                 (res[prefix + 'title'], blacklisted['Status'], blacklisted['NZBprov']))
                     rejected = True
                 if not rejected:
                     blacklisted = myDB.match('SELECT * from wanted WHERE NZBprov=? and NZBtitle=?',
-                                             (res[prefix + 'prov'], resultTitle))
+                                             (res[prefix + 'prov'], res[prefix + 'title']))
                     if blacklisted:
                         logger.debug("Rejecting %s, title blacklisted (%s) at %s" %
-                                     (resultTitle, blacklisted['Status'], blacklisted['NZBprov']))
+                                     (res[prefix + 'title'], blacklisted['Status'], blacklisted['NZBprov']))
                         rejected = True
 
             if not rejected and source == 'rss':
@@ -159,9 +160,15 @@ def findBestResult(resultlist, book, searchtype, source):
                         ignored_messages.append(ignore_msg)
                         logger.debug(ignore_msg)
 
-            if not rejected and not url.startswith('http') and not url.startswith('magnet'):
-                rejected = True
-                logger.debug("Rejecting %s, invalid URL [%s]" % (resultTitle, url))
+            if not rejected:
+                if source == 'irc':
+                    if not url.startswith('!'):
+                        rejected = True
+                        logger.debug("Rejecting %s, invalid nick [%s]" % (res[prefix + 'title'], url))
+                else:
+                    if not url.startswith('http') and not url.startswith('magnet'):
+                        rejected = True
+                        logger.debug("Rejecting %s, invalid URL [%s]" % (res[prefix + 'title'], url))
 
             if not rejected:
                 for word in reject_list:
@@ -188,7 +195,7 @@ def findBestResult(resultlist, book, searchtype, source):
                 if source == 'nzb':
                     mode = res['nzbmode']  # nzb, torznab
                 else:
-                    mode = res['tor_type']  # torrent, magnet, nzb(from rss), direct
+                    mode = res['tor_type']  # torrent, magnet, nzb(from rss), direct, irc
 
                 controlValueDict = {"NZBurl": url}
                 newValueDict = {
@@ -196,11 +203,14 @@ def findBestResult(resultlist, book, searchtype, source):
                     "BookID": bookid,
                     "NZBdate": now(),  # when we asked for it
                     "NZBsize": size,
-                    "NZBtitle": resultTitle,
+                    "NZBtitle": res[prefix + 'title'],  # was resultTitle,
                     "NZBmode": mode,
                     "AuxInfo": auxinfo,
                     "Status": "Matched"
                 }
+                if source == 'irc':
+                    newValueDict['NZBprov'] = res['tor_feed']
+                    newValueDict['NZBtitle'] = res[prefix + 'title']
 
                 score = (Book_match + Author_match) / 2  # as a percentage
                 # lose a point for each unwanted word in the title so we get the closest match
@@ -293,6 +303,10 @@ def downloadResult(match, book):
             snatch, res = DirectDownloadMethod(newValueDict["BookID"], newValueDict["NZBtitle"],
                                                controlValueDict["NZBurl"], newValueDict["AuxInfo"],
                                                newValueDict['NZBprov'])
+        elif newValueDict['NZBmode'] == 'irc':
+            snatch, res = IrcDownloadMethod(newValueDict["BookID"], newValueDict["NZBtitle"],
+                                            controlValueDict["NZBurl"], newValueDict["AuxInfo"],
+                                            newValueDict['NZBprov'])
         elif newValueDict['NZBmode'] in ["torznab", "torrent", "magnet"]:
             snatch, res = TORDownloadMethod(newValueDict["BookID"], newValueDict["NZBtitle"],
                                             controlValueDict["NZBurl"], newValueDict["AuxInfo"])

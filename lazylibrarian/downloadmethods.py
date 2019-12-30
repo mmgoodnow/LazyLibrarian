@@ -43,6 +43,7 @@ from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, get
     seconds_to_midnight
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.providers import BlockProvider
+from lazylibrarian.ircbot import ircConnect, ircSearch
 
 try:
     from deluge_client import DelugeRPCClient
@@ -53,6 +54,72 @@ from lib.bencode import bencode, bdecode
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote
+
+
+def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=None):
+    myDB = database.DBConnection()
+    Source = provider
+    msg = ''
+    logger.debug("Starting IRC Download for [%s]" % dl_title)
+    server = None
+    channel = None
+    botnick = ""
+    botpass = ""
+    fname = ""
+    data = None
+
+    for item in lazylibrarian.IRC_PROV:
+        if item['NAME'] == provider:
+            server = item['SERVER']
+            channel = item['CHANNEL']
+            botnick = item['BOTNICK']
+            botpass = item['BOTPASS']
+            break
+
+    if not server:
+        msg = "%s server not found" % provider
+    else:
+        irc = ircConnect(server, 6667, channel, botnick, botpass)
+        if not irc:
+            msg = "Failed to connect"
+        else:
+            fname, data = ircSearch(irc, channel, dl_title, cmd=':' + dl_url)
+
+    downloadID = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
+
+    if fname and data:
+        destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), fname)
+        if not os.path.isdir(destdir):
+            _ = make_dirs(destdir)
+
+        destfile = os.path.join(destdir, fname)
+
+        if os.name == 'nt':  # Windows has max path length of 256
+            destfile = '\\\\?\\' + destfile
+
+        try:
+            with open(destfile, 'wb') as bookfile:
+                bookfile.write(data)
+            setperm(destfile)
+        except Exception as e:
+            msg = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+            logger.error(msg)
+            return False, msg
+
+        logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+        if library == 'eBook':
+            myDB.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+        elif library == 'AudioBook':
+            myDB.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+        myDB.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
+                    (Source, downloadID, dl_url, dl_title))
+        return True, ''
+    elif not fname:
+        msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
+        msg += 'WHERE NZBurl=? and NZBtitle=?'
+        myDB.action(msg, (Source, downloadID, data, dl_url, dl_title))
+        msg = "Download failed"
+    return False, msg
 
 
 def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):

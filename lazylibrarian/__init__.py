@@ -96,6 +96,7 @@ TORZNAB_PROV = []
 NABAPICOUNT = ''
 BOK_DLCOUNT = 0
 RSS_PROV = []
+IRC_PROV = []
 APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
@@ -879,7 +880,8 @@ def initialize():
 # noinspection PyUnresolvedReferences
 def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
-        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK
+        CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, \
+        IRC_PROV
     # legacy name conversion
     if not CFG.has_option('General', 'ebook_dir'):
         ebook_dir = check_setting('str', 'General', 'destination_dir', '')
@@ -1027,6 +1029,25 @@ def config_read(reloaded=False):
     add_rss_slot()
 
     count = 0
+    while CFG.has_section('IRC_%i' % count):
+        irc_name = 'IRC_%i' % count
+        disp_name = check_setting('str', irc_name, 'dispname', irc_name)
+
+        IRC_PROV.append({"NAME": irc_name,
+                         "DISPNAME": disp_name,
+                         "ENABLED": check_setting('bool', irc_name, 'ENABLED', 0),
+                         "SERVER": check_setting('str', irc_name, 'SERVER', ''),
+                         "CHANNEL": check_setting('str', irc_name, 'CHANNEL', ''),
+                         "BOTNICK": check_setting('str', irc_name, 'BOTNICK', ''),
+                         "BOTPASS": check_setting('str', irc_name, 'BOTPASS', ''),
+                         "DLPRIORITY": check_setting('int', irc_name, 'DLPRIORITY', 0),
+                         "DLTYPES": check_setting('str', irc_name, 'dltypes', 'E'),
+                         })
+        count += 1
+    # if the last slot is full, add an empty one on the end
+    add_irc_slot()
+
+    count = 0
     while CFG.has_section('APPRISE_%i' % count):
         apprise_name = 'APPRISE_%i' % count
         APPRISE_PROV.append({"NAME": check_setting('str', apprise_name, 'NAME', apprise_name),
@@ -1139,7 +1160,7 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -1327,6 +1348,49 @@ def config_write(part=None):
 
         RSS_PROV = new_list
         add_rss_slot()
+
+    if not part or part.startswith('IRC_'):
+        IRC_ITEMS = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS',
+                     'DLPRIORITY', 'DLTYPES']
+        new_list = []
+        # strip out any empty slots
+        for provider in IRC_PROV:
+            if provider['SERVER']:
+                new_list.append(provider)
+
+        if part:  # only update the named provider
+            for provider in new_list:
+                if provider['NAME'].lower() != part:  # keep old values
+                    if CONFIG['LOGLEVEL'] > 2:
+                        logger.debug("Keep %s" % provider['NAME'])
+                    for item in IRC_ITEMS:
+                        provider[item] = CFG.get(provider['NAME'], item.lower())
+
+        # renumber the items
+        for index, item in enumerate(new_list):
+            item['NAME'] = 'IRC_%i' % index
+
+        # strip out the old config entries
+        sections = CFG.sections()
+        for item in sections:
+            if item.startswith('IRC_'):
+                CFG.remove_section(item)
+
+        for provider in new_list:
+            check_section(provider['NAME'])
+            for item in IRC_ITEMS:
+                value = provider[item]
+                if isinstance(value, text_type):
+                    value = value.strip()
+                if item == 'DLTYPES':
+                    value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
+                    if not value:
+                        value = 'E'
+                    provider['DLTYPES'] = value
+                CFG.set(provider['NAME'], item, value)
+
+        IRC_PROV = new_list
+        add_irc_slot()
 
     if not part or part.startswith('apprise_'):
         APPRISE_ITEMS = ['NAME', 'DISPNAME', 'SNATCH', 'DOWNLOAD', 'URL']
@@ -1572,6 +1636,29 @@ def add_rss_slot():
 
 
 # noinspection PyUnresolvedReferences
+def add_irc_slot():
+    count = len(IRC_PROV)
+    if count == 0 or len(CFG.get('IRC_%i' % int(count - 1), 'SERVER')):
+        irc_name = 'IRC_%i' % count
+        check_section(irc_name)
+        CFG.set(irc_name, 'ENABLED', False)
+        CFG.set(irc_name, 'SERVER', '')
+        CFG.set(irc_name, 'CHANNEL', '')
+        CFG.set(irc_name, 'BOTNICK', '')
+        CFG.set(irc_name, 'BOTPASS', '')
+        IRC_PROV.append({"NAME": irc_name,
+                         "DISPNAME": irc_name,
+                         "ENABLED": 0,
+                         "SERVER": '',
+                         "CHANNEL": '',
+                         "BOTNICK": '',
+                         "BOTPASS": '',
+                         "DLPRIORITY": 0,
+                         "DLTYPES": 'E'
+                         })
+
+
+# noinspection PyUnresolvedReferences
 def add_apprise_slot():
     count = len(APPRISE_PROV)
     if count == 0 or len(CFG.get('APPRISE_%i' % int(count - 1), 'URL')):
@@ -1603,6 +1690,14 @@ def USE_RSS():
     count = 0
     for provider in RSS_PROV:
         if bool(provider['ENABLED']) and not WishListType(provider['HOST']) and not ProviderIsBlocked(provider['HOST']):
+            count += 1
+    return count
+
+
+def USE_IRC():
+    count = 0
+    for provider in IRC_PROV:
+        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['SERVER']):
             count += 1
     return count
 

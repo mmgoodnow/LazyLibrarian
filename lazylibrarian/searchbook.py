@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import plural, check_int
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
-    IterateOverDirectSites
+    IterateOverDirectSites, IterateOverIRCSites
 from lazylibrarian.resultlist import findBestResult, downloadResult
 
 
@@ -118,7 +118,8 @@ def search_book(books=None, library=None):
             logger.debug("SearchBooks - No books to search for")
             return
 
-        nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS() + lazylibrarian.USE_DIRECT()
+        nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
+        nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
 
         if nprov == 0:
             logger.debug("SearchBooks - No providers to search")
@@ -133,6 +134,8 @@ def search_book(books=None, library=None):
             modelist.append('direct')
         if lazylibrarian.USE_RSS():
             modelist.append('rss')
+        if lazylibrarian.USE_IRC():
+            modelist.append('irc')
 
         logger.info('Searching %s provider%s %s for %i book%s' %
                     (nprov, plural(nprov), str(modelist), len(searchbooks), plural(len(searchbooks))))
@@ -248,6 +251,10 @@ def search_book(books=None, library=None):
                         resultlist, nprov = IterateOverDirectSites(book, searchtype)
                         if not nprov:
                             warnMode('direct')
+                    elif mode == 'irc' and 'irc' in modelist:
+                        resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                        if not nprov:
+                            warnMode('irc')
                     elif mode == 'rss' and 'rss' in modelist:
                         if rss_resultlist:
                             resultlist = rss_resultlist
@@ -276,6 +283,11 @@ def search_book(books=None, library=None):
                             resultlist, nprov = IterateOverDirectSites(book, searchtype)
                             if not nprov:
                                 warnMode('direct')
+
+                        elif mode == 'irc' and 'irc' in modelist:
+                            resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                            if not nprov:
+                                warnMode('irc')
 
                         elif mode == 'rss' and 'rss' in modelist:
                             resultlist = rss_resultlist
@@ -330,6 +342,11 @@ def search_book(books=None, library=None):
                             resultlist, nprov = IterateOverDirectSites(book, searchtype)
                             if not nprov:
                                 warnMode('direct')
+
+                        elif mode == 'irc' and 'irc' in modelist:
+                            resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                            if not nprov:
+                                warnMode('irc')
 
                         elif mode == 'rss' and 'rss' in modelist:
                             resultlist = rss_resultlist

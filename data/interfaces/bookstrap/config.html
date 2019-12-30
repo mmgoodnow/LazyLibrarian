@@ -132,13 +132,12 @@
                           %>
                           <option value="Debug" ${selected}>Debug</option>
                         </select>
-
                         <label for="loglimit" class="input-group-addon">Screen Log</label>
                         <input type="number" id="loglimit" name="loglimit" value="${lazylibrarian.CONFIG['LOGLIMIT']}" class="form-control" placeholder="Number of lines">
                       </div>
                       <div class="input-group">
                         <label for="logfiles" id="log_label" class="input-group-addon">Files</label>
-                        <input type="number" id="logfiles" name="logfiles" value="${lazylibrarian.CONFIG['LOGFILES']}" class="form-control"             placeholder="Number of files">
+                        <input type="number" id="logfiles" name="logfiles" value="${lazylibrarian.CONFIG['LOGFILES']}" class="form-control" placeholder="Number of files">
                         <label for="logsize" class="input-group-addon">File Size</label>
                         <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
@@ -1884,9 +1883,66 @@
                         </span>
                       </div>
                     </div>
-                  </fieldset>
-                </div>
-                <div class="direct_providers">
+                </fieldset>
+              </div>
+              <div class="irc_providers">
+                <fieldset>
+                  <div class="col-md-12">
+                  <legend>IRC Providers</legend>
+                  </div>
+                  %for provider in lazylibrarian.IRC_PROV:
+                  <%
+                   checked = ''
+                   if provider['ENABLED'] == True:
+                       checked = 'checked="checked"'
+                  %>
+                  <div class="col-md-4 form-group">
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Name</span>
+                      <label for="irc_${loop.index}_host" class="sr-only">IRC Name</label>
+                      <input type="text" id="irc_${loop.index}_dispname" name="irc_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
+                      <span class="input-group-addon">
+                        &nbsp;<input type="checkbox" id="irc_${loop.index}_enabled" name="irc_${loop.index}_enabled" value="1" ${checked} />&nbsp;
+                      </span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Server</span>
+                      <label for="irc_${loop.index}_host" class="sr-only">Server</label>
+                      <input type="text" placeholder="IRC Server #${loop.index}" id="irc_${loop.index}_server" name="irc_${loop.index}_server" value="${provider['SERVER']}" class="form-control" />
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Channel</span>
+                      <label for="irc_${loop.index}_channel" class="sr-only">Channel</label>
+                      <input type="text" placeholder="IRC Channel #${loop.index}" id="irc_${loop.index}_channel" name="irc_${loop.index}_channel" value="${provider['CHANNEL']}" class="form-control">
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">BotNick</span>
+                      <label for="irc_${loop.index}_botnick" class="sr-only">BotNick</label>
+                      <input type="text" placeholder="IRC BotNick #${loop.index}" id="irc_${loop.index}_botnick" name="irc_${loop.index}_botnick" value="${provider['BOTNICK']}" class="form-control">
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">BotPass</span>
+                      <label for="irc_${loop.index}_botpass" class="sr-only">BotPass</label>
+                      <input type="password" placeholder="IRC BotPass #${loop.index}" id="irc_${loop.index}_botpass" name="irc_${loop.index}_botpass" value="${provider['BOTPASS']}" class="form-control">
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">Priority</span>
+                      <input type="number" id="irc_${loop.index}_dlpriority" name="irc_${loop.index}_dlpriority" value="${provider['DLPRIORITY']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Types</span>
+                      <input type="text" id="irc_${loop.index}_dltypes" name="irc_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
+                      <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="irc_${loop.index}"> Test</button>
+                      </span>
+                    </div>
+                  </div>
+                  %endfor
+                </fieldset>
+              </div>
+              <div class="direct_providers">
                   <fieldset>
                     <div class="col-md-12">
                     <legend>Direct Download Providers</legend>

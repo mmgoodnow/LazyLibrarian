@@ -19,7 +19,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, \
     now, dispName
 from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
-    IterateOverDirectSites
+    IterateOverDirectSites, IterateOverIRCSites
 from lazylibrarian.common import scheduleJob
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
@@ -61,7 +61,8 @@ def searchItem(comicid=None):
         searchterm = match['Title']
     book['searchterm'] = searchterm.replace('+', ' ')
 
-    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS() + lazylibrarian.USE_DIRECT()
+    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
+    nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
     logger.debug('Searching %s provider%s (%s) for %s' % (nprov, plural(nprov), cat, searchterm))
 
     if lazylibrarian.USE_NZB():
@@ -74,6 +75,10 @@ def searchItem(comicid=None):
             results += resultlist
     if lazylibrarian.USE_DIRECT():
         resultlist, nprov = IterateOverDirectSites(book, cat)
+        if nprov:
+            results += resultlist
+    if lazylibrarian.USE_IRC():
+        resultlist, nprov = IterateOverIRCSites(book, cat)
         if nprov:
             results += resultlist
     if lazylibrarian.USE_RSS():

@@ -410,9 +410,13 @@ def unpack_archive(archivename, download_dir, title):
                         if not make_dirs(dstdir):
                             logger.error("Failed to create directory %s" % dstdir)
                             return ''
-                        with open(dst, "wb") as f:
-                            f.write(z.read_files(item.filename)[0][1])
 
+                        data = z.read_files("*")
+                        for entry in data:
+                            if entry[0].filename.endswith(item.filename):
+                                with open(dst, "wb") as f:
+                                    f.write(entry[1])
+                                break
         if not targetdir:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
@@ -1150,16 +1154,17 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
         if len(snatched) == 0:
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             scheduleJob(action='Stop', target='PostProcessor')
+            status['action'] = 'Stopped'
 
         elif reset:
             scheduleJob(action='Restart', target='PostProcessor')
-
+            status['action'] = 'Restarted'
     except Exception:
         logger.error('Unhandled exception in processDir: %s' % traceback.format_exc())
 
     finally:
         threading.currentThread().name = threadname
-        logger.info('Returning %s' % status)
+        logger.debug('Returning %s' % status)
         return status
 
 
@@ -1475,7 +1480,17 @@ def getDownloadProgress(source, downloadid):
         elif source == 'DIRECT':
             myDB = database.DBConnection()
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
-            data = myDB.match(cmd, (downloadid, "DIRECT"))
+            data = myDB.match(cmd, (downloadid, source))
+            if data:
+                progress = 100
+                finished = True
+            else:
+                progress = 0
+
+        elif source.startswith('IRC'):
+            myDB = database.DBConnection()
+            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            data = myDB.match(cmd, (downloadid, source))
             if data:
                 progress = 100
                 finished = True
@@ -2447,13 +2462,13 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
         <dc:title>%s</dc:title>\n\
         <dc:language>%s</dc:language>\n\
-        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (data['BookName'], 
+        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (data['BookName'],
                                                             data['BookLang'], scheme, bookid)
 
     if "Contributors" in data:  # split into individuals and add each eg
         # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
         # opf:role="aut">Das Pastoras</dc:creator>
-        # 
+        #
         entries = []
         names = ''
         for contributor in getList(data['Contributors'], ','):
@@ -2472,7 +2487,7 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
                         (surnameFirst(data['AuthorName']), data['AuthorName'])
-        
+
     if 'BookIsbn' in data and data['BookIsbn']:
         opfinfo += '        <dc:identifier scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 

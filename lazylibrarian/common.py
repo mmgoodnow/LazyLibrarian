@@ -683,7 +683,8 @@ def scheduleJob(action='Start', target=None):
         elif 'search_magazines' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
             if interval and (lazylibrarian.USE_TOR() or lazylibrarian.USE_NZB()
-                             or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT()):
+                             or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT()
+                             or lazylibrarian.USE_IRC()):
                 startdate = nextRun("SEARCHALLMAG", interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
                     lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
@@ -926,7 +927,8 @@ def checkRunningJobs():
     if snatched or seeding:
         ensureRunning('PostProcessor')
     if wanted:
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT():
+        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT() or \
+                lazylibrarian.USE_IRC():
             ensureRunning('search_book')
         if lazylibrarian.USE_RSS():
             ensureRunning('search_rss_book')
@@ -938,7 +940,8 @@ def checkRunningJobs():
     else:
         scheduleJob('Stop', 'search_wishlist')
 
-    if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT():
+    if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
+            lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
         ensureRunning('search_magazines')
         ensureRunning('search_comics')
     else:
