@@ -14,6 +14,7 @@ import inspect
 import threading
 import traceback
 import time
+import os
 from operator import itemgetter
 
 import lazylibrarian
@@ -42,7 +43,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
             frame = inspect.getframeinfo(inspect.stack()[2][0])
             program = os.path.basename(frame.filename)
             method = frame.function
-            lineno = frame.lineno        
+            lineno = frame.lineno
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason ='Unknown reason in addAuthorNameToDB'
@@ -151,7 +152,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
             frame = inspect.getframeinfo(inspect.stack()[2][0])
             program = os.path.basename(frame.filename)
             method = frame.function
-            lineno = frame.lineno        
+            lineno = frame.lineno
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason = "Unknown reason in addAuthorToDB"
