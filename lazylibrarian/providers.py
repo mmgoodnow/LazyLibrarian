@@ -691,6 +691,8 @@ def IterateOverIRCSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for Magazine" % provider['DISPNAME'])
             elif "comic" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % provider['DISPNAME'])
+            elif not searchType or 'general' in searchType:
+                logger.debug("Ignoring %s for General search" % provider['DISPNAME'])
             else:
                 providers += 1
                 logger.debug('[IterateOverIRCSites] - %s' % provider['SERVER'])
