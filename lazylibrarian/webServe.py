@@ -1376,19 +1376,12 @@ class WebInterface(object):
             count += 1
 
         # Convert legacy log settings
-        if 'loglevel' in kwargs:
-            if kwargs['loglevel'] == '0':
-                kwargs['log_type'] = 'Quiet'
-            elif kwargs['loglevel'] == '1':
-                kwargs['log_type'] = 'Normal'
-            elif kwargs['loglevel'] == '2':
-                kwargs['log_type'] = 'Debug'
-
-        if kwargs['log_type'] == 'Quiet':
+        logtype = kwargs.get('log_type', '')
+        if logtype == 'Quiet':
             newloglevel = 0
-        elif kwargs['log_type'] == 'Normal':
+        elif logtype == 'Normal':
             newloglevel = 1
-        else:
+        elif logtype == 'Debug':
             newloglevel = 2
             if 'log_matching' in kwargs:
                 newloglevel += lazylibrarian.log_matching
@@ -1416,6 +1409,9 @@ class WebInterface(object):
                 newloglevel += lazylibrarian.log_admin
             if 'log_cherrypy' in kwargs:
                 newloglevel += lazylibrarian.log_cherrypy
+        else:  # legacy interface, no log_type
+            newloglevel = int(kwargs.get('loglevel', 0))
+
         lazylibrarian.LOGLEVEL = newloglevel
         lazylibrarian.CONFIG['LOGLEVEL'] = newloglevel
         lazylibrarian.config_write()
@@ -2537,7 +2533,7 @@ class WebInterface(object):
                                                   email=email)
                         else:
                             logger.debug('Unable to send %s %s, no valid types?' % (library, bookName))
-                            
+
                 logger.info('Missing %s %s, %s [%s]' % (library, authorName, bookName, bookfile))
             else:
                 return self.requestBook(library=library, bookid=bookid, redirect=redirect)
@@ -4943,7 +4939,7 @@ class WebInterface(object):
                 cmd = "SELECT BookName,BookDesc,BookImg,AuthorID from books WHERE bookid=?"
                 res = myDB.match(cmd, (bookid,))
             if res:
-                res = dict(res) 
+                res = dict(res)
                 if res['BookDesc']:
                     text = res['BookDesc']
                 if 'Contributors' in res and res['Contributors']:
