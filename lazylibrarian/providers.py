@@ -718,7 +718,7 @@ def IRCSEARCH(book, provider, searchType, test=False):
     if test:
         return True, results
 
-    if searchType not in ['mag', 'general', 'comic']:
+    if searchType not in ['mag', 'comic']:
         authorname, bookname = get_searchterm(book, searchType)
         if 'title' in searchType:
             book['searchterm'] = bookname
@@ -1240,7 +1240,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             }
     else:
         if provider['GENERALSEARCH']:
-            if searchType == "shortgeneral":
+            if "shortgeneral" in searchType:
                 searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''))
             elif 'title' in searchType:
                 _, searchterm = get_searchterm(book, searchType)

@@ -25,7 +25,7 @@ from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, getList, month2num, datecompare, check_int, check_year, age, dispName
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
-    IterateOverDirectSites
+    IterateOverDirectSites, IterateOverIRCSites
 from lib.six import PY2
 
 
@@ -123,6 +123,27 @@ def search_magazines(mags=None, reset=False):
                             'nzbdate': 'Fri, 01 Jan 1970 00:00:00 +0100',  # fake date as none returned
                             'nzbsize': item['tor_size'],
                             'nzbmode': 'direct'
+                        })
+
+            if lazylibrarian.USE_IRC():
+                irc_resultlist, nproviders = IterateOverIRCSites(book, 'mag')
+                if not nproviders:
+                    # don't nag. Show warning message no more than every 20 mins
+                    timenow = int(time.time())
+                    if check_int(lazylibrarian.NO_IRC_MSG, 0) + 1200 < timenow:
+                        logger.warn('No irc providers are available. Check config and blocklist')
+                        lazylibrarian.NO_IRC_MSG = timenow
+
+                if irc_resultlist:
+                    for item in irc_resultlist:  # reformat the results so they look like nzbs
+                        resultlist.append({
+                            'bookid': item['bookid'],
+                            'nzbprov': item['tor_prov'],
+                            'nzbtitle': item['tor_title'],
+                            'nzburl': item['tor_url'],
+                            'nzbdate': 'Fri, 01 Jan 1970 00:00:00 +0100',  # fake date as none returned
+                            'nzbsize': item['tor_size'],
+                            'nzbmode': 'irc'
                         })
 
             if lazylibrarian.USE_TOR():

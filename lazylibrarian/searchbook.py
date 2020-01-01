@@ -57,6 +57,11 @@ def warnMode(mode):
             lazylibrarian.NO_TOR_MSG = timenow
         else:
             return
+    elif mode == 'irc':
+        if check_int(lazylibrarian.NO_IRC_MSG, 0) + 1200 < timenow:
+            lazylibrarian.NO_IRC_MSG = timenow
+        else:
+            return
     elif mode == 'direct':
         if check_int(lazylibrarian.NO_DIRECT_MSG, 0) + 1200 < timenow:
             lazylibrarian.NO_DIRECT_MSG = timenow
@@ -268,24 +273,23 @@ def search_book(books=None, library=None):
 
                     # if you can't find the book, try author/title without any "(extended details, series etc)"
                     if not goodEnough(match) and '(' in book['bookName']:
-                        searchtype = 'short' + searchtype
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, searchtype)
+                            resultlist, nprov = IterateOverNewzNabSites(book, 'short' + searchtype)
                             if not nprov:
                                 warnMode('nzb')
 
                         elif mode == 'tor' and 'tor' in modelist:
-                            resultlist, nprov = IterateOverTorrentSites(book, searchtype)
+                            resultlist, nprov = IterateOverTorrentSites(book, 'short' + searchtype)
                             if not nprov:
                                 warnMode('tor')
 
                         elif mode == 'direct' and 'direct' in modelist:
-                            resultlist, nprov = IterateOverDirectSites(book, searchtype)
+                            resultlist, nprov = IterateOverDirectSites(book, 'short' + searchtype)
                             if not nprov:
                                 warnMode('direct')
 
                         elif mode == 'irc' and 'irc' in modelist:
-                            resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                            resultlist, nprov = IterateOverIRCSites(book, 'short' + searchtype)
                             if not nprov:
                                 warnMode('irc')
 
@@ -293,58 +297,55 @@ def search_book(books=None, library=None):
                             resultlist = rss_resultlist
 
                         if resultlist:
-                            match = findBestResult(resultlist, book, searchtype, mode)
+                            match = findBestResult(resultlist, book, 'short' + searchtype, mode)
                         else:
                             match = None
 
                     # if you can't find the book under "books", you might find under general search
-                    # general search is the same as booksearch for torrents and rss, no need to check again
+                    # general search is the same as booksearch for torrents, irc and rss, no need to check again
                     if not goodEnough(match):
-                        searchtype = 'general'
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, searchtype)
+                            resultlist, nprov = IterateOverNewzNabSites(book, 'general')
                             if not nprov:
                                 warnMode('nzb')
 
                             if resultlist:
-                                match = findBestResult(resultlist, book, searchtype, mode)
+                                match = findBestResult(resultlist, book, 'general', mode)
                             else:
                                 match = None
 
                     # if still not found, try general search again without any "(extended details, series etc)"
-                    # shortgeneral is the same as shortbook for torrents and rss, no need to check again
+                    # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
                     if not goodEnough(match) and '(' in book['searchterm']:
-                        searchtype = 'shortgeneral'
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, searchtype)
+                            resultlist, nprov = IterateOverNewzNabSites(book, 'shortgeneral' + searchtype)
                             if not nprov:
                                 warnMode('nzb')
 
                             if resultlist:
-                                match = findBestResult(resultlist, book, searchtype, mode)
+                                match = findBestResult(resultlist, book, 'shortgeneral' + searchtype, mode)
                             else:
                                 match = None
 
                     # if still not found, try general search again with title only
                     if not goodEnough(match):
-                        searchtype = 'titlegeneral'
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, searchtype)
+                            resultlist, nprov = IterateOverNewzNabSites(book, 'title' + searchtype)
                             if not nprov:
                                 warnMode('nzb')
 
                         elif mode == 'tor' and 'tor' in modelist:
-                            resultlist, nprov = IterateOverTorrentSites(book, searchtype)
+                            resultlist, nprov = IterateOverTorrentSites(book, 'title' + searchtype)
                             if not nprov:
                                 warnMode('tor')
 
                         elif mode == 'direct' and 'direct' in modelist:
-                            resultlist, nprov = IterateOverDirectSites(book, searchtype)
+                            resultlist, nprov = IterateOverDirectSites(book, 'title' + searchtype)
                             if not nprov:
                                 warnMode('direct')
 
                         elif mode == 'irc' and 'irc' in modelist:
-                            resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                            resultlist, nprov = IterateOverIRCSites(book, 'title' + searchtype)
                             if not nprov:
                                 warnMode('irc')
 
@@ -352,7 +353,7 @@ def search_book(books=None, library=None):
                             resultlist = rss_resultlist
 
                         if resultlist:
-                            match = findBestResult(resultlist, book, searchtype, mode)
+                            match = findBestResult(resultlist, book, 'title' + searchtype, mode)
                         else:
                             match = None
 
