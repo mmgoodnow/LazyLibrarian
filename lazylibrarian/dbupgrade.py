@@ -106,8 +106,9 @@ def upgrade_needed():
     # 55 Add Reason to author table
     # 56 Add Cover column to comicissues and issues tables
     # 57 Add Description to comics and Description/Contributors to comicissues
+    # 58 Ensure Link was added to comicissues (was missing for new installs in v57)
 
-    db_current_version = 57
+    db_current_version = 58
 
     if db_version < db_current_version:
         return db_current_version
@@ -224,7 +225,8 @@ def dbupgrade(db_current_version):
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
                                     'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
-                                    'Cover TEXT, Description TEXT, Contributors Text, UNIQUE (ComicID, IssueID))')
+                                    'Cover TEXT, Description TEXT, Link TEXT, Contributors TEXT, ' +
+                                    'UNIQUE (ComicID, IssueID))')
                     else:
                         # running a very old sqlite on a nas that can't be updated, no foreign key support
                         # so orphans get cleaned up at program startup
@@ -249,7 +251,7 @@ def dbupgrade(db_current_version):
                                     'UNIQUE (GenreID,BookID))')
                         myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
                                     'IssueAcquired TEXT, IssueFile TEXT, Cover TEXT, ' +
-                                    'Description TEXT, Contributors TEXT, UNIQUE (ComicID, IssueID))')
+                                    'Description TEXT, Link TEXT, Contributors TEXT, UNIQUE (ComicID, IssueID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -1665,3 +1667,10 @@ def db_v57(myDB, upgradelog):
         upgradelog.write("%s v57: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE comics ADD COLUMN Description TEXT')
     upgradelog.write("%s v57: complete\n" % time.ctime())
+
+def db_v58(myDB, upgradelog):
+    if not has_column(myDB, "comicissues", "Link"):
+        lazylibrarian.UPDATE_MSG = 'Adding Link column to comicissues table'
+        upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE comicissues ADD COLUMN Link TEXT')
+    upgradelog.write("%s v58: complete\n" % time.ctime())
