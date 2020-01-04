@@ -621,7 +621,7 @@ def nextRun(target=None, interval=0, action='', hours=False):
         nextrun = interval
 
     startdate = datetime.datetime.fromtimestamp(time.time() + (nextrun * 60))
-                
+
     if hours:
         if nextrun > 1:
             nextrun = int(nextrun / 60)
@@ -643,7 +643,7 @@ def nextRun(target=None, interval=0, action='', hours=False):
     if lastrun:
         msg += " (Last run %s)" % ago(lastrun)
     logger.debug(msg)
-    
+
     return startdate
 
 
@@ -696,7 +696,7 @@ def scheduleJob(action='Start', target=None):
         elif 'search_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
             if interval and (lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR()
-                             or lazylibrarian.USE_DIRECT()):
+                             or lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC()):
                 startdate = nextRun("SEARCHALLBOOKS", interval, action)
                 if interval <= 600:
                     lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
@@ -725,8 +725,8 @@ def scheduleJob(action='Start', target=None):
 
         elif 'search_comics' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
-            if interval and (lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() 
-                             or lazylibrarian.USE_DIRECT()):
+            if interval and (lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR()
+                             or lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC()):
                 startdate = nextRun("SEARCHALLCOMICS", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
                                                      hours=interval, start_date=startdate)
