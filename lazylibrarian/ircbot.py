@@ -14,14 +14,22 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import socket
-import sys
 import time
 import struct
 import os
-import zipfile
+import tarfile
+from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import today, size_in_bytes
+from lazylibrarian.formatter import today, size_in_bytes, makeBytestr
+try:
+    import zipfile
+except ImportError:
+    if PY2:
+        import lib.zipfile as zipfile
+    else:
+        import lib3.zipfile as zipfile
+
 
 def ip_numstr_to_quad(num):
     """
@@ -36,6 +44,7 @@ def ip_numstr_to_quad(num):
     bts = struct.unpack('BBBB', packed)
     return ".".join(map(str, bts))
 
+
 class IRC:
 
     irc = socket.socket()
@@ -47,64 +56,84 @@ class IRC:
 
     def send(self, channel, msg):
         # Transfer data
-        self.irc.send(bytes("PRIVMSG " + channel + " " + msg + "\n", "UTF-8"))
+        self.irc.send(makeBytestr("PRIVMSG " + channel + " " + msg + "\n"))
 
     def join(self, channel):
-        self.irc.send(bytes("JOIN " + channel + "\n", "UTF-8"))
+        self.irc.send(makeBytestr("JOIN " + channel + "\n"))
 
     def part(self, channel):
-        self.irc.send(bytes("PART " + channel + " :Bye\n", "UTF-8"))
+        self.irc.send(makeBytestr("PART " + channel + " :Bye\n"))
 
-    def connect(self, server, port, channel, botnick, botpass):
+    def connect(self, server, port, botnick, botpass):
         # Connect to the server
         logger.debug("Connecting to: " + server)
         try:
             email = lazylibrarian.CONFIG['ADMIN_EMAIL']
             self.irc.connect((server, port))
-            if botnick and botpass:
-                logger.debug("Sending auth")
+            if botnick:
+                logger.debug("Sending auth for %s" % botnick)
                 # Perform user authentication
-                self.irc.send(bytes("USER " + botnick + " " + botnick +" " + botnick + " :python\n", "UTF-8"))
-                self.irc.send(bytes("NICK " + botnick + "\n", "UTF-8"))
-                if email:
+                self.irc.send(makeBytestr("USER " + botnick + " " + botnick + " " + botnick + " :LazyLibrarian\n"))
+                self.irc.send(makeBytestr("NICK " + botnick + "\n"))
+                if botpass and email:
                     logger.debug("Sending nickserv")
-                    self.irc.send(bytes("NICKSERV REGISTER " + botpass + " " + email + "\n", "UTF-8"))
+                    self.irc.send(makeBytestr("NICKSERV REGISTER " + botpass + " " + email + "\n"))
                     time.sleep(2)
-                    self.irc.send(bytes("NICKSERV IDENTIFY " + botpass + "\n", "UTF-8"))
+                    self.irc.send(makeBytestr("NICKSERV IDENTIFY " + botpass + "\n"))
                     time.sleep(2)
-            # join the channel
-            self.irc.send(bytes("JOIN " + channel + "\n", "UTF-8"))
-            logger.debug("Sent JOIN %s" % channel)
         except Exception:
             raise
-
 
     def get_response(self):
         time.sleep(1)
         # Get the response
         reply = self.irc.recv(2040)
+        # should really put the data in a queue/buffer so we can handle split lines
+        # for now we'll just split on newline and ignore the last line not being complete
         try:
             resp = reply.decode("UTF-8")
         except UnicodeDecodeError:
             resp = reply.decode("latin-1")
         if resp.find('PING :') != -1:
-            self.irc.send(bytes('PONG ' + resp.split('PING :')[1], "UTF-8"))
+            self.irc.send(makeBytestr('PONG ' + resp.split('PING :')[1]))
             logger.debug("Sent PONG %s" % resp.split('PING :')[1])
         return resp
 
 
 def ircConnect(server, port, channel, botnick, botpass):
-    if sys.version[0] == '2':
-        logger.warn("IRC is not supported under python2, please upgrade to python 3.6 or newer")
-        return None
-    try:
-        irc = IRC()
-        irc.connect(server, port, channel, botnick, botpass)
-    except Exception as e:
-        logger.error(e)
-        irc = None
-    finally:
-        return irc
+    retries = 0
+    maxretries = 3
+    irc = IRC()
+    while retries < maxretries:
+        try:
+            irc.connect(server, port, botnick, botpass)
+            while retries < maxretries:
+                try:
+                    text = irc.get_response()
+                    lynes = text.split('\n')
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                        logger.debug("Received %s lines" % len(lynes))
+                    for lyne in lynes:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                            logger.debug(lyne)
+                        if botnick in lyne:
+                            if "already in use" in lyne:
+                                botnick += '_'
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                    logger.debug("Trying NICK %s" % botnick)
+                                break
+                            elif "Welcome to" in lyne:
+                                irc.join(channel)
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                    logger.debug("Sent JOIN %s" % channel)
+                                return irc
+                except socket.timeout:
+                    logger.warn("Reply timed out")
+                    retries += 1
+        except Exception as e:
+            logger.error(e)
+            retries += 1
+    return None
 
 
 def ircSearch(irc, channel, searchstring, cmd=":@search"):
@@ -115,18 +144,17 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     retries = 0
     maxretries = 3
     abortafter = 30
+    text = ''
 
     while status != "finished":
         try:
             text = irc.get_response()
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug("[%s] %s" % (status,text))
         except socket.timeout:
             logger.warn("Timed out, status [%s]" % status)
             retries += 1
 
             if status == "":
-                logger.debug("Joining %s" % channel)
+                logger.debug("Rejoining %s" % channel)
                 irc.join(channel)
                 cmd_sent = time.time()
             if status == "waiting":
@@ -134,95 +162,104 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 cmd_sent = time.time()
                 logger.debug("Resent %s" % cmd + " " + searchstring)
 
-        if channel in text and status == "":
-            status = "joined"
-            logger.debug("Joined %s" % channel)
+        lynes = text.split('\n')
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("[%s] Received %s lines" % (status, len(lynes)))
+        for lyne in lynes:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug(lyne)
+            if channel in lyne and status == "":
+                status = "joined"
+                logger.debug("Joined %s" % channel)
 
-        if "PRIVMSG" in text and channel in text and "hello" in text:
-            irc.send(channel, "Hello!")
-            logger.debug("Sent HELLO")
+            if "PRIVMSG" in lyne and channel in lyne and "hello" in lyne:
+                irc.send(channel, "Hello!")
+                logger.debug("Sent HELLO")
 
-        if status == "joined":
-            irc.send(channel, cmd + " " + searchstring)
-            cmd_sent = time.time()
-            status = "waiting"
-            logger.debug("Asking %s for %s" % (cmd, searchstring))
+            if status == "joined":
+                irc.send(channel, cmd + " " + searchstring)
+                cmd_sent = time.time()
+                status = "waiting"
+                logger.debug("Asking %s for %s" % (cmd, searchstring))
 
-        if status == "waiting":
-            if searchstring in text:
-                if len(text.split("matches")) > 1:
-                    res = text.split("matches")[0].split()
-                    try:
-                        matches = int(res[-1])
-                    except ValueError:
-                        matches = 0
-                    logger.debug("Found %d matches" % matches)
-                    if not matches:
-                        status = "finished"
-                if 'Request Denied' in text:
-                    try:
-                        msg = text.split("PRIVMSG")[1].split('\n')[0]
-                    except IndexError:
-                        msg = text
-                    logger.warn("Request Denied by %s" % cmd)
-                    logger.debug(msg)
-                    return False, msg
-            else:
-                if time.time() - cmd_sent > abortafter:
-                    logger.warn("No response from %s" % cmd)
-                    status = ""
-                    retries += 1
+            if status == "waiting":
+                if searchstring in lyne:
+                    if len(lyne.split("matches")) > 1:
+                        res = lyne.split("matches")[0].split()
+                        try:
+                            matches = int(res[-1])
+                        except ValueError:
+                            matches = 0
+                        logger.debug("Found %d matches" % matches)
+                        if not matches:
+                            status = "finished"
+                    if 'Request Denied' in lyne:
+                        try:
+                            msg = lyne.split("PRIVMSG")[1].split('\n')[0]
+                        except IndexError:
+                            msg = lyne
+                        logger.warn("Request Denied by %s" % cmd)
+                        logger.debug(msg)
+                        # irc.part(channel)
+                        return False, msg
 
-        if "PRIVMSG" in text and "DCC SEND" in text:
-            res = text.split("DCC SEND")[1].split('\n')[0].split()
-            size = res[-1]
-            peer_port = res[-2]
-            peer_address = res[-3]
-            filename = ' '.join(res[:-3])
-            filename = filename.strip('"')
-            logger.debug("%s %s %s %s" % (filename, ip_numstr_to_quad(peer_address), peer_port, size))
-            filesize = int(size.strip('\x01'))
+            if "PRIVMSG" in lyne and "DCC SEND" in lyne:
+                res = lyne.split("DCC SEND")[1].split('\n')[0].split()
+                size = res[-1]
+                peer_port = res[-2]
+                peer_address = res[-3]
+                filename = ' '.join(res[:-3])
+                filename = filename.strip('"')
+                logger.debug("%s %s %s %s" % (filename, ip_numstr_to_quad(peer_address), peer_port, size))
+                filesize = int(size.strip('\x01'))
 
-            peeraddress = socket.gethostbyname(peer_address)
-            peerport = int(peer_port)
-            peersocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            try:
-                peersocket.connect((peeraddress, peerport))
-                status = "connected"
-                logger.debug("Connected to %s" % peeraddress)
-            except socket.error as x:
-                logger.warn("Couldn't connect to socket: %s" % x)
-
-        if status == "connected":
-            while len(received_data) < filesize:
+                peeraddress = socket.gethostbyname(peer_address)
+                peerport = int(peer_port)
+                peersocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 try:
-                    new_data = peersocket.recv(2 ** 14)
-                except socket.error:
-                    # The server hung up.
-                    logger.warn("Connection reset by peer")
-                    status = ""
-                    retries += 1
-                if not new_data:
-                    # Read nothing: connection must be down.
-                    logger.warn("Connection reset by peer")
-                    status = ""
-                    retries += 1
-                else:
-                    received_data += new_data
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                        logger.debug("Got %s of %s" % (len(received_data), size))
-                    if len(received_data) >= filesize:
-                        peersocket.close()
-                        logger.debug("Got %s of %s" % (len(received_data), size))
-                        status = "finished"
-                    else:
-                        peersocket.send(struct.pack("!I", len(received_data)))
+                    peersocket.connect((peeraddress, peerport))
+                    status = "connected"
+                    logger.debug("Connected to %s" % peeraddress)
+                except socket.error as x:
+                    logger.warn("Couldn't connect to socket: %s" % x)
+
+                if status == "connected":
+                    while len(received_data) < filesize:
+                        try:
+                            new_data = peersocket.recv(2 ** 14)
+                        except socket.error:
+                            # The server hung up.
+                            logger.warn("Connection reset by peer")
+                            new_data = ''
+                            status = ""
+                            retries += 1
+                        if not new_data:
+                            # Read nothing: connection must be down.
+                            logger.warn("Connection reset by peer")
+                            status = ""
+                            retries += 1
+                        else:
+                            received_data += new_data
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                logger.debug("Got %s of %s" % (len(received_data), size))
+                            if len(received_data) >= filesize:
+                                peersocket.close()
+                                logger.debug("Got %s of %s" % (len(received_data), size))
+                                status = "finished"
+                                # irc.part(channel)
+                            else:
+                                peersocket.send(struct.pack("!I", len(received_data)))
+
+        if time.time() - cmd_sent > abortafter:
+            logger.warn("No response from %s" % cmd)
+            status = ""
+            retries += 1
         if retries > maxretries:
             msg = "Aborting, too many retries"
             logger.warn(msg)
             return False, msg
-    #irc.part(channel)
     return filename, received_data
+
 
 def ircResults(provider, fname, data):
     # Open the zip file, extract the txt
@@ -239,8 +276,20 @@ def ircResults(provider, fname, data):
     logger.debug("Written %s" % outfile)
 
     if outfile:
-        data = zipfile.ZipFile(outfile)
+        if zipfile.is_zipfile(outfile):
+            data = zipfile.ZipFile(outfile)
+        elif tarfile.is_tarfile(outfile):
+            data = tarfile.TarFile(outfile)
+        elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(outfile):
+            data = lazylibrarian.RARFILE.RarFile(outfile)
+        elif lazylibrarian.UNRARLIB == 2:
+            # noinspection PyBroadException
+            try:
+                data = lazylibrarian.RARFILE(outfile)
+            except Exception:
+                data = None  # not a rar archive
         if data:
+            r = b''
             for member in data.namelist():
                 if '.txt' in member.lower():
                     r = data.read(member)
