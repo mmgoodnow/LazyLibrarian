@@ -22,6 +22,7 @@ from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int
 from lazylibrarian.common import safe_copy, setperm
 from lazylibrarian.cache import cache_img, fetchURL
+from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
@@ -389,7 +390,7 @@ def getBookCover(bookID=None, src=None):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
-            if item['BookISBN']:
+            if not ProviderIsBlocked("openlibrary") and item['BookISBN']:
                 baseurl = 'https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:'
                 result, success = fetchURL(baseurl + item['BookISBN'])
                 if success:
@@ -429,6 +430,7 @@ def getBookCover(bookID=None, src=None):
                             return coverlink, 'openlibrary'
                 else:
                     logger.debug("OpenLibrary error: %s" % result)
+                    BlockProvider("openlibrary", result)
             if src:
                 return None, src
 
