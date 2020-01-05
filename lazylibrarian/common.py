@@ -606,6 +606,10 @@ def nextRun(target=None, interval=0, action='', hours=False):
     if target is None:
         return ''
 
+    if action == 'StartNow':
+        hours = False
+        interval = 0
+
     myDB = database.DBConnection()
     res = myDB.match('SELECT LastRun from jobs WHERE Name=?', (target,))
     if res and res['LastRun'] > 0:
@@ -667,7 +671,7 @@ def scheduleJob(action='Start', target=None):
                 logger.debug("Stop %s job" % target)
                 break
 
-    if action in ['Start', 'Restart']:
+    if action in ['Start', 'Restart', 'StartNow']:
         for job in lazylibrarian.SCHED.get_jobs():
             if newtarget in str(job):
                 logger.debug("%s %s job, already scheduled" % (action, target))
@@ -1127,6 +1131,7 @@ def showJobs():
             jobinfo += " (Last run %s)" % ago(res['LastRun'])
         result.append(jobinfo)
 
+    result.append(' ')
     overdue, total, name, _, days = is_overdue('Author')
     if name:
         result.append('Oldest author info (%s) is %s day%s old' % (name, days, plural(days)))
