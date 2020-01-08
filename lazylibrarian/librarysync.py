@@ -276,7 +276,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     partname_type = ''
     prefix_type = ''
 
-    book_lower = unaccented(book.lower())
+    book_lower = unaccented(book.lower(), only_ascii=False)
     book_lower = replace_with(book_lower, quotes, '')
     book_partname, book_sub = split_title(author, book_lower)
 
@@ -304,7 +304,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             logger.debug("Checking [%s]" % a_book['BookName'])
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
-        a_book_lower = unaccented(a_book['BookName'].lower())
+        a_book_lower = unaccented(a_book['BookName'].lower(), only_ascii=False)
         a_book_lower = replace_with(a_book_lower, quotes, '')
 
         for entry in translates:
@@ -825,47 +825,68 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # or books we moved to "merge" authors
                                 book = replace_with(book, quotes, '')
 
-                                # First try and find it under author and bookname
-                                # as we may have it under a different bookid or isbn to goodreads/googlebooks
-                                # which might have several bookid/isbn for the same book
-                                bookid, mtype = find_book_in_db(author, book, reason='Author exists for %s' % book)
+                                # If we have a goodreads/googlebooks ID use that
+                                bookid = ''
+                                mtype = ''
+                                if gr_id:
+                                    bookid = gr_id
+                                elif gb_id:
+                                    bookid = gb_id
+                                if bookid:
+                                    match = myDB.match('SELECT AuthorID,Status FROM books where BookID=?',
+                                                       (bookid,))
+                                    if match:
+                                        mtype = match['Status']
+                                        if authorid != match['AuthorID']:
+                                            logger.warn("Metadata authorid [%s] does not match database [%s]" %
+                                                        (authorid, match['AuthorID']))
+                                    else:
+                                        logger.warn("Metadata bookid [%s] not found in database" % (bookid,))
+                                        bookid = ''
+
+                                if not bookid and isbn:
+                                    # See if the isbn is in our database
+                                    match = myDB.match('SELECT AuthorID,BookID,Status FROM books where BookIsbn=?',
+                                                       (isbn,))
+                                    if match:
+                                        bookid = match['BookID']
+                                        mtype = match['Status']
+                                        if authorid != match['AuthorID']:
+                                            logger.warn("Metadata authorid [%s] does not match database [%s]" %
+                                                        (authorid, match['AuthorID']))
+                                else:
+                                    # Try and find in database under author and bookname
+                                    # as we may have it under a different bookid or isbn to goodreads/googlebooks
+                                    # which might have several bookid/isbn for the same book
+                                    bookid, mtype = find_book_in_db(author, book, reason='Author exists for %s' % book)
+
                                 if bookid and mtype == "Ignored":
                                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %
                                                 (book, author))
                                 if not bookid:
                                     # Title or author name might not match, or maybe multiple authors
-                                    # See if the gr_id, gb_id is already in our database
                                     if gr_id:
                                         bookid = gr_id
                                     elif gb_id:
                                         bookid = gb_id
-
                                     if bookid:
-                                        match = myDB.match('SELECT BookID FROM books where BookID=?', (bookid,))
+                                        msg = 'Unable to find book %s by %s in database, trying to add it using '
+                                        if bookid == gr_id:
+                                            msg += "GoodReads ID " + gr_id
+                                        if bookid == gb_id:
+                                            msg += "GoogleBooks ID " + gb_id
+                                        logger.debug(msg % (book, author))
+                                        if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
+                                            GR_ID = GoodReads(gr_id)
+                                            GR_ID.find_book(gr_id, None, None, "Added by librarysync")
+                                        elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
+                                            GB_ID = GoogleBooks(gb_id)
+                                            GB_ID.find_book(gb_id, None, None, "Added by librarysync")
+                                        # see if it's there now...
+                                        match = myDB.match('SELECT BookID from books where BookID=?', (bookid,))
                                         if not match:
-                                            msg = 'Unable to find book %s by %s in database, trying to add it using '
-                                            if bookid == gr_id:
-                                                msg += "GoodReads ID " + gr_id
-                                            if bookid == gb_id:
-                                                msg += "GoogleBooks ID " + gb_id
-                                            logger.debug(msg % (book, author))
-                                            if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
-                                                GR_ID = GoodReads(gr_id)
-                                                GR_ID.find_book(gr_id, None, None, "Added by librarysync")
-                                            elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
-                                                GB_ID = GoogleBooks(gb_id)
-                                                GB_ID.find_book(gb_id, None, None, "Added by librarysync")
-                                            # see if it's there now...
-                                            match = myDB.match('SELECT BookID from books where BookID=?', (bookid,))
-                                            if not match:
-                                                logger.debug("Unable to add bookid %s to database" % bookid)
-                                                bookid = ""
-
-                                if not bookid and isbn:
-                                    # See if the isbn is in our database
-                                    match = myDB.match('SELECT BookID FROM books where BookIsbn=?', (isbn,))
-                                    if match:
-                                        bookid = match['BookID']
+                                            logger.debug("Unable to add bookid %s to database" % bookid)
+                                            bookid = ""
 
                                 if not bookid:
                                     # get author name from parent directory of this book directory
@@ -896,8 +917,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         base_url = 'https://www.goodreads.com/search.xml?q='
                                         params = {"key": lazylibrarian.CONFIG['GR_API']}
                                         author = formatAuthorName(author)
-                                        searchname = "%s %s" % (cleanName(author),
-                                                                cleanName(book))
+                                        searchname = "%s %s" % (cleanName(author), cleanName(book))
                                         searchterm = quote_plus(makeUTF8bytes(searchname)[0])
                                         set_url = base_url + searchterm + '&' + urlencode(params)
                                         # if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
