@@ -127,17 +127,17 @@ def serve_template(templatename, **kwargs):
                 (templatename == 'managebooks.html' and not perm & lazylibrarian.perm_managebooks) or \
                 (templatename == 'books.html' and not perm & lazylibrarian.perm_ebook) or \
                 (templatename == 'author.html' and not perm & lazylibrarian.perm_ebook
-                    and not perm & lazylibrarian.perm_audio) or \
+                 and not perm & lazylibrarian.perm_audio) or \
                 (templatename in ['magazines.html', 'issues.html', 'manageissues.html']
-                    and not perm & lazylibrarian.perm_magazines) or \
+                 and not perm & lazylibrarian.perm_magazines) or \
                 (templatename in ['comics.html', 'comicissues.html', 'comicresults.html']
-                    and not perm & lazylibrarian.perm_comics) or \
+                 and not perm & lazylibrarian.perm_comics) or \
                 (templatename == 'audio.html' and not perm & lazylibrarian.perm_audio) or \
                 (templatename == 'choosetype.html' and not perm & lazylibrarian.perm_download) or \
                 (templatename in ['series.html', 'members.html'] and not perm & lazylibrarian.perm_series) or \
                 (templatename in ['editauthor.html', 'editbook.html'] and not perm & lazylibrarian.perm_edit) or \
                 (templatename in ['manualsearch.html', 'searchresults.html']
-                    and not perm & lazylibrarian.perm_search):
+                 and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
             templatename = "login.html"
 
@@ -479,7 +479,7 @@ class WebInterface(object):
         msg = 'IP: %s\n' % remote_ip
         for item in kwargs:
             if kwargs[item]:
-                line = "%s: %s\n" % (item, unaccented(kwargs[item]))
+                line = "%s: %s\n" % (item, unaccented(kwargs[item], only_ascii=False))
             else:
                 line = "%s: \n" % item
             msg += line
@@ -1096,7 +1096,7 @@ class WebInterface(object):
                 admin = myDB.match('SELECT password from users where name="admin"')
                 if admin:
                     if admin['password'] == md5_utf8('admin'):
-                        adminmsg += "The default admin user is 'admin' and password is 'admin'<br>"
+                        adminmsg += "The default admin user is \"admin\" and password is \"admin\"<br>"
                         adminmsg += "This is insecure, please change it on Config -> User Admin<br>"
 
         # store any genre changes
@@ -1222,7 +1222,7 @@ class WebInterface(object):
                             title = title.encode('utf-8')
                         except UnicodeEncodeError:
                             logger.warn('Unable to convert title [%s]' % repr(title))
-                            title = unaccented(title)
+                            title = unaccented(title, only_ascii=False)
 
                 new_reject = kwargs.get('reject_list[%s]' % title, None)
                 if not new_reject == reject:
@@ -1758,8 +1758,7 @@ class WebInterface(object):
         if action.startswith('a_'):
             library = 'AudioBook'
         return serve_template(templatename="manualsearch.html", title=library + ' Search Results: "' +
-                              searchterm + '"', bookid=bookid, results=results,
-                              library=library)
+                              searchterm + '"', bookid=bookid, results=results, library=library)
 
     @cherrypy.expose
     def countProviders(self):
@@ -1802,8 +1801,8 @@ class WebInterface(object):
             if snatch:
                 logger.info('Downloading %s %s from %s' % (library, bookdata["BookName"], provider))
                 custom_notify_snatch("%s %s" % (bookid, library))
-                notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"]), dispName(provider),
-                                                    now()))
+                notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"], only_ascii=False),
+                                                    dispName(provider), now()))
                 scheduleJob(action='Start', target='PostProcessor')
             else:
                 myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?', (res, url))
@@ -2120,12 +2119,11 @@ class WebInterface(object):
         """
         Sort the list into natural alphanumeric order.
         """
+        def convert(text):
+            return int(text) if text and text.isdigit() else text
 
-        # noinspection PyShadowingNames
-        def get_alphanum_key_func(key):
-            # noinspection PyPep8,PyPep8
-            convert = lambda text: int(text) if text and text.isdigit() else text
-            return lambda s: [convert(c) for c in re.split('([0-9]+)', key(s))]
+        def get_alphanum_key_func(skey):
+            return lambda s: [convert(c) for c in re.split('([0-9]+)', skey(s))]
 
         sort_key = get_alphanum_key_func(key)
         lst.sort(key=sort_key, reverse=reverse)
@@ -2218,7 +2216,7 @@ class WebInterface(object):
                 msg = 'IP: %s\n' % remote_ip
                 for item in kwargs:
                     if kwargs[item]:
-                        line = "%s: %s\n" % (item, unaccented(kwargs[item]))
+                        line = "%s: %s\n" % (item, unaccented(kwargs[item], only_ascii=False))
                     else:
                         line = "%s: \n" % item
                     msg += line
@@ -2313,7 +2311,7 @@ class WebInterface(object):
                 res = myDB.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
                 if res:
                     target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
-                    return self.send_file(target,  name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                    return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
             target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
             return self.send_file(target, name='lazylibrarian.png')
 
