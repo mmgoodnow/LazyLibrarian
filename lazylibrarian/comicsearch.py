@@ -167,7 +167,7 @@ def searchItem(comicid=None):
                     logger.debug("Rejecting %s, too small (%sMb)" % (title, size_mb))
 
                 if not rejected:
-                    resultTitle = unaccented(replace_all(title, dictrepl)).strip()
+                    resultTitle = unaccented(replace_all(title, dictrepl), only_ascii=False).strip()
                     words = getList(resultTitle.lower())
                     for word in words:
                         if word in banwords:
@@ -322,7 +322,8 @@ def search_comics(comicid=None):
                         myDB.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
                         custom_notify_snatch("%s %s" % (bookid, item['url']))
                         notify_snatch("Comic %s from %s at %s" %
-                                      (unaccented(item['title']), dispName(item["provider"]), now()))
+                                      (unaccented(item['title'], only_ascii=False),
+                                       dispName(item["provider"]), now()))
                         scheduleJob(action='Start', target='PostProcessor')
                     else:
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',

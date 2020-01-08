@@ -189,7 +189,7 @@ def search_wishlist():
                             break
                 if not bookmatch:
                     searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
-                    results = search_for(unaccented(searchterm))
+                    results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
                         if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
                                 and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
@@ -202,7 +202,7 @@ def search_wishlist():
                     if newtitle != book['rss_title']:
                         title = newtitle
                         searchterm = "%s <ll> %s" % (title, authorname)
-                        results = search_for(unaccented(searchterm))
+                        results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
                             if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
                                     and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):

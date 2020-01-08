@@ -295,8 +295,8 @@ def search_magazines(mags=None, reset=False):
                         if not rejected:
                             reject_list = getList(results['Reject'])
                             reject_list += getList(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
-                            lower_title = unaccented(nzbtitle_formatted).lower()
-                            lower_bookid = unaccented(bookid).lower()
+                            lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower()
+                            lower_bookid = unaccented(bookid, only_ascii=False).lower()
                             if reject_list:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('Reject: %s' % reject_list)
@@ -511,8 +511,8 @@ def search_magazines(mags=None, reset=False):
                         logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
                         custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                         notify_snatch("Magazine %s from %s at %s" %
-                                      (unaccented(magazine['nzbtitle']), dispName(magazine["nzbprov"]),
-                                       now()))
+                                      (unaccented(magazine['nzbtitle'], only_ascii=False),
+                                       dispName(magazine["nzbprov"]), now()))
                         scheduleJob(action='Start', target='PostProcessor')
                     else:
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',

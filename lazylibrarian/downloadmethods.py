@@ -602,9 +602,9 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 logger.warn('%s: name contains hash, probably unresolved magnet' % Source)
             else:
                 if PY2:
-                    tor_title = unaccented_bytes(tor_title)
+                    tor_title = unaccented_bytes(tor_title, only_ascii=False)
                 else:
-                    tor_title = unaccented(tor_title)
+                    tor_title = unaccented(tor_title, only_ascii=False)
                 # need to check against reject words list again as the name may have changed
                 # library = magazine eBook AudioBook to determine which reject list
                 # but we can't easily do the per-magazine rejects

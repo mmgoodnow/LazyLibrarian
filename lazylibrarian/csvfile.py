@@ -349,7 +349,7 @@ def import_CSV(search_dir=None, library='eBook'):
                             bookcount += 1
                     else:
                         searchterm = "%s <ll> %s" % (title, authorname)
-                        results = search_for(unaccented(searchterm))
+                        results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
                             if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
                                     and result['authorid'] == authorid:
@@ -360,7 +360,7 @@ def import_CSV(search_dir=None, library='eBook'):
                             if newtitle != title:
                                 title = newtitle
                                 searchterm = "%s <ll> %s" % (title, authorname)
-                                results = search_for(unaccented(searchterm))
+                                results = search_for(unaccented(searchterm, only_ascii=False))
                                 for result in results:
                                     if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
                                             and result['authorid'] == authorid:

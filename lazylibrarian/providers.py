@@ -1241,12 +1241,12 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
     else:
         if provider['GENERALSEARCH']:
             if "shortgeneral" in searchType:
-                searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''))
+                searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''), only_ascii=False)
             elif 'title' in searchType:
                 _, searchterm = get_searchterm(book, searchType)
-                searchterm = unaccented(searchterm.replace(':', ''))
+                searchterm = unaccented(searchterm.replace(':', ''), only_ascii=False)
             else:
-                searchterm = unaccented(book['searchterm'].replace(':', ''))
+                searchterm = unaccented(book['searchterm'].replace(':', ''), only_ascii=False)
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,

@@ -72,8 +72,8 @@ def findBestResult(resultlist, book, searchtype, source):
         if source == 'rss':
             author, title = get_searchterm(book, searchtype)
         else:
-            author = unaccented(replace_all(book['authorName'], dic))
-            title = unaccented(replace_all(book['bookName'], dic))
+            author = unaccented(replace_all(book['authorName'], dic), only_ascii=False)
+            title = unaccented(replace_all(book['bookName'], dic), only_ascii=False)
 
         if book['library'] == 'AudioBook':
             reject_list = getList(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
@@ -97,7 +97,7 @@ def findBestResult(resultlist, book, searchtype, source):
         matches = []
         ignored_messages = []
         for res in resultlist:
-            resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl)).strip()
+            resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl), only_ascii=False).strip()
             resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
             Author_match = fuzz.token_set_ratio(author, resultTitle)
             Book_match = fuzz.token_set_ratio(title, resultTitle)

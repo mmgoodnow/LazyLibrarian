@@ -148,7 +148,8 @@ def cv_identify(fname, best=True):
         else:
             off = ''
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(unaccented(matchwords)), off)
+        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(
+            unaccented(matchwords, only_ascii=False)), off)
         cv_api_sleep()
         res, _ = gb_json_request(url)
 

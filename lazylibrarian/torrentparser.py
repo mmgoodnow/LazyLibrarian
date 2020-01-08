@@ -111,7 +111,7 @@ def TRF(book=None, test=False):
                 dl_type = td[0].text
                 if not dl_type:
                     rejected = 'no type'
-                elif 'Direct'in dl_type:
+                elif 'Direct' in dl_type:
                     rejected = 'direct'
                 elif cat not in dl_type:
                     rejected = 'wrong cat'
@@ -119,7 +119,7 @@ def TRF(book=None, test=False):
                     rejected = 'audio'
 
                 if not rejected:
-                    resultTitle = unaccented(replace_all(td[1].text, dictrepl)).strip()
+                    resultTitle = unaccented(replace_all(td[1].text, dictrepl), only_ascii=False).strip()
                     match = fuzz.token_set_ratio(book['searchterm'], resultTitle)
 
                     if match > 90:
@@ -398,7 +398,7 @@ def KAT(book=None, test=False):
             td = row.find_all('td')
             if len(td) > 3:
                 try:
-                    title = unaccented(td[0].text)
+                    title = unaccented(td[0].text, only_ascii=False)
                     # kat can return magnet or torrent or both.
                     magnet = ''
                     url = ''
@@ -525,7 +525,7 @@ def WWT(book=None, test=False):
                 td = row.find_all('td')
                 if len(td) > 3:
                     try:
-                        title = unaccented(td[0].text)
+                        title = unaccented(td[0].text, only_ascii=False)
                         # can return magnet or torrent or both.
                         magnet = ''
                         url = ''
@@ -625,7 +625,7 @@ def EXTRA(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'])
+                    title = unaccented(item['title'], only_ascii=False)
 
                     try:
                         seeders = int(item['seeders'].replace(',', ''))
@@ -709,7 +709,7 @@ def ZOO(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'])
+                    title = unaccented(item['title'], only_ascii=False)
                     seeders = int(item['torrent_seeds'].replace(',', ''))
                     link = item['links'][1]['href']
                     size = int(item['links'][1]['length'])
@@ -793,7 +793,7 @@ def LIME(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'])
+                    title = unaccented(item['title'], only_ascii=False)
                     try:
                         seeders = item['description']
                         seeders = int(seeders.split('Seeds:')[1].split(' ,')[0].replace(',', '').strip())

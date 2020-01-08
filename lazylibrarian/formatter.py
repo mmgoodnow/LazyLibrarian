@@ -15,7 +15,6 @@ import datetime
 import hashlib
 import os
 import re
-import string
 import unicodedata
 
 import lazylibrarian
@@ -85,7 +84,7 @@ def bookSeries(bookname):
         if series.lower().startswith(word):
             return "", ""
 
-    series = cleanName(unaccented(series)).strip()
+    series = cleanName(unaccented(series, only_ascii=False)).strip()
     seriesNum = seriesNum.strip()
     if series.lower().strip('.') == 'vol':
         series = ''
@@ -645,26 +644,21 @@ def surnameFirst(authorname):
 def cleanName(name, extras=None):
     if not name:
         return u''
-    validNameChars = u"-_.() %s%s%s" % (string.ascii_letters, string.digits, extras)
-    try:
-        cleanedName = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore')
-    except TypeError:
-        cleanedName = unicodedata.normalize('NFKD', name.decode(lazylibrarian.SYS_ENCODING)).encode('ASCII', 'ignore')
-    if not PY2:
-        cleanedName = cleanedName.decode('utf-8')
-    cleaned = u''.join(c for c in cleanedName if c in validNameChars)
-    if len(cleaned):
-        return cleaned.strip()
+    validNameChars = u"-_.() %s" % extras
+    cleaned = u''.join(c for c in name if c in validNameChars or c.isalnum())
+    cleaned = cleaned.strip()
+    if cleaned:
+        return cleaned
     return name
 
 
-def unaccented(str_or_unicode):
+def unaccented(str_or_unicode, only_ascii=True):
     if not str_or_unicode:
         return u''
-    return makeUnicode(unaccented_bytes(str_or_unicode))
+    return makeUnicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii))
 
 
-def unaccented_bytes(str_or_unicode):
+def unaccented_bytes(str_or_unicode, only_ascii=True):
     if not str_or_unicode:
         return ''.encode('ASCII')  # ensure bytestring for python3
     try:
@@ -682,9 +676,12 @@ def unaccented_bytes(str_or_unicode):
     # e6 ae, f0 eth, f7 divide, f8 ostroke, fe thorn
     dic.update({u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'})
     stripped = replace_all(stripped, dic)
-    # now get rid of any other non-ascii
-    stripped = stripped.encode('ASCII', 'ignore')
-    if not len(stripped.strip()):
+    if only_ascii:
+        # now get rid of any other non-ascii
+        stripped = stripped.encode('ASCII', 'ignore')
+
+    stripped = stripped.strip()
+    if not stripped:
         stripped = str_or_unicode
     return stripped  # return bytestring
 

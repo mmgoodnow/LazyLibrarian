@@ -194,7 +194,7 @@ class GoogleBooks:
                             dic = {':': '.', '"': '', '\'': ''}
                             bookname = replace_all(book['name'], dic)
 
-                            bookname = unaccented(bookname)
+                            bookname = unaccented(bookname, only_ascii=False)
                             bookname = bookname.strip()  # strip whitespace
 
                             AuthorID = ''
@@ -252,9 +252,9 @@ class GoogleBooks:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
             # google doesnt like accents in author names
             if PY2:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname))
+                set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname, only_ascii=False))
             else:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname))
+                set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
             entryreason = reason
             api_hits = 0
             gr_lang_hits = 0
@@ -400,10 +400,11 @@ class GoogleBooks:
                             logger.debug('Rejecting bookid %s for %s, no bookname' % (bookid, authorname))
                             rejected = 'name', 'No bookname'
                         else:
-                            bookname = replace_all(unaccented(bookname), {':': ' ', '"': '', '\'': ''}).strip()
-                            if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
-                                logger.debug("[%s] removed book for bad characters" % bookname)
-                                rejected = 'chars', 'Bad characters in bookname'
+                            bookname = replace_all(unaccented(bookname, only_ascii=False),
+                                                   {':': ' ', '"': '', '\'': ''}).strip()
+                            # if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
+                            # logger.debug("[%s] removed book for bad characters" % bookname)
+                            # rejected = 'chars', 'Bad characters in bookname'
 
                         if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
                             # googlebooks sometimes gives yyyy, sometimes yyyy-mm, sometimes yyyy-mm-dd
@@ -654,7 +655,7 @@ class GoogleBooks:
         dic = {':': '.', '"': ''}
         bookname = replace_all(book['name'], dic)
 
-        bookname = unaccented(bookname)
+        bookname = unaccented(bookname, only_ascii=False)
         bookname = bookname.strip()  # strip whitespace
 
         if not book['author']:

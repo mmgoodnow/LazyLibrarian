@@ -198,7 +198,8 @@ def processAlternate(source_dir=None, library='eBook'):
             results = []
             if not bookid:
                 # new book, or new author where we didn't want to load their back catalog
-                searchterm = "%s <ll> %s" % (unaccented(bookname), unaccented(authorname))
+                searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                             unaccented(authorname, only_ascii=False))
                 match = {}
                 results = search_for(searchterm)
                 for result in results:
@@ -210,7 +211,8 @@ def processAlternate(source_dir=None, library='eBook'):
                     newtitle, _ = split_title(authorname, bookname)
                     if newtitle != bookname:
                         bookname = newtitle
-                        searchterm = "%s <ll> %s" % (unaccented(bookname), unaccented(authorname))
+                        searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
+                                                     unaccented(authorname, only_ascii=False))
                         results = search_for(searchterm)
                         for result in results:
                             if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
@@ -494,9 +496,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 # may have been changed once magnet resolved, or download started or completed
                 # depending on torrent downloader. Usenet doesn't change the name. We like usenet.
                 if PY2:
-                    matchtitle = unaccented_bytes(book['NZBtitle'])
+                    matchtitle = unaccented_bytes(book['NZBtitle'], only_ascii=False)
                 else:
-                    matchtitle = unaccented(book['NZBtitle'])
+                    matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
                 dlname = getDownloadName(matchtitle, book['Source'], book['DownloadID'])
 
                 if dlname and dlname != matchtitle:
@@ -548,9 +550,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     book_type = bookType(book)
                     # remove accents and convert not-ascii apostrophes
                     if PY2:
-                        matchtitle = unaccented_bytes(book['NZBtitle'])
+                        matchtitle = unaccented_bytes(book['NZBtitle'], only_ascii=False)
                     else:
-                        matchtitle = unaccented(book['NZBtitle'])
+                        matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
                     # torrent names might have words_separated_by_underscores
                     matchtitle = matchtitle.split(' LL.(')[0].replace('_', ' ')
                     # strip noise characters
@@ -569,9 +571,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             # We ask the torrent downloader for the torrent name, but don't always get an answer
                             # so we try to do a "best match" on the name, there might be a better way...
                             if PY2:
-                                matchname = unaccented_bytes(fname)
+                                matchname = unaccented_bytes(fname, only_ascii=False)
                             else:
-                                matchname = unaccented(fname)
+                                matchname = unaccented(fname, only_ascii=False)
                             matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                             matchname = replace_all(matchname, namedic)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
@@ -742,9 +744,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 # trying to go to the same directory.
                                 mostrecentissue = data['IssueDate']  # keep for processing issues arriving out of order
                                 if PY2:
-                                    mag_name = unaccented_bytes(replace_all(book['BookID'], namedic))
+                                    mag_name = unaccented_bytes(replace_all(book['BookID'], namedic), only_ascii=False)
                                 else:
-                                    mag_name = unaccented(replace_all(book['BookID'], namedic))
+                                    mag_name = unaccented(replace_all(book['BookID'], namedic), only_ascii=False)
                                 # book auxinfo is a cleaned date, eg 2015-01-01
                                 iss_date = book['AuxInfo']
                                 # suppress the "-01" day on monthly magazines
@@ -771,7 +773,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                         '$IssueDate', iss_date).replace('$Title', mag_name)
                                 else:
                                     global_name = "%s %s" % (mag_name, book['AuxInfo'])
-                                global_name = unaccented(global_name)
+                                global_name = unaccented(global_name, only_ascii=False)
                             else:
                                 try:
                                     comicid, issueid = book['BookID'].split('_')
@@ -784,16 +786,18 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
                                     mostrecentissue = data['LatestIssue']
                                     if PY2:
-                                        comic_name = unaccented_bytes(replace_all(data['Title'], namedic))
+                                        comic_name = unaccented_bytes(replace_all(data['Title'], namedic),
+                                                                      only_ascii=False)
                                     else:
-                                        comic_name = unaccented(replace_all(data['Title'], namedic))
+                                        comic_name = unaccented(replace_all(data['Title'], namedic),
+                                                                only_ascii=False)
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
                                         '$Title', comic_name)
 
                                     global_name = "%s %s" % (comic_name, issueid)
-                                    global_name = unaccented(global_name)
+                                    global_name = unaccented(global_name, only_ascii=False)
 
                                     if lazylibrarian.CONFIG['COMIC_RELATIVE']:
                                         dest_dir = lazylibrarian.DIRECTORY('eBook')
@@ -1364,9 +1368,9 @@ def getDownloadName(title, source, downloadid):
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
                     if PY2:
-                        dlname = unaccented_bytes(result['name'])
+                        dlname = unaccented_bytes(result['name'], only_ascii=False)
                     else:
-                        dlname = unaccented(result['name'])
+                        dlname = unaccented(result['name'], only_ascii=False)
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         elif source == 'SABNZBD':
@@ -2082,10 +2086,12 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             logger.warn("calibredb unable to set tags")
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
-                _, _, rc = calibredb('set_metadata', ['--field', 'authors:%s' % unaccented(authorname)], [calibre_id])
+                _, _, rc = calibredb('set_metadata', ['--field', 'authors:%s' % unaccented(
+                    authorname, only_ascii=False)], [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set author")
-                _, _, rc = calibredb('set_metadata', ['--field', 'title:%s' % unaccented(bookname)], [calibre_id])
+                _, _, rc = calibredb('set_metadata', ['--field', 'title:%s' % unaccented(bookname, only_ascii=False)],
+                                     [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set title")
                 _, _, rc = calibredb('set_metadata', ['--field', 'identifiers:%s' % identifier], [calibre_id])
@@ -2109,9 +2115,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
                     authorname = authorname[:-1] + '_'
                 if PY2:
-                    author_dir = os.path.join(dest_dir, unaccented_bytes(authorname.replace('"', '_')), '')
+                    author_dir = os.path.join(dest_dir, unaccented_bytes(authorname.replace('"', '_'),
+                                                                         only_ascii=False), '')
                 else:
-                    author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_')), '')
+                    author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
                 if os.path.isdir(author_dir):  # assumed author directory
                     our_id = '(%s)' % calibre_id
                     entries = listdir(author_dir)
@@ -2522,10 +2529,10 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
 
     if PY2:
-        opfinfo = unaccented_bytes(replace_all(opfinfo, dic))
+        opfinfo = unaccented_bytes(replace_all(opfinfo, dic), only_ascii=False)
         fmode = 'wb'
     else:
-        opfinfo = unaccented(replace_all(opfinfo, dic))
+        opfinfo = unaccented(replace_all(opfinfo, dic), only_ascii=False)
         fmode = 'w'
     with open(opfpath, fmode) as opf:
         opf.write(opfinfo)

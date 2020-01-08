@@ -260,7 +260,7 @@ class GoodReads:
 
     def find_author_id(self, refresh=False):
         author = self.name
-        author = formatAuthorName(unaccented(author))
+        author = formatAuthorName(unaccented(author, only_ascii=False))
         URL = 'https://www.goodreads.com/api/author_url/' + quote(author) + \
               '?' + urlencode(self.params)
 
@@ -469,10 +469,13 @@ class GoodReads:
                                          (bookid, authorNameResult))
                             rejected = 'name', 'No bookname'
 
-                        bookname = replace_all(unaccented(bookname), {':': ' ', '"': '', '\'': ''}).strip()
-                        if not rejected and re.match(r'[^\w-]', bookname):  # reject books with bad characters in title
-                            logger.debug("removed result [" + bookname + "] for bad characters")
-                            rejected = 'chars', 'Bad characters in bookname'
+                        bookname = replace_all(unaccented(bookname, only_ascii=False),
+                                               {':': ' ', '"': '', '\'': ''}).strip()
+
+                        # if not rejected and re.match(r'[^\w-]', bookname):
+                        # reject books with bad characters in title
+                        # logger.debug("removed result [" + bookname + "] for bad characters")
+                        # rejected = 'chars', 'Bad characters in bookname'
 
                         if not rejected:
                             if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:
@@ -493,8 +496,8 @@ class GoodReads:
                                     try:
                                         isbn_count += 1
                                         start = time.time()
-                                        res = isbn_from_words(unaccented(bookname) + ' ' +
-                                                              unaccented(authorNameResult))
+                                        res = isbn_from_words(unaccented(bookname, only_ascii=False) + ' ' +
+                                                              unaccented(authorNameResult, only_ascii=False))
                                         isbn_time += (time.time() - start)
                                     except Exception as e:
                                         res = None
@@ -645,14 +648,14 @@ class GoodReads:
                                     break
 
                         if not rejected:
-                            bookname = unaccented(bookname)
+                            bookname = unaccented(bookname, only_ascii=False)
                             if lazylibrarian.CONFIG['NO_SETS']:
                                 if re.search(r'\d+ of \d+', bookname) or \
                                         re.search(r'\d+/\d+', bookname):
                                     rejected = 'set', 'Set or Part'
                                     logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
                         if not rejected:
-                            bookname = unaccented(bookname)
+                            bookname = unaccented(bookname, only_ascii=False)
                             if lazylibrarian.CONFIG['NO_SETS']:
                                 # allow date ranges eg 1981-95
                                 m = re.search(r'(\d+)-(\d+)', bookname)
@@ -1242,7 +1245,7 @@ class GoodReads:
             logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
             return
 
-        bookname = unaccented(bookname)
+        bookname = unaccented(bookname, only_ascii=False)
         bookname, booksub = split_title(authorname, bookname)
         dic = {':': '.', '"': ''}
         bookname = replace_all(bookname, dic).strip()
@@ -1254,7 +1257,7 @@ class GoodReads:
 
         if not bookisbn:
             try:
-                res = isbn_from_words(bookname + ' ' + unaccented(authorname))
+                res = isbn_from_words(bookname + ' ' + unaccented(authorname, only_ascii=False))
             except Exception as e:
                 res = None
                 logger.warn("Error from isbn: %s" % e)

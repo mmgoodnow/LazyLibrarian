@@ -146,6 +146,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     abortafter = 30
     text = ''
 
+    # if cmd.startswith('!') can we check if they are online?
     while status != "finished":
         try:
             text = irc.get_response()

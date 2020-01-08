@@ -138,7 +138,7 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
                                 (item['title'], authorname))
                 if not bookid:
                     searchterm = "%s <ll> %s" % (item['title'], authorname)
-                    results = search_for(unaccented(searchterm))
+                    results = search_for(unaccented(searchterm, only_ascii=False))
                     if results:
                         result = results[0]
                         if result['author_fuzz'] > lazylibrarian.CONFIG['MATCH_RATIO'] \

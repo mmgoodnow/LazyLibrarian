@@ -46,7 +46,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
             lineno = frame.lineno
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
-            reason ='Unknown reason in addAuthorNameToDB'
+            reason = 'Unknown reason in addAuthorNameToDB'
 
     new = False
     if not author or len(author) < 2 or author.lower() == 'unknown':
@@ -94,8 +94,8 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
             match_name = authorname.replace('.', ' ')
             match_name = ' '.join(match_name.split())
 
-            match_name = unaccented(match_name)
-            match_auth = unaccented(match_auth)
+            match_name = unaccented(match_name, only_ascii=False)
+            match_auth = unaccented(match_auth, only_ascii=False)
 
             # allow a degree of fuzziness to cater for different accented character handling.
             # some author names have accents,
