@@ -15,7 +15,9 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, makeUTF8bytes
+from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, \
+    makeUTF8bytes, seconds_to_midnight
+
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlparse, urlencode
@@ -92,7 +94,8 @@ def BOK(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   searchURL))
-                success = True
+                if not test:
+                    success = True
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -148,7 +151,16 @@ def BOK(book=None, prov=None, test=False):
                             try:
                                 newsoup = BeautifulSoup(res, "html5lib")
                                 a = newsoup.find('a', {"class": "dlButton"})
-                                link = a['href']
+                                if not a:
+                                    link = ''
+                                    if 'WARNING' in res and '24 hours' in res:
+                                        msg = res.split('WARNING')[1].split('24 hours')[0]
+                                        msg = 'WARNING' + msg + '24 hours'
+                                        lazylibrarian.providers.BlockProvider('BOK', msg,
+                                                                              delay=seconds_to_midnight())
+                                        logger.warn(msg)
+                                else:
+                                    link = a['href']
                                 if link and len(link) > 2:
                                     url = host + link
                                 else:
@@ -158,6 +170,7 @@ def BOK(book=None, prov=None, test=False):
                             except Exception as e:
                                 logger.error("An error occurred parsing %s in the %s parser: %s" %
                                              (url, provider, str(e)))
+                                logger.debug('%s: %s' % (provider, traceback.format_exc()))
                                 url = None
 
                     if url:
@@ -256,7 +269,8 @@ def GEN(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   searchURL))
-                success = True
+                if not test:
+                    success = True
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -294,7 +308,7 @@ def GEN(book=None, prov=None, test=False):
                     td = row.find_all('td')
                     links = []
 
-                    if ('fiction' in search or'index.php' in search) and len(td) > 3:
+                    if ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
                             author = formatAuthorName(td[0].text)
                             title = td[2].text
@@ -419,6 +433,8 @@ def GEN(book=None, prov=None, test=False):
 
         if test:
             logger.debug("Test found %s result%s" % (len(results), plural(len(results))))
+            if not len(results):
+                return False
             return success
 
         page += 1
