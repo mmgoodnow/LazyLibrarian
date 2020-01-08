@@ -1096,7 +1096,7 @@ class WebInterface(object):
                 admin = myDB.match('SELECT password from users where name="admin"')
                 if admin:
                     if admin['password'] == md5_utf8('admin'):
-                        adminmsg += "The default admin user is 'admin' and password is 'admin'<br>"
+                        adminmsg += "The default admin user is \"admin\" and password is \"admin\"<br>"
                         adminmsg += "This is insecure, please change it on Config -> User Admin<br>"
 
         # store any genre changes
