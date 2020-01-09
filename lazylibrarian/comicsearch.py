@@ -328,6 +328,8 @@ def search_comics(comicid=None):
                     else:
                         myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                     (res, item["url"]))
+
+            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
         logger.info("ComicSearch for Wanted items complete, found %s comic%s" % (count, plural(count)))
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
     except Exception:
