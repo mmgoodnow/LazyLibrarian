@@ -854,7 +854,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         if authorid != match['AuthorID']:
                                             logger.warn("Metadata authorid [%s] does not match database [%s]" %
                                                         (authorid, match['AuthorID']))
-                                else:
+                                if not bookid:
                                     # Try and find in database under author and bookname
                                     # as we may have it under a different bookid or isbn to goodreads/googlebooks
                                     # which might have several bookid/isbn for the same book
