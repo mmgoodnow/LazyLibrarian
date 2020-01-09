@@ -11,12 +11,13 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import traceback
+import time
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, \
-    makeUTF8bytes, seconds_to_midnight
+    makeUTF8bytes, seconds_to_midnight, check_int
 
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
@@ -153,11 +154,17 @@ def BOK(book=None, prov=None, test=False):
                                 a = newsoup.find('a', {"class": "dlButton"})
                                 if not a:
                                     link = ''
-                                    if 'WARNING' in res and '24 hours' in res:
+                                    delay = 0
+                                    msg = ''
+                                    if ('WARNING' in res and '24 hours' in res):
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
-                                        lazylibrarian.providers.BlockProvider('BOK', msg,
-                                                                              delay=seconds_to_midnight())
+                                        delay = seconds_to_midnight()
+                                    if ('Too many requests' in res):
+                                        msg = res
+                                        delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                                    if delay:
+                                        lazylibrarian.providers.BlockProvider('BOK', msg, delay=delay)
                                         logger.warn(msg)
                                 else:
                                     link = a['href']
@@ -200,6 +207,8 @@ def BOK(book=None, prov=None, test=False):
             return success
 
         page += 1
+        time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
