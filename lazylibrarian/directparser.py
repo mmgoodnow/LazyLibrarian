@@ -23,7 +23,6 @@ from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlparse, urlencode
 
-
 try:
     import html5lib
     from bs4 import BeautifulSoup
@@ -66,6 +65,9 @@ def BOK(book=None, prov=None, test=False):
     provider = "zlibrary"
     if not prov:
         prov = 'BOK'
+    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        return [], "ProviderIsBlocked"
+
     host = lazylibrarian.CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
@@ -101,6 +103,8 @@ def BOK(book=None, prov=None, test=False):
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
+                delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
             else:
                 logger.debug(searchURL)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -164,7 +168,7 @@ def BOK(book=None, prov=None, test=False):
                                         msg = res
                                         delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
                                     if delay:
-                                        lazylibrarian.providers.BlockProvider('BOK', msg, delay=delay)
+                                        lazylibrarian.providers.BlockProvider(provider, msg, delay=delay)
                                         logger.warn(msg)
                                 else:
                                     link = a['href']
@@ -222,6 +226,8 @@ def GEN(book=None, prov=None, test=False):
     provider = "libgen.io"
     if not prov:
         prov = 'GEN'
+    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        return [], "ProviderIsBlocked"
     host = lazylibrarian.CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
@@ -284,6 +290,8 @@ def GEN(book=None, prov=None, test=False):
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
+                delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
             else:
                 logger.debug(searchURL)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
