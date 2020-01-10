@@ -266,9 +266,9 @@ def ircResults(provider, fname, data):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word
-    # filename is rest up to ::INFO:: or linefeed
+    # filename is rest up to ::INFO:: or "\r"
     # if ::INFO:: in line, following word is size including unit
-    # if next line starts with - last two words are size/unit
+    # if \r- in line last two words are size/unit
     results = []
     tor_date = today()
     outfile = os.path.join(lazylibrarian.CACHEDIR, fname)
@@ -290,63 +290,46 @@ def ircResults(provider, fname, data):
             except Exception:
                 data = None  # not a rar archive
         if data:
-            r = b''
+            our_member = None
             for member in data.namelist():
                 if '.txt' in member.lower():
-                    r = data.read(member)
+                    our_member = member
                     break
-            lynes = r.split(b'\n')
-            ln = 0
-            while ln < len(lynes):
-                filename = ''
-                size = 0
-                user = ''
-                lyne = lynes[ln].decode('utf-8').strip('\r')
-                if lyne.startswith('!'):
-                    user, newlyne = lyne.split(' ', 1)
-                    if '::INFO::' in newlyne:
-                        filename, size = newlyne.split('::INFO::', 1)
-                    elif ln + 1 < len(lynes):
-                        filename = newlyne
-                        newlyne = lynes[ln + 1].decode('utf-8').strip('\r')
-                        if newlyne.startswith('-'):
-                            words = newlyne.strip('\r').split()
-                            size = words[-2]
-                            units = words[-1]
-                            size = size + units
-                        else:
-                            filename = ''
-                    else:
-                        filename = newlyne
-                        size = '0'
-                ln += 1
-                if filename:
-                    filename = filename.strip()
-                    size = size_in_bytes(size)
 
-                    results.append({
-                        'tor_prov': provider['SERVER'],
-                        'tor_title': filename,
-                        'tor_url': user,
-                        'tor_size': str(size),
-                        'tor_date': tor_date,
-                        'tor_feed': provider['NAME'],
-                        'tor_type': 'irc',
-                        'priority': provider['DLPRIORITY'],
-                        'dispname': provider['DISPNAME'],
-                        'types': provider['DLTYPES'],
-                    })
-    os.remove(outfile)
-    print(results)
+            if our_member:
+                with data.open(our_member) as ourfile:
+                    new_line = '!'
+                    while new_line:
+                        new_line = ourfile.readline()
+                        lyne = new_line.decode('utf-8').rstrip()
+                        if lyne.startswith('!'):
+                            user, remainder = lyne.split(' ', 1)
+                            if '::INFO::' in remainder:
+                                filename, size = remainder.split('::INFO::', 1)
+                            elif '\r-' in remainder:
+                                filename, remainder = remainder.split('\r-', 1)
+                                words = remainder.strip().split()
+                                size = words[-2]
+                                units = words[-1]
+                                size = size + units
+
+                            filename = filename.strip()
+                            size = size_in_bytes(size)
+
+                            results.append({
+                                'tor_prov': provider['SERVER'],
+                                'tor_title': filename,
+                                'tor_url': user,
+                                'tor_size': str(size),
+                                'tor_date': tor_date,
+                                'tor_feed': provider['NAME'],
+                                'tor_type': 'irc',
+                                'priority': provider['DLPRIORITY'],
+                                'dispname': provider['DISPNAME'],
+                                'types': provider['DLTYPES'],
+                            })
+            else:
+                logger.error("No results.txt found in %s" % outfile)
+    if results:
+        os.remove(outfile)
     return results
-
-
-"""
-## IRC Config
-server = "eu.undernet.org"
-channel = "#bookz"
-server = "irc.irchighway.net"
-channel = "#ebooks"
-botnick = "lazylib0001"
-botpass = "1htrf19"
-"""
