@@ -156,11 +156,11 @@ def BOK(book=None, prov=None, test=False):
                                     link = ''
                                     delay = 0
                                     msg = ''
-                                    if ('WARNING' in res and '24 hours' in res):
+                                    if 'WARNING' in res and '24 hours' in res:
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
                                         delay = seconds_to_midnight()
-                                    if ('Too many requests' in res):
+                                    if 'Too many requests' in res:
                                         msg = res
                                         delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
                                     if delay:

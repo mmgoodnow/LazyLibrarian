@@ -1668,6 +1668,7 @@ def db_v57(myDB, upgradelog):
         myDB.action('ALTER TABLE comics ADD COLUMN Description TEXT')
     upgradelog.write("%s v57: complete\n" % time.ctime())
 
+
 def db_v58(myDB, upgradelog):
     if not has_column(myDB, "comicissues", "Link"):
         lazylibrarian.UPDATE_MSG = 'Adding Link column to comicissues table'

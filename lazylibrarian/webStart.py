@@ -184,8 +184,8 @@ def initialize(options=None):
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
             with open(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower()), 'w') as t:
-                for l in data:
-                    t.write(l.replace('{label}', item[0]).replace(
+                for lyne in data:
+                    t.write(lyne.replace('{label}', item[0]).replace(
                                       '{func}', 't=%s&amp;' % item[1]).replace(
                                       '{webroot}', options['http_root']))
                     t.write('\n')
