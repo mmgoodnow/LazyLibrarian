@@ -711,10 +711,17 @@ def IRCSEARCH(book, provider, searchType, test=False):
         logger.error("No channel for %s" % provider['NAME'])
         return False, results
 
-    irc = ircConnect(provider['SERVER'], 6667, provider['CHANNEL'],
-                     provider['BOTNICK'], provider['BOTPASS'])
+    irc = provider.get('IRC')  # is there already an open connection
+    if irc:
+        logger.debug("Using existing connection to %s" % provider['NAME'])
+    else:
+        irc = ircConnect(provider['SERVER'], 6667, provider['CHANNEL'],
+                         provider['BOTNICK'], provider['BOTPASS'])
+        provider['IRC'] = irc
+
     if not irc:
         return False, results
+
     if test:
         return True, results
 
@@ -727,6 +734,11 @@ def IRCSEARCH(book, provider, searchType, test=False):
         logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
                                                  provider['CHANNEL'], book['searchterm']))
         fname, data = ircSearch(irc, provider['CHANNEL'], book['searchterm'])
+        if not fname and 'timed out' in data:  # need to reconnect
+            provider['IRC'] = None
+            logger.error(data)
+            return False, results
+
         if fname and data:
             results = ircResults(provider, fname, data)
 

@@ -153,7 +153,6 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
         except socket.timeout:
             logger.warn("Timed out, status [%s]" % status)
             retries += 1
-
             if status == "":
                 logger.debug("Rejoining %s" % channel)
                 irc.join(channel)
@@ -162,6 +161,10 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 irc.send(channel, cmd + " " + searchstring)
                 cmd_sent = time.time()
                 logger.debug("Resent %s" % cmd + " " + searchstring)
+        except socket.error as e:
+            logger.error("Socket error: %s" % str(e))
+            # if disconnected need to reconnect and rejoin channel
+            return False, str(e)
 
         lynes = text.split('\n')
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -241,14 +244,15 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                             retries += 1
                         else:
                             received_data += new_data
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                                logger.debug("Got %s of %s" % (len(received_data), size))
                             if len(received_data) >= filesize:
                                 peersocket.close()
-                                logger.debug("Got %s of %s" % (len(received_data), size))
-                                status = "finished"
+                                logger.debug("Completed, got %s" % len(received_data))
+                                # status = "finished"
                                 # irc.part(channel)
+                                return filename, received_data
                             else:
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                                    logger.debug("Got %s of %s" % (len(received_data), size))
                                 peersocket.send(struct.pack("!I", len(received_data)))
 
         if time.time() - cmd_sent > abortafter:
@@ -314,7 +318,7 @@ def ircResults(provider, fname, data):
                                 size = size + units
 
                             filename = filename.strip()
-                            size = size_in_bytes(size)
+                            size = size_in_bytes(str(size))
 
                             results.append({
                                 'tor_prov': provider['SERVER'],

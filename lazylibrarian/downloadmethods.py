@@ -61,29 +61,29 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     Source = provider
     msg = ''
     logger.debug("Starting IRC Download for [%s]" % dl_title)
-    server = None
-    channel = None
-    botnick = ""
-    botpass = ""
     fname = ""
     data = None
+    myprov = None
 
     for item in lazylibrarian.IRC_PROV:
         if item['NAME'] == provider:
-            server = item['SERVER']
-            channel = item['CHANNEL']
-            botnick = item['BOTNICK']
-            botpass = item['BOTPASS']
+            myprov = item
             break
 
-    if not server:
+    if not myprov:
         msg = "%s server not found" % provider
     else:
-        irc = ircConnect(server, 6667, channel, botnick, botpass)
+        irc = myprov.get('IRC')
+        if irc:
+            logger.debug("Using existing connection to %s" % provider)
+        else:
+            irc = ircConnect(myprov['SERVER'], 6667, myprov['CHANNEL'],
+                             myprov['BOTNICK'], myprov['BOTPASS'])
+            myprov['IRC'] = irc
         if not irc:
             msg = "Failed to connect"
         else:
-            fname, data = ircSearch(irc, channel, dl_title, cmd=':' + dl_url)
+            fname, data = ircSearch(irc, myprov['CHANNEL'], dl_title, cmd=':' + dl_url)
 
     downloadID = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
@@ -114,11 +114,15 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
         myDB.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
                     (Source, downloadID, dl_url, dl_title))
         return True, ''
+
     elif not fname:
         msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
         msg += 'WHERE NZBurl=? and NZBtitle=?'
         myDB.action(msg, (Source, downloadID, data, dl_url, dl_title))
-        msg = "Download failed"
+        msg = data
+        if 'timed out' in data:  # need to reconnect
+            provider['IRC'] = None
+            logger.error(msg)
     return False, msg
 
 
