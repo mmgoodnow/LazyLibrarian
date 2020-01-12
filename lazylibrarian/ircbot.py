@@ -58,6 +58,9 @@ class IRC:
         # Transfer data
         self.irc.send(makeBytestr("PRIVMSG " + channel + " " + msg + "\n"))
 
+    def ison(self, msg):
+        self.irc.send(makeBytestr("ISON " + msg + "\n"))
+
     def join(self, channel):
         self.irc.send(makeBytestr("JOIN " + channel + "\n"))
 
@@ -116,8 +119,13 @@ def ircConnect(server, port, channel, botnick, botpass):
                     for lyne in lynes:
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                             logger.debug(lyne)
+
+                        if "All connections in use" in lyne:
+                            logger.warn(lyne)
+                            return None
+
                         if botnick in lyne:
-                            if "already in use" in lyne:
+                            if "433" in lyne:  # ERR_NICKNAMEINUSE
                                 botnick += '_'
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                                     logger.debug("Trying NICK %s" % botnick)
@@ -266,7 +274,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     return filename, received_data
 
 
-def ircResults(provider, fname, data):
+def ircResults(provider, fname, data, irc=None):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word
@@ -336,4 +344,39 @@ def ircResults(provider, fname, data):
                 logger.error("No results.txt found in %s" % outfile)
     if results:
         os.remove(outfile)
+        if irc:
+            userlist = []
+            for item in results:
+                userlist.append(item['tor_url'].lstrip('!'))
+            userlist = set(userlist)
+            users = ' '.join(userlist)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Checking for %s online" % len(userlist))
+            irc.ison(users)
+            online = ''
+            while not online:
+                text = irc.get_response()
+                lynes = text.split('\n')
+                for lyne in lynes:
+                    if '303' in lyne:  # RPL_ISON
+                        res = lyne.split('303')[1].split(':')[1]
+                        online = res.split()
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                            logger.debug("Found %s online" % len(online))
+                        if len(userlist) == len(online):
+                            return results
+            oldresults = results
+            results = []
+            stripped = 0
+            offline = userlist.difference(online)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Offline: %s" % ' '.join(offline))
+            for entry in oldresults:
+                if entry['tor_url'].lstrip('!') in offline:
+                    stripped += 1
+                else:
+                    results.append(entry)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Stripped %s results from %s users not online" %
+                             (stripped, len(offline)))
     return results
