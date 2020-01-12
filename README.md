@@ -31,10 +31,9 @@ Linux / Mac OS X:
 
 * Install Python 2 v2.6 or higher, or Python 3 v3.5 or higher 
 * Git clone/extract LL wherever you like
-* Run "python LazyLibrarian.py -d" to start in daemon mode
+* Run `python LazyLibrarian.py -d` or `python LazyLibrarian.py --daemon` to start in daemon mode
 * Fill in all the config (see the docs)
 
-* Start in daemon mode with `python LazyLibrarian.py -daemon`
 
 ## Documentation:
 There is extensive documentation at https://lazylibrarian.gitlab.io/
