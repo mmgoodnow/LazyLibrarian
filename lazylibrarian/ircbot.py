@@ -154,7 +154,6 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     abortafter = 30
     text = ''
 
-    # if cmd.startswith('!') can we check if they are online?
     while status != "finished":
         try:
             text = irc.get_response()
@@ -180,9 +179,17 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
         for lyne in lynes:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug(lyne)
-            if channel in lyne and status == "":
-                status = "joined"
-                logger.debug("Joined %s" % channel)
+            if 'KICK' in lyne:
+                status = ""
+                logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
+                time.sleep(2)
+            elif '404' in lyne:  # cannot send to channel
+                status = ""
+                logger.debug("[%s] Rejoining %s" % (
+                    lyne.rsplit(':', 1)[1], channel))
+                time.sleep(2)
+                irc.join(channel)
+                cmd_sent = time.time()
 
             if "PRIVMSG" in lyne and channel in lyne and "hello" in lyne:
                 irc.send(channel, "Hello!")
@@ -194,7 +201,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 status = "waiting"
                 logger.debug("Asking %s for %s" % (cmd, searchstring))
 
-            if status == "waiting":
+            elif status == "waiting":
                 if searchstring in lyne:
                     if len(lyne.split("matches")) > 1:
                         res = lyne.split("matches")[0].split()
@@ -214,6 +221,10 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                         logger.debug(msg)
                         # irc.part(channel)
                         return False, msg
+
+            elif channel in lyne and status == "":
+                status = "joined"
+                logger.debug("Joined %s" % channel)
 
             if "PRIVMSG" in lyne and "DCC SEND" in lyne:
                 res = lyne.split("DCC SEND")[1].split('\n')[0].split()
@@ -316,6 +327,8 @@ def ircResults(provider, fname, data, irc=None):
                         lyne = new_line.decode('utf-8').rstrip()
                         if lyne.startswith('!'):
                             user, remainder = lyne.split(' ', 1)
+                            filename = ''
+                            size = ''
                             if '::INFO::' in remainder:
                                 filename, size = remainder.split('::INFO::', 1)
                             elif '\r-' in remainder:
@@ -325,26 +338,29 @@ def ircResults(provider, fname, data, irc=None):
                                 units = words[-1]
                                 size = size + units
 
-                            filename = filename.strip()
-                            size = size_in_bytes(str(size))
+                            if filename and size:
+                                filename = filename.strip()
+                                size = size_in_bytes(str(size))
 
-                            results.append({
-                                'tor_prov': provider['SERVER'],
-                                'tor_title': filename,
-                                'tor_url': user,
-                                'tor_size': str(size),
-                                'tor_date': tor_date,
-                                'tor_feed': provider['NAME'],
-                                'tor_type': 'irc',
-                                'priority': provider['DLPRIORITY'],
-                                'dispname': provider['DISPNAME'],
-                                'types': provider['DLTYPES'],
-                            })
+                                results.append({
+                                    'tor_prov': provider['SERVER'],
+                                    'tor_title': filename,
+                                    'tor_url': user,
+                                    'tor_size': str(size),
+                                    'tor_date': tor_date,
+                                    'tor_feed': provider['NAME'],
+                                    'tor_type': 'irc',
+                                    'priority': provider['DLPRIORITY'],
+                                    'dispname': provider['DISPNAME'],
+                                    'types': provider['DLTYPES'],
+                                })
             else:
                 logger.error("No results.txt found in %s" % outfile)
     if results:
         os.remove(outfile)
         if irc:
+            retries = 0
+            maxretries = 3
             userlist = []
             for item in results:
                 userlist.append(item['tor_url'].lstrip('!'))
@@ -355,7 +371,12 @@ def ircResults(provider, fname, data, irc=None):
             irc.ison(users)
             online = ''
             while not online:
-                text = irc.get_response()
+                try:
+                    text = irc.get_response()
+                except socket.timeout:
+                    logger.warn("Timed out waiting for ison response")
+                    text = ''
+
                 lynes = text.split('\n')
                 for lyne in lynes:
                     if '303' in lyne:  # RPL_ISON
@@ -365,6 +386,13 @@ def ircResults(provider, fname, data, irc=None):
                             logger.debug("Found %s online" % len(online))
                         if len(userlist) == len(online):
                             return results
+
+                retries += 1
+                if retries >= maxretries:
+                    msg = "Ignoring ison, too many retries"
+                    logger.warn(msg)
+                    return results
+
             oldresults = results
             results = []
             stripped = 0
