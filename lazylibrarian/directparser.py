@@ -60,6 +60,17 @@ def redirect_url(genhost, url):
     return myurl.geturl()
 
 
+def bok_sleep():
+    limit = check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0)
+    if limit:
+        time_now = time.time()
+        delay = time_now - lazylibrarian.LAST_ZLIBRARY
+        if delay < limit:
+            sleep_time = limit - delay
+            time.sleep(sleep_time)
+        lazylibrarian.LAST_ZLIBRARY = time_now
+
+
 def BOK(book=None, prov=None, test=False):
     errmsg = ''
     provider = "zlibrary"
@@ -211,11 +222,11 @@ def BOK(book=None, prov=None, test=False):
             return success
 
         page += 1
-        time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
-
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
+        else:
+            bok_sleep()
 
     logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
     return results, errmsg
