@@ -674,5 +674,5 @@ def calculate_torrent_hash(link, data=None):
         else:
             logger.error("Cannot calculate torrent hash without magnet link or data")
             return ''
-    logger.debug('Torrent Hash: ' + torrent_hash)
+    logger.debug('Torrent Hash: %s' % str(torrent_hash))
     return torrent_hash
