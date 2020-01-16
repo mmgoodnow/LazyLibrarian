@@ -2522,7 +2522,7 @@ class WebInterface(object):
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
                                                   valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
-                        elif len(types):
+                        if len(types):
                             if email:
                                 logger.debug('Emailing %s %s' % (library, bookfile))
                             else:
