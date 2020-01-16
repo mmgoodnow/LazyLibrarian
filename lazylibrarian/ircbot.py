@@ -153,6 +153,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     maxretries = 3
     abortafter = 30
     text = ''
+    ratelimit = 2
 
     while status != "finished":
         try:
@@ -182,12 +183,12 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
             if 'KICK' in lyne:
                 status = ""
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
-                time.sleep(2)
+                time.sleep(ratelimit)
             elif '404' in lyne:  # cannot send to channel
                 status = ""
                 logger.debug("[%s] Rejoining %s" % (
                     lyne.rsplit(':', 1)[1], channel))
-                time.sleep(2)
+                time.sleep(ratelimit)
                 irc.join(channel)
                 cmd_sent = time.time()
 
@@ -273,6 +274,11 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                                     logger.debug("Got %s of %s" % (len(received_data), size))
                                 peersocket.send(struct.pack("!I", len(received_data)))
+                        try:
+                            # read and handle any PING, discard anything else
+                            _ = irc.get_response()
+                        except socket.timeout:
+                            logger.warn("Timed out on main channel")
 
         if time.time() - cmd_sent > abortafter:
             logger.warn("No response from %s" % cmd)
