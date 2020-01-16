@@ -171,11 +171,13 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
 
     dirs, nondirs = [], []
     for name in names:
-        if isdir(join(top, name)):
-            dirs.append(name)
-        else:
-            nondirs.append(name)
-
+        try:
+            if isdir(join(top, name)):
+                dirs.append(name)
+            else:
+                nondirs.append(name)
+        except Exception as e:
+            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(e)))
     if topdown:
         yield top, dirs, nondirs
     for name in dirs:
