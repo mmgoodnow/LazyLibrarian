@@ -87,7 +87,8 @@ class utorrentclient(object):
             response = self.opener.open(url)
         except Exception as err:
             logger.error('%s getting Token. uTorrent responded with: %s' % (type(err).__name__, str(err)))
-            logger.debug('URL: %s' % url)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug('URL: %s' % url)
             return None
         match = re.search(utorrentclient.TOKEN_REGEX, response.read())
         return match.group(1)
@@ -95,6 +96,33 @@ class utorrentclient(object):
     def list(self, **kwargs):
         params = [('list', '1')]
         params += list(kwargs.items())
+        # HASH (string),
+        # STATUS* (integer),
+        #   1 = Started
+        #   2 = Checking
+        #   4 = Start after check
+        #   8 = Checked
+        #   16 = Error
+        #   32 = Paused
+        #   64 = Queued
+        #   128 = Loaded
+        # NAME (string),
+        # SIZE (integer in bytes),
+        # PERCENT PROGRESS (integer in per mils),
+        # DOWNLOADED (integer in bytes),
+        # UPLOADED (integer in bytes),
+        # RATIO (integer in per mils),
+        # UPLOAD SPEED (integer in bytes per second),
+        # DOWNLOAD SPEED (integer in bytes per second),
+        # ETA (integer in seconds),
+        # LABEL (string),
+        # PEERS CONNECTED (integer),
+        # PEERS IN SWARM (integer),
+        # SEEDS CONNECTED (integer),
+        # SEEDS IN SWARM (integer),
+        # AVAILABILITY (integer in 1/65535ths),
+        # TORRENT QUEUE ORDER (integer),
+        # REMAINING (integer in bytes)
         return self._action(params)
 
     def add_url(self, url):
@@ -128,7 +156,15 @@ class utorrentclient(object):
 
     def getfiles(self, hashid):
         params = [('action', 'getfiles'), ('hash', hashid)]
-        return self._action(params)
+        res = self._action(params)
+        files = res[1].get('files')
+        if not files:
+            return []
+        flist = []
+        for entry in files[1]:
+            flist.append({"filename": entry[0], "filesize": entry[1]})
+        return flist
+
 
     def getprops(self, hashid):
         params = [('action', 'getprops'), ('hash', hashid)]
@@ -154,6 +190,8 @@ class utorrentclient(object):
 
     def _action(self, params, body=None, content_type=None):
         url = "%s/gui/?token=%s&%s" % (self.base_url, self.token, urlencode(params))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("uTorrent params %s" % str(params))
         request = Request(url)
         if lazylibrarian.CONFIG['PROXY_HOST']:
             for item in getList(lazylibrarian.CONFIG['PROXY_TYPE']):
@@ -171,7 +209,12 @@ class utorrentclient(object):
 
         try:
             response = self.opener.open(request)
-            return response.code, json.loads(response.read())
+            res = response.code
+            js = json.loads(response.read())
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("uTorrent response code %s" % res)
+                logger.debug(str(js))
+            return res, js
         except HTTPError as err:
             logger.debug('URL: %s' % url)
             logger.debug('uTorrent webUI raised the following error: ' + str(err))
@@ -225,7 +268,7 @@ def nameTorrent(hashid):
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return torrent[2]
-    return False
+    return ""
 
 
 def progressTorrent(hashid):
@@ -243,7 +286,7 @@ def listTorrent(hashid):
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return uTorrentClient.getfiles(hashid)
-    return False
+    return []
 
 
 def removeTorrent(hashid, remove_data=False):
