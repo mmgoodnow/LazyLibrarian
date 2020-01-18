@@ -107,8 +107,9 @@ def upgrade_needed():
     # 56 Add Cover column to comicissues and issues tables
     # 57 Add Description to comics and Description/Contributors to comicissues
     # 58 Ensure Link was added to comicissues (was missing for new installs in v57)
+    # 59 Added per provider seeders instead of global
 
-    db_current_version = 58
+    db_current_version = 59
 
     if db_version < db_current_version:
         return db_current_version
@@ -1675,3 +1676,17 @@ def db_v58(myDB, upgradelog):
         upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE comicissues ADD COLUMN Link TEXT')
     upgradelog.write("%s v58: complete\n" % time.ctime())
+
+def db_v59(myDB, upgradelog):
+    seeders = lazylibrarian.CONFIG.get('NUMBEROFSEEDERS', 0)
+    if seeders:
+        lazylibrarian.UPDATE_MSG = 'Setting up SEEDERS'
+        upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        for entry in lazylibrarian.TORZNAB_PROV:
+            entry['SEEDERS'] = seeders
+        for item in ['KAT_SEEDERS', 'WWT_SEEDERS', 'TPB_SEEDERS', 'ZOO_SEEDERS', 'TRF_SEEDERS',
+                     'TDL_SEEDERS', 'LIME_SEEDERS']:
+            lazylibrarian.CONFIG[item] = seeders
+    lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
+    lazylibrarian.config_write()
+    upgradelog.write("%s v59: complete\n" % time.ctime())

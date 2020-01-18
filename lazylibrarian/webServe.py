@@ -1335,6 +1335,8 @@ class WebInterface(object):
                     'torznab_%i_dltypes' % count, 'E')
                 lazylibrarian.TORZNAB_PROV[count]['DISPNAME'] = kwargs.get(
                     'torznab_%i_dispname' % count, '')
+                lazylibrarian.TORZNAB_PROV[count]['SEEDERS'] = check_int(kwargs.get(
+                    'torznab_%i_seeders' % count, 0), 0)
             count += 1
 
         count = 0

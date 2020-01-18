@@ -411,18 +411,22 @@ CONFIG_DEFINITIONS = {
     'KAT': ('bool', 'KAT', 0),
     'KAT_DLPRIORITY': ('int', 'KAT', 0),
     'KAT_DLTYPES': ('str', 'KAT', 'A,E,M'),
+    'KAT_SEEDERS': ('int', 'KAT', 0),
     'WWT_HOST': ('str', 'WWT', 'https://worldwidetorrents.me'),
     'WWT': ('bool', 'WWT', 0),
     'WWT_DLPRIORITY': ('int', 'WWT', 0),
     'WWT_DLTYPES': ('str', 'WWT', 'A,E,M'),
+    'WWT_SEEDERS': ('int', 'WWT', 0),
     'TPB_HOST': ('str', 'TPB', 'https://pirateproxy.cc'),
     'TPB': ('bool', 'TPB', 0),
     'TPB_DLPRIORITY': ('int', 'TPB', 0),
     'TPB_DLTYPES': ('str', 'TPB', 'A,C,E,M'),
+    'TPB_SEEDERS': ('int', 'TPB', 0),
     'ZOO_HOST': ('str', 'ZOO', 'https://zooqle.com'),
     'ZOO': ('bool', 'ZOO', 0),
     'ZOO_DLPRIORITY': ('int', 'ZOO', 0),
     'ZOO_DLTYPES': ('str', 'ZOO', 'A,E,M'),
+    'ZOO_SEEDERS': ('int', 'ZOO', 0),
     # 'EXTRA_HOST': ('str', 'EXTRA', 'extratorrent.cc'),
     # 'EXTRA': ('bool', 'EXTRA', 0),
     # 'EXTRA_DLPRIORITY': ('int', 'EXTRA', 0),
@@ -430,10 +434,12 @@ CONFIG_DEFINITIONS = {
     'TRF': ('bool', 'Torrof', 0),
     'TRF_DLPRIORITY': ('int', 'Torrof', 0),
     'TRF_DLTYPES': ('str', 'Torrof', 'A,E,M'),
+    'TRF_SEEDERS': ('int', 'TRF', 0),
     'TDL_HOST': ('str', 'TDL', 'torrentdownloads.me'),
     'TDL': ('bool', 'TDL', 0),
     'TDL_DLPRIORITY': ('int', 'TDL', 0),
     'TDL_DLTYPES': ('str', 'TDL', 'A,E,M'),
+    'TDL_SEEDERS': ('int', 'TDL', 0),
     'GEN_HOST': ('str', 'GEN', 'gen.lib.rus.ec'),
     'GEN_SEARCH': ('str', 'GEN', 'foreignfiction/index.php'),
     'GEN': ('bool', 'GEN', 0),
@@ -453,6 +459,7 @@ CONFIG_DEFINITIONS = {
     'LIME': ('bool', 'LIME', 0),
     'LIME_DLPRIORITY': ('int', 'LIME', 0),
     'LIME_DLTYPES': ('str', 'LIME', 'A,E,M'),
+    'LIME_SEEDERS': ('int', 'LIME', 0),
     'NEWZBIN_UID': ('str', 'Newzbin', ''),
     'NEWZBIN_PASS': ('str', 'Newzbin', ''),
     'NEWZBIN': ('bool', 'Newzbin', 0),
@@ -992,6 +999,7 @@ def config_read(reloaded=False):
                              "APICOUNT": 0,
                              "DLPRIORITY": check_setting('int', torz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', torz_name, 'dltypes', 'A,E,M'),
+                             "SEEDERS": check_setting('int', torz_name, 'seeders', 0),
                              })
         count += 1
     # if the last slot is full, add an empty one on the end
@@ -1272,11 +1280,15 @@ def config_write(part=None):
                     new_list.append(provider)
 
             if part:  # only update the named provider
+                if part.startswith('Torznab'):
+                    extras = ['SEEDERS']
+                else:
+                    extras = []
                 for provider in new_list:
                     if provider['NAME'].lower() != part.lower():  # keep old values
                         if CONFIG['LOGLEVEL'] > 2:
                             logger.debug("Keep %s" % provider['NAME'])
-                        for item in NAB_ITEMS:
+                        for item in NAB_ITEMS + extras:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
 
             # renumber the items
@@ -1566,7 +1578,8 @@ def add_torz_slot():
                  "APILIMIT": 0,
                  "APICOUNT": 0,
                  "DLPRIORITY": 0,
-                 "DLTYPES": 'A,C,E,M'
+                 "DLTYPES": 'A,C,E,M',
+                 "SEEDERS": 0
                  }
         TORZNAB_PROV.append(empty)
 

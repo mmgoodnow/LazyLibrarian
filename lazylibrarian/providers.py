@@ -1150,7 +1150,6 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 resultxml = rootxml.getiterator('item')
                 nzbcount = 0
                 maxage = check_int(lazylibrarian.CONFIG['USENET_RETENTION'], 0)
-                minimumseeders = check_int(lazylibrarian.CONFIG['NUMBEROFSEEDERS'], 0)
                 for nzb in resultxml:
                     try:
                         thisnzb = ReturnResultsFieldsBySearchType(book, nzb, host, searchMode, provider['DLPRIORITY'])
@@ -1158,7 +1157,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
 
                         if 'seeders' in thisnzb:
                             # its torznab, check if minimum seeders relevant
-                            if check_int(thisnzb['seeders'], 0) >= minimumseeders:
+                            if check_int(thisnzb['seeders'], 0) >= check_int(provider['SEEDERS'], 0):
                                 nzbcount += 1
                                 results.append(thisnzb)
                             else:
