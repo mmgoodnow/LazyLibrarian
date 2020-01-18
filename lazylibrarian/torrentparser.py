@@ -68,7 +68,7 @@ def TRF(book=None, test=False):
     sterm = makeUnicode("%s %s" % (book['searchterm'], cat))
 
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['TRF_SEEDERS']) - 1
 
     searchURL = "%s/%s" % (host, quote_plus(makeUTF8bytes(sterm)[0]))
 
@@ -228,7 +228,7 @@ def TPB(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['TPB_SEEDERS']) - 1
     next_page = True
 
     while next_page:
@@ -381,7 +381,7 @@ def KAT(book=None, test=False):
 
     if result:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
-        minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+        minimumseeders = int(lazylibrarian.CONFIG['KAT_SEEDERS']) - 1
         soup = BeautifulSoup(result, 'html5lib')
         rows = []
         try:
@@ -475,7 +475,7 @@ def WWT(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['WWT_SEEDERS']) - 1
     next_page = True
 
     while next_page:
@@ -618,7 +618,7 @@ def EXTRA(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimum = int(lazylibrarian.CONFIG['EXTRA_SEEDERS']) - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
         d = feedparser.parse(data)
@@ -702,7 +702,7 @@ def ZOO(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['ZOO_SEEDERS']) - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
         d = feedparser.parse(data)
@@ -786,7 +786,7 @@ def LIME(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['LIME_SEEDERS']) - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
         d = feedparser.parse(data)
@@ -883,7 +883,7 @@ def TDL(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['NUMBEROFSEEDERS']) - 1
+    minimumseeders = int(lazylibrarian.CONFIG['TDL_SEEDERS']) - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
         d = feedparser.parse(data)
