@@ -13,6 +13,7 @@
 
 import json
 import re
+import time
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -215,10 +216,10 @@ class utorrentclient(object):
                 logger.debug("uTorrent response code %s" % res)
                 logger.debug(str(js))
             return res, js
-        except HTTPError as err:
+        except Exception as err:
             logger.debug('URL: %s' % url)
             logger.debug('uTorrent webUI raised the following error: ' + str(err))
-
+            return 0, str(err)
 
 def checkLink():
     """ Check we can talk to utorrent"""
@@ -244,13 +245,12 @@ def checkLink():
 def labelTorrent(hashid):
     label = lazylibrarian.CONFIG['UTORRENT_LABEL']
     uTorrentClient = utorrentclient()
-    settinglabel = True
-    while settinglabel:
-        torrentList = uTorrentClient.list()
-        for torrent in torrentList[1].get('torrents'):
-            if torrent[0].lower() == hashid:
-                uTorrentClient.setprops(hashid, 'label', label)
-                return True
+    torrentList = uTorrentClient.list()
+    for torrent in torrentList[1].get('torrents'):
+        if torrent[0].lower() == hashid:
+            uTorrentClient.setprops(torrent[0], 'label', label)
+            return True
+    return False
 
 
 def dirTorrent(hashid):
@@ -276,7 +276,8 @@ def progressTorrent(hashid):
     torrentList = uTorrentClient.list()
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            return torrent[4], torrent[1], (torrent[1] & 65 == 0)  # status not started or queued
+            return check_int(torrent[4], 0) // 10, torrent[1], \
+                             (torrent[1] & 65 == 0)  # status not started or queued
     return -1, '', False
 
 
@@ -285,7 +286,7 @@ def listTorrent(hashid):
     torrentList = uTorrentClient.list()
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            return uTorrentClient.getfiles(hashid)
+            return uTorrentClient.getfiles(torrent[0])
     return []
 
 
@@ -295,9 +296,9 @@ def removeTorrent(hashid, remove_data=False):
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             if remove_data:
-                uTorrentClient.removedata(hashid)
+                uTorrentClient.removedata(torrent[0])
             else:
-                uTorrentClient.remove(hashid)
+                uTorrentClient.remove(torrent[0])
             return True
     return False
 
@@ -305,7 +306,11 @@ def removeTorrent(hashid, remove_data=False):
 def addTorrent(link, hashid):
     uTorrentClient = utorrentclient()
     uTorrentClient.add_url(link)
-    labelTorrent(hashid)
-    if dirTorrent(hashid):
-        return hashid, ''
+    label = lazylibrarian.CONFIG['UTORRENT_LABEL']
+    torrentList = uTorrentClient.list()
+    for torrent in torrentList[1].get('torrents'):
+        if torrent[0].lower() == hashid:
+            if label:
+                uTorrentClient.setprops(torrent[0], 'label', label)
+            return hashid, ''
     return False, 'uTorrent failed to locate hashid'
