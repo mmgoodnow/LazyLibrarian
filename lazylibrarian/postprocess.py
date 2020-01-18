@@ -1425,6 +1425,9 @@ def getDownloadFiles(source, downloadid):
                     dlfiles = result['files']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
+        else:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Unable to get file list from %s (not implemented)" % source)
         return dlfiles
 
     except Exception as e:
@@ -1585,7 +1588,7 @@ def getDownloadProgress(source, downloadid):
                 progress = -1
 
         elif source == 'UTORRENT':
-            progress, status = utorrent.progressTorrent(downloadid)
+            progress, status, finished = utorrent.progressTorrent(downloadid)
             if progress == -1:
                 logger.debug('%s not found at %s' % (downloadid, source))
             if status & 16:  # Error
@@ -1650,6 +1653,9 @@ def getDownloadProgress(source, downloadid):
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
                 progress = -1
 
+        else:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("Unable to get progress from %s (not implemented)" % source)
         try:
             progress = int(progress)
         except ValueError:
