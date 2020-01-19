@@ -228,6 +228,10 @@ def BOK(book=None, prov=None, test=False):
         else:
             bok_sleep()
 
+        if lazylibrarian.providers.ProviderIsBlocked(provider):
+            errmsg = "ProviderIsBlocked"
+            next_page = False
+
     logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
     return results, errmsg
 
