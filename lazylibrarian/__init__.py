@@ -1277,7 +1277,7 @@ def config_write(part=None):
                     new_list.append(provider)
 
             if part:  # only update the named provider
-                if part.startswith('Torznab'):
+                if part.startswith('Torznab') and entry[1] == 'Torznab':
                     extras = ['SEEDERS']
                 else:
                     extras = []
