@@ -555,7 +555,7 @@ def get_issue_date(nzbtitle_exploded):
     # 15 just a year (annual)
     # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
     #
-    issuenouns = ["issue", "iss", "no", "nr", '#']
+    issuenouns = ["issue", "iss", "no", "nr", '#', 'n']
     volumenouns = ["vol", "volume"]
     nouns = issuenouns + volumenouns
 
@@ -679,7 +679,19 @@ def get_issue_date(nzbtitle_exploded):
     if not regex_pass:
         pos = 0
         while pos < len(nzbtitle_exploded):
-            if nzbtitle_exploded[pos].lower().strip('.') in nouns:
+            # might be "Vol.3" or "#12" with no space between noun and number
+            splitted = re.split(r'(\d+)', nzbtitle_exploded[pos].lower())
+            if splitted[0].strip('.') in nouns:
+                if len(splitted) > 1:
+                    issue = check_int(splitted[1], 0)
+                    if issue:
+                        issuedate = str(issue)  # 4 == 04 == 004
+                        # we searched for year prior to regex 8/9
+                        if year:
+                            regex_pass = 10  # Issue/No/Nr/Vol nn, YYYY
+                        else:
+                            regex_pass = 11  # Issue/No/Nr/Vol nn
+                        break
                 if pos + 1 < len(nzbtitle_exploded):
                     issue = check_int(nzbtitle_exploded[pos + 1], 0)
                     if issue:
