@@ -391,13 +391,14 @@ def calibreTest():
             res = res + '\nDatabase READ ok'
             wrt, err, rc = calibredb('add', ['--authors', 'LazyLibrarian', '--title', 'dummy', '--empty'], [])
             logger.debug("Calibredb add  " + wrt)
-            # Answer should look like "Added book ids : (bookID)" (string may be translated!)
-            if ': ' not in wrt:
+            # Answer should look like "Added book ids : bookID" (string may be translated!)
+            try:
+                calibre_id = wrt.split(": ", 1)[1].split("\n", 1)[0].strip()
+            except IndexError:
                 res = res + '\nDatabase WRITE Failed'
                 return res
 
             # Try to fetch the added book and delete it
-            calibre_id = wrt.split(": ", 1)[1].split("\n", 1)[0]
             if not calibre_id.isdigit():
                 res = res + '\nDatabase WRITE Failed'
                 return res
