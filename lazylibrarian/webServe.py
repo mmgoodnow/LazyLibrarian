@@ -1544,11 +1544,8 @@ class WebInterface(object):
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("home")
 
-        if PY2:
-            authorname = authorname.encode(lazylibrarian.SYS_ENCODING)
-
         return serve_template(
-            templatename="author.html", title=quote_plus(authorname),
+            templatename="author.html", title=quote_plus(makeUTF8bytes(authorname)[0]),
             author=author, languages=languages, booklang=BookLang, types=types, library=library, ignored=Ignored,
             showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user, email=email)
 
@@ -3711,9 +3708,7 @@ class WebInterface(object):
                     this_mag['Cover'] = magimg
 
                     temp_title = mag['Title']
-                    if PY2:
-                        temp_title = temp_title.encode(lazylibrarian.SYS_ENCODING)
-                    this_mag['safetitle'] = quote_plus(temp_title)
+                    this_mag['safetitle'] = quote_plus(makeUTF8bytes(temp_title)[0])
                     mags.append(this_mag)
 
                 rowlist = []
@@ -3814,9 +3809,7 @@ class WebInterface(object):
                 this_mag = dict(mag)
                 this_mag['Cover'] = magimg
                 temp_title = mag['Title']
-                if PY2:
-                    temp_title = temp_title.encode(lazylibrarian.SYS_ENCODING)
-                this_mag['safetitle'] = quote_plus(temp_title)
+                this_mag['safetitle'] = quote_plus(makeUTF8bytes(temp_title)[0])
                 mags.append(this_mag)
 
             if not lazylibrarian.CONFIG['MAG_IMG']:
@@ -4076,9 +4069,7 @@ class WebInterface(object):
                                   email=email)
         else:  # multiple issues, show a list
             logger.debug("%s has %s issue%s" % (bookid, len(mag_data), plural(len(mag_data))))
-            if PY2:
-                bookid = bookid.encode(lazylibrarian.SYS_ENCODING)
-            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(bookid))
+            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(makeUTF8bytes(bookid)[0]))
 
     @cherrypy.expose
     def markPastIssues(self, action=None, **args):
@@ -4278,7 +4269,7 @@ class WebInterface(object):
                             }
                         myDB.upsert("magazines", newValueDict, controlValueDict)
         if title:
-            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(title))
+            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(makeUTF8bytes(title)[0]))
         else:
             raise cherrypy.HTTPRedirect("magazines")
 
@@ -4510,7 +4501,7 @@ class WebInterface(object):
         else:
             logger.debug('MAGAZINE_SCAN already running')
         if title:
-            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(title))
+            raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(makeUTF8bytes(title)[0]))
         else:
             raise cherrypy.HTTPRedirect("magazines")
 

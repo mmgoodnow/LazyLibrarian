@@ -19,7 +19,7 @@ import json
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int
+from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int, makeUTF8bytes
 from lazylibrarian.common import safe_copy, setperm
 from lazylibrarian.cache import cache_img, fetchURL
 from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
@@ -340,11 +340,8 @@ def getBookCover(bookID=None, src=None):
         if item:
             title = safe_unicode(item['BookName'])
             author = safe_unicode(item['AuthorName'])
-            if PY2:
-                title = title.encode(lazylibrarian.SYS_ENCODING)
-                author = author.encode(lazylibrarian.SYS_ENCODING)
             booklink = item['BookLink']
-            safeparams = quote_plus("%s %s" % (author, title))
+            safeparams = quote_plus(makeUTF8bytes("%s %s" % (author, title))[0])
 
         # try to get a cover from goodreads
         if not src or src == 'goodreads':
@@ -546,9 +543,7 @@ def getAuthorImage(authorid=None):
     author = myDB.match('select AuthorName from authors where AuthorID=?', (authorid,))
     if author:
         authorname = safe_unicode(author['AuthorName'])
-        if PY2:
-            authorname = authorname.encode(lazylibrarian.SYS_ENCODING)
-        safeparams = quote_plus("author %s" % authorname)
+        safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
         URL = "https://www.google.com/search?tbm=isch&tbs=ift:jpg,itp:face&as_q=" + safeparams + 'author'
         result, success = fetchURL(URL)
         if success:

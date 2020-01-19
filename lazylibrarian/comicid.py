@@ -20,7 +20,7 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
-from lazylibrarian.formatter import check_int, check_year, makeUnicode, unaccented
+from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes
 from lazylibrarian.common import quotes
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
@@ -148,8 +148,7 @@ def cv_identify(fname, best=True):
         else:
             off = ''
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(
-            unaccented(matchwords, only_ascii=False)), off)
+        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(makeUTF8bytes(matchwords)[0]), off)
         cv_api_sleep()
         res, _ = gb_json_request(url)
 
