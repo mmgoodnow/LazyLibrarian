@@ -1677,6 +1677,7 @@ def db_v58(myDB, upgradelog):
         myDB.action('ALTER TABLE comicissues ADD COLUMN Link TEXT')
     upgradelog.write("%s v58: complete\n" % time.ctime())
 
+
 def db_v59(myDB, upgradelog):
     seeders = lazylibrarian.CONFIG.get('NUMBEROFSEEDERS', 0)
     if seeders:

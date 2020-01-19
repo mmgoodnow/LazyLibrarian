@@ -13,22 +13,22 @@
 
 import json
 import re
-import time
+
+# noinspection PyUnresolvedReferences
+from lib.six.moves import http_cookiejar
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_error import HTTPError
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_parse import urljoin, urlencode
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
+    build_opener, install_opener, Request
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import getUserAgent
 from lazylibrarian.formatter import check_int, getList
 from lib.six import PY2
-# noinspection PyUnresolvedReferences
-from lib.six.moves import http_cookiejar
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urljoin, urlencode
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
-    build_opener, install_opener, Request
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_error import HTTPError
 
 
 class utorrentclient(object):
@@ -166,7 +166,6 @@ class utorrentclient(object):
             flist.append({"filename": entry[0], "filesize": entry[1]})
         return flist
 
-
     def getprops(self, hashid):
         params = [('action', 'getprops'), ('hash', hashid)]
         return self._action(params)
@@ -220,6 +219,7 @@ class utorrentclient(object):
             logger.debug('URL: %s' % url)
             logger.debug('uTorrent webUI raised the following error: ' + str(err))
             return 0, str(err)
+
 
 def checkLink():
     """ Check we can talk to utorrent"""
