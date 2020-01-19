@@ -2025,6 +2025,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB'])
             elif 'already exist' in err or 'already exist' in res:  # needed for different calibredb versions
+                # TODO this needs to be language independant
                 logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                             (authorname, bookname))
                 myDB = database.DBConnection()
@@ -2032,11 +2033,16 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 newValueDict = {"Status": "Have"}
                 myDB.upsert("books", newValueDict, controlValueDict)
                 return True, ''
-            elif 'Added book ids' not in res:
+            # Answer should look like "Added book ids : (bookID)" (string may be translated!)
+            if ': ' not in res:
                 return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname)
 
-            calibre_id = res.split("book ids: ", 1)[1].split("\n", 1)[0]
-            logger.debug('Calibre ID: %s' % calibre_id)
+            calibre_id = res.split(": ", 1)[1].split("\n", 1)[0].strip()
+            if calibre_id.isdigit():
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug('Calibre ID: [%s]' % calibre_id)
+            else:
+                logger.warn('Calibre ID looks invalid: [%s]' % calibre_id)
 
             our_opf = False
             rc = 0
