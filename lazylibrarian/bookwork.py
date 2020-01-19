@@ -915,7 +915,8 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
         baseurl = 'https://www.googleapis.com/books/v1/volumes?q='
 
-        urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
+        urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author.encode('utf-8'),
+                                     title.encode('utf-8')))]
         if isbn:
             urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
 
