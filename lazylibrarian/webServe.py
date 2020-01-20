@@ -3046,10 +3046,13 @@ class WebInterface(object):
             if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() \
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
                     or lazylibrarian.USE_IRC():
-                if 'eBook' in library or action == 'WantEbook':
-                    threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'eBook']).start()
-                if 'Audio' in library or action == 'WantAudio':
-                    threading.Thread(target=search_book, name='SEARCHBOOK', args=[books, 'AudioBook']).start()
+                if check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
+                    if 'eBook' in library or action == 'WantEbook':
+                        threading.Thread(target=search_book, name='SEARCHBOOK',
+                                         args=[books, 'eBook']).start()
+                    if 'Audio' in library or action == 'WantAudio':
+                        threading.Thread(target=search_book, name='SEARCHBOOK',
+                                         args=[books, 'AudioBook']).start()
 
         if redirect == "author":
             if 'eBook' in library:
