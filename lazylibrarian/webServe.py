@@ -1768,7 +1768,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     def snatchBook(self, bookid=None, mode=None, provider=None, url=None, size=None, library=None):
-        logger.debug("snatch bookid %s mode=%s from %s url=[%s]" % (bookid, mode, provider, url))
+        logger.debug("snatch %s bookid %s mode=%s from %s url=[%s]" %
+                     (library, bookid, mode, provider, url))
         myDB = database.DBConnection()
         bookdata = myDB.match('SELECT AuthorID, BookName from books WHERE BookID=?', (bookid,))
         if bookdata:
