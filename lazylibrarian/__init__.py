@@ -973,6 +973,8 @@ def config_read(reloaded=False):
             CFG.remove_option(torz_name, 'torznab_api%i' % count)
         if CFG.has_option(torz_name, 'nzedb'):
             CFG.remove_option(torz_name, 'nzedb')
+        if not CFG.has_option(torz_name, 'seeders'):
+            CFG.set(torz_name, 'seeders', CFG.get('TORRENT', 'numberofseeders'))
         disp_name = check_setting('str', torz_name, 'dispname', torz_name)
 
         TORZNAB_PROV.append({"NAME": torz_name,
