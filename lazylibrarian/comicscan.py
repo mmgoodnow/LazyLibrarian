@@ -226,8 +226,11 @@ def comicScan(comicid=None):
                                     _ = createComicOPF(dest_path, data, global_name, overwrite=True)
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
-                        with open(ignorefile, 'a'):
-                            os.utime(ignorefile, None)
+                        try:
+                            with open(ignorefile, 'a'):
+                                os.utime(ignorefile, None)
+                        except IOError as e:
+                            logger.warn("Unable to create ignorefile: %s" % str(e))
 
                         # see if this issues date values are useful
                         controlValueDict = {"ComicID": comicid}
