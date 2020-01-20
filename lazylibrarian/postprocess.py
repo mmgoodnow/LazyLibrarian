@@ -2339,7 +2339,10 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
         return
 
     if bookimg.startswith('cache/'):
-        cachefile = os.path.join(lazylibrarian.CACHEDIR, bookimg.replace('cache/', ''))
+        img = bookimg.replace('cache/', '')
+        if os.path.__name__ == 'ntpath':
+            img = img.replace('/', '\\')
+        cachefile = os.path.join(lazylibrarian.CACHEDIR, img)
     else:
         link, success, _ = cache_img(cache, bookid, bookimg, False)
         if not success:
@@ -2352,7 +2355,8 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
         coverfile = safe_copy(cachefile, coverfile)
         setperm(coverfile)
     except Exception as e:
-        logger.error("Error copying image to %s, %s %s" % (coverfile, type(e).__name__, str(e)))
+        logger.error("Error copying image %s to %s, %s %s" % (bookimg,
+                     coverfile, type(e).__name__, str(e)))
         return
 
 
@@ -2545,10 +2549,10 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
 
     if PY2:
-        opfinfo = unaccented_bytes(replace_all(opfinfo, dic), only_ascii=False)
+        opfinfo = makeUTF8bytes(replace_all(opfinfo, dic))[0]
         fmode = 'wb'
     else:
-        opfinfo = unaccented(replace_all(opfinfo, dic), only_ascii=False)
+        opfinfo = makeUnicode(replace_all(opfinfo, dic))
         fmode = 'w'
     with open(opfpath, fmode) as opf:
         opf.write(opfinfo)
