@@ -189,10 +189,13 @@ def comicScan(comicid=None):
                             if not iss_entry:
                                 logger.debug("Adding issue %s %s" % (title, issue))
                                 coverfile = createMagCover(issuefile, refresh=True)
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-                                newValueDict['Cover'] = 'cache/comic/%s.jpg' % myhash
+                                if coverfile and os.path.isfile(coverfile):
+                                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    copyfile(coverfile, hashname)
+                                    setperm(hashname)
+                                    newValueDict['Cover'] = 'cache/comic/%s.jpg' % myhash
+                                else:
+                                    newValueDict['Cover'] = 'images/nocover.png'
                                 newValueDict['Description'] = issuedescription
                                 newValueDict['Link'] = issuelink
                             else:
