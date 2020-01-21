@@ -2156,7 +2156,11 @@ class WebInterface(object):
         if AuthorID:
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
         else:
-            raise cherrypy.HTTPRedirect("books")
+            if lazylibrarian.CONFIG['SHOW_EBOOK']:
+                raise cherrypy.HTTPRedirect("books")
+            elif lazylibrarian.CONFIG['SHOW_AUDIO']:
+                raise cherrypy.HTTPRedirect("audio")
+        raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def startBookSearch(self, books=None, library=None, force=False):
@@ -5062,6 +5066,7 @@ class WebInterface(object):
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
             result, name = test_provider(kwargs['name'], host=host, api=api)
+
             if result:
                 lazylibrarian.config_write(kwargs['name'])
                 msg = "%s test PASSED" % name
