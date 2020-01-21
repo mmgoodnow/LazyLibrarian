@@ -513,6 +513,28 @@ def check_db(myDB):
                 for orphan in orphans:
                     myDB.action('DELETE from %s WHERE %s="%s"' % (entry[1], entry[0], orphan[0]))
 
+        # reset any snatched entries in books table that don't match history/wanted
+        lazylibrarian.UPDATE_MSG = 'Syncing Snatched entries'
+        cmd = 'select bookid from books where status="Snatched" '
+        cmd += 'except select bookid from wanted where status="Snatched" and auxinfo="eBook"'
+        snatches = myDB.select(cmd)
+        if snatches:
+            cnt += len(snatches)
+            msg = 'Found %s snatched ebook not snatched in wanted' % len(snatches)
+            logger.warn(msg)
+            for orphan in snatches:
+                myDB.action('UPDATE books SET status="Skipped" WHERE bookid=?', (orphan[0],))
+
+        cmd = 'select bookid from books where audiostatus="Snatched" '
+        cmd += 'except select bookid from wanted where status="Snatched" and auxinfo="AudioBook"'
+        snatches = myDB.select(cmd)
+        if snatches:
+            cnt += len(snatches)
+            msg = 'Found %s snatched audiobook not snatched in wanted' % len(snatches)
+            logger.warn(msg)
+            for orphan in snatches:
+                myDB.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
+
     except Exception as e:
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
         logger.error(msg)
