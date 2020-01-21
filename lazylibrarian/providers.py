@@ -38,36 +38,50 @@ def test_provider(name, host=None, api=None):
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['TPB_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['TPB_SEEDERS'] = check_int(api, 0)
         return TPB(book, test=True), "Pirate Bay"
     if name == 'WWT':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['WWT_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['WWT_SEEDERS'] = check_int(api, 0)
         return WWT(book, test=True), "WorldWideTorrents"
     if name == 'KAT':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['KAT_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['KAT_SEEDERS'] = check_int(api, 0)
         return KAT(book, test=True), "KickAss Torrents"
     if name == 'ZOO':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['ZOO_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['ZOO_SEEDERS'] = check_int(api, 0)
         return ZOO(book, test=True), "Zooqle"
     if name == 'LIME':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['LIME_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['LIME_SEEDERS'] = check_int(api, 0)
         return LIME(book, test=True), "LimeTorrents"
     if name == 'TDL':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['TDL_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['TDL_SEEDERS'] = check_int(api, 0)
         return TDL(book, test=True), "TorrentDownloads"
     if name == 'TRF':
         logger.debug("Testing provider %s" % name)
         if host:
             lazylibrarian.CONFIG['TRF_HOST'] = host
+        if api:
+            lazylibrarian.CONFIG['TRF_SEEDERS'] = check_int(api, 0)
         return TRF(book, test=True), "Torrof"
     if name == 'GEN':
         logger.debug("Testing provider %s" % name)
@@ -139,7 +153,9 @@ def test_provider(name, host=None, api=None):
                     if host:
                         provider['HOST'] = host
                     if api:
-                        provider['API'] = api
+                        ap, seed = api.split(' : ', 1)
+                        provider['API'] = ap
+                        provider['SEEDERS'] = check_int(seed, 0)
                     if provider['BOOKSEARCH']:
                         success, errorMsg = NewzNabPlus(book, provider, 'book', 'torznab', True)
                         if not success:
@@ -147,6 +163,7 @@ def test_provider(name, host=None, api=None):
                                 success, _ = NewzNabPlus(book, provider, 'general', 'torznab', True)
                     else:
                         success, _ = NewzNabPlus(book, provider, 'general', 'torznab', True)
+
                     return success, provider['DISPNAME']
         except IndexError:
             pass

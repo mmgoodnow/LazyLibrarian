@@ -1267,11 +1267,11 @@ def config_write(part=None):
         if key not in list(CONFIG_DEFINITIONS.keys()):
             logger.warn('Unsaved/invalid config key: %s' % key)
 
-    if not part or part.startswith('Newznab') or part.startswith('Torznab'):
+    if not part or part.lower().startswith('newznab') or part.lower().startswith('torznab'):
         NAB_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'API', 'GENERALSEARCH', 'BOOKSEARCH', 'MAGSEARCH',
                      'AUDIOSEARCH', 'BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'EXTENDED', 'DLPRIORITY', 'DLTYPES',
                      'UPDATED', 'MANUAL', 'APILIMIT', 'COMICSEARCH', 'COMICCAT']
-        for entry in [[NEWZNAB_PROV, 'Newznab'], [TORZNAB_PROV, 'Torznab']]:
+        for entry in [[NEWZNAB_PROV, 'Newznab', []], [TORZNAB_PROV, 'Torznab', ['SEEDERS']]]:
             new_list = []
             # strip out any empty slots
             for provider in entry[0]:  # type: dict
@@ -1279,15 +1279,12 @@ def config_write(part=None):
                     new_list.append(provider)
 
             if part:  # only update the named provider
-                if part.startswith('Torznab') and entry[1] == 'Torznab':
-                    extras = ['SEEDERS']
-                else:
-                    extras = []
+                part = part.replace('nab_', 'nab')
                 for provider in new_list:
                     if provider['NAME'].lower() != part.lower():  # keep old values
                         if CONFIG['LOGLEVEL'] > 2:
                             logger.debug("Keep %s" % provider['NAME'])
-                        for item in NAB_ITEMS + extras:
+                        for item in NAB_ITEMS + entry[2]:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
 
             # renumber the items
@@ -1302,7 +1299,7 @@ def config_write(part=None):
 
             for provider in new_list:
                 check_section(provider['NAME'])
-                for item in NAB_ITEMS:
+                for item in NAB_ITEMS + entry[2]:
                     value = provider[item]
                     if isinstance(value, text_type):
                         value = value.strip()
@@ -1311,6 +1308,7 @@ def config_write(part=None):
                         if not value:
                             value = 'E'
                         provider['DLTYPES'] = value
+
                     CFG.set(provider['NAME'], item, value)
 
             if entry[1] == 'Newznab':

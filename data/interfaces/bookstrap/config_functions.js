@@ -417,6 +417,7 @@
             var api = ""
             if ( 'KAT TPB WWT ZOO TDL TRF LIME GEN GEN2 BOK'.indexOf(prov) >= 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
+                var api = $("#" + prov.toLowerCase() + "_seeders").val();
             }
             if ( 'GEN GEN2'.indexOf(prov) >= 0 ) {
                 var api = $("#" + prov.toLowerCase() + "_search").val();
@@ -427,7 +428,9 @@
             }
             if ( prov.indexOf('torznab_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
-                var api = $("#" + prov.toLowerCase() + "_api").val();
+                var ap = $("#" + prov.toLowerCase() + "_api").val();
+                var seed = $("#" + prov.toLowerCase() + "_seeders").val();
+                var api = ap + ' : ' + seed
             }
             if ( prov.indexOf('rss_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
