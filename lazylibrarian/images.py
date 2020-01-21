@@ -573,7 +573,7 @@ def getAuthorImage(authorid=None):
 def createMagCovers(refresh=False):
     if not lazylibrarian.CONFIG['IMP_MAGCOVER']:
         logger.info('Cover creation is disabled in config')
-        return
+        return ''
     myDB = database.DBConnection()
     #  <> '' ignores empty string or NULL
     issues = myDB.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
