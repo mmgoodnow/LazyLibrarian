@@ -38,7 +38,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
     # authorname returned is our preferred name, or empty string if not found or unable to add
-    if not reason:
+    if not reason or str(reason).lower() == 'none':
         if len(inspect.stack()) > 2:
             frame = inspect.getframeinfo(inspect.stack()[2][0])
             program = os.path.basename(frame.filename)
@@ -147,7 +147,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
     """
-    if not reason:
+    if not reason or str(reason).lower() == 'none':
         if len(inspect.stack()) > 2:
             frame = inspect.getframeinfo(inspect.stack()[2][0])
             program = os.path.basename(frame.filename)
