@@ -38,9 +38,9 @@ import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs
+from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs, namedic
 from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode, md5_utf8, \
-    seconds_to_midnight
+    seconds_to_midnight, replace_all
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.providers import BlockProvider
 from lazylibrarian.ircbot import ircConnect, ircSearch
@@ -88,6 +88,7 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     downloadID = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
     if fname and data:
+        fname = replace_all(fname, namedic)
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), fname)
         if not os.path.isdir(destdir):
             _ = make_dirs(destdir)
@@ -299,6 +300,8 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         logger.debug("File download got %s bytes for %s" % (len(r.content), dl_title))
         if provider == 'zlibrary':
             lazylibrarian.BOK_DLCOUNT += 1
+
+        basename = replace_all(basename, namedic)
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
         if not os.path.isdir(destdir):
             _ = make_dirs(destdir)
