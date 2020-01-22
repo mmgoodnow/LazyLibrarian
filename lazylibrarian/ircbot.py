@@ -21,7 +21,8 @@ import tarfile
 from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import today, size_in_bytes, makeBytestr
+from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, replace_all
+from lazylibrarian.common import namedic
 try:
     import zipfile
 except ImportError:
@@ -29,6 +30,10 @@ except ImportError:
         import lib.zipfile as zipfile
     else:
         import lib3.zipfile as zipfile
+try:
+    from fuzzywuzzy import fuzz
+except ImportError:
+    from lib.fuzzywuzzy import fuzz
 
 
 def ip_numstr_to_quad(num):
@@ -203,8 +208,10 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 logger.debug("Asking %s for %s" % (cmd, searchstring))
 
             elif status == "waiting":
-                if searchstring in lyne:
-                    if len(lyne.split("matches")) > 1:
+                if len(lyne.split("matches")) > 1:
+                    titlefuzz = fuzz.partial_ratio(lyne, searchstring)
+                    logger.debug("fuzz %s%% for %s" % (titlefuzz, searchstring))
+                    if titlefuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
                         res = lyne.split("matches")[0].split()
                         try:
                             matches = int(res[-1])
@@ -213,7 +220,10 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                         logger.debug("Found %d matches" % matches)
                         if not matches:
                             status = "finished"
-                    if 'Request Denied' in lyne:
+                elif 'Request Denied' in lyne:
+                    titlefuzz = fuzz.partial_ratio(lyne, searchstring)
+                    logger.debug("fuzz %s%% for %s" % (titlefuzz, searchstring))
+                    if titlefuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
                         try:
                             msg = lyne.split("PRIVMSG")[1].split('\n')[0]
                         except IndexError:
@@ -300,6 +310,7 @@ def ircResults(provider, fname, data, irc=None):
     # if \r- in line last two words are size/unit
     results = []
     tor_date = today()
+    fname = replace_all(fname, namedic)
     outfile = os.path.join(lazylibrarian.CACHEDIR, fname)
     with open(outfile, "wb") as f:
         f.write(data)
