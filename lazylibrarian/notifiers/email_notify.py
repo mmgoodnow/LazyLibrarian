@@ -24,7 +24,7 @@ from email.mime.multipart import MIMEMultipart
 import lazylibrarian
 import os
 import traceback
-from lazylibrarian import logger, database
+from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail
 from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
 from lib.six import PY2
@@ -172,10 +172,13 @@ class EmailNotifier:
                 else:
                     filename = None
                     preftype = None
+                    if lazylibrarian.CONFIG['EMAIL_SEND_TYPE']:
+                        custom_typelist = getList(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
+
                     typelist = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
-                        preftype = typelist[0]
+                        preftype = custom_typelist[0]
                         logger.debug('Preferred filetype = %s' % preftype)
                     else:
                         myDB = database.DBConnection()
@@ -196,17 +199,31 @@ class EmailNotifier:
                         types = []
                         if bookfile and os.path.isfile(bookfile):
                             basename, extn = os.path.splitext(bookfile)
-                            for item in typelist:
+                            for item in set(
+                                    typelist + custom_typelist):  # Search download and email formats for existing book formats
                                 target = basename + '.' + item
                                 if os.path.isfile(target):
                                     types.append(item)
 
                             logger.debug('Available filetypes: %s' % str(types))
 
+                            # if the format we want to send is available, select it
                             if preftype in types:
                                 filename = basename + '.' + preftype
+
+                            # if the format is not available, see if it's a type we want to convert, otherwise send the first available format
                             else:
-                                filename = basename + '.' + types[0]
+                                # if there is a type we want to convert from in the available formats, convert it
+                                for convertable_format in getList(lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']):
+                                    if convertable_format in types:
+                                        try:
+                                            filename = ebook_convert.convert(basename + '.' + convertable_format, preftype)
+                                            break
+                                        except Exception:
+                                            continue
+                                # If no convertable formats found, revert to default behavior of sending first available format
+                                else:
+                                    filename = basename + '.' + types[0]
 
                         title = data['BookName']
                         logger.debug('Found %s for bookid %s' % (filename, bookid))

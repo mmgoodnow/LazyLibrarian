@@ -156,7 +156,7 @@ perm_search = 1 << 9  # 512 can search goodreads/googlebooks for books/authors
 perm_status = 1 << 10  # 1024 can change book status (wanted/skipped etc)
 perm_force = 1 << 11  # 2048 can use background tasks (refresh authors/libraryscan/postprocess/searchtasks)
 perm_download = 1 << 12  # 4096 can download existing books/mags
-perm_comics = 1 << 13   # 8192 access to comics
+perm_comics = 1 << 13  # 8192 access to comics
 
 perm_authorbooks = perm_audio + perm_ebook
 perm_guest = perm_download + perm_series + perm_authorbooks + perm_magazines + perm_comics
@@ -589,6 +589,9 @@ CONFIG_DEFINITIONS = {
     'EMAIL_SMTP_USER': ('str', 'Email', ''),
     'EMAIL_SMTP_PASSWORD': ('str', 'Email', ''),
     'EMAIL_LIMIT': ('int', 'Email', 20),
+    'USE_EMAIL_CUSTOM_FORMAT': ('bool', 'Email', 0),
+    'EMAIL_CONVERT_FROM': ('str', 'Email', ''),
+    'EMAIL_SEND_TYPE': ('str', 'Email', ''),
     'BOOK_API': ('str', 'API', 'GoodReads'),
     'LT_DEVKEY': ('str', 'API', ''),
     'CV_APIKEY': ('str', 'API', ''),
@@ -1086,6 +1089,8 @@ def config_read(reloaded=False):
 
     # to make extension matching easier
     CONFIG['EBOOK_TYPE'] = CONFIG['EBOOK_TYPE'].lower()
+    CONFIG['EMAIL_CONVERT_FROM'] = CONFIG['EMAIL_CONVERT_FROM'].lower()
+    CONFIG['EMAIL_SEND_TYPE'] = CONFIG['EMAIL_SEND_TYPE'].lower()
     CONFIG['AUDIOBOOK_TYPE'] = CONFIG['AUDIOBOOK_TYPE'].lower()
     CONFIG['MAG_TYPE'] = CONFIG['MAG_TYPE'].lower()
     CONFIG['COMIC_TYPE'] = CONFIG['COMIC_TYPE'].lower()
@@ -1213,8 +1218,8 @@ def config_write(part=None):
             if key == 'LOGLEVEL':
                 LOGLEVEL = check_int(value, 1)
             elif key in ['REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_MAGS', 'REJECT_COMIC',
-                         'MAG_TYPE', 'EBOOK_TYPE', 'COMIC_TYPE', 'BANNED_EXT', 'AUDIOBOOK_TYPE',
-                         'REJECT_PUBLISHER']:
+                         'MAG_TYPE', 'EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'COMIC_TYPE', 'BANNED_EXT',
+                         'AUDIOBOOK_TYPE', 'REJECT_PUBLISHER']:
                 value = value.lower()
         else:
             # keep the old value
@@ -1619,8 +1624,11 @@ def DIRECTORY(dirname):
         except Exception as why:
             logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
             logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
-                         oct(os.stat(usedir).st_mode), os.stat(usedir).st_uid, os.stat(usedir).st_gid,
-                         os.access(usedir, os.W_OK), os.access(usedir, os.X_OK)))
+                                                                                    oct(os.stat(usedir).st_mode),
+                                                                                    os.stat(usedir).st_uid,
+                                                                                    os.stat(usedir).st_gid,
+                                                                                    os.access(usedir, os.W_OK),
+                                                                                    os.access(usedir, os.X_OK)))
             usedir = DATADIR
     else:
         logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
