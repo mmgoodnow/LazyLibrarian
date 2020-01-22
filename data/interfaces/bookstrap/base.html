@@ -222,6 +222,7 @@
     </div>
     <script type="text/javascript">
       msg = '';
+      % if not lazylibrarian.SUPPRESS_UPDATE:
       % if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' or lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
           title = 'LazyLibrarian Update'
           % if not lazylibrarian.CONFIG['CURRENT_VERSION']:
@@ -239,6 +240,7 @@
                   msg = '<div class="input-group">New version available. You are one commit behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
               % endif
           % endif
+        % endif
       % endif
 
       $(document).ready(function() {
