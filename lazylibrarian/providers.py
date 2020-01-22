@@ -1207,7 +1207,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
 
                     except IndexError:
                         logger.debug('No results from %s for %s' % (host, sterm))
-                logger.debug('Found %s nzb at %s for: %s' % (nzbcount, host, sterm))
+                logger.debug('Found %s results at %s for: %s' % (nzbcount, host, sterm))
         else:
             logger.debug('No data returned from %s for %s' % (host, sterm))
     return results
