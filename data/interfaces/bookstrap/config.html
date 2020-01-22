@@ -3191,6 +3191,37 @@
                         TLS</label>
                     </div>
                     </div>
+                    <div class="checkbox">
+                      <%
+                      if lazylibrarian.CONFIG['USE_EMAIL_CUSTOM_FORMAT'] == True:
+                        checked = 'checked="checked"'
+                      else:
+                          checked = ''
+                      %>
+                      <label for="use_email_custom_format" class="control-label">
+                        <input type="checkbox" id="use_email_custom_format" name="use_email_custom_format" value="1"
+                               ${checked}/>
+                        Enable Email Custom Type (requires full Calibre install)</label>
+                    </div>
+                    <div id="email_custom_format_options">
+                      <span class="help-block">Send a different file type than the one downloaded and convert if necessary. Useful if you download ePUB files but need to send a MOBI to a Kindle. Only file types listed here will be converted.</span>
+                      <fieldset>
+                        <div class="row form-group">
+                          <div class="col-md-6">
+                            <label for="email_send_type">Filetype to send</label>
+                            <input type="text" id="email_send_type" name="email_send_type"
+                                   value="${lazylibrarian.CONFIG['EMAIL_SEND_TYPE']}" class="form-control"
+                                   placeholder="mobi">
+                          </div>
+                          <div class="col-md-6">
+                            <label for="email_convert_from">Filetypes to convert from</label>
+                            <input type="text" id="email_convert_from" name="email_convert_from"
+                                   value="${lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']}" class="form-control"
+                                   placeholder="epub">
+                          </div>
+                        </div>
+                      </fieldset>
+                    </div>
                     <div class="form-group">
                       <input type="button" value="Test Email" id="testEmail" class="btn btn-default">
                     </div>
