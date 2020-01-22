@@ -30,11 +30,17 @@
 
         var array = pop_types.split(' ');
         var item;
-        if ( prefix.indexOf('AudioBook') >= 0 ) {
+        %if email:
+          if ( prefix.indexOf('AudioBook') >= 0 ) {
+            var loc = 'sendBook?bookid=' + bookid + '&library=AudioBook&booktype='}
+          else {
+            var loc = 'sendBook?bookid=' + bookid + '&library=eBook&booktype='}
+        %else:
+          if ( prefix.indexOf('AudioBook') >= 0 ) {
             var loc = 'openBook?bookid=' + bookid + '&library=AudioBook&booktype='}
-        else {
+          else {
             var loc = 'openBook?bookid=' + bookid + '&library=eBook&booktype='}
-
+        %endif
         for (item of array) {
             % for extn in valid:
                 if (item === "${extn}") {
