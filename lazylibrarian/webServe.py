@@ -145,9 +145,13 @@ def serve_template(templatename, **kwargs):
             logger.debug("User %s: %s %s" % (username, perm, templatename))
         template = _hplookup.get_template(templatename)
         if templatename == "login.html":
+            lazylibrarian.SUPPRESS_UPDATE = True
             cherrypy.response.cookie['ll_template'] = ''
             return template.render(perm=0, title="Redirected")
+        elif templatename == 'config.html' and not perm & lazylibrarian.perm_config:
+            lazylibrarian.SUPPRESS_UPDATE = True
         else:
+            lazylibrarian.SUPPRESS_UPDATE = False
             cherrypy.response.cookie['ll_template'] = templatename
             # noinspection PyArgumentList
             return template.render(perm=perm, **kwargs)
@@ -2477,7 +2481,8 @@ class WebInterface(object):
                             return serve_template(templatename="choosetype.html", prefix="AudioBook",
                                                   title=safetitle, pop_message=msg,
                                                   pop_types=partlist, bookid=bookid,
-                                                  valid=getList(partlist.replace(' ', ',')))
+                                                  valid=getList(partlist.replace(' ', ',')),
+                                                  email=email)
                         else:
                             if email:
                                 logger.debug('Emailing %s %s' % (library, bookfile))
@@ -2510,7 +2515,8 @@ class WebInterface(object):
                                 return serve_template(templatename="choosetype.html", prefix="",
                                                       title="Not Available", pop_message=msg,
                                                       pop_types=typestr, bookid=bookid,
-                                                      valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
+                                                      valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']),
+                                                      email=email)
                         elif len(types) > 1:
                             msg = "Please select format to "
                             if email:
@@ -2525,7 +2531,8 @@ class WebInterface(object):
                             return serve_template(templatename="choosetype.html", prefix="",
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
-                                                  valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
+                                                  valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']),
+                                                  email=email)
                         if len(types):
                             if email:
                                 logger.debug('Emailing %s %s' % (library, bookfile))
@@ -5786,7 +5793,7 @@ class WebInterface(object):
                             msg = "Failed to email file %s to %s" % (os.path.split(basefile)[1], res['SendTo'])
                             logger.error(msg)
                     return serve_template(templatename="choosetype.html", prefix="SendTo", title='Send file',
-                                          pop_message=msg, pop_types='', bookid='', valid='')
+                                          pop_message=msg, pop_types='', bookid='', valid='', email=email)
 
         if name and name.endswith('zip'):
             return serve_file(basefile, mimeType(basefile), "attachment", name=name)
