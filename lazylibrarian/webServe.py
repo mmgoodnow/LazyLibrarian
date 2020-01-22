@@ -4995,13 +4995,16 @@ class WebInterface(object):
 
     @cherrypy.expose
     def deletehistory(self, rowid=None):
-        myDB = database.DBConnection()
         if not rowid:
-            return
-        match = myDB.match('SELECT NZBtitle,Status from wanted WHERE rowid=?', (rowid,))
-        if match:
-            logger.debug('Deleting %s history item %s' % (match['Status'], match['NZBtitle']))
-            myDB.action('DELETE from wanted WHERE rowid=?', (rowid,))
+            logger.warn("No rowid in deletehistory")
+        else:
+            myDB = database.DBConnection()
+            match = myDB.match('SELECT NZBtitle,Status from wanted WHERE rowid=?', (rowid,))
+            if match:
+                logger.debug('Deleting %s history item %s' % (match['Status'], match['NZBtitle']))
+                myDB.action('DELETE from wanted WHERE rowid=?', (rowid,))
+            else:
+                logger.warn("No rowid %s in history" % rowid)
 
     @cherrypy.expose
     def markhistory(self, rowid=None):
