@@ -48,6 +48,7 @@ from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, t
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
     makeUTF8bytes, dispName
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
 from lazylibrarian.magazinescan import create_id
@@ -71,6 +72,48 @@ def update_downloads(provider):
         myDB.action('UPDATE downloads SET Count=? WHERE Provider=?', (counter + 1, provider))
     else:
         myDB.action('INSERT into downloads (Count, Provider) VALUES  (?, ?)', (1, provider))
+
+
+def importBook(source_dir=None, library='eBook', bookid=None):
+    # import a specific book from a specific directory
+    # noinspection PyBroadException
+    try:
+        if not source_dir or not os.path.isdir(source_dir):
+            logger.warn("%s is not a directory" % source_dir)
+            return False
+        if source_dir == lazylibrarian.DIRECTORY(library):
+            logger.warn('Source directory must not be the same as library')
+            return False
+
+        reject = multibook(source_dir)
+        if reject:
+            logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
+            return False
+
+        myDB = database.DBConnection()
+        if library == 'eBook':
+            logger.debug('Processing %s directory %s' % (library, source_dir))
+            book = myDB.match('SELECT * from books where BookID=?', (bookid,))
+            if not book:
+                logger.warn("Bookid [%s] not found in database, trying to add..." % (bookid,))
+                if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                    GR_ID = GoodReads(bookid)
+                    GR_ID.find_book(bookid, None, None, "Added by processFolder %s" % source_dir)
+                elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                    GB_ID = GoogleBooks(bookid)
+                    GB_ID.find_book(bookid, None, None, "Added by processFolder %s" % source_dir)
+            # see if it's there now...
+            book = myDB.match('SELECT * from books where BookID=?', (bookid,))
+            if not book:
+                logger.debug("Unable to add bookid %s to database" % bookid)
+                return False
+            return process_book(source_dir, bookid, library)
+        else:
+            logger.error("processFolder for %s not implemented" % library)
+            return False
+    except Exception:
+        logger.error('Unhandled exception in processFolder: %s' % traceback.format_exc())
+        return False
 
 
 def processAlternate(source_dir=None, library='eBook'):
@@ -724,17 +767,17 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                                         'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
                             # Default destination path, should be allowed change per config file.
-                            seriesinfo = nameVars(book['BookID'])
+                            namevars = nameVars(book['BookID'])
                             if book_type == 'AudioBook' and lazylibrarian.DIRECTORY('Audio'):
-                                dest_path = seriesinfo['AudioFolderName']
+                                dest_path = namevars['AudioFolderName']
                                 dest_dir = lazylibrarian.DIRECTORY('Audio')
                             else:
-                                dest_path = seriesinfo['FolderName']
+                                dest_path = namevars['FolderName']
                                 dest_dir = lazylibrarian.DIRECTORY('eBook')
 
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = makeUTF8bytes(dest_path)[0]
-                            global_name = seriesinfo['BookFile']
+                            global_name = namevars['BookFile']
                         else:
                             data = myDB.match('SELECT IssueDate from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
@@ -1783,14 +1826,14 @@ def process_book(pp_path=None, bookID=None, library=None):
                     lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
                         'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
 
-            seriesinfo = nameVars(bookID)
+            namevars = nameVars(bookID)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
-            global_name = seriesinfo['BookFile']
+            global_name = namevars['BookFile']
             if book_type == "AudioBook":
-                dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['AudioFolderName']))
+                dest_path = stripspaces(os.path.join(dest_dir, namevars['AudioFolderName']))
             else:
-                dest_path = stripspaces(os.path.join(dest_dir, seriesinfo['FolderName']))
+                dest_path = stripspaces(os.path.join(dest_dir, namevars['FolderName']))
             dest_path = makeUTF8bytes(dest_path)[0]
 
             success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
@@ -1877,7 +1920,8 @@ def process_book(pp_path=None, bookID=None, library=None):
                     myDB.action('UPDATE books SET status="Wanted" WHERE BookID=?', (bookID,))
         return False
     except Exception:
-        logger.error('Unhandled exception in importBook: %s' % traceback.format_exc())
+        logger.error('Unhandled exception in process_book: %s' % traceback.format_exc())
+        return False
 
 
 def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBook"):

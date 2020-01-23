@@ -47,7 +47,7 @@ from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_tota
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.magazinescan import magazineScan
 from lazylibrarian.manualbook import searchItem
-from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG
+from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG, importBook
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -185,6 +185,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'gc_collect': 'Run garbage collection & return how many items',
             'listNewAuthors': '[&limit=] List newest authors and show when added and reason for adding',
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
+            'importBook': '&id= &dir= [&library=] add library bookid from folder',
             }
 
 
@@ -435,6 +436,19 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         self.data = audioProcess(kwargs['id'], playlist=True)
+
+    def _importBook(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = 'Missing parameter: id'
+            return
+        if 'dir' not in kwargs:
+            self.data = 'Missing parameter: dir'
+            return
+        if 'library' not in kwargs:
+            library = 'eBook'
+        else:
+            library = kwargs['library']
+        self.data = importBook(kwargs['dir'], library, kwargs['id'])
 
     def _nameVars(self, **kwargs):
         if 'id' not in kwargs:
