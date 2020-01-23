@@ -297,6 +297,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @staticmethod
@@ -851,6 +853,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -2068,7 +2072,7 @@ class WebInterface(object):
                     else:
                         flag = ''
 
-                    if status_type == 'audiostatus':
+                    if status_type == 'audiostatus' and kwargs['source'] == 'Audio':
                         row[5] = row[14]
                         row[13] = row[15]
 
@@ -2116,6 +2120,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @staticmethod
@@ -3343,6 +3349,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -3509,6 +3517,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -3783,6 +3793,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -3913,6 +3925,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -4046,6 +4060,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
@@ -4793,6 +4809,8 @@ class WebInterface(object):
                       'iTotalRecords': len(lazylibrarian.LOGLIST),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     # HISTORY ###########################################################
@@ -4919,6 +4937,8 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug(mydict)
             return mydict
 
     @cherrypy.expose
