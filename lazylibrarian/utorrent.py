@@ -158,6 +158,7 @@ class utorrentclient(object):
     def getfiles(self, hashid):
         params = [('action', 'getfiles'), ('hash', hashid)]
         res = self._action(params)
+        # noinspection PyUnresolvedReferences
         files = res[1].get('files')
         if not files:
             return []
@@ -242,6 +243,7 @@ def checkLink():
         return "uTorrent login FAILED: %s %s" % (type(err).__name__, str(err))
 
 
+# noinspection PyUnresolvedReferences
 def labelTorrent(hashid):
     label = lazylibrarian.CONFIG['UTORRENT_LABEL']
     uTorrentClient = utorrentclient()
@@ -256,6 +258,7 @@ def labelTorrent(hashid):
 def dirTorrent(hashid):
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return torrent[26]
@@ -265,6 +268,7 @@ def dirTorrent(hashid):
 def nameTorrent(hashid):
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return torrent[2]
@@ -274,6 +278,7 @@ def nameTorrent(hashid):
 def progressTorrent(hashid):
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return check_int(torrent[4], 0) // 10, torrent[1], \
@@ -284,6 +289,7 @@ def progressTorrent(hashid):
 def listTorrent(hashid):
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return uTorrentClient.getfiles(torrent[0])
@@ -293,6 +299,7 @@ def listTorrent(hashid):
 def removeTorrent(hashid, remove_data=False):
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             if remove_data:
@@ -308,6 +315,7 @@ def addTorrent(link, hashid):
     uTorrentClient.add_url(link)
     label = lazylibrarian.CONFIG['UTORRENT_LABEL']
     torrentList = uTorrentClient.list()
+    # noinspection PyUnresolvedReferences
     for torrent in torrentList[1].get('torrents'):
         if torrent[0].lower() == hashid:
             if label:

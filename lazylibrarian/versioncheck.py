@@ -151,6 +151,7 @@ def getCurrentVersion():
         else:
             cur_commit_hash = output.strip()
 
+            # noinspection PyTypeChecker
             if not re.match('^[a-z0-9]+$', cur_commit_hash):
                 logmsg('error', 'Output doesn\'t look like a hash, not using it')
                 cur_commit_hash = 'GIT invalid hash return'
@@ -479,7 +480,7 @@ def update():
         branch = getCurrentGitBranch()
 
         _, _ = runGit('stash clear')
-        output, _ = runGit('pull origin ' + branch)
+        output, _ = runGit('pull origin ' + branch)  # type: str
 
         if not output:
             logmsg('error', 'Couldn\'t download latest version')

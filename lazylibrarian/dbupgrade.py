@@ -1700,6 +1700,7 @@ def db_v58(myDB, upgradelog):
     upgradelog.write("%s v58: complete\n" % time.ctime())
 
 
+# noinspection PyUnusedLocal
 def db_v59(myDB, upgradelog):
     seeders = lazylibrarian.CONFIG.get('NUMBEROFSEEDERS', 0)
     if seeders:
