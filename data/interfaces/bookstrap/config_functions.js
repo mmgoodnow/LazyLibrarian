@@ -936,6 +936,13 @@
         if ($("#use_email").is(":checked"))
                 {
                         $("#emailoptions").show();
+
+                        if ($("#use_email_custom_format").is(":checked")) {
+                            $("#email_custom_format_options").show();
+                        }
+                        else {
+                            $("#email_custom_format_options").hide();
+                        }
                 }
         else
                 {
@@ -950,6 +957,17 @@
                 else
                 {
                         $("#emailoptions").slideUp();
+                }
+        });
+
+        $("#use_email_custom_format").click(function(){
+                if ($("#use_email_custom_format").is(":checked"))
+                {
+                        $("#email_custom_format_options").slideDown();
+                }
+                else
+                {
+                        $("#email_custom_format_options").slideUp();
                 }
         });
 
