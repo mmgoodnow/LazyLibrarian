@@ -142,6 +142,9 @@ def BOK(book=None, prov=None, test=False):
                         rows = []
 
                 for row in rows:
+                    if lazylibrarian.providers.ProviderIsBlocked(provider):
+                        next_page = False
+                        break
                     url = None
                     newsoup = BeautifulSoup(str(row), 'html5lib')
                     title = newsoup.find('h3', itemprop='name').text
