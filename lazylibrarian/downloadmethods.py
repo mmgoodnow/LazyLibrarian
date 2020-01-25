@@ -238,7 +238,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         headers['Referer'] = dl_url
         if lazylibrarian.BOK_DLCOUNT >= lazylibrarian.CONFIG['BOK_DLLIMIT']:
             res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
-            BlockProvider('BOK', res, delay=seconds_to_midnight())
+            BlockProvider(provider, res, delay=seconds_to_midnight())
             return False, res
     try:
         logger.debug("%s %s" % (provider, str(headers)))
