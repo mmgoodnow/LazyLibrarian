@@ -245,6 +245,8 @@ def checkLink():
 
 # noinspection PyUnresolvedReferences
 def labelTorrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("set label for %s" % hashid)
     label = lazylibrarian.CONFIG['UTORRENT_LABEL']
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
@@ -256,6 +258,8 @@ def labelTorrent(hashid):
 
 
 def dirTorrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("get directory for %s" % hashid)
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
     # noinspection PyUnresolvedReferences
@@ -266,6 +270,8 @@ def dirTorrent(hashid):
 
 
 def nameTorrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("get name for %s" % hashid)
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
     # noinspection PyUnresolvedReferences
@@ -276,6 +282,8 @@ def nameTorrent(hashid):
 
 
 def progressTorrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("get progress for %s" % hashid)
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
     # noinspection PyUnresolvedReferences
@@ -287,6 +295,8 @@ def progressTorrent(hashid):
 
 
 def listTorrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("get file list for %s" % hashid)
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
     # noinspection PyUnresolvedReferences
@@ -297,6 +307,8 @@ def listTorrent(hashid):
 
 
 def removeTorrent(hashid, remove_data=False):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("remove torrent %s remove_data=%s" % (hashid, remove_data))
     uTorrentClient = utorrentclient()
     torrentList = uTorrentClient.list()
     # noinspection PyUnresolvedReferences
