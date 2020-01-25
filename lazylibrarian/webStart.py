@@ -141,6 +141,7 @@ def initialize(options=None):
             # 'tools.proxy.local': 'X-Forwarded-Host'  # this is for apache2
             # 'tools.proxy.local': 'Host'  # this is for nginx
             # 'tools.proxy.local': 'X-Host'  # this is for lighthttpd
+            # 'tools.proxy.local': 'X-Forwarded-For' or 'X-Real-IP' # this is for caddy
             'tools.proxy.local': lazylibrarian.CONFIG['PROXY_LOCAL']
         })
     if options['http_pass'] != "":
