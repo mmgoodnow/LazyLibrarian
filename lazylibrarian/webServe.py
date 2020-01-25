@@ -40,7 +40,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk, quotes, ensureRunning
+    zipAudio, runScript, walk, quotes, ensureRunning, book_file
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -55,7 +55,7 @@ from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.opds import OPDS
-from lazylibrarian.postprocess import processAlternate, processDir, delete_task, getDownloadProgress
+from lazylibrarian.postprocess import processAlternate, processDir, delete_task, getDownloadProgress, importBook
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -2724,8 +2724,32 @@ class WebInterface(object):
         myDB = database.DBConnection()
 
         if bookid:
+            scanresult = ''
+            if 'importfrom' in kwargs and kwargs['importfrom']:
+                source = kwargs['importfrom']
+                folder = ''
+                library = ''
+                if os.path.isfile(source):
+                    folder = os.path.dirname(source)
+                elif os.path.isdir(source):
+                    folder = source
+                if folder:
+                    if book_file(folder, booktype='audiobook'):
+                        library = 'Audio'
+                    elif book_file(folder, booktype='ebook'):
+                        library = 'eBook'
+                if library:
+                    res = importBook(folder, library, bookid)
+                    if res:
+                        scanresult = 'Imported manually from %s' % folder
+                    else:
+                        logger.debug("Failed to import %s from %s" % (bookid, source))
+                        raise cherrypy.HTTPRedirect("editBook?bookid=%s" % bookid)
+                else:
+                    logger.debug("No %s found in %s" % (library, source))
+
             cmd = 'SELECT BookName,BookSub,BookGenre,BookLang,BookImg,BookDate,BookDesc,books.Manual,AuthorName,'
-            cmd += 'books.AuthorID, BookIsbn, WorkID'
+            cmd += 'books.AuthorID, BookIsbn, WorkID, ScanResult'
             cmd += ' from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
             bookdata = myDB.match(cmd, (bookid,))
             if bookdata:
@@ -2745,6 +2769,8 @@ class WebInterface(object):
                     else:
                         logger.warn("Updating bookid is not supported yet")
                         # edited += "BookID "
+                if scanresult and not (bookdata["ScanResult"] == scanresult):
+                    edited += "ScanResult "
                 if not (bookdata["BookName"] == bookname):
                     edited += "Title "
                 if not (bookdata["BookSub"] == booksub):
@@ -2827,6 +2853,7 @@ class WebInterface(object):
                         'BookIsbn': bookisbn,
                         'WorkID': workid,
                         'BookImg': coverlink,
+                        'ScanResult': scanresult,
                         'Manual': bool(manual)
                     }
                     myDB.upsert("books", newValueDict, controlValueDict)
@@ -2886,7 +2913,6 @@ class WebInterface(object):
                 else:
                     logger.debug('Book [%s] has not been moved' % bookname)
                 # if edited or moved:
-
                 raise cherrypy.HTTPRedirect("editBook?bookid=%s" % bookid)
 
         raise cherrypy.HTTPRedirect("books")

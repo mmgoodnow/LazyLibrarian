@@ -185,7 +185,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'gc_collect': 'Run garbage collection & return how many items',
             'listNewAuthors': '[&limit=] List newest authors and show when added and reason for adding',
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
-            'importBook': '&id= &dir= [&library=] add library bookid from folder',
+            'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
             }
 
 

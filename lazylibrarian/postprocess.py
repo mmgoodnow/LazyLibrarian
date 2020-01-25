@@ -75,7 +75,10 @@ def update_downloads(provider):
 
 
 def importBook(source_dir=None, library='eBook', bookid=None):
-    # import a specific book from a specific directory
+    # import a book by id from a directory
+    # Assumes the book is the correct file for the id and renames it to match
+    # Adds the id to the database if not already there
+
     # noinspection PyBroadException
     try:
         if not source_dir or not os.path.isdir(source_dir):
@@ -91,28 +94,28 @@ def importBook(source_dir=None, library='eBook', bookid=None):
             return False
 
         myDB = database.DBConnection()
-        if library == 'eBook':
+        if library in ['eBook', 'Audio']:
             logger.debug('Processing %s directory %s' % (library, source_dir))
             book = myDB.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
                 logger.warn("Bookid [%s] not found in database, trying to add..." % (bookid,))
                 if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                     GR_ID = GoodReads(bookid)
-                    GR_ID.find_book(bookid, None, None, "Added by processFolder %s" % source_dir)
+                    GR_ID.find_book(bookid, None, None, "Added by importBook %s" % source_dir)
                 elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                     GB_ID = GoogleBooks(bookid)
-                    GB_ID.find_book(bookid, None, None, "Added by processFolder %s" % source_dir)
-            # see if it's there now...
-            book = myDB.match('SELECT * from books where BookID=?', (bookid,))
+                    GB_ID.find_book(bookid, None, None, "Added by importBook %s" % source_dir)
+                # see if it's there now...
+                book = myDB.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
                 logger.debug("Unable to add bookid %s to database" % bookid)
                 return False
             return process_book(source_dir, bookid, library)
         else:
-            logger.error("processFolder for %s not implemented" % library)
+            logger.error("importBook not implemented for %s" % library)
             return False
     except Exception:
-        logger.error('Unhandled exception in processFolder: %s' % traceback.format_exc())
+        logger.error('Unhandled exception in importBook: %s' % traceback.format_exc())
         return False
 
 
@@ -571,6 +574,16 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         myDB.action('UPDATE wanted SET Status="Failed",DLResult=? WHERE BookID=?',
                                     (rejected, book['BookID']))
                         delete_task(book['Source'], book['DownloadID'], True)
+                else:
+                    dlfolder = getDownloadFolder(book['Source'], book['DownloadID'])
+                    if dlfolder:
+                        match = False
+                        for download_dir in dirlist:
+                            if dlfolder.startswith(download_dir):
+                                match = True
+                                break
+                        if not match:
+                            logger.warn("Unexpected download folder %s" % dlfolder)
 
         for download_dir in dirlist:
             try:
@@ -2068,7 +2081,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
 
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB'])
-            elif ' --duplicates) : ' in res or ' --duplicates) : ' in err:
+            elif ' --duplicates' in res or ' --duplicates' in err:
                 logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                             (authorname, bookname))
                 myDB = database.DBConnection()
