@@ -125,6 +125,10 @@ def ircConnect(server, port, channel, botnick, botpass):
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                             logger.debug(lyne)
 
+                        if len(lynes) == 1 and not lyne[0]:
+                            logger.warn("Empty response")
+                            return None
+
                         if "All connections in use" in lyne:
                             logger.warn(lyne)
                             return None
@@ -177,11 +181,13 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
             if status == "waiting":
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
-                    # about to repeat search, ensure not too soon
-                    pause =  (last_search_time + abortafter) - time.time()
+                   # about to repeat search, ensure not too soon
+                    pause_until =  last_search_time + abortafter
+                    pause = pause_until - time.time()
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
-                        time.sleep(pause)
+                        while pause_until > time.time():
+                            get_response()  # listen and handle ping
                 irc.send(channel, new_cmd)
                 cmd_sent = time.time()
                 last_cmd = "socket timeout resend %s" % new_cmd
@@ -199,10 +205,17 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
         for lyne in lynes:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug(lyne)
+
+            if len(lynes) == 1 and not lyne[0]:
+                logger.debug("Empty response")
+                time.sleep(ratelimit)
+                status = ""
+
             if 'KICK' in lyne:
                 status = ""
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
                 time.sleep(ratelimit)
+
             elif '404' in lyne:  # cannot send to channel
                 status = ""
                 logger.debug("[%s] Rejoining %s" % (
@@ -219,11 +232,13 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
             if status == "joined":
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
-                    # about to repeat search, ensure not too soon
-                    pause =  (last_search_time + abortafter) - time.time()
+                   # about to repeat search, ensure not too soon
+                    pause_until =  last_search_time + abortafter
+                    pause = pause_until - time.time()
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
-                        time.sleep(pause)
+                        while pause_until > time.time():
+                            get_response()  # listen and handle ping
                 irc.send(channel, new_cmd)
                 cmd_sent = time.time()
                 last_cmd = new_cmd
