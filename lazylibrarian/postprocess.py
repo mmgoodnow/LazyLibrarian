@@ -19,6 +19,7 @@ import os
 import re
 import shutil
 import tarfile
+import tempfile
 import threading
 import time
 import traceback
@@ -72,6 +73,119 @@ def update_downloads(provider):
         myDB.action('UPDATE downloads SET Count=? WHERE Provider=?', (counter + 1, provider))
     else:
         myDB.action('INSERT into downloads (Count, Provider) VALUES  (?, ?)', (1, provider))
+
+
+def importMag(source_file=None, title=None, issuenum=None):
+    # import a magazine issue by title/num
+    # Assumes the source file is the correct file for the issue and renames it to match
+    # Adds the magazine id to the database if not already there
+
+    # noinspection PyBroadException
+    try:
+        if not source_file or not os.path.isfile(source_file):
+            logger.warn("%s is not a file" % source_file)
+            return False
+        basename, extn = os.path.splitext(source_file)
+        extn = extn.lstrip('.')
+        if not extn or extn not in getList(lazylibrarian.CONFIG['MAG_TYPE']):
+            logger.warn("%s is not a valid issue file" % source_file)
+            return False
+        if PY2:
+            title = unaccented_bytes(replace_all(title, namedic), only_ascii=False)
+        else:
+            title = unaccented(replace_all(title, namedic), only_ascii=False)
+        myDB = database.DBConnection()
+        entry = myDB.match('SELECT * FROM magazines where Title=?', (title,))
+        if not entry:
+            logger.debug("Magazine title [%s] not found, adding it" % title)
+            controlValueDict = {"Title": title}
+            newValueDict = {"LastAcquired": today(),
+                            "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS'],
+                            "IssueDate": "",
+                            "LatestCover": ""}
+            myDB.upsert("magazines", newValueDict, controlValueDict)
+        # rename issuefile to match pattern
+        # update magazine lastissue/cover as required
+        entry = myDB.match('SELECT * FROM magazines where Title=?', (title,))
+        mostrecentissue = entry['IssueDate']
+        dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
+            '$IssueDate', issuenum).replace('$Title', title)
+
+        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+            dest_dir = lazylibrarian.DIRECTORY('eBook')
+            dest_path = stripspaces(os.path.join(dest_dir, dest_path))
+            dest_path = makeUTF8bytes(dest_path)[0]
+            if not make_dirs(dest_path):
+                logger.warn('Unable to create directory %s' % dest_path)
+            else:
+                ignorefile = os.path.join(dest_path, b'.ll_ignore')
+                with open(ignorefile, 'a'):
+                    os.utime(ignorefile, None)
+        else:
+            dest_path = makeUTF8bytes(dest_path)[0]
+
+        if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+            global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                '$IssueDate', issuenum).replace('$Title', title)
+        else:
+            global_name = "%s %s" % (title, issuenum)
+        global_name = unaccented(global_name, only_ascii=False)
+        tempdir = tempfile.mkdtemp()
+        _ = safe_copy(source_file, tempdir)
+        success, dest_file = processDestination(tempdir, dest_path, '', '',
+                                                global_name, title, "mag")
+        shutil.rmtree(tempdir, ignore_errors=True)
+        if not success:
+            logger.error("Unable to import %s: %s" % (source_file, dest_file))
+            return False
+
+        os.remove(source_file)
+        if mostrecentissue:
+            if mostrecentissue.isdigit() and str(issuenum).isdigit():
+                older = (int(mostrecentissue) > int(issuenum))  # issuenumber
+            else:
+                older = (mostrecentissue > issuenum)  # YYYY-MM-DD
+        else:
+            older = False
+
+        maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (title,))
+        # create a thumbnail cover for the new issue
+        coverfile = createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
+        myhash = uuid.uuid4().hex
+        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+        copyfile(coverfile, hashname)
+        setperm(hashname)
+        issueid = create_id("%s %s" % (title, issuenum))
+        controlValueDict = {"Title": title, "IssueDate": issuenum}
+        newValueDict = {"IssueAcquired": today(),
+                        "IssueFile": dest_file,
+                        "IssueID": issueid,
+                        "Cover": 'cache/magazine/%s.jpg' % myhash
+                        }
+        myDB.upsert("issues", newValueDict, controlValueDict)
+
+        controlValueDict = {"Title": title}
+        if older:  # check this in case processing issues arriving out of order
+            newValueDict = {"LastAcquired": today(),
+                            "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
+        else:
+            newValueDict = {"LastAcquired": today(),
+                            "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS'],
+                            "IssueDate": issuenum,
+                            "LatestCover": 'cache/magazine/%s.jpg' % myhash}
+        myDB.upsert("magazines", newValueDict, controlValueDict)
+
+        if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+            logger.debug('createMAGOPF is disabled')
+        else:
+            _ = createMAGOPF(dest_file, title, issuenum, issueid)
+        if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
+            dest_path = os.path.dirname(dest_file)
+            processAutoAdd(dest_path, booktype='mag')
+
+    except Exception:
+        logger.error('Unhandled exception in importMag: %s' % traceback.format_exc())
+        return False
 
 
 def importBook(source_dir=None, library='eBook', bookid=None):

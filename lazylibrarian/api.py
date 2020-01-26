@@ -47,7 +47,7 @@ from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_tota
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.magazinescan import magazineScan
 from lazylibrarian.manualbook import searchItem
-from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG, importBook
+from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG, importBook, importMag
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -186,6 +186,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNewAuthors': '[&limit=] List newest authors and show when added and reason for adding',
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
             'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
+            'importMag': '&title= &num= &file= add magazine issue from file',
             }
 
 
@@ -449,6 +450,18 @@ class Api(object):
         else:
             library = kwargs['library']
         self.data = importBook(kwargs['dir'], library, kwargs['id'])
+
+    def _importMag(self, **kwargs):
+        if 'title' not in kwargs:
+            self.data = 'Missing parameter: title'
+            return
+        if 'num' not in kwargs:
+            self.data = 'Missing parameter: num'
+            return
+        if 'file' not in kwargs:
+            self.data = 'Missing parameter: file'
+            return
+        self.data = importMag(kwargs['file'], kwargs['title'], kwargs['num'])
 
     def _nameVars(self, **kwargs):
         if 'id' not in kwargs:
