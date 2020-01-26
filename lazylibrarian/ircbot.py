@@ -154,9 +154,12 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
     received_data = b''
     status = ""
     cmd_sent = time.time()
+    last_cmd = ''
+    last_search_cmd = ''
+    last_search_time = 0
     retries = 0
     maxretries = 3
-    abortafter = 30
+    abortafter = 60
     text = ''
     ratelimit = 2
 
@@ -170,10 +173,21 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 logger.debug("Rejoining %s" % channel)
                 irc.join(channel)
                 cmd_sent = time.time()
+                last_cmd = 'socket timeout re-join %s' % channel
             if status == "waiting":
-                irc.send(channel, cmd + " " + searchstring)
+                new_cmd = cmd + " " + searchstring
+                if new_cmd == last_search_cmd:
+                    # about to repeat search, ensure not too soon
+                    pause =  (last_search_time + abortafter) - time.time()
+                    if pause > 0:
+                        logger.debug("Waiting %ssec before resending search" % pause)
+                        time.sleep(pause)
+                irc.send(channel, new_cmd)
                 cmd_sent = time.time()
-                logger.debug("Resent %s" % cmd + " " + searchstring)
+                last_cmd = "socket timeout resend %s" % new_cmd
+                logger.debug(new_cmd)
+                last_search_time = cmd_sent
+                last_search_cmd = new_cmd
         except socket.error as e:
             logger.error("Socket error: %s" % str(e))
             # if disconnected need to reconnect and rejoin channel
@@ -195,6 +209,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                     lyne.rsplit(':', 1)[1], channel))
                 time.sleep(ratelimit)
                 irc.join(channel)
+                last_cmd = '404 rejoin %s' % channel
                 cmd_sent = time.time()
 
             if "PRIVMSG" in lyne and channel in lyne and "hello" in lyne:
@@ -202,10 +217,20 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                 logger.debug("Sent HELLO")
 
             if status == "joined":
-                irc.send(channel, cmd + " " + searchstring)
+                new_cmd = cmd + " " + searchstring
+                if new_cmd == last_search_cmd:
+                    # about to repeat search, ensure not too soon
+                    pause =  (last_search_time + abortafter) - time.time()
+                    if pause > 0:
+                        logger.debug("Waiting %ssec before resending search" % pause)
+                        time.sleep(pause)
+                irc.send(channel, new_cmd)
                 cmd_sent = time.time()
+                last_cmd = new_cmd
                 status = "waiting"
                 logger.debug("Asking %s for %s" % (cmd, searchstring))
+                last_search_cmd = new_cmd
+                last_search_time = cmd_sent
 
             elif status == "waiting":
                 if len(lyne.split("matches")) > 1:
@@ -291,7 +316,7 @@ def ircSearch(irc, channel, searchstring, cmd=":@search"):
                             logger.warn("Timed out on main channel")
 
         if time.time() - cmd_sent > abortafter:
-            logger.warn("No response from %s" % cmd)
+            logger.warn("No response in %ssec from %s" % (abortafter, last_cmd))
             status = ""
             retries += 1
         if retries > maxretries:
