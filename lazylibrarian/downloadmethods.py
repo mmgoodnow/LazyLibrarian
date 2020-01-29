@@ -83,7 +83,7 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
         if not irc:
             msg = "Failed to connect"
         else:
-            fname, data = ircSearch(irc, myprov['CHANNEL'], dl_title, cmd=':' + dl_url)
+            fname, data = ircSearch(irc, myprov['SERVER'], myprov['CHANNEL'], dl_title, cmd=':' + dl_url)
 
     downloadID = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 

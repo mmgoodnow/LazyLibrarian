@@ -75,6 +75,9 @@ def findBestResult(resultlist, book, searchtype, source):
             author = unaccented(replace_all(book['authorName'], dic), only_ascii=False)
             title = unaccented(replace_all(book['bookName'], dic), only_ascii=False)
 
+        if 'short' in searchtype and '(' in title:
+            title = title.split('(')[0].strip()
+
         if book['library'] == 'AudioBook':
             reject_list = getList(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
             maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXAUDIO'], 0)
