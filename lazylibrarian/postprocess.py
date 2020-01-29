@@ -697,7 +697,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 match = True
                                 break
                         if not match:
-                            logger.warn("Unexpected download folder %s" % dlfolder)
+                            logger.debug("Unexpected download folder from %s : %s" % (book['Source'], dlfolder))
 
         for download_dir in dirlist:
             try:
