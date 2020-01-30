@@ -743,16 +743,14 @@ def IRCSEARCH(book, provider, searchType, test=False):
         return True, results
 
     if searchType not in ['mag', 'comic']:
-        # For irc search always use the short title and cache the results
+        # For irc search we use just the author name and cache the results
         # so we can search long and short from the same resultset
-        if 'short' not in searchType:
-            authorname, bookname = get_searchterm(book, 'short' + searchType)
-        else:
-            authorname, bookname = get_searchterm(book, searchType)
+        # but allow a separate "title only" search
+        authorname, bookname = get_searchterm(book, searchType)
         if 'title' in searchType:
             book['searchterm'] = bookname
         else:
-            book['searchterm'] = authorname + ' ' + bookname
+            book['searchterm'] = authorname
         logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
                                                  provider['CHANNEL'], book['searchterm']))
         fname, data = ircSearch(irc, provider['SERVER'], provider['CHANNEL'], book['searchterm'])

@@ -55,7 +55,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-01-27 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2020-01-29 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -520,7 +520,11 @@ def ircResults(provider, fname, data, irc=None):
 
                 for lyne in lynes:
                     if '303' in lyne:  # RPL_ISON
-                        res = lyne.split('303')[1].split(':')[1]
+                        res = lyne.split('303')[1]
+                        if ':' in res:
+                            res = res.split(':')[1]
+                        else:
+                            logger.warn("Unexpected ISON reply: [%s]" % lyne)
                         online = res.split()
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                             logger.debug("Found %s online" % len(online))

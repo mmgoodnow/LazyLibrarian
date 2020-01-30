@@ -345,11 +345,11 @@ def search_book(books=None, library=None):
                                 warnMode('direct')
 
                         # irchighway says search results without both author and title will be
-                        # silently rejected, so don't auto-use title search
-                        # elif mode == 'irc' and 'irc' in modelist:
-                        #    resultlist, nprov = IterateOverIRCSites(book, 'title' + searchtype)
-                        #    if not nprov:
-                        #        warnMode('irc')
+                        # silently rejected but that doesn't seem to be actioned...
+                        elif mode == 'irc' and 'irc' in modelist:
+                            resultlist, nprov = IterateOverIRCSites(book, 'title' + searchtype)
+                            if not nprov:
+                                warnMode('irc')
 
                         elif mode == 'rss' and 'rss' in modelist:
                             resultlist = rss_resultlist
