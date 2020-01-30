@@ -172,9 +172,7 @@ class EmailNotifier:
                 else:
                     filename = None
                     preftype = None
-                    if lazylibrarian.CONFIG['EMAIL_SEND_TYPE']:
-                        custom_typelist = getList(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
-
+                    custom_typelist = getList(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
                     typelist = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
@@ -200,7 +198,8 @@ class EmailNotifier:
                         if bookfile and os.path.isfile(bookfile):
                             basename, extn = os.path.splitext(bookfile)
                             for item in set(
-                                    typelist + custom_typelist):  # Search download and email formats for existing book formats
+                                    typelist + custom_typelist):
+                                # Search download and email formats for existing book formats
                                 target = basename + '.' + item
                                 if os.path.isfile(target):
                                     types.append(item)
@@ -211,17 +210,22 @@ class EmailNotifier:
                             if preftype in types:
                                 filename = basename + '.' + preftype
 
-                            # if the format is not available, see if it's a type we want to convert, otherwise send the first available format
+                            # if the format is not available, see if it's a type we want to convert,
+                            # otherwise send the first available format
                             else:
-                                # if there is a type we want to convert from in the available formats, convert it
+                                # if there is a type we want to convert from in the available formats,
+                                # convert it
                                 for convertable_format in getList(lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']):
                                     if convertable_format in types:
+                                        # noinspection PyBroadException
                                         try:
-                                            filename = ebook_convert.convert(basename + '.' + convertable_format, preftype)
+                                            filename = ebook_convert.convert(basename + '.' + convertable_format,
+                                                                             preftype)
                                             break
                                         except Exception:
                                             continue
-                                # If no convertable formats found, revert to default behavior of sending first available format
+                                # If no convertable formats found, revert to default behavior of sending
+                                # first available format
                                 else:
                                     filename = basename + '.' + types[0]
 

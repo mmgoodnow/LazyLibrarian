@@ -44,7 +44,7 @@ def convert(input_file, output_format):
 
     params = [converter, input_file, basename + '.' + output_format]
     try:
-        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+        _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
         if calibreid:  # tell calibre about the new format
             params = [calibredb, "add_format", "--with-library", "%s" % ebook_directory]
 
@@ -55,7 +55,7 @@ def convert(input_file, output_format):
                                '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])
 
             params.extend([calibreid, "%s" % basename + '.' + output_format])
-            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
         return basename + '.' + output_format
     except Exception as e:
         sys.stderr.write("%s\n" % e)
