@@ -5344,7 +5344,10 @@ class WebInterface(object):
         if 'keys' in kwargs:
             lazylibrarian.CONFIG['PUSHOVER_KEYS'] = kwargs['keys']
         if 'priority' in kwargs:
-            lazylibrarian.CONFIG['PUSHOVER_PRIORITY'] = check_int(kwargs['priority'], 0)
+            res = check_int(kwargs['priority'], 0, positive=False)
+            if res < -2 or res > 1:
+                res = 0
+            lazylibrarian.CONFIG['PUSHOVER_PRIORITY'] = res
         if 'device' in kwargs:
             lazylibrarian.CONFIG['PUSHOVER_DEVICE'] = kwargs['device']
 

@@ -3014,7 +3014,7 @@
                     </div>
                     <div class="form-group">
                       <label for="pushover_priority" class="control-label">Pushover Priority</label>
-                      <input type="text" id="pushover_priority" name="pushover_priority" value="${lazylibrarian.CONFIG['PUSHOVER_PRIORITY']}" class="form-control" placeholder="Pushover Priority">
+                      <input type="number" id="pushover_priority" name="pushover_priority" min=-2 max=1 value="${lazylibrarian.CONFIG['PUSHOVER_PRIORITY']}" class="form-control" placeholder="Pushover Priority">
                     </div>
                     <div class="form-group">
                       <input type="button" value="Test Pushover" id="testPushover" class="btn btn-default">
