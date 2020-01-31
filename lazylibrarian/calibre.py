@@ -391,9 +391,10 @@ def calibreTest():
             res = res + '\nDatabase READ ok'
             wrt, err, rc = calibredb('add', ['--authors', 'LazyLibrarian', '--title', 'dummy', '--empty'], [])
             logger.debug("Calibredb add  " + wrt)
-            # Answer should look like "Added book ids : bookID" (string may be translated!)
+            # Answer should look like "Added book ids: bookID" (string may be translated!)
+            # or "add Integration status: True Added book ids: bookID"
             try:
-                calibre_id = wrt.split(": ", 1)[1].split("\n", 1)[0].strip()
+                calibre_id = wrt.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
             except IndexError:
                 res = res + '\nDatabase WRITE Failed'
                 return res
