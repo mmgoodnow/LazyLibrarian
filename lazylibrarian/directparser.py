@@ -184,6 +184,7 @@ def BOK(book=None, prov=None, test=False):
                                     if delay:
                                         lazylibrarian.providers.BlockProvider(provider, msg, delay=delay)
                                         logger.warn(msg)
+                                        url = None
                                 else:
                                     link = a['href']
                                 if link and len(link) > 2:

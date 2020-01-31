@@ -55,7 +55,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-01-29 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2020-01-30 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -182,47 +182,51 @@ def ircConnect(server, port, channel, botnick, botpass):
                     logger.warn("Reply timed out")
                     retries += 1
         except Exception as e:
-            logger.error(e)
+            logger.error(str(e))
             retries += 1
     return None
 
 
-def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
+def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
     if lazylibrarian.providers.ProviderIsBlocked(server):
         msg = "%s is blocked" % channel
         logger.warn(msg)
         return False, msg
 
-    cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
-    if searchstring:
-        myhash = md5_utf8(server + channel + searchstring)
-    else:
-        myhash = md5_utf8(server + channel + cmd)
-    valid_cache = False
-    hashfilename = os.path.join(cacheLocation, myhash + ".irc")
-    expiry = 2 * 24 * 60 * 60  # expire cache after this many seconds
-
-    if os.path.isfile(hashfilename):
-        cache_modified_time = os.stat(hashfilename).st_mtime
-        time_now = time.time()
-        if cache_modified_time < time_now - expiry:
-            # Cache entry is too old, delete it
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
-                logger.debug("Expiring %s" % myhash)
-            os.remove(hashfilename)
+    if cache:
+        cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
+        if searchstring:
+            myhash = md5_utf8(server + channel + searchstring)
         else:
-            valid_cache = True
+            myhash = md5_utf8(server + channel + cmd)
+        valid_cache = False
+        hashfilename = os.path.join(cacheLocation, myhash + ".irc")
+        expiry = 2 * 24 * 60 * 60  # expire cache after this many seconds
 
-    if valid_cache:
-        lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
-            logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
-                                                                                searchstring))
-        with open(hashfilename, "rb") as cachefile:
-            data = cachefile.read()
-        return hashfilename, data
+        if os.path.isfile(hashfilename):
+            cache_modified_time = os.stat(hashfilename).st_mtime
+            time_now = time.time()
+            if cache_modified_time < time_now - expiry:
+                # Cache entry is too old, delete it
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+                    logger.debug("Expiring %s" % myhash)
+                os.remove(hashfilename)
+            else:
+                valid_cache = True
 
-    lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
+        if valid_cache:
+            lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+                logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
+                                                                                    searchstring))
+            with open(hashfilename, "rb") as cachefile:
+                data = cachefile.read()
+            return hashfilename, data
+
+        lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
+    else:
+        hashfilename = ''
+
     received_data = b''
     status = ""
     cmd_sent = time.time()
@@ -234,6 +238,7 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
     abortafter = 60
     ratelimit = 2
     pingcheck = 0
+    filename = ''
 
     while status != "finished":
         try:
@@ -244,7 +249,11 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
             lynes = ''
             if status == "":
                 logger.debug("Rejoining %s" % channel)
-                irc.join(channel)
+                try:
+                    irc.join(channel)
+                except Exception as e:
+                    logger.debug(str(e))
+                    return False, str(e)
                 cmd_sent = time.time()
                 last_cmd = 'socket timeout re-join %s' % channel
             if status == "waiting":
@@ -276,7 +285,11 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
                     retries += 1
                 else:
                     status = ""
-                    irc.join(channel)
+                    try:
+                        irc.join(channel)
+                    except Exception as e:
+                        logger.debug(str(e))
+                        return False, str(e)
                     last_cmd = 'Empty response, rejoin %s' % channel
                     cmd_sent = time.time()
 
@@ -387,15 +400,11 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
                             if len(received_data) >= filesize:
                                 peersocket.close()
                                 logger.debug("Completed, got %s" % len(received_data))
-                                # status = "finished"
+                                status = "finished"
                                 # irc.part(channel)
-                                logger.debug("CacheHandler: Storing %s" % hashfilename)
-                                with open(hashfilename, "wb") as cachefile:
-                                    cachefile.write(received_data)
-                                return hashfilename, received_data
                             else:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                                    logger.debug("Got %s of %s" % (len(received_data), size))
+                                    logger.debug("Got %s of %s" % (len(received_data), filesize))
                                 peersocket.send(struct.pack("!I", len(received_data)))
                         if retries > maxretries:
                             msg = "Aborting download, too many retries"
@@ -411,19 +420,22 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search"):
                                 logger.warn("Timed out on main channel")
                             pingcheck = time.time()
 
-        if time.time() - cmd_sent > abortafter:
-            logger.warn("No response in %ssec from %s" % (abortafter, last_cmd))
-            status = ""
-            retries += 1
-        if retries > maxretries:
-            msg = "Aborting, too many retries"
-            logger.warn(msg)
-            return False, msg
+        if status != "finished":
+            if time.time() - cmd_sent > abortafter:
+                logger.warn("No response in %ssec from %s" % (abortafter, last_cmd))
+                status = ""
+                retries += 1
+            if retries > maxretries:
+                msg = "Aborting, too many retries"
+                logger.warn(msg)
+                return False, msg
 
-    logger.debug("CacheHandler: Storing %s" % hashfilename)
-    with open(hashfilename, "wb") as cachefile:
-        cachefile.write(received_data)
-    return hashfilename, received_data
+    if cache:
+        logger.debug("CacheHandler: Storing %s" % hashfilename)
+        with open(hashfilename, "wb") as cachefile:
+            cachefile.write(received_data)
+        return hashfilename, received_data
+    return filename, received_data
 
 
 def ircResults(provider, fname, data, irc=None):
