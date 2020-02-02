@@ -2176,7 +2176,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                         _ = safe_move(srcfile, dstfile)
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
-                    os.remove(srcfile)
+                    if os.path.isfile(srcfile):
+                        os.remove(srcfile)
+                    elif os.path.isdir(srcfile):
+                        shutil.rmtree(srcfile)
 
             identifier = ''
             if booktype == 'ebook':
