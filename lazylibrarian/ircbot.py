@@ -50,12 +50,25 @@ def ip_numstr_to_quad(num):
     return ".".join(map(str, bts))
 
 
+def valid_ip(s):
+    a = s.split('.')
+    if len(a) != 4:
+        return False
+    for x in a:
+        if not x.isdigit():
+            return False
+        i = int(x)
+        if i < 0 or i > 255:
+            return False
+    return True
+
+
 class IRC:
 
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-01-30 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2020-01-31 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -145,20 +158,42 @@ class IRC:
         return lynes
 
 
-def ircConnect(server, port, channel, botnick, botpass):
-    if lazylibrarian.providers.ProviderIsBlocked(server):
-        logger.warn("%s is blocked" % channel)
+def ircConnect(provider):
+    if lazylibrarian.providers.ProviderIsBlocked(provider['SERVER']):
+        logger.warn("%s is blocked" % provider['SERVER'])
         return None
+
+    irc = provider.get('IRC')
+    if irc:
+        logger.debug("Trying existing connection to %s" % provider['SERVER'])
+        try:
+            res = irc.get_response()
+            if res:
+                irc.join(provider['CHANNEL'])
+                _ = irc.get_response()
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("Sent JOIN %s" % provider['CHANNEL'])
+                return irc
+        except Exception as e:
+            logger.debug("Existing connection failed: %s" % str(e))
+            provider['IRC'] = None
+            # if the attempt to join failed it will block us,
+            # and we were not blocked before the attempt
+            for entry in lazylibrarian.PROVIDER_BLOCKLIST:
+                if entry["name"] == provider['SERVER']:
+                    lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
+
     retries = 0
-    maxretries = 3
+    maxretries = 5
     irc = IRC()
     e = ''
+    botnick = provider['BOTNICK']
     while retries < maxretries:
         try:
             if '114' in str(e):  # already in progress
-                time.sleep(10)
+                time.sleep(5)
             else:
-                irc.connect(server, port, botnick, botpass)
+                irc.connect(provider['SERVER'], 6667, botnick, provider['BOTPASS'])
             while retries < maxretries:
                 try:
                     lynes = irc.get_response()
@@ -173,10 +208,12 @@ def ircConnect(server, port, channel, botnick, botpass):
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                                     logger.debug("Trying NICK %s" % botnick)
                                 break
-                            elif "Welcome to" in lyne:
-                                irc.join(channel)
+                            elif "001" in lyne:  # Welcome
+                                irc.join(provider['CHANNEL'])
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                                    logger.debug("Sent JOIN %s" % channel)
+                                    logger.debug("Sent JOIN %s" % provider['CHANNEL'])
+                                    _ = irc.get_response()
+                                provider['IRC'] = irc
                                 return irc
                 except socket.timeout:
                     logger.warn("Reply timed out")
@@ -187,18 +224,18 @@ def ircConnect(server, port, channel, botnick, botpass):
     return None
 
 
-def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
-    if lazylibrarian.providers.ProviderIsBlocked(server):
-        msg = "%s is blocked" % channel
+def ircSearch(provider, searchstring, cmd=":@search", cache=True):
+    if lazylibrarian.providers.ProviderIsBlocked(provider['SERVER']):
+        msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
         return False, msg
 
     if cache:
         cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
         if searchstring:
-            myhash = md5_utf8(server + channel + searchstring)
+            myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + searchstring)
         else:
-            myhash = md5_utf8(server + channel + cmd)
+            myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + cmd)
         valid_cache = False
         hashfilename = os.path.join(cacheLocation, myhash + ".irc")
         expiry = 2 * 24 * 60 * 60  # expire cache after this many seconds
@@ -240,6 +277,10 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
     pingcheck = 0
     filename = ''
 
+    irc = provider['IRC']
+    if not irc:
+        ircConnect(provider)
+
     while status != "finished":
         try:
             lynes = irc.get_response()
@@ -248,14 +289,14 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
             retries += 1
             lynes = ''
             if status == "":
-                logger.debug("Rejoining %s" % channel)
+                logger.debug("Rejoining %s" % provider['CHANNEL'])
                 try:
-                    irc.join(channel)
+                    irc.join(provider['CHANNEL'])
                 except Exception as e:
                     logger.debug(str(e))
                     return False, str(e)
                 cmd_sent = time.time()
-                last_cmd = 'socket timeout re-join %s' % channel
+                last_cmd = 'socket timeout re-join %s' % provider['CHANNEL']
             if status == "waiting":
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
@@ -266,7 +307,7 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
                         logger.debug("Waiting %ssec before resending search" % pause)
                         while pause_until > time.time():
                             _ = irc.get_response()  # listen and handle ping
-                irc.send(server, channel, new_cmd)
+                irc.send(provider['SERVER'], provider['CHANNEL'], new_cmd)
                 cmd_sent = time.time()
                 last_cmd = "socket timeout resend %s" % new_cmd
                 logger.debug(new_cmd)
@@ -286,29 +327,29 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
                 else:
                     status = ""
                     try:
-                        irc.join(channel)
+                        irc.join(provider['CHANNEL'])
                     except Exception as e:
                         logger.debug(str(e))
                         return False, str(e)
-                    last_cmd = 'Empty response, rejoin %s' % channel
+                    last_cmd = 'Empty response, rejoin %s' % provider['CHANNEL']
                     cmd_sent = time.time()
 
             elif 'KICK' in lyne:
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
-                lazylibrarian.providers.BlockProvider(server, "Kick", 600)
+                lazylibrarian.providers.BlockProvider(provider['SERVER'], "Kick", 600)
                 return False, "Kick"
 
             elif '404' in lyne:  # cannot send to channel
                 status = ""
                 logger.debug("[%s] Rejoining %s" % (
-                    lyne.rsplit(':', 1)[1], channel))
+                    lyne.rsplit(':', 1)[1], provider['CHANNEL']))
                 time.sleep(ratelimit)
-                irc.join(channel)
-                last_cmd = '404 rejoin %s' % channel
+                irc.join(provider['CHANNEL'])
+                last_cmd = '404 rejoin %s' % provider['CHANNEL']
                 cmd_sent = time.time()
 
-            elif "PRIVMSG" in lyne and channel in lyne and "hello" in lyne:
-                irc.send(server, channel, "Hello!")
+            elif "PRIVMSG" in lyne and provider['CHANNEL'] in lyne and "hello" in lyne:
+                irc.send(provider['SERVER'], provider['CHANNEL'], "Hello!")
                 logger.debug("Sent HELLO")
 
             if status == "joined":
@@ -321,7 +362,7 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
                         logger.debug("Waiting %ssec before resending search" % pause)
                         while pause_until > time.time():
                             _ = irc.get_response()  # listen and handle ping
-                irc.send(server, channel, new_cmd)
+                irc.send(provider['SERVER'], provider['CHANNEL'], new_cmd)
                 cmd_sent = time.time()
                 last_cmd = new_cmd
                 status = "waiting"
@@ -355,9 +396,9 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
                         # irc.part(channel)
                         return False, msg
 
-            elif channel in lyne and status == "":
+            elif provider['CHANNEL'] in lyne and status == "":
                 status = "joined"
-                logger.debug("Joined %s" % channel)
+                logger.debug("Joined %s" % provider['CHANNEL'])
 
             if "PRIVMSG" in lyne and "DCC SEND" in lyne:
                 res = lyne.split("DCC SEND")[1].split('\n')[0].split()
@@ -366,10 +407,20 @@ def ircSearch(irc, server, channel, searchstring, cmd=":@search", cache=True):
                 peer_address = res[-3]
                 filename = ' '.join(res[:-3])
                 filename = filename.strip('"')
-                logger.debug("%s %s %s %s" % (filename, ip_numstr_to_quad(peer_address), peer_port, size))
+                try:
+                    if valid_ip(peer_address):
+                        peeraddress = peer_address
+                    elif peer_address.isdigit():
+                        peeraddress = ip_numstr_to_quad(peer_address)
+                    else:
+                        peeraddress = socket.gethostbyname(peer_address)
+                except Exception as e:
+                    logger.debug("Failed to convert peer_address [%s] %s" % (peer_address, str(e)))
+                    peeraddress = peer_address
+
+                logger.debug("%s %s %s %s" % (filename, peeraddress, peer_port, size))
                 filesize = int(size.strip('\x01'))
 
-                peeraddress = socket.gethostbyname(peer_address)
                 peerport = int(peer_port)
                 peersocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 peersocket.settimeout(30)

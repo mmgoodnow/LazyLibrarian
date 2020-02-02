@@ -73,19 +73,12 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     if not myprov:
         msg = "%s server not found" % provider
     else:
-        irc = myprov.get('IRC')
-        if irc:
-            logger.debug("Using existing connection to %s" % provider)
-        else:
-            irc = ircConnect(myprov['SERVER'], 6667, myprov['CHANNEL'],
-                             myprov['BOTNICK'], myprov['BOTPASS'])
-            myprov['IRC'] = irc
+        irc = ircConnect(myprov)
         if not irc:
             msg = "Failed to connect"
             myprov['IRC'] = None
         else:
-            fname, data = ircSearch(irc, myprov['SERVER'], myprov['CHANNEL'], dl_title,
-                                    cmd=':' + dl_url, cache=False)
+            fname, data = ircSearch(myprov, dl_title, cmd=':' + dl_url, cache=False)
             if not fname:
                 myprov['IRC'] = None
 
