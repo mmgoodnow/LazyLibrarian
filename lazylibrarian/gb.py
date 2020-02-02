@@ -719,7 +719,8 @@ class GoogleBooks:
                         "AuthorDeath": author['authordeath'],
                         "DateAdded": today(),
                         "Updated": int(time.time()),
-                        "Status": newauthor_status
+                        "Status": newauthor_status,
+                        "Reason": reason
                     }
                     authorname = author['authorname']
                     myDB.upsert("authors", newValueDict, controlValueDict)
