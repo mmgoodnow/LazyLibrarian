@@ -371,8 +371,9 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     followid = ''
                 myDB.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, authorid))
         else:
-            # if we're not loading any books, mark author as ignored
-            entry_status = 'Ignored'
+            # if we're not loading any books, mark author as paused in case it's
+            # a new author in a wishlist and there might be other books in other wishlists
+            entry_status = 'Paused'
 
         controlValueDict = {"AuthorID": authorid}
         newValueDict = {"Status": entry_status}
