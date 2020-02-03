@@ -1877,7 +1877,7 @@ def delete_task(Source, DownloadID, remove_data):
                 client.call('core.remove_torrent', DownloadID, remove_data)
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
-        elif Source == 'DIRECT':
+        elif Source == 'DIRECT' or Source.startswith('IRC'):
             return True
         else:
             logger.debug("Unknown source [%s] in delete_task" % Source)
