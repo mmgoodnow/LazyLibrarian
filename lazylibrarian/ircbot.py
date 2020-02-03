@@ -17,12 +17,10 @@ import socket
 import time
 import struct
 import os
-import tarfile
 from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, replace_all, md5_utf8
-from lazylibrarian.common import namedic
+from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8
 try:
     import zipfile
 except ImportError:
@@ -30,11 +28,6 @@ except ImportError:
         import lib.zipfile as zipfile
     else:
         import lib3.zipfile as zipfile
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
-
 
 def ip_numstr_to_quad(num):
     """
@@ -68,7 +61,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-01-31 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2020-02-02 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -89,12 +82,12 @@ class IRC:
 
     def pong(self, msg):
         reply = msg.replace('PING', 'PONG')
-        logger.debug("Reply: %s" % reply)
+        logger.debug(reply)
         self.irc.send(makeBytestr(reply + "\n"))
 
     def version(self):
         reply = "VERSION " + self.ver
-        logger.debug("Reply: %s" % reply)
+        logger.debug(reply)
         self.irc.send(makeBytestr(reply + "\n"))
 
     def join(self, channel):
@@ -151,9 +144,9 @@ class IRC:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 if self.nick in lyne:
                     logger.debug(lyne)
-            if 'PING ' in lyne:
+            if lyne.startswith('PING '):
                 self.pong(lyne)
-            elif 'VERSION ' in lyne:
+            elif lyne.startswith('VERSION '):
                 self.version()
         return lynes
 
@@ -372,29 +365,23 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
 
             elif status == "waiting":
                 if len(lyne.split("matches")) > 1:
-                    titlefuzz = fuzz.partial_ratio(lyne, searchstring)
-                    logger.debug("fuzz %s%% for %s" % (titlefuzz, searchstring))
-                    if titlefuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
-                        res = lyne.split("matches")[0].split()
-                        try:
-                            matches = int(res[-1])
-                        except ValueError:
-                            matches = 0
-                        logger.debug("Found %d matches" % matches)
-                        if not matches:
-                            status = "finished"
+                    res = lyne.split("matches")[0].split()
+                    try:
+                        matches = int(res[-1])
+                    except ValueError:
+                        matches = 0
+                    logger.debug("Found %d matches" % matches)
+                    if not matches:
+                        status = "finished"
                 elif 'Request Denied' in lyne:
-                    titlefuzz = fuzz.partial_ratio(lyne, searchstring)
-                    logger.debug("fuzz %s%% for %s" % (titlefuzz, searchstring))
-                    if titlefuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
-                        try:
-                            msg = lyne.split("PRIVMSG")[1].split('\n')[0]
-                        except IndexError:
-                            msg = lyne
-                        logger.warn("Request Denied by %s" % cmd)
-                        logger.debug(msg)
-                        # irc.part(channel)
-                        return False, msg
+                    try:
+                        msg = lyne.split("PRIVMSG")[1].split('\n')[0]
+                    except IndexError:
+                        msg = lyne
+                    logger.warn("Request Denied by %s" % cmd)
+                    logger.debug(msg)
+                    # irc.part(channel)
+                    return False, msg
 
             elif provider['CHANNEL'] in lyne and status == "":
                 status = "joined"
@@ -482,6 +469,8 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                 return False, msg
 
     if cache:
+        # still cache if empty response (no matches)
+        # so we don't need to ask again
         logger.debug("CacheHandler: Storing %s" % hashfilename)
         with open(hashfilename, "wb") as cachefile:
             cachefile.write(received_data)
@@ -489,7 +478,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
     return filename, received_data
 
 
-def ircResults(provider, fname, data, irc=None):
+def ircResults(provider, fname):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word
@@ -498,25 +487,9 @@ def ircResults(provider, fname, data, irc=None):
     # if \r- in line last two words are size/unit
     results = []
     tor_date = today()
-    fname = replace_all(fname, namedic)
-    outfile = os.path.join(lazylibrarian.CACHEDIR, fname)
-    if not os.path.isfile(outfile):
-        with open(outfile, "wb") as f:
-            f.write(data)
-        logger.debug("Written %s" % outfile)
-    else:
-        if zipfile.is_zipfile(outfile):
-            data = zipfile.ZipFile(outfile)
-        elif tarfile.is_tarfile(outfile):
-            data = tarfile.TarFile(outfile)
-        elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(outfile):
-            data = lazylibrarian.RARFILE.RarFile(outfile)
-        elif lazylibrarian.UNRARLIB == 2:
-            # noinspection PyBroadException
-            try:
-                data = lazylibrarian.RARFILE(outfile)
-            except Exception:
-                data = None  # not a rar archive
+
+    if zipfile.is_zipfile(fname):
+        data = zipfile.ZipFile(fname)
         if data:
             our_member = None
             for member in data.namelist():
@@ -560,8 +533,12 @@ def ircResults(provider, fname, data, irc=None):
                                     'types': provider['DLTYPES'],
                                 })
             else:
-                logger.error("No results.txt found in %s" % outfile)
+                logger.error("No results file found in %s" % fname)
+        else:
+            logger.error("No zip data in %s" % fname)
+
     if results:
+        irc = provider['IRC']
         if irc:
             retries = 0
             maxretries = 8
@@ -614,4 +591,6 @@ def ircResults(provider, fname, data, irc=None):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug("Stripped %s results from %s users not online" %
                              (stripped, len(offline)))
+        else:
+            logger.debug("Not checking online status for results")
     return results
