@@ -1229,6 +1229,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
             abort = False
             hours = 0
             mins = 0
+            progress = 'Unknown'
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
             if book['Status'] == "Aborted":
@@ -1286,13 +1287,18 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 hours = int(diff / 3600)
                 mins = int(diff / 60)
                 if hours >= lazylibrarian.CONFIG['TASK_AGE']:
+                    progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
                     abort = True
-
             if abort:
                 dlresult = ''
                 if book['Source'] and book['Source'] != 'DIRECT':
                     if book['Status'] == "Snatched":
-                        dlresult = '%s was sent to %s %s hours ago' % (book['NZBtitle'], book['Source'], hours)
+                        progress = "%s" % progress
+                        if progress.isdigit():  # could be "Unknown" or -1
+                            progress = progress + '%'
+                        dlresult = '%s was sent to %s %s hours ago. Progress: %s' % (book['NZBtitle'],
+                                                                                     book['Source'],
+                                                                                     hours, progress)
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
                     logger.warn('%s, deleting failed task' % dlresult)
@@ -1719,7 +1725,7 @@ def getDownloadProgress(source, downloadid):
                             if total:
                                 remaining = item['RemainingSizeHi'] << 32 + item['RemainingSizeLo']
                                 done = total - remaining
-                                progress = done * 100 / total
+                                progress = int(done * 100 / total)
                                 if progress == 100:
                                     finished = True
                             break
