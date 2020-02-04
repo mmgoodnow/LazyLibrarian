@@ -974,7 +974,7 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
         for post in data.entries:
             title = None
             magnet = None
-            size = None
+            size = 0
             torrent = None
             nzb = None
             url = None
@@ -988,9 +988,14 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                         size = f['length']
                         torrent = f['href']
                         break
-                    if 'x-nzb' in f['type']:
+                    elif 'x-nzb' in f['type']:
                         size = f['length']
                         nzb = f['href']
+                        break
+                    elif f['href'].startswith('magnet'):
+                        magnet = f['href']
+                        if 'length' in f:
+                            size = f['length']
                         break
 
             if 'torrent_magneturi' in post:

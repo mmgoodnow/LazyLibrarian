@@ -29,6 +29,7 @@ except ImportError:
     else:
         import lib3.zipfile as zipfile
 
+
 def ip_numstr_to_quad(num):
     """
     Convert an IP number as an integer given in ASCII
