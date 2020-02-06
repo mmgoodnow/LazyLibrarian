@@ -1275,8 +1275,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
 
             elif book['Status'] == "Snatched" and lazylibrarian.CONFIG['TASK_AGE']:
-                # FUTURE: we could check percentage downloaded or eta?
-                # if percentage is increasing, it's just slow
+                # FUTURE: we could monitor percentage downloaded or eta?
+                # if percentage is increasing, it's just slow, or if eta is soon wait a bit longer
                 try:
                     when_snatched = datetime.datetime.strptime(book['NZBdate'], '%Y-%m-%d %H:%M:%S')
                     timenow = datetime.datetime.now()
@@ -1288,7 +1288,12 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 mins = int(diff / 60)
                 if hours >= lazylibrarian.CONFIG['TASK_AGE']:
                     progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
-                    abort = True
+                    # SAB can report 100% (or more) and not finished if missing blocks and needs repair
+                    if check_int(progress, 0) < 95:
+                        abort = True
+                    # allow a little more time for repair or if nearly finished
+                    elif hours >= lazylibrarian.CONFIG['TASK_AGE'] + 1:
+                        abort = True
             if abort:
                 dlresult = ''
                 if book['Source'] and book['Source'] != 'DIRECT':
@@ -1324,9 +1329,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
                 if book['Source']:
-                    logger.debug('%s was sent to %s %s minutes ago' % (book['NZBtitle'], book['Source'], mins))
+                    logger.debug('%s was sent to %s %s minutes ago. Progress %s' %
+                                 (book['NZBtitle'], book['Source'], mins, progress))
                 else:
-                    logger.debug('%s was sent somewhere?? %s minutes ago' % (book['NZBtitle'], mins))
+                    logger.debug('%s was sent somewhere?? %s minutes ago ' % (book['NZBtitle'], mins))
 
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
@@ -1695,11 +1701,11 @@ def getDownloadProgress(source, downloadid):
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
                             found = True
-                            # 100% if completed, 99% if still extracting, -1 if not found or failed
+                            # 100% if completed, 99% if still extracting or repairing, -1 if not found or failed
                             if item['status'] == 'Completed' and not item['fail_message']:
                                 progress = 100
                                 finished = True
-                            elif item['status'] == 'Extracting':
+                            elif item['status'] in ['Extracting', 'Fetching']:
                                 progress = 99
                             elif item['status'] == 'Failed' or item['fail_message']:
                                 myDB = database.DBConnection()
@@ -2013,7 +2019,10 @@ def process_book(pp_path=None, bookID=None, library=None):
                     frm = 'from '
 
                 notify_download("%s %s %s%s at %s" % (book_type, global_name, frm, snatched_from, now()), bookID)
-                update_downloads(snatched_from)
+                if was_snatched:
+                    update_downloads(dispName(was_snatched[0]['NZBprov']))
+                else:
+                    update_downloads("manually added")
                 return True
             else:
                 logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
