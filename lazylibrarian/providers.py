@@ -946,7 +946,7 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     results = []
 
     URL = host
-    if not str(URL)[:4] == "http":
+    if not str(URL)[:4] == "http" and not str(URL)[:4] == "file":
         URL = 'http://' + URL
 
     result, success = fetchURL(URL)
