@@ -717,9 +717,12 @@ def getSeriesAuthors(seriesid):
     myDB = database.DBConnection()
     result = myDB.match("select count(*) as counter from authors")
     start = int(result['counter'])
-    result = myDB.match('select SeriesName from series where SeriesID=?', (seriesid,))
+    result = myDB.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
     if not result:
         logger.error("Error getting series name for %s" % seriesid)
+        return 0
+    if result['Status'] in ['Paused', 'Ignored']:
+        logger.debug("Not getting series authors for %s, status is %s" % (result['SeriesName'], result['Status']))
         return 0
 
     seriesname = result['SeriesName']
@@ -831,6 +834,13 @@ def getSeriesMembers(seriesID=None, seriesname=None):
         Return as a list of lists """
     results = []
     api_hits = 0
+    myDB = database.DBConnection()
+    result = myDB.match('select SeriesName,Status from series where SeriesID=?', (seriesID,))
+    if result:
+        if result['Status'] in ['Paused', 'Ignored']:
+            logger.debug("Not getting series members for %s, status is %s" % (result['SeriesName'], result['Status']))
+            return results, api_hits
+
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
         params = {"format": "xml", "key": lazylibrarian.CONFIG['GR_API']}
         URL = 'https://www.goodreads.com/series/%s?%s' % (seriesID, urlencode(params))
