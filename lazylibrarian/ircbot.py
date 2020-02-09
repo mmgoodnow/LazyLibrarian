@@ -184,7 +184,7 @@ def ircConnect(provider):
     botnick = provider['BOTNICK']
     while retries < maxretries:
         try:
-            if '114' in str(e):  # already in progress
+            if ' 114 ' in str(e):  # already in progress
                 time.sleep(5)
             else:
                 irc.connect(provider['SERVER'], 6667, botnick, provider['BOTPASS'])
@@ -333,7 +333,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                 lazylibrarian.providers.BlockProvider(provider['SERVER'], "Kick", 600)
                 return False, "Kick"
 
-            elif '404' in lyne:  # cannot send to channel
+            elif ' 404 ' in lyne:  # cannot send to channel
                 status = ""
                 logger.debug("[%s] Rejoining %s" % (
                     lyne.rsplit(':', 1)[1], provider['CHANNEL']))
@@ -560,10 +560,10 @@ def ircResults(provider, fname):
                     lynes = []
 
                 for lyne in lynes:
-                    if '303' in lyne:  # RPL_ISON
-                        res = lyne.split('303')[1]
+                    if ' 303 ' in lyne:  # RPL_ISON
+                        res = lyne.split(' 303 ')[1]
                         if ':' in res:
-                            res = res.split(':')[1]
+                            res = res.rsplit(':')[1]
                         else:
                             logger.warn("Unexpected ISON reply: [%s]" % lyne)
                         online = res.split()
@@ -571,6 +571,8 @@ def ircResults(provider, fname):
                             logger.debug("Found %s online" % len(online))
                         if len(userlist) == len(online):
                             return results
+                        elif not len(online):
+                            return []
 
                 retries += 1
                 if retries >= maxretries:
