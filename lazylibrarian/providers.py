@@ -13,7 +13,11 @@
 import time
 import datetime
 from xml.etree import ElementTree
-from urllib.parse import urlparse
+
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -961,8 +965,6 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                 result = rss_provider.read()
         except Exception:
             logger.error("%s RSS file provider doesn't exist" % URL)
-
-    result, success = fetchURL(URL)
 
     if test:
         return success
