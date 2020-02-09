@@ -22,7 +22,7 @@
 
 
 # main variables
-DAEMON=/usr/bin/python
+DAEMON=/usr/bin/python3
 SETTINGS=/etc/default/lazylibrarian
 
 SETTINGS_LOADED=FALSE
