@@ -14,6 +14,11 @@ import time
 import datetime
 from xml.etree import ElementTree
 
+try:
+    from urllib.parse import urlparse
+except ImportError:
+    from urlparse import urlparse
+
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
@@ -949,7 +954,17 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     if not str(URL)[:4] == "http" and not str(URL)[:4] == "file":
         URL = 'http://' + URL
 
-    result, success = fetchURL(URL)
+    if str(URL)[:4] == "http":
+        result, success = fetchURL(URL)
+    elif str(URL)[:4] == "file":
+        success = False
+        file_path = urlparse(URL).path
+        try:
+            with open(file_path, "r") as rss_provider:
+                success = True
+                result = rss_provider.read()
+        except Exception:
+            logger.error("%s RSS file provider doesn't exist" % URL)
 
     if test:
         return success
