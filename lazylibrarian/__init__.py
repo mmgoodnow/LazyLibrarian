@@ -29,7 +29,8 @@ import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
     importer, grsync, comicsearch
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir
+from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir, \
+    path_isdir, path_isfile, path_exists, syspath
 from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_bytes, \
     makeUnicode, makeBytestr
 from lazylibrarian.dbupgrade import check_db
@@ -84,6 +85,7 @@ IGNORED_AUTHORS = 0
 CURRENT_TAB = '1'
 CACHE_HIT = 0
 CACHE_MISS = 0
+IRC_CACHE_EXPIRY = 2 * 24 *3600
 LAST_GOODREADS = 0
 LAST_LIBRARYTHING = 0
 LAST_COMICVINE = 0
@@ -753,7 +755,7 @@ def initialize():
             CONFIG['LOGDIR'] = os.path.join(DATADIR, 'Logs')
 
         # Create logdir
-        if not os.path.isdir(CONFIG['LOGDIR']):
+        if not path_isdir(CONFIG['LOGDIR']):
             try:
                 os.makedirs(CONFIG['LOGDIR'])
             except OSError as e:
@@ -788,7 +790,7 @@ def initialize():
 
         # Put the cache dir in the data dir for now
         CACHEDIR = os.path.join(DATADIR, 'cache')
-        if not os.path.isdir(CACHEDIR):
+        if not path_isdir(CACHEDIR):
             try:
                 os.makedirs(CACHEDIR)
             except OSError as e:
@@ -800,7 +802,7 @@ def initialize():
             try:
                 os.makedirs(cachelocation)
             except OSError as e:
-                if not os.path.isdir(cachelocation):
+                if not path_isdir(cachelocation):
                     logger.error('Could not create %s: %s' % (cachelocation, e))
 
         # nest these caches 2 levels to make smaller directory lists
@@ -813,12 +815,12 @@ def initialize():
                     try:
                         os.makedirs(cachelocation)
                     except OSError as e:
-                        if not os.path.isdir(cachelocation):
+                        if not path_isdir(cachelocation):
                             logger.error('Could not create %s: %s' % (cachelocation, e))
             for itm in listdir(pth):
                 if len(itm) > 2:
-                    os.rename(os.path.join(pth, itm),
-                              os.path.join(pth, itm[0], itm[1], itm))
+                    os.rename(syspath(os.path.join(pth, itm)),
+                              syspath(os.path.join(pth, itm[0], itm[1], itm)))
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
@@ -1162,7 +1164,7 @@ def config_read(reloaded=False):
         else:
             CONFIG[item] = 0
 
-    if CONFIG['SSL_CERTS'] and not os.path.exists(CONFIG['SSL_CERTS']):
+    if CONFIG['SSL_CERTS'] and not path_exists(CONFIG['SSL_CERTS']):
         logger.warn("SSL_CERTS [%s] not found" % CONFIG['SSL_CERTS'])
         CONFIG['SSL_CERTS'] = ''
 
@@ -1487,7 +1489,7 @@ def config_write(part=None):
             fmode = 'wb'
         else:
             fmode = 'w'
-        with open(CONFIGFILE + '.new', fmode) as configfile:
+        with open(syspath(CONFIGFILE + '.new'), fmode) as configfile:
             CFG.write(configfile)
     except Exception as e:
         msg = '{} {} {} {}'.format('Unable to create new config file:', CONFIGFILE, type(e).__name__, str(e))
@@ -1495,19 +1497,19 @@ def config_write(part=None):
         threading.currentThread().name = currentname
         return
     try:
-        os.remove(CONFIGFILE + '.bak')
+        os.remove(syspath(CONFIGFILE + '.bak'))
     except OSError as e:
         if e.errno != 2:  # doesn't exist is ok
             msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', CONFIGFILE, '.bak', e.strerror)
             logger.warn(msg)
     try:
-        os.rename(CONFIGFILE, CONFIGFILE + '.bak')
+        os.rename(syspath(CONFIGFILE), syspath(CONFIGFILE + '.bak'))
     except OSError as e:
         if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
             msg = '{} {} {} {}'.format('Unable to backup config file:', CONFIGFILE, type(e).__name__, e.strerror)
             logger.warn(msg)
     try:
-        os.rename(CONFIGFILE + '.new', CONFIGFILE)
+        os.rename(syspath(CONFIGFILE + '.new'), syspath(CONFIGFILE))
     except OSError as e:
         msg = '{} {} {} {}'.format('Unable to rename new config file:', CONFIGFILE, type(e).__name__, e.strerror)
         logger.warn(msg)
@@ -1608,7 +1610,7 @@ def DIRECTORY(dirname):
     else:
         return usedir
 
-    if usedir and not os.path.isdir(usedir):
+    if usedir and not path_isdir(usedir):
         try:
             os.makedirs(usedir)
             logger.info("Created new %s folder: %s" % (dirname, usedir))
@@ -1616,11 +1618,11 @@ def DIRECTORY(dirname):
             logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
             usedir = DATADIR
 
-    if usedir and os.path.isdir(usedir):
+    if usedir and path_isdir(usedir):
         try:
-            with open(os.path.join(usedir, 'll_temp'), 'w') as f:
+            with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
                 f.write('test')
-            os.remove(os.path.join(usedir, 'll_temp'))
+            os.remove(syspath(os.path.join(usedir, 'll_temp')))
         except Exception as why:
             logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
             logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
@@ -1761,7 +1763,7 @@ def USE_DIRECT():
 
 def build_bookstrap_themes(prog_dir):
     themelist = []
-    if not os.path.isdir(os.path.join(prog_dir, 'data', 'interfaces', 'bookstrap')):
+    if not path_isdir(os.path.join(prog_dir, 'data', 'interfaces', 'bookstrap')):
         return themelist  # return empty if bookstrap interface not installed
 
     URL = 'http://bootswatch.com/api/3.json'
@@ -1784,14 +1786,14 @@ def build_bookstrap_themes(prog_dir):
 
 def build_genres():
     for json_file in [os.path.join(DATADIR, 'genres.json'), os.path.join(PROG_DIR, 'example.genres.json')]:
-        if os.path.isfile(json_file):
+        if path_isfile(json_file):
             try:
                 if PY2:
-                    with open(json_file, 'r') as json_data:
+                    with open(syspath(json_file), 'r') as json_data:
                         res = json.load(json_data)
                 else:
                     # noinspection PyArgumentList
-                    with open(json_file, 'r', encoding='utf-8') as json_data:
+                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
                         res = json.load(json_data)
                 logger.info("Loaded genres from %s" % json_file)
                 return res
@@ -1804,9 +1806,9 @@ def build_genres():
 def build_monthtable():
     table = []
     json_file = os.path.join(DATADIR, 'monthnames.json')
-    if os.path.isfile(json_file):
+    if path_isfile(json_file):
         try:
-            with open(json_file) as json_data:
+            with open(syspath(json_file)) as json_data:
                 table = json.load(json_data)
             mlist = ''
             # list alternate entries as each language is in twice (long and short month names)
@@ -1952,7 +1954,7 @@ def daemonize():
 
     if PIDFILE:
         logger.debug("Writing PID %d to %s" % (pid, PIDFILE))
-        with open(PIDFILE, 'w') as pidfile:
+        with open(syspath(PIDFILE), 'w') as pidfile:
             pidfile.write("%s\n" % pid)
 
 
@@ -2053,7 +2055,7 @@ def shutdown(restart=False, update=False):
             logmsg('error', str(traceback.format_exc()))
     if PIDFILE:
         logmsg('info', 'Removing pidfile %s' % PIDFILE)
-        os.remove(PIDFILE)
+        os.remove(syspath(PIDFILE))
 
     if restart:
         logmsg('info', 'LazyLibrarian is restarting ...')

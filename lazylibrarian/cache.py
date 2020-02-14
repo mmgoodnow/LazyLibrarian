@@ -24,7 +24,7 @@ from lib.six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import getUserAgent, proxyList, listdir
+from lazylibrarian.common import getUserAgent, proxyList, listdir, path_isfile, path_isdir, syspath
 from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, seconds_to_midnight, plural
 
 
@@ -151,7 +151,7 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
 
     cachefile = os.path.join(lazylibrarian.CACHEDIR, img_type, img_ID + '.jpg')
     link = 'cache/%s/%s.jpg' % (img_type, img_ID)
-    if os.path.isfile(cachefile) and not refresh:  # overwrite any cached image
+    if path_isfile(cachefile) and not refresh:  # overwrite any cached image
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
             logger.debug("Cached %s image exists %s" % (img_type, cachefile))
         return link, True, True
@@ -160,7 +160,7 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
         result, success = fetchURL(img_url, raw=True)
         if success:
             try:
-                with open(cachefile, 'wb') as img:
+                with open(syspath(cachefile), 'wb') as img:
                     img.write(result)
                 return link, True, False
             except Exception as e:
@@ -207,14 +207,14 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
     hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + "." + cache.lower())
     expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
 
-    if useCache and os.path.isfile(hashfilename):
+    if useCache and path_isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
         time_now = time.time()
         if expire and cache_modified_time < time_now - expiry:
             # Cache entry is too old, delete it
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
                 logger.debug("Expiring %s" % myhash)
-            os.remove(hashfilename)
+            os.remove(syspath(hashfilename))
         else:
             valid_cache = True
 
@@ -229,13 +229,13 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 logger.error("Error decoding json from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
                 if not (lazylibrarian.LOGLEVEL & lazylibrarian.log_cache):
-                    os.remove(hashfilename)
+                    os.remove(syspath(hashfilename))
                 return None, False
         elif cache == "HTML":
-            with open(hashfilename, "rb") as cachefile:
+            with open(syspath(hashfilename), "rb") as cachefile:
                 source = cachefile.read()
         elif cache == "XML":
-            with open(hashfilename, "rb") as cachefile:
+            with open(syspath(hashfilename), "rb") as cachefile:
                 result = cachefile.read()
             if result and result.startswith(b'<?xml'):
                 try:
@@ -255,7 +255,7 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 logger.error("Error reading xml from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
                 if not (lazylibrarian.LOGLEVEL & lazylibrarian.log_cache):
-                    os.remove(hashfilename)
+                    os.remove(syspath(hashfilename))
                 return None, False
     else:
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
@@ -280,7 +280,7 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                 json.dump(source, open(hashfilename, "w"))
             elif cache == "HTML":
                 source = makeBytestr(result)
-                with open(hashfilename, "wb") as cachefile:
+                with open(syspath(hashfilename), "wb") as cachefile:
                     cachefile.write(source)
             elif cache == "XML":
                 result = makeBytestr(result)
@@ -304,7 +304,7 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                         source = None
 
                 if source is not None:
-                    with open(hashfilename, "wb") as cachefile:
+                    with open(syspath(hashfilename), "wb") as cachefile:
                         cachefile.write(result)
                 else:
                     logger.error("Error getting xml data from %s" % url)
@@ -319,57 +319,58 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
 
 def cleanCache():
     """ Remove unused files from the cache - delete if expired or unused.
-        Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic
+        Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic  IRC
         Check covers and authorimages etc referenced in the database exist
         and change database entry if missing """
 
     myDB = database.DBConnection()
     result = []
-    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
-    cache = os.path.join(lazylibrarian.CACHEDIR, "JSONCache")
+    expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)
+    cache = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
     cleaned = 0
     kept = 0
-    if expiry and os.path.isdir(cache):
-        for i in '0123456789abcdef':
-            for j in '0123456789abcdef':
-                for cached_file in listdir(os.path.join(cache, i, j)):
-                    target = os.path.join(cache, i, j, cached_file)
-                    cache_modified_time = os.stat(target).st_mtime
-                    time_now = time.time()
-                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
-                        # Cache is old, delete entry
-                        os.remove(target)
-                        cleaned += 1
-                    else:
-                        kept += 1
-    msg = "Cleaned %i expired file%s from JSONCache, kept %i" % (cleaned, plural(cleaned), kept)
+    if expiry and path_isdir(cache):
+        time_now = time.time()
+        for cached_file in listdir(cache):
+            target = os.path.join(cache, cached_file)
+            cache_modified_time = os.stat(target).st_mtime
+            if cache_modified_time < time_now - expiry:
+                # Cache is old, delete entry
+                os.remove(syspath(target))
+                cleaned += 1
+            else:
+                kept += 1
+    msg = "Cleaned %i expired file%s from IRCCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
     logger.debug(msg)
 
-    cache = os.path.join(lazylibrarian.CACHEDIR, "XMLCache")
-    cleaned = 0
-    kept = 0
-    if expiry and os.path.isdir(cache):
-        for i in '0123456789abcdef':
-            for j in '0123456789abcdef':
-                for cached_file in listdir(os.path.join(cache, i, j)):
-                    target = os.path.join(cache, i, j, cached_file)
-                    cache_modified_time = os.stat(target).st_mtime
-                    time_now = time.time()
-                    if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
-                        # Cache is old, delete entry
-                        os.remove(target)
-                        cleaned += 1
-                    else:
-                        kept += 1
-    msg = "Cleaned %i expired file%s from XMLCache, kept %i" % (cleaned, plural(cleaned), kept)
-    result.append(msg)
-    logger.debug(msg)
+    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    expire_caches = ["JSONCache", "XMLCache"]
+    for cache in expire_caches:
+        cache = os.path.join(lazylibrarian.CACHEDIR, cache)
+        cleaned = 0
+        kept = 0
+        if expiry and path_isdir(cache):
+            for i in '0123456789abcdef':
+                for j in '0123456789abcdef':
+                    for cached_file in listdir(os.path.join(cache, i, j)):
+                        target = os.path.join(cache, i, j, cached_file)
+                        cache_modified_time = os.stat(target).st_mtime
+                        time_now = time.time()
+                        if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
+                            # Cache is old, delete entry
+                            os.remove(syspath(target))
+                            cleaned += 1
+                        else:
+                            kept += 1
+        msg = "Cleaned %i expired file%s from %s, kept %i" % (cleaned, plural(cleaned), cache, kept)
+        result.append(msg)
+        logger.debug(msg)
 
     cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
     cleaned = 0
     kept = 0
-    if os.path.isdir(cache):
+    if path_isdir(cache):
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 for cached_file in listdir(os.path.join(cache, i, j)):
@@ -382,7 +383,7 @@ def cleanCache():
                     item = myDB.match('select BookID from books where BookID=?', (bookid,))
                     if not item:
                         # WorkPage no longer referenced in database, delete cached_file
-                        os.remove(target)
+                        os.remove(syspath(target))
                         cleaned += 1
                     else:
                         kept += 1
@@ -393,7 +394,7 @@ def cleanCache():
     cache = os.path.join(lazylibrarian.CACHEDIR, "SeriesCache")
     cleaned = 0
     kept = 0
-    if os.path.isdir(cache):
+    if path_isdir(cache):
         for cached_file in listdir(cache):
             target = os.path.join(cache, cached_file)
             try:
@@ -404,7 +405,7 @@ def cleanCache():
             item = myDB.match('select SeriesID from series where SeriesID=?', (seriesid,))
             if not item:
                 # SeriesPage no longer referenced in database, delete cached_file
-                os.remove(target)
+                os.remove(syspath(target))
                 cleaned += 1
             else:
                 kept += 1
@@ -415,12 +416,12 @@ def cleanCache():
     cache = os.path.join(lazylibrarian.CACHEDIR, "magazine")
     cleaned = 0
     kept = 0
-    if os.path.isdir(cache):
+    if path_isdir(cache):
         for cached_file in listdir(cache):
             item = myDB.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
             if not item:
                 target = os.path.join(cache, cached_file)
-                os.remove(target)
+                os.remove(syspath(target))
                 cleaned += 1
             else:
                 kept += 1
@@ -432,26 +433,26 @@ def cleanCache():
     cleaned = 0
     kept = 0
     cachedir = os.path.join(cache, 'author')
-    if os.path.isdir(cachedir):
+    if path_isdir(cachedir):
         for cached_file in listdir(cachedir):
             target = os.path.join(cachedir, cached_file)
-            if os.path.isfile(target):
+            if path_isfile(target):
                 item = myDB.match('select * from authors where AuthorImg=?', ('cache/author/%s' % cached_file,))
                 if not item:
                     # Author Image no longer referenced in database, delete cached_file
-                    os.remove(target)
+                    os.remove(syspath(target))
                     cleaned += 1
                 else:
                     kept += 1
     cachedir = os.path.join(cache, 'book')
-    if os.path.isdir(cachedir):
+    if path_isdir(cachedir):
         for cached_file in listdir(cachedir):
             target = os.path.join(cachedir, cached_file)
-            if os.path.isfile(target):
+            if path_isfile(target):
                 item = myDB.match('select * from books where BookImg=?', ('cache/book/%s' % cached_file,))
                 if not item:
                     # Book Image no longer referenced in database, delete cached_file
-                    os.remove(target)
+                    os.remove(syspath(target))
                     cleaned += 1
                 else:
                     kept += 1
@@ -460,7 +461,7 @@ def cleanCache():
     # any that are still there are for books/authors deleted from database
     for cached_file in listdir(cache):
         if cached_file.endswith('.jpg'):
-            os.remove(os.path.join(cache, cached_file))
+            os.remove(syspath(os.path.join(cache, cached_file)))
             cleaned += 1
     msg = "Cleaned %i orphan file%s from ImageCache, kept %i" % (cleaned, plural(cleaned), kept)
     result.append(msg)
@@ -480,7 +481,7 @@ def cleanCache():
             # html uses '/' as separator, but os might not
             imgname = item['BookImg'].rsplit('/')[-1]
             imgfile = os.path.join(cachedir, imgname)
-            if not os.path.isfile(imgfile):
+            if not path_isfile(imgfile):
                 keep = False
         if keep:
             kept += 1
@@ -507,7 +508,7 @@ def cleanCache():
             # html uses '/' as separator, but os might not
             imgname = item['AuthorImg'].rsplit('/')[-1]
             imgfile = os.path.join(cachedir, imgname)
-            if not os.path.isfile(imgfile):
+            if not path_isfile(imgfile):
                 keep = False
         if keep:
             kept += 1
