@@ -35,7 +35,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comicScan
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
-    logHeader, authorUpdate, showStats, seriesUpdate, listdir
+    logHeader, authorUpdate, showStats, seriesUpdate, listdir, path_isfile, path_isdir, syspath
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, replace_all
 from lazylibrarian.gb import GoogleBooks
@@ -510,7 +510,7 @@ class Api(object):
             if not res:
                 self.data = 'No data found for bookid %s' % kwargs['id']
                 return
-            if not res['BookFile'] or not os.path.isfile(res['BookFile']):
+            if not res['BookFile'] or not path_isfile(res['BookFile']):
                 self.data = 'No bookfile found for bookid %s' % kwargs['id']
                 return
             dest_path = os.path.dirname(res['BookFile'])
@@ -524,7 +524,7 @@ class Api(object):
     @staticmethod
     def _dumpMonths():
         json_file = os.path.join(lazylibrarian.DATADIR, 'monthnames.json')
-        with open(json_file, 'w') as f:
+        with open(syspath(json_file), 'w') as f:
             json.dump(lazylibrarian.MONTHNAMES, f)
 
     def _getWanted(self):
@@ -737,10 +737,10 @@ class Api(object):
         res = self._dic_from_query(q)
         # now the ones with an error page
         cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
-        if os.path.isdir(cache):
+        if path_isdir(cache):
             for cached_file in listdir(cache):
                 target = os.path.join(cache, cached_file)
-                if os.path.isfile(target):
+                if path_isfile(target):
                     if os.path.getsize(target) < 500 and '.' in cached_file:
                         bookid = cached_file.split('.')[0]
                         res.append({"BookID": bookid})
@@ -1445,7 +1445,7 @@ class Api(object):
                 fmode = 'wb'
             else:
                 fmode = 'w'
-            with open(lazylibrarian.CONFIGFILE, fmode) as configfile:
+            with open(syspath(lazylibrarian.CONFIGFILE), fmode) as configfile:
                 lazylibrarian.CFG.write(configfile)
             lazylibrarian.config_read(reloaded=True)
         except Exception as e:
@@ -1583,7 +1583,7 @@ class Api(object):
     def _setimage(self, table, itemid, img):
         msg = "%s Image [%s] rejected" % (table, img)
         # Cache file image
-        if os.path.isfile(img):
+        if path_isfile(img):
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
                 destfile = os.path.join(lazylibrarian.CACHEDIR, table, itemid + '.jpg')

@@ -38,7 +38,8 @@ import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs, namedic
+from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs, namedic, \
+    path_isdir, syspath
 from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode, md5_utf8, \
     seconds_to_midnight, replace_all
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -87,16 +88,13 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     if fname and data:
         fname = replace_all(fname, namedic)
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), fname)
-        if not os.path.isdir(destdir):
+        if not path_isdir(destdir):
             _ = make_dirs(destdir)
 
         destfile = os.path.join(destdir, fname)
 
-        if os.name == 'nt':  # Windows has max path length of 256
-            destfile = '\\\\?\\' + destfile
-
         try:
-            with open(destfile, 'wb') as bookfile:
+            with open(syspath(destfile), 'wb') as bookfile:
                 bookfile.write(data)
             setperm(destfile)
         except Exception as e:
@@ -141,7 +139,7 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
             else:
                 logger.debug("Got %s bytes data" % len(data))
                 temp_filename = os.path.join(lazylibrarian.CACHEDIR, "tempfile.nzb")
-                with open(temp_filename, 'wb') as f:
+                with open(syspath(temp_filename), 'wb') as f:
                     f.write(data)
                 logger.debug("Data written to file")
                 nzb_url = lazylibrarian.CONFIG['SAB_EXTERNAL_HOST']
@@ -192,7 +190,7 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
             nzbname = str(nzbtitle) + '.nzb'
             nzbpath = os.path.join(lazylibrarian.CONFIG['NZB_BLACKHOLEDIR'], nzbname)
             try:
-                with open(nzbpath, 'wb') as f:
+                with open(syspath(nzbpath), 'wb') as f:
                     if isinstance(nzbfile, text_type):
                         nzbfile = nzbfile.encode('iso-8859-1')
                     f.write(nzbfile)
@@ -268,7 +266,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
             myhash = md5_utf8(dl_url)
             hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + ".html")
-            with open(hashfilename, "wb") as cachefile:
+            with open(syspath(hashfilename), "wb") as cachefile:
                 cachefile.write(r.content)
             logger.debug(hashfilename)
         return False, res
@@ -300,7 +298,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
 
         basename = replace_all(basename, namedic)
         destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
-        if not os.path.isdir(destdir):
+        if not path_isdir(destdir):
             _ = make_dirs(destdir)
 
         try:
@@ -314,7 +312,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             destfile = '\\\\?\\' + destfile
 
         try:
-            with open(destfile, 'wb') as bookfile:
+            with open(syspath(destfile), 'wb') as bookfile:
                 bookfile.write(r.content)
             setperm(destfile)
             downloadID = hashid
@@ -439,7 +437,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 msg = ''
                 try:
                     msg = 'Opening '
-                    with open(tor_path, 'wb') as torrent_file:
+                    with open(syspath(tor_path), 'wb') as torrent_file:
                         msg += 'Writing '
                         if isinstance(torrent, text_type):
                             torrent = torrent.encode('iso-8859-1')
@@ -460,7 +458,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
             msg = ''
             try:
                 msg = 'Opening '
-                with open(tor_path, 'wb') as torrent_file:
+                with open(syspath(tor_path), 'wb') as torrent_file:
                     msg += 'Writing '
                     if isinstance(torrent, text_type):
                         torrent = torrent.encode('iso-8859-1')
@@ -499,9 +497,9 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 logger.debug("Converting magnet to data for rTorrent")
                 torrentfile = magnet2torrent(tor_url)
                 if torrentfile:
-                    with open(torrentfile, 'rb') as f:
+                    with open(syspath(torrentfile), 'rb') as f:
                         torrent = f.read()
-                    os.remove(torrentfile)
+                    os.remove(syspath(torrentfile))
                 if not torrent:
                     logger.debug("Unable to convert magnet")
             if torrent:

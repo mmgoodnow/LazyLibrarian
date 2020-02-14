@@ -23,10 +23,11 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setGenres
-from lazylibrarian.common import restartJobs, pwd_generator, listdir, setperm
+from lazylibrarian.common import restartJobs, pwd_generator, listdir, setperm, syspath
 from lazylibrarian.formatter import plural, md5_utf8, getList, check_int
 from lazylibrarian.importer import addAuthorToDB, update_totals
 from lazylibrarian.versioncheck import runGit
+from lazylibrarian.common import path_isfile, path_exists
 
 
 def upgrade_needed():
@@ -128,7 +129,7 @@ def has_column(myDB, table, column):
 
 
 def dbupgrade(db_current_version):
-    with open(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log'), 'a') as upgradelog:
+    with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:
             myDB = database.DBConnection()
@@ -678,7 +679,7 @@ def db_v8(myDB, upgradelog):
                 'UPDATE authors SET AuthorImg=? WHERE AuthorID=?', (img, image['AuthorID']))
             img = img[6:]
             srcfile = os.path.join(src, img)
-            if os.path.isfile(srcfile):
+            if path_isfile(srcfile):
                 try:
                     shutil.move(os.path.join(src, img), os.path.join(dst, img))
                 except Exception as e:
@@ -703,7 +704,7 @@ def db_v8(myDB, upgradelog):
             myDB.action('UPDATE books SET BookImg=? WHERE BookID=?', (img, image['BookID']))
             img = img[6:]
             srcfile = os.path.join(src, img)
-            if os.path.isfile(srcfile):
+            if path_isfile(srcfile):
                 try:
                     shutil.move(srcfile, os.path.join(dst, img))
                 except Exception as e:
@@ -781,7 +782,7 @@ def db_v12(myDB, upgradelog):
                     (mag['LastAcquired'], mag['Title']))
                 if match:
                     coverfile = os.path.splitext(match['IssueFile'])[0] + '.jpg'
-                    if os.path.exists(coverfile):
+                    if path_exists(coverfile):
                         myDB.action('UPDATE magazines SET LatestCover=? WHERE Title=?',
                                     (coverfile, mag['Title']))
         upgradelog.write("%s v12: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
@@ -826,7 +827,7 @@ def db_v14(myDB, upgradelog):
                 img = image['AuthorImg']
                 img = img.rsplit('/', 1)[1]
                 srcfile = os.path.join(src, img)
-                if os.path.isfile(srcfile):
+                if path_isfile(srcfile):
                     try:
                         shutil.move(srcfile, os.path.join(src, "author", img))
                         myDB.action(
@@ -867,7 +868,7 @@ def db_v14(myDB, upgradelog):
                 img = image['BookImg']
                 img = img.rsplit('/', 1)[1]
                 srcfile = os.path.join(src, img)
-                if os.path.isfile(srcfile):
+                if path_isfile(srcfile):
                     try:
                         shutil.move(srcfile, os.path.join(src, "book", img))
                         myDB.action('UPDATE books SET BookImg="cache/book/?" WHERE BookID=?',
@@ -885,7 +886,7 @@ def db_v14(myDB, upgradelog):
     # or magazine latest issue cover files that get copied as required
     for image in listdir(src):
         if image.endswith('.jpg'):
-            os.remove(os.path.join(src, image))
+            os.remove(syspath(os.path.join(src, image)))
     upgradelog.write("%s v14: complete\n" % time.ctime())
 
 
@@ -1031,7 +1032,7 @@ def db_v20(myDB, upgradelog):
             for book in books:
                 cnt += 1
                 lazylibrarian.UPDATE_MSG = "Updating BookLibrary date: %s of %s" % (cnt, tot)
-                if book['BookFile'] and os.path.isfile(book['BookFile']):
+                if book['BookFile'] and path_isfile(book['BookFile']):
                     mod += 1
                     t = os.path.getctime(book['BookFile'])
                     filedate = datetime.datetime.utcfromtimestamp(int(t)).strftime("%Y-%m-%d %H:%M:%S")
@@ -1642,7 +1643,7 @@ def db_v56(myDB, upgradelog):
             lazylibrarian.UPDATE_MSG = 'Updating issue cover for %s: %s' % (issue['IssueFile'],
                                                                             calc_eta(start_time, tot, cnt))
             coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
-            if not os.path.exists(coverfile):
+            if not path_exists(coverfile):
                 coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
             hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
@@ -1666,7 +1667,7 @@ def db_v56(myDB, upgradelog):
                                                                                  calc_eta(start_time,
                                                                                           tot, cnt))
             coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
-            if not os.path.exists(coverfile):
+            if not path_exists(coverfile):
                 coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
             hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)

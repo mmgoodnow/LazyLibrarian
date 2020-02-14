@@ -135,6 +135,22 @@ def multibook(foldername, recurse=False):
     return ''
 
 
+def path_isfile(name):
+    return os.path.isfile(syspath(name))
+
+
+def path_isdir(name):
+    return os.path.isdir(syspath(name))
+
+
+def path_exists(name):
+    return os.path.exists(syspath(name))
+
+
+def path_islink(name):
+    return os.path.islink(syspath(name))
+
+
 def listdir(name):
     """
     listdir ensuring bytestring for unix
@@ -155,7 +171,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     duplicate of os.walk, except for unix we use bytestrings for listdir
     return top, dirs, nondirs as unicode
     """
-    islink, join, isdir = os.path.islink, os.path.join, os.path.isdir
+    islink, join, isdir = path_islink, os.path.join, path_isdir
 
     try:
         top = makeUnicode(top)
@@ -199,7 +215,7 @@ def make_dirs(dest_path):
 
     to_make = []
     dest_path = syspath(dest_path)
-    while not os.path.isdir(dest_path):
+    while not path_isdir(dest_path):
         # noinspection PyUnresolvedReferences
         to_make.insert(0, dest_path)
         parent = os.path.dirname(dest_path)
@@ -288,7 +304,7 @@ def safe_move(src, dst, action='move'):
         try:
             if action == 'copy':
                 shutil.copy(src, dst)
-            elif os.path.isdir(src) and dst.startswith(src):
+            elif path_isdir(src) and dst.startswith(src):
                 shutil.copytree(src, dst)
             else:
                 shutil.move(src, dst)
@@ -388,9 +404,9 @@ def setperm(file_or_dir):
     if not file_or_dir:
         return False
 
-    if os.path.isdir(file_or_dir):
+    if path_isdir(file_or_dir):
         perm = octal(lazylibrarian.CONFIG['DIR_PERM'], 0o755)
-    elif os.path.isfile(file_or_dir):
+    elif path_isfile(file_or_dir):
         perm = octal(lazylibrarian.CONFIG['FILE_PERM'], 0o644)
     else:
         # not a file or a directory (symlink?)
@@ -427,7 +443,7 @@ def any_file(search_dir=None, extn=None):
     # return full pathname of file, or empty string if none found
     if search_dir is None or extn is None:
         return ""
-    if os.path.isdir(search_dir):
+    if path_isdir(search_dir):
         for fname in listdir(search_dir):
             if fname.endswith(extn):
                 return os.path.join(search_dir, fname)
@@ -440,7 +456,7 @@ def opf_file(search_dir=None):
     cnt = 0
     res = ''
     meta = ''
-    if os.path.isdir(search_dir):
+    if path_isdir(search_dir):
         for fname in listdir(search_dir):
             if fname.endswith('.opf'):
                 if fname == 'metadata.opf':
@@ -465,7 +481,7 @@ def bts_file(search_dir=None):
 
 
 def csv_file(search_dir=None, library=None):
-    if search_dir and os.path.isdir(search_dir):
+    if search_dir and path_isdir(search_dir):
         try:
             for fname in listdir(search_dir):
                 if fname.endswith('.csv'):
@@ -486,7 +502,7 @@ def book_file(search_dir=None, booktype=None, recurse=False):
     if booktype is None:
         return ""
 
-    if os.path.isdir(search_dir):
+    if path_isdir(search_dir):
         if recurse:
             # noinspection PyBroadException
             try:
@@ -754,7 +770,7 @@ def scheduleJob(action='Start', target=None):
         elif 'cleanCache' in newtarget:
             days = lazylibrarian.CONFIG['CACHE_AGE']
             if days:
-                interval = days * 24
+                interval = 24
                 startdate = nextRun("CLEANCACHE", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.cleanCache,
                                                      hours=interval, start_date=startdate)
@@ -1165,7 +1181,7 @@ def clearLog():
     logger.lazylibrarian_log.stopLogger()
     for f in glob.glob(lazylibrarian.CONFIG['LOGDIR'] + "/*.log*"):
         try:
-            os.remove(f)
+            os.remove(syspath(f))
         except OSError as e:
             error = e.strerror
             logger.debug("Failed to remove %s : %s" % (f, error))
@@ -1361,7 +1377,7 @@ def saveLog():
                   'apitoken -> ', 'username -> ', '&r=', 'using api [', 'apikey=', 'key=', 'apikey%3D', "apikey': ",
                   "'--password', u'", "'--password', '", "api:", "keys:", "token:", "secret=", "email_from -> ",
                   "'--password', u\"", "'--password', \"", "email_to -> ", "email_smtp_user -> "]
-    with open(outfile + '.tmp', 'w') as out:
+    with open(syspath(outfile + '.tmp'), 'w') as out:
         nextfile = True
         extn = 0
         redacts = 0
@@ -1425,7 +1441,7 @@ def saveLog():
                 out.write(line)
             out.write('---CONFIG-------------------------------------\n')
 
-    with open(outfile + '.log', 'w') as logfile:
+    with open(syspath(outfile + '.log'), 'w') as logfile:
         logfile.write(logHeader())
         linecount = 0
         if PY2:
@@ -1435,12 +1451,12 @@ def saveLog():
         for line in lines:
             logfile.write(line)
             linecount += 1
-    os.remove(outfile + '.tmp')
+    os.remove(syspath(outfile + '.tmp'))
     logger.debug("Redacted %s passwords/apikeys" % redacts)
     logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
     with zipfile.ZipFile(outfile + '.zip', 'w') as myzip:
         myzip.write(outfile + '.log', 'debug.log')
-    os.remove(outfile + '.log')
+    os.remove(syspath(outfile + '.log'))
     return "Debug log saved as %s" % (outfile + '.zip')
 
 

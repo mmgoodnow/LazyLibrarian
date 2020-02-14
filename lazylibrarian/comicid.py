@@ -11,7 +11,6 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import os
 import re
 import string
 import time
@@ -21,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes
-from lazylibrarian.common import quotes
+from lazylibrarian.common import quotes, path_isfile
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
 
@@ -564,7 +563,7 @@ def cx_identify(fname, best=True):
 def comic_metadata(archivename, xml=False):
 
     archivename = makeUnicode(archivename)
-    if not os.path.isfile(archivename):  # regular files only
+    if not path_isfile(archivename):  # regular files only
         return {}
 
     if zipfile.is_zipfile(archivename):

@@ -20,7 +20,7 @@ from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import safe_move, walk, make_dirs, setperm
+from lazylibrarian.common import safe_move, walk, make_dirs, setperm, path_exists, path_isdir, path_isfile, syspath
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeBytestr, \
     replace_all, check_year
 from lazylibrarian.images import createMagCover
@@ -52,7 +52,7 @@ def magazineScan(title=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if not mag_path or not os.path.isdir(mag_path):
+        if not mag_path or not path_isdir(mag_path):
             logger.warn("Magazine folder %s not found" % mag_path)
             lazylibrarian.MAG_UPDATE = 0
             return
@@ -65,7 +65,7 @@ def magazineScan(title=None):
                 issuedate = mag['IssueDate']
                 issuefile = mag['IssueFile']
 
-                if issuefile and not os.path.isfile(issuefile):
+                if issuefile and not path_isfile(issuefile):
                     myDB.action('DELETE from Issues where issuefile=?', (issuefile,))
                     logger.info('Issue %s - %s deleted as not found on disk' % (title, issuedate))
                     controlValueDict = {"Title": title}
@@ -243,12 +243,12 @@ def magazineScan(title=None):
                         if os.name == 'nt' and newissuefile.lower() == issuefile.lower():
                             newissuefile = issuefile
                         if newissuefile != issuefile:
-                            if not os.path.isdir(new_path):
+                            if not path_isdir(new_path):
                                 make_dirs(new_path)
                             logger.debug("Rename %s -> %s" % (repr(issuefile), repr(newissuefile)))
                             newissuefile = safe_move(issuefile, newissuefile)
                             for e in ['.jpg', '.opf']:
-                                if os.path.exists(issuefile.replace(extn, e)):
+                                if path_exists(issuefile.replace(extn, e)):
                                     safe_move(issuefile.replace(extn, e), newissuefile.replace(extn, e))
 
                             # check for any empty directories
@@ -293,7 +293,7 @@ def magazineScan(title=None):
                         logger.debug("Issue %s %s already exists" % (title, issuedate))
 
                     ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
-                    with open(ignorefile, 'a'):
+                    with open(syspath(ignorefile), 'a'):
                         os.utime(ignorefile, None)
 
                     if not lazylibrarian.CONFIG['IMP_MAGOPF']:

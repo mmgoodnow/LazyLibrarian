@@ -28,7 +28,7 @@ import lazylibrarian
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
 from lazylibrarian.cache import cache_img
-from lazylibrarian.common import mimeType, zipAudio
+from lazylibrarian.common import mimeType, zipAudio, path_isfile
 from lazylibrarian.formatter import makeUnicode, check_int, plural, getList
 from lib.six import text_type, string_types
 
@@ -146,7 +146,7 @@ class OPDS(object):
             basename = basename.decode('utf-8')
         for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
             target = basename + '.' + item
-            if os.path.isfile(target):
+            if path_isfile(target):
                 types.append(item)
         if len(types) > 1:
             for fmt in types:
@@ -1571,7 +1571,7 @@ class OPDS(object):
             res = myDB.match('SELECT AudioFile,BookName from books where BookID=?', (myid,))
             basefile = res['AudioFile']
             # zip up all the audiobook parts
-            if basefile and os.path.isfile(basefile):
+            if basefile and path_isfile(basefile):
                 target = zipAudio(os.path.dirname(basefile), res['BookName'])
                 self.filepath = target
                 self.filename = res['BookName'] + '.zip'

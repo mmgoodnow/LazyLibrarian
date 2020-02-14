@@ -44,7 +44,8 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, runScript, multibook, namedic
+    safe_copy, safe_move, make_dirs, runScript, multibook, namedic, \
+    path_isfile, path_isdir, path_exists, syspath
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
     makeUTF8bytes, dispName
@@ -82,7 +83,7 @@ def importMag(source_file=None, title=None, issuenum=None):
 
     # noinspection PyBroadException
     try:
-        if not source_file or not os.path.isfile(source_file):
+        if not source_file or not path_isfile(source_file):
             logger.warn("%s is not a file" % source_file)
             return False
         basename, extn = os.path.splitext(source_file)
@@ -119,8 +120,8 @@ def importMag(source_file=None, title=None, issuenum=None):
                 logger.warn('Unable to create directory %s' % dest_path)
             else:
                 ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                with open(ignorefile, 'a'):
-                    os.utime(ignorefile, None)
+                with open(syspath(ignorefile), 'a'):
+                    os.utime(syspath(ignorefile), None)
         else:
             dest_path = makeUTF8bytes(dest_path)[0]
 
@@ -139,7 +140,7 @@ def importMag(source_file=None, title=None, issuenum=None):
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
             return False
 
-        os.remove(source_file)
+        os.remove(syspath(source_file))
         if mostrecentissue:
             if mostrecentissue.isdigit() and str(issuenum).isdigit():
                 older = (int(mostrecentissue) > int(issuenum))  # issuenumber
@@ -195,7 +196,7 @@ def importBook(source_dir=None, library='eBook', bookid=None):
 
     # noinspection PyBroadException
     try:
-        if not source_dir or not os.path.isdir(source_dir):
+        if not source_dir or not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
         if source_dir == lazylibrarian.DIRECTORY(library):
@@ -240,7 +241,7 @@ def processAlternate(source_dir=None, library='eBook'):
         if not source_dir:
             logger.warn("Alternate Directory not configured")
             return False
-        if not os.path.isdir(source_dir):
+        if not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
         if source_dir == lazylibrarian.DIRECTORY('eBook'):
@@ -252,7 +253,7 @@ def processAlternate(source_dir=None, library='eBook'):
         flist = listdir(source_dir)
         for fname in flist:
             subdir = os.path.join(source_dir, fname)
-            if os.path.isdir(subdir):
+            if path_isdir(subdir):
                 processAlternate(subdir, library=library)
 
         metadata = {}
@@ -285,9 +286,9 @@ def processAlternate(source_dir=None, library='eBook'):
             # see if there is a metadata file in this folder with the info we need
             # try book_name.opf first, or fall back to any filename.opf
             metafile = os.path.splitext(new_book)[0] + '.opf'
-            if not os.path.isfile(metafile):
+            if not path_isfile(metafile):
                 metafile = opf_file(source_dir)
-            if metafile and os.path.isfile(metafile):
+            if metafile and path_isfile(metafile):
                 try:
                     metadata = get_book_info(metafile)
                 except Exception as e:
@@ -467,7 +468,7 @@ def unpack_archive(archivename, download_dir, title):
     """
 
     archivename = makeUnicode(archivename)
-    if not os.path.isfile(archivename):  # regular files only
+    if not path_isfile(archivename):  # regular files only
         return ''
 
     targetdir = ''
@@ -496,7 +497,7 @@ def unpack_archive(archivename, download_dir, title):
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
                         return ''
-                    with open(dst, "wb") as f:
+                    with open(syspath(dst), "wb") as f:
                         f.write(z.read(item))
 
         elif tarfile.is_tarfile(archivename):
@@ -521,7 +522,7 @@ def unpack_archive(archivename, download_dir, title):
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
                         return ''
-                    with open(dst, "wb") as f:
+                    with open(syspath(dst), "wb") as f:
                         f.write(z.extractfile(item).read())
 
         elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
@@ -546,7 +547,7 @@ def unpack_archive(archivename, download_dir, title):
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
                         return ''
-                    with open(dst, "wb") as f:
+                    with open(syspath(dst), "wb") as f:
                         f.write(z.read(item))
 
         elif lazylibrarian.UNRARLIB == 2:
@@ -555,7 +556,9 @@ def unpack_archive(archivename, download_dir, title):
                 z = lazylibrarian.RARFILE(archivename)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug('%s is a rar file' % archivename)
-            except Exception:
+            except Exception as e:
+                if archivename.endswith('.rar'):
+                    logger.debug(str(e))
                 z = None  # not a rar archive
 
             if z:
@@ -564,21 +567,24 @@ def unpack_archive(archivename, download_dir, title):
                     logger.error("Failed to create target dir %s" % targetdir)
                     return ''
 
+                wanted_files = []
                 for item in z.infoiter():
-                    if is_valid_type(item.filename) and not item.isdir:
-                        logger.debug('Extracting %s to %s' % (item.filename, targetdir))
-                        dst = os.path.join(targetdir, item.filename)
-                        dstdir = os.path.dirname(dst)
-                        if not make_dirs(dstdir):
-                            logger.error("Failed to create directory %s" % dstdir)
-                            return ''
+                    if not item.isdir and is_valid_type(item.filename):
+                        wanted_files.append(item.filename)
 
-                        data = z.read_files("*")
-                        for entry in data:
-                            if entry[0].filename.endswith(item.filename):
-                                with open(dst, "wb") as f:
+                data = z.read_files("*")
+                for entry in data:
+                    for item in wanted_files:
+                        if entry[0].filename.endswith(item):
+                            logger.debug('Extracting %s to %s' % (item, targetdir))
+                            dst = os.path.join(targetdir, item)
+                            dstdir = os.path.dirname(dst)
+                            if not make_dirs(dstdir):
+                                logger.error("Failed to create directory %s" % dstdir)
+                            else:
+                                with open(syspath(dst), "wb") as f:
                                     f.write(entry[1])
-                                break
+                            break
         if not targetdir:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
@@ -638,7 +644,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 templist.insert(0, lazylibrarian.DIRECTORY("Download"))
         dirlist = []
         for item in templist:
-            if os.path.isdir(item):
+            if path_isdir(item):
                 dirlist.append(item)
             else:
                 logger.debug("[%s] is not a directory" % item)
@@ -755,7 +761,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                                     logger.debug("processDir found %s %s" % (type(pp_path), repr(pp_path)))
 
-                                if os.path.isfile(pp_path):
+                                if path_isfile(pp_path):
                                     # Check for single file downloads first. Book/mag file in download root.
                                     # move the file into it's own subdirectory so we don't move/delete
                                     # things that aren't ours
@@ -800,7 +806,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                         else:
                                             logger.debug('Skipping unhandled file %s' % fname)
 
-                                if os.path.isdir(pp_path):
+                                if path_isdir(pp_path):
                                     logger.debug('Found folder (%s%%) [%s] for %s %s' %
                                                  (match, pp_path, book_type, matchtitle))
 
@@ -933,8 +939,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                         logger.warn('Unable to create directory %s' % dest_path)
                                     else:
                                         ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                                        with open(ignorefile, 'a'):
-                                            os.utime(ignorefile, None)
+                                        with open(syspath(ignorefile), 'a'):
+                                            os.utime(syspath(ignorefile), None)
                                 else:
                                     dest_path = makeUTF8bytes(dest_path)[0]
 
@@ -977,8 +983,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                             logger.warn('Unable to create directory %s' % dest_path)
                                         else:
                                             ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                                            with open(ignorefile, 'a'):
-                                                os.utime(ignorefile, None)
+                                            with open(syspath(ignorefile), 'a'):
+                                                os.utime(syspath(ignorefile), None)
                                     else:
                                         dest_path = makeUTF8bytes(dest_path)[0]
 
@@ -1142,7 +1148,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             if pp_path.endswith('.unpack'):
                                 to_delete = True
                             if to_delete:
-                                if os.path.isdir(pp_path):
+                                if path_isdir(pp_path):
                                     # calibre might have already deleted it?
                                     try:
                                         shutil.rmtree(pp_path)
@@ -1189,7 +1195,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                         # at this point, as it failed we should move it or it will get postprocessed
                         # again (and fail again)
-                        if os.path.isdir(pp_path + '.fail'):
+                        if path_isdir(pp_path + '.fail'):
                             try:
                                 shutil.rmtree(pp_path + '.fail')
                             except Exception as why:
@@ -1209,9 +1215,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 logger.error("%s is not executable" % repr(pp_path))
                             parent = os.path.dirname(pp_path)
                             try:
-                                with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                                with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                     f.write('test')
-                                os.remove(os.path.join(parent, 'll_temp'))
+                                os.remove(syspath(os.path.join(parent, 'll_temp')))
                             except Exception as why:
                                 logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                             logger.warn('Residual files remain in %s' % pp_path)
@@ -1257,7 +1263,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     if pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
                         to_delete = False
                     if to_delete:
-                        if os.path.isdir(pp_path):
+                        if path_isdir(pp_path):
                             # calibre might have already deleted it?
                             try:
                                 shutil.rmtree(pp_path)
@@ -1485,8 +1491,8 @@ def check_residual(download_dir):
                 is_ebook = (book_file(pp_path, "ebook") != '')
                 logger.debug("Contains ebook=%s audio=%s" % (is_ebook, is_audio))
                 data = myDB.match('SELECT BookFile,AudioFile from books WHERE BookID=?', (bookID,))
-                have_ebook = (data and data['BookFile'] and os.path.isfile(data['BookFile']))
-                have_audio = (data and data['AudioFile'] and os.path.isfile(data['AudioFile']))
+                have_ebook = (data and data['BookFile'] and path_isfile(data['BookFile']))
+                have_audio = (data and data['AudioFile'] and path_isfile(data['AudioFile']))
                 logger.debug("Already have ebook=%s audio=%s" % (have_ebook, have_audio))
 
                 if have_ebook and have_audio:
@@ -1502,12 +1508,12 @@ def check_residual(download_dir):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                         logger.debug("Checking type of %s" % pp_path)
 
-                    if os.path.isfile(pp_path):
+                    if path_isfile(pp_path):
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                             logger.debug("%s is a file" % pp_path)
                         pp_path = os.path.join(download_dir)
 
-                    if os.path.isdir(pp_path):
+                    if path_isdir(pp_path):
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                             logger.debug("%s is a dir" % pp_path)
                         if process_book(pp_path, bookID):
@@ -1999,7 +2005,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                     processExtras(dest_file, global_name, bookID, book_type)
 
                 if not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
-                    if os.path.isdir(pp_path):
+                    if path_isdir(pp_path):
                         # calibre might have already deleted it?
                         try:
                             shutil.rmtree(pp_path)
@@ -2026,7 +2032,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 return True
             else:
                 logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
-                if os.path.isdir(pp_path + '.fail'):
+                if path_isdir(pp_path + '.fail'):
                     try:
                         shutil.rmtree(pp_path + '.fail')
                     except Exception as why:
@@ -2043,9 +2049,9 @@ def process_book(pp_path=None, bookID=None, library=None):
                         logger.error("%s is not writeable" % repr(pp_path))
                     parent = os.path.dirname(pp_path)
                     try:
-                        with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                        with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                             f.write('test')
-                        os.remove(os.path.join(parent, 'll_temp'))
+                        os.remove(syspath(os.path.join(parent, 'll_temp')))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
                     logger.warn('Residual files remain in %s' % pp_path)
@@ -2184,16 +2190,16 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                     if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
                         logger.debug("Removing %s as not %s" % (fname, bestmatch))
-                        os.remove(srcfile)
+                        os.remove(syspath(srcfile))
                     else:
                         dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
                         # calibre does not like quotes in author names
                         _ = safe_move(srcfile, dstfile)
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
-                    if os.path.isfile(srcfile):
-                        os.remove(srcfile)
-                    elif os.path.isdir(srcfile):
+                    if path_isfile(srcfile):
+                        os.remove(syspath(srcfile))
+                    elif path_isdir(srcfile):
                         shutil.rmtree(srcfile)
 
             identifier = ''
@@ -2315,7 +2321,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     logger.debug("Unable to read json response; %s" % str(e))
                     target_dir = ''
 
-            if not target_dir or not os.path.isdir(target_dir):
+            if not target_dir or not path_isdir(target_dir):
                 # calibre does not like accents or quotes in names
                 if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
                     authorname = authorname[:-1] + '_'
@@ -2324,7 +2330,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                                                                          only_ascii=False), '')
                 else:
                     author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
-                if os.path.isdir(author_dir):  # assumed author directory
+                if path_isdir(author_dir):  # assumed author directory
                     our_id = '(%s)' % calibre_id
                     entries = listdir(author_dir)
                     for entry in entries:
@@ -2332,7 +2338,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             target_dir = os.path.join(author_dir, entry)
                             break
 
-                    if not target_dir or not os.path.isdir(target_dir):
+                    if not target_dir or not path_isdir(target_dir):
                         return False, 'Failed to locate folder with calibre_id %s in %s' % (our_id, author_dir)
                 else:
                     return False, 'Failed to locate author folder %s' % author_dir
@@ -2359,15 +2365,15 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         dest_path, encoding = makeUTF8bytes(dest_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("dest_path was %s" % encoding)
-        if not os.path.exists(dest_path):
+        if not path_exists(dest_path):
             logger.debug('%s does not exist, so it\'s safe to create it' % dest_path)
-        elif not os.path.isdir(dest_path):
+        elif not path_isdir(dest_path):
             logger.debug('%s exists but is not a directory, deleting it' % dest_path)
             try:
-                os.remove(dest_path)
+                os.remove(syspath(dest_path))
             except OSError as why:
                 return False, 'Unable to delete %s: %s' % (dest_path, why.strerror)
-        if os.path.isdir(dest_path):
+        if path_isdir(dest_path):
             setperm(dest_path)
         elif not make_dirs(dest_path):
             return False, 'Unable to create directory %s' % dest_path
@@ -2401,9 +2407,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                         # extra debugging to see if we can figure out a windows encoding issue
                         parent = os.path.dirname(destfile)
                         try:
-                            with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                            with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                 f.write('test')
-                            os.remove(os.path.join(parent, 'll_temp'))
+                            os.remove(syspath(os.path.join(parent, 'll_temp')))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
@@ -2417,7 +2423,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
             for book_type in booktype_list:
                 preferred_type = "%s.%s" % (makeUnicode(book_basename), book_type)
-                if os.path.exists(preferred_type):
+                if path_exists(preferred_type):
                     logger.debug("Link to preferred type %s, %s" % (book_type, preferred_type))
                     firstfile = preferred_type
                     break
@@ -2447,7 +2453,7 @@ def processAutoAdd(src_path=None, booktype='book'):
         autoadddir = lazylibrarian.CONFIG['IMP_AUTOADDMAG']
         savefiles = lazylibrarian.CONFIG['IMP_AUTOADDMAG_COPY']
 
-    if not os.path.exists(autoadddir):
+    if not path_exists(autoadddir):
         logger.error('AutoAdd directory for %s [%s] is missing or not set - cannot perform autoadd' % (
             booktype, autoadddir))
         return False
@@ -2619,7 +2625,7 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
 def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     opfpath = os.path.join(dest_path, global_name + '.opf')
     if lazylibrarian.CONFIG['OPF_TAGS']:
-        if not overwrite and os.path.exists(opfpath):
+        if not overwrite and path_exists(opfpath):
             logger.debug('%s already exists. Did not create one.' % opfpath)
             setperm(opfpath)
             return opfpath, False
@@ -2743,7 +2749,7 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     else:
         opfinfo = makeUnicode(replace_all(opfinfo, dic))
         fmode = 'w'
-    with open(opfpath, fmode) as opf:
+    with open(syspath(opfpath), fmode) as opf:
         opf.write(opfinfo)
     logger.debug('Saved metadata to: ' + opfpath)
     setperm(opfpath)

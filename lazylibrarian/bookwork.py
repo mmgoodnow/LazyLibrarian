@@ -22,7 +22,7 @@ from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
-from lazylibrarian.common import proxyList, quotes
+from lazylibrarian.common import proxyList, quotes, path_isfile, syspath
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList, makeUTF8bytes
 try:
@@ -418,7 +418,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
 
         # does the workpage need to expire? For now only expire if it was an error page
         # (small file) or a series page as librarything might get better info over time, more series members etc
-        if os.path.isfile(workfile):
+        if path_isfile(workfile):
             if seriesID or os.path.getsize(workfile) < 500:
                 cache_modified_time = os.stat(workfile).st_mtime
                 time_now = time.time()
@@ -426,9 +426,9 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
                     if NEW_WHATWORK:
-                        os.remove(workfile)
+                        os.remove(syspath(workfile))
 
-        if os.path.isfile(workfile):
+        if path_isfile(workfile):
             # use cached file if possible to speed up refreshactiveauthors and librarysync re-runs
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
             if bookID:
@@ -440,11 +440,11 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                 logger.debug("getBookWork: Returning Cached seriespage for %s" % item['seriesName'])
 
             if PY2:
-                with open(workfile, "r") as cachefile:
+                with open(syspath(workfile), "r") as cachefile:
                     source = cachefile.read()
             else:
                 # noinspection PyArgumentList
-                with open(workfile, "r", errors="backslashreplace") as cachefile:
+                with open(syspath(workfile), "r", errors="backslashreplace") as cachefile:
                     source = cachefile.read()
             return source
         else:
@@ -509,7 +509,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                         logger.debug(msg + item['AuthorName'] + ' ' + item['BookName'])
                         success = True
             if success:
-                with open(workfile, "w") as cachefile:
+                with open(syspath(workfile), "w") as cachefile:
                     cachefile.write(result)
                     if bookID:
                         logger.debug("getBookWork: Caching workpage for %s" % workfile)

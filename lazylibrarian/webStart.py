@@ -22,6 +22,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
+from lazylibrarian.common import syspath
 
 cp_ver = getattr(cherrypy, '__version__', None)
 if cp_ver and int(cp_ver.split('.')[0]) >= 10:
@@ -175,7 +176,7 @@ def initialize(options=None):
 
     opensearch = os.path.join(lazylibrarian.PROG_DIR, 'data', 'opensearch.template')
     if os.path.exists(opensearch):
-        with open(opensearch, 'r') as s:
+        with open(syspath(opensearch), 'r') as s:
             data = s.read().splitlines()
         # (title, function)
         for item in [('Authors', 'Authors'),
@@ -184,7 +185,7 @@ def initialize(options=None):
                      ('Comics', 'RecentComics'),
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
-            with open(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower()), 'w') as t:
+            with open(syspath(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
                 for lyne in data:
                     t.write(lyne.replace('{label}', item[0]).replace(
                                       '{func}', 't=%s&amp;' % item[1]).replace(

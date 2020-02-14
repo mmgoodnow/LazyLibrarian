@@ -23,6 +23,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.common import syspath
 
 db_lock = threading.Lock()
 
@@ -40,7 +41,7 @@ class DBConnection:
         if lazylibrarian.FOREIGN_KEY:
             self.connection.execute("PRAGMA foreign_keys = ON")
         self.connection.row_factory = sqlite3.Row
-        self.dblog = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log')
+        self.dblog = syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
 
     # wrapper function with lock
     def action(self, query, args=None, suppress=None):

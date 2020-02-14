@@ -1,9 +1,10 @@
-import logging
 import socket
 import ssl
 import struct
 import warnings
 import zlib
+import lazylibrarian
+from lazylibrarian import logger
 
 from .rencode import dumps, loads
 
@@ -15,8 +16,6 @@ MESSAGE_HEADER_SIZE = 5
 READ_SIZE = 10
 
 # logger = logging.getLogger(__name__)
-import lazylibrarian
-from lazylibrarian import logger
 
 
 class DelugeClientException(Exception):
@@ -54,16 +53,19 @@ class DelugeRPCClient(object):
         self.deluge_version = None
         # This is only applicable if deluge_version is 2
         self.deluge_protocol_version = None
+        self.daemon_version = None
 
         self.decode_utf8 = decode_utf8
         if not self.decode_utf8:
             warnings.warn('Using `decode_utf8=False` is deprecated, please set it to True.'
-                          'The argument will be removed in a future release where it will be always True', DeprecationWarning)
+                          'The argument will be removed in a future release where it will be always True',
+                          DeprecationWarning)
 
         self.automatic_reconnect = automatic_reconnect
 
         self.request_id = 1
         self.connected = False
+        self._socket = None
         self._create_socket()
 
     def _create_socket(self, ssl_version=None):
@@ -98,7 +100,7 @@ class DelugeRPCClient(object):
             # Note: have not verified that we actually get errno 258 for this error
             if (hasattr(ssl, 'PROTOCOL_SSLv3') and
                     (getattr(e, 'reason', None) == 'UNSUPPORTED_PROTOCOL' or e.errno == 258)):
-                logger.warning('Was unable to ssl handshake, trying to force SSLv3 (insecure)')
+                logger.warn('Was unable to ssl handshake, trying to force SSLv3 (insecure)')
                 self._create_socket(ssl_version=ssl.PROTOCOL_SSLv3)
                 self._socket.connect((self.host, self.port))
             else:
@@ -126,12 +128,12 @@ class DelugeRPCClient(object):
             self.deluge_version = 2
             self.deluge_protocol_version = None
             # If we need the specific version of deluge 2, this is it.
-            daemon_version = self._receive_response(2, None, partial_data=result)
+            self.daemon_version = self._receive_response(2, None, partial_data=result)
         elif ord(result[:1]) == 1:
             self.deluge_version = 2
             self.deluge_protocol_version = 1
             # If we need the specific version of deluge 2, this is it.
-            daemon_version = self._receive_response(2, 1, partial_data=result)
+            self.daemon_version = self._receive_response(2, 1, partial_data=result)
         else:
             self.deluge_version = 1
             # Deluge 1 doesn't recover well from the bad request. Re-connect the socket.
@@ -146,10 +148,12 @@ class DelugeRPCClient(object):
             if len(debug_args) >= 2:
                 debug_args[1] = '<password hidden>'
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' % (self.request_id, method, debug_args, kwargs))
+                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
+                             (self.request_id, method, debug_args, kwargs))
         else:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' % (self.request_id, method, args, kwargs))
+                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
+                             (self.request_id, method, args, kwargs))
 
         req = ((self.request_id, method, args, kwargs), )
         req = zlib.compress(dumps(req))
@@ -209,7 +213,7 @@ class DelugeRPCClient(object):
 
         data = list(loads(data, decode_utf8=self.decode_utf8))
         msg_type = data.pop(0)
-        request_id = data.pop(0)
+        _ = data.pop(0)  # request_id
 
         if msg_type == RPC_ERROR:
             if self.deluge_version == 2:
@@ -229,9 +233,13 @@ class DelugeRPCClient(object):
                 exception = type(str(exception_type.decode('utf-8', 'ignore')), (RemoteException, ), {})
                 exception_msg = '%s\n%s' % (exception_msg.decode('utf-8', 'ignore'),
                                             traceback.decode('utf-8', 'ignore'))
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("RPC Error: %s" % exception_msg)
             raise exception(exception_msg)
         elif msg_type == RPC_RESPONSE:
             retval = data[0]
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug(retval)
             return retval
 
     def reconnect(self):

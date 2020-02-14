@@ -40,7 +40,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk, quotes, ensureRunning, book_file
+    zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, syspath
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -80,7 +80,7 @@ def serve_template(templatename, **kwargs):
     threading.currentThread().name = "WEBSERVER"
     interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data/interfaces/')
     template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
-    if not os.path.isdir(template_dir):
+    if not path_isdir(template_dir):
         logger.error("Unable to locate template [%s], reverting to legacy" % template_dir)
         lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
         template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
@@ -1029,7 +1029,7 @@ class WebInterface(object):
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(lazylibrarian.PROG_DIR, 'data' + os.path.sep + 'interfaces')
         http_look_list = [name for name in os.listdir(http_look_dir)
-                          if os.path.isdir(os.path.join(http_look_dir, name))]
+                          if path_isdir(os.path.join(http_look_dir, name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
         apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
 
@@ -1164,7 +1164,7 @@ class WebInterface(object):
                 'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
                 'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
             }
-            with open(os.path.join(lazylibrarian.DATADIR, 'genres.json'), 'w') as f:
+            with open(syspath(os.path.join(lazylibrarian.DATADIR, 'genres.json')), 'w') as f:
                 json.dump(newdict, f, indent=4)
             logger.debug("Applying genre changes")
             check_db(myDB)
@@ -1488,7 +1488,7 @@ class WebInterface(object):
                     books = myDB.select("SELECT BookFile from books WHERE AuthorID=? AND BookFile is not null",
                                         (authorid,))
                     for book in books:
-                        if os.path.exists(book['BookFile']):
+                        if path_exists(book['BookFile']):
                             try:
                                 rmtree(os.path.dirname(book['BookFile']), ignore_errors=True)
                             except Exception as e:
@@ -1677,7 +1677,7 @@ class WebInterface(object):
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
-            if not os.path.isdir(authordir):
+            if not path_isdir(authordir):
                 # books might not be in exact same authorname folder due to capitalisation
                 # eg Calibre puts books into folder "Eric Van Lustbader", but
                 # goodreads told lazylibrarian he's "Eric van Lustbader", note the lowercase 'v'
@@ -1688,7 +1688,7 @@ class WebInterface(object):
                     authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('Audio'), AuthorName))
                 else:  # if library == 'eBook':
                     authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
-            if not os.path.isdir(authordir):
+            if not path_isdir(authordir):
                 # if still not found, see if we have a book by them, and what directory it's in
                 if library == 'AudioBook':
                     sourcefile = 'AudioFile'
@@ -1699,7 +1699,7 @@ class WebInterface(object):
                 anybook = myDB.match(cmd, (AuthorName,))
                 if anybook:
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
-            if os.path.isdir(authordir):
+            if path_isdir(authordir):
                 remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
                 try:
                     threading.Thread(target=LibraryScan, name='AUTHOR_SCAN',
@@ -2341,7 +2341,7 @@ class WebInterface(object):
             if res:
                 target = res['IssueFile']
 
-                if target and os.path.isfile(target):
+                if target and path_isfile(target):
                     logger.debug('Opening %s %s' % (ftype, target))
                     return self.send_file(target)
 
@@ -2351,7 +2351,7 @@ class WebInterface(object):
                 cnt = 0
                 basefile = res['AudioFile']
                 # count the audiobook parts
-                if basefile and os.path.isfile(basefile):
+                if basefile and path_isfile(basefile):
                     parentdir = os.path.dirname(basefile)
                     for _, _, filenames in walk(parentdir):
                         for filename in filenames:
@@ -2363,7 +2363,7 @@ class WebInterface(object):
                     logger.debug('Opening %s %s' % (ftype, target))
                     return self.send_file(target, name=res['BookName'] + '.zip')
 
-                if basefile and os.path.isfile(basefile):
+                if basefile and path_isfile(basefile):
                     logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(basefile)
 
@@ -2375,7 +2375,7 @@ class WebInterface(object):
                 types = []
                 for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
                     target = basename + '.' + item
-                    if os.path.isfile(target):
+                    if path_isfile(target):
                         types.append(item)
 
                 # serve user preferred type if available, or system preferred type
@@ -2384,7 +2384,7 @@ class WebInterface(object):
                 else:
                     extn = types[0]
                 basefile = basename + '.' + extn
-                if os.path.isfile(basefile):
+                if path_isfile(basefile):
                     logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(basefile)
 
@@ -2392,7 +2392,7 @@ class WebInterface(object):
             res = myDB.match('SELECT IssueFile from issues WHERE IssueID=?', (itemid,))
             if res:
                 basefile = res['IssueFile']
-                if basefile and os.path.isfile(basefile):
+                if basefile and path_isfile(basefile):
                     logger.debug('Opening %s %s' % (ftype, basefile))
                     return self.send_file(basefile)
         logger.warn("No file found for %s %s" % (ftype, itemid))
@@ -2436,10 +2436,10 @@ class WebInterface(object):
                 bookName = bookdata["BookName"]
                 if library == 'AudioBook':
                     bookfile = bookdata["AudioFile"]
-                    if bookfile and os.path.isfile(bookfile):
+                    if bookfile and path_isfile(bookfile):
                         parentdir = os.path.dirname(bookfile)
                         index = os.path.join(parentdir, 'playlist.ll')
-                        if os.path.isfile(index):
+                        if path_isfile(index):
                             if booktype == 'zip':
                                 zipfile = zipAudio(parentdir, bookName)
                                 if email:
@@ -2450,7 +2450,7 @@ class WebInterface(object):
                                                       email=email)
                             idx = check_int(booktype, 0)
                             if idx:
-                                with open(index, 'r') as f:
+                                with open(syspath(index), 'r') as f:
                                     part = f.read().splitlines()[idx - 1]
                                 bookfile = os.path.join(parentdir, part)
                                 if email:
@@ -2499,12 +2499,12 @@ class WebInterface(object):
                 else:
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
-                    if bookfile and os.path.isfile(bookfile):
+                    if bookfile and path_isfile(bookfile):
                         basename, _ = os.path.splitext(bookfile)
                         types = []
                         for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
                             target = basename + '.' + item
-                            if os.path.isfile(target):
+                            if path_isfile(target):
                                 types.append(item)
                         logger.debug('Preftype:%s Types:%s' % (preftype, str(types)))
                         if preftype and len(types):
@@ -2642,7 +2642,7 @@ class WebInterface(object):
 
                         rejected = True
                         # Cache file image
-                        if os.path.isfile(authorimg):
+                        if path_isfile(authorimg):
                             extn = os.path.splitext(authorimg)[1].lower()
                             if extn and extn in ['.jpg', '.jpeg', '.png']:
                                 destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
@@ -2729,9 +2729,9 @@ class WebInterface(object):
                 source = kwargs['importfrom']
                 folder = ''
                 library = ''
-                if os.path.isfile(source):
+                if path_isfile(source):
                     folder = os.path.dirname(source)
-                elif os.path.isdir(source):
+                elif path_isdir(source):
                     folder = source
                 if folder:
                     if book_file(folder, booktype='audiobook'):
@@ -2835,7 +2835,7 @@ class WebInterface(object):
                     coverlink = 'cache/book/' + coverid + '.jpg'
                     coverfile = os.path.join(cachedir, "book", coverid + '.jpg')
                     newcoverfile = os.path.join(cachedir, "book", bookid + covertype + '.jpg')
-                    if os.path.exists(newcoverfile):
+                    if path_exists(newcoverfile):
                         copyfile(newcoverfile, coverfile)
                     edited += 'Cover (%s)' % cover
                 else:
@@ -3015,7 +3015,7 @@ class WebInterface(object):
                         if action == "Delete":
                             if 'Audio' in library:
                                 bookfile = bookdata['AudioFile']
-                                if bookfile and os.path.isfile(bookfile):
+                                if bookfile and path_isfile(bookfile):
                                     try:
                                         rmtree(os.path.dirname(bookfile), ignore_errors=True)
                                         logger.info('AudioBook %s deleted from disc' % bookname)
@@ -3025,7 +3025,7 @@ class WebInterface(object):
 
                             if 'eBook' in library:
                                 bookfile = bookdata['BookFile']
-                                if bookfile and os.path.isfile(bookfile):
+                                if bookfile and path_isfile(bookfile):
                                     try:
                                         rmtree(os.path.dirname(bookfile), ignore_errors=True)
                                         deleted = True
@@ -3138,7 +3138,7 @@ class WebInterface(object):
                 if this_issue['Cover']:
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
-                if not magimg or not os.path.isfile(magimg):
+                if not magimg or not path_isfile(magimg):
                     this_issue['Cover'] = 'images/nocover.jpg'
 
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
@@ -3177,7 +3177,7 @@ class WebInterface(object):
                 if this_issue['Cover']:
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
-                if not magimg or not os.path.isfile(magimg):
+                if not magimg or not path_isfile(magimg):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 mod_issues.append(this_issue)
                 count += 1
@@ -3452,7 +3452,7 @@ class WebInterface(object):
             iss_data = myDB.match(cmd, (comicid, issueid))
             if iss_data:
                 IssueFile = iss_data["IssueFile"]
-                if IssueFile and os.path.isfile(IssueFile):
+                if IssueFile and path_isfile(IssueFile):
                     logger.debug('Opening file %s' % IssueFile)
                     return self.send_file(IssueFile, name="Comic %s %s" % (title, issueid))
 
@@ -3494,7 +3494,7 @@ class WebInterface(object):
                     this_issue = dict(issue)
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
-                    if not magimg or not os.path.isfile(magimg):
+                    if not magimg or not path_isfile(magimg):
                         this_issue['Cover'] = 'images/nocover.jpg'
                     mod_issues.append(this_issue)
 
@@ -3696,12 +3696,12 @@ class WebInterface(object):
                         new_acquired = ''
                         cover = ''
                         issuefile = newest['IssueFile']
-                        if os.path.exists(issuefile):
+                        if path_exists(issuefile):
                             cover = os.path.splitext(issuefile)[0] + '.jpg'
                             mtime = os.path.getmtime(issuefile)
                             new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                         issuefile = oldest['IssueFile']
-                        if os.path.exists(issuefile):
+                        if path_exists(issuefile):
                             mtime = os.path.getmtime(issuefile)
                             old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
@@ -3891,7 +3891,7 @@ class WebInterface(object):
                     this_issue = dict(issue)
                     magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                           this_issue['Cover'].replace('cache/', ''))
-                    if not magimg or not os.path.isfile(magimg):
+                    if not magimg or not path_isfile(magimg):
                         this_issue['Cover'] = 'images/nocover.jpg'
                     mod_issues.append(this_issue)
 
@@ -3994,7 +3994,7 @@ class WebInterface(object):
                 this_issue = dict(issue)
                 magimg = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                       this_issue['Cover'].replace('cache/', ''))
-                if not magimg or not os.path.isfile(magimg):
+                if not magimg or not path_isfile(magimg):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
                     covercount += 1
@@ -4102,7 +4102,7 @@ class WebInterface(object):
         mag_data = myDB.match('SELECT * from issues WHERE IssueID=?', (bookid,))
         if mag_data:
             IssueFile = mag_data["IssueFile"]
-            if IssueFile and os.path.isfile(IssueFile):
+            if IssueFile and path_isfile(IssueFile):
                 if email:
                     logger.debug('Emailing file %s' % IssueFile)
                 else:
@@ -4302,12 +4302,12 @@ class WebInterface(object):
                             new_acquired = ''
                             cover = ''
                             issuefile = newest['IssueFile']
-                            if os.path.exists(issuefile):
+                            if path_exists(issuefile):
                                 cover = os.path.splitext(issuefile)[0] + '.jpg'
                                 mtime = os.path.getmtime(issuefile)
                                 new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                             issuefile = oldest['IssueFile']
-                            if os.path.exists(issuefile):
+                            if path_exists(issuefile):
                                 mtime = os.path.getmtime(issuefile)
                                 old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
@@ -4334,12 +4334,12 @@ class WebInterface(object):
     def deleteIssue(issuefile):
         try:
             # delete the magazine file and any cover image / opf
-            if os.path.exists(issuefile):
-                os.remove(issuefile)
+            if path_exists(issuefile):
+                os.remove(syspath(issuefile))
             fname, extn = os.path.splitext(issuefile)
             for extn in ['.opf', '.jpg']:
-                if os.path.exists(fname + extn):
-                    os.remove(fname + extn)
+                if path_exists(fname + extn):
+                    os.remove(syspath(fname + extn))
 
             # if the directory is now empty, delete that too
             if lazylibrarian.CONFIG['MAG_DELFOLDER']:
@@ -4661,7 +4661,7 @@ class WebInterface(object):
         if 'IMPORTCSV' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 csvFile = csv_file(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
-                if os.path.exists(csvFile):
+                if path_exists(csvFile):
                     message = "Importing books (background task) from %s" % csvFile
                     threading.Thread(target=import_CSV, name='IMPORTCSV',
                                      args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library]).start()

@@ -17,7 +17,7 @@ import traceback
 import lazylibrarian
 from lib.six import PY2
 from lazylibrarian import database, logger
-from lazylibrarian.common import csv_file, safe_move
+from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, formatAuthorName, \
     makeUnicode, split_title, makeBytestr
 from lazylibrarian.importer import search_for, import_book, addAuthorNameToDB, update_totals
@@ -41,7 +41,7 @@ def dump_table(table, savedir=None, status=None):
             logger.warn("No such table [%s]" % table)
             return 0
 
-        if not os.path.isdir(savedir):
+        if not path_isdir(savedir):
             savedir = lazylibrarian.DATADIR
 
         headers = ''
@@ -65,7 +65,7 @@ def dump_table(table, savedir=None, status=None):
                 fmode = 'wb'
             else:
                 fmode = 'w'
-            with open(csvFile, fmode) as csvfile:
+            with open(syspath(csvFile), fmode) as csvfile:
                 csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
                 headers = headers.split(',')
                 csvwrite.writerow(headers)
@@ -94,7 +94,7 @@ def restore_table(table, savedir=None, status=None):
             logger.warn("No such table [%s]" % table)
             return 0
 
-        if not os.path.isdir(savedir):
+        if not path_isdir(savedir):
             savedir = lazylibrarian.DATADIR
 
         headers = ''
@@ -160,7 +160,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
             msg = "Alternate Directory not configured"
             logger.warn(msg)
             return msg
-        elif not os.path.isdir(search_dir):
+        elif not path_isdir(search_dir):
             msg = "Alternate Directory [%s] not found" % search_dir
             logger.warn(msg)
             return msg
@@ -189,7 +189,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
                 fmode = 'wb'
             else:
                 fmode = 'w'
-            with open(csvFile, fmode) as csvfile:
+            with open(syspath(csvFile), fmode) as csvfile:
                 csvwrite = writer(csvfile, delimiter=',',
                                   quotechar='"', quoting=QUOTE_MINIMAL)
 
@@ -270,7 +270,7 @@ def import_CSV(search_dir=None, library='eBook'):
             msg = "Alternate Directory not configured"
             logger.warn(msg)
             return msg
-        elif not os.path.isdir(search_dir):
+        elif not path_isdir(search_dir):
             msg = "Alternate Directory [%s] not found" % search_dir
             logger.warn(msg)
             return msg
@@ -418,7 +418,7 @@ def import_CSV(search_dir=None, library='eBook'):
                         logger.warn('Unable to delete %s: %s' % (csvFile, why.strerror))
                 else:
                     logger.warn("Not deleting %s as not all books found" % csvFile)
-                    if os.path.isdir(csvFile + '.fail'):
+                    if path_isdir(csvFile + '.fail'):
                         try:
                             shutil.rmtree(csvFile + '.fail')
                         except Exception as why:
@@ -435,7 +435,7 @@ def import_CSV(search_dir=None, library='eBook'):
                             logger.error("%s is not writeable" % csvFile)
                         parent = os.path.dirname(csvFile)
                         try:
-                            with open(os.path.join(parent, 'll_temp'), 'w') as f:
+                            with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                 f.write('test')
                             os.remove(os.path.join(parent, 'll_temp'))
                         except Exception as why:

@@ -28,7 +28,7 @@ except ImportError:
     import lib.requests as requests
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import getUserAgent, proxyList, walk, listdir
+from lazylibrarian.common import getUserAgent, proxyList, walk, listdir, path_isdir, syspath
 from lazylibrarian.formatter import check_int, makeUnicode
 
 
@@ -122,7 +122,7 @@ def getInstallType():
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'package'
         lazylibrarian.CONFIG['GIT_BRANCH'] = 'master'
 
-    elif os.path.isdir(os.path.join(lazylibrarian.PROG_DIR, '.git')):
+    elif path_isdir(os.path.join(lazylibrarian.PROG_DIR, '.git')):
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'git'
         lazylibrarian.CONFIG['GIT_BRANCH'] = getCurrentGitBranch()
     else:
@@ -452,12 +452,12 @@ def updateVersionFile(new_version_id):
     try:
         logmsg('debug', "Updating [%s] with value [%s]" % (version_path, new_version_id))
         if os.path.exists(version_path):
-            with open(version_path, 'r') as ver_file:
+            with open(syspath(version_path), 'r') as ver_file:
                 current_version = ver_file.read().strip(' \n\r')
             if current_version == new_version_id:
                 return False
 
-        with open(version_path, 'w') as ver_file:
+        with open(syspath(version_path), 'w') as ver_file:
             ver_file.write(new_version_id)
 
         lazylibrarian.CONFIG['CURRENT_VERSION'] = new_version_id
@@ -536,7 +536,7 @@ def update():
         tar_download_path = os.path.join(lazylibrarian.PROG_DIR, download_name)
 
         # Save tar to disk
-        with open(tar_download_path, 'wb') as f:
+        with open(syspath(tar_download_path), 'wb') as f:
             f.write(r.content)
 
         # Extract the tar to update folder
@@ -550,12 +550,12 @@ def update():
 
         # Delete the tar.gz
         logmsg('info', 'Deleting file ' + tar_download_path)
-        os.remove(tar_download_path)
+        os.remove(syspath(tar_download_path))
 
         # Find update dir name
         update_dir = makeUnicode(update_dir)
         logger.debug("update_dir [%s]" % update_dir)
-        update_dir_contents = [x for x in listdir(update_dir) if os.path.isdir(os.path.join(update_dir, x))]
+        update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
         if len(update_dir_contents) != 1:
             logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
             return False
@@ -571,8 +571,8 @@ def update():
                     logger.error("PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
                         lazylibrarian.PROG_DIR, content_dir, rootdir, curfile))
                 if os.path.isfile(new_path):
-                    os.remove(new_path)
-                os.renames(old_path, new_path)
+                    os.remove(syspath(new_path))
+                os.renames(syspath(old_path), syspath(new_path))
 
         # Update version.txt and timestamp
         updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])

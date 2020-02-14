@@ -14,10 +14,6 @@ import time
 import datetime
 from xml.etree import ElementTree
 
-try:
-    from urllib.parse import urlparse
-except ImportError:
-    from urlparse import urlparse
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -25,11 +21,12 @@ from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
     makeUnicode, seconds_to_midnight, makeUTF8bytes
+from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlencode
+from lib.six.moves.urllib_parse import urlencode, urlparse
 
 if PY2:
     import lib.feedparser as feedparser
@@ -959,8 +956,9 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     elif str(URL)[:4] == "file":
         success = False
         file_path = urlparse(URL).path
+        # noinspection PyBroadException
         try:
-            with open(file_path, "r") as rss_provider:
+            with open(syspath(file_path), "r") as rss_provider:
                 success = True
                 result = rss_provider.read()
         except Exception:

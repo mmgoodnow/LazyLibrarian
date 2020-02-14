@@ -20,7 +20,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
-from lazylibrarian.common import walk, setperm
+from lazylibrarian.common import walk, setperm, path_isfile, syspath
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now
 from lazylibrarian.images import createMagCover
 from lazylibrarian.postprocess import createComicOPF
@@ -63,7 +63,7 @@ def comicScan(comicid=None):
                 comicid = mag['ComicID']
                 issuefile = mag['IssueFile']
 
-                if issuefile and not os.path.isfile(issuefile):
+                if issuefile and not path_isfile(issuefile):
                     myDB.action('DELETE from comicissues where issuefile=?', (issuefile,))
                     logger.info('Issue %s - %s deleted as not found on disk' % (title, issueid))
 
@@ -189,7 +189,7 @@ def comicScan(comicid=None):
                             if not iss_entry:
                                 logger.debug("Adding issue %s %s" % (title, issue))
                                 coverfile = createMagCover(issuefile, refresh=True)
-                                if coverfile and os.path.isfile(coverfile):
+                                if coverfile and path_isfile(coverfile):
                                     hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
                                     copyfile(coverfile, hashname)
                                     setperm(hashname)
@@ -230,7 +230,7 @@ def comicScan(comicid=None):
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
-                            with open(ignorefile, 'a'):
+                            with open(syspath(ignorefile), 'a'):
                                 os.utime(ignorefile, None)
                         except IOError as e:
                             logger.warn("Unable to create ignorefile: %s" % str(e))

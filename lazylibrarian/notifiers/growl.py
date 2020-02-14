@@ -1,7 +1,7 @@
 import os
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, syspath
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
@@ -78,7 +78,7 @@ class Growl_Notifier:
         # Send it, including an image if available
         image_file = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
         if os.path.exists(image_file):
-            with open(image_file, 'rb') as f:
+            with open(syspath(image_file), 'rb') as f:
                 image = f.read()
         else:
             image = None

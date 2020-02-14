@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int, makeUTF8bytes
-from lazylibrarian.common import safe_copy, setperm
+from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath
 from lazylibrarian.cache import cache_img, fetchURL
 from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
 from lib.six import PY2, text_type
@@ -99,12 +99,12 @@ def coverswap(sourcefile):
             # logger.debug("Added page %s" % p)
             p = p + 1
         logger.debug("Writing new output file")
-        with open(sourcefile + 'new', "wb") as outputStream:
+        with open(syspath(sourcefile + 'new'), "wb") as outputStream:
             output.write(outputStream)
         f.close()
         logger.debug("Renaming output file")
-        os.remove(sourcefile)
-        os.rename(sourcefile + 'new', sourcefile)
+        os.remove(syspath(sourcefile))
+        os.rename(syspath(sourcefile + 'new'), syspath(sourcefile))
         logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
         return True
 
@@ -212,7 +212,7 @@ def getBookCover(bookID=None, src=None):
             coverlink = "cache/book/" + bookID + ".jpg"
             coverfile = os.path.join(cachedir, "book", bookID + '.jpg')
         if not src or src == 'cache' or src == 'current':
-            if os.path.isfile(coverfile):  # use cached image if there is one
+            if path_isfile(coverfile):  # use cached image if there is one
                 lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
                 return coverlink, 'cache'
             elif src:
@@ -226,7 +226,7 @@ def getBookCover(bookID=None, src=None):
                 if bookfile:  # we may have a cover.jpg in the same folder
                     bookdir = os.path.dirname(bookfile)
                     coverimg = os.path.join(bookdir, "cover.jpg")
-                    if os.path.isfile(coverimg):
+                    if path_isfile(coverimg):
                         if src:
                             extn = '_cover.jpg'
                         else:
@@ -257,8 +257,8 @@ def getBookCover(bookID=None, src=None):
                     # if librarything has no image they return a 1x1 gif
                     data = ''
                     coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                    if os.path.isfile(coverfile):
-                        with open(coverfile, 'rb') as f:
+                    if path_isfile(coverfile):
+                        with open(syspath(coverfile), 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
                         logger.debug('Got an empty librarything image for %s [%s]' % (bookID, img))
@@ -287,8 +287,8 @@ def getBookCover(bookID=None, src=None):
                         # if librarything has no image they return a 1x1 gif
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                        if os.path.isfile(coverfile):
-                            with open(coverfile, 'rb') as f:
+                        if path_isfile(coverfile):
+                            with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
                             logger.debug('Got an empty whatwork image for %s [%s]' % (bookID, coverlink))
@@ -313,8 +313,8 @@ def getBookCover(bookID=None, src=None):
                         # if librarything has no image they return a 1x1 gif
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                        if os.path.isfile(coverfile):
-                            with open(coverfile, 'rb') as f:
+                        if path_isfile(coverfile):
+                            with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
                             logger.debug('Got an empty whatwork image for %s [%s]' % (bookID, coverlink))
@@ -368,8 +368,8 @@ def getBookCover(bookID=None, src=None):
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                        if os.path.isfile(coverfile):
-                            with open(coverfile, 'rb') as f:
+                        if path_isfile(coverfile):
+                            with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
                             logger.debug('Got an empty goodreads image for %s [%s]' % (bookID, coverlink))
@@ -417,8 +417,8 @@ def getBookCover(bookID=None, src=None):
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                        if os.path.isfile(coverfile):
-                            with open(coverfile, 'rb') as f:
+                        if path_isfile(coverfile):
+                            with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
                             logger.debug('Got an empty openlibrary image for %s [%s]' % (bookID, coverlink))
@@ -454,8 +454,8 @@ def getBookCover(bookID=None, src=None):
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                        if os.path.isfile(coverfile):
-                            with open(coverfile, 'rb') as f:
+                        if path_isfile(coverfile):
+                            with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
                             logger.debug('Got an empty google image for %s [%s]' % (bookID, coverlink))
@@ -497,8 +497,8 @@ def getBookCover(bookID=None, src=None):
 
                     data = ''
                     coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                    if os.path.isfile(coverfile):
-                        with open(coverfile, 'rb') as f:
+                    if path_isfile(coverfile):
+                        with open(syspath(coverfile), 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
                         logger.debug('Got an empty goodreads image for %s [%s]' % (bookID, coverlink))
@@ -532,7 +532,7 @@ def getAuthorImage(authorid=None):
     cachedir = lazylibrarian.CACHEDIR
     coverfile = os.path.join(cachedir, "author", authorid + '.jpg')
 
-    if os.path.isfile(coverfile):  # use cached image if there is one
+    if path_isfile(coverfile):  # use cached image if there is one
         lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
         logger.debug("getAuthorImage: Returning Cached response for %s" % coverfile)
         coverlink = 'cache/author/' + authorid + '.jpg'
@@ -601,7 +601,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
         logger.warn('No cover required for %s' % issuefile)
         return ''
-    if not issuefile or not os.path.isfile(issuefile):
+    if not issuefile or not path_isfile(issuefile):
         logger.warn('No issuefile %s' % issuefile)
         return ''
 
@@ -612,9 +612,9 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
 
     coverfile = base + '.jpg'
 
-    if os.path.isfile(coverfile):
+    if path_isfile(coverfile):
         if refresh:
-            os.remove(coverfile)
+            os.remove(syspath(coverfile))
         else:
             logger.debug('Cover for %s exists' % issuefile)
             return coverfile  # quit if cover already exists and we didn't want to refresh
@@ -656,7 +656,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 if img:
                     break
             if img:
-                with open(coverfile, 'wb') as f:
+                with open(syspath(coverfile), 'wb') as f:
                     f.write(img)
                 thumb = createthumb(coverfile)
                 if thumb:
@@ -676,7 +676,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 logger.warn(msg)
             converter = lazylibrarian.CONFIG['IMP_CONVERT']
             postfix = ''
-            # if not os.path.isfile(converter):  # full path given, or just program_name?
+            # if not path_isfile(converter):  # full path given, or just program_name?
             #     converter = os.path.join(os.getcwd(), lazylibrarian.CONFIG['IMP_CONVERT'])
             if 'convert' in converter and 'gs' not in converter:
                 # tell imagemagick to only convert first page
@@ -697,11 +697,11 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             if not GS:
                 GS = os.path.join(os.getcwd(), "gswin64c.exe")
                 generator = "local gswin64c"
-                if not os.path.isfile(GS):
+                if not path_isfile(GS):
                     logger.debug("%s not found" % GS)
                     GS = os.path.join(os.getcwd(), "gswin32c.exe")
                     generator = "local gswin32c"
-                if not os.path.isfile(GS):
+                if not path_isfile(GS):
                     logger.debug("%s not found" % GS)
                     params = ["where", "gswin64c"]
                     try:
@@ -711,7 +711,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     except Exception as e:
                         logger.debug("where gswin64c failed: %s %s" % (type(e).__name__, str(e)))
                         GS = ''
-            if not os.path.isfile(GS):
+            if not path_isfile(GS):
                 params = ["where", "gswin32c"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -719,7 +719,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     generator = "gswin32c"
                 except Exception as e:
                     logger.debug("where gswin32c failed: %s %s" % (type(e).__name__, str(e)))
-            if not os.path.isfile(GS):
+            if not path_isfile(GS):
                 logger.debug("No gswin found")
                 generator = "(no windows ghostscript found)"
                 GS = ''
@@ -746,7 +746,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
 
                         res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         res = makeUnicode(res).strip()
-                        if not os.path.isfile(coverfile):
+                        if not path_isfile(coverfile):
                             logger.debug("Failed to create jpg: %s" % res)
                 except Exception:  # as why:
                     logger.warn("Failed to create jpg for %s" % issuefile)
@@ -785,7 +785,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     if not GS:
                         GS = os.path.join(os.getcwd(), "gs")
                         generator = "local gs"
-                        if not os.path.isfile(GS):
+                        if not path_isfile(GS):
                             logger.debug("%s not found" % GS)
                             GS = ''
                             params = ["which", "gs"]
@@ -798,7 +798,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                     logger.debug("Could not find gs in your system path")
                                 else:
                                     logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
-                    if not os.path.isfile(GS):
+                    if not path_isfile(GS):
                         logger.debug("Cannot find gs")
                         generator = "(no gs found)"
                         GS = ''
@@ -823,7 +823,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                             try:
                                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                                 res = makeUnicode(res).strip()
-                                if not os.path.isfile(coverfile):
+                                if not path_isfile(coverfile):
                                     logger.debug("Failed to create jpg: %s" % res)
                             except Exception as e:
                                 logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
@@ -831,7 +831,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 logger.warn("Unable to create cover for %s using %s %s" % (issuefile, type(e).__name__, generator))
                 logger.debug('Exception in create_cover: %s' % traceback.format_exc())
 
-        if os.path.isfile(coverfile):
+        if path_isfile(coverfile):
             setperm(coverfile)
             logger.debug("Created cover (page %d) for %s using %s" % (check_int(pagenum, 1), issuefile, generator))
             thumb = createthumb(coverfile)

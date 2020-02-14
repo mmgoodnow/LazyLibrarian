@@ -20,7 +20,8 @@ import os
 from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8
+from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8, check_int
+from lazylibrarian.common import path_isfile, syspath
 try:
     import zipfile
 except ImportError:
@@ -232,16 +233,16 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + cmd)
         valid_cache = False
         hashfilename = os.path.join(cacheLocation, myhash + ".irc")
-        expiry = 2 * 24 * 60 * 60  # expire cache after this many seconds
+        expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 2 * 24 * 3600)
 
-        if os.path.isfile(hashfilename):
+        if path_isfile(hashfilename):
             cache_modified_time = os.stat(hashfilename).st_mtime
             time_now = time.time()
             if cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
                     logger.debug("Expiring %s" % myhash)
-                os.remove(hashfilename)
+                os.remove(syspath(hashfilename))
             else:
                 valid_cache = True
 
@@ -250,7 +251,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
                 logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
                                                                                     searchstring))
-            with open(hashfilename, "rb") as cachefile:
+            with open(syspath(hashfilename), "rb") as cachefile:
                 data = cachefile.read()
             return hashfilename, data
 
@@ -473,7 +474,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
         # still cache if empty response (no matches)
         # so we don't need to ask again
         logger.debug("CacheHandler: Storing %s" % hashfilename)
-        with open(hashfilename, "wb") as cachefile:
+        with open(syspath(hashfilename), "wb") as cachefile:
             cachefile.write(received_data)
         return hashfilename, received_data
     return filename, received_data

@@ -22,7 +22,8 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setWorkPages
 from lazylibrarian.bookrename import bookRename, audioProcess, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes
+from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes, \
+    path_isdir, path_isfile, path_exists
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
     cleanName, replace_all, replace_with, split_title, now, makeUnicode, makeBytestr, \
     formatAuthorName, makeUTF8bytes
@@ -486,7 +487,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             return 0
         startdir = destdir
 
-    if not os.path.isdir(startdir):
+    if not path_isdir(startdir):
         logger.warn('Cannot find directory: %s. Not scanning' % startdir)
         return 0
 
@@ -548,7 +549,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 for book in books:
                     bookfile = book['BookFile']
 
-                    if bookfile and not os.path.isfile(bookfile):
+                    if bookfile and not path_isfile(bookfile):
                         myDB.action('update books set Status=?,BookFile="",BookLibrary="" where BookID=?',
                                     (status, book['BookID']))
                         logger.warn('eBook %s - %s updated as not found on disk' %
@@ -565,7 +566,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 for book in books:
                     bookfile = book['AudioFile']
 
-                    if bookfile and not os.path.isfile(bookfile):
+                    if bookfile and not path_isfile(bookfile):
                         myDB.action('update books set AudioStatus=?,AudioFile="",AudioLibrary="" where BookID=?',
                                     (status, book['BookID']))
                         logger.warn('Audiobook %s - %s updated as not found on disk' %
@@ -633,7 +634,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     logger.debug('Skipping %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)
                     # ignore directories containing this special file
-                elif os.path.exists(os.path.join(rootdir, directory, ignorefile)):
+                elif path_exists(os.path.join(rootdir, directory, ignorefile)):
                     logger.debug('Found .ll_ignore file in %s' % os.path.join(rootdir, directory))
                     dirnames.remove(directory)
             subdirectory = rootdir.replace(makeUnicode(startdir), '')
@@ -650,7 +651,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
-                elif not os.path.isdir(makeBytestr(rootdir)):
+                elif not path_isdir(makeBytestr(rootdir)):
                     logger.debug("Directory %s missing (renamed?)" % repr(rootdir))
                 else:
                     # If this is a book, try to get author/title/isbn/language
@@ -1052,7 +1053,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
                                             for book_type in booktype_list:
                                                 preferred_type = "%s.%s" % (book_basename, book_type)
-                                                if os.path.exists(preferred_type):
+                                                if path_exists(preferred_type):
                                                     book_filename = preferred_type
                                                     logger.debug("Librarysync link to preferred type %s: %s" %
                                                                  (book_type, book_filename))
@@ -1128,7 +1129,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             cachedir = lazylibrarian.CACHEDIR
                                             cacheimg = os.path.join(cachedir, 'book', bookid + '.jpg')
                                             coverimg = os.path.join(bookdir, 'cover.jpg')
-                                            if not os.path.isfile(coverimg):
+                                            if not path_isfile(coverimg):
                                                 coverimg = any_file(bookdir, '.jpg')
                                             if coverimg:
                                                 shutil.copyfile(coverimg, cacheimg)

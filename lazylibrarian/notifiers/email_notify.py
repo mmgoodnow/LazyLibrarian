@@ -25,7 +25,7 @@ import lazylibrarian
 import os
 import traceback
 from lazylibrarian import logger, database, ebook_convert
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail, path_isfile, syspath
 from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
 from lib.six import PY2
 
@@ -87,7 +87,7 @@ class EmailNotifier:
                     message.attach(MIMEText(msg))
                 else:
                     logger.debug('Attaching %s' % os.path.basename(f))
-                    with open(f, "rb") as fil:
+                    with open(syspath(f), "rb") as fil:
                         part = MIMEApplication(fil.read(), Name=os.path.basename(f))
                         part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(f)
                         message.attach(part)
@@ -195,13 +195,13 @@ class EmailNotifier:
                     if data:
                         bookfile = data['BookFile']
                         types = []
-                        if bookfile and os.path.isfile(bookfile):
+                        if bookfile and path_isfile(bookfile):
                             basename, extn = os.path.splitext(bookfile)
                             for item in set(
                                     typelist + custom_typelist):
                                 # Search download and email formats for existing book formats
                                 target = basename + '.' + item
-                                if os.path.isfile(target):
+                                if path_isfile(target):
                                     types.append(item)
 
                             logger.debug('Available filetypes: %s' % str(types))

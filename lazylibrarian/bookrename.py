@@ -17,7 +17,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook, listdir, namedic
+from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
     makeUnicode, makeBytestr, makeUTF8bytes, sortDefinite, surnameFirst
 from lib.six import PY2
@@ -296,7 +296,7 @@ def audioProcess(bookid, rename=False, playlist=False):
             dest_path = safe_move(r, dest_path)
             r = dest_path
         except Exception as why:
-            if not os.path.isdir(dest_path):
+            if not path_isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
 
     if playlist:
@@ -400,7 +400,7 @@ def bookRename(bookid):
             dest_path = safe_move(oldpath, dest_path)
             logger.debug("bookRename folder %s to %s" % (oldpath, dest_path))
         except Exception as why:
-            if not os.path.isdir(dest_path):
+            if not path_isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
 
     book_basename, prefextn = os.path.splitext(os.path.basename(f))

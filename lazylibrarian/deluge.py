@@ -22,7 +22,6 @@
 
 from __future__ import unicode_literals
 
-import os
 import re
 import traceback
 from base64 import b64encode, b64decode
@@ -36,7 +35,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, makeUnicode
-from lazylibrarian.common import make_dirs
+from lazylibrarian.common import make_dirs, path_isdir, syspath
 from lib.six import PY2
 
 delugeweb_auth = {}
@@ -80,7 +79,7 @@ def addTorrent(link, data=None):
 
             if not torrentfile:
                 logger.debug('Deluge: Getting .torrent from file %s' % link)
-                with open(link, 'rb') as f:
+                with open(syspath(link), 'rb') as f:
                     torrentfile = f.read()
             # Extract torrent name from .torrent
             try:
@@ -620,7 +619,7 @@ def setTorrentPath(result):
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
-        if not os.path.isdir(dl_dir):
+        if not path_isdir(dl_dir):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Deluge: %s directory doesn\'t exist, let\'s create it' % dl_dir)
             _ = make_dirs(dl_dir)

@@ -13,6 +13,7 @@ import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
 from lazylibrarian.formatter import check_int
 from lazylibrarian.versioncheck import runGit
+from lazylibrarian.common import path_isfile, path_isdir, syspath
 # noinspection PyUnresolvedReferences
 from lib.six.moves import configparser
 
@@ -149,7 +150,7 @@ def main():
             lazylibrarian.PIDFILE = str(options.pidfile)
 
     # create and check (optional) paths
-    if not os.path.isdir(lazylibrarian.DATADIR):
+    if not path_isdir(lazylibrarian.DATADIR):
         try:
             os.makedirs(lazylibrarian.DATADIR)
         except OSError:
@@ -173,11 +174,11 @@ def main():
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
     old_file = os.path.join(lazylibrarian.PROG_DIR, 'version.txt')
     version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
-    if os.path.isfile(old_file):
-        if not os.path.isfile(version_file):
+    if path_isfile(old_file):
+        if not path_isfile(version_file):
             try:
-                with open(old_file, 'r') as s:
-                    with open(version_file, 'w') as d:
+                with open(syspath(old_file), 'r') as s:
+                    with open(syspath(version_file), 'w') as d:
                         d.write(s.read())
             except OSError:
                 logger.warn("Unable to copy version.txt")
@@ -230,12 +231,12 @@ def main():
             logger.warn('Unrecognised version [%s] to force upgrade delete %s' % (
                         lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
 
-    if not os.path.isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+    if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
         # User may be running an old source zip, so try to force update
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
         lazylibrarian.SIGNAL = 'update'
         # but only once in case the update fails, don't loop
-        with open(version_file, 'w') as f:
+        with open(syspath(version_file), 'w') as f:
             f.write("UNKNOWN SOURCE")
 
     if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0 and lazylibrarian.SIGNAL == 'update':
