@@ -267,9 +267,9 @@ def comicScan(comicid=None):
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
             magcount = myDB.match("select count(*) from comics")
             isscount = myDB.match("select count(*) from comicissues")
-            logger.info("Comic scan complete, found %s comic%s, %s issue%s" %
-                        (magcount['count(*)'], plural(magcount['count(*)']),
-                         isscount['count(*)'], plural(isscount['count(*)'])))
+            logger.info("Comic scan complete, found %s %s, %s %s" %
+                        (magcount['count(*)'], plural(magcount['count(*)'], "comic"),
+                         isscount['count(*)'], plural(isscount['count(*)'], "issue")))
         else:
             logger.info("Comic scan complete")
         lazylibrarian.COMIC_UPDATE = 0

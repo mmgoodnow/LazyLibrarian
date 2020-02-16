@@ -333,9 +333,9 @@ def magazineScan(title=None):
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
             magcount = myDB.match("select count(*) from magazines")
             isscount = myDB.match("select count(*) from issues")
-            logger.info("Magazine scan complete, found %s magazine%s, %s issue%s" %
-                        (magcount['count(*)'], plural(magcount['count(*)']),
-                         isscount['count(*)'], plural(isscount['count(*)'])))
+            logger.info("Magazine scan complete, found %s %s, %s %s" %
+                        (magcount['count(*)'], plural(magcount['count(*)'], "magazine"),
+                         isscount['count(*)'], plural(isscount['count(*)'], "issue")))
         else:
             logger.info("Magazine scan complete")
         lazylibrarian.MAG_UPDATE = 0

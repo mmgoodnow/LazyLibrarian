@@ -446,8 +446,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s genre%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "genre"), index + 1,
+                                                            fin, len(results)))
         self.data = feed
         return
 
@@ -540,8 +540,9 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s book%s, %s to %s from %s" % (len(entries), escape(kwargs['genre']),
-                                                                   plural(len(entries)), index + 1, fin, len(results)))
+        logger.debug("Returning %s %s %s, %s to %s from %s" % (len(entries), escape(kwargs['genre']),
+                                                               plural(len(entries), "book"), index + 1,
+                                                               fin, len(results)))
         self.data = feed
         return
 
@@ -611,8 +612,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s author%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                  fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -681,8 +682,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s comic%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "comic"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -751,8 +752,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s magazine%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                    fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "magazine"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -901,8 +902,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -973,8 +974,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -1067,8 +1068,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s book%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+                                                            index + 1, fin, len(results)))
         return
 
     def _Members(self, **kwargs):
@@ -1162,8 +1163,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s book%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -1229,8 +1230,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -1297,8 +1298,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s issue%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                 fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -1439,8 +1440,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s book%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 
@@ -1526,8 +1527,8 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s AudioBook%s, %s to %s from %s" % (len(entries), plural(len(entries)), index + 1,
-                                                                     fin, len(results)))
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "audiobook"), 
+                                                            index + 1, fin, len(results)))
         self.data = feed
         return
 

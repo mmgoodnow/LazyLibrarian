@@ -655,7 +655,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
             snatched = myDB.select('SELECT * from wanted WHERE DownloadID=? AND Status="Snatched"', (downloadid,))
         else:
             snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
-        logger.debug('Found %s file%s marked "Snatched"' % (len(snatched), plural(len(snatched))))
+        logger.debug('Found %s %s marked "Snatched"' % (len(snatched), plural(len(snatched), "file")))
         if len(snatched):
             for book in snatched:
                 # see if we can get current status from the downloader as the name
@@ -713,7 +713,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 threading.currentThread().name = "WEBSERVER"
                 return status
 
-            logger.debug('Found %s file%s in %s' % (len(downloads), plural(len(downloads)), download_dir))
+            logger.debug('Found %s %s in %s' % (len(downloads), plural(len(downloads), "file"), download_dir))
 
             # any books left to look for...
 
@@ -1224,7 +1224,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
             ppcount += check_residual(download_dir)
 
-        logger.info('%s download%s processed.' % (ppcount, plural(ppcount)))
+        logger.info('%s %s processed.' % (ppcount, plural(ppcount, "download")))
 
         # Now check for any that are still marked snatched, seeding, or any aborted...
         cmd = 'SELECT * from wanted WHERE Status IN ("Snatched", "Aborted", "Seeding")'

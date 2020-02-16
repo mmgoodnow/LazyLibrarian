@@ -55,7 +55,7 @@ def search_wishlist():
             return  # No point in continuing
 
         # for each item in resultlist, add to database if necessary, and mark as wanted
-        logger.debug('Processing %s item%s in wishlists' % (len(resultlist), plural(len(resultlist))))
+        logger.debug('Processing %s %s in wishlists' % (len(resultlist), plural(len(resultlist), "item")))
         for book in resultlist:
             # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
             # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
@@ -230,7 +230,7 @@ def search_wishlist():
                                                                           results[0]['authorname'],
                                                                           results[0]['bookname']))
         if new_books:
-            logger.info("Wishlist marked %s book%s as Wanted" % (new_books, plural(new_books)))
+            logger.info("Wishlist marked %s %s as Wanted" % (new_books, plural(new_books, "book")))
         else:
             logger.debug("Wishlist marked no new books as Wanted")
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
@@ -289,7 +289,7 @@ def search_rss_book(books=None, library=None):
             scheduleJob(action='Stop', target='search_rss_book')
             return  # No point in continuing
 
-        logger.info('RSS Searching for %i book%s' % (len(searchbooks), plural(len(searchbooks))))
+        logger.info('RSS Searching for %i %s' % (len(searchbooks), plural(len(searchbooks), "book")))
 
         searchlist = []
         for searchbook in searchbooks:
@@ -355,7 +355,7 @@ def search_rss_book(books=None, library=None):
             if found > 1:
                 rss_count += 1
 
-        logger.info("RSS Search for Wanted items complete, found %s book%s" % (rss_count, plural(rss_count)))
+        logger.info("RSS Search for Wanted items complete, found %s %s" % (rss_count, plural(rss_count, "book")))
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:

@@ -78,7 +78,7 @@ except ImportError:
 
 def serve_template(templatename, **kwargs):
     threading.currentThread().name = "WEBSERVER"
-    interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data/interfaces/')
+    interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
         logger.error("Unable to locate template [%s], reverting to legacy" % template_dir)
@@ -470,7 +470,7 @@ class WebInterface(object):
                 msg = "Too many failed attempts. Reset password or retry after 1 hour"
             else:
                 lazylibrarian.USER_BLOCKLIST.append((username, int(time.time())))
-                msg = "Wrong password entered. You have %s attempt%s left" % (2 - cnt, plural(2 - cnt))
+                msg = "Wrong password entered. You have %s %s left" % (2 - cnt, plural(2 - cnt, "attempt"))
             logger.warn("Failed login: %s: %s" % (username, lazylibrarian.LOGIN_MSG))
         else:
             # invalid or missing username, or valid user but missing password
@@ -997,7 +997,7 @@ class WebInterface(object):
         self.label_thread('WEBSERVER')
         savedir = lazylibrarian.DATADIR
         mags = dump_table('magazines', savedir)
-        msg = "%d magazine%s exported" % (mags, plural(mags))
+        msg = "%d %s exported" % (mags, plural(mags, "magazine"))
         return msg
 
     @cherrypy.expose
@@ -1005,7 +1005,7 @@ class WebInterface(object):
         self.label_thread('WEBSERVER')
         savedir = lazylibrarian.DATADIR
         users = dump_table('users', savedir)
-        msg = "%d user%s exported" % (users, plural(users))
+        msg = "%d %s exported" % (users, plural(users, "user"))
         return msg
 
     @cherrypy.expose
@@ -1013,7 +1013,7 @@ class WebInterface(object):
         self.label_thread('WEBSERVER')
         savedir = lazylibrarian.DATADIR
         mags = restore_table('magazines', savedir)
-        msg = "%d magazine%s imported" % (mags, plural(mags))
+        msg = "%d %s imported" % (mags, plural(mags, "magazine"))
         return msg
 
     @cherrypy.expose
@@ -1021,7 +1021,7 @@ class WebInterface(object):
         self.label_thread('WEBSERVER')
         savedir = lazylibrarian.DATADIR
         users = restore_table('users', savedir)
-        msg = "%d user%s imported" % (users, plural(users))
+        msg = "%d %s imported" % (users, plural(users, "user"))
         return msg
 
     @cherrypy.expose
@@ -3466,7 +3466,7 @@ class WebInterface(object):
             logger.debug('Opening %s - %s' % (comicid, IssueID))
             return self.send_file(IssueFile, name="Comic %s %s" % (comicid, IssueID))
         else:  # multiple issues, show a list
-            logger.debug("%s has %s issue%s" % (comicid, len(iss_data), plural(len(iss_data))))
+            logger.debug("%s has %s %s" % (comicid, len(iss_data), plural(len(iss_data), "issue")))
             raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
 
     @cherrypy.expose
@@ -4125,7 +4125,7 @@ class WebInterface(object):
             return self.send_file(IssueFile, name="Magazine %s %s" % (bookid, IssueDate),
                                   email=email)
         else:  # multiple issues, show a list
-            logger.debug("%s has %s issue%s" % (bookid, len(mag_data), plural(len(mag_data))))
+            logger.debug("%s has %s %s" % (bookid, len(mag_data), plural(len(mag_data), "issue")))
             raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(makeUTF8bytes(bookid)[0]))
 
     @cherrypy.expose
@@ -4189,9 +4189,9 @@ class WebInterface(object):
                     maglist.append({'nzburl': nzburl})
 
         if action == 'Remove':
-            logger.info('Removed %s item%s from past issues' % (len(maglist), plural(len(maglist))))
+            logger.info('Removed %s %s from past issues' % (len(maglist), plural(len(maglist), "item")))
         else:
-            logger.info('Status set to %s for %s past issue%s' % (action, len(maglist), plural(len(maglist))))
+            logger.info('Status set to %s for %s past %s' % (action, len(maglist), plural(len(maglist), "issue")))
         # start searchthreads
         if action == 'Wanted':
             for items in maglist:
@@ -4477,8 +4477,8 @@ class WebInterface(object):
             else:
                 message = "up to date"
         elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 0:
-            message = "behind by %s commit%s" % (lazylibrarian.CONFIG['COMMITS_BEHIND'],
-                                                 plural(lazylibrarian.CONFIG['COMMITS_BEHIND']))
+            message = "behind by %s %s" % (lazylibrarian.CONFIG['COMMITS_BEHIND'],
+                                           plural(lazylibrarian.CONFIG['COMMITS_BEHIND'], "commit"))
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
         else:
@@ -5138,7 +5138,7 @@ class WebInterface(object):
         # clear any currently blocked providers
         num = len(lazylibrarian.PROVIDER_BLOCKLIST)
         lazylibrarian.PROVIDER_BLOCKLIST = []
-        result = 'Cleared %s blocked provider%s' % (num, plural(num))
+        result = 'Cleared %s blocked %s' % (num, plural(num, "provider"))
         logger.debug(result)
         return result
 
@@ -5153,11 +5153,11 @@ class WebInterface(object):
                 resume = int(resume / 60) + (resume % 60 > 0)
                 if resume > 180:
                     resume = int(resume / 60) + (resume % 60 > 0)
-                    new_entry = "%s blocked for %s hour%s, %s\n" % (line['name'], resume,
-                                                                    plural(resume), line['reason'])
+                    new_entry = "%s blocked for %s %s, %s\n" % (line['name'], resume,
+                                                                plural(resume, "hour"), line['reason'])
                 else:
-                    new_entry = "%s blocked for %s minute%s, %s\n" % (line['name'], resume,
-                                                                      plural(resume), line['reason'])
+                    new_entry = "%s blocked for %s %s, %s\n" % (line['name'], resume,
+                                                                plural(resume, "minute"), line['reason'])
                 result = result + new_entry
 
         if result == '':
@@ -5175,7 +5175,7 @@ class WebInterface(object):
             num = count['counter']
         else:
             num = 0
-        result = 'Deleted download counter for %s provider%s' % (num, plural(num))
+        result = 'Deleted download counter for %s %s' % (num, plural(num, "provider"))
         myDB.action('DELETE from downloads')
         logger.debug(result)
         return result

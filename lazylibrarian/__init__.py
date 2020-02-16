@@ -31,7 +31,7 @@ from lazylibrarian import logger, database, versioncheck, postprocess, searchboo
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir, \
     path_isdir, path_isfile, path_exists, syspath
-from lazylibrarian.formatter import getList, bookSeries, plural, unaccented, check_int, unaccented_bytes, \
+from lazylibrarian.formatter import getList, bookSeries, unaccented, check_int, unaccented_bytes, \
     makeUnicode, makeBytestr
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.providers import ProviderIsBlocked
@@ -85,7 +85,7 @@ IGNORED_AUTHORS = 0
 CURRENT_TAB = '1'
 CACHE_HIT = 0
 CACHE_MISS = 0
-IRC_CACHE_EXPIRY = 2 * 24 *3600
+IRC_CACHE_EXPIRY = 2 * 24 * 3600
 LAST_GOODREADS = 0
 LAST_LIBRARYTHING = 0
 LAST_COMICVINE = 0

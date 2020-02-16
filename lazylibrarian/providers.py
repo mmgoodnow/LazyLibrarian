@@ -756,7 +756,7 @@ def IRCSEARCH(book, provider, searchType, test=False):
 
         results = ircResults(provider, fname)
 
-    logger.debug("Found %i result%s from %s" % (len(results), plural(len(results)), provider['SERVER']))
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
     return True, results
 
 
@@ -811,7 +811,7 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
     else:
         logger.debug('No data returned from %s' % URL)
 
-    logger.debug("Found %i result%s from %s" % (len(results), plural(len(results)), host))
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     return results
 
 
@@ -877,7 +877,7 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
                 logger.warn('Maximum results page reached, still more results available')
                 next_page = False
 
-    logger.debug("Found %i result%s from %s" % (len(results), plural(len(results)), host))
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     return results
 
 
@@ -910,7 +910,7 @@ def GOODREADS(host=None, feednr=None, priority=0, dispname=None, types='E', test
         provider = data['feed']['link']
         if not dispname:
             dispname = provider
-        logger.debug("RSS %s returned %i result%s" % (provider, len(data.entries), plural(len(data.entries))))
+        logger.debug("RSS %s returned %i %s" % (provider, len(data.entries), plural(len(data.entries), "result")))
         for post in data.entries:
             title = ''
             book_id = ''
@@ -983,7 +983,7 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
             provider = 'rss_%s' % feednr
         if not dispname:
             dispname = provider
-        logger.debug("RSS %s returned %i result%s" % (provider, len(data.entries), plural(len(data.entries))))
+        logger.debug("RSS %s returned %i %s" % (provider, len(data.entries), plural(len(data.entries), "result")))
         for post in data.entries:
             title = None
             magnet = None
@@ -1191,9 +1191,9 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                                 nzbcount += 1
                                 results.append(thisnzb)
                             else:
-                                logger.debug('Rejecting %s has %s seeder%s' % (thisnzb['nzbtitle'],
-                                                                               thisnzb['seeders'],
-                                                                               plural(thisnzb['seeders'])))
+                                logger.debug('Rejecting %s has %s %s' % (thisnzb['nzbtitle'],
+                                                                         thisnzb['seeders'],
+                                                                         plural(thisnzb['seeders'], "seeder")))
                         else:
                             # its newznab, check if too old
                             if not maxage:
@@ -1215,8 +1215,8 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                                     nzbcount += 1
                                     results.append(thisnzb)
                                 else:
-                                    logger.debug('%s is too old (%s day%s)' % (thisnzb['nzbtitle'],
-                                                                               nzbage, plural(nzbage)))
+                                    logger.debug('%s is too old (%s %s)' % (thisnzb['nzbtitle'],
+                                                                            nzbage, plural(nzbage, "day")))
 
                     except IndexError:
                         logger.debug('No results from %s for %s' % (host, sterm))

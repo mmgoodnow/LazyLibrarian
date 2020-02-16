@@ -208,7 +208,7 @@ def audioProcess(bookid, rename=False, playlist=False):
                         abridged = 'Abridged'
                         break
 
-    logger.debug("%s found %s audiofile%s" % (exists['BookName'], cnt, plural(cnt)))
+    logger.debug("%s found %s %s" % (exists['BookName'], cnt, plural(cnt, "audiobook")))
 
     failed = False
     if cnt == 1 and not parts:  # single file audiobook with no tags

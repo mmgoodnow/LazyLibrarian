@@ -291,30 +291,26 @@ def datecompare(nzbdate, control_date):
         return 0
 
 
-def plural(var, phrase=None):
+def plural(var, phrase=""):
     """
-    Convenience function for log messages, if var = 1 return ''
-    if var is anything else return 's'
+    Convenience function for pluralising log messages
+    if var = 1 return phrase unchanged
+    if var is anything else return phrase + 's'
     so book -> books, seeder -> seeders  etc
-    For a phrase if single return phrase, if not return translation
+    or return translation
     so copy -> copies, entry -> entries  etc
     """
-    translates = [
-                    ['copy', 'copies'],
-                    ['entry', 'entries'],
-                 ]
-
+    translates = {
+                    'copy': 'copies',
+                    'entry': 'entries',
+                    'shelf': 'shelves',
+                 }
     if check_int(var, 0) == 1:
-        if not phrase:
-            return ''
         return phrase
-
-    if not phrase:  # plural
-        return 's'
-    for item in translates:
-        if item[0] == phrase:
-            return item[1]
-    return phrase
+    res = translates.get(phrase, '')
+    if res:
+        return res
+    return '%ss' % phrase
 
 
 def check_int(var, default, positive=True):

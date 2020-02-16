@@ -222,7 +222,7 @@ def BOK(book=None, prov=None, test=False):
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
         if test:
-            logger.debug("Test found %s result%s (%s removed)" % (len(results), plural(len(results)), removed))
+            logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
             return success
 
         page += 1
@@ -236,7 +236,7 @@ def BOK(book=None, prov=None, test=False):
             errmsg = "ProviderIsBlocked"
             next_page = False
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
@@ -335,7 +335,7 @@ def GEN(book=None, prov=None, test=False):
                 if len(rows) > 1:  # skip table headers
                     rows = rows[1:]
 
-                logger.debug("libgen returned %s row%s" % (len(rows), plural(len(rows))))
+                logger.debug("libgen returned %s %s" % (len(rows), plural(len(rows), "row")))
                 for row in rows:
                     author = ''
                     title = ''
@@ -468,7 +468,7 @@ def GEN(book=None, prov=None, test=False):
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
         if test:
-            logger.debug("Test found %s result%s" % (len(results), plural(len(results))))
+            logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
             if not len(results):
                 return False
             return success
@@ -494,5 +494,5 @@ def GEN(book=None, prov=None, test=False):
             logger.warn('No results found from provider')
             next_page = False
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg

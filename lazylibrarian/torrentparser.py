@@ -194,13 +194,13 @@ def TRF(book=None, test=False):
                                     logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
 
                             else:
-                                logger.debug('Found %s, %s:%s, but %s seeder%s' % (title, size, age, seeders,
-                                                                                   plural(seeders)))
+                                logger.debug('Found %s, %s:%s, but %s %s' % (title, size, age, seeders,
+                                                                             plural(seeders, "seeder")))
                         except Exception as e:
                             logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                             logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
@@ -329,7 +329,7 @@ def TPB(book=None, test=False):
                                 logger.debug('Found %s. Size: %s: %s' % (title, size, magnet))
                                 next_page = True
                         else:
-                            logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                            logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
                     except Exception as e:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
@@ -340,7 +340,7 @@ def TPB(book=None, test=False):
         else:
             page += 1
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
@@ -442,12 +442,12 @@ def KAT(book=None, test=False):
                         })
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
-                        logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
                 except Exception as e:
                     logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
@@ -571,7 +571,7 @@ def WWT(book=None, test=False):
                             logger.debug('Found %s. Size: %s' % (title, size))
                             next_page = True
                         else:
-                            logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                            logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
                     except Exception as e:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
@@ -580,7 +580,7 @@ def WWT(book=None, test=False):
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
@@ -656,7 +656,7 @@ def ZOO(book=None, test=False):
                         })
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
-                        logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
 
                 except Exception as e:
                     if 'forbidden' in str(e).lower():
@@ -666,7 +666,7 @@ def ZOO(book=None, test=False):
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
 
     return results, errmsg
 
@@ -750,7 +750,7 @@ def LIME(book=None, test=False):
                         results.append(res)
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
-                        logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
 
                 except Exception as e:
                     if 'forbidden' in str(e).lower():
@@ -760,7 +760,7 @@ def LIME(book=None, test=False):
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
 
     return results, errmsg
 
@@ -847,12 +847,12 @@ def TDL(book=None, test=False):
                             logger.debug('Found %s. Size: %s' % (title, size))
                             results.append(res)
                     else:
-                        logger.debug('Found %s but %s seeder%s' % (title, seeders, plural(seeders)))
+                        logger.debug('Found %s but %s %s' % (title, seeders, plural(seeders, "seeder")))
 
                 except Exception as e:
                     logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-    logger.debug("Found %i result%s from %s for %s" % (len(results), plural(len(results)), provider, sterm))
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
 
     return results, errmsg

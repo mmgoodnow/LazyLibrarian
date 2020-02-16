@@ -232,14 +232,14 @@ class GoogleBooks:
                 except KeyError:
                     break
 
-                logger.debug("Returning %s result%s for (%s) with keyword: %s" %
-                             (resultcount, plural(resultcount), api_value, searchterm))
+                logger.debug("Returning %s %s for (%s) with keyword: %s" %
+                             (resultcount, plural(resultcount, "result"), api_value, searchterm))
 
-            logger.debug("Found %s result%s" % (total_count, plural(total_count)))
-            logger.debug("Removed %s unwanted language result%s" % (ignored, plural(ignored)))
-            logger.debug("Removed %s book%s with no author" % (no_author_count, plural(no_author_count)))
-            logger.debug('The Google Books API was hit %s time%s for searchterm: %s' %
-                         (api_hits, plural(api_hits), fullterm))
+            logger.debug("Found %s %s" % (total_count, plural(total_count, "result")))
+            logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
+            logger.debug("Removed %s %s with no author" % (no_author_count, plural(no_author_count, "book")))
+            logger.debug('The Google Books API was hit %s %s for searchterm: %s' %
+                         (api_hits, plural(api_hits, "time"), fullterm))
             queue.put(resultlist)
 
         except Exception:
@@ -306,7 +306,7 @@ class GoogleBooks:
                         logger.warn('Found no results for %s' % authorname)
                         break
                     else:
-                        logger.debug('Found %s result%s for %s' % (number_results, plural(number_results), authorname))
+                        logger.debug('Found %s %s for %s' % (number_results, plural(number_results, "result"), authorname))
 
                     startindex += 40
 
@@ -581,8 +581,8 @@ class GoogleBooks:
                 pass
 
             deleteEmptySeries()
-            logger.debug('[%s] The Google Books API was hit %s time%s to populate book list' %
-                         (authorname, api_hits, plural(api_hits)))
+            logger.debug('[%s] The Google Books API was hit %s %s to populate book list' %
+                         (authorname, api_hits, plural(api_hits, "time")))
             cmd = 'SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=?'
             cmd += ' AND Status != "Ignored" order by BookDate DESC'
             lastbook = myDB.match(cmd, (authorid,))
@@ -612,24 +612,25 @@ class GoogleBooks:
 
             myDB.upsert("authors", newValueDict, controlValueDict)
             resultcount = added_count + updated_count
-            logger.debug("Found %s total book%s for author" % (total_count, plural(total_count)))
-            logger.debug("Found %s locked book%s" % (locked_count, plural(locked_count)))
-            logger.debug("Removed %s unwanted language result%s" % (ignored, plural(ignored)))
-            logger.debug("Removed %s incorrect/incomplete result%s" % (removedResults, plural(removedResults)))
-            logger.debug("Removed %s duplicate result%s" % (duplicates, plural(duplicates)))
-            logger.debug("Ignored %s book%s" % (book_ignore_count, plural(book_ignore_count)))
-            logger.debug("Imported/Updated %s book%s for author" % (resultcount, plural(resultcount)))
+            logger.debug("Found %s total %s for author" % (total_count, plural(total_count, "book")))
+            logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
+            logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
+            logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
+            logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
+            logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
+            logger.debug("Imported/Updated %s %s for author" % (resultcount, plural(resultcount, "book")))
 
             myDB.action('insert into stats values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         (authorname, api_hits, gr_lang_hits, lt_lang_hits, gb_lang_change,
                          cache_hits, ignored, removedResults, not_cached, duplicates))
 
             if refresh:
-                logger.info("[%s] Book processing complete: Added %s book%s / Updated %s book%s" %
-                            (authorname, added_count, plural(added_count), updated_count, plural(updated_count)))
+                logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
+                            (authorname, added_count, plural(added_count, "book"), 
+                             updated_count, plural(updated_count, "book")))
             else:
-                logger.info("[%s] Book processing complete: Added %s book%s to the database" %
-                            (authorname, added_count, plural(added_count)))
+                logger.info("[%s] Book processing complete: Added %s %s to the database" %
+                            (authorname, added_count, plural(added_count, "book")))
 
         except Exception:
             logger.error('Unhandled exception in GB.get_author_books: %s' % traceback.format_exc())

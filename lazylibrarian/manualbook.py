@@ -66,7 +66,7 @@ def searchItem(item=None, bookid=None, cat=None):
 
     nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
     nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
-    logger.debug('Searching %s provider%s (%s) for %s' % (nprov, plural(nprov), cat, searchterm))
+    logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
     if lazylibrarian.USE_NZB():
         resultlist, nprov = IterateOverNewzNabSites(book, cat)

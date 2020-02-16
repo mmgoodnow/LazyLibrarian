@@ -75,7 +75,7 @@ def dump_table(table, savedir=None, status=None):
                     else:
                         csvwrite.writerow([str(s) if s else '' for s in item])
                     count += 1
-            msg = "Exported %s item%s to %s" % (count, plural(count), csvFile)
+            msg = "Exported %s %s to %s" % (count, plural(count, "item"), csvFile)
             logger.info(msg)
         return count
 
@@ -142,7 +142,7 @@ def restore_table(table, savedir=None, status=None):
                 else:
                     logger.error("Invalid table [%s]" % table)
                     return 0
-        msg = "Imported %s item%s from %s" % (count, plural(count), csvFile)
+        msg = "Imported %s %s from %s" % (count, plural(count, "item"), csvFile)
         logger.info(msg)
         return count
 
@@ -205,7 +205,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
                     else:
                         csvwrite.writerow([("%s" % s) for s in row])
                     count += 1
-            msg = "CSV exported %s %s%s to %s" % (count, library, plural(count), csvFile)
+            msg = "CSV exported %s %s to %s" % (count, plural(count, library), csvFile)
             logger.info(msg)
         return msg
     except Exception:
@@ -405,9 +405,9 @@ def import_CSV(search_dir=None, library='eBook'):
             msg = "Found %i %s%s in csv file, %i already existing or wanted" % (total, library,
                                                                                 plural(total), existing)
             logger.info(msg)
-            msg = "Added %i new author%s, marked %i %s%s as 'Wanted', %i %s%s not found" % \
-                  (authcount, plural(authcount), bookcount, library, plural(bookcount),
-                   skipcount, plural(skipcount), library)
+            msg = "Added %i new %s, marked %i %s as 'Wanted', %i %s not found" % \
+                  (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
+                   skipcount, plural(skipcount, library))
             logger.info(msg)
             if lazylibrarian.CONFIG['DELETE_CSV']:
                 if skipcount == 0:

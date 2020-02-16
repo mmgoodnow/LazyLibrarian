@@ -108,7 +108,7 @@ def setAllBookSeries():
     books = myDB.select('select BookID,WorkID,BookName from books where Manual is not "1"')
     counter = 0
     if books:
-        logger.info('Checking series for %s book%s' % (len(books), plural(len(books))))
+        logger.info('Checking series for %s %s' % (len(books), plural(len(books), "book")))
         for book in books:
             if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
                 workid = book['WorkID']
@@ -124,7 +124,7 @@ def setAllBookSeries():
                     counter += 1
                     setSeries(serieslist, book['BookID'])
     deleteEmptySeries()
-    msg = 'Updated %s book%s' % (counter, plural(counter))
+    msg = 'Updated %s %s' % (counter, plural(counter, "book"))
     logger.info('Series check complete: ' + msg)
     return msg
 
@@ -285,7 +285,7 @@ def setWorkPages():
     cmd += ' and books.AuthorID = authors.AuthorID'
     books = myDB.select(cmd)
     if books:
-        logger.debug('Setting WorkPage for %s book%s' % (len(books), plural(len(books))))
+        logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
         counter = 0
         for book in books:
             bookid = book['BookID']
@@ -297,7 +297,7 @@ def setWorkPages():
                 counter += 1
             else:
                 logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
-        msg = 'Updated %s page%s' % (counter, plural(counter))
+        msg = 'Updated %s %s' % (counter, plural(counter, "page"))
         logger.debug("setWorkPages complete: " + msg)
     else:
         msg = 'No missing WorkPages'
@@ -320,7 +320,7 @@ def setWorkID(books=None):
         books = myDB.select(cmd)
         if books:
             counter = 0
-            logger.debug('Setting WorkID for %s book%s' % (len(books), plural(len(books))))
+            logger.debug('Setting WorkID for %s %s' % (len(books), plural(len(books), "book")))
             page = ''
             for book in books:
                 bookid = book['BookID']
@@ -366,7 +366,7 @@ def setWorkID(books=None):
         except Exception as e:
             logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
 
-    msg = 'Updated %s id%s' % (counter, plural(counter))
+    msg = 'Updated %s %s' % (counter, plural(counter, "id"))
     logger.debug("setWorkID complete: " + msg)
     return msg
 
@@ -566,7 +566,7 @@ def getAllSeriesAuthors():
                 total += result
             else:
                 logger.debug('No series info found for series %s' % seriesid)
-        msg = 'Updated authors for %s series, added %s new author%s' % (counter, total, plural(total))
+        msg = 'Updated authors for %s series, added %s new %s' % (counter, total, plural(total, "author"))
         logger.debug("Series pages complete: " + msg)
     else:
         msg = 'No entries in the series table'
@@ -698,8 +698,8 @@ def addSeriesMembers(seriesid):
                                              (member[4], wanted_status, member[1]))
                 count += 1
         myDB.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
-        logger.debug("Found %s series member%s, %s new for %s" % (len(members), plural(len(members)),
-                                                                  count, seriesname))
+        logger.debug("Found %s series %s, %s new for %s" % (len(members), plural(len(members), "member"),
+                                                            count, seriesname))
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
             for member in members:
                 logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
@@ -823,7 +823,7 @@ def getSeriesAuthors(seriesid):
     result = myDB.match("select count(*) as counter from authors")
     finish = int(result['counter'])
     newauth = finish - start
-    logger.info("Added %s new author%s for %s" % (newauth, plural(newauth), seriesname))
+    logger.info("Added %s new %s for %s" % (newauth, plural(newauth, "author"), seriesname))
     return newauth
 
 
@@ -1264,8 +1264,8 @@ def get_gr_genres(bookid, refresh=False):
             cnt -= 1
             if not cnt:
                 break
-    logger.debug("GoodReads bookid %s %d from %d genre%s, cached=%s" %
-                 (bookid, len(genres), len(res), plural(len(res)), in_cache))
+    logger.debug("GoodReads bookid %s %d from %d %s, cached=%s" %
+                 (bookid, len(genres), len(res), plural(len(res), "genre"), in_cache))
     return genres, in_cache
 
 

@@ -337,7 +337,7 @@ def check_db(myDB):
         tot = res['counter']
         if tot:
             cnt += tot
-            msg = 'Updating %s book%s with no language to "Unknown"' % (tot, plural(tot))
+            msg = 'Updating %s %s with no language to "Unknown"' % (tot, plural(tot, "book"))
             logger.warn(msg)
             myDB.action('UPDATE books SET BookLang="Unknown" WHERE ' + filt)
 
@@ -348,7 +348,7 @@ def check_db(myDB):
         tot = res['counter']
         if tot:
             cnt += tot
-            msg = 'Updating %s language%s with bad data' % (tot, plural(tot))
+            msg = 'Updating %s %s with bad data' % (tot, plural(tot, "language"))
             logger.warn(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             myDB.action(cmd)
@@ -361,7 +361,7 @@ def check_db(myDB):
         tot = res['counter']
         if tot:
             cnt += tot
-            msg = 'Deleting %s duplicate language%s' % (tot, plural(tot))
+            msg = 'Deleting %s duplicate %s' % (tot, plural(tot, "language"))
             logger.warn(msg)
             cmd = 'DELETE from languages WHERE ' + filt
             myDB.action(cmd)
@@ -371,7 +371,7 @@ def check_db(myDB):
         books = myDB.select('SELECT * FROM books WHERE BookID is NULL or BookID=""')
         if books:
             cnt += len(books)
-            msg = 'Removing %s book%s with no bookid' % (len(books), plural(len(books)))
+            msg = 'Removing %s %s with no bookid' % (len(books), plural(len(books), "book"))
             logger.warn(msg)
             myDB.action('DELETE from books WHERE BookID is NULL or BookID=""')
 
@@ -380,7 +380,7 @@ def check_db(myDB):
         books = myDB.select('SELECT BookID FROM books WHERE AuthorID is NULL or AuthorID=""')
         if books:
             cnt += len(books)
-            msg = 'Removing %s book%s with no authorid' % (len(books), plural(len(books)))
+            msg = 'Removing %s %s with no authorid' % (len(books), plural(len(books), "book"))
             logger.warn(msg)
             for book in books:
                 myDB.action('DELETE from books WHERE BookID=?', (book["BookID"],))
@@ -390,7 +390,7 @@ def check_db(myDB):
         authors = myDB.select('SELECT * FROM authors WHERE AuthorID IS NULL or AuthorID=""')
         if authors:
             cnt += len(authors)
-            msg = 'Removing %s author%s with no authorid' % (len(authors), plural(len(authors)))
+            msg = 'Removing %s %s with no authorid' % (len(authors), plural(len(authors), "author"))
             logger.warn(msg)
             myDB.action('DELETE from authors WHERE AuthorID is NULL or AuthorID=""')
 
@@ -399,7 +399,7 @@ def check_db(myDB):
         authors = myDB.select('SELECT AuthorID FROM authors WHERE AuthorName IS NULL or AuthorName = ""')
         if authors:
             cnt += len(authors)
-            msg = 'Removing %s author%s with no name' % (len(authors), plural(len(authors)))
+            msg = 'Removing %s %s with no name' % (len(authors), plural(len(authors), "author"))
             logger.warn(msg)
             for author in authors:
                 myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
@@ -413,7 +413,7 @@ def check_db(myDB):
             authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
             if authors:
                 cnt += len(authors)
-                msg = 'Removing %s author%s with no books' % (len(authors), plural(len(authors)))
+                msg = 'Removing %s %s with no books' % (len(authors), plural(len(authors), "author"))
                 logger.warn(msg)
                 for author in authors:
                     myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
@@ -488,7 +488,7 @@ def check_db(myDB):
         genres = myDB.select(cmd)
         if genres:
             cnt += len(genres)
-            msg = 'Removing %s empty genre%s' % (len(genres), plural(len(genres)))
+            msg = 'Removing %s empty %s' % (len(genres), plural(len(genres), "genre"))
             logger.warn(msg)
             for item in genres:
                 myDB.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
@@ -540,7 +540,7 @@ def check_db(myDB):
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
         logger.error(msg)
 
-    logger.info("Database check found %s error%s" % (cnt, plural(cnt)))
+    logger.info("Database check found %s %s" % (cnt, plural(cnt, "error")))
     lazylibrarian.UPDATE_MSG = ''
 
 

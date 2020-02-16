@@ -58,7 +58,7 @@ class Apprise_Notifier:
         logger.debug("Apprise: event: " + event)
         logger.debug("Apprise: message: " + message)
         logger.debug("Apprise: url: " + str(url))
-        logger.debug("Using %d notification service%s" % (len(apobj), plural(len(apobj))))
+        logger.debug("Using %d notification %s" % (len(apobj), plural(len(apobj), "service")))
         logger.debug(str(asset.details()))
         if event == notifyStrings[NOTIFY_SNATCH]:
             notifytype = NotifyType.INFO

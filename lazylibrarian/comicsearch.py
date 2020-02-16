@@ -63,7 +63,7 @@ def searchItem(comicid=None):
 
     nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
     nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
-    logger.debug('Searching %s provider%s (%s) for %s' % (nprov, plural(nprov), cat, searchterm))
+    logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
     if lazylibrarian.USE_NZB():
         resultlist, nprov = IterateOverNewzNabSites(book, cat)
@@ -330,7 +330,7 @@ def search_comics(comicid=None):
                                     (res, item["url"]))
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
-        logger.info("ComicSearch for Wanted items complete, found %s comic%s" % (count, plural(count)))
+        logger.info("ComicSearch for Wanted items complete, found %s %s" % (count, plural(count, "comic")))
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())

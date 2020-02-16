@@ -287,8 +287,8 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     # But the leading : is removed by has_clean_subtitle, so we allow all non (): subtitles
     has_clean_subtitle = re.search(r"^\s+([^:()]+|\([^)]+\))$", book_sub) is not None
 
-    logger.debug('Searching %s %sbook%s by [%s] in database for [%s]' %
-                 (len(books), ign, plural(len(books)), author, book))
+    logger.debug('Searching %s %s%s by [%s] in database for [%s]' %
+                 (len(books), ign, plural(len(books), "book"), author, book))
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
         logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
     if book_partname == book_lower:
@@ -505,7 +505,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             try:  # remove any extra whitespace in authornames
                 authors = myDB.select('SELECT AuthorID,AuthorName FROM authors WHERE AuthorName like "%  %"')
                 if authors:
-                    logger.info('Removing extra spaces from %s authorname%s' % (len(authors), plural(len(authors))))
+                    logger.info('Removing extra spaces from %s %s' % (len(authors), plural(len(authors), "authorname")))
                     for author in authors:
                         authorid = author["AuthorID"]
                         authorname = ' '.join(author['AuthorName'].split())
@@ -1150,7 +1150,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
         logger.info("%s/%s new/modified %s%s found and added to the database" %
                     (new_book_count, modified_count, library, plural(new_book_count + modified_count)))
-        logger.info("%s file%s processed" % (file_count, plural(file_count)))
+        logger.info("%s %s processed" % (file_count, plural(file_count, "file")))
 
         if startdir == destdir:
             # On full library scans, check for missing workpages
@@ -1160,7 +1160,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 "select count(*) as counter from Books where status='Open' and BookLang='Unknown'")
             nolang = nolang['counter']
             if nolang:
-                logger.warn("Found %s book%s in your library with unknown language" % (nolang, plural(nolang)))
+                logger.warn("Found %s %s in your library with unknown language" % (nolang, plural(nolang, "book")))
                 # show stats if new books were added
             cmd = "SELECT sum(GR_book_hits), sum(GR_lang_hits), sum(LT_lang_hits), sum(GB_lang_change), "
             cmd += "sum(cache_hits), sum(bad_lang), sum(bad_char), sum(uncached), sum(duplicates) FROM stats"
@@ -1178,31 +1178,31 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     st[item] = 0
 
             if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
-                logger.debug("GoogleBooks was hit %s time%s for books" %
-                             (st['GR_book_hits'], plural(st['GR_book_hits'])))
-                logger.debug("GoogleBooks language was changed %s time%s" %
-                             (st['GB_lang_change'], plural(st['GB_lang_change'])))
+                logger.debug("GoogleBooks was hit %s %s for books" %
+                             (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
+                logger.debug("GoogleBooks language was changed %s %s" %
+                             (st['GB_lang_change'], plural(st['GB_lang_change'], "time")))
             if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-                logger.debug("GoodReads was hit %s time%s for books" %
-                             (st['GR_book_hits'], plural(st['GR_book_hits'])))
-                logger.debug("GoodReads was hit %s time%s for languages" %
-                             (st['GR_lang_hits'], plural(st['GR_lang_hits'])))
-            logger.debug("LibraryThing was hit %s time%s for languages" %
-                         (st['LT_lang_hits'], plural(st['LT_lang_hits'])))
-            logger.debug("Language cache was hit %s time%s" %
-                         (st['cache_hits'], plural(st['cache_hits'])))
-            logger.debug("Unwanted language removed %s book%s" %
-                         (st['bad_lang'], plural(st['bad_lang'])))
-            logger.debug("Invalid/Incomplete removed %s book%s" %
-                         (st['bad_char'], plural(st['bad_char'])))
-            logger.debug("Unable to cache language for %s book%s with missing ISBN" %
-                         (st['uncached'], plural(st['uncached'])))
-            logger.debug("Found %s duplicate book%s" %
-                         (st['duplicates'], plural(st['duplicates'])))
-            logger.debug("Rescan %s hit%s, %s miss" %
-                         (rescan_hits, plural(rescan_hits), rescan_count - rescan_hits))
-            logger.debug("Cache %s hit%s, %s miss" %
-                         (lazylibrarian.CACHE_HIT, plural(lazylibrarian.CACHE_HIT), lazylibrarian.CACHE_MISS))
+                logger.debug("GoodReads was hit %s %s for books" %
+                             (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
+                logger.debug("GoodReads was hit %s %s for languages" %
+                             (st['GR_lang_hits'], plural(st['GR_lang_hits'], "time")))
+            logger.debug("LibraryThing was hit %s %s for languages" %
+                         (st['LT_lang_hits'], plural(st['LT_lang_hits'], "time")))
+            logger.debug("Language cache was hit %s %s" %
+                         (st['cache_hits'], plural(st['cache_hits'], "time")))
+            logger.debug("Unwanted language removed %s %s" %
+                         (st['bad_lang'], plural(st['bad_lang'], "book")))
+            logger.debug("Invalid/Incomplete removed %s %s" %
+                         (st['bad_char'], plural(st['bad_char'], "book")))
+            logger.debug("Unable to cache language for %s %s with missing ISBN" %
+                         (st['uncached'], plural(st['uncached'], "book")))
+            logger.debug("Found %s duplicate %s" %
+                         (st['duplicates'], plural(st['duplicates'], "book")))
+            logger.debug("Rescan %s %s, %s miss" %
+                         (rescan_hits, plural(rescan_hits, "hit"), rescan_count - rescan_hits))
+            logger.debug("Cache %s %s, %s miss" %
+                         (lazylibrarian.CACHE_HIT, plural(lazylibrarian.CACHE_HIT, "hit"), lazylibrarian.CACHE_MISS))
             cachesize = myDB.match("select count(*) as counter from languages")
             logger.debug("ISBN Language cache holds %s %s" % (cachesize['counter'],
                                                               plural(cachesize['counter'], 'entry')))
@@ -1210,7 +1210,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             # Cache any covers and images
             images = myDB.select('select bookid, bookimg, bookname from books where bookimg like "http%"')
             if len(images):
-                logger.info("Caching cover%s for %i book%s" % (plural(len(images)), len(images), plural(len(images))))
+                logger.info("Caching %s for %i %s" % (plural(len(images), "cover"), len(images), 
+                                                      plural(len(images), "book")))
                 for item in images:
                     bookid = item['bookid']
                     bookimg = item['bookimg']
@@ -1221,7 +1222,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
             images = myDB.select('select AuthorID, AuthorImg, AuthorName from authors where AuthorImg like "http%"')
             if len(images):
-                logger.info("Caching image%s for %i author%s" % (plural(len(images)), len(images), plural(len(images))))
+                logger.info("Caching %s for %i %s" % (plural(len(images), "image"), len(images), 
+                                                      plural(len(images), "author")))
                 for item in images:
                     authorid = item['authorid']
                     authorimg = item['authorimg']

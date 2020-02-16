@@ -249,9 +249,9 @@ class GoodReads:
                     logger.error('An unexpected error has occurred when searching for an author: %s' % str(err))
                     logger.error('in GR.find_results: %s' % traceback.format_exc())
 
-            logger.debug('Found %s result%s with keyword: %s' % (resultcount, plural(resultcount), searchterm))
+            logger.debug('Found %s %s with keyword: %s' % (resultcount, plural(resultcount, "result"), searchterm))
             logger.debug(
-                'The GoodReads API was hit %s time%s for keyword %s' % (api_hits, plural(api_hits), searchterm))
+                'The GoodReads API was hit %s %s for keyword %s' % (api_hits, plural(api_hits, "time"), searchterm))
 
             queue.put(resultlist)
 
@@ -997,18 +997,18 @@ class GoodReads:
 
             resultcount = added_count + updated_count
             loopCount -= 1
-            logger.debug("Found %s result%s in %s page%s" % (total_count, plural(total_count),
-                                                             loopCount, plural(loopCount)))
-            logger.debug("Found %s locked book%s" % (locked_count, plural(locked_count)))
-            logger.debug("Removed %s unwanted language result%s" % (ignored, plural(ignored)))
-            logger.debug("Removed %s incorrect/incomplete result%s" % (removedResults, plural(removedResults)))
-            logger.debug("Removed %s duplicate result%s" % (duplicates, plural(duplicates)))
-            logger.debug("Ignored %s book%s" % (book_ignore_count, plural(book_ignore_count)))
-            logger.debug("Imported/Updated %s book%s in %d secs using %s api hit%s" %
-                         (resultcount, plural(resultcount), int(time.time() - auth_start),
-                          api_hits, plural(api_hits)))
+            logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
+                                                   loopCount, plural(loopCount, "page")))
+            logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
+            logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
+            logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
+            logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
+            logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
+            logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
+                         (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
+                          api_hits, plural(api_hits, "hit")))
             if cover_count:
-                logger.debug("Fetched %s cover%s in %.2f sec" % (cover_count, plural(cover_count), cover_time))
+                logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
             if isbn_count:
                 logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
 
@@ -1027,11 +1027,12 @@ class GoodReads:
             myDB.upsert("stats", newValueDict, controlValueDict)
 
             if refresh:
-                logger.info("[%s] Book processing complete: Added %s book%s / Updated %s book%s" %
-                            (authorname, added_count, plural(added_count), updated_count, plural(updated_count)))
+                logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
+                            (authorname, added_count, plural(added_count, "book"), 
+                             updated_count, plural(updated_count, "book")))
             else:
-                logger.info("[%s] Book processing complete: Added %s book%s to the database" %
-                            (authorname, added_count, plural(added_count)))
+                logger.info("[%s] Book processing complete: Added %s %s to the database" %
+                            (authorname, added_count, plural(added_count, "book")))
 
         except Exception:
             logger.error('Unhandled exception in GR.get_author_books: %s' % traceback.format_exc())
@@ -1042,7 +1043,7 @@ class GoodReads:
         cmd = "select BookID,BookName from books WHERE AuthorID=?"
         books = myDB.select(cmd, (authorid,))
         counter = 0
-        logger.debug('Checking BookID/WorkID for %s book%s' % (len(books), plural(len(books))))
+        logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
         page = ''
         pages = []
         for book in books:

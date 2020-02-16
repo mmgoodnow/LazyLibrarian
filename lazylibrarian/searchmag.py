@@ -64,7 +64,7 @@ def search_magazines(mags=None, reset=False):
             threading.currentThread().name = "WEBSERVER"
             return
 
-        logger.info('Searching for %i magazine%s' % (len(searchmags), plural(len(searchmags))))
+        logger.info('Searching for %i %s' % (len(searchmags), plural(len(searchmags), "magazine")))
 
         for searchmag in searchmags:
             bookid = searchmag['Title']
@@ -477,7 +477,7 @@ def search_magazines(mags=None, reset=False):
                                 myDB.upsert(insert_table, newValueDict, controlValueDict)
                                 logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table, insert_status))
 
-                msg = 'Found %i result%s for %s. %i new,' % (total_nzbs, plural(total_nzbs), bookid, new_date)
+                msg = 'Found %i %s for %s. %i new,' % (total_nzbs, plural(total_nzbs, "result"), bookid, new_date)
                 msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
                 msg += ' %i rejected: %i to download' % (rejects, len(maglist))
                 logger.info(msg)

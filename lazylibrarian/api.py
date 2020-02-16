@@ -495,7 +495,7 @@ class Api(object):
                         counter += 1
                 except IndexError:
                     counter = counter
-        self.data = 'Updated opf for %s book%s' % (counter, plural(counter))
+        self.data = 'Updated opf for %s %s' % (counter, plural(counter, "book"))
 
     def _writeOPF(self, **kwargs):
         if 'id' not in kwargs:
@@ -643,7 +643,7 @@ class Api(object):
         res = myDB.select(q)
         descs = 0
         cnt = 0
-        logger.debug("Checking description for %s book%s" % (len(res), plural(len(res))))
+        logger.debug("Checking description for %s %s" % (len(res), plural(len(res), "book")))
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -663,8 +663,8 @@ class Api(object):
                         break
                 if blocked:
                     break
-        msg = "Scanned %d book%s, found %d new description%s from %d" % \
-              (cnt, plural(cnt), descs, plural(descs), len(res))
+        msg = "Scanned %d %s, found %d new %s from %d" % \
+              (cnt, plural(cnt, "book"), descs, plural(descs, "description"), len(res))
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
@@ -683,7 +683,7 @@ class Api(object):
         res = myDB.select(q)
         genre = 0
         cnt = 0
-        logger.debug("Checking genre for %s book%s" % (len(res), plural(len(res))))
+        logger.debug("Checking genre for %s %s" % (len(res), plural(len(res), "book")))
         # ignore all errors except blocked (not found etc)
         blocked = False
         for item in res:
@@ -704,7 +704,8 @@ class Api(object):
                         break
                 if blocked:
                     break
-        msg = "Scanned %d book%s, found %d new genre%s from %d" % (cnt, plural(cnt), genre, plural(genre), len(res))
+        msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre, 
+                                                          plural(genre, "genre"), len(res))
         if blocked:
             msg += ': Access Blocked'
         self.data = msg
@@ -1349,7 +1350,7 @@ class Api(object):
                 except IndexError:
                     followid = ''
                 myDB.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, author['AuthorID']))
-        self.data = "Added follow to %s author%s" % (count, plural(count))
+        self.data = "Added follow to %s %s" % (count, plural(count, "author"))
 
     def _grSync(self, **kwargs):
         if 'shelf' not in kwargs:

@@ -127,7 +127,13 @@ def search_book(books=None, library=None):
         nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
 
         if nprov == 0:
-            logger.debug("SearchBooks - No providers to search")
+            msg = "SearchBooks - No providers to search"
+            blocked = len(lazylibrarian.PROVIDER_BLOCKLIST)
+            if blocked:
+                msg += " (there are %s in blocklist)" % blocked
+            else:
+                msg += " (check you have some enabled)"
+            logger.debug(msg)
             return
 
         modelist = []
@@ -142,8 +148,9 @@ def search_book(books=None, library=None):
         if lazylibrarian.USE_IRC():
             modelist.append('irc')
 
-        logger.info('Searching %s provider%s %s for %i book%s' %
-                    (nprov, plural(nprov), str(modelist), len(searchbooks), plural(len(searchbooks))))
+        logger.info('Searching %s %s %s for %i %s' %
+                    (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks), 
+                     plural(len(searchbooks), "book")))
         logger.info("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
                                                            plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
 
@@ -388,7 +395,7 @@ def search_book(books=None, library=None):
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
-        logger.info("Search for Wanted items complete, found %s book%s" % (book_count, plural(book_count)))
+        logger.info("Search for Wanted items complete, found %s %s" % (book_count, plural(book_count, "book")))
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:

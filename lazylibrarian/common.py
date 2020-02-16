@@ -648,20 +648,20 @@ def nextRun(target=None, interval=0, action='', hours=False):
         if nextrun > 1:
             nextrun = int(nextrun / 60)
         if nextrun <= 48:
-            msg = "%s %s job in %s hour%s" % (action, target, nextrun, plural(nextrun))
+            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "hour"))
         else:
             days = int(nextrun / 24)
-            msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+            msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
     else:
         if nextrun <= 120:
-            msg = "%s %s job in %s minute%s" % (action, target, nextrun, plural(nextrun))
+            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
         else:
             hours = int(nextrun / 60)
             if hours <= 48:
-                msg = "%s %s job in %s hour%s" % (action, target, hours, plural(hours))
+                msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
             else:
                 days = int(hours / 24)
-                msg = "%s %s job in %s day%s" % (action, target, days, plural(days))
+                msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
     if lastrun:
         msg += " (Last run %s)" % ago(lastrun)
     logger.debug(msg)
@@ -843,8 +843,8 @@ def authorUpdate(restart=True):
             if not total:
                 msg = "There are no monitored authors"
             elif not overdue:
-                msg = 'Oldest author info (%s) is %s day%s old, no update due' % (name,
-                                                                                  days, plural(days))
+                msg = 'Oldest author info (%s) is %s %s old, no update due' % (name,
+                                                                               days, plural(days, "day"))
             else:
                 logger.info('Starting update for %s' % name)
                 lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=ident, reason="authorUpdate %s" % name)
@@ -873,8 +873,8 @@ def seriesUpdate(restart=True):
             if not total:
                 msg = "There are no monitored series"
             elif not overdue:
-                msg = 'Oldest series info (%s) is %s day%s old, no update due' % (name,
-                                                                                  days, plural(days))
+                msg = 'Oldest series info (%s) is %s %s old, no update due' % (name,
+                                                                               days, plural(days, "day"))
             else:
                 logger.info('Starting series update for %s' % name)
                 lazylibrarian.bookwork.addSeriesMembers(ident)
@@ -899,12 +899,12 @@ def aaUpdate(refresh=False):
         cmd += ' order by Updated ASC'
         activeauthors = myDB.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = True
-        logger.info('Starting update for %i active author%s' % (len(activeauthors), plural(len(activeauthors))))
+        logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
         for author in activeauthors:
             lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'], reason="aaUpdate")
         logger.info('Active author update complete')
         lazylibrarian.AUTHORS_UPDATE = False
-        msg = 'Updated %i active author%s' % (len(activeauthors), plural(len(activeauthors)))
+        msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))
         logger.debug(msg)
     except Exception:
         lazylibrarian.AUTHORS_UPDATE = False
@@ -982,9 +982,9 @@ def showStats():
                 gb_status = "Blocked"
             break
 
-    result = ["Cache %i hit%s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
-                                             plural(check_int(lazylibrarian.CACHE_HIT, 0)),
-                                             check_int(lazylibrarian.CACHE_MISS, 0)),
+    result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
+                                          plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
+                                          check_int(lazylibrarian.CACHE_MISS, 0)),
               "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
                   lazylibrarian.GR_SLEEP, lazylibrarian.LT_SLEEP, lazylibrarian.CV_SLEEP),
               "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
@@ -992,7 +992,7 @@ def showStats():
     myDB = database.DBConnection()
     snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
     if snatched['counter']:
-        result.append("%i Snatched item%s" % (snatched['counter'], plural(snatched['counter'])))
+        result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
     else:
         result.append("No Snatched items")
 
@@ -1152,17 +1152,17 @@ def showJobs():
     result.append(' ')
     overdue, total, name, _, days = is_overdue('Author')
     if name:
-        result.append('Oldest author info (%s) is %s day%s old' % (name, days, plural(days)))
+        result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no authors needing update")
     elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-        result.append("Found %s author%s from %s due update" % (overdue, plural(overdue), total))
+        result.append("Found %s %s from %s due update" % (overdue, plural(overdue, "author"), total))
     else:
-        result.append("Found %s author%s from %s overdue update" % (overdue, plural(overdue), total))
+        result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
 
     overdue, total, name, _, days = is_overdue('Series')
     if name:
-        result.append('Oldest series info (%s) is %s day%s old' % (name, days, plural(days)))
+        result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no series needing update")
     elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):

@@ -340,7 +340,7 @@ def cleanCache():
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i expired file%s from IRCCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i expired %s from IRCCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -363,7 +363,7 @@ def cleanCache():
                             cleaned += 1
                         else:
                             kept += 1
-        msg = "Cleaned %i expired file%s from %s, kept %i" % (cleaned, plural(cleaned), cache, kept)
+        msg = "Cleaned %i expired %s from %s, kept %i" % (cleaned, plural(cleaned, "file"), cache, kept)
         result.append(msg)
         logger.debug(msg)
 
@@ -387,7 +387,7 @@ def cleanCache():
                         cleaned += 1
                     else:
                         kept += 1
-    msg = "Cleaned %i orphan file%s from WorkCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan %s from WorkCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -409,7 +409,7 @@ def cleanCache():
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i orphan file%s from SeriesCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan %s from SeriesCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -425,7 +425,7 @@ def cleanCache():
                 cleaned += 1
             else:
                 kept += 1
-    msg = "Cleaned %i orphan file%s from magazine cache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan %s from magazine cache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -463,7 +463,7 @@ def cleanCache():
         if cached_file.endswith('.jpg'):
             os.remove(syspath(os.path.join(cache, cached_file)))
             cleaned += 1
-    msg = "Cleaned %i orphan file%s from ImageCache, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i orphan %s from ImageCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -490,7 +490,7 @@ def cleanCache():
             logger.debug('Cover missing for %s %s' % (item['BookName'], imgfile))
             myDB.action('update books set BookImg="images/nocover.png" where Bookid=?', (item['BookID'],))
 
-    msg = "Cleaned %i missing cover file%s, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i missing %s, kept %i" % (cleaned, plural(cleaned, "cover"), kept)
     result.append(msg)
     logger.debug(msg)
 
@@ -517,7 +517,7 @@ def cleanCache():
             logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
             myDB.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
 
-    msg = "Cleaned %i missing author image%s, kept %i" % (cleaned, plural(cleaned), kept)
+    msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)
     logger.debug(msg)
     myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "CLEANCACHE"})

@@ -195,7 +195,8 @@ class grauth:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                         logger.debug('Found %s shelves on page %s' % (page_shelves, current_page))
 
-            logger.debug('Found %s shelves on %s page%s' % (len(shelves), current_page - 1, plural(current_page - 1)))
+            logger.debug('Found %s %s on %s %s' % (len(shelves), plural(len(shelves), "shelf"), 
+                                                   current_page - 1, plural(current_page - 1, "page")))
             # print shelves
             return shelves
 
@@ -443,24 +444,24 @@ def sync_to_gr():
                     lazylibrarian.CONFIG['GR_AWANTED'] == lazylibrarian.CONFIG['GR_WANTED']:
                 # wanted audio and ebook on same shelf
                 to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'Audio/eBook')
-                msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
-                                                      lazylibrarian.CONFIG['GR_WANTED'])
-                msg += "%s change%s to Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
+                                                lazylibrarian.CONFIG['GR_WANTED'])
+                msg += "%s %s to Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted, "change"))
                 if ll_wanted:
                     run_searches = True
             else:  # see if wanted on separate shelves
                 if lazylibrarian.CONFIG['GR_WANTED']:
                     to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'eBook')
-                    msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
-                                                          lazylibrarian.CONFIG['GR_WANTED'])
-                    msg += "%s change%s to eBook Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                    msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
+                                                    lazylibrarian.CONFIG['GR_WANTED'])
+                    msg += "%s %s to eBook Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted, "change"))
                     if ll_wanted:
                         run_searches = True
                 if lazylibrarian.CONFIG['GR_AWANTED']:
                     to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
-                    msg += "%s change%s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf),
-                                                          lazylibrarian.CONFIG['GR_AWANTED'])
-                    msg += "%s change%s to Audio Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted))
+                    msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
+                                                    lazylibrarian.CONFIG['GR_AWANTED'])
+                    msg += "%s %s to Audio Wanted from GoodReads\n" % (ll_wanted, plural(ll_wanted, "change"))
                     if ll_wanted:
                         run_searches = True
 
@@ -468,20 +469,20 @@ def sync_to_gr():
                     lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_OWNED']:
                 # owned audio and ebook on same shelf
                 to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'Audio/eBook')
-                msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
+                msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
                                                       lazylibrarian.CONFIG['GR_OWNED'])
-                msg += "%s change%s to Owned from GoodReads\n" % (ll_have, plural(ll_have))
+                msg += "%s %s to Owned from GoodReads\n" % (ll_have, plural(ll_have, "change"))
             else:
                 if lazylibrarian.CONFIG['GR_OWNED']:
                     to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'eBook')
-                    msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
-                                                          lazylibrarian.CONFIG['GR_OWNED'])
-                    msg += "%s change%s to eBook Owned from GoodReads\n" % (ll_have, plural(ll_have))
+                    msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
+                                                    lazylibrarian.CONFIG['GR_OWNED'])
+                    msg += "%s %s to eBook Owned from GoodReads\n" % (ll_have, plural(ll_have, "change"))
                 if lazylibrarian.CONFIG['GR_AOWNED']:
                     to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_AOWNED'], 'AudioBook')
-                    msg += "%s change%s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf),
-                                                          lazylibrarian.CONFIG['GR_AOWNED'])
-                    msg += "%s change%s to Audio Owned from GoodReads\n" % (ll_have, plural(ll_have))
+                    msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
+                                                    lazylibrarian.CONFIG['GR_AOWNED'])
+                    msg += "%s %s to Audio Owned from GoodReads\n" % (ll_have, plural(ll_have, "change"))
 
         logger.info(msg.strip('\n').replace('\n', ', '))
         myDB = database.DBConnection()

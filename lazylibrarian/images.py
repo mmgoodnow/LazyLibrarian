@@ -120,7 +120,7 @@ def getAuthorImages():
     cmd += ' and Manual is not "1"'
     authors = myDB.select(cmd)
     if authors:
-        logger.info('Checking images for %s author%s' % (len(authors), plural(len(authors))))
+        logger.info('Checking images for %s %s' % (len(authors), plural(len(authors), "author")))
         counter = 0
         for author in authors:
             authorid = author['AuthorID']
@@ -138,7 +138,7 @@ def getAuthorImages():
                 controlValueDict = {"AuthorID": authorid}
                 myDB.upsert("authors", newValueDict, controlValueDict)
 
-        msg = 'Updated %s image%s' % (counter, plural(counter))
+        msg = 'Updated %s %s' % (counter, plural(counter, "image"))
         logger.info('Author Image check complete: ' + msg)
     else:
         msg = 'No missing author images'
@@ -154,7 +154,7 @@ def getBookCovers():
     cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
     books = myDB.select(cmd)
     if books:
-        logger.info('Checking covers for %s book%s' % (len(books), plural(len(books))))
+        logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
         counter = 0
         for book in books:
             bookid = book['BookID']
@@ -168,7 +168,7 @@ def getBookCovers():
                 controlValueDict = {"BookID": bookid}
                 newValueDict = {"BookImg": "images/nocover.png"}
                 myDB.upsert("books", newValueDict, controlValueDict)
-        msg = 'Updated %s cover%s' % (counter, plural(counter))
+        msg = 'Updated %s %s' % (counter, plural(counter, "cover"))
         logger.info('Cover check complete: ' + msg)
     else:
         msg = 'No missing book covers'
@@ -578,9 +578,9 @@ def createMagCovers(refresh=False):
     #  <> '' ignores empty string or NULL
     issues = myDB.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
     if refresh:
-        logger.info("Creating covers for %s issue%s" % (len(issues), plural(len(issues))))
+        logger.info("Creating covers for %s %s" % (len(issues), plural(len(issues), "issue")))
     else:
-        logger.info("Checking covers for %s issue%s" % (len(issues), plural(len(issues))))
+        logger.info("Checking covers for %s %s" % (len(issues), plural(len(issues), "issue")))
     cnt = 0
     for item in issues:
         try:
@@ -591,8 +591,8 @@ def createMagCovers(refresh=False):
             logger.warn('Unable to create cover for %s, %s %s' % (item['IssueFile'], type(why).__name__, str(why)))
     logger.info("Cover creation completed")
     if refresh:
-        return "Created covers for %s issue%s" % (cnt, plural(cnt))
-    return "Checked covers for %s issue%s" % (cnt, plural(cnt))
+        return "Created covers for %s %s" % (cnt, plural(cnt, "issue"))
+    return "Checked covers for %s %s" % (cnt, plural(cnt, "issue"))
 
 
 # noinspection PyUnresolvedReferences
