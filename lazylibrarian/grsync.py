@@ -470,7 +470,7 @@ def sync_to_gr():
                 # owned audio and ebook on same shelf
                 to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'Audio/eBook')
                 msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
-                                                      lazylibrarian.CONFIG['GR_OWNED'])
+                                                lazylibrarian.CONFIG['GR_OWNED'])
                 msg += "%s %s to Owned from GoodReads\n" % (ll_have, plural(ll_have, "change"))
             else:
                 if lazylibrarian.CONFIG['GR_OWNED']:

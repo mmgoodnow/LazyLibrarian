@@ -306,7 +306,8 @@ class GoogleBooks:
                         logger.warn('Found no results for %s' % authorname)
                         break
                     else:
-                        logger.debug('Found %s %s for %s' % (number_results, plural(number_results, "result"), authorname))
+                        logger.debug('Found %s %s for %s' % (number_results, plural(number_results, "result"),
+                                                             authorname))
 
                     startindex += 40
 
