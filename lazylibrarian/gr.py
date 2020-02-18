@@ -36,6 +36,7 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 
+
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
 
@@ -490,26 +491,6 @@ class GoodReads:
                                 bookisbn = isbn10
                                 isbnhead = bookisbn[0:3]
 
-                            if not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
-                                # try lookup by name
-                                if bookname:
-                                    try:
-                                        isbn_count += 1
-                                        start = time.time()
-                                        res = isbn_from_words(unaccented(bookname, only_ascii=False) + ' ' +
-                                                              unaccented(authorNameResult, only_ascii=False))
-                                        isbn_time += (time.time() - start)
-                                    except Exception as e:
-                                        res = None
-                                        logger.warn("Error from isbn: %s" % e)
-                                    if res:
-                                        logger.debug("isbn found %s for %s" % (res, bookid))
-                                        bookisbn = res
-                                        if len(res) == 13:
-                                            isbnhead = res[3:6]
-                                        else:
-                                            isbnhead = res[0:3]
-
                             # Try to use shortcut of ISBN identifier codes described here...
                             # http://en.wikipedia.org/wiki/List_of_ISBN_identifier_groups
                             if isbnhead:
@@ -621,6 +602,26 @@ class GoodReads:
                                 except Exception as e:
                                     logger.error("Goodreads language search failed: %s %s" %
                                                  (type(e).__name__, str(e)))
+
+                            if not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
+                                # try lookup by name
+                                if bookname:
+                                    try:
+                                        isbn_count += 1
+                                        start = time.time()
+                                        res = isbn_from_words(unaccented(bookname, only_ascii=False) + ' ' +
+                                                              unaccented(authorNameResult, only_ascii=False))
+                                        isbn_time += (time.time() - start)
+                                    except Exception as e:
+                                        res = None
+                                        logger.warn("Error from isbn: %s" % e)
+                                    if res:
+                                        logger.debug("isbn found %s for %s" % (res, bookid))
+                                        bookisbn = res
+                                        if len(res) == 13:
+                                            isbnhead = res[3:6]
+                                        else:
+                                            isbnhead = res[0:3]
 
                             if not isbnhead and lazylibrarian.CONFIG['NO_ISBN']:
                                 rejected = 'isbn', 'No ISBN'
@@ -1028,7 +1029,7 @@ class GoodReads:
 
             if refresh:
                 logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
-                            (authorname, added_count, plural(added_count, "book"), 
+                            (authorname, added_count, plural(added_count, "book"),
                              updated_count, plural(updated_count, "book")))
             else:
                 logger.info("[%s] Book processing complete: Added %s %s to the database" %
