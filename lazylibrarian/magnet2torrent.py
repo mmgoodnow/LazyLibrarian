@@ -54,18 +54,21 @@ def magnet2torrent(magnet, output_name=None):
         return False
 
     tempdir = tempfile.mkdtemp()
-    # noinspection PyUnresolvedReferences
+
     ses = lt.session()
-    # noinspection PyUnresolvedReferences
     params = {
+        'url': magnet,
         'save_path': tempdir,
-        'storage_mode': lt.storage_mode_t(2),
-        'paused': False,
-        'auto_managed': True,
-        'duplicate_is_error': True
+        'storage_mode': lt.storage_mode_t(0),
+        # 'paused': False,
+        # 'auto_managed': True,
+        # 'duplicate_is_error': True
+        'flags': 0x0e0,
     }
-    # noinspection PyUnresolvedReferences
-    handle = lt.add_magnet_uri(ses, magnet, params)
+    # add_magnet_uri is deprecated
+    # http://www.rasterbar.com/products/libtorrent/manual.html#add-magnet-uri
+    # handle = lt.add_magnet_uri(ses, magnet, params)
+    handle = ses.add_torrent(params)
 
     logger.debug("Downloading Metadata (this may take a while)")
     counter = 90
