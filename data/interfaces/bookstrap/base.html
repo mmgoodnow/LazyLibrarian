@@ -133,7 +133,16 @@
 #log_label{
   min-width: 70px;
 }
+@media screen  and (min-width: 768px)and (max-width: 1024px) {
+    /* Add a pseudo element with the
+       text from attribute 'data-abbr' */
+    .shorten[data-abbr]::after {
+        content: attr(data-abbr);
+    }
 
+    /* Hide the original label */
+    .shorten > span { display: none; }
+}
 </style>
 </head>
   <body>
@@ -175,12 +184,20 @@
                 % endif
                 % if lazylibrarian.SHOW_AUDIO != 0:
                   %if perm&lazylibrarian.perm_audio:
-                  <li><a id="audio" href="audio" class="navbarele">Audio</a></li>
+                  <li><a id="audio" href="audio" class="navbarele">
+                  <div class="shorten" data-abbr="Audio">
+                      <span>AudioBooks</span>
+                  </div>
+                  </a></li>
                   % endif
                 % endif
                 % if lazylibrarian.SHOW_MAGS != 0:
                   %if perm&lazylibrarian.perm_magazines:
-                  <li><a id="magazines" href="magazines" class="navbarele">Mags</a></li>
+                  <li><a id="magazines" href="magazines" class="navbarele">
+                  <div class="shorten" data-abbr="Mags">
+                      <span>Magazines</span>
+                  </div>
+                  </a></li>
                   % endif
                 % endif
                 % if lazylibrarian.SHOW_COMICS != 0:
