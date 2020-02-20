@@ -277,6 +277,13 @@ def syspath(path, prefix=True):
             encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
             path = path.decode(encoding, 'replace')
 
+    # the html cache addressing uses forwardslash as a separator but windows file system needs backslash
+    opath = path
+    s = path.find(lazylibrarian.CACHEDIR)
+    if s >= 0 and '/' in path:
+        path = path.replace('/', '\\')
+        logger.debug("cache path changed [%s] to [%s]" % (opath, path))
+
     # Add the magic prefix if it isn't already there.
     # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
     if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
@@ -1367,7 +1374,7 @@ def logHeader():
 
 
 def saveLog():
-    if not os.path.exists(lazylibrarian.CONFIG['LOGDIR']):
+    if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 
     basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
@@ -1385,7 +1392,7 @@ def saveLog():
             fname = basename
             if extn > 0:
                 fname = fname + '.' + str(extn)
-            if not os.path.exists(fname):
+            if not path_exists(fname):
                 logger.debug("logfile [%s] does not exist" % fname)
                 nextfile = False
             else:
@@ -1418,7 +1425,7 @@ def saveLog():
                     linecount += 1
                 extn += 1
 
-        if os.path.exists(lazylibrarian.CONFIGFILE):
+        if path_exists(lazylibrarian.CONFIGFILE):
             out.write('---END-CONFIG---------------------------------\n')
             if PY2:
                 lines = reversed(open(lazylibrarian.CONFIGFILE).readlines())
@@ -1468,7 +1475,7 @@ def zipAudio(source, zipname):
         Return full path to zipfile
     """
     zip_file = os.path.join(source, zipname + '.zip')
-    if not os.path.exists(zip_file):
+    if not path_exists(zip_file):
         logger.debug('Zipping up %s' % zipname)
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
