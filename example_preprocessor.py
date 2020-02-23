@@ -158,7 +158,7 @@ def main():
                 if extn.lower() == '.epub':
                     sourcefile = fname
                     break
-                elif extn.lower() == '.mobi':
+                elif extn.lower() in ['.mobi', '.azw3']:
                     sourcefile = fname
                     break
 
