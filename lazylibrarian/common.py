@@ -642,33 +642,50 @@ def nextRun(target=None, interval=0, action='', hours=False):
     else:
         lastrun = 0
 
-    if hours:
-        interval *= 60
-    if lastrun + (interval * 60) < time.time():
-        nextrun = 1  # overdue
+    if target == 'PostProcessor':  # more readable
+        newtarget = 'processDir'
+    elif target == 'syncToGoodreads':
+        newtarget = 'sync_to_gr'
     else:
-        nextrun = interval
+        newtarget = target
 
-    startdate = datetime.datetime.fromtimestamp(time.time() + (nextrun * 60))
+    nextruntime = ''
+    for job in lazylibrarian.SCHED.get_jobs():
+        if newtarget in str(job):
+            nextruntime = job.split('at: ')[1].split('.')[0].strip(')')
+            break
 
-    if hours:
-        if nextrun > 1:
-            nextrun = int(nextrun / 60)
-        if nextrun <= 48:
-            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "hour"))
-        else:
-            days = int(nextrun / 24)
-            msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
+    if nextruntime:
+        startdate = datetime.datetime.strptime(nextruntime, '%Y-%m-%d %H:%M:%S')
+        msg = "%s %s job in %s" % (action, target, next_run(startdate))
     else:
-        if nextrun <= 120:
-            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
+        if hours:
+            interval *= 60
+        if lastrun + (interval * 60) < time.time():
+            nextrun = 1  # overdue
         else:
-            hours = int(nextrun / 60)
-            if hours <= 48:
-                msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
+            nextrun = interval
+
+        startdate = datetime.datetime.fromtimestamp(time.time() + (nextrun * 60))
+
+        if hours:
+            if nextrun > 1:
+                nextrun = int(nextrun / 60)
+            if nextrun <= 48:
+                msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "hour"))
             else:
-                days = int(hours / 24)
+                days = int(nextrun / 24)
                 msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
+        else:
+            if nextrun <= 120:
+                msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
+            else:
+                hours = int(nextrun / 60)
+                if hours <= 48:
+                    msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
+                else:
+                    days = int(hours / 24)
+                    msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
     if lastrun:
         msg += " (Last run %s)" % ago(lastrun)
     logger.debug(msg)
