@@ -218,7 +218,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
-                     'NOTIFY_WITH_URL', 'USER_AGENT']
+                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -627,6 +627,7 @@ CONFIG_DEFINITIONS = {
     'RSS_HOST': ('str', 'RSS', ''),
     'PREF_UNRARLIB': ('int', 'General', 1),
     'USER_AGENT': ('str', 'General', ''),
+    'RATESTARS': ('bool', 'General', 1),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
 

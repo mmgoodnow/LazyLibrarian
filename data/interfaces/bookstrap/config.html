@@ -642,6 +642,17 @@
                           <input type="checkbox" id="series_tab" name="series_tab" value="1" ${checked} />
                           Show Series</label>
                       </div>
+                      <div class="col-md-6">
+                        <%
+                          if lazylibrarian.CONFIG['RATESTARS'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="ratestars" class="control-label">
+                          <input type="checkbox" id="ratestars" name="ratestars" value="1" ${checked} />
+                          Show rating as stars</label>
+                      </div>
                     </div>
                     <div class="row checkbox">
                       <div class="col-md-6">

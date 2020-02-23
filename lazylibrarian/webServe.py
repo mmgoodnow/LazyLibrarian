@@ -2035,9 +2035,12 @@ class WebInterface(object):
                 for row in rows:
                     worklink = ''
                     sitelink = ''
-                    bookrate = int(round(float(row[3])))
-                    if bookrate > 5:
-                        bookrate = 5
+                    if lazylibrarian.CONFIG['RATESTARS']:
+                        bookrate = int(round(float(row[3])))
+                        if bookrate > 5:
+                            bookrate = 5
+                    else:
+                        bookrate = row[3]
 
                     if row[10] and len(row[10]) > 4:  # is there a workpage link
                         worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
