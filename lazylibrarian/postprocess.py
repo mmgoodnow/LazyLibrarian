@@ -1065,7 +1065,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                             maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
                             # create a thumbnail cover for the new issue
-                            coverfile = createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
+                            if lazylibrarian.CONFIG['SWAP_COVERPAGE']:
+                                coverpage = 1
+                            else
+                                coverpage = check_int(maginfo['CoverPage'], 1)
+                            coverfile = createMagCover(dest_file, pagenum=coverpage)
                             myhash = uuid.uuid4().hex
                             hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                             copyfile(coverfile, hashname)

@@ -307,6 +307,9 @@ def preprocess_audio(bookfolder, authorname, bookname):
 
 def preprocess_magazine(bookfolder, cover=0):
     logger.debug("Preprocess magazine %s cover=%s" % (bookfolder, cover))
+    if not lazylibrarian.CONFIG['SWAP_COVERPAGE']:
+        return
+
     if cover < 2:
         return
 
