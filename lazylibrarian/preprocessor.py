@@ -41,7 +41,7 @@ except ImportError:
 
 
 def preprocess_ebook(bookfolder):
-    ebook_convert = lazylibrarian.CONFIG['ebook_convert']
+    ebook_convert = lazylibrarian.CONFIG['EBOOK_CONVERT']
     if not path_exists(ebook_convert):
         logger.error("%s not found" % ebook_convert)
         return
@@ -58,13 +58,13 @@ def preprocess_ebook(bookfolder):
             sourcefile = fname
             break
 
-    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['ebook_wanted_formats'])
+    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     if not sourcefile:
         logger.error("No suitable sourcefile found in %s" % bookfolder)
         return
 
     basename, source_extn = os.path.splitext(sourcefile)
-    wanted_formats = getList(lazylibrarian.CONFIG['ebook_wanted_formats'])
+    wanted_formats = getList(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
             logger.debug("No %s" % ftype)
@@ -84,10 +84,10 @@ def preprocess_ebook(bookfolder):
         else:
             logger.debug("Found %s" % ftype)
 
-    if lazylibrarian.CONFIG['delete_other_formats']:
-        if lazylibrarian.CONFIG['keep_opf']:
+    if lazylibrarian.CONFIG['DELETE_OTHER_FORMATS']:
+        if lazylibrarian.CONFIG['KEEP_OPF']:
             wanted_formats.append('opf')
-        if lazylibrarian.CONFIG['keep_opf']:
+        if lazylibrarian.CONFIG['KEEP_JPG']:
             wanted_formats.append('jpg')
         for fname in listdir(bookfolder):
             filename, extn = os.path.splitext(fname)
@@ -104,10 +104,10 @@ def preprocess_ebook(bookfolder):
 
 
 def preprocess_audio(bookfolder, authorname, bookname):
-    if not lazylibrarian.CONFIG['create_singleaudio'] and not lazylibrarian.CONFIG['write_audiotags']:
+    if not lazylibrarian.CONFIG['CREATE_SINGLEAUDIO'] and not lazylibrarian.CONFIG['WRITE_AUDIOTAGS']:
         return
 
-    ffmpeg = lazylibrarian.CONFIG['ffmpeg']
+    ffmpeg = lazylibrarian.CONFIG['FFMPEG']
     if not path_exists(ffmpeg):
         logger.error("%s not found" % ffmpeg)
         return
@@ -131,7 +131,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
     out_type = ''
     for f in listdir(bookfolder):
         extn = os.path.splitext(f)[1].lstrip('.')
-        if extn.lower() in getList(lazylibrarian.CONFIG['audiobook_type']):
+        if extn.lower() in getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']):
             cnt += 1
             audio_file = f
             try:
@@ -252,7 +252,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
     with open(os.path.join(bookfolder, 'partslist.ll'), 'wb') as f:
         for part in parts:
             f.write("file '%s'" % makeBytestr(part[3]))
-            if lazylibrarian.CONFIG['write_audiotags'] and authorname and bookname:
+            if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] and authorname and bookname:
                 if tokmatch or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -270,7 +270,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                         logger.error(str(e))
                         return
 
-    if lazylibrarian.CONFIG['create_singleaudio']:
+    if lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, 'metadata.ll')]
         try:
@@ -282,7 +282,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
 
         params = [ffmpeg]
         params.extend(ffmpeg_params)
-        params.extend(getList(lazylibrarian.CONFIG['audio_options']))
+        params.extend(getList(lazylibrarian.CONFIG['AUDIO_OPTIONS']))
         params.append('-y')
         if not out_type:
             out_type = 'mp3'
@@ -299,7 +299,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
         logger.info("%d files merged into %s" % (len(parts), outfile))
         os.remove(os.path.join(bookfolder, 'partslist.ll'))
         os.remove(os.path.join(bookfolder, 'metadata.ll'))
-        if not lazylibrarian.CONFIG['keep_separate_audio']:
+        if not lazylibrarian.CONFIG['KEEP_SEPARATE_AUDIO']:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
                 os.remove(os.path.join(bookfolder, part[3]))
