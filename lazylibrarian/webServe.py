@@ -5802,9 +5802,9 @@ class WebInterface(object):
         threading.currentThread().name = "WEBSERVER"
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            lazylibrarian.CONFIG['IMP_PREPROCESS'] = kwargs['prg']
-        if len(lazylibrarian.CONFIG['IMP_PREPROCESS']):
-            params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], 'test', '']
+            lazylibrarian.CONFIG['EXT_PREPROCESS'] = kwargs['prg']
+        if len(lazylibrarian.CONFIG['EXT_PREPROCESS']):
+            params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], 'test', '']
             rc, res, err = runScript(params)
             if rc:
                 return "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)

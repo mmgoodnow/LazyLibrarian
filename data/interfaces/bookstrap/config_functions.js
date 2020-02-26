@@ -1319,7 +1319,7 @@
         });
 
         $('#testpreprocessor').click(function () {
-            var prg = $.trim($("#imp_preprocessor").val());
+            var prg = $.trim($("#ext_preprocessor").val());
             $.get("testPreProcessor", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({

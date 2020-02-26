@@ -2280,13 +2280,31 @@
                     <span class="help-block">This will include details for other books by new authors found in wishlists or csv files,<br>
                       or when manually importing a book by a new author</span>
                   </div>
+                  <fieldset>
+                  <legend>External Programs</legend>
                   <div class="form-group">
-                    <label for="imp_preprocess">PreProcessor program:</label>
-                    <input type="text" id="imp_preprocess" name="imp_preprocess" value="${lazylibrarian.CONFIG['IMP_PREPROCESS']}" class="form-control">
-                    <span class="help-block">Path to preprocessor to run before importing books into the library</span>
+                    <label for="ext_preprocess">Additional PreProcessor program:</label>
+                    <input type="text" id="ext_preprocess" name="ext_preprocess" value="${lazylibrarian.CONFIG['EXT_PREPROCESS']}" class="form-control">
+                    <span class="help-block">Path to additional preprocessor to run before importing books into the library</span>
                     <input type="button" value="Test preprocessor" id="testpreprocessor" class="btn btn-default" />
                   </div>
-                <legend>Calibre</legend>
+                  <div class="form-group">
+                    <label for="ebook_convert">ebook-convert program:</label>
+                    <input type="text" id="ebook_convert" name="ebook_convert" value="${lazylibrarian.CONFIG['EBOOK_CONVERT']}" class="form-control" placeholder="ebook-convert program">
+                    <span class="help-block">Path to "ebook-convert" to convert book formats</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="ffmpeg">ffmpeg program:</label>
+                    <input type="text" id="ffmpeg" name="ffmpeg" value="${lazylibrarian.CONFIG['FFMPEG']}" class="form-control" placeholder="ffmpeg program">
+                    <span class="help-block">Path to "ffmpeg" to merge audiobook parts or add tags</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="git_program">git program:</label>
+                    <input type="text" placeholder="git program" id="git_program" name="git_program" value="${lazylibrarian.CONFIG['GIT_PROGRAM']}" class="form-control">
+                    <span class="help-block">Git program unless already in your path. Usually leave this blank</span>
+                  </div>
+                  </fieldset>
+                  <legend>Calibre</legend>
                   <fieldset>
                   <div class="form-group">
                     <label for="imp_calibredb">Calibredb import program:</label>
@@ -2645,11 +2663,6 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  <div class="form-group">
-                    <label for="git_program">git program:</label>
-                    <input type="text" placeholder="git program" id="git_program" name="git_program" value="${lazylibrarian.CONFIG['GIT_PROGRAM']}" class="form-control">
-                    <span class="help-block">Git program unless already in your path. Usually leave this blank</span>
-                  </div>
                   %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                   <div class="form-group">
                     <label for="imp_convert">Cover creation program:</label>
@@ -2679,6 +2692,8 @@
                       Create opf files for magazines</label>
                   </div>
                   %endif
+                </fieldset>
+                <fieldset>
                   %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
                   <div class="checkbox">
                     <%
@@ -2810,6 +2825,96 @@
                       Quick open single issues of comics</label>
                   </div>
                   %endif
+                </fieldset>
+                <fieldset>
+                  <legend>eBook Conversions</legend>
+                  <div class="form-group">
+                    <label for="ebook_wanted_formats">eBook wanted formats:</label>
+                    <input type="text" id="ebook_wanted_formats" name="ebook_wanted_formats" value="${lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS']}" class="form-control" placeholder="wanted formats">
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['KEEP_OPF'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="keep_opf" class="control-label">
+                      <input type="checkbox" id="keep_opf" name="keep_opf" value="1" ${checked} />
+                      Keep downloaded opf</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['KEEP_JPG'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="keep_jpg" class="control-label">
+                      <input type="checkbox" id="keep_jpg" name="keep_jpg" value="1" ${checked} />
+                      Keep downloaded jpg</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['DELETE_OTHER_FORMATS'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="delete_other_formats" class="control-label">
+                      <input type="checkbox" id="delete_other_formats" name="delete_other_formats" value="1" ${checked} />
+                      Delete unwanted filetypes</label>
+                  </div>
+                  <legend>AudioBook Conversions</legend>
+                  <div class="form-group">
+                    <label for="audio_options">ffmpeg options:</label>
+                    <input type="text" id="audio_options" name="audio_options" value="${lazylibrarian.CONFIG['AUDIO_OPTIONS']}" class="form-control" placeholder="audio options">
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['CREATE_SINGLEAUDIO'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="create_singleaudio" class="control-label">
+                      <input type="checkbox" id="create_singleaudio" name="create_singleaudio" value="1" ${checked} />
+                      Merge audiobook parts into one file</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="keep_separateaudio" class="control-label">
+                      <input type="checkbox" id="keep_separateaudio" name="keep_separateaudio" value="1" ${checked} />
+                      Also keep separate parts</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="write_audiotags" class="control-label">
+                      <input type="checkbox" id="write_audiotags" name="write_audiotags" value="1" ${checked} />
+                      Write audio tags</label>
+                  </div>
+                  <legend>Magazine Conversions</legend>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="swap_coverpage" class="control-label">
+                      <input type="checkbox" id="swap_coverpage" name="swap_coverpage" value="1" ${checked} />
+                      Swap Coverpage</label>
+                  </div>
                 </fieldset>
               </div>
             </div>
@@ -3919,7 +4024,7 @@
                     <label for="datetype[${mag['Title']}]" class="input-group-addon">Date Style</label>
                     <input type="text" id="datetype[${mag['Title']}]" name="datetype[${mag['Title']}]" value="${mag['DateType']}" class="form-control" placeholder="auto">
                     <label for="coverpage[${mag['Title']}]" class="input-group-addon">Cover Page</label>
-                    <input type="number" id="coverpage[${mag['Title']}]" name="coverpage[${mag['Title']}]" value="${mag['CoverPage']}" class="form-control" placeholder="1">
+                    <input type="number" id="coverpage[${mag['Title']}]" name="coverpage[${mag['Title']}]" value="${mag['CoverPage']}" min=1 class="form-control" placeholder="1">
                   </div>
                 </div>
                 %endfor

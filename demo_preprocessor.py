@@ -11,6 +11,11 @@
 # Anything you print to stdout appears as debug messages in the log
 # The exit code and messages get passed back to the "test" button
 # Always exit zero on success, non-zero on fail
+#
+################################################################
+#  NOTE  all of the features in the example preprocessor
+# are already included in the main lazylibrarian program
+################################################################
 
 import os
 import subprocess

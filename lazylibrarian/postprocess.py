@@ -55,6 +55,7 @@ from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_tota
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.images import createMagCover
+from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download
 try:
     from deluge_client import DelugeRPCClient
@@ -134,7 +135,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         tempdir = tempfile.mkdtemp()
         _ = safe_copy(source_file, tempdir)
         success, dest_file = processDestination(tempdir, dest_path, '', '',
-                                                global_name, title, "mag")
+                                                global_name, title, "magazine")
         shutil.rmtree(tempdir, ignore_errors=True)
         if not success:
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
@@ -914,6 +915,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         else:
                             data = myDB.match('SELECT IssueDate from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
+                                book_type = 'magazine'
                                 logger.debug('Processing magazine %s' % book['BookID'])
                                 # AuxInfo was added for magazine release date, normally housed in 'magazines'
                                 # but if multiple files are downloading, there will be an error in post-processing
@@ -959,6 +961,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     data = None
 
                                 if data:  # it's a comic
+                                    book_type = 'comic'
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
                                     mostrecentissue = data['LatestIssue']
                                     if PY2:
@@ -2165,11 +2168,23 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         return False, 'Unable to locate a valid filetype (%s) in %s, leaving for manual processing' % (
             booktype, pp_path)
 
+    if booktype == 'ebook':
+        preprocess_ebook(pp_path)
+    elif booktype == 'audio':
+        preprocess_audio(pp_path, authorname, bookname)
+    elif booktype == 'magazine':
+        myDB = database.DBConnection()
+        res = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+        cover = 0
+        if res:
+            cover = check_int(res['CoverPage'], 0)
+        preprocess_magazine(pp_path, cover=cover)
+
     # run custom pre-processing, for example remove unwanted formats
     # or force format conversion before sending to calibre
-    if len(lazylibrarian.CONFIG['IMP_PREPROCESS']):
-        logger.debug("Running PreProcessor: %s %s %s %s" % (booktype, pp_path, authorname, bookname))
-        params = [lazylibrarian.CONFIG['IMP_PREPROCESS'], booktype, pp_path, authorname, bookname]
+    if len(lazylibrarian.CONFIG['EXT_PREPROCESS']):
+        logger.debug("Running external PreProcessor: %s %s %s %s" % (booktype, pp_path, authorname, bookname))
+        params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], booktype, pp_path, authorname, bookname]
         rc, res, err = runScript(params)
         if rc:
             return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)

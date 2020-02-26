@@ -109,8 +109,9 @@ def upgrade_needed():
     # 57 Add Description to comics and Description/Contributors to comicissues
     # 58 Ensure Link was added to comicissues (was missing for new installs in v57)
     # 59 Added per provider seeders instead of global
+    # 60 Moved preprocessor into main program and disabled old preprocessor
 
-    db_current_version = 59
+    db_current_version = 60
 
     if db_version < db_current_version:
         return db_current_version
@@ -1715,3 +1716,13 @@ def db_v59(myDB, upgradelog):
     lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
     lazylibrarian.config_write()
     upgradelog.write("%s v59: complete\n" % time.ctime())
+
+
+# noinspection PyUnusedLocal
+def db_v60(myDB, upgradelog):
+    if lazylibrarian.CONFIG['IMP_PREPROCESSOR']:
+        lazylibrarian.UPDATE_MSG = '<b>The old example_preprocessor is deprecated</b>'
+        lazylibrarian.UPDATE_MSG += '<br>it\'s functions are now included in the main program'
+        lazylibrarian.UPDATE_MSG += '<br>See new config options in "processing" tab'
+        time.sleep(30)
+    upgradelog.write("%s v60: complete\n" % time.ctime())
