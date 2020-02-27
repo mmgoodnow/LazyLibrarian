@@ -1720,9 +1720,8 @@ def db_v59(myDB, upgradelog):
 
 # noinspection PyUnusedLocal
 def db_v60(myDB, upgradelog):
-    if lazylibrarian.CONFIG['IMP_PREPROCESSOR']:
-        lazylibrarian.UPDATE_MSG = '<b>The old example_preprocessor is deprecated</b>'
-        lazylibrarian.UPDATE_MSG += '<br>it\'s functions are now included in the main program'
-        lazylibrarian.UPDATE_MSG += '<br>See new config options in "processing" tab'
-        time.sleep(30)
+    lazylibrarian.UPDATE_MSG = '<b>The old example_preprocessor is deprecated</b>'
+    lazylibrarian.UPDATE_MSG += '<br>it\'s functions are now included in the main program'
+    lazylibrarian.UPDATE_MSG += '<br>See new config options in "processing" tab'
+    time.sleep(30)
     upgradelog.write("%s v60: complete\n" % time.ctime())

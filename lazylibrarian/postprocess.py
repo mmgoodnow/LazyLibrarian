@@ -1067,7 +1067,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             # create a thumbnail cover for the new issue
                             if lazylibrarian.CONFIG['SWAP_COVERPAGE']:
                                 coverpage = 1
-                            else
+                            else:
                                 coverpage = check_int(maginfo['CoverPage'], 1)
                             coverfile = createMagCover(dest_file, pagenum=coverpage)
                             myhash = uuid.uuid4().hex
