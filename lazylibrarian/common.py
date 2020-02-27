@@ -661,31 +661,22 @@ def nextRun(target=None, interval=0, action='', hours=False):
     else:
         if hours:
             interval *= 60
-        if lastrun + (interval * 60) < time.time():
-            nextrun = 1  # overdue
+
+        nextrun = lastrun + (interval * 60) - time.time()
+        if nextrun < 60:
+            nextrun = 60  # overdue, start in 1 minute
+
+        startdate = datetime.datetime.fromtimestamp(time.time() + nextrun)
+
+        if nextrun <= 120:
+            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
         else:
-            nextrun = interval
-
-        startdate = datetime.datetime.fromtimestamp(time.time() + (nextrun * 60))
-
-        if hours:
-            if nextrun > 1:
-                nextrun = int(nextrun / 60)
-            if nextrun <= 48:
-                msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "hour"))
+            hours = int(nextrun / 60)
+            if hours <= 48:
+                msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
             else:
-                days = int(nextrun / 24)
+                days = int(hours / 24)
                 msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
-        else:
-            if nextrun <= 120:
-                msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
-            else:
-                hours = int(nextrun / 60)
-                if hours <= 48:
-                    msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
-                else:
-                    days = int(hours / 24)
-                    msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
     if lastrun:
         msg += " (Last run %s)" % ago(lastrun)
     logger.debug(msg)

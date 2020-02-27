@@ -111,6 +111,8 @@ def next_run(when_run):
     td = str(td)
     if 's,' in td:
         return td.split('s,')[0] + 's'
+    elif 'y,' in td:
+        diff += 86400
 
     # calculate whole units, plus round up by adding 1(true) if remainder >= half
     days = int(diff / 86400) + (diff % 86400 >= 43200)
