@@ -2043,6 +2043,7 @@ def logmsg(level, msg):
 
 
 def shutdown(restart=False, update=False):
+    global __INITIALIZED__
     cherrypy.engine.exit()
     if SCHED:
         SCHED.shutdown(wait=False)
@@ -2060,8 +2061,9 @@ def shutdown(restart=False, update=False):
         try:
             if versioncheck.update():
                 logmsg('info', 'Lazylibrarian version updated')
-                CONFIG['GIT_UPDATED'] = str(int(time.time()))
-                config_write('Git')
+                if __INITIALIZED__:
+                    CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                    config_write('Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))
