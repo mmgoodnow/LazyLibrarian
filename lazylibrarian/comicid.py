@@ -643,12 +643,22 @@ def cv_issue(seriesid, issuenum):
     cv_api_sleep()
     data, _ = gb_json_request(url)
     # comicvine api "/issue" and "issue_detail_url" seem broken, always get 404
-    # so extract site-detail-url from data, then page scrape
+    # so try to extract site-detail-url from data, then page scrape
     # to get names and roles
     contributors = ''
-    res['Link'] = data['results'][0]['site_detail_url']
-    res['Description'] = data['results'][0]['description']
-    data, _ = html_request(res['Link'])
+    try:
+        res['Link'] = data['results'][0]['site_detail_url']
+        res['Description'] = data['results'][0]['description']
+    except IndexError:
+        logger.debug("No link/description from %s" % url)
+        return res
+
+    if res['Link']:
+        data, _ = html_request(res['Link'])
+    else:
+        logger.debug("No site_detail_url from %s" % url)
+        return res
+
     if data:
         soup = BeautifulSoup(data, "html5lib")
         table = soup.find('div', attrs={'id': 'wiki-relatedList'}
@@ -694,5 +704,5 @@ def cx_issue(url, issuenum):
                     if contributors:
                         contributors += ', '
                     contributors += role + ': ' + name
-            res['Contributors'] = contributors       
+            res['Contributors'] = contributors
     return res
