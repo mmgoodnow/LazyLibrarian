@@ -487,14 +487,20 @@ def update():
             return False
 
         for line in output.split('\n'):
-            if 'Already up-to-date.' in line:
+            if 'Already up to date' in line:
                 logmsg('info', 'No update available: ' + str(output))
-                return False
             elif 'Aborting' in line or 'local changes' in line:
                 logmsg('error', 'Unable to update: ' + str(output))
                 return False
 
         # Update version.txt and timestamp
+        if 'LATEST_VERSION' not in lazylibrarian.CONFIG:
+            lazylibrarian.CONFIG['LATEST_VERSION'] = 'Unknown'
+            url = 'https://lazylibrarian.gitlab.io/version.json'
+            r = requests.get(url, timeout=30)
+            if str(r.status_code).startswith('2'):
+                lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
+
         updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
         lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
         lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
