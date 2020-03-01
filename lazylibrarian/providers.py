@@ -114,13 +114,14 @@ def test_provider(name, host=None, api=None):
                     logger.debug("Testing provider %s" % name)
                     if not host:
                         host = provider['HOST']
-                    if 'goodreads' in host and 'list_rss' in host:
-                        return GOODREADS(host, provider['NAME'], provider['DLPRIORITY'],
-                                         provider['DISPNAME'], test=True), provider['DISPNAME']
-                    elif 'goodreads' in host and '/show/' in host:
-                        # goodreads listopia
-                        return LISTOPIA(host, provider['NAME'], provider['DLPRIORITY'],
-                                        provider['DISPNAME'], test=True), provider['DISPNAME']
+                    if 'goodreads' in host:
+                        if 'list_rss' in host:
+                            return GOODREADS(host, provider['NAME'], provider['DLPRIORITY'],
+                                             provider['DISPNAME'], test=True), provider['DISPNAME']
+                        if '/show/' in host or '/book/' in host:
+                            # goodreads listopia html page
+                            return LISTOPIA(host, provider['NAME'], provider['DLPRIORITY'],
+                                            provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return RSS(host, provider['NAME'], provider['DLPRIORITY'],
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -780,12 +781,10 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
 
     result, success = fetchURL(URL)
 
-    if test:
-        return success
-
     if not success:
         logger.error('Error fetching data from %s: %s' % (URL, result))
-        BlockProvider(basehost, result)
+        if not test:
+            BlockProvider(basehost, result)
 
     elif result:
         logger.debug('Parsing results from %s' % URL)
@@ -812,6 +811,8 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
         logger.debug('No data returned from %s' % URL)
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+    if test:
+        return success
     return results
 
 
@@ -827,7 +828,13 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
 
     page = 1
     next_page = True
-    provider = host.split('/show/')[1]
+    if '/show/' in host:
+        provider = host.split('/show/')[1]
+    elif '/book/' in host:
+        provider = host.split('/book/')[1]
+    else:
+        provider = host
+
     if not dispname:
         dispname = provider
 
@@ -836,14 +843,12 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
 
         result, success = fetchURL(URL)
 
-        if test:
-            return success
-
         next_page = False
 
         if not success:
             logger.error('Error fetching data from %s: %s' % (URL, result))
-            BlockProvider(basehost, result)
+            if not test:
+                BlockProvider(basehost, result)
 
         elif result:
             logger.debug('Parsing results from %s' % URL)
@@ -871,6 +876,10 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
         else:
             logger.debug('No data returned from %s' % URL)
 
+        if test:
+            logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+            return success
+
         page += 1
         if maxpage:
             if page > maxpage:
@@ -895,14 +904,12 @@ def GOODREADS(host=None, feednr=None, priority=0, dispname=None, types='E', test
 
     result, success = fetchURL(URL)
 
-    if test:
-        return success
-
     if success:
         data = feedparser.parse(result)
     else:
         logger.error('Error fetching data from %s: %s' % (host, result))
-        BlockProvider(basehost, result)
+        if not test:
+            BlockProvider(basehost, result)
         return []
 
     if data:
@@ -936,8 +943,11 @@ def GOODREADS(host=None, feednr=None, priority=0, dispname=None, types='E', test
                     'dispname': dispname,
                     'types': types,
                 })
+        logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     else:
         logger.debug('No data returned from %s' % host)
+    if test:
+        return success
     return results
 
 
