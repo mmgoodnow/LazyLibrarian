@@ -2256,7 +2256,7 @@
                   <div class="form-group">
                     <label for="newseries_status">New Series Status:</label>
                     <select id="newseries_status" name="newseries_status" class="form-control">
-                      %for na_status in ['Active', 'Paused']:
+                      %for na_status in ['Active', 'Paused', 'Wanted']:
                       <%
                         selected = ''
                         if na_status == lazylibrarian.CONFIG['NEWSERIES_STATUS']:
@@ -2265,7 +2265,7 @@
                       <option value="${na_status}" ${selected}>${na_status}</option>
                       %endfor
                     </select>
-                    <span class="help-block">Should we monitor for new books in the series</span>
+                    <span class="help-block">Should we monitor/download new books in the series</span>
                   </div>
                   <div class="checkbox">
                     <%
