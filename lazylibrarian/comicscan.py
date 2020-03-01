@@ -125,16 +125,22 @@ def comicScan(comicid=None):
                     if not res:
                         res = cx_identify(fname)
                     if res:
-                        if comicid and comicid != res[3]['seriesid']:
-                            aka = [comicid]
-                        comicid = res[3]['seriesid']
-                        issue = str(res[4])
-                        title = res[3]['title']
-                        publisher = res[3]['publisher']
-                        start = res[3]['start']
+                        if not comicid:
+                            comicid = res[3]['seriesid']
+                        elif comicid != res[3]['seriesid']:
+                            aka = [res[3]['seriesid']]
+                        if not issue:
+                            issue = str(res[4])
+                        if not title:
+                            title = res[3]['title']
+                        if not publisher:
+                            publisher = res[3]['publisher']
+                        if not start:
+                            start = res[3]['start']
+                        if not searchterm:
+                            searchterm = res[3]['searchterm']
                         first = res[3]['first']
                         last = res[3]['last']
-                        searchterm = res[3]['searchterm']
                         serieslink = res[3]['link']
                         seriesdescription = res[3]['description']
                         logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))

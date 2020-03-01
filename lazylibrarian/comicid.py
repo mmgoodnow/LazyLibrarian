@@ -564,6 +564,7 @@ def comic_metadata(archivename, xml=False):
 
     archivename = makeUnicode(archivename)
     if not path_isfile(archivename):  # regular files only
+        logger.debug("%s is not a file" % archivename)
         return {}
 
     if zipfile.is_zipfile(archivename):
@@ -579,7 +580,9 @@ def comic_metadata(archivename, xml=False):
         for item in namelist:
             if item.endswith('ComicInfo.xml'):
                 if xml:
-                    return z.read(item)
+                    res = z.read(item)
+                    logger.debug("%s bytes xml" % len(res))
+                    return res
                 return meta_dict(z.read(item))
 
     elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
@@ -595,7 +598,9 @@ def comic_metadata(archivename, xml=False):
         for item in namelist:
             if item.endswith('ComicInfo.xml'):
                 if xml:
-                    return z.read(item)
+                    res = z.read(item)
+                    logger.debug("%s bytes xml" % len(res))
+                    return res
                 return meta_dict(z.read(item))
 
     elif lazylibrarian.UNRARLIB == 2:
@@ -609,8 +614,12 @@ def comic_metadata(archivename, xml=False):
         data = rarc.read_files('ComicInfo.xml')
         if data:
             if xml:
-                return data[0][1]
+                res = data[0][1]
+                logger.debug("%s bytes xml" % len(res))
+                return res
             return meta_dict(data[0][1])
+
+    logger.debug("%s is not an archive we can unpack" % archivename)
     return {}
 
 
@@ -632,6 +641,7 @@ def meta_dict(data):
             notes = res.text
             if 'Comic Vine' in notes and 'Issue ID ' in notes:
                 datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
+    logger.debug(str(datadict.keys()))
     return datadict
 
 
