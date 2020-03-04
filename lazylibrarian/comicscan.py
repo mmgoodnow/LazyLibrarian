@@ -125,10 +125,10 @@ def comicScan(comicid=None):
                     if not res:
                         res = cx_identify(fname)
                     if res:
-                        if not comicid:
-                            comicid = res[3]['seriesid']
-                        elif comicid != res[3]['seriesid']:
-                            aka = [res[3]['seriesid']]
+                        if comicid and comicid != res[3]['seriesid']:
+                            aka = comicid
+                        comicid = res[3]['seriesid']
+
                         if not issue:
                             issue = str(res[4])
                         if not title:

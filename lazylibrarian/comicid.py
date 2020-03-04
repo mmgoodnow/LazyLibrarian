@@ -19,7 +19,7 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
-from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes
+from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes, plural
 from lazylibrarian.common import quotes, path_isfile
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
@@ -100,6 +100,10 @@ def nameWords(name):
                 namewords.append(buildword)
                 buildword = ''
             namewords.append(word)
+    if buildword:
+        if len(buildword) == 2:
+            buildword = buildword[0]
+        namewords.append(buildword)
     return namewords
 
 
@@ -213,6 +217,7 @@ def cv_identify(fname, best=True):
                 year = w
                 break
 
+        logger.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
         for item in choices:
             present = 0
             noise = 0
@@ -225,10 +230,15 @@ def cv_identify(fname, best=True):
                     noise += 1
 
             if year and item['start'] and item["start"] > year:  # series not started yet
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                    logger.debug("Year %s out of range (start=%s) %s" % (year, item["start"], item['title']))
                 rejected = True
 
             issue = getIssueNum(words, namewords)
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                    logger.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
+                                                                          item["last"], item['title']))
                 rejected = True
 
             for w in titlewords:
@@ -239,8 +249,12 @@ def cv_identify(fname, best=True):
 
             if not rejected and present >= minmatch:
                 results.append([present, noise, missing, item, issue])
+            elif lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                logger.debug("Only matched %s %s in %s" % (present, plural(present, "word"), item['title']))
 
         results = sorted(results, key=lambda x: (-x[0], x[1], -(check_int(x[3]["start"], 0))))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug(str(results))
 
     if results:
         return results[0]
