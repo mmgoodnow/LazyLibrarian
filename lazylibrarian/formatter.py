@@ -165,7 +165,7 @@ def age(histdate):
         return 0
 
 
-def check_year(num, past=1900, future=1):
+def check_year(num, past=1850, future=1):
     # See if num looks like a valid year
     # for a magazine allow forward dated by a year, eg Jan 2017 issues available in Dec 2016
     n = check_int(num, 0)
