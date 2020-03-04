@@ -33,6 +33,15 @@ if PY2:
 else:
     import lib3.feedparser as feedparser
 
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    if PY2:
+        from lib.bs4 import BeautifulSoup
+    else:
+        from lib3.bs4 import BeautifulSoup
+
 
 def test_provider(name, host=None, api=None):
     book = {'searchterm': 'Agatha Christie', 'library': 'eBook'}
@@ -112,6 +121,7 @@ def test_provider(name, host=None, api=None):
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
+
                     if not host:
                         host = provider['HOST']
                     if 'goodreads' in host:
@@ -122,6 +132,9 @@ def test_provider(name, host=None, api=None):
                             # goodreads listopia html page
                             return LISTOPIA(host, provider['NAME'], provider['DLPRIORITY'],
                                             provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'amazon' in host and '/charts' in host:
+                        return AMAZON(host, provider['NAME'], provider['DLPRIORITY'],
+                                      provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return RSS(host, provider['NAME'], provider['DLPRIORITY'],
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -684,6 +697,14 @@ def IterateOverWishLists():
                     logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
                     resultslist += LISTOPIA(provider['HOST'], provider['NAME'],
                                             provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
+            elif wishtype == 'AMAZON':
+                if ProviderIsBlocked(provider['HOST']):
+                    logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
+                    resultslist += AMAZON(provider['HOST'], provider['NAME'],
+                                          provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
             elif wishtype == 'NYTIMES':
                 if ProviderIsBlocked(provider['HOST']):
                     logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
@@ -809,6 +830,65 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
                 pass
     else:
         logger.debug('No data returned from %s' % URL)
+
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+    if test:
+        return success
+    return results
+
+
+def AMAZON(host=None, feednr=None, priority=0, dispname=None, types='E', test=False):
+    """
+    Amazon charts html page
+    """
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+
+    if '/charts/' in host:
+        provider = host.split('/charts')[1]
+    else:
+        provider = host
+
+    URL = host
+    result, success = fetchURL(URL)
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (URL, result))
+        if not test:
+            BlockProvider(basehost, result)
+    elif result:
+        logger.debug('Parsing results from %s' % URL)
+        soup = BeautifulSoup(result, 'html5lib')
+        authors = soup.find_all("div", {"class": "kc-rank-card-author"})
+        titles = soup.find_all("div", {"class": "kc-rank-card-title"})
+
+        if len(authors) == len(titles):
+            res = []
+            authnames = []
+            for item in authors:
+                authnames.append(item.get('title'))
+            booknames = []
+            for item in titles:
+                booknames.append(item.text.replace('\n', '').strip())
+            temp_res = list(zip(authnames, booknames))
+            # suppress blanks and duplicates
+            for item in temp_res:
+                if item[0] and item[1] and item not in res:
+                    res.append(item)
+
+            for item in res:
+                results.append({
+                    'rss_prov': provider,
+                    'rss_feed': feednr,
+                    'rss_title': item[1],
+                    'rss_author': item[0],
+                    'rss_bookid': '',
+                    'rss_isbn': '',
+                    'priority': priority,
+                    'dispname': dispname,
+                    'types': types,
+                })
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     if test:

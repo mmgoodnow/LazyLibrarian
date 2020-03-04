@@ -1715,6 +1715,12 @@ def WishListType(host):
     # GoodReads Listopia html pages
     if 'goodreads' in host and '/list/show/' in host:
         return 'LISTOPIA'
+    # GoodReads most_read html pages (Listopia format)
+    if 'goodreads' in host and '/book/' in host:
+        return 'LISTOPIA'
+    # Amazon charts html pages
+    if 'amazon' in host and '/charts' in host:
+        return 'AMAZON'
     # NYTimes best-sellers html pages
     if 'nytimes' in host and 'best-sellers' in host:
         return 'NYTIMES'
