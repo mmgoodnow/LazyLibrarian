@@ -1151,7 +1151,7 @@ def setGenres(genrelist=None, bookid=None):
         for item in genrelist:
             match = myDB.match('SELECT GenreID from genres where GenreName=? COLLATE NOCASE', (item,))
             if not match:
-                myDB.action('INSERT into genres (GenreName) VALUES (?)', (item,))
+                myDB.action('INSERT into genres (GenreName) VALUES (?)', (item,), suppress='UNIQUE')
                 match = myDB.match('SELECT GenreID from genres where GenreName=?', (item,))
             myDB.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
                         (match['GenreID'], bookid), suppress='UNIQUE')
