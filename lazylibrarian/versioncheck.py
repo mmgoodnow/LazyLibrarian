@@ -20,6 +20,15 @@ import tarfile
 import threading
 import time
 
+from lib.six import PY2
+try:
+    import zipfile
+except ImportError:
+    if PY2:
+        import lib.zipfile as zipfile
+    else:
+        import lib3.zipfile as zipfile
+
 import lazylibrarian
 try:
     import urllib3
@@ -472,11 +481,27 @@ def update():
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
         logmsg('info', 'Windows .exe updating not supported yet.')
         return False
-    elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
+    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
         logmsg('info', 'Please use your package manager to update')
         return False
 
-    elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+    # create a backup in case the upgrade is faulty...
+    logmsg('info', 'Backing up current version')
+    zf = zipfile.ZipFile('backup.zip', mode='w')
+    for item in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
+                 'lib', 'lib3', 'mako']:
+        path = os.path.join(lazylibrarian.PROG_DIR, item)
+        for root, dirs, files in walk(path):
+            for file in files:
+                if not file.endswith('.pyc'):
+                    zf.write(os.path.join(root, file))
+    for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
+                 'example_custom_notification.sh', 'example_ebook_convert.py',
+                 'example.genres.json', 'example.monthnames.json']:
+        zf.write(os.path.join(lazylibrarian.PROG_DIR, item))
+    logmsg('info', 'Saved current version to backup.zip')
+
+    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
         branch = getCurrentGitBranch()
 
         _, _ = runGit('stash clear')
