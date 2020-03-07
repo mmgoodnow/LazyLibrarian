@@ -2097,10 +2097,7 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
                         "AudioLibrary": now()}
         myDB.upsert("books", newValueDict, controlValueDict)
         if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-            if lazylibrarian.CONFIG['IMP_RENAME']:
-                book_filename = audioProcess(bookid, rename=True, playlist=True)
-            else:
-                book_filename = audioProcess(bookid, rename=False, playlist=True)
+            book_filename = audioProcess(bookid, rename=True, playlist=True)
             if dest_file != book_filename:
                 myDB.action('UPDATE books set AudioFile=? where BookID=?', (book_filename, bookid))
     else:
@@ -2172,9 +2169,10 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         return False, 'Unable to locate a valid filetype (%s) in %s, leaving for manual processing' % (
             booktype, pp_path)
 
+    logger.debug("preprocess (%s)" % booktype)
     if booktype == 'ebook':
         preprocess_ebook(pp_path)
-    elif booktype == 'audio':
+    elif 'audio' in booktype:
         preprocess_audio(pp_path, authorname, bookname)
     elif booktype == 'magazine':
         myDB = database.DBConnection()
@@ -2194,9 +2192,11 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
         logger.debug("PreProcessor: %s" % res)
 
-    # If ebook, do we want calibre to import the book for us
+    # If ebook or comic, do we want calibre to import it for us
     newbookfile = ''
-    if booktype in ['ebook', 'comic'] and len(lazylibrarian.CONFIG['IMP_CALIBREDB']):
+    if len(lazylibrarian.CONFIG['IMP_CALIBREDB'] and
+           (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
+           (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
         dest_dir = lazylibrarian.DIRECTORY('eBook')
         try:
             logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
@@ -2267,11 +2267,12 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
                     cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
                     cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                    data = myDB.match(cmd, (bookid,))
                 else:  # if booktype == 'comic':
                     cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
                     cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
                     cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
-                data = myDB.match(cmd, (issueid, comicid))
+                    data = myDB.match(cmd, (issueid, comicid))
                 if not data:
                     logger.error('processDestination: No data found for bookid %s' % bookid)
                 else:
@@ -2450,7 +2451,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
         # link to the first part of multi-part audiobooks
         elif booktype == 'audiobook':
             tokmatch = ''
-            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
+            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
                 if tokmatch:
                     break
                 for f in listdir(dest_path):

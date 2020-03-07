@@ -210,67 +210,72 @@ def audioProcess(bookid, rename=False, playlist=False):
 
     logger.debug("%s found %s %s" % (exists['BookName'], cnt, plural(cnt, "audiobook")))
 
-    failed = False
-    if cnt == 1 and not parts:  # single file audiobook with no tags
-        parts = [[1, exists['BookName'], exists['AuthorName'], audio_file]]
+    try:
+        failed = False
+        if cnt == 1 and not parts:  # single file audiobook with no tags
+            parts = [[1, exists['BookName'], exists['AuthorName'], audio_file]]
 
-    if cnt != len(parts):
-        logger.warn("%s: Incorrect number of parts (found %i from %i)" % (exists['BookName'], len(parts), cnt))
-        failed = True
-        # return book_filename
+        if cnt != len(parts):
+            logger.warn("%s: Incorrect number of parts (found %i from %i)" % (exists['BookName'], len(parts), cnt))
+            failed = True
+            # return book_filename
 
-    if total and total != cnt:
-        logger.warn("%s: Reported %i parts, got %i" % (exists['BookName'], total, cnt))
-        failed = True
-        # return book_filename
+        if total and total != cnt:
+            logger.warn("%s: Reported %i parts, got %i" % (exists['BookName'], total, cnt))
+            failed = True
+            # return book_filename
 
-    # check all parts have the same author and title
-    if len(parts) > 1:
-        for part in parts:
-            if part[1] != book:
-                logger.warn("%s: Inconsistent title: [%s][%s]" % (exists['BookName'], part[1], book))
-                failed = True
-                # return book_filename
-            if part[2] != author:
-                logger.warn("%s: Inconsistent author: [%s][%s]" % (exists['BookName'], part[2], author))
-                failed = True
-                # return book_filename
-
-    # do we have any track info from id3 tags
-    if failed or parts[0][0] == 0:
-        tokmatch = ''
-        # try to extract part information from filename. Search for token style of part 1 in this order...
-        for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:
-            if tokmatch:
-                break
+        # check all parts have the same author and title
+        if len(parts) > 1:
             for part in parts:
-                if token in part[3]:
-                    tokmatch = token
-                    break
-        if tokmatch:  # we know the numbering style, get numbers for the other parts
-            cnt = 0
-            while cnt < len(parts):
-                cnt += 1
-                if tokmatch == ' 001.':
-                    pattern = ' %s.' % str(cnt).zfill(3)
-                elif tokmatch == ' 01.':
-                    pattern = ' %s.' % str(cnt).zfill(2)
-                elif tokmatch == ' 1.':
-                    pattern = ' %s.' % str(cnt)
-                elif tokmatch == ' 001 ':
-                    pattern = ' %s ' % str(cnt).zfill(3)
-                elif tokmatch == ' 01 ':
-                    pattern = ' %s ' % str(cnt).zfill(2)
-                elif tokmatch == ' 1 ':
-                    pattern = ' %s ' % str(cnt)
-                else:
-                    pattern = '%s' % str(cnt).zfill(2)
-                # standardise numbering of the parts
-                for part in parts:
-                    if pattern in part[3]:
-                        part[0] = cnt
-                        break
+                if part[1] != book:
+                    logger.warn("%s: Inconsistent title: [%s][%s]" % (exists['BookName'], part[1], book))
+                    failed = True
+                    # return book_filename
+                if part[2] != author:
+                    logger.warn("%s: Inconsistent author: [%s][%s]" % (exists['BookName'], part[2], author))
+                    failed = True
+                    # return book_filename
 
+        # do we have any track info from id3 tags
+        if failed or parts[0][0] == 0:
+            logger.debug("No track info from id3")
+            tokmatch = ''
+            # try to extract part information from filename. Search for token style of part 1 in this order...
+            for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
+                if tokmatch:
+                    break
+                for part in parts:
+                    if token in part[3]:
+                        tokmatch = token
+                        break
+            if tokmatch:  # we know the numbering style, get numbers for the other parts
+                cnt = 0
+                while cnt < len(parts):
+                    cnt += 1
+                    if tokmatch == ' 001.':
+                        pattern = ' %s.' % str(cnt).zfill(3)
+                    elif tokmatch == ' 01.':
+                        pattern = ' %s.' % str(cnt).zfill(2)
+                    elif tokmatch == ' 1.':
+                        pattern = ' %s.' % str(cnt)
+                    elif tokmatch == ' 001 ':
+                        pattern = ' %s ' % str(cnt).zfill(3)
+                    elif tokmatch == ' 01 ':
+                        pattern = ' %s ' % str(cnt).zfill(2)
+                    elif tokmatch == ' 1 ':
+                        pattern = ' %s ' % str(cnt)
+                    else:
+                        pattern = '%s' % str(cnt).zfill(2)
+                    # standardise numbering of the parts
+                    for part in parts:
+                        if pattern in part[3]:
+                            part[0] = cnt
+                            break
+    except Exception as e:
+        logger.error(str(e))
+
+    logger.debug("Checking %s %s" % (len(parts), plural(len(parts), 'part')))
     parts.sort(key=lambda x: x[0])
     # check all parts are present
     cnt = 0
@@ -284,6 +289,7 @@ def audioProcess(bookid, rename=False, playlist=False):
         abridged = ' (%s)' % abridged
     # if we get here, looks like we have all the parts needed to rename properly
     seriesinfo = nameVars(bookid, abridged)
+    logger.debug(str(seriesinfo))
     dest_path = seriesinfo['AudioFolderName']
     dest_dir = lazylibrarian.DIRECTORY('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
