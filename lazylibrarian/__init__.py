@@ -295,6 +295,8 @@ CONFIG_DEFINITIONS = {
     'IMP_AUTOADD_MAGONLY': ('bool', 'General', 0),
     'IMP_AUTOSEARCH': ('bool', 'General', 0),
     'IMP_CALIBREDB': ('str', 'General', ''),
+    'IMP_CALIBRE_EBOOK': ('bool', 'General', 1),
+    'IMP_CALIBRE_COMIC': ('bool', 'General', 1),
     'BLACKLIST_FAILED': ('bool', 'General', 1),
     'BLACKLIST_PROCESSED': ('bool', 'General', 0),
     'CALIBRE_USE_SERVER': ('bool', 'General', 0),

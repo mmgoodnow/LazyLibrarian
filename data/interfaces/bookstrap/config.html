@@ -2347,6 +2347,28 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="imp_calibre_ebook">
+                      <input type="checkbox" id="imp_calibre_ebook" name="imp_calibre_ebook" value="1" ${checked} />
+                      Use calibredb to import ebooks</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="imp_calibre_comic">
+                      <input type="checkbox" id="imp_calibre_comic" name="imp_calibre_comic" value="1" ${checked} />
+                      Use calibredb to import comics</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['IMP_AUTOADD_COPY'] == True:
                             checked = 'checked="checked"'
                         else:
