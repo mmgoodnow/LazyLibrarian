@@ -668,7 +668,7 @@ def nextRun(target=None, interval=0, action='', hours=False):
 
         startdate = datetime.datetime.fromtimestamp(time.time() + nextrun)
 
-        nextrun =  int(nextrun / 60)
+        nextrun = int(nextrun / 60)
         if nextrun < 1:
             nextrun = 1
 

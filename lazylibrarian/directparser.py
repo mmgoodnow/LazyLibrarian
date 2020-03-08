@@ -186,7 +186,7 @@ def BOK(book=None, prov=None, test=False):
                                         logger.warn(msg)
                                         url = None
                                 else:
-                                    link = a['href']
+                                    link = a.get('href')
                                 if link and len(link) > 2:
                                     url = host + link
                                 else:

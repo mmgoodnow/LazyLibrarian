@@ -33,6 +33,7 @@ def convert(input_file, output_format):
     output_format = output_format.strip('.')
 
     try:
+        # noinspection PyTypeChecker
         calibreid = basename.rsplit('(', 1)[1].split(')')[0]
         if not calibreid.isdigit():
             calibreid = ''
