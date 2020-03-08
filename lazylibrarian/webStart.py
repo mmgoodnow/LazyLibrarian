@@ -133,6 +133,11 @@ def initialize(options=None):
         '/opensearchauthors.xml': {
             'tools.staticfile.on': True,
             'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchauthors.xml')
+        },
+        '/nzbfile.nzb': {
+            'tools.staticfile.on': True,
+            'tools.auth_basic.on': False,
+            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'nzbfile.nzb')
         }
     }
 

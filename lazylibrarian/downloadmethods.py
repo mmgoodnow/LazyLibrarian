@@ -138,7 +138,7 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                 downloadID = ''
             else:
                 logger.debug("Got %s bytes data" % len(data))
-                temp_filename = os.path.join(lazylibrarian.CACHEDIR, "tempfile.nzb")
+                temp_filename = os.path.join(lazylibrarian.CACHEDIR, "nzbfile.nzb")
                 with open(syspath(temp_filename), 'wb') as f:
                     f.write(data)
                 logger.debug("Data written to file")
@@ -150,7 +150,7 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                         nzb_url = 'http://' + nzb_url
                 if lazylibrarian.CONFIG['HTTP_ROOT']:
                     nzb_url = nzb_url + '/' + lazylibrarian.CONFIG['HTTP_ROOT']
-                nzb_url = nzb_url + '/cache/tempfile.nzb'
+                nzb_url = nzb_url + '/cache/nzbfile.nzb'
                 logger.debug("nzb_url [%s]" % nzb_url)
                 downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzb_url, False)  # returns nzb_ids or False
                 logger.debug("Sab returned %s/%s" % (downloadID, res))
