@@ -48,6 +48,7 @@ from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.magazinescan import magazineScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.postprocess import processDir, processAlternate, createOPF, processIMG, importBook, importMag
+from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -187,6 +188,9 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
             'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
             'importMag': '&title= &num= &file= add magazine issue from file',
+            'preprocessAudio': '&dir= &author= &title= preprocess an audiobook folder',
+            'preprocessBook': '&dir= preprocess an ebook folder',
+            'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
             }
 
 
@@ -437,6 +441,26 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
         self.data = audioProcess(kwargs['id'], playlist=True)
+
+    def _preprocessAudio(self, **kwargs):
+        for item in ['dir', 'title', 'author']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: %s' % item
+                return
+        self.data = preprocess_audio(kwargs['dir'], kwargs['author'], kwargs['title'])
+
+    def _preprocessBook(self, **kwargs):
+        if 'dir' not in kwargs:
+            self.data = 'Missing parameter: dir'
+            return
+        self.data = preprocess_ebook(kwargs['dir'])
+
+    def _preprocessMagazine(self, **kwargs):
+        for item in ['dir', 'cover']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: %s' % item
+                return
+        self.data = preprocess_magazine(kwargs['dir'], kwargs['cover'])
 
     def _importBook(self, **kwargs):
         if 'id' not in kwargs:
@@ -704,7 +728,7 @@ class Api(object):
                         break
                 if blocked:
                     break
-        msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre, 
+        msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre,
                                                           plural(genre, "genre"), len(res))
         if blocked:
             msg += ': Access Blocked'
