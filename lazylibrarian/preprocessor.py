@@ -216,6 +216,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                     tokmatch = token
                     break
         if tokmatch:  # we know the numbering style, get numbers for the other parts
+            logger.debug("Numbering style [%s]" % tokmatch)
             cnt = 0
             while cnt < len(parts):
                 cnt += 1
@@ -241,8 +242,12 @@ def preprocess_audio(bookfolder, authorname, bookname):
 
     parts.sort(key=lambda x: x[0])
     # check all parts are present
+
     cnt = 0
     while cnt < len(parts):
+        if parts[cnt][0] == cnt:
+            logger.error("%s: Duplicate part %i found" % (book, cnt))
+            return
         if parts[cnt][0] != cnt + 1:
             logger.error("%s: No part %i found" % (book, cnt + 1))
             return
@@ -251,7 +256,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
     # if we get here, looks like we have all the parts
     with open(os.path.join(bookfolder, 'partslist.ll'), 'wb') as f:
         for part in parts:
-            f.write("file '%s'" % makeBytestr(part[3]))
+            f.write(makeBytestr("file '%s'\n" % part[3]))
             if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] and authorname and bookname:
                 if tokmatch or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
