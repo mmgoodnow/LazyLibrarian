@@ -57,6 +57,7 @@ from lazylibrarian.magazinescan import create_id
 from lazylibrarian.images import createMagCover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download
+
 try:
     from deluge_client import DelugeRPCClient
 except ImportError:
@@ -384,7 +385,7 @@ def processAlternate(source_dir=None, library='eBook'):
                 if match:
                     logger.info("Found (%s%%) %s: %s for %s: %s" %
                                 (match['book_fuzz'], match['authorname'], match['bookname'],
-                                    authorname, bookname))
+                                 authorname, bookname))
                     if library == 'eBook':
                         import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
                                     reason="Added from alternate dir")
@@ -1836,7 +1837,7 @@ def getDownloadProgress(source, downloadid):
                     progress = result['progress']
                     try:
                         finished = result['is_auto_managed'] and result['stop_at_ratio'] and \
-                            result['state'].lower() == 'paused' and result['ratio'] >= result['stop_ratio']
+                                   result['state'].lower() == 'paused' and result['ratio'] >= result['stop_ratio']
                     except (KeyError, AttributeError):
                         finished = False
                 if 'message' in result and result['message'] != 'OK':
@@ -2194,9 +2195,9 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
 
     # If ebook or comic, do we want calibre to import it for us
     newbookfile = ''
-    if len(lazylibrarian.CONFIG['IMP_CALIBREDB'] and
-           (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
-           (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
+    if (lazylibrarian.CONFIG['IMP_CALIBREDB'] and
+            (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
+            (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
         dest_dir = lazylibrarian.DIRECTORY('eBook')
         try:
             logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
@@ -2571,7 +2572,7 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
         setperm(coverfile)
     except Exception as e:
         logger.error("Error copying image %s to %s, %s %s" % (bookimg,
-                     coverfile, type(e).__name__, str(e)))
+                                                              coverfile, type(e).__name__, str(e)))
         return
 
 
@@ -2722,13 +2723,13 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
                 names = names + surnameFirst(name)
         for entry in entries:
             opfinfo += '        <dc:creator opf:file-as="%s" opf:role="%s">%s</dc:creator>\n' % \
-                        (names, entry[1], entry[0])
+                       (names, entry[1], entry[0])
     elif "FileAs" in data:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
-                    (data['FileAs'], data['FileAs'])
+                   (data['FileAs'], data['FileAs'])
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
-                        (surnameFirst(data['AuthorName']), data['AuthorName'])
+                   (surnameFirst(data['AuthorName']), data['AuthorName'])
 
     if 'BookIsbn' in data and data['BookIsbn']:
         opfinfo += '        <dc:identifier scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
