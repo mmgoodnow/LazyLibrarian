@@ -919,7 +919,10 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
         dispname = provider
 
     while next_page:
-        URL = "%s?page=%i" % (host, page)
+        if '?' in host:
+            URL = "%s&page=%i" % (host, page)
+        else:
+            URL = "%s?page=%i" % (host, page)
 
         result, success = fetchURL(URL)
 
@@ -950,7 +953,8 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
                         'dispname': dispname,
                         'types': types,
                     })
-                    next_page = True
+                    if '/show/' in host:  # listopia can be multiple pages
+                        next_page = True
                 except IndexError:
                     pass
         else:
