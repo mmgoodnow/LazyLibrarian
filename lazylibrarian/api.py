@@ -1023,7 +1023,7 @@ class Api(object):
         if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
                 lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
             if 'wait' in kwargs:
-                search_rss_book()
+                search_comics()
             else:
                 threading.Thread(target=search_comics, name='API-SEARCHCOMICS', args=[]).start()
         else:
