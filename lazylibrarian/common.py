@@ -1391,7 +1391,7 @@ def saveLog():
 
     basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
     outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
-    passchars = string.ascii_letters + string.digits + ':_/'  # used by slack, telegram and googlebooks
+    passchars = string.ascii_letters + string.digits + ':_/*!%'  # used by slack, telegram and googlebooks
     redactlist = ['api -> ', 'key -> ', 'secret -> ', 'pass -> ', 'password -> ', 'token -> ', 'keys -> ',
                   'apitoken -> ', 'username -> ', '&r=', 'using api [', 'apikey=', 'key=', 'apikey%3D', "apikey': ",
                   "'--password', u'", "'--password', '", "api:", "keys:", "token:", "secret=", "email_from -> ",
@@ -1428,6 +1428,14 @@ def saveLog():
                             if endpos != startpos:
                                 line = line[:startpos] + '<redacted>' + line[endpos:]
                                 redacts += 1
+
+                    item = "Apprise: url:"
+                    startpos = line.find(item)
+                    if startpos >= 0:
+                        startpos += len(item)
+                        endpos = line.find('//', startpos)
+                        line = line[:endpos] + '<redacted>'
+                        redacts += 1
 
                     out.write(line)
                     if "Debug log ON" in line:
