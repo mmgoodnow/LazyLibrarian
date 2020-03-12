@@ -1148,23 +1148,23 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                         if to_delete or pp_path.endswith('.unpack'):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
-                            # always delete files we unpacked from an archive
                             if lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
                             if pp_path == download_dir:
                                 to_delete = False
-                            if pp_path.endswith('.unpack'):
-                                to_delete = True
                             if to_delete:
-                                if path_isdir(pp_path):
-                                    # calibre might have already deleted it?
-                                    try:
-                                        shutil.rmtree(pp_path)
-                                        logger.debug('Deleted files for %s, %s from %s' %
-                                                     (book['NZBtitle'], book['NZBmode'], book['Source']))
-                                    except Exception as why:
-                                        logger.warn("Unable to remove %s, %s %s" %
-                                                    (pp_path, type(why).__name__, str(why)))
+                                # walk up any subdirectories
+                                while os.path.dirname(pp_path) != download_dir:
+                                    pp_path = os.path.dirname(pp_path)
+
+                                try:
+                                    shutil.rmtree(pp_path)
+                                    logger.debug('Deleted %s for %s, %s from %s' %
+                                                 (pp_path, book['NZBtitle'], book['NZBmode'],
+                                                  book['Source']))
+                                except Exception as why:
+                                    logger.warn("Unable to remove %s, %s %s" %
+                                                (pp_path, type(why).__name__, str(why)))
                             else:
                                 if lazylibrarian.CONFIG['DESTINATION_COPY']:
                                     logger.debug("Not removing original files as Keep Files is set")
