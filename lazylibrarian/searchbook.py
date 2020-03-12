@@ -149,8 +149,8 @@ def search_book(books=None, library=None):
             modelist.append('irc')
 
         logger.info('Searching %s %s %s for %i %s' %
-                    (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks), 
-                     plural(len(searchbooks), "book")))
+                    (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks),
+                     plural(len(searchbooks), library)))
         logger.info("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
                                                            plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
 
