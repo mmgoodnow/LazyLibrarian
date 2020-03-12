@@ -40,6 +40,8 @@ def cron_search_wishlist():
 
 # noinspection PyBroadException
 def search_wishlist():
+    new_books = []
+    new_audio = []
     try:
         threadname = threading.currentThread().name
         if "Thread-" in threadname:
@@ -48,7 +50,6 @@ def search_wishlist():
         myDB = database.DBConnection()
 
         resultlist, wishproviders = IterateOverWishLists()
-        new_books = 0
         if not wishproviders:
             logger.debug('No wishlists are set')
             scheduleJob(action='Stop', target='search_wishlist')
@@ -121,7 +122,7 @@ def search_wishlist():
                     controlValueDict = {"BookID": bookid}
                     newValueDict = {"Status": "Wanted"}
                     myDB.upsert("books", newValueDict, controlValueDict)
-                    new_books += 1
+                    new_books.append(bookid)
                     if bookmatch["Requester"]:  # Already on a wishlist
                         if book["dispname"] not in bookmatch["Requester"]:
                             newValueDict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
@@ -153,7 +154,7 @@ def search_wishlist():
                     controlValueDict = {"BookID": bookid}
                     newValueDict = {"AudioStatus": "Wanted"}
                     myDB.upsert("books", newValueDict, controlValueDict)
-                    new_books += 1
+                    new_audio.append(bookid)
                     if bookmatch["AudioRequester"]:  # Already on a wishlist
                         if book["dispname"] not in bookmatch["AudioRequester"]:
                             newValueDict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
@@ -213,7 +214,10 @@ def search_wishlist():
                 if bookmatch:
                     import_book(bookmatch['bookid'], ebook_status, audio_status,
                                 reason="Added from wishlist %s" % book["dispname"])
-                    new_books += 1
+                    if ebook_status == 'Wanted':
+                        new_books.append(bookmatch['bookid'])
+                    if audio_status == 'Wanted':
+                        new_audio.append(bookmatch['bookid'])
                     newValueDict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
                     controlValueDict = {"BookID": bookmatch['bookid']}
                     myDB.upsert("books", newValueDict, controlValueDict)
@@ -229,8 +233,9 @@ def search_wishlist():
                                                                           results[0]['book_fuzz'],
                                                                           results[0]['authorname'],
                                                                           results[0]['bookname']))
-        if new_books:
-            logger.info("Wishlist marked %s %s as Wanted" % (new_books, plural(new_books, "book")))
+        if new_books or new_audio:
+            tot = len(new_books) + len(new_audio)
+            logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "book")))
         else:
             logger.debug("Wishlist marked no new books as Wanted")
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
@@ -238,6 +243,20 @@ def search_wishlist():
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())
     finally:
+        # scheduleJob("Stop", "search_book")
+        # scheduleJob("StartNow", "search_book")
+        # scheduleJob("Stop", "search_rss_book")
+        # scheduleJob("StartNow", "search_rss_book")
+        if new_books:
+            threading.Thread(target=search_rss_book, name='WISHLISTRSSBOOKS',
+                             args=[new_books, 'eBook']).start()
+            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTBOOKS',
+                             args=[new_books, 'eBook']).start()
+        if new_audio:
+            threading.Thread(target=search_rss_book, name='WISHLISTRSSAUDIO',
+                             args=[new_audio, 'AudioBook']).start()
+            threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTAUDIO',
+                             args=[new_audio, 'AudioBook']).start()
         threading.currentThread().name = "WEBSERVER"
 
 
