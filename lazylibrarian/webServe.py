@@ -2185,6 +2185,7 @@ class WebInterface(object):
                     name = 'FORCE-SEARCHBOOK'
                 else:
                     name = 'SEARCHBOOK'
+                logger.debug("Starting search_book thread")
                 threading.Thread(target=search_book, name=name, args=[books, library]).start()
                 booktype = library
                 if not booktype:
@@ -3094,10 +3095,12 @@ class WebInterface(object):
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
                     or lazylibrarian.USE_IRC():
                 if check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
-                    if 'eBook' in library or action == 'WantEbook':
+                    logger.debug("Starting search threads, library=%s, action=%s" %
+                                 (library, action))
+                    if action == 'WantEbook' or (action == 'Wanted' and 'eBook' in library):
                         threading.Thread(target=search_book, name='SEARCHBOOK',
                                          args=[books, 'eBook']).start()
-                    if 'Audio' in library or action == 'WantAudio':
+                    if action == 'WantAudio' or (action == 'Wanted' and 'Audio' in library):
                         threading.Thread(target=search_book, name='SEARCHBOOK',
                                          args=[books, 'AudioBook']).start()
 
@@ -5542,10 +5545,11 @@ class WebInterface(object):
                     or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT() \
                     or lazylibrarian.USE_IRC():
                 if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
-                    threading.Thread(target=search_book, name='SEARCHALLBOOKS', args=[]).start()
-                    scheduleJob(action='Restart', target='search_book')
-                    if lazylibrarian.USE_RSS():
-                        scheduleJob(action='Restart', target='search_rss_book')
+                    scheduleJob("Stop", "search_book")
+                    scheduleJob("StartNow", "search_book")
+                if lazylibrarian.USE_RSS():
+                    scheduleJob("Stop", "search_rss_book")
+                    scheduleJob("StartNow", "search_rss_book")
             else:
                 logger.warn('Search called but no download providers set')
         else:
