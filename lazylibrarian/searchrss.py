@@ -122,7 +122,7 @@ def search_wishlist():
                     controlValueDict = {"BookID": bookid}
                     newValueDict = {"Status": "Wanted"}
                     myDB.upsert("books", newValueDict, controlValueDict)
-                    new_books.append(bookid)
+                    new_books.append({"bookid": bookid})
                     if bookmatch["Requester"]:  # Already on a wishlist
                         if book["dispname"] not in bookmatch["Requester"]:
                             newValueDict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
@@ -154,7 +154,7 @@ def search_wishlist():
                     controlValueDict = {"BookID": bookid}
                     newValueDict = {"AudioStatus": "Wanted"}
                     myDB.upsert("books", newValueDict, controlValueDict)
-                    new_audio.append(bookid)
+                    new_audio.append({"bookid": bookid})
                     if bookmatch["AudioRequester"]:  # Already on a wishlist
                         if book["dispname"] not in bookmatch["AudioRequester"]:
                             newValueDict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
@@ -215,9 +215,9 @@ def search_wishlist():
                     import_book(bookmatch['bookid'], ebook_status, audio_status,
                                 reason="Added from wishlist %s" % book["dispname"])
                     if ebook_status == 'Wanted':
-                        new_books.append(bookmatch['bookid'])
+                        new_books.append({"bookid": bookmatch['bookid']})
                     if audio_status == 'Wanted':
-                        new_audio.append(bookmatch['bookid'])
+                        new_audio.append({"bookid": bookmatch['bookid']})
                     newValueDict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
                     controlValueDict = {"BookID": bookmatch['bookid']}
                     myDB.upsert("books", newValueDict, controlValueDict)

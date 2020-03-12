@@ -190,7 +190,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
         logger.info("%d files merged into %s" % (len(parts), outfile))
         os.remove(os.path.join(bookfolder, "partslist.ll"))
         os.remove(os.path.join(bookfolder, "metadata.ll"))
-        if not lazylibrarian.CONFIG['KEEP_SEPARATE_AUDIO']:
+        if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO']:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
                 os.remove(os.path.join(bookfolder, part[3]))

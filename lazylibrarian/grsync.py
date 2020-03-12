@@ -452,8 +452,8 @@ def sync_to_gr():
                 msg += "%s %s to Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
                 if ll_wanted:
                     for item in ll_wanted:
-                        new_books.append(item)
-                        new_audio.append(item)
+                        new_books.append({"bookid": item})
+                        new_audio.append({"bookid": item})
 
             else:  # see if wanted on separate shelves
                 if lazylibrarian.CONFIG['GR_WANTED']:
@@ -463,7 +463,7 @@ def sync_to_gr():
                     msg += "%s %s to eBook Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
                     if ll_wanted:
                         for item in ll_wanted:
-                            new_books.append(item)
+                            new_books.append({"bookid": item})
 
                 if lazylibrarian.CONFIG['GR_AWANTED']:
                     to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
@@ -472,7 +472,7 @@ def sync_to_gr():
                     msg += "%s %s to Audio Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
                     if ll_wanted:
                         for item in ll_wanted:
-                            new_audio.append(item)
+                            new_audio.append({"bookid": item})
 
             if lazylibrarian.CONFIG['GR_OWNED'] and \
                     lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_OWNED']:

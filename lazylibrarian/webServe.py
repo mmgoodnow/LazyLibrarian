@@ -4949,7 +4949,8 @@ class WebInterface(object):
                             # noinspection PyBroadException
                             try:
                                 if re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
-                                    btn = '<a href=\'openMag?bookid=' + row[2] + '\'">' + row[2] + '</a>'
+                                    safetitle = quote_plus(makeUTF8bytes(row[2])[0])
+                                    btn = '<a href=\'openMag?bookid=' + safetitle + '\'">' + row[2] + '</a>'
                                     row[2] = btn
                             except Exception:
                                 logger.debug("Unexpected auxinfo [%s] %s" % (row[1], row[2]))
