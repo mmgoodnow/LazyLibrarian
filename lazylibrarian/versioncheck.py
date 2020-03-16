@@ -268,7 +268,9 @@ def checkForUpdates():
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "VERSIONCHECK"})
+        columns = myDB.select('PRAGMA table_info(jobs)')
+        if columns:
+            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass

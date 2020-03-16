@@ -643,6 +643,9 @@ CONFIG_DEFINITIONS = {
     'SWAP_COVERPAGE': ('bool', 'Preprocess', 0),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
+if os.name == 'nt':
+    for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
+        CONFIG_DEFINITIONS[k] = CONFIG_DEFINITIONS[k].replace('/', '\\')
 
 
 def check_section(sec):
@@ -1118,10 +1121,10 @@ def config_read(reloaded=False):
     CONFIG['REJECT_PUBLISHER'] = CONFIG['REJECT_PUBLISHER'].lower()
 
     if os.name == 'nt':
-        for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
-            if '/' in CONFIG[k]:
-                logger.warn('Please check your %s setting' % k)
-                CONFIG[k] = CONFIG[k].replace('/', '\\')
+        for fname in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
+            if '/' in CONFIG[fname]:
+                logger.warn('Please check your %s setting' % fname)
+                CONFIG[fname] = CONFIG[fname].replace('/', '\\')
 
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')

@@ -636,11 +636,15 @@ def nextRun(target=None, interval=0, action='', hours=False):
         interval = 0
 
     myDB = database.DBConnection()
-    res = myDB.match('SELECT LastRun from jobs WHERE Name=?', (target,))
-    if res and res['LastRun'] > 0:
-        lastrun = res['LastRun']
-    else:
+    columns = myDB.select('PRAGMA table_info(jobs)')
+    if not columns:  # no such table
         lastrun = 0
+    else:
+        res = myDB.match('SELECT LastRun from jobs WHERE Name=?', (target,))
+        if res and res['LastRun'] > 0:
+            lastrun = res['LastRun']
+        else:
+            lastrun = 0
 
     if target == 'PostProcessor':  # more readable
         newtarget = 'processDir'
