@@ -645,8 +645,8 @@ CONFIG_DEFINITIONS = {
 }
 if os.name == 'nt':
     for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
-        CONFIG_DEFINITIONS[k] = CONFIG_DEFINITIONS[k].replace('/', '\\')
-
+        val = CONFIG_DEFINITIONS[k]
+        CONFIG_DEFINITIONS[k] = (val[0], val[1], val[2].replace('/', '\\'))
 
 def check_section(sec):
     """ Check if INI section exists, if not create it """
