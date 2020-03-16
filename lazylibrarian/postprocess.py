@@ -2744,7 +2744,9 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
         opfinfo += '        <dc:description>%s</dc:description>\n' % data['BookDesc']
 
     if 'BookRate' in data:
-        opfinfo += '        <meta content="%s" name="calibre:rating"/>\n' % int(round(data['BookRate']))
+        rate = check_int(data['BookRate'], 0)
+        rate = int(round(rate * 2))  # calibre uses 0-10, goodreads 0-5
+        opfinfo += '        <meta content="%s" name="calibre:rating"/>\n' % rate
 
     if seriesname:
         opfinfo += '        <meta content="%s" name="calibre:series"/>\n' % seriesname
