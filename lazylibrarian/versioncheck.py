@@ -486,22 +486,29 @@ def update():
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
         logmsg('info', 'Please use your package manager to update')
         return False
-
-    # create a backup in case the upgrade is faulty...
-    logmsg('info', 'Backing up current version')
-    zf = zipfile.ZipFile('backup.zip', mode='w')
-    for item in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                 'lib', 'lib3', 'mako']:
-        path = os.path.join(lazylibrarian.PROG_DIR, item)
-        for root, dirs, files in walk(path):
-            for file in files:
-                if not file.endswith('.pyc'):
-                    zf.write(os.path.join(root, file))
-    for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
-                 'example_custom_notification.sh', 'example_ebook_convert.py',
-                 'example.genres.json', 'example.monthnames.json']:
-        zf.write(os.path.join(lazylibrarian.PROG_DIR, item))
-    logmsg('info', 'Saved current version to backup.zip')
+    if lazylibrarian.DOCKER:
+        msg = 'Docker does not officially allow upgrading the program inside the container,'
+        msg += ' but we\'ll try anyway...'
+        logmsg('info', msg)
+    try:
+        # try to create a backup in case the upgrade is faulty...
+        zip_file = os.path.join(lazylibrarian.PROG_DIR, "backup.zip")
+        logmsg('info', 'Backing up current version to %s' % zip_file)
+        zf = zipfile.ZipFile(zip_file, mode='w')
+        for item in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
+                     'lib', 'lib3', 'mako']:
+            path = os.path.join(lazylibrarian.PROG_DIR, item)
+            for root, dirs, files in walk(path):
+                for file in files:
+                    if not file.endswith('.pyc'):
+                        zf.write(os.path.join(root, file))
+        for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
+                     'example_custom_notification.sh', 'example_ebook_convert.py',
+                     'example.genres.json', 'example.monthnames.json']:
+            zf.write(os.path.join(lazylibrarian.PROG_DIR, item))
+        logmsg('info', 'Saved current version to %s' % zip_file)
+    except Exception as e:
+        logmsg("error", "Failed to create backup: %s" % str(e))
 
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
         branch = getCurrentGitBranch()
