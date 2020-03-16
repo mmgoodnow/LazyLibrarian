@@ -944,7 +944,7 @@ class WebInterface(object):
         args.pop('book_table_length', None)
         if action:
             for seriesid in args:
-                if action in ["Wanted", "Active", "Skipped", "Ignored"]:
+                if action in ["Wanted", "Active", "Skipped", "Ignored", "Paused"]:
                     match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                     if match:
                         myDB.upsert("series", {'Status': action}, {'SeriesID': seriesid})
