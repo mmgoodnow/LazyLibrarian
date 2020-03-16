@@ -110,6 +110,11 @@
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
+
+    function reason(target) {
+        window.alert(target);
+    };
+
     $(document).ready(function()
     {
         $('input.deletable').wrap('<span class="deleteicon" />').after($('<span/>').click(function() {
@@ -177,7 +182,14 @@
                      { targets: [7],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return row[5];} },
+                          %if perm&lazylibrarian.perm_status:
+                            bar = '<button onclick="reason(\'' + row[14] +
+                            '\')" class="button btn btn-xs btn-primary" type="button">' + row[5] +
+                            '</button>';
+                          %else:
+                            bar = row[5];
+                          %endif
+                          return bar;} },
                      { type: 'natural-nohtml', targets: [3,5] }],
                 "oLanguage": {
                     "sSearch": "Filter: ",

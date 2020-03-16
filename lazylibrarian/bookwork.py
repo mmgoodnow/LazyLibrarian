@@ -11,6 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import inspect
 import os
 import re
 import time
@@ -119,7 +120,7 @@ def setAllBookSeries():
                 if not workid:
                     logger.debug("No bookid for book: %s" % book['BookName'])
             if workid:
-                serieslist = getWorkSeries(workid)
+                serieslist = getWorkSeries(workid, "setAllBookSeries")
                 if serieslist:
                     counter += 1
                     setSeries(serieslist, book['BookID'])
@@ -129,7 +130,7 @@ def setAllBookSeries():
     return msg
 
 
-def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
+def setSeries(serieslist=None, bookid=None, authorid=None, workid=None, reason=""):
     """ set series details in series/member tables from the supplied dict
         and a displayable summary in book table
         serieslist is a tuple (SeriesID, SeriesNum, SeriesName)
@@ -164,9 +165,20 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None):
                     continue
                 else:
                     newserieslist.append(item)
-                    myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?)',
+                    if not reason or reason.lower() == 'none':
+                        if len(inspect.stack()) > 2:
+                            frame = inspect.getframeinfo(inspect.stack()[2][0])
+                            program = os.path.basename(frame.filename)
+                            method = frame.function
+                            lineno = frame.lineno
+                            reason = "%s:%s:%s" % (program, method, lineno)
+                        else:
+                            reason = 'Unknown reason in setSeries'
+
+                    reason = "Bookid %s: %s" % (bookid, reason)
+                    myDB.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?)',
                                 (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                                 0, 0, 0), suppress='UNIQUE')
+                                 0, 0, 0, reason), suppress='UNIQUE')
 
             if not workid or not authorid:
                 book = myDB.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
@@ -1063,7 +1075,7 @@ def googleBookDict(item):
     return mydict
 
 
-def getWorkSeries(bookID=None):
+def getWorkSeries(bookID=None, reason=""):
     """ Return the series names and numbers in series for the given id as a list of tuples
         For goodreads the id is a WorkID, for librarything it's a BookID """
     myDB = database.DBConnection()
@@ -1101,9 +1113,10 @@ def getWorkSeries(bookID=None):
                         if not match:
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
-                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
+                                reason = "Bookid %s: %s" % (bookID, reason)
+                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?)',
                                             (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                                             0, 0, 0))
+                                             0, 0, 0, reason))
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
@@ -1112,9 +1125,10 @@ def getWorkSeries(bookID=None):
                                         seriesname, seriesid, match['SeriesID']))
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
+                                reason = "Bookid %s: %s" % (bookID, reason)
                                 myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
                                             (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                                             0, 0, 0))
+                                             0, 0, 0, reason))
     else:
         work = getBookWork(bookID, "Series")
         if work:

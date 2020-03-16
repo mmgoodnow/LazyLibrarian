@@ -110,8 +110,9 @@ def upgrade_needed():
     # 58 Ensure Link was added to comicissues (was missing for new installs in v57)
     # 59 Added per provider seeders instead of global
     # 60 Moved preprocessor into main program and disabled old preprocessor
+    # 61 Add reason to series table
 
-    db_current_version = 60
+    db_current_version = 61
 
     if db_version < db_current_version:
         return db_current_version
@@ -186,7 +187,8 @@ def dbupgrade(db_current_version):
                                 'LT_lang_hits int, GB_lang_change, cache_hits int, bad_lang int, bad_char int, ' +
                                 'uncached int, duplicates int)')
                     myDB.action('CREATE TABLE series (SeriesID INTEGER UNIQUE, SeriesName TEXT, Status TEXT, ' +
-                                'Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0, Updated INTEGER DEFAULT 0)')
+                                'Have INTEGER DEFAULT 0, Total INTEGER DEFAULT 0, Updated INTEGER DEFAULT 0, ' +
+                                'Reason TEXT)')
                     myDB.action('CREATE TABLE downloads (Count INTEGER DEFAULT 0, Provider TEXT)')
                     myDB.action('CREATE TABLE users (UserID TEXT UNIQUE, UserName TEXT UNIQUE, Password TEXT, ' +
                                 'Email TEXT, Name TEXT, Perms INTEGER DEFAULT 0, HaveRead TEXT, ToRead TEXT, ' +
@@ -1725,3 +1727,12 @@ def db_v60(myDB, upgradelog):
     lazylibrarian.UPDATE_MSG += '<br>See new config options in "processing" tab'
     time.sleep(30)
     upgradelog.write("%s v60: complete\n" % time.ctime())
+
+
+def db_v61(myDB, upgradelog):
+    if not has_column(myDB, "series", "Reason"):
+        lazylibrarian.UPDATE_MSG = 'Adding Reason column to series table'
+        upgradelog.write("%s v61: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE series ADD COLUMN Reason TEXT')
+        myDB.action('UPDATE series SET Reason="Historic"')
+    upgradelog.write("%s v61: complete\n" % time.ctime())

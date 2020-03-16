@@ -106,7 +106,11 @@ def serve_template(templatename, **kwargs):
         if cookie and 'll_uid' in list(cookie.keys()):
             res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
         else:
-            cnt = myDB.match("select count(*) as counter from users")
+            columns = myDB.select('PRAGMA table_info(users)')
+            if not columns:  # no such table
+                cnt = 0
+            else:
+                cnt = myDB.match("select count(*) as counter from users")
             if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
                     templatename not in ["register.html", "response.html", "opds.html"]:
                 res = myDB.match('SELECT UserName,Perms,UserID from users')
@@ -246,6 +250,7 @@ class WebInterface(object):
                     else:
                         css = 'success'
 
+                    arow[12] = replace_with(arow[12], quotes, '')
                     nrow.append(percent)
                     nrow.extend(arow[4:-2])
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
@@ -763,7 +768,7 @@ class WebInterface(object):
             # We pass series.SeriesID twice for datatables as the render function modifies it
             # and we need it in two columns. There is probably a better way...
             cmd = 'SELECT series.SeriesID,AuthorName,SeriesName,series.Status,seriesauthors.AuthorID,series.SeriesID,'
-            cmd += 'Have,Total from series,authors,seriesauthors,member'
+            cmd += 'Have,Total,series.Reason from series,authors,seriesauthors,member'
             cmd += ' where authors.AuthorID=seriesauthors.AuthorID and series.SeriesID=seriesauthors.SeriesID'
             cmd += ' and member.seriesid=series.seriesid'  # and seriesnum=1'
             args = []
@@ -823,15 +828,15 @@ class WebInterface(object):
                     row.append(percent)
 
                 if sortcolumn == 3:  # percent
-                    sortcolumn = 8
+                    sortcolumn = 9
                 if sortcolumn == 4:  # status
                     sortcolumn = 3
 
-                if sortcolumn == 8:  # sort on percent,-total
+                if sortcolumn == 9:  # sort on percent,-total
                     if sSortDir_0 == "desc":
-                        filtered.sort(key=lambda y: (-int(y[8]), int(y[7])))
+                        filtered.sort(key=lambda y: (-int(y[9]), int(y[7])))
                     else:
-                        filtered.sort(key=lambda y: (int(y[8]), -int(y[7])))
+                        filtered.sort(key=lambda y: (int(y[9]), -int(y[7])))
                 else:
                     filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
 
@@ -2895,7 +2900,7 @@ class WebInterface(object):
                     if item[1:] not in [i[1:] for i in old_list]:
                         series_changed = True
                 if series_changed:
-                    setSeries(new_list, bookid)
+                    setSeries(new_list, bookid, reason=scanresult)
                     deleteEmptySeries()
                     edited += "Series "
 

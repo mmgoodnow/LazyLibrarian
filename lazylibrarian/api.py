@@ -1530,7 +1530,7 @@ class Api(object):
             return
         else:
             self.id = kwargs['id']
-        self.data = getWorkSeries(self.id)
+        self.data = getWorkSeries(self.id, reason="API getWorkSeries")
 
     def _getWorkPage(self, **kwargs):
         if 'id' not in kwargs:

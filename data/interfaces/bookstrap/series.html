@@ -100,6 +100,11 @@
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
+
+    function reason(target) {
+        window.alert(target);
+    };
+
     $(document).ready(function()
     {
         $('#whichStatus').change(function(){
@@ -150,7 +155,14 @@
                     { targets: [4],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return  row[3];}
+                          %if perm&lazylibrarian.perm_status:
+                            bar = '<button onclick="reason(\'' + row[8] +
+                            '\')" class="button btn btn-xs btn-primary" type="button">' + row[3] +
+                            '</button>';
+                          %else:
+                            bar = row[3];
+                          %endif
+                          return bar;}
                     }
                     ],
                 "oLanguage": {

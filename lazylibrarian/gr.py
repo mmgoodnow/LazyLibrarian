@@ -470,6 +470,11 @@ class GoodReads:
                                          (bookid, authorNameResult))
                             rejected = 'name', 'No bookname'
 
+                        if bookpub:
+                            if bookpub.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
+                                logger.warn("Ignoring %s: Publisher %s" % (bookname, bookpub))
+                                rejected = 'publisher', bookpub
+
                         bookname = replace_all(unaccented(bookname, only_ascii=False),
                                                {':': ' ', '"': '', '\'': ''}).strip()
 
@@ -883,12 +888,12 @@ class GoodReads:
                                 serieslist = []
                                 if series:
                                     serieslist = [('', seriesNum, cleanName(series, '&/'))]
-                                if lazylibrarian.CONFIG['ADD_SERIES']:
-                                    newserieslist = getWorkSeries(workid)
+                                if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
+                                    newserieslist = getWorkSeries(workid, reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-                                    _api_hits, pubdate = setSeries(serieslist, bookid, authorid, workid)
+                                    _api_hits, pubdate = setSeries(serieslist, bookid, authorid, workid, reason=reason)
                                     api_hits += _api_hits
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         updateValueDict["OriginalPubDate"] = pubdate
@@ -1334,12 +1339,12 @@ class GoodReads:
         serieslist = []
         if series:
             serieslist = [('', seriesNum, cleanName(series, '&/'))]
-        if lazylibrarian.CONFIG['ADD_SERIES']:
-            newserieslist = getWorkSeries(workid)
+        if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
+            newserieslist = getWorkSeries(workid, reason=reason)
             if newserieslist:
                 serieslist = newserieslist
                 logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-            setSeries(serieslist, bookid)
+            setSeries(serieslist, bookid, reason=reason)
 
         setGenres(getList(bookgenre, ','), bookid)
 

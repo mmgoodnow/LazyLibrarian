@@ -541,12 +541,12 @@ class GoogleBooks:
                                 serieslist = []
                                 if book['series']:
                                     serieslist = [('', book['seriesNum'], cleanName(book['series'], '&/'))]
-                                if lazylibrarian.CONFIG['ADD_SERIES']:
-                                    newserieslist = getWorkSeries(bookid)
+                                if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
+                                    newserieslist = getWorkSeries(bookid, reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-                                    setSeries(serieslist, bookid)
+                                    setSeries(serieslist, bookid, reason=reason)
 
                                 updateValueDict = {}
                                 controlValueDict = {"BookID": bookid}
@@ -780,12 +780,12 @@ class GoogleBooks:
         serieslist = []
         if book['series']:
             serieslist = [('', book['seriesNum'], cleanName(book['series'], '&/'))]
-        if lazylibrarian.CONFIG['ADD_SERIES']:
-            newserieslist = getWorkSeries(bookid)
+        if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
+            newserieslist = getWorkSeries(bookid, reason=reason)
             if newserieslist:
                 serieslist = newserieslist
                 logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-            setSeries(serieslist, bookid)
+            setSeries(serieslist, bookid, reason=reason)
 
         worklink = getWorkPage(bookid)
         if worklink:
