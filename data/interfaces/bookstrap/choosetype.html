@@ -16,31 +16,36 @@
     $(document).ready(function()
     {
         var title = '${title}';
-        var prefix = '${prefix}';
+        var prefix = window.location.href;
         var pop_message = '${pop_message}';
         var bookid = '${bookid}';
         var pop_types = '${pop_types}';
-        var buttons = {
-                    bt0: {
-                        label: "Close",
-                        className: 'btn-primary',
-                        callback: function(result){ window.history.back() }
-                    },
-                }
-
         var array = pop_types.split(' ');
         var item;
         %if email:
           if ( prefix.indexOf('AudioBook') >= 0 ) {
-            var loc = 'sendBook?bookid=' + bookid + '&library=AudioBook&booktype='}
+            var loc = 'sendBook?bookid=' + bookid + '&library=AudioBook&booktype=';
+            var ret = 'audio'; }
           else {
-            var loc = 'sendBook?bookid=' + bookid + '&library=eBook&booktype='}
+            var loc = 'sendBook?bookid=' + bookid + '&library=eBook&booktype=';
+            var ret = 'books'; }
         %else:
           if ( prefix.indexOf('AudioBook') >= 0 ) {
-            var loc = 'openBook?bookid=' + bookid + '&library=AudioBook&booktype='}
+            var loc = 'openBook?bookid=' + bookid + '&library=AudioBook&booktype=';
+            var ret = 'audio'; }
           else {
-            var loc = 'openBook?bookid=' + bookid + '&library=eBook&booktype='}
+            var loc = 'openBook?bookid=' + bookid + '&library=eBook&booktype=';
+            var ret = 'books'; }
         %endif
+
+        var buttons = {
+                    bt0: {
+                        label: "Close",
+                        className: 'btn-primary',
+                        callback: function(result){ window.location.assign(ret) }
+                    },
+            }
+
         for (item of array) {
             % for extn in valid:
                 if (item === "${extn}") {

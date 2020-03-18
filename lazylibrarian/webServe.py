@@ -2493,7 +2493,7 @@ class WebInterface(object):
                                     partlist += ' zip'
                                 safetitle = bookName.replace('&', '&amp;').replace("'", "")
 
-                            return serve_template(templatename="choosetype.html", prefix="AudioBook",
+                            return serve_template(templatename="choosetype.html",
                                                   title=safetitle, pop_message=msg,
                                                   pop_types=partlist, bookid=bookid,
                                                   valid=getList(partlist.replace(' ', ',')),
@@ -2527,7 +2527,7 @@ class WebInterface(object):
                                         typestr += ' '
                                     typestr += item
                                 msg += typestr
-                                return serve_template(templatename="choosetype.html", prefix="",
+                                return serve_template(templatename="choosetype.html",
                                                       title="Not Available", pop_message=msg,
                                                       pop_types=typestr, bookid=bookid,
                                                       valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']),
@@ -2543,7 +2543,7 @@ class WebInterface(object):
                                 if typestr:
                                     typestr += ' '
                                 typestr += item
-                            return serve_template(templatename="choosetype.html", prefix="",
+                            return serve_template(templatename="choosetype.html",
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
                                                   valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']),
@@ -2559,6 +2559,10 @@ class WebInterface(object):
                             logger.debug('Unable to send %s %s, no valid types?' % (library, bookName))
 
                 logger.info('Missing %s %s, %s [%s]' % (library, authorName, bookName, bookfile))
+                if library == 'AudioBook':
+                    raise cherrypy.HTTPRedirect("audio")
+                else:
+                    raise cherrypy.HTTPRedirect("books")
             else:
                 return self.requestBook(library=library, bookid=bookid, redirect=redirect)
 
@@ -5857,7 +5861,7 @@ class WebInterface(object):
                         else:
                             msg = "Failed to email file %s to %s" % (os.path.split(basefile)[1], res['SendTo'])
                             logger.error(msg)
-                    return serve_template(templatename="choosetype.html", prefix="SendTo", title='Send file',
+                    return serve_template(templatename="choosetype.html", title='Send file',
                                           pop_message=msg, pop_types='', bookid='', valid='', email=email)
 
         if name and name.endswith('zip'):
