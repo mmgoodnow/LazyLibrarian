@@ -876,7 +876,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     # Try and find in database under author and bookname
                                     # as we may have it under a different bookid or isbn to goodreads/googlebooks
                                     # which might have several bookid/isbn for the same book
-                                    bookid, mtype = find_book_in_db(author, book, reason='Author exists for %s' % book)
+                                    reason = 'Author exists for %s' % book
+                                    logger.debug(reason)
+                                    bookid, mtype = find_book_in_db(author, book, reason=reason)
 
                                 if bookid and mtype == "Ignored":
                                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %

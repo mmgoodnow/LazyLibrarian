@@ -184,8 +184,9 @@ def search_wishlist():
                     results = search_for(book['rss_isbn'])
                     for result in results:
                         if result['isbn_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
-                            logger.info("Found (%s%%) %s: %s" %
-                                        (result['isbn_fuzz'], result['authorname'], result['bookname']))
+                            logger.info("Found %s (%s%%) %s: %s" %
+                                        (result['bookid'], result['isbn_fuzz'], result['authorname'],
+                                         result['bookname']))
                             bookmatch = result
                             break
                 if not bookmatch:
@@ -194,8 +195,9 @@ def search_wishlist():
                     for result in results:
                         if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
                                 and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
-                            logger.info("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
-                                                                      result['authorname'], result['bookname']))
+                            logger.info("Found %s (%s%% %s%%) %s: %s" %
+                                        (result['bookid'], result['author_fuzz'], result['book_fuzz'],
+                                         result['authorname'], result['bookname']))
                             bookmatch = result
                             break
                 if not bookmatch:  # no match on full searchterm, try splitting out subtitle
@@ -207,8 +209,9 @@ def search_wishlist():
                         for result in results:
                             if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
                                     and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
-                                logger.info("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
-                                                                          result['authorname'], result['bookname']))
+                                logger.info("Found %s (%s%% %s%%) %s: %s" %
+                                            (result['bookid'], result['author_fuzz'], result['book_fuzz'],
+                                             result['authorname'], result['bookname']))
                                 bookmatch = result
                                 break
                 if bookmatch:
