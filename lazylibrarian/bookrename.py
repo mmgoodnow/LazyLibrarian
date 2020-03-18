@@ -338,10 +338,16 @@ def audioProcess(bookid, rename=False, playlist=False):
         pattern = ' '.join(pattern.split()).strip()
         pattern = pattern + os.path.splitext(part[3])[1]
         if playlist:
-            if rename:
-                playlist.write("%s\n" % makeUTF8bytes(pattern)[0])
+            if PY2:
+                if rename:
+                    playlist.write("%s\n" % makeUTF8bytes(pattern)[0])
+                else:
+                    playlist.write("%s\n" % makeUTF8bytes(part[3])[0])
             else:
-                playlist.write("%s\n" % makeUTF8bytes(part[3])[0])
+                if rename:
+                    playlist.write("%s\n" % makeUnicode(pattern)[0])
+                else:
+                    playlist.write("%s\n" % makeUnicode(part[3])[0])
         if rename:
             n = os.path.join(makeUnicode(r), makeUnicode(pattern))
             o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
@@ -415,6 +421,11 @@ def bookRename(bookid):
     dest_path = stripspaces(dest_path)
     oldpath = r
 
+    new_basename = seriesinfo['BookFile']
+    if ' / ' in new_basename:  # used as a separator in goodreads omnibus
+        logger.warn("bookRename [%s] looks like an omnibus? Not renaming" % new_basename)
+        return f
+
     if oldpath != dest_path:
         try:
             dest_path = safe_move(oldpath, dest_path)
@@ -422,13 +433,9 @@ def bookRename(bookid):
         except Exception as why:
             if not path_isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
+                return f
 
     book_basename, prefextn = os.path.splitext(os.path.basename(f))
-    new_basename = seriesinfo['BookFile']
-
-    if ' / ' in new_basename:  # used as a separator in goodreads omnibus
-        logger.warn("bookRename [%s] looks like an omnibus? Not renaming %s" % (new_basename, book_basename))
-        new_basename = book_basename
 
     if book_basename != new_basename:
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
