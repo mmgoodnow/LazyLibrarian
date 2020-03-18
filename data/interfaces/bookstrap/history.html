@@ -73,12 +73,14 @@
                         label: "Mark Failed",
                         className: 'btn-warning',
                         callback: function(){ $.get("markhistory", { 'rowid': rowid }, function (data) {})
+                                                    alert("Marked Failed")
                                                     location.reload(true); }
                     },
                     bt2: {
                         label: "Delete",
                         className: 'btn-danger',
                         callback: function(){ $.get("deletehistory", { 'rowid': rowid }, function (data) {})
+                                                    alert("Deleted")
                                                     location.reload(true); }
                     },
                     primary: {
