@@ -36,8 +36,10 @@
     <script src="js/summernote.js"></script>
 
     ${next.headIncludes()}
-    <!-- script type="text/javascript">
+    <script type="text/javascript">
+      if(navigator.userAgent.toLowerCase().indexOf('firefox') > -1){
         // Allow the user to reset the search filter
+        // (-webkit-search-cancel-button does not work on firefox)
         $(document).ready(function () {
             $.fn.dataTableExt.oApi.clearSearch = function ( oSettings ) {
                 var table = this;
@@ -56,7 +58,8 @@
                 "sName": 'whatever'
             });
         });
-    </script -->
+      }
+    </script>
 
     ${next.javascriptIncludes()}
     <script type="text/javascript">
