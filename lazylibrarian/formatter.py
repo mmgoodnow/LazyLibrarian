@@ -306,6 +306,7 @@ def plural(var, phrase=""):
                     'copy': 'copies',
                     'entry': 'entries',
                     'shelf': 'shelves',
+                    'is': 'are',
                  }
     if check_int(var, 0) == 1:
         return phrase
