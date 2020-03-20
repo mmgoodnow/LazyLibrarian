@@ -648,6 +648,7 @@ if os.name == 'nt':
         val = CONFIG_DEFINITIONS[k]
         CONFIG_DEFINITIONS[k] = (val[0], val[1], val[2].replace('/', '\\'))
 
+
 def check_section(sec):
     """ Check if INI section exists, if not create it """
     # noinspection PyUnresolvedReferences
@@ -918,9 +919,9 @@ def config_read(reloaded=False):
         CFG.remove_option('General', 'destination_dir')
     # legacy type conversion
     if CFG.has_option('Git', 'git_updated'):
-        val = CFG.get('Git', 'git_updated')
-        newval = check_int(val, 0)
-        if newval != val:
+        oldval = CFG.get('Git', 'git_updated')
+        newval = check_int(oldval, 0)
+        if newval != oldval:
             CFG.set('Git', 'git_updated', newval)
     # legacy name conversions, separate out host/port
     for provider in ['NZBGet', 'UTORRENT', 'QBITTORRENT', 'TRANSMISSION']:
