@@ -38,6 +38,11 @@
             var ret = 'books'; }
         %endif
 
+        var oldURL = document.referrer;
+        if  ( oldURL.indexOf('authorPage') >= 0 ) {
+                var ret = oldURL;
+                window.history.pushState({ prevUrl: window.location.href }, null, ret) }
+
         var buttons = {
                     bt0: {
                         label: "Close",
