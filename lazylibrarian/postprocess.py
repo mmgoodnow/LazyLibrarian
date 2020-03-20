@@ -351,7 +351,6 @@ def processAlternate(source_dir=None, library='eBook'):
                                   reason="processAlternate: %s" % bookname)
                 else:
                     aname, authorid, _ = addAuthorNameToDB(author=authorname,
-                                                           addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
                                                            reason="processAlternate: %s" % bookname)
                     if aname and aname != authorname:
                         authorname = aname

@@ -33,7 +33,7 @@ except ImportError:
 from lib.six.moves import queue
 
 
-def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
+def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
@@ -47,6 +47,9 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason = 'Unknown reason in addAuthorNameToDB'
+
+    if not addbooks or addbooks.lower() == 'none':
+        addbooks = lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']
 
     new = False
     if not author or len(author) < 2 or author.lower() == 'unknown':
@@ -124,7 +127,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=True, reason=None):
                     logger.debug('Found goodreads authorname %s in database' % author)
                     new = False
                 else:
-                    logger.info("Adding new author [%s] %s" % (author, reason))
+                    logger.info("Adding new author [%s] %s addbooks=%s" % (author, reason, addbooks))
                     try:
                         addAuthorToDB(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
                                       reason=reason)
@@ -172,7 +175,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
                 authorname = 'unknown author'
-                logger.debug("Adding new author id %s to database %s" % (authorid, reason))
+                logger.debug("Adding new author id %s to database %s, Addbooks=%s" %
+                             (authorid, reason, addbooks))
                 new_author = True
             else:
                 entry_status = dbauthor['Status']

@@ -315,7 +315,6 @@ def import_CSV(search_dir=None, library='eBook'):
                     else:
                         logger.debug("CSV: Author %s not found" % authorname)
                         newauthor, authorid, new = addAuthorNameToDB(author=authorname,
-                                                                     addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
                                                                      reason="import_CSV %s" % csvFile)
                         if len(newauthor) and newauthor != authorname:
                             logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))

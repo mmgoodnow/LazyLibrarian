@@ -181,7 +181,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, new = addAuthorNameToDB(author, False, addbooks=False, reason=reason)
+        newauthor, authorid, new = addAuthorNameToDB(author, False, reason=reason)
         if len(newauthor) and newauthor != author:
             if new:
                 logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
@@ -1212,7 +1212,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             # Cache any covers and images
             images = myDB.select('select bookid, bookimg, bookname from books where bookimg like "http%"')
             if len(images):
-                logger.info("Caching %s for %i %s" % (plural(len(images), "cover"), len(images), 
+                logger.info("Caching %s for %i %s" % (plural(len(images), "cover"), len(images),
                                                       plural(len(images), "book")))
                 for item in images:
                     bookid = item['bookid']
@@ -1224,7 +1224,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
             images = myDB.select('select AuthorID, AuthorImg, AuthorName from authors where AuthorImg like "http%"')
             if len(images):
-                logger.info("Caching %s for %i %s" % (plural(len(images), "image"), len(images), 
+                logger.info("Caching %s for %i %s" % (plural(len(images), "image"), len(images),
                                                       plural(len(images), "author")))
                 for item in images:
                     authorid = item['authorid']

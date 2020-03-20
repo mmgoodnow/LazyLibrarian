@@ -107,7 +107,9 @@ def search_book(books=None, library=None):
             for terms in results:
                 searchbooks.append(terms)
         else:
-            # The user has added a new book
+            # The user has added new books
+            if library:
+                logger.debug("Searching for %s %s" % (len(books), plural(len(books), library)))
             for book in books:
                 if not book['bookid'] in ['booklang', 'library', 'ignored']:
                     cmd = 'SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus '
@@ -130,7 +132,7 @@ def search_book(books=None, library=None):
             msg = "SearchBooks - No providers to search"
             blocked = len(lazylibrarian.PROVIDER_BLOCKLIST)
             if blocked:
-                msg += " (there are %s in blocklist)" % blocked
+                msg += " (there %s %s in blocklist)" % (plural(blocked, "is"), blocked)
             else:
                 msg += " (check you have some enabled)"
             logger.debug(msg)
