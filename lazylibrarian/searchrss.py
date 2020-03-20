@@ -40,15 +40,12 @@ def cron_search_wishlist():
 
 # noinspection PyBroadException
 def search_wishlist():
+    threading.currentThread().name = "SEARCHWISHLIST"
     new_books = []
     new_audio = []
+    search_start = time.time()
     try:
-        threadname = threading.currentThread().name
-        if "Thread-" in threadname:
-            threading.currentThread().name = "SEARCHWISHLIST"
-
         myDB = database.DBConnection()
-
         resultlist, wishproviders = IterateOverWishLists()
         if not wishproviders:
             logger.debug('No wishlists are set')
@@ -61,8 +58,8 @@ def search_wishlist():
             # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
             # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
             # eg NYTimes wishlist
-            if lazylibrarian.STOPTHREADS and threadname == "SEARCHWISHLIST":
-                logger.debug("Aborting %s" % threadname)
+            if lazylibrarian.STOPTHREADS and threading.currentThread().name == "SEARCHWISHLIST":
+                logger.debug("Aborting SEARCHWISHLIST")
                 break
 
             if 'E' in book['types']:
@@ -81,11 +78,11 @@ def search_wishlist():
                 item['ISBN'] = book['rss_isbn']
 
             bookmatch = finditem(item, book['rss_author'], reason="wishlist: %s" % book['dispname'])
-            if bookmatch:  # it's already in the database
+            if bookmatch:  # it's in the database
                 bookid = bookmatch['BookID']
                 authorname = bookmatch['AuthorName']
                 bookname = bookmatch['BookName']
-                cmd = 'SELECT authors.Status from authors,books '
+                cmd = 'SELECT authors.Status,Updated from authors,books '
                 cmd += 'WHERE authors.authorid=books.authorid and bookid=?'
                 auth_res = myDB.match(cmd, (bookid,))
                 if auth_res:
@@ -112,9 +109,9 @@ def search_wishlist():
                         newValueDict = {"Requester": book["dispname"] + ' '}
                         controlValueDict = {"BookID": bookid}
                         myDB.upsert("books", newValueDict, controlValueDict)
-                elif auth_status in ['Ignored']:
+                elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
                     logger.info('Found book %s, but author is "%s"' % (bookname, auth_status))
-                elif reject_series:
+                elif reject_series and auth_res['Updated'] < search_start:
                     logger.info('Found book %s, but series "%s" is %s' %
                                 (bookname, reject_series['Name'], reject_series['Status']))
                 elif ebook_status == 'Wanted':  # skipped/ignored
@@ -144,9 +141,9 @@ def search_wishlist():
                         newValueDict = {"AudioRequester": book["dispname"] + ' '}
                         controlValueDict = {"BookID": bookid}
                         myDB.upsert("books", newValueDict, controlValueDict)
-                elif auth_status in ['Ignored']:
+                elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
                     logger.info('Found book %s, but author is "%s"' % (bookname, auth_status))
-                elif reject_series:
+                elif reject_series and auth_res['Updated'] < search_start:
                     logger.info('Found book %s, but series "%s" is %s' %
                                 (bookname, reject_series['Name'], reject_series['Status']))
                 elif audio_status == 'Wanted':  # skipped/ignored
@@ -170,11 +167,10 @@ def search_wishlist():
                 authorname = formatAuthorName(book['rss_author'])
                 authmatch = myDB.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                 if authmatch:
-                    logger.debug("Author %s found in database" % authorname)
+                    logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))
                 else:
                     logger.debug("Author %s not found" % authorname)
                     newauthor, _, _ = addAuthorNameToDB(author=authorname,
-                                                        addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
                                                         reason="wishlist: %s" % book['rss_title'])
                     if len(newauthor) and newauthor != authorname:
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
@@ -238,9 +234,9 @@ def search_wishlist():
                                                                           results[0]['bookname']))
         if new_books or new_audio:
             tot = len(new_books) + len(new_audio)
-            logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "book")))
+            logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
         else:
-            logger.debug("Wishlist marked no new books as Wanted")
+            logger.debug("Wishlist marked no new items as Wanted")
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
