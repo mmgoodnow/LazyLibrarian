@@ -96,5 +96,6 @@ parts:
       - zlib1g
       - libjpeg-turbo8
       - libssl1.0.0
-      - libdb-5
+      - libdb-5.3
+      
       
