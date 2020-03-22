@@ -1,5 +1,5 @@
 name: lazylibrarian # you probably want to 'snapcraft register <name>'
-version: '1.7.1' # just for humans, typically '1.2+git' or '1.3.2'
+version: '1.7.2' # just for humans, typically '1.2+git' or '1.3.2'
 summary: LazyLibrarian eBook and magazine manager # 79 char long summary
 description: |
   Library manager, search and download tool for ebooks and magazines
@@ -19,13 +19,13 @@ parts:
   source:
     plugin: dump
     source: https://gitlab.com/LazyLibrarian/LazyLibrarian.git
-    #source-tag: 1.7.1
-    #source-commit: 1c6163a598bb91a7df560c77f0a293f72e9fe783
+    #source-tag: 1.7.2
+    #source-commit: 6512f5a89598f4b214f697bd89eb6bec9c7b1b47
     override-build: |
             echo 'LAZYLIBRARIAN_VERSION = "package"' > ./lazylibrarian/version.py
-            echo 'PACKAGED_BY = "snapcraft 3.8"' >> ./lazylibrarian/version.py
-            echo 'PACKAGE_VERSION = "1.7.1"' >> ./lazylibrarian/version.py
-            echo 'LAZYLIBRARIAN_HASH = "1c6163a598bb91a7df560c77f0a293f72e9fe783"' >> ./lazylibrarian/version.py
+            echo 'PACKAGED_BY = "snapcraft  remote"' >> ./lazylibrarian/version.py
+            echo 'PACKAGE_VERSION = "1.7.2"' >> ./lazylibrarian/version.py
+            echo 'LAZYLIBRARIAN_HASH = "6512f5a89598f4b214f697bd89eb6bec9c7b1b47"' >> ./lazylibrarian/version.py
             rm -rf ./lazylibrarian/cherrypy
             rm -rf ./lazylibrarian/lib/bs4
             rm -rf ./lazylibrarian/lib/deluge_client
@@ -97,5 +97,3 @@ parts:
       - libjpeg-turbo8
       - libssl1.0.0
       - libdb5.3
-      
-     
