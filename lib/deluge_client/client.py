@@ -239,7 +239,7 @@ class DelugeRPCClient(object):
         elif msg_type == RPC_RESPONSE:
             retval = data[0]
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug(retval)
+                logger.debug(str(retval))
             return retval
 
     def reconnect(self):
