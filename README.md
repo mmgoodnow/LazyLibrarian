@@ -29,7 +29,7 @@ LazyLibrarian runs by default on port 5299 at http://localhost:5299
 
 Linux / Mac OS X:
 
-* Install Python 2 v2.6 or higher, or Python 3 v3.5 or higher 
+* Install Python 2 v2.6 or higher, or Python 3 v3.5 or higher
 * Git clone/extract LL wherever you like
 * Run `python LazyLibrarian.py -d` or `python LazyLibrarian.py --daemon` to start in daemon mode
 * Fill in all the config (see the docs)
@@ -37,27 +37,27 @@ Linux / Mac OS X:
 
 ## Documentation:
 There is extensive documentation at https://lazylibrarian.gitlab.io/
-and a reddit at https://www.reddit.com/r/LazyLibrarian/   
+and a reddit at https://www.reddit.com/r/LazyLibrarian/
 
-Docker tutorial  http://sasquatters.com/lazylibrarian-docker/   
-Config tutorial  http://sasquatters.com/lazylibrarian-configuration/   
+Docker tutorial  http://sasquatters.com/lazylibrarian-docker/
+Config tutorial  http://sasquatters.com/lazylibrarian-configuration/
 
 ## Update
 Auto update available via interface from master for git and source installs
 
 ## Packages
-rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags  
-These packages do not use the lazylibrarian internal update mechanism. 
-You can check version from inside lazylibrarian, but to upgrade use the appropriate package manager. 
-The packages are not updated as regularly as the git/source installations.  
-NOTE: the smaller flatpak package does not include ghostscript (for magazine cover generation) or calibredb (for calibre communication)  
+rpm deb flatpak and snap packages here : https://gitlab.com/LazyLibrarian/LazyLibrarian/tags
+These packages do not use the lazylibrarian internal update mechanism.
+You can check version from inside lazylibrarian, but to upgrade use the appropriate package manager.
+The packages are not updated as regularly as the git/source installations.
+NOTE: the smaller flatpak package does not include ghostscript (for magazine cover generation) or calibredb (for calibre communication)
 If you need these features, install from source or git, or use the flatpak+ file.
-The flatpak+ file includes both ghostscript and calibredb but is considerably larger because of this.  
-To install: flatpak install lazylibrarian_1.x.x.flatpak. To run: flatpak run org.flatpak.LazyLibrarian  
+The flatpak+ file includes both ghostscript and calibredb but is considerably larger because of this.
+To install: flatpak install lazylibrarian_1.x.x.flatpak. To run: flatpak run org.flatpak.LazyLibrarian
 The snap package is confined to users home directory, so all books and downloads need to be accessible from there too.
-It should be able to use system installed versions of ghostscript and calibredb provided they are in the system path. 
-Install the snap package with flags --devmode  
-AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/  
+It should be able to use system installed versions of ghostscript and calibredb provided they are in the system path.
+Install the snap package with --devmode eg snap install lazylibrarian_1.7.2_amd64.snap --devmode
+AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/
 QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
 ## Docker packages
