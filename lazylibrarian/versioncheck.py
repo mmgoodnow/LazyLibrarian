@@ -604,6 +604,7 @@ def update():
         logger.debug("Walking %s" % content_dir)
         # walk temp folder and move files to main folder
         for rootdir, _, filenames in walk(content_dir):
+            rootdir = rootdir[len(content_dir) + 1:]
             for curfile in filenames:
                 old_path = os.path.join(content_dir, rootdir, curfile)
                 new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
