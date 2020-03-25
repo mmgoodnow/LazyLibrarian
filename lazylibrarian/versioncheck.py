@@ -486,17 +486,18 @@ def update():
         backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
         logmsg('info', 'Backing up prior to upgrade')
         zf = tarfile.open(backup_file, mode='w:gz')
-        for item in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
+        for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
                      'lib', 'lib3', 'mako']:
-            path = os.path.join(lazylibrarian.PROG_DIR, item)
+            path = os.path.join(lazylibrarian.PROG_DIR, folder)
             for root, dirs, files in walk(path):
-                for file in files:
-                    if not file.endswith('.pyc'):
-                        zf.add(os.path.join(root, file))
+                for item in files:
+                    if not item.endswith('.pyc'):
+                        base = root[len(lazylibrarian.PROG_DIR) + 1:]
+                        zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
         for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
                      'example_custom_notification.sh', 'example_ebook_convert.py',
                      'example.genres.json', 'example.monthnames.json']:
-            zf.add(os.path.join(lazylibrarian.PROG_DIR, item))
+            zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
         logmsg('info', 'Saved current version to %s' % backup_file)
     except Exception as e:
         logmsg("error", "Failed to create backup: %s" % str(e))
