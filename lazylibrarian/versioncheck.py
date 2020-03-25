@@ -20,15 +20,6 @@ import tarfile
 import threading
 import time
 
-from lib.six import PY2
-try:
-    import zipfile
-except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
-
 import lazylibrarian
 try:
     import urllib3
@@ -492,21 +483,21 @@ def update():
         logmsg('info', msg)
     try:
         # try to create a backup in case the upgrade is faulty...
-        zip_file = os.path.join(lazylibrarian.PROG_DIR, "backup.zip")
-        logmsg('info', 'Backing up current version to %s' % zip_file)
-        zf = zipfile.ZipFile(zip_file, mode='w')
+        backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
+        logmsg('info', 'Backing up prior to upgrade')
+        zf = tarfile.open(backup_file, mode='w:gz')
         for item in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
                      'lib', 'lib3', 'mako']:
             path = os.path.join(lazylibrarian.PROG_DIR, item)
             for root, dirs, files in walk(path):
                 for file in files:
                     if not file.endswith('.pyc'):
-                        zf.write(os.path.join(root, file))
+                        zf.add(os.path.join(root, file))
         for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
                      'example_custom_notification.sh', 'example_ebook_convert.py',
                      'example.genres.json', 'example.monthnames.json']:
-            zf.write(os.path.join(lazylibrarian.PROG_DIR, item))
-        logmsg('info', 'Saved current version to %s' % zip_file)
+            zf.add(os.path.join(lazylibrarian.PROG_DIR, item))
+        logmsg('info', 'Saved current version to %s' % backup_file)
     except Exception as e:
         logmsg("error", "Failed to create backup: %s" % str(e))
 
@@ -585,7 +576,8 @@ def update():
             with tarfile.open(tar_download_path) as tar:
                 tar.extractall(update_dir)
         except Exception as e:
-            logger.error('Failed to unpack tarfile %s (%s): %s' % (type(e).__name__, tar_download_path, str(e)))
+            logmsg('error', 'Failed to unpack tarfile %s (%s): %s' %
+                   (type(e).__name__, tar_download_path, str(e)))
             return False
 
         # Delete the tar.gz
@@ -594,14 +586,14 @@ def update():
 
         # Find update dir name
         update_dir = makeUnicode(update_dir)
-        logger.debug("update_dir [%s]" % update_dir)
+        logmsg('debug', "update_dir [%s]" % update_dir)
         update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
         if len(update_dir_contents) != 1:
             logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
             return False
         content_dir = os.path.join(update_dir, update_dir_contents[0])
-        logger.debug("update_dir_contents [%s]" % str(update_dir_contents))
-        logger.debug("Walking %s" % content_dir)
+        logmsg('debug', "update_dir_contents [%s]" % str(update_dir_contents))
+        logmsg('debug', "Walking %s" % content_dir)
         # walk temp folder and move files to main folder
         for rootdir, _, filenames in walk(content_dir):
             rootdir = rootdir[len(content_dir) + 1:]
@@ -609,7 +601,7 @@ def update():
                 old_path = os.path.join(content_dir, rootdir, curfile)
                 new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
                 if old_path == new_path:
-                    logger.error("PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
+                    logmsg('error', "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
                         lazylibrarian.PROG_DIR, content_dir, rootdir, curfile))
                 if os.path.isfile(new_path):
                     os.remove(syspath(new_path))
