@@ -119,7 +119,15 @@ def main():
         lazylibrarian.CONFIG['GIT_PROGRAM'] = ''
         lazylibrarian.CONFIG['GIT_USER'] = 'lazylibrarian'
         lazylibrarian.CONFIG['GIT_REPO'] = 'lazylibrarian'
+        lazylibrarian.CONFIG['GIT_HOST'] = 'gitlab'
+        lazylibrarian.CONFIG['USER_AGENT'] = 'lazylibrarian'
+        lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
+        lazylibrarian.CONFIG['PROXY_HOST'] = ''
+        lazylibrarian.CONFIG['SSL_CERTS'] = ''
+        if lazylibrarian.CACHEDIR == '':
+            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
         lazylibrarian.CONFIG['LOGLIMIT'] = 2000
+
         versioncheck.getInstallType()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
             lazylibrarian.SIGNAL = None
