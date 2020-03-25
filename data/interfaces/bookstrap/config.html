@@ -1942,7 +1942,7 @@
                   <div class="col-md-4 form-group">
                     <div class="input-group">
                       <span id="log_type" class="input-group-addon">Name</span>
-                      <label for="irc_${loop.index}_host" class="sr-only">IRC Name</label>
+                      <label for="irc_${loop.index}_dispname" class="sr-only">IRC Name</label>
                       <input type="text" id="irc_${loop.index}_dispname" name="irc_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
                       <span class="input-group-addon">
                         &nbsp;<input type="checkbox" id="irc_${loop.index}_enabled" name="irc_${loop.index}_enabled" value="1" ${checked} />&nbsp;
@@ -1950,7 +1950,7 @@
                     </div>
                     <div class="input-group">
                       <span id="log_type" class="input-group-addon">Server</span>
-                      <label for="irc_${loop.index}_host" class="sr-only">Server</label>
+                      <label for="irc_${loop.index}_server" class="sr-only">Server</label>
                       <input type="text" placeholder="IRC Server #${loop.index}" id="irc_${loop.index}_server" name="irc_${loop.index}_server" value="${provider['SERVER']}" class="form-control" />
                       <span class="input-group-addon"></span>
                     </div>
@@ -2292,11 +2292,13 @@
                     <label for="ebook_convert">ebook-convert program:</label>
                     <input type="text" id="ebook_convert" name="ebook_convert" value="${lazylibrarian.CONFIG['EBOOK_CONVERT']}" class="form-control" placeholder="ebook-convert program">
                     <span class="help-block">Path to "ebook-convert" to convert book formats</span>
+                    <input type="button" value="Test ebook-convert" id="testebookconvert" class="btn btn-default" />
                   </div>
                   <div class="form-group">
                     <label for="ffmpeg">ffmpeg program:</label>
                     <input type="text" id="ffmpeg" name="ffmpeg" value="${lazylibrarian.CONFIG['FFMPEG']}" class="form-control" placeholder="ffmpeg program">
                     <span class="help-block">Path to "ffmpeg" to merge audiobook parts or add tags</span>
+                    <input type="button" value="Test ffmpeg" id="testffmpeg" class="btn btn-default" />
                   </div>
                   <div class="form-group">
                     <label for="git_program">git program:</label>

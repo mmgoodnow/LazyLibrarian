@@ -5804,6 +5804,36 @@ class WebInterface(object):
         return msg
 
     @cherrypy.expose
+    def testffmpeg(self, **kwargs):
+        threading.currentThread().name = "WEBSERVER"
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        if 'prg' in kwargs and kwargs['prg']:
+            lazylibrarian.CONFIG['FFMPEG'] = kwargs['prg']
+        ffmpeg = lazylibrarian.CONFIG['FFMPEG']
+        try:
+            params = [ffmpeg, "-version"]
+            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
+            return "Found ffmpeg version %s" % res
+        except Exception as e:
+            return "ffmpeg -version failed: %s %s" % (type(e).__name__, str(e))
+
+    @cherrypy.expose
+    def testebookconvert(self, **kwargs):
+        threading.currentThread().name = "WEBSERVER"
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        if 'prg' in kwargs and kwargs['prg']:
+            lazylibrarian.CONFIG['EBOOK_CONVERT'] = kwargs['prg']
+        prg = lazylibrarian.CONFIG['EBOOK_CONVERT']
+        try:
+            params = [prg, "--version"]
+            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res).strip().split("(")[1].split(")")[0]
+            return "Found ebook-convert version %s" % res
+        except Exception as e:
+            return "ebook-convert --version failed: %s %s" % (type(e).__name__, str(e))
+
+    @cherrypy.expose
     def testCalibredb(self, **kwargs):
         threading.currentThread().name = "WEBSERVER"
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"

@@ -1317,6 +1317,39 @@
                     });
                 });
         });
+        $('#testebookconvert').click(function () {
+            var prg = $.trim($("#ebook_convert").val());
+            $.get("testebookconvert", { 'prg': prg},
+                function (data) {
+                    bootbox.dialog({
+                        title: 'ebook-convert',
+                        message: '<pre>'+data+'</pre>',
+                        buttons: {
+                            primary: {
+                                label: "Close",
+                                className: 'btn-primary'
+                            }
+                        }
+                    });
+                });
+        });
+
+        $('#testffmpeg').click(function () {
+            var prg = $.trim($("#ffmpeg").val());
+            $.get("testffmpeg", { 'prg': prg},
+                function (data) {
+                    bootbox.dialog({
+                        title: 'FFMPEG',
+                        message: '<pre>'+data+'</pre>',
+                        buttons: {
+                            primary: {
+                                label: "Close",
+                                className: 'btn-primary'
+                            }
+                        }
+                    });
+                });
+        });
 
         $('#testpreprocessor').click(function () {
             var prg = $.trim($("#ext_preprocessor").val());
