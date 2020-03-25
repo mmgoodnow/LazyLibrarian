@@ -493,7 +493,10 @@ def unpack_archive(archivename, download_dir, title):
             for item in z.namelist():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
-                    dst = os.path.join(targetdir, item)
+                    if os.path.__name__ == 'ntpath':
+                        dst = os.path.join(targetdir, item.replace('/', '\\'))
+                    else:
+                        dst = os.path.join(targetdir, item)
                     dstdir = os.path.dirname(dst)
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
@@ -518,7 +521,10 @@ def unpack_archive(archivename, download_dir, title):
             for item in z.getnames():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
-                    dst = os.path.join(targetdir, item)
+                    if os.path.__name__ == 'ntpath':
+                        dst = os.path.join(targetdir, item.replace('/', '\\'))
+                    else:
+                        dst = os.path.join(targetdir, item)
                     dstdir = os.path.dirname(dst)
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
@@ -543,7 +549,10 @@ def unpack_archive(archivename, download_dir, title):
             for item in z.namelist():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
-                    dst = os.path.join(targetdir, item)
+                    if os.path.__name__ == 'ntpath':
+                        dst = os.path.join(targetdir, item.replace('/', '\\'))
+                    else:
+                        dst = os.path.join(targetdir, item)
                     dstdir = os.path.dirname(dst)
                     if not make_dirs(dstdir):
                         logger.error("Failed to create directory %s" % dstdir)
@@ -578,7 +587,10 @@ def unpack_archive(archivename, download_dir, title):
                     for item in wanted_files:
                         if entry[0].filename.endswith(item):
                             logger.debug('Extracting %s to %s' % (item, targetdir))
-                            dst = os.path.join(targetdir, item)
+                            if os.path.__name__ == 'ntpath':
+                                dst = os.path.join(targetdir, item.replace('/', '\\'))
+                            else:
+                                dst = os.path.join(targetdir, item)
                             dstdir = os.path.dirname(dst)
                             if not make_dirs(dstdir):
                                 logger.error("Failed to create directory %s" % dstdir)
