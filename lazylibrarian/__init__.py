@@ -2069,10 +2069,12 @@ def shutdown(restart=False, update=False):
             # NOTE we don't seem to have sufficient permission to so this, so disabled the shutdown button
             os.kill(1, signal.SIGKILL)
 
+    updated = False
     if update:
         logmsg('info', 'LazyLibrarian is updating...')
         try:
-            if versioncheck.update():
+            updated = versioncheck.update()
+            if updated:
                 logmsg('info', 'Lazylibrarian version updated')
                 if __INITIALIZED__:
                     CONFIG['GIT_UPDATED'] = str(int(time.time()))
@@ -2126,57 +2128,73 @@ def shutdown(restart=False, update=False):
             if '--nolaunch' not in popen_list:
                 popen_list += ['--nolaunch']
 
-            logmsg('debug', 'Restarting LazyLibrarian with ' + str(popen_list))
-            subprocess.Popen(popen_list, cwd=os.getcwd())
-            if 'HTTP_HOST' in CONFIG:
-                # updating a running instance, not an --update
-                # wait for it to open the httpserver
-                host = CONFIG['HTTP_HOST']
-                if '0.0.0.0' in host:
-                    host = 'localhost'  # windows doesn't like 0.0.0.0
-                newserver = "%s:%s" % (host, CONFIG['HTTP_PORT'])
-                if CONFIG['HTTP_ROOT']:
-                    newserver = newserver + '/' + CONFIG['HTTP_ROOT']
-                if not newserver.startswith('http'):
-                    newserver = 'http://' + newserver
-                logmsg("info", "Waiting for %s to start" % newserver)
-                pawse = 12
-                success = False
-                res = ''
-                while pawse:
-                    result, success = fetchURL(newserver, retry=False)
-                    if success:
-                        try:
-                            res = result.split('<title>')[1].split('</title>')[0]
-                        except IndexError:
-                            res = ''
-                        success = res.startswith('LazyLibrarian')
+            with open(syspath(os.path.join(CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
+                if updated:
+                    upgradelog.write("%s %s" % (time.ctime(),
+                                     'Restarting LazyLibrarian with ' + str(popen_list)))
+                subprocess.Popen(popen_list, cwd=os.getcwd())
+                if 'HTTP_HOST' in CONFIG:
+                    # updating a running instance, not an --update
+                    # wait for it to open the httpserver
+                    host = CONFIG['HTTP_HOST']
+                    if '0.0.0.0' in host:
+                        host = 'localhost'  # windows doesn't like 0.0.0.0
+                    newserver = "%s:%s" % (host, CONFIG['HTTP_PORT'])
+                    if CONFIG['HTTP_ROOT']:
+                        newserver = newserver + '/' + CONFIG['HTTP_ROOT']
+                    if not newserver.startswith('http'):
+                        newserver = 'http://' + newserver
+                    msg = "Waiting for %s to start" % newserver
+                    if updated:
+                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                    logmsg("info", msg)
+                    pawse = 12
+                    success = False
+                    res = ''
+                    while pawse:
+                        result, success = fetchURL(newserver, retry=False)
                         if success:
-                            break
-                    else:
-                        print("Waiting... %s" % pawse)
-                        time.sleep(5)
-                    pawse -= 1
-
-                if success:
-                    print('Reached webserver page %s' % res)
-                else:
-                    print('Webserver failed to start, reverting update')
-                    archivename = 'backup.tgz'
-                    if tarfile.is_tarfile(archivename):
-                        try:
-                            with tarfile.open(archivename) as tar:
-                                tar.extractall()
-                            success = True
-                        except Exception as e:
-                            print('Failed to unpack tarfile %s (%s): %s' %
-                                  (type(e).__name__, archivename, str(e)))
-                    else:
-                        print("Invalid archive")
+                            try:
+                                res = result.split('<title>')[1].split('</title>')[0]
+                            except IndexError:
+                                res = ''
+                            success = res.startswith('LazyLibrarian')
+                            if success:
+                                break
+                        else:
+                            print("Waiting... %s" % pawse)
+                            time.sleep(5)
+                        pawse -= 1
 
                     if success:
-                        print("Restarting from backup")
-                        subprocess.Popen(popen_list, cwd=os.getcwd())
+                        msg = 'Reached webserver page %s' % res
+                        if updated:
+                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                        logmsg("info", msg)
+                    else:
+                        msg = 'Webserver failed to start, reverting update'
+                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                        logmsg("info", msg)
+                        archivename = 'backup.tgz'
+                        if tarfile.is_tarfile(archivename):
+                            try:
+                                with tarfile.open(archivename) as tar:
+                                    tar.extractall()
+                                success = True
+                            except Exception as e:
+                                msg = 'Failed to unpack tarfile %s (%s): %s' % \
+                                      (type(e).__name__, archivename, str(e))
+                                upgradelog.write("%s %s" % (time.ctime(), msg))
+                                logmsg("warn", msg)
+                        else:
+                            msg = "Invalid archive"
+                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                            logmsg("warn", msg)
+                        if success:
+                            msg = "Restarting from backup"
+                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                            logmsg("info", msg)
+                            subprocess.Popen(popen_list, cwd=os.getcwd())
 
-    print('Lazylibrarian (pid %s) is exiting now' % os.getpid())
+    logmsg('info', 'Lazylibrarian (pid %s) is exiting now' % os.getpid())
     sys.exit(0)
