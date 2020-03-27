@@ -165,7 +165,7 @@ def setSeries(serieslist=None, bookid=None, authorid=None, workid=None, reason="
                     continue
                 else:
                     newserieslist.append(item)
-                    if not reason or reason.lower() == 'none':
+                    if not reason:
                         if len(inspect.stack()) > 2:
                             frame = inspect.getframeinfo(inspect.stack()[2][0])
                             program = os.path.basename(frame.filename)
