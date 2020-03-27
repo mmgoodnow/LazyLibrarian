@@ -24,6 +24,7 @@ import threading
 import time
 import sqlite3
 import traceback
+import tarfile
 
 import cherrypy
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
@@ -1214,9 +1215,9 @@ def config_write(part=None):
             else:
                 def_val = '755'
             value = CONFIG[key]
-            if len(value) == 5:
+            if len(value) in [5, 6]:
                 value = value[2:]
-            if len(value) == 3:
+            if len(value) in [3, 4]:
                 try:
                     _ = int(value, 8)
                 except ValueError:
@@ -2127,5 +2128,55 @@ def shutdown(restart=False, update=False):
 
             logmsg('debug', 'Restarting LazyLibrarian with ' + str(popen_list))
             subprocess.Popen(popen_list, cwd=os.getcwd())
-    logmsg('debug', 'Lazylibrarian (pid %s) is exiting now' % os.getpid())
+            if 'HTTP_HOST' in CONFIG:
+                # updating a running instance, not an --update
+                # wait for it to open the httpserver
+                host = CONFIG['HTTP_HOST']
+                if '0.0.0.0' in host:
+                    host = 'localhost'  # windows doesn't like 0.0.0.0
+                newserver = "%s:%s" % (host, CONFIG['HTTP_PORT'])
+                if CONFIG['HTTP_ROOT']:
+                    newserver = newserver + '/' + CONFIG['HTTP_ROOT']
+                if not newserver.startswith('http'):
+                    newserver = 'http://' + newserver
+                logmsg("info", "Waiting for %s to start" % newserver)
+                pawse = 12
+                success = False
+                res = ''
+                while pawse:
+                    result, success = fetchURL(newserver, retry=False)
+                    if success:
+                        try:
+                            res = result.split('<title>')[1].split('</title>')[0]
+                        except IndexError:
+                            res = ''
+                        success = res.startswith('LazyLibrarian')
+                        if success:
+                            break
+                    else:
+                        print("Waiting... %s" % pawse)
+                        time.sleep(5)
+                    pawse -= 1
+
+                if success:
+                    print('Reached webserver page %s' % res)
+                else:
+                    print('Webserver failed to start, reverting update')
+                    archivename = 'backup.tgz'
+                    if tarfile.is_tarfile(archivename):
+                        try:
+                            with tarfile.open(archivename) as tar:
+                                tar.extractall()
+                            success = True
+                        except Exception as e:
+                            print('Failed to unpack tarfile %s (%s): %s' %
+                                  (type(e).__name__, archivename, str(e)))
+                    else:
+                        print("Invalid archive")
+
+                    if success:
+                        print("Restarting from backup")
+                        subprocess.Popen(popen_list, cwd=os.getcwd())
+
+    print('Lazylibrarian (pid %s) is exiting now' % os.getpid())
     sys.exit(0)
