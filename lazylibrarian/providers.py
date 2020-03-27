@@ -776,7 +776,8 @@ def IRCSEARCH(book, provider, searchType, test=False):
             logger.error(data)
             return False, results
 
-        results = ircResults(provider, fname)
+        if fname:
+            results = ircResults(provider, fname)
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
     return True, results

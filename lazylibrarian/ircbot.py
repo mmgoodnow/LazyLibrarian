@@ -490,7 +490,7 @@ def ircResults(provider, fname):
     results = []
     tor_date = today()
 
-    if zipfile.is_zipfile(fname):
+    if fname and zipfile.is_zipfile(fname):
         data = zipfile.ZipFile(fname)
         if data:
             our_member = None
