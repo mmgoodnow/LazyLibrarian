@@ -471,149 +471,188 @@ def updateVersionFile(new_version_id):
 
 
 def update():
-    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
-        logmsg('info', 'Windows .exe updating not supported yet.')
-        return False
-    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
-        logmsg('info', 'Please use your package manager to update')
-        return False
-    if lazylibrarian.DOCKER:
-        msg = 'Docker does not officially allow upgrading the program inside the container,'
-        msg += ' but we\'ll try anyway...'
-        logmsg('info', msg)
-    try:
-        # try to create a backup in case the upgrade is faulty...
-        backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
-        logmsg('info', 'Backing up prior to upgrade')
-        zf = tarfile.open(backup_file, mode='w:gz')
-        for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                     'lib', 'lib3', 'mako']:
-            path = os.path.join(lazylibrarian.PROG_DIR, folder)
-            for root, dirs, files in walk(path):
-                for item in files:
-                    if not item.endswith('.pyc'):
-                        base = root[len(lazylibrarian.PROG_DIR) + 1:]
-                        zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
-        for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
-                     'example_custom_notification.sh', 'example_ebook_convert.py',
-                     'example.genres.json', 'example.monthnames.json']:
-            zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
-        logmsg('info', 'Saved current version to %s' % backup_file)
-    except Exception as e:
-        logmsg("error", "Failed to create backup: %s" % str(e))
-
-    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-        branch = getCurrentGitBranch()
-
-        _, _ = runGit('stash clear')
-        output, _ = runGit('pull origin ' + branch)  # type: str
-
-        if not output:
-            logmsg('error', 'Couldn\'t download latest version')
+    with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
+        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
+            msg = 'Windows .exe updating not supported yet.'
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
             return False
+        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
+            msg = 'Please use your package manager to update'
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
+            return False
+        if lazylibrarian.DOCKER:
+            msg = 'Docker does not officially allow upgrading the program inside the container,'
+            msg += ' but we\'ll try anyway...'
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
 
-        for line in output.split('\n'):
-            if 'Already up to date' in line:
-                logmsg('info', 'No update available: ' + str(output))
-            elif 'Aborting' in line or 'local changes' in line:
-                logmsg('error', 'Unable to update: ' + str(output))
+        try:
+            # try to create a backup in case the upgrade is faulty...
+            backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
+            msg = 'Backing up prior to upgrade'
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
+            zf = tarfile.open(backup_file, mode='w:gz')
+            for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
+                           'lib', 'lib3', 'mako']:
+                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                for root, dirs, files in walk(path):
+                    for item in files:
+                        if not item.endswith('.pyc'):
+                            base = root[len(lazylibrarian.PROG_DIR) + 1:]
+                            zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
+            for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
+                         'example_custom_notification.sh', 'example_ebook_convert.py',
+                         'example.genres.json', 'example.monthnames.json']:
+                zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
+            msg = 'Saved current version to %s' % backup_file
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
+        except Exception as e:
+            msg = "Failed to create backup: %s" % str(e)
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg("error", msg)
+
+        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+            branch = getCurrentGitBranch()
+
+            _, _ = runGit('stash clear')
+            output, _ = runGit('pull origin ' + branch)  # type: str
+
+            if not output:
+                msg = 'Couldn\'t download latest version'
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('error', msg)
                 return False
 
-        # Update version.txt and timestamp
-        if 'LATEST_VERSION' not in lazylibrarian.CONFIG:
-            lazylibrarian.CONFIG['LATEST_VERSION'] = 'Unknown'
-            url = 'https://lazylibrarian.gitlab.io/version.json'
-            r = requests.get(url, timeout=30)
-            if str(r.status_code).startswith('2'):
-                lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
+            for line in output.split('\n'):
+                if 'Already up to date' in line:
+                    msg = 'No update available: ' + str(output)
+                    upgradelog.write("%s %s" % (time.ctime(), msg))
+                    logmsg('info', msg)
+                elif 'Aborting' in line or 'local changes' in line:
+                    msg = 'Unable to update: ' + str(output)
+                    upgradelog.write("%s %s" % (time.ctime(), msg))
+                    logmsg('error', msg)
+                    return False
 
-        updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
-        lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
-        lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
-        return True
+            # Update version.txt and timestamp
+            if 'LATEST_VERSION' not in lazylibrarian.CONFIG:
+                lazylibrarian.CONFIG['LATEST_VERSION'] = 'Unknown'
+                url = 'https://lazylibrarian.gitlab.io/version.json'
+                r = requests.get(url, timeout=30)
+                if str(r.status_code).startswith('2'):
+                    lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
 
-    elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
-        if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-            tar_download_url = 'https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz' % (
-                lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
-        else:
-            tar_download_url = 'https://%s/%s/%s/tarball/%s' % (
-                lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
-        update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
+            updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
+            upgradelog.write("%s %s" % (time.ctime(), "Updated version file to %s" %
+                             lazylibrarian.CONFIG['LATEST_VERSION']))
+            lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+            lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
+            return True
 
-        try:
-            logmsg('info', 'Downloading update from: ' + tar_download_url)
-            headers = {'User-Agent': getUserAgent()}
-            proxies = proxyList()
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-            if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
-                r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies,
-                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+        elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+            if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
+                tar_download_url = 'https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz' % (
+                    lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
+                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'],
+                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
             else:
-                r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies)
-        except requests.exceptions.Timeout:
-            logmsg('error', "Timeout retrieving new version from " + tar_download_url)
+                tar_download_url = 'https://%s/%s/%s/tarball/%s' % (
+                    lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
+                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
+            update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
+
+            try:
+                msg = 'Downloading update from: ' + tar_download_url
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('info', msg)
+                headers = {'User-Agent': getUserAgent()}
+                proxies = proxyList()
+                timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+                if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                    r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies,
+                                     verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                else:
+                    r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies)
+            except requests.exceptions.Timeout:
+                msg = "Timeout retrieving new version from " + tar_download_url
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('error', msg)
+                return False
+            except Exception as e:
+                errmsg = str(e)
+                msg = "Unable to retrieve new version from " + tar_download_url
+                msg += ", can't update: %s" % errmsg
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('error', msg)
+                return False
+
+            download_name = r.url.split('/')[-1]
+
+            tar_download_path = os.path.join(lazylibrarian.PROG_DIR, download_name)
+
+            # Save tar to disk
+            with open(syspath(tar_download_path), 'wb') as f:
+                f.write(r.content)
+
+            msg = 'Extracting file ' + tar_download_path
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
+            try:
+                with tarfile.open(tar_download_path) as tar:
+                    tar.extractall(update_dir)
+            except Exception as e:
+                msg = 'Failed to unpack tarfile %s (%s): %s' % (type(e).__name__,
+                                                                tar_download_path, str(e))
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('error', msg)
+                return False
+
+            msg = 'Deleting file ' + tar_download_path
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('info', msg)
+            os.remove(syspath(tar_download_path))
+
+            # Find update dir name
+            update_dir = makeUnicode(update_dir)
+            logmsg('debug', "update_dir [%s]" % update_dir)
+            update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
+            if len(update_dir_contents) != 1:
+                msg = "Invalid update data, update failed: " + str(update_dir_contents)
+                upgradelog.write("%s %s" % (time.ctime(), msg))
+                logmsg('error', msg)
+                return False
+            content_dir = os.path.join(update_dir, update_dir_contents[0])
+            logmsg('debug', "update_dir_contents [%s]" % str(update_dir_contents))
+            logmsg('debug', "Walking %s" % content_dir)
+            # walk temp folder and move files to main folder
+            for rootdir, _, filenames in walk(content_dir):
+                rootdir = rootdir[len(content_dir) + 1:]
+                for curfile in filenames:
+                    old_path = os.path.join(content_dir, rootdir, curfile)
+                    new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
+                    if old_path == new_path:
+                        msg = "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
+                               lazylibrarian.PROG_DIR, content_dir, rootdir, curfile)
+                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                        logmsg('error', msg)
+                    if os.path.isfile(new_path):
+                        os.remove(syspath(new_path))
+                    os.renames(syspath(old_path), syspath(new_path))
+
+            # Update version.txt and timestamp
+            updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
+            upgradelog.write("%s %s" % (time.ctime(), "Updated version file to %s" %
+                             lazylibrarian.CONFIG['LATEST_VERSION']))
+            lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+            lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
+            return True
+
+        else:
+            msg = "Cannot perform update - Install Type not set"
+            upgradelog.write("%s %s" % (time.ctime(), msg))
+            logmsg('error', msg)
             return False
-        except Exception as e:
-            errmsg = str(e)
-            logmsg('error',
-                   "Unable to retrieve new version from " + tar_download_url + ", can't update: %s" % errmsg)
-            return False
-
-        download_name = r.url.split('/')[-1]
-
-        tar_download_path = os.path.join(lazylibrarian.PROG_DIR, download_name)
-
-        # Save tar to disk
-        with open(syspath(tar_download_path), 'wb') as f:
-            f.write(r.content)
-
-        # Extract the tar to update folder
-        logmsg('info', 'Extracting file ' + tar_download_path)
-        try:
-            with tarfile.open(tar_download_path) as tar:
-                tar.extractall(update_dir)
-        except Exception as e:
-            logmsg('error', 'Failed to unpack tarfile %s (%s): %s' %
-                   (type(e).__name__, tar_download_path, str(e)))
-            return False
-
-        # Delete the tar.gz
-        logmsg('info', 'Deleting file ' + tar_download_path)
-        os.remove(syspath(tar_download_path))
-
-        # Find update dir name
-        update_dir = makeUnicode(update_dir)
-        logmsg('debug', "update_dir [%s]" % update_dir)
-        update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
-        if len(update_dir_contents) != 1:
-            logmsg('error', "Invalid update data, update failed: " + str(update_dir_contents))
-            return False
-        content_dir = os.path.join(update_dir, update_dir_contents[0])
-        logmsg('debug', "update_dir_contents [%s]" % str(update_dir_contents))
-        logmsg('debug', "Walking %s" % content_dir)
-        # walk temp folder and move files to main folder
-        for rootdir, _, filenames in walk(content_dir):
-            rootdir = rootdir[len(content_dir) + 1:]
-            for curfile in filenames:
-                old_path = os.path.join(content_dir, rootdir, curfile)
-                new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
-                if old_path == new_path:
-                    logmsg('error', "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
-                        lazylibrarian.PROG_DIR, content_dir, rootdir, curfile))
-                if os.path.isfile(new_path):
-                    os.remove(syspath(new_path))
-                os.renames(syspath(old_path), syspath(new_path))
-
-        # Update version.txt and timestamp
-        updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
-        lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
-        lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
-        return True
-
-    else:
-        logmsg('error', "Cannot perform update - Install Type not set")
-        return False
