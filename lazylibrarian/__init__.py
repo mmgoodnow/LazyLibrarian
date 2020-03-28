@@ -2143,7 +2143,9 @@ def shutdown(restart=False, update=False):
                         host = 'localhost'  # windows doesn't like 0.0.0.0
                     newserver = host
                     if CONFIG['HTTP_ROOT']:
-                        newserver = newserver + '/' + CONFIG['HTTP_ROOT']
+                        if not CONFIG['HTTP_ROOT'].startswith('/')
+                            newserver = newserver + '/'
+                        newserver = newserver + CONFIG['HTTP_ROOT']
                     else:
                         newserver = newserver + ':' + CONFIG['HTTP_PORT']
                     if not newserver.startswith('http'):
