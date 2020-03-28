@@ -61,7 +61,7 @@ COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
 DOCKER = False
-APPRISE = None
+APPRISE = ''
 
 # These are only used in startup
 SCHED = None
