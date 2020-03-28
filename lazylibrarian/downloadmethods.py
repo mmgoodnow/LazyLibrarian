@@ -614,7 +614,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 # need to check against reject words list again as the name may have changed
                 # library = magazine eBook AudioBook to determine which reject list
                 # but we can't easily do the per-magazine rejects
-                if library == 'Magazine':
+                if library == 'magazine':
                     reject_list = getList(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
                 elif library == 'eBook':
                     reject_list = getList(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
