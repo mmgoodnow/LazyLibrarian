@@ -476,25 +476,25 @@ def update():
     with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
             msg = 'Windows .exe updating not supported yet.'
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             return False
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'package':
             msg = 'Please use your package manager to update'
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             return False
         if lazylibrarian.DOCKER:
             msg = 'Docker does not officially allow upgrading the program inside the container,'
             msg += ' but we\'ll try anyway...'
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
 
         try:
             # try to create a backup in case the upgrade is faulty...
             backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
             msg = 'Backing up prior to upgrade'
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             zf = tarfile.open(backup_file, mode='w:gz')
             for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
@@ -509,12 +509,13 @@ def update():
                          'example_custom_notification.sh', 'example_ebook_convert.py',
                          'example.genres.json', 'example.monthnames.json']:
                 zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
+            zf.close()
             msg = 'Saved current version to %s' % backup_file
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
         except Exception as e:
             msg = "Failed to create backup: %s" % str(e)
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg("error", msg)
 
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
@@ -525,18 +526,18 @@ def update():
 
             if not output:
                 msg = 'Couldn\'t download latest version'
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
 
             for line in output.split('\n'):
                 if 'Already up to date' in line:
                     msg = 'No update available: ' + str(output)
-                    upgradelog.write("%s %s" % (time.ctime(), msg))
+                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg('info', msg)
                 elif 'Aborting' in line or 'local changes' in line:
                     msg = 'Unable to update: ' + str(output)
-                    upgradelog.write("%s %s" % (time.ctime(), msg))
+                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg('error', msg)
                     return False
 
@@ -553,7 +554,7 @@ def update():
                     lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
 
             updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
-            upgradelog.write("%s %s" % (time.ctime(), "Updated version file to %s" %
+            upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                              lazylibrarian.CONFIG['LATEST_VERSION']))
             lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
             lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
@@ -573,7 +574,7 @@ def update():
 
             try:
                 msg = 'Downloading update from: ' + tar_download_url
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('info', msg)
                 headers = {'User-Agent': getUserAgent()}
                 proxies = proxyList()
@@ -586,14 +587,14 @@ def update():
                     r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
             except requests.exceptions.Timeout:
                 msg = "Timeout retrieving new version from " + tar_download_url
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
             except Exception as e:
                 errmsg = str(e)
                 msg = "Unable to retrieve new version from " + tar_download_url
                 msg += ", can't update: %s" % errmsg
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
 
@@ -606,7 +607,7 @@ def update():
                 f.write(r.content)
 
             msg = 'Extracting file ' + tar_download_path
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             try:
                 with tarfile.open(tar_download_path) as tar:
@@ -614,12 +615,12 @@ def update():
             except Exception as e:
                 msg = 'Failed to unpack tarfile %s (%s): %s' % (type(e).__name__,
                                                                 tar_download_path, str(e))
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
 
             msg = 'Deleting file ' + tar_download_path
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             os.remove(syspath(tar_download_path))
 
@@ -629,7 +630,7 @@ def update():
             update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
             if len(update_dir_contents) != 1:
                 msg = "Invalid update data, update failed: " + str(update_dir_contents)
-                upgradelog.write("%s %s" % (time.ctime(), msg))
+                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
             content_dir = os.path.join(update_dir, update_dir_contents[0])
@@ -644,7 +645,7 @@ def update():
                     if old_path == new_path:
                         msg = "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
                                lazylibrarian.PROG_DIR, content_dir, rootdir, curfile)
-                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg('error', msg)
                     if os.path.isfile(new_path):
                         os.remove(syspath(new_path))
@@ -652,7 +653,7 @@ def update():
 
             # Update version.txt and timestamp
             updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
-            upgradelog.write("%s %s" % (time.ctime(), "Updated version file to %s" %
+            upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                              lazylibrarian.CONFIG['LATEST_VERSION']))
             lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
             lazylibrarian.CONFIG['CURRENT_VERSION'] = lazylibrarian.CONFIG['LATEST_VERSION']
@@ -660,6 +661,6 @@ def update():
 
         else:
             msg = "Cannot perform update - Install Type not set"
-            upgradelog.write("%s %s" % (time.ctime(), msg))
+            upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('error', msg)
             return False

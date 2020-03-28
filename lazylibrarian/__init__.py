@@ -2132,7 +2132,7 @@ def shutdown(restart=False, update=False):
 
             with open(syspath(os.path.join(CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
                 if updated:
-                    upgradelog.write("%s %s" % (time.ctime(),
+                    upgradelog.write("%s %s\n" % (time.ctime(),
                                      'Restarting LazyLibrarian with ' + str(popen_list)))
                 subprocess.Popen(popen_list, cwd=os.getcwd())
                 if 'HTTP_HOST' in CONFIG:
@@ -2148,7 +2148,7 @@ def shutdown(restart=False, update=False):
                         newserver = 'http://' + newserver
                     msg = "Waiting for %s to start" % newserver
                     if updated:
-                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg("info", msg)
                     pawse = 12
                     success = False
@@ -2171,11 +2171,11 @@ def shutdown(restart=False, update=False):
                     if success:
                         msg = 'Reached webserver page %s' % res
                         if updated:
-                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg("info", msg)
                     else:
                         msg = 'Webserver failed to start, reverting update'
-                        upgradelog.write("%s %s" % (time.ctime(), msg))
+                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg("info", msg)
                         archivename = 'backup.tgz'
                         if tarfile.is_tarfile(archivename):
@@ -2186,15 +2186,15 @@ def shutdown(restart=False, update=False):
                             except Exception as e:
                                 msg = 'Failed to unpack tarfile %s (%s): %s' % \
                                       (type(e).__name__, archivename, str(e))
-                                upgradelog.write("%s %s" % (time.ctime(), msg))
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
                                 logmsg("warn", msg)
                         else:
                             msg = "Invalid archive"
-                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
                             logmsg("warn", msg)
                         if success:
                             msg = "Restarting from backup"
-                            upgradelog.write("%s %s" % (time.ctime(), msg))
+                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
                             logmsg("info", msg)
                             subprocess.Popen(popen_list, cwd=os.getcwd())
 
