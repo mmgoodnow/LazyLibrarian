@@ -834,7 +834,7 @@ class Api(object):
             else:
                 self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
         else:
-            self.data = {regex_pass, issuedate, year}
+            self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
 
     def _createMagCovers(self, **kwargs):
         if 'refresh' in kwargs:

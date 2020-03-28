@@ -258,7 +258,7 @@ def month2num(month):
     # return month number given month name (long or short) in requested locales
     # or season name (only in English currently)
 
-    month = month.lower()
+    month = unaccented(month).lower()
     for f in range(1, 13):
         if month in lazylibrarian.MONTHNAMES[f]:
             return f
