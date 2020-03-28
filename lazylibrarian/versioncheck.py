@@ -330,11 +330,12 @@ def getLatestVersion_FromGit():
                     headers.update({'If-Modified-Since': age})
                 proxies = proxyList()
                 timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-                if url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                     r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
-                                     verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                                     verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                     if lazylibrarian.CONFIG['SSL_CERTS'] else True)
                 else:
-                    r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
+                    r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
 
                 if str(r.status_code).startswith('2'):
                     if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
@@ -385,11 +386,12 @@ def getCommitDifferenceFromGit():
             headers = {'User-Agent': getUserAgent()}
             proxies = proxyList()
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-            if url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                 r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
-                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                 if lazylibrarian.CONFIG['SSL_CERTS'] else True)
             else:
-                r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies)
+                r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
             git = r.json()
             # for gitlab, commits = len(git['commits'])  no status/ahead/behind
             if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
@@ -542,7 +544,11 @@ def update():
             if 'LATEST_VERSION' not in lazylibrarian.CONFIG:
                 lazylibrarian.CONFIG['LATEST_VERSION'] = 'Unknown'
                 url = 'https://lazylibrarian.gitlab.io/version.json'
-                r = requests.get(url, timeout=30)
+                if lazylibrarian.CONFIG['SSL_VERIFY']:
+                    r = requests.get(url, timeout=30, verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                     if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                else:
+                    r = requests.get(url, timeout=30, verify=False)
                 if str(r.status_code).startswith('2'):
                     lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
 
@@ -572,11 +578,12 @@ def update():
                 headers = {'User-Agent': getUserAgent()}
                 proxies = proxyList()
                 timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-                if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+                if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                     r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies,
-                                     verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                                     verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                     if lazylibrarian.CONFIG['SSL_CERTS'] else True)
                 else:
-                    r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies)
+                    r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
             except requests.exceptions.Timeout:
                 msg = "Timeout retrieving new version from " + tar_download_url
                 upgradelog.write("%s %s" % (time.ctime(), msg))

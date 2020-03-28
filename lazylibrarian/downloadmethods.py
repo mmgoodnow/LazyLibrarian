@@ -237,11 +237,11 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             return False, res
     try:
         logger.debug("%s %s" % (provider, str(headers)))
-        if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+        if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
             r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                             verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                             verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
         else:
-            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies)
+            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
     except requests.exceptions.Timeout:
         res = 'Timeout fetching file from url: %s' % dl_url
         logger.warn(res)
@@ -373,11 +373,12 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
 
         try:
             logger.debug("Fetching %s" % tor_url)
-            if tor_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            if tor_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                 r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies,
-                                 verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                 if lazylibrarian.CONFIG['SSL_CERTS'] else True)
             else:
-                r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies)
+                r = requests.get(tor_url, headers=headers, timeout=90, proxies=proxies, verify=False)
             if str(r.status_code).startswith('2'):
                 torrent = r.content
                 if not len(torrent):

@@ -314,11 +314,12 @@ def torrentAction(method, arguments):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Requesting session_id')
         try:
-            if host_url.startswith('https') and lazylibrarian.CONFIG['SSL_CERTS']:
+            if host_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout,
-                                        verify=lazylibrarian.CONFIG['SSL_CERTS'])
+                                        verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                        if lazylibrarian.CONFIG['SSL_CERTS'] else True)
             else:
-                response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout)
+                response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout, verify=False)
         except Exception as e:
             res = 'Transmission %s: %s' % (type(e).__name__, str(e))
             logger.error(res)

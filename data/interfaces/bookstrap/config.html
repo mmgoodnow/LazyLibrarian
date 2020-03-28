@@ -105,6 +105,25 @@
                         <input type="text" id="https_key" name="https_key" value="${lazylibrarian.CONFIG['HTTPS_KEY']}" class="form-control" placeholder="https key">
                       </div>
                     </fieldset>
+                    <div class="row checkbox">
+                    <div class="col-md-6">
+                      <%
+                        if lazylibrarian.CONFIG['SSL_VERIFY'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="ssl_verify" class="control-label">
+                        <input type="checkbox" id="ssl_verify" name="ssl_verify" value="1" ${checked} />
+                        Verify ssl certificates</label>
+                    </div>
+                    </div>
+                    <fieldset id="ssl_options">
+                      <div class="form-group">
+                        <label for="ssl_certs" class="control-label">SSL Certificates:</label>
+                        <input type="text" id="ssl_certs" name="ssl_certs" value="${lazylibrarian.CONFIG['SSL_CERTS']}" class="form-control" placeholder="leave empty to use requests certificate">
+                      </div>
+                    </fieldset>
                     <fieldset>
                       <legend>Logs</legend>
                       <div class="input-group">

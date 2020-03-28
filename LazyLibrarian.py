@@ -124,6 +124,7 @@ def main():
         lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
         lazylibrarian.CONFIG['PROXY_HOST'] = ''
         lazylibrarian.CONFIG['SSL_CERTS'] = ''
+        lazylibrarian.CONFIG['SSL_VERIFY'] = False
         if lazylibrarian.CACHEDIR == '':
             lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
         lazylibrarian.CONFIG['LOGLIMIT'] = 2000

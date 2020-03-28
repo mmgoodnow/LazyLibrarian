@@ -61,6 +61,7 @@ COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
 DOCKER = False
+APPRISE = None
 
 # These are only used in startup
 SCHED = None
@@ -200,7 +201,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
                  'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
                  'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
-                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME', 'SSL_CERTS',
+                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
                  'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
@@ -257,6 +258,7 @@ CONFIG_DEFINITIONS = {
     'HTTPS_CERT': ('str', 'General', ''),
     'HTTPS_KEY': ('str', 'General', ''),
     'SSL_CERTS': ('str', 'General', ''),
+    'SSL_VERIFY': ('bool', 'General', 0),
     'HTTP_TIMEOUT': ('int', 'General', 30),
     'HTTP_EXT_TIMEOUT': ('int', 'General', 90),
     'BOOKSTRAP_THEME': ('str', 'General', 'slate'),

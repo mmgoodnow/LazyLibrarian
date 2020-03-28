@@ -90,6 +90,25 @@
                         $("#https_options").slideUp();
                 }
         });
+        if ($("#ssl_verify").is(":checked"))
+            {
+                    $("#ssl_options").show();
+            }
+            else
+            {
+                    $("#ssl_options").hide();
+            }
+
+        $("#ssl_verify").click(function(){
+                if ($("#ssl_verify").is(":checked"))
+                {
+                        $("#ssl_options").slideDown();
+                }
+                else
+                {
+                        $("#ssl_options").slideUp();
+                }
+        });
 
         if ($("#audio_tab").is(":checked"))
             {

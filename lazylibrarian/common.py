@@ -1263,9 +1263,10 @@ def logHeader():
         header += "urllib3: missing\n"
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     try:
-        if lazylibrarian.CONFIG['SSL_CERTS']:
+        if lazylibrarian.CONFIG['SSL_VERIFY']:
             tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                       verify=lazylibrarian.CONFIG['SSL_CERTS']).json()['tls_version']
+                                       verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                       if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
         else:
             logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
             tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
