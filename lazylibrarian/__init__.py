@@ -2135,22 +2135,26 @@ def shutdown(restart=False, update=False):
                     upgradelog.write("%s %s\n" % (time.ctime(),
                                      'Restarting LazyLibrarian with ' + str(popen_list)))
                 subprocess.Popen(popen_list, cwd=os.getcwd())
+
                 if 'HTTP_HOST' in CONFIG:
                     # updating a running instance, not an --update
                     # wait for it to open the httpserver
                     host = CONFIG['HTTP_HOST']
                     if '0.0.0.0' in host:
                         host = 'localhost'  # windows doesn't like 0.0.0.0
-                    newserver = host
+
+                    if not host.startswith('http'):
+                        host = 'http://' + host
+
+                    # depending on proxy might need host:port/root or just host/root
                     if CONFIG['HTTP_ROOT']:
-                        if not CONFIG['HTTP_ROOT'].startswith('/'):
-                            newserver = newserver + '/'
-                        newserver = newserver + CONFIG['HTTP_ROOT']
+                        server1 = host + ':' + CONFIG['HTTP_PORT'] + '/' + CONFIG['HTTP_ROOT'].lstrip('/')
+                        server2 = host + '/' + CONFIG['HTTP_ROOT'].lstrip('/')
                     else:
-                        newserver = newserver + ':' + CONFIG['HTTP_PORT']
-                    if not newserver.startswith('http'):
-                        newserver = 'http://' + newserver
-                    msg = "Waiting for %s to start" % newserver
+                        server1 = host + ':' + CONFIG['HTTP_PORT']
+                        server2 = ''
+
+                    msg = "Waiting for %s to start" % server1
                     if updated:
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg("info", msg)
@@ -2158,7 +2162,9 @@ def shutdown(restart=False, update=False):
                     success = False
                     res = ''
                     while pawse:
-                        result, success = fetchURL(newserver, retry=False)
+                        result, success = fetchURL(server1, retry=False)
+                        if not success and server2:
+                            result, success = fetchURL(server2, retry=False)
                         if success:
                             try:
                                 res = result.split('<title>')[1].split('</title>')[0]
