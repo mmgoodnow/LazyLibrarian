@@ -790,13 +790,12 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                             while aname[-1] in '_. ':
                                                 aname = aname[:-1]
 
+                                            targetdir = os.path.join(download_dir, aname + '.unpack')
                                             if lazylibrarian.CONFIG['DESTINATION_COPY'] or \
                                                     (book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and
                                                      lazylibrarian.CONFIG['KEEP_SEEDING']):
-                                                targetdir = os.path.join(download_dir, aname + '.unpack')
                                                 move = 'copy'
                                             else:
-                                                targetdir = os.path.join(download_dir, aname)
                                                 move = 'move'
 
                                             if make_dirs(targetdir):
