@@ -112,6 +112,20 @@ def main():
     if options.nolaunch:
         lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
 
+    if options.datadir:
+        lazylibrarian.DATADIR = str(options.datadir)
+    else:
+        lazylibrarian.DATADIR = lazylibrarian.PROG_DIR
+
+    if not path_isdir(lazylibrarian.DATADIR):
+        try:
+            os.makedirs(lazylibrarian.DATADIR)
+        except OSError:
+            raise SystemExit('Could not create data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
+
+    if not os.access(lazylibrarian.DATADIR, os.W_OK):
+        raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
+
     if options.update:
         lazylibrarian.SIGNAL = 'update'
         # This is the "emergency recovery" update in case lazylibrarian won't start.
@@ -128,6 +142,12 @@ def main():
         if lazylibrarian.CACHEDIR == '':
             lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
         lazylibrarian.CONFIG['LOGLIMIT'] = 2000
+        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+        if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
+            try:
+                os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
+            except OSError:
+                raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
 
         versioncheck.getInstallType()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
@@ -144,11 +164,6 @@ def main():
         except ValueError:
             lazylibrarian.LOGLEVEL = 2
 
-    if options.datadir:
-        lazylibrarian.DATADIR = str(options.datadir)
-    else:
-        lazylibrarian.DATADIR = lazylibrarian.PROG_DIR
-
     if options.config:
         lazylibrarian.CONFIGFILE = str(options.config)
     else:
@@ -157,16 +172,6 @@ def main():
     if options.pidfile:
         if lazylibrarian.DAEMON:
             lazylibrarian.PIDFILE = str(options.pidfile)
-
-    # create and check (optional) paths
-    if not path_isdir(lazylibrarian.DATADIR):
-        try:
-            os.makedirs(lazylibrarian.DATADIR)
-        except OSError:
-            raise SystemExit('Could not create data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
-
-    if not os.access(lazylibrarian.DATADIR, os.W_OK):
-        raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
 
     print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
     time.sleep(4)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
