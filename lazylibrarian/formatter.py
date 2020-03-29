@@ -717,6 +717,11 @@ def dispName(provider):
                 provname = item['DISPNAME']
                 break
     if not provname:
+        for item in lazylibrarian.IRC_PROV:
+            if item['NAME'] == provider:
+                provname = item['DISPNAME']
+                break
+    if not provname:
         provname = provider
 
     if len(provname) > 20:
