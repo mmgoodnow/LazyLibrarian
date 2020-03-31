@@ -36,9 +36,19 @@ except ImportError:
 
 def preprocess_ebook(bookfolder):
     ebook_convert = lazylibrarian.CONFIG['EBOOK_CONVERT']
-    if not path_exists(ebook_convert):
-        logger.error("%s not found" % ebook_convert)
+    if not ebook_convert:
+        logger.error("Check config setting for ebook-convert")
         return
+
+    try:
+        params = [ebook_convert, "--version"]
+        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+        res = makeUnicode(res).strip().split("(")[1].split(")")[0]
+        logger.debug("Found ebook-convert version %s" % res)
+        convert_ver = res
+    except Exception as e:
+        logger.debug("ebook-convert --version failed: %s %s" % (type(e).__name__, str(e)))
+        convert_ver = ''
 
     logger.debug("Preprocess ebook %s" % bookfolder)
     sourcefile = None
@@ -48,16 +58,19 @@ def preprocess_ebook(bookfolder):
         if extn.lower() == '.epub':
             sourcefile = fname
             break
-        elif extn.lower() in ['.mobi', '.azw3']:
-            sourcefile = fname
-            break
+    if not sourcefile:
+        for fname in listdir(bookfolder):
+            filename, extn = os.path.splitext(fname)
+            if extn.lower() in ['.mobi', '.azw3']:
+                sourcefile = fname
+                break
 
-    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     if not sourcefile:
         logger.error("No suitable sourcefile found in %s" % bookfolder)
         return
 
     basename, source_extn = os.path.splitext(sourcefile)
+    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     wanted_formats = getList(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
@@ -66,15 +79,18 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            try:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                if created:
-                    created += ' '
-                created += ftype
-            except Exception as e:
-                logger.error("%s" % e)
-                logger.error(repr(params))
-                return
+            if convert_ver:
+                try:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    if created:
+                        created += ' '
+                    created += ftype
+                except Exception as e:
+                    logger.error("%s" % e)
+                    logger.error(repr(params))
+                    return
+            else:
+                logger.warn("Unable to create %s" % ftype)
         else:
             logger.debug("Found %s" % ftype)
 
@@ -102,18 +118,18 @@ def preprocess_audio(bookfolder, authorname, bookname):
         return
 
     ffmpeg = lazylibrarian.CONFIG['FFMPEG']
-    if not path_exists(ffmpeg):
-        logger.error("%s not found" % ffmpeg)
+    if not ffmpeg:
+        logger.error("Check config setting for ffmpeg")
         return
     try:
         params = [ffmpeg, "-version"]
         res = subprocess.check_output(params, stderr=subprocess.STDOUT)
         res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
         logger.debug("Found ffmpeg version %s" % res)
-        FF_VER = res
+        ff_ver = res
     except Exception as e:
         logger.debug("ffmpeg -version failed: %s %s" % (type(e).__name__, str(e)))
-        FF_VER = ''
+        ff_ver = ''
 
     logger.debug("Preprocess audio %s %s %s" % (bookfolder, authorname, bookname))
     partslist = os.path.join(bookfolder, "partslist.ll")
@@ -141,7 +157,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
-            if FF_VER and lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] and authorname and bookname:
+            if ff_ver and lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -159,7 +175,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                         logger.error(str(e))
                         return
 
-    if FF_VER and lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
+    if ff_ver and lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
         try:
