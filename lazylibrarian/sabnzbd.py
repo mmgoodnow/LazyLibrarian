@@ -44,7 +44,7 @@ def checkLink():
     return "SABnzbd connection successful"
 
 
-def SABnzbd(title=None, nzburl=None, remove_data=False):
+def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
 
     if nzburl in ['delete', 'delhistory'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
@@ -79,8 +79,10 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         title = 'LL.(%s)' % nzburl
     elif nzburl == 'queue':
         params['mode'] = 'queue'
-        params['limit'] = '100'
+        params['limit'] = '50'
         params['output'] = 'json'
+        if search:
+            params['search'] = search
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -90,8 +92,10 @@ def SABnzbd(title=None, nzburl=None, remove_data=False):
         title = 'LL.(Queue)'
     elif nzburl == 'history':
         params['mode'] = 'history'
-        params['limit'] = '100'
+        params['limit'] = '50'
         params['output'] = 'json'
+        if search:
+            params['search'] = search
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:

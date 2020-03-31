@@ -1254,12 +1254,15 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
             hours = 0
             mins = 0
             progress = 'Unknown'
+            finished = False
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 logger.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
             if book['Status'] == "Aborted":
                 abort = True
-            elif book['Status'] == "Seeding":
+            else:
                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+
+            if book['Status'] == "Seeding":
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
                                                                          lazylibrarian.CONFIG['SEED_WAIT']))
@@ -1298,9 +1301,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 else:
                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
 
-            elif book['Status'] == "Snatched" and lazylibrarian.CONFIG['TASK_AGE']:
-                # FUTURE: we could monitor percentage downloaded or eta?
-                # if percentage is increasing, it's just slow, or if eta is soon wait a bit longer
+            if book['Status'] == "Snatched":
                 try:
                     when_snatched = datetime.datetime.strptime(book['NZBdate'], '%Y-%m-%d %H:%M:%S')
                     timenow = datetime.datetime.now()
@@ -1310,8 +1311,12 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     diff = 0
                 hours = int(diff / 3600)
                 mins = int(diff / 60)
-                if hours >= lazylibrarian.CONFIG['TASK_AGE']:
-                    progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
+
+                # has it been aborted (wait a short while before checking)
+                if mins > 5 and progress < 0:
+                    abort = True
+
+                if lazylibrarian.CONFIG['TASK_AGE'] and hours >= lazylibrarian.CONFIG['TASK_AGE']:
                     # SAB can report 100% (or more) and not finished if missing blocks and needs repair
                     if check_int(progress, 0) < 95:
                         abort = True
@@ -1325,9 +1330,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         progress = "%s" % progress
                         if progress.isdigit():  # could be "Unknown" or -1
                             progress = progress + '%'
-                        dlresult = '%s was sent to %s %s hours ago. Progress: %s' % (book['NZBtitle'],
-                                                                                     book['Source'],
-                                                                                     hours, progress)
+                        dlresult = '%s was  sent to %s %s hours ago. Progress: %s' % (book['NZBtitle'],
+                                                                                      book['Source'],
+                                                                                      hours, progress)
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
                     logger.warn('%s, deleting failed task' % dlresult)
@@ -1360,12 +1365,18 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
-        snatched = myDB.select('SELECT * from wanted WHERE Status IN ("Snatched", "Seeding")')
-        if len(snatched) == 0:
+        snatched = myDB.select('SELECT * from wanted WHERE Status == "Snatched"')
+        seeding = myDB.select('SELECT * from wanted WHERE Status == Seeding"')
+        if not len(snatched) and not len(seeding):
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             scheduleJob(action='Stop', target='PostProcessor')
+            status['status'] = 'idle'
             status['action'] = 'Stopped'
-
+        elif len(seeding):
+            logger.info('Seeding %s' % len(seeding))
+            scheduleJob(action='Restart', target='PostProcessor')
+            status['status'] = 'seeding'
+            status['action'] = 'Restarted'
         elif reset:
             scheduleJob(action='Restart', target='PostProcessor')
             status['action'] = 'Restarted'
@@ -1711,7 +1722,13 @@ def getDownloadProgress(source, downloadid):
                 progress = 0
 
         elif source == 'SABNZBD':
-            res, _ = sabnzbd.SABnzbd(nzburl='queue')
+            myDB = database.DBConnection()
+            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            search = None
+            data = myDB.match(cmd, (downloadid, source))
+            if data:
+                search = data['NZBtitle']
+            res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
             found = False
             if res and 'queue' in res:
                 for item in res['queue']['slots']:
@@ -1720,7 +1737,7 @@ def getDownloadProgress(source, downloadid):
                         progress = item['percentage']
                         break
             if not found:  # not in queue, try history in case completed or error
-                res, _ = sabnzbd.SABnzbd(nzburl='history')
+                res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
                 if res and 'history' in res:
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
