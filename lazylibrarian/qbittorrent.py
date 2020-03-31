@@ -87,18 +87,22 @@ class qbittorrentclient(object):
     def _get_sid(self, base_url, username, password):
         # login so we can capture SID cookie
         login_data = makeBytestr(urlencode({'username': username, 'password': password}))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('Trying ' + base_url + '/login')
         try:
             _ = self.opener.open(base_url + '/login', login_data)
             self.cmdset = 1
         except Exception as err:
             if '404' in str(err):
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug('Trying ' + base_url + '/api/v2/auth/login')
                 try:
                     _ = self.opener.open(base_url + '/api/v2/auth/login', login_data)
                     self.cmdset = 2
                 except Exception as err:
-                    logger.error('Error getting SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+                    logger.error('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
             else:
-                logger.error('Error getting SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+                logger.error('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
         if not self.cmdset:
             logger.warn('Unable to log in to %s/login' % base_url)
             return
