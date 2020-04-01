@@ -1365,8 +1365,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
         myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
-        snatched = myDB.select('SELECT * from wanted WHERE Status == "Snatched"')
-        seeding = myDB.select('SELECT * from wanted WHERE Status == Seeding"')
+        snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
+        seeding = myDB.select('SELECT * from wanted WHERE Status="Seeding"')
         if not len(snatched) and not len(seeding):
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             scheduleJob(action='Stop', target='PostProcessor')
