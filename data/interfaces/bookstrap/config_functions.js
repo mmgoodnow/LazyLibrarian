@@ -1463,7 +1463,7 @@
         });
 
         $("form #bookstrap_theme").on("change", function() {
-            $("head #theme").attr("href", "https://maxcdn.bootstrapcdn.com/bootswatch/3.3.6/" + $(this).val() + "/bootstrap.min.css");
+            $("head #theme").attr("href", "https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/" + $(this).val() + "/bootstrap.min.css");
         });
     }
 </script>
