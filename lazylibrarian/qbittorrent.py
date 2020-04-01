@@ -76,7 +76,7 @@ class qbittorrentclient(object):
         # noinspection PyBroadException
         try:
             if self.cmdset == 2:
-                version = float(self._command('app/webapiVersion'))
+                version = self._command('app/webapiVersion')
             else:
                 version = int(self._command('version/api'))
         except Exception as err:
@@ -93,18 +93,17 @@ class qbittorrentclient(object):
             _ = self.opener.open(base_url + '/login', login_data)
             self.cmdset = 1
         except Exception as err:
-            if '404' in str(err):
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug('Trying ' + base_url + '/api/v2/auth/login')
-                try:
-                    _ = self.opener.open(base_url + '/api/v2/auth/login', login_data)
-                    self.cmdset = 2
-                except Exception as err:
-                    logger.error('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
-            else:
-                logger.error('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+            logger.error('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug('Trying ' + base_url + '/api/v2/auth/login')
+            try:
+                _ = self.opener.open(base_url + '/api/v2/auth/login', login_data)
+                self.cmdset = 2
+            except Exception as err:
+                logger.error('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+
         if not self.cmdset:
-            logger.warn('Unable to log in to %s/login' % base_url)
+            logger.warn('Unable to log in to %s' % base_url)
             return
         for cookie in self.cookiejar:
             logger.debug('login cookie: ' + cookie.name + ', value: ' + cookie.value)
