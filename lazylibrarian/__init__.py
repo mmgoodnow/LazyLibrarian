@@ -61,7 +61,7 @@ COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
 DOCKER = False
-APPRISE = ' '
+# APPRISE not declared here, done in notifier
 
 # These are only used in startup
 SCHED = None
