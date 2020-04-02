@@ -278,20 +278,23 @@ def _get_auth():
     try:
         response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth, timeout=timeout,
                                  verify=deluge_verify_cert, headers=headers)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('Status code: %s' % response.status_code)
+            logger.debug(response.text)
     except requests.ConnectionError:
         try:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Deluge: Connection failed, let\'s try HTTPS just in case')
             response = requests.post(delugeweb_url.replace('http:', 'https:'), json=post_json, timeout=timeout,
                                      cookies=delugeweb_auth, verify=deluge_verify_cert, headers=headers)
-            # If the previous line didn't fail, change delugeweb_url for the rest of this session
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug('Status code: %s' % response.status_code)
+                logger.debug(response.text)
+            # If the response didn't fail, change delugeweb_url for the rest of this session
             logger.error('Deluge: Switching to HTTPS, certificate won\'t be verified NO CERTIFICATE WAS CONFIGURED')
             delugeweb_url = delugeweb_url.replace('http:', 'https:')
         except Exception as e:
             logger.error('Deluge: HTTPS Authentication failed: %s' % str(e))
-            # if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            #     formatted_lines = traceback.format_exc().splitlines()
-            #     logger.debug('; '.join(formatted_lines))
             return None
     except Exception as err:
         logger.error('Deluge %s: auth.login returned %s' % (type(err).__name__, str(err)))
@@ -300,8 +303,14 @@ def _get_auth():
             logger.debug('; '.join(formatted_lines))
         return None
 
-    auth = response.json()["result"]
-    auth_error = response.json()["error"]
+    try:
+        auth = response.json()["result"]
+        auth_error = response.json()["error"]
+    except Exception as err:
+        logger.error("JSON error: %s" % str(err))
+        logger.error("Response: %s" % response.text)
+        return None
+
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authentication result: %s, Error: %s' % (auth, auth_error))
     delugeweb_auth = response.cookies
@@ -345,7 +354,7 @@ def _get_auth():
 
         # Check if delugeweb_hosts is None before checking its length
         if not delugeweb_hosts or len(delugeweb_hosts) == 0:
-            logger.error('Deluge: WebUI does not contain daemons')
+            logger.error('Deluge: %s' % response.text)
             delugeweb_auth = {}
             return None
 
