@@ -285,15 +285,10 @@ def _get_auth():
             force_https = False
         else:
             force_https = True
-    except requests.ConnectionError:
-        response = None
-        force_https = True
     except Exception as err:
         logger.error('Deluge %s: auth.login returned %s' % (type(err).__name__, str(err)))
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            formatted_lines = traceback.format_exc().splitlines()
-            logger.debug('; '.join(formatted_lines))
-        return None
+        response = None
+        force_https = True
 
     if force_https and not delugeweb_url.startswith('https:'):
         try:
@@ -314,6 +309,9 @@ def _get_auth():
         except Exception as e:
             logger.error('Deluge: HTTPS Authentication failed: %s' % str(e))
             return None
+
+    if not response:
+        return None
 
     try:
         auth = response.json()["result"]

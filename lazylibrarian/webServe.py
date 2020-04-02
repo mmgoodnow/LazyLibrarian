@@ -5602,12 +5602,6 @@ class WebInterface(object):
             lazylibrarian.CONFIG['DELUGE_LABEL'] = kwargs['label']
         if 'user' in kwargs:
             lazylibrarian.CONFIG['DELUGE_USER'] = kwargs['user']
-            # if daemon, no cert used
-            lazylibrarian.CONFIG['DELUGE_CERT'] = ''
-            # and host must not contain http:// or https://
-            host = lazylibrarian.CONFIG['DELUGE_HOST']
-            host = host.replace('https://', '').replace('http://', '')
-            lazylibrarian.CONFIG['DELUGE_HOST'] = host
 
         try:
             if not lazylibrarian.CONFIG['DELUGE_USER']:
@@ -5617,6 +5611,12 @@ class WebInterface(object):
                     return msg
             else:
                 # if there's a username, talk to the daemon directly
+                # if daemon, no cert used
+                lazylibrarian.CONFIG['DELUGE_CERT'] = ''
+                # and host must not contain http:// or https://
+                host = lazylibrarian.CONFIG['DELUGE_HOST']
+                host = host.replace('https://', '').replace('http://', '')
+                lazylibrarian.CONFIG['DELUGE_HOST'] = host
                 client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'],
                                          check_int(lazylibrarian.CONFIG['DELUGE_PORT'], 0),
                                          lazylibrarian.CONFIG['DELUGE_USER'],
