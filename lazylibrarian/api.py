@@ -191,6 +191,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'preprocessAudio': '&dir= &author= &title= preprocess an audiobook folder',
             'preprocessBook': '&dir= preprocess an ebook folder',
             'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
+            'memoryUsage': 'memory usage of the program in kB',
             }
 
 
@@ -285,6 +286,13 @@ class Api(object):
             rows_as_dic.append(row_as_dic)
 
         return rows_as_dic
+
+    def _memoryUsage(self):
+        """ Current Memory usage in kB """
+
+        with open('/proc/self/status') as f:
+            memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
+        self.data = memusage.strip()
 
     @staticmethod
     def _gc_init():

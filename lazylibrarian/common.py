@@ -40,6 +40,13 @@ import ssl
 import sqlite3
 import cherrypy
 
+try:
+    # noinspection PyUnresolvedReferences
+    import psutil
+    PSUTIL = True
+except ImportError:
+    PSUTIL = False
+
 # some mac versions include requests _without_ urllib3, our copy bundles it
 try:
     # noinspection PyUnresolvedReferences
@@ -97,6 +104,39 @@ quotes = [
     u'\uff62',  # halfwidth left corner bracket
     u'\uff63',  # halfwidth right corner bracket
 ]
+
+
+def elapsed_since(start):
+    return time.strftime("%H:%M:%S", time.gmtime(time.time() - start))
+
+
+def get_process_memory():
+    process = psutil.Process(os.getpid())
+    return process.memory_info().rss
+
+
+def track(func):
+    # decorator to show memory usage and running time of a function
+    # to use, from lazylibrarian.common import track
+    # then decorate the function(s) to track  eg...
+    # @track
+    # def search_book():
+    def wrapper(*args, **kwargs):
+        if PSUTIL:
+            mem_before = get_process_memory()
+            start = time.time()
+            result = func(*args, **kwargs)
+            elapsed_time = elapsed_since(start)
+            mem_after = get_process_memory()
+            logger.debug("{}: memory before: {:,}, after: {:,}, consumed: {:,}; exec time: {}".format(
+                func.__name__,
+                mem_before, mem_after, mem_after - mem_before,
+                elapsed_time))
+        else:
+            logger.debug("psutil is not installed")
+            result = func(*args, **kwargs)
+        return result
+    return wrapper
 
 
 def getUserAgent():

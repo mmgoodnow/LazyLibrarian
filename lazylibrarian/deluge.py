@@ -265,7 +265,7 @@ def _get_auth():
     if delugeweb_cert is None or delugeweb_cert.strip() == '':
         deluge_verify_cert = False
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug('Deluge: FYI no SSL certificate configured')
+            logger.debug('Deluge: FYI no SSL certificate configured, host is %s' % delugeweb_host)
     else:
         deluge_verify_cert = delugeweb_cert
         delugeweb_host = delugeweb_host.replace('http:', 'https:')
@@ -281,7 +281,21 @@ def _get_auth():
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
+        if response.status_code == 200:
+            force_https = False
+        else:
+            force_https = True
     except requests.ConnectionError:
+        response = None
+        force_https = True
+    except Exception as err:
+        logger.error('Deluge %s: auth.login returned %s' % (type(err).__name__, str(err)))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            formatted_lines = traceback.format_exc().splitlines()
+            logger.debug('; '.join(formatted_lines))
+        return None
+
+    if force_https and not delugeweb_url.startswith('https:'):
         try:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Deluge: Connection failed, let\'s try HTTPS just in case')
@@ -291,17 +305,15 @@ def _get_auth():
                 logger.debug('Status code: %s' % response.status_code)
                 logger.debug(response.text)
             # If the response didn't fail, change delugeweb_url for the rest of this session
-            logger.error('Deluge: Switching to HTTPS, certificate won\'t be verified NO CERTIFICATE WAS CONFIGURED')
-            delugeweb_url = delugeweb_url.replace('http:', 'https:')
+            if response.status_code == 200:
+                logger.error('Deluge: Switching to HTTPS, certificate won\'t be verified NO CERTIFICATE WAS CONFIGURED')
+                delugeweb_url = delugeweb_url.replace('http:', 'https:')
+            else:
+                logger.error('Deluge: HTTPS Authentication failed: %s' % response.text)
+                return None
         except Exception as e:
             logger.error('Deluge: HTTPS Authentication failed: %s' % str(e))
             return None
-    except Exception as err:
-        logger.error('Deluge %s: auth.login returned %s' % (type(err).__name__, str(err)))
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            formatted_lines = traceback.format_exc().splitlines()
-            logger.debug('; '.join(formatted_lines))
-        return None
 
     try:
         auth = response.json()["result"]
