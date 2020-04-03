@@ -2179,10 +2179,17 @@ def shutdown(restart=False, update=False):
                         pawse -= 1
 
                     if success:
-                        msg = 'Reached webserver page %s' % res
+                        msg = 'Reached webserver page %s, deleting backup' % res
                         if updated:
                             upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg("info", msg)
+                        try:
+                            os.remove(archivename)
+                        except OSError as e:
+                            if e.errno != 2:  # doesn't exist is ok
+                                msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
+                                                           archivename, e.strerror)
+                                logmsg("warn", msg)
                     else:
                         msg = 'Webserver failed to start, reverting update'
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
