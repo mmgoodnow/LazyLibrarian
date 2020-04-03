@@ -139,6 +139,16 @@ def track(func):
     return wrapper
 
 
+def cpu_use():
+    if PSUTIL:
+        p = psutil.Process()
+        blocking = p.cpu_percent(interval=1)
+        nonblocking = p.cpu_percent(interval=None)
+        return "Blocking %s%% Non-Blocking %s%% %s" % (blocking, nonblocking, p.cpu_times())
+    else:
+        return "Unknown - install psutil"
+
+
 def getUserAgent():
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
     if lazylibrarian.CONFIG['USER_AGENT']:

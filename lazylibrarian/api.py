@@ -35,7 +35,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comicScan
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clearLog, restartJobs, showJobs, checkRunningJobs, aaUpdate, setperm, \
-    logHeader, authorUpdate, showStats, seriesUpdate, listdir, path_isfile, path_isdir, syspath
+    logHeader, authorUpdate, showStats, seriesUpdate, listdir, path_isfile, path_isdir, syspath, cpu_use
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, replace_all
 from lazylibrarian.gb import GoogleBooks
@@ -191,7 +191,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'preprocessAudio': '&dir= &author= &title= preprocess an audiobook folder',
             'preprocessBook': '&dir= preprocess an ebook folder',
             'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
-            'memoryUsage': 'memory usage of the program in kB',
+            'memUse': 'memory usage of the program in kB',
+            'cpuUse': 'recent cpu usage of the program',
             }
 
 
@@ -287,12 +288,15 @@ class Api(object):
 
         return rows_as_dic
 
-    def _memoryUsage(self):
+    def _memUse(self):
         """ Current Memory usage in kB """
 
         with open('/proc/self/status') as f:
             memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
         self.data = memusage.strip()
+
+    def _cpuUse(self):
+        self.data = cpu_use()
 
     @staticmethod
     def _gc_init():
