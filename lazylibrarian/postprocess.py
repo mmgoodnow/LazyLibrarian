@@ -1164,9 +1164,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 to_delete = False
                             if to_delete:
                                 # walk up any subdirectories
-                                while os.path.dirname(pp_path) != download_dir:
-                                    pp_path = os.path.dirname(pp_path)
-
+                                if pp_path.startswith(download_dir):
+                                    while os.path.dirname(pp_path) != download_dir:
+                                        logger.debug("[%s][%s]" % (pp_path, download_dir))
+                                        pp_path = os.path.dirname(pp_path)
                                 try:
                                     shutil.rmtree(pp_path)
                                     logger.debug('Deleted %s for %s, %s from %s' %
