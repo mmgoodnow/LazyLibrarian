@@ -1165,8 +1165,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             if to_delete:
                                 # walk up any subdirectories
                                 if pp_path.startswith(download_dir):
-                                    while os.path.dirname(pp_path) != download_dir:
-                                        logger.debug("[%s][%s]" % (pp_path, download_dir))
+                                    logger.debug("[%s][%s]" % (pp_path, download_dir))
+                                    while os.path.dirname(pp_path) != download_dir.rstrip(os.sep):
                                         pp_path = os.path.dirname(pp_path)
                                 try:
                                     shutil.rmtree(pp_path)
