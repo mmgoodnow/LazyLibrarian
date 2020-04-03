@@ -1957,6 +1957,8 @@ class WebInterface(object):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
             rowlist = myDB.select(cmd, tuple(args))
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                logger.debug("getBooks selected %s" % len(rowlist))
 
             if library is None:
                 rowlist = []
@@ -1970,6 +1972,8 @@ class WebInterface(object):
                     if lazylibrarian.CONFIG['SORT_DEFINITE']:
                         entry[2] = sortDefinite(entry[2])
                     rows.append(entry)  # add each rowlist to the masterlist
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("getBooks surname/definite completed")
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -4823,24 +4827,18 @@ class WebInterface(object):
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
 
             if sSearch:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                    logger.debug("filter %s" % sSearch)
                 filtered = [x for x in lazylibrarian.LOGLIST[::] if sSearch.lower() in str(x).lower()]
             else:
                 filtered = lazylibrarian.LOGLIST[::]
 
             sortcolumn = int(iSortCol_0)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug("sortcolumn %d" % sortcolumn)
 
             filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
             if iDisplayLength < 0:  # display = all
                 rows = filtered
             else:
                 rows = filtered[iDisplayStart:(iDisplayStart + iDisplayLength)]
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug("getLog returning %s to %s" % (iDisplayStart, iDisplayStart + iDisplayLength))
-                logger.debug("getLog filtered %s from %s:%s" % (len(filtered), len(lazylibrarian.LOGLIST), len(rows)))
+
         except Exception:
             logger.error('Unhandled exception in getLog: %s' % traceback.format_exc())
             rows = []
@@ -4850,8 +4848,6 @@ class WebInterface(object):
                       'iTotalRecords': len(lazylibrarian.LOGLIST),
                       'aaData': rows,
                       }
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
             return mydict
 
     # HISTORY ###########################################################
