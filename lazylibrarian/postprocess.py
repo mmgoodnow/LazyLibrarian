@@ -1160,7 +1160,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
                             if lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
-                            if pp_path == download_dir:
+                            if pp_path == download_dir.rstrip(os.sep):
                                 to_delete = False
                             if to_delete:
                                 # walk up any subdirectories
