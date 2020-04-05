@@ -81,7 +81,7 @@ def preprocess_ebook(bookfolder):
                 params.extend(['--output-profile', 'kindle'])
             if convert_ver:
                 try:
-                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
                     if created:
                         created += ' '
                     created += ftype
@@ -166,7 +166,8 @@ def preprocess_audio(bookfolder, authorname, bookname):
                               '-metadata', "track=%s" % part[0],
                               os.path.join(bookfolder, "tempaudio%s" % extn)]
                     try:
-                        _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                    stderr=subprocess.STDOUT)
                         os.remove(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
@@ -179,7 +180,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
         try:
-            _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
             logger.debug("Metadata written to metadata.ll")
         except Exception as e:
             logger.error(str(e))
@@ -196,7 +197,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
         res = ''
         try:
             logger.debug("Merging %d files" % len(parts))
-            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
         except Exception as e:
             logger.error(str(e))
             if res:

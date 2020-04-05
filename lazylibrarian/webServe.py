@@ -5808,7 +5808,7 @@ class WebInterface(object):
         ffmpeg = lazylibrarian.CONFIG['FFMPEG']
         try:
             params = [ffmpeg, "-version"]
-            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
             res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
             return "Found ffmpeg version %s" % res
         except Exception as e:
