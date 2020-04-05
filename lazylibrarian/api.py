@@ -193,6 +193,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
             'memUse': 'memory usage of the program in kB',
             'cpuUse': 'recent cpu usage of the program',
+            'nice': 'show current nice level',
+            'nicer': 'make a little nicer',
             }
 
 
@@ -297,6 +299,12 @@ class Api(object):
 
     def _cpuUse(self):
         self.data = cpu_use()
+
+    def _nice(self):
+        self.data = os.nice(0)
+
+    def _nicer(self):
+        self.data = os.nice(1)
 
     @staticmethod
     def _gc_init():
