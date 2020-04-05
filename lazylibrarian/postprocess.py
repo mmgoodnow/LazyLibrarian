@@ -1731,7 +1731,9 @@ def getDownloadProgress(source, downloadid):
                 search = data['NZBtitle']
             res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
             found = False
-            if res and 'queue' in res:
+            if not res:
+                progress = 0
+            elif 'queue' in res:
                 for item in res['queue']['slots']:
                     if item['nzo_id'] == downloadid:
                         found = True
@@ -1739,7 +1741,9 @@ def getDownloadProgress(source, downloadid):
                         break
             if not found:  # not in queue, try history in case completed or error
                 res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
-                if res and 'history' in res:
+                if not res:
+                    progress = 0
+                elif 'history' in res:
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
                             found = True
@@ -1757,7 +1761,7 @@ def getDownloadProgress(source, downloadid):
                             break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
-                progress = -1
+                progress = 0
 
         elif source == 'NZBGET':
             res = nzbget.sendNZB(cmd='listgroups')
@@ -1799,12 +1803,13 @@ def getDownloadProgress(source, downloadid):
                                 break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
-                progress = -1
+                progress = 0
 
         elif source == 'QBITTORRENT':
             progress, status, finished = qbittorrent.getProgress(downloadid)
             if progress == -1:
                 logger.debug('%s not found at %s' % (downloadid, source))
+                progress = 0
             if status == 'error':
                 myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
@@ -1815,6 +1820,7 @@ def getDownloadProgress(source, downloadid):
             progress, status, finished = utorrent.progressTorrent(downloadid)
             if progress == -1:
                 logger.debug('%s not found at %s' % (downloadid, source))
+                progress = 0
             if status & 16:  # Error
                 myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
@@ -1825,6 +1831,7 @@ def getDownloadProgress(source, downloadid):
             progress, status = rtorrent.getProgress(downloadid)
             if progress == -1:
                 logger.debug('%s not found at %s' % (downloadid, source))
+                progress = 0
             if status == 'finished':
                 progress = 100
             elif status == 'error':
@@ -1875,11 +1882,12 @@ def getDownloadProgress(source, downloadid):
                     progress = -1
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
-                progress = -1
+                progress = 0
 
         else:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug("Unable to get progress from %s (not implemented)" % source)
+                progress = 0
         try:
             progress = int(progress)
         except ValueError:
