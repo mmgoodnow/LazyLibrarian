@@ -84,27 +84,32 @@ def coverswap(sourcefile):
         logger.warn("Cannot swap cover on [%s]" % sourcefile)
         return False
     try:
-        f = open(sourcefile, "rb")
+        # reordering pages is quite slow if the source is on a networked drive
+        # so work on a local copy, then move it over.
+        original = sourcefile
+        logger.debug("Copying %s" % original)
+        srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, os.path.basename(sourcefile)))
         output = PdfFileWriter()
-        input1 = PdfFileReader(f)
-        cnt = input1.getNumPages()
-        logger.debug("Found %s pages in %s" % (cnt, sourcefile))
-        output.addPage(input1.getPage(1))
-        # logger.debug("Added page 1")
-        output.addPage(input1.getPage(0))
-        # logger.debug("Added page 0")
-        p = 2
-        while p < cnt:
-            output.addPage(input1.getPage(p))
-            # logger.debug("Added page %s" % p)
-            p = p + 1
+        with open(srcfile, "rb") as f:
+            input1 = PdfFileReader(f)
+            cnt = input1.getNumPages()
+            logger.debug("Found %s pages in %s" % (cnt, srcfile))
+            output.addPage(input1.getPage(1))
+            # logger.debug("Added page 1")
+            output.addPage(input1.getPage(0))
+            # logger.debug("Added page 0")
+            p = 2
+            while p < cnt:
+                output.addPage(input1.getPage(p))
+                # logger.debug("Added page %s" % p)
+                p = p + 1
+            with open(srcfile + 'new', "wb") as outputStream:
+                output.write(outputStream)
         logger.debug("Writing new output file")
-        with open(syspath(sourcefile + 'new'), "wb") as outputStream:
-            output.write(outputStream)
-        f.close()
-        logger.debug("Renaming output file")
-        os.remove(syspath(sourcefile))
-        os.rename(syspath(sourcefile + 'new'), syspath(sourcefile))
+        newcopy = safe_copy(srcfile + 'new', original + 'new')
+        os.remove(srcfile)
+        os.remove(srcfile + 'new')
+        os.rename(newcopy, original)
         logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
         return True
 
