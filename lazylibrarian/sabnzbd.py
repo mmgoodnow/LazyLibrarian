@@ -177,14 +177,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         logger.error(res)
         return False, res
     except Exception as e:
-        if hasattr(e, 'reason'):
-            errmsg = e.reason
-        elif hasattr(e, 'strerror'):
-            errmsg = e.strerror
-        else:
-            errmsg = str(e)
-
-        res = "Unable to connect to SAB with URL: %s, %s" % (URL, errmsg)
+        res = "Unable to connect to SAB with URL: %s, %s:%s" % (URL, type(e).__name__, str(e))
         logger.error(res)
         return False, res
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
