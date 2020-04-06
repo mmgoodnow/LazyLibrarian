@@ -220,7 +220,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
-                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS']
+                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -501,6 +501,7 @@ CONFIG_DEFINITIONS = {
     'NOTFOUND_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'FOUND_STATUS': ('str', 'LibraryScan', 'Open'),
     'NO_SINGLE_BOOK_SERIES': ('bool', 'LibraryScan', 0),
+    'NO_NONINTEGER_SERIES': ('bool', 'LibraryScan', 0),
     'NEWSERIES_STATUS': ('str', 'LibraryScan', 'Paused'),
     'NEWBOOK_STATUS': ('str', 'LibraryScan', 'Skipped'),
     'NEWAUDIO_STATUS': ('str', 'LibraryScan', 'Skipped'),
@@ -2178,6 +2179,7 @@ def shutdown(restart=False, update=False):
                             time.sleep(5)
                         pawse -= 1
 
+                    archivename = 'backup.tgz'
                     if success:
                         msg = 'Reached webserver page %s, deleting backup' % res
                         if updated:
@@ -2194,7 +2196,6 @@ def shutdown(restart=False, update=False):
                         msg = 'Webserver failed to start, reverting update'
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg("info", msg)
-                        archivename = 'backup.tgz'
                         if tarfile.is_tarfile(archivename):
                             try:
                                 with tarfile.open(archivename) as tar:

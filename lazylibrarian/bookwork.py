@@ -25,7 +25,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
 from lazylibrarian.common import proxyList, quotes, path_isfile, syspath
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
-    check_int, replace_all, check_year, getList, makeUTF8bytes
+    check_int, replace_all, check_year, getList, makeUTF8bytes, unaccented
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -290,7 +290,7 @@ def deleteEmptySeries():
 
 
 def setWorkPages():
-    """ Set the workpage link for any books that don't already have one """
+    """ the workpage link for any books that don't already have one """
 
     myDB = database.DBConnection()
     cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
@@ -906,7 +906,6 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                         try:
                             authorlink = row.split('href="')[2]
                             authorname = authorlink.split('">')[1].split('<')[0]
-                            # authorlink = authorlink.split('"')[0]
                             order = row.split('class="order">')[1].split('<')[0]
                             results.append([order, bookname, authorname, '', '', '', ''])
                         except IndexError:
@@ -915,13 +914,37 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                 if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                     logger.debug('Error in series table for series %s' % seriesID)
     valid = False
+    filtered = []
     for item in results:
-        if check_int(item[0], 0) == 1:
+        rejected = False
+        bookname = unaccented(item[0][1], only_ascii=False)
+        order = item[0][0]
+        if lazylibrarian.CONFIG['NO_SETS']:
+            if re.search(r'\d+ of \d+', order) or \
+                    re.search(r'\d+/\d+', order):
+                rejected = 'Set or Part'
+                logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
+            if not rejected:
+                # allow date ranges eg 1981-95
+                m = re.search(r'(\d+)-(\d+)', order)
+                if m:
+                    if check_year(m.group(1), past=1800, future=0):
+                        logger.debug("Allow %s, looks like a date range" % order)
+                    else:
+                        rejected = 'Set or Part %s' % m.group(0)
+                        logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
+
+        if lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0]:
+            rejected = 'Rejected non-integer %s' % item[0]
+            logger.debug('Rejected %s, %s' % (bookname, rejected))
+        if not rejected and check_int(item[0], 0) == 1:
             valid = True
-            break
-    if len(results) and not valid:
-        logger.warn("Series %s (%s) has %s members but no book 1" % (seriesID, seriesname, len(results)))
-    return results, api_hits
+
+        if not rejected:
+            filtered.append(item)
+    if len(filtered) and not valid:
+        logger.warn("Series %s (%s) has %s members but no book 1" % (seriesID, seriesname, len(filtered)))
+    return filtered, api_hits
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
@@ -1102,8 +1125,15 @@ def getWorkSeries(bookID=None, reason=""):
                     seriescount = item.find('./series/series_works_count').text
                 except (KeyError, AttributeError):
                     continue
+
                 if seriescount == '1' and lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
                     logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
+                elif '.' in seriesnum and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES']:
+                    logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
+                elif lazylibrarian.CONFIG['NO_SETS'] and (re.search(r'\d+ of \d+', seriesnum) or
+                                                          re.search(r'\d+/\d+', seriesnum) or
+                                                          re.search(r'\d+-\d+', seriesnum)):
+                    logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
                 elif seriesname and seriesid:
                     seriesname = cleanName(seriesname, '&/')
                     if seriesname:

@@ -1194,6 +1194,17 @@ class GoodReads:
                 if reason.startswith("Series:"):
                     return
 
+            # allow date ranges eg 1981-95
+            m = re.search(r'(\d+)-(\d+)', bookname)
+            if m:
+                if check_year(m.group(1), past=1800, future=0):
+                    msg = "Allow %s, looks like a date range" % m.group(1)
+                    logger.debug(msg)
+                else:
+                    msg = 'Set or Part %s' % bookname
+                    logger.warn(msg)
+                    if reason.startswith("Series:"):
+                        return
         try:
             bookimg = rootxml.find('./book/img_url').text
             if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:

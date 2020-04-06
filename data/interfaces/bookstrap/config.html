@@ -2833,6 +2833,17 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="no_noninteger_series" class="control-label">
+                      <input type="checkbox" id="no_noninteger_series" name="no_noninteger_series" value="1" ${checked} />
+                      Ignore non-integer series members</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['IMP_AUTOSEARCH'] == True:
                             checked = 'checked="checked"'
                         else:
