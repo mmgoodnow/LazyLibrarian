@@ -3674,7 +3674,7 @@ class WebInterface(object):
                 controlValueDict = {"ComicID": item}
                 newValueDict = {
                     "LastAcquired": None,
-                    "IssueDate": None,
+                    "LatestIssue": None,
                     "LatestCover": None,
                     "IssueStatus": "Wanted"
                 }
