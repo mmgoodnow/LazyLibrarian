@@ -19,7 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.bookrename import audio_parts
-from lazylibrarian.common import listdir, path_exists
+from lazylibrarian.common import listdir, path_exists, safe_copy
 from lazylibrarian.formatter import getList, makeUnicode
 
 try:
@@ -237,23 +237,27 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.error("No suitable sourcefile found in %s" % bookfolder)
             return
 
-        cover -= 1  # zero based page count
-        fname = os.path.join(bookfolder, sourcefile)
+        # reordering pages is quite slow if the source is on a networked drive
+        # so work on a local copy, then move it over.
+        original = os.path.join(bookfolder, sourcefile)
+        srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, sourcefile))
         output = PdfFileWriter()
-        f = open(fname, "rb")
-        input1 = PdfFileReader(f)
-        cnt = input1.getNumPages()
-        output.addPage(input1.getPage(cover))
-        p = 0
-        while p < cnt:
-            if p != cover:
-                output.addPage(input1.getPage(p))
-            p = p + 1
-        with open(fname + 'new', "wb") as outputStream:
-            output.write(outputStream)
-        logger.debug("%s has %d pages. Cover from page %d" % (fname, cnt, cover + 1))
-        f.close()
-        os.remove(fname)
-        os.rename(fname + 'new', fname)
+        with open(srcfile, "rb") as f:
+            cover -= 1  # zero based page count
+            input1 = PdfFileReader(f)
+            cnt = input1.getNumPages()
+            output.addPage(input1.getPage(cover))
+            p = 0
+            while p < cnt:
+                if p != cover:
+                    output.addPage(input1.getPage(p))
+                p = p + 1
+            with open(srcfile + 'new', "wb") as outputStream:
+                output.write(outputStream)
+        logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
+        newcopy = safe_copy(srcfile + 'new', original + 'new')
+        os.remove(srcfile)
+        os.remove(srcfile + 'new')
+        os.rename(newcopy, original)
     except Exception as e:
         logger.error(str(e))
