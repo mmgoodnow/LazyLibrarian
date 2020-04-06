@@ -1126,13 +1126,13 @@ def getWorkSeries(bookID=None, reason=""):
                 except (KeyError, AttributeError):
                     continue
 
-                if seriescount == '1' and lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
+                if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES'] and seriescount == '1':
                     logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
-                elif '.' in seriesnum and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES']:
+                elif lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and seriesnum and '.' in seriesnum:
                     logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
-                elif lazylibrarian.CONFIG['NO_SETS'] and (re.search(r'\d+ of \d+', seriesnum) or
-                                                          re.search(r'\d+/\d+', seriesnum) or
-                                                          re.search(r'\d+-\d+', seriesnum)):
+                elif lazylibrarian.CONFIG['NO_SETS'] and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
+                                                                        re.search(r'\d+/\d+', seriesnum) or
+                                                                        re.search(r'\d+-\d+', seriesnum)):
                     logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
                 elif seriesname and seriesid:
                     seriesname = cleanName(seriesname, '&/')
