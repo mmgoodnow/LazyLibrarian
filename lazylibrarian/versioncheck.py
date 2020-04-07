@@ -259,7 +259,7 @@ def checkForUpdates():
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
-        columns = myDB.select('PRAGMA table_info(jobs)')
+        columns = myDB.match('PRAGMA table_info(jobs)')
         if columns:
             myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:

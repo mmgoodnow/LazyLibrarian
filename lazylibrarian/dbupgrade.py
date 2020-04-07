@@ -280,7 +280,7 @@ def dbupgrade(db_current_version):
 
                 # a few quick sanity checks...
                 lazylibrarian.UPDATE_MSG = 'Checking Database'
-                check_db(myDB)
+                check_db()
 
                 myDB.action('PRAGMA user_version=%s' % db_current_version)
                 lazylibrarian.UPDATE_MSG = 'Cleaning Database'
@@ -301,7 +301,8 @@ def dbupgrade(db_current_version):
             lazylibrarian.UPDATE_MSG = ''
 
 
-def check_db(myDB):
+def check_db():
+    myDB = database.DBConnection()
     cnt = 0
     lazylibrarian.UPDATE_MSG = 'Checking unique authors'
     unique = False

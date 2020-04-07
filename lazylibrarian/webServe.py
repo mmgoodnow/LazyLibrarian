@@ -1172,7 +1172,7 @@ class WebInterface(object):
             with open(syspath(os.path.join(lazylibrarian.DATADIR, 'genres.json')), 'w') as f:
                 json.dump(newdict, f, indent=4)
             logger.debug("Applying genre changes")
-            check_db(myDB)
+            check_db()
 
         # now the non-config options
         if 'current_tab' in kwargs:

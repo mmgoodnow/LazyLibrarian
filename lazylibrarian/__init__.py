@@ -873,7 +873,7 @@ def initialize():
             sys.exit(0)
 
         if version:
-            check_db(myDB)
+            check_db()
 
         # group_concat needs sqlite3 >= 3.5.4
         GROUP_CONCAT = False
