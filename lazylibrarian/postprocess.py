@@ -1267,7 +1267,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
                                                                          lazylibrarian.CONFIG['SEED_WAIT']))
-                if finished or not lazylibrarian.CONFIG['SEED_WAIT']:
+                if finished or progress < 0 or not lazylibrarian.CONFIG['SEED_WAIT']:
                     if finished:
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     else:

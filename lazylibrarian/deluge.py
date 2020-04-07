@@ -136,7 +136,7 @@ def getTorrentFolder(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent folder name')
     res = getTorrentStatus(torrentid, ["name", "state"])  # type: dict
-    if res:
+    if res and res['result']:
         return res['result']['name']
     return ''
 
@@ -145,7 +145,7 @@ def getTorrentFiles(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Get torrent files')
     res = getTorrentStatus(torrentid, ["files", "state"])  # type: dict
-    if res:
+    if res and res['result']:
         return res['result']['files']
     return ''
 
@@ -155,14 +155,14 @@ def getTorrentProgress(torrentid):
         logger.debug('Deluge: Get torrent progress')
     res = getTorrentStatus(torrentid, ["progress", "message", "state", "is_auto_managed",
                                        "stop_at_ratio", "ratio", "stop_ratio"])  # type: dict
-    if res:
+    if res and res['result']:
         info = res['result']  # type: dict
         if 'progress' in info:
             finished = info['is_auto_managed'] and info['stop_at_ratio'] and \
                 info['state'].lower() == 'paused' and info['ratio'] >= info['stop_ratio']
             return info['progress'], info['message'], finished
         return 0, 'OK', False
-    return 0, '', False
+    return -1, '', False
 
 
 def getTorrentStatus(torrentid, data):
@@ -181,10 +181,14 @@ def getTorrentStatus(torrentid, data):
             logger.debug(str(response.text))
 
         try:
-            total_done = response.json()['result']['total_done']
+            res = response.json()
+            if res and res['result']:
+                total_done = res['result']['total_done']
+            else:
+                return res
             if 'progress' in data and total_done == 0:
                 return response.json()
-        except KeyError:
+        except (KeyError, TypeError):
             total_done = 0
             pass
 
@@ -195,7 +199,8 @@ def getTorrentStatus(torrentid, data):
                                      verify=deluge_verify_cert, cookies=delugeweb_auth, headers=headers)
             try:
                 total_done = response.json()['result']['total_done']
-            except KeyError:
+            except (KeyError, TypeError):
+                total_done = 0
                 pass
 
         post_json = {"method": "web.get_torrent_status",
