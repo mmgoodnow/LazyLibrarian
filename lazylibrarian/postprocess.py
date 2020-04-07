@@ -1875,6 +1875,9 @@ def getDownloadProgress(source, downloadid):
                                    result['state'].lower() == 'paused' and result['ratio'] >= result['stop_ratio']
                     except (KeyError, AttributeError):
                         finished = False
+                else:
+                    progress = -1
+                    finished = False
                 if 'message' in result and result['message'] != 'OK':
                     myDB = database.DBConnection()
                     cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
