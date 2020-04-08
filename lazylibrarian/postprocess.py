@@ -485,7 +485,7 @@ def unpack_archive(archivename, download_dir, title):
                 return ''
 
             targetdir = os.path.join(download_dir, title + '.unpack')
-            if not make_dirs(targetdir):
+            if not make_dirs(targetdir, new=True):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
@@ -514,7 +514,7 @@ def unpack_archive(archivename, download_dir, title):
                 return ''
 
             targetdir = os.path.join(download_dir, title + '.unpack')
-            if not make_dirs(targetdir):
+            if not make_dirs(targetdir, new=True):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
@@ -542,7 +542,7 @@ def unpack_archive(archivename, download_dir, title):
                 return ''
 
             targetdir = os.path.join(download_dir, title + '.unpack')
-            if not make_dirs(targetdir):
+            if not make_dirs(targetdir, new=True):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
@@ -573,7 +573,7 @@ def unpack_archive(archivename, download_dir, title):
 
             if z:
                 targetdir = os.path.join(download_dir, title + '.unpack')
-                if not make_dirs(targetdir):
+                if not make_dirs(targetdir, new=True):
                     logger.error("Failed to create target dir %s" % targetdir)
                     return ''
 
@@ -790,7 +790,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                             while aname[-1] in '_. ':
                                                 aname = aname[:-1]
 
-                                            targetdir = os.path.join(download_dir, aname + '.unpack')
                                             if lazylibrarian.CONFIG['DESTINATION_COPY'] or \
                                                     (book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and
                                                      lazylibrarian.CONFIG['KEEP_SEEDING']):
@@ -798,7 +797,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                             else:
                                                 move = 'move'
 
-                                            if make_dirs(targetdir):
+                                            targetdir = os.path.join(download_dir, aname + '.unpack')
+                                            if make_dirs(targetdir, new=True):
                                                 cnt = move_into_subdir(download_dir, targetdir, aname, move=move)
                                                 if cnt:
                                                     pp_path = targetdir
@@ -1158,7 +1158,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                         if to_delete or pp_path.endswith('.unpack'):
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
-                            if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                            if pp_path.endswith('.unpack'):  # always delete files we unpacked
+                                to_delete = True
+                            elif lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
                             if pp_path == download_dir.rstrip(os.sep):
                                 to_delete = False

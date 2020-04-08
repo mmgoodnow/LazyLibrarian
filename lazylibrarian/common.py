@@ -255,16 +255,20 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         yield top, dirs, nondirs
 
 
-def make_dirs(dest_path):
+def make_dirs(dest_path, new=False):
     """ os.makedirs only seems to set the right permission on the final leaf directory
         not any intermediate parents it creates on the way, so we'll try to do it ourselves
         setting permissions as we go. Could use recursion but probably aren't many levels to do...
         Build a list of missing intermediate directories in reverse order, exit when we encounter
         an existing directory or hit root level. Set permission on any directories we create.
+        If new, try to remove any pre-existing directory and contents.
         return True or False """
 
     to_make = []
     dest_path = syspath(dest_path)
+    if new:
+        shutil.rmtree(dest_path, ignore_errors=True)
+
     while not path_isdir(dest_path):
         # noinspection PyUnresolvedReferences
         to_make.insert(0, dest_path)
