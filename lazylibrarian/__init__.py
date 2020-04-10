@@ -1147,11 +1147,12 @@ def config_read(reloaded=False):
     # ensure all these are boolean 1 0, not True False for javascript #
     ###################################################################
     # Suppress series tab if there are none and user doesn't want to add any
-    series_list = ''
+    counter = 0
     if version:  # if zero, there is no series table yet
-        series_list = myDB.select('SELECT SeriesID from series')
+        res = myDB.match('SELECT count(*) as counter from series')
+        counter = check_int(res['counter'], 0)
 
-    SHOW_SERIES = len(series_list)
+    SHOW_SERIES = counter
     if CONFIG['ADD_SERIES']:
         SHOW_SERIES = 1
     # Or suppress if tab is disabled
@@ -1206,7 +1207,6 @@ def config_write(part=None):
 
     currentname = threading.currentThread().name
     threading.currentThread().name = "CONFIG_WRITE"
-    myDB = database.DBConnection()
 
     interface = CFG.get('General', 'http_look')
 
@@ -1470,8 +1470,10 @@ def config_write(part=None):
 
         add_apprise_slot()
     #
-    series_list = myDB.select('SELECT SeriesID from series')
-    SHOW_SERIES = len(series_list)
+    myDB = database.DBConnection()
+    res = myDB.match('SELECT count(*) as counter from series')
+    SHOW_SERIES = check_int(res['counter'], 0)
+
     if CONFIG['ADD_SERIES']:
         SHOW_SERIES = 1
     if not CONFIG['SERIES_TAB']:
@@ -2034,8 +2036,8 @@ def start():
                 if not CONFIG['SERIES_TAB']:
                     SHOW_SERIES = 0
                 myDB = database.DBConnection()
-                series_list = myDB.select('SELECT SeriesID from series')
-                SHOW_SERIES = len(series_list)
+                res = myDB.match('SELECT count(*) as counter from series')
+                SHOW_SERIES = check_int(res['counter'], 0)
 
         # Crons and scheduled jobs started here
         SCHED.start()
