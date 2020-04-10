@@ -93,20 +93,23 @@ class qbittorrentclient(object):
             _ = self.opener.open(base_url + '/login', login_data)
             self.cmdset = 1
         except Exception as err:
-            logger.error('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug('Error getting v1 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
                 logger.debug('Trying ' + base_url + '/api/v2/auth/login')
             try:
                 _ = self.opener.open(base_url + '/api/v2/auth/login', login_data)
                 self.cmdset = 2
             except Exception as err:
-                logger.error('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug('Error getting v2 SID. qBittorrent %s: %s' % (type(err).__name__, str(err)))
 
         if not self.cmdset:
             logger.warn('Unable to log in to %s' % base_url)
             return
-        for cookie in self.cookiejar:
-            logger.debug('login cookie: ' + cookie.name + ', value: ' + cookie.value)
+
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            for cookie in self.cookiejar:
+                logger.debug('login cookie: ' + cookie.name + ', value: ' + cookie.value)
         return
 
     def _command(self, command, args=None, content_type=None, files=None):
