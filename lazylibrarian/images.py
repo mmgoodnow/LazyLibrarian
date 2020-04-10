@@ -689,8 +689,12 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
             params = []
             try:
                 params = [converter, '%s%s' % (issuefile, postfix), '%s' % coverfile]
-                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                              stderr=subprocess.STDOUT)
+                if os.name != 'nt':
+                    res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                  stderr=subprocess.STDOUT)
+                else:
+                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                
                 res = makeUnicode(res).strip()
                 if res:
                     logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
@@ -749,9 +753,12 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                   "-dFirstPage=%d" % check_int(pagenum, 1),
                                   "-dLastPage=%d" % check_int(pagenum, 1),
                                   "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
-
-                        res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                      stderr=subprocess.STDOUT)
+                        if os.name != 'nt':
+                            res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                          stderr=subprocess.STDOUT)
+                        else:
+                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                        
                         res = makeUnicode(res).strip()
                         if not path_isfile(coverfile):
                             logger.debug("Failed to create jpg: %s" % res)
@@ -828,8 +835,12 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                       "-dLastPage=%d" % check_int(pagenum, 1),
                                       "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                             try:
-                                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                              stderr=subprocess.STDOUT)
+                                if os.name != 'nt':
+                                    res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                                  stderr=subprocess.STDOUT)
+                                else:
+                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                                    
                                 res = makeUnicode(res).strip()
                                 if not path_isfile(coverfile):
                                     logger.debug("Failed to create jpg: %s" % res)

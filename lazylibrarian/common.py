@@ -1573,7 +1573,10 @@ def runScript(params):
         params.insert(0, sys.executable)
     logger.debug(str(params))
     try:
-        p = Popen(params, preexec_fn=lambda: os.nice(10), stdout=PIPE, stderr=PIPE)
+        if os.name != 'nt':
+            p = Popen(params, preexec_fn=lambda: os.nice(10), stdout=PIPE, stderr=PIPE)
+        else:
+            p = Popen(params, stdout=PIPE, stderr=PIPE)
         res, err = p.communicate()
         return p.returncode, makeUnicode(res), makeUnicode(err)
     except Exception as e:
