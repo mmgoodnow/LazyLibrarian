@@ -2390,6 +2390,17 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="imp_calibre_magazine">
+                      <input type="checkbox" id="imp_calibre_magazine" name="imp_calibre_magazine" value="1" ${checked} />
+                      Use calibredb to import magazines</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['IMP_AUTOADD_COPY'] == True:
                             checked = 'checked="checked"'
                         else:

@@ -917,9 +917,15 @@ def getSeriesMembers(seriesID=None, seriesname=None):
     filtered = []
     for item in results:
         rejected = False
-        bookname = unaccented(item[0][1], only_ascii=False)
-        order = item[0][0]
-        if lazylibrarian.CONFIG['NO_SETS']:
+        try:
+            bookname = unaccented(item[0][1], only_ascii=False)
+            order = item[0][0]
+        except IndexError:
+            order = 0
+            bookname = ''
+            rejected = True
+
+        if not rejected and lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', order) or \
                     re.search(r'\d+/\d+', order):
                 rejected = 'Set or Part'
@@ -934,10 +940,10 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                         rejected = 'Set or Part %s' % m.group(0)
                         logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
 
-        if lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0]:
-            rejected = 'Rejected non-integer %s' % item[0]
+        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0][0]:
+            rejected = 'Rejected non-integer %s' % item[0][0]
             logger.debug('Rejected %s, %s' % (bookname, rejected))
-        if not rejected and check_int(item[0], 0) == 1:
+        if not rejected and check_int(item[0][0], 0) == 1:
             valid = True
 
         if not rejected:

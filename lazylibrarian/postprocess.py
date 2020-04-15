@@ -135,8 +135,8 @@ def importMag(source_file=None, title=None, issuenum=None):
         global_name = unaccented(global_name, only_ascii=False)
         tempdir = tempfile.mkdtemp()
         _ = safe_copy(source_file, tempdir)
-        success, dest_file = processDestination(tempdir, dest_path, '', '',
-                                                global_name, title, "magazine")
+        data = {"IssueDate": issuenum, "Title": title}
+        success, dest_file = processDestination(tempdir, dest_path, global_name, data, "magazine")
         shutil.rmtree(tempdir, ignore_errors=True)
         if not success:
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
@@ -881,10 +881,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     match = 0
                     pp_path = ''
                     dest_path = ''
-                    authorname = ''
                     bookname = ''
                     global_name = ''
                     mostrecentissue = ''
+                    data = None
                     if matches:
                         highest = max(matches, key=lambda x: x[0])
                         match = highest[0]
@@ -894,13 +894,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         logger.debug('Found match (%s%%): %s for %s %s' % (
                             match, repr(pp_path), book_type, repr(book['NZBtitle'])))
 
-                        cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
+                        cmd = 'SELECT AuthorName,BookName,BookID from books,authors WHERE BookID=?'
                         cmd += ' and books.AuthorID = authors.AuthorID'
                         data = myDB.match(cmd, (book['BookID'],))
                         if data:  # it's ebook/audiobook
                             logger.debug('Processing %s %s' % (book_type, book['BookID']))
-                            authorname = data['AuthorName']
-                            authorname = ' '.join(authorname.split())  # ensure no extra whitespace
                             bookname = data['BookName']
                             if os.name == 'nt':
                                 if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
@@ -924,7 +922,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             dest_path = makeUTF8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
                         else:
-                            data = myDB.match('SELECT IssueDate from magazines WHERE Title=?', (book['BookID'],))
+                            data = myDB.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
                                 book_type = 'magazine'
                                 logger.debug('Processing magazine %s' % book['BookID'])
@@ -963,6 +961,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 else:
                                     global_name = "%s %s" % (mag_name, book['AuxInfo'])
                                 global_name = unaccented(global_name, only_ascii=False)
+                                data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
                                 try:
                                     comicid, issueid = book['BookID'].split('_')
@@ -1007,6 +1006,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     controlValueDict = {"BookID": book['BookID'], "Status": "Snatched"}
                                     newValueDict = {"Status": "Failed", "NZBDate": now()}
                                     myDB.upsert("wanted", newValueDict, controlValueDict)
+                                    data = None
                     else:
                         logger.debug("Snatched %s %s is not in download directory" %
                                      (book['NZBmode'], book['NZBtitle']))
@@ -1019,8 +1019,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     if not dest_path:
                         continue
 
-                    success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
-                                                            global_name, book['BookID'], book_type)
+                    success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
                     if success:
                         logger.debug("Processed %s: %s, %s" % (book['NZBmode'], global_name, book['NZBurl']))
                         dest_file = makeUnicode(dest_file)
@@ -1961,7 +1960,8 @@ def process_book(pp_path=None, bookID=None, library=None):
         is_ebook = (book_file(pp_path, "ebook") != '')
 
         myDB = database.DBConnection()
-        cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+        cmd = 'SELECT AuthorName,BookName,BookID from books,authors WHERE BookID=? '
+        cmd += 'and books.AuthorID = authors.AuthorID'
         data = myDB.match(cmd, (bookID,))
         if data:
             cmd = 'SELECT BookID, NZBprov, AuxInfo FROM wanted WHERE BookID=? and Status="Snatched"'
@@ -2006,10 +2006,6 @@ def process_book(pp_path=None, bookID=None, library=None):
             else:
                 dest_dir = lazylibrarian.DIRECTORY('eBook')
 
-            authorname = data['AuthorName']
-            authorname = ' '.join(authorname.split())  # ensure no extra whitespace
-            bookname = data['BookName']
-
             if os.name == 'nt':
                 if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
                     logger.warn('Please check your EBOOK_DEST_FOLDER setting')
@@ -2030,8 +2026,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 dest_path = stripspaces(os.path.join(dest_dir, namevars['FolderName']))
             dest_path = makeUTF8bytes(dest_path)[0]
 
-            success, dest_file = processDestination(pp_path, dest_path, authorname, bookname,
-                                                    global_name, bookID, book_type)
+            success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
             if success:
                 # update nzbs
                 dest_file = makeUnicode(dest_file)
@@ -2177,8 +2172,8 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
         processAutoAdd(dest_path)
 
 
-def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=None, global_name=None, bookid=None,
-                       booktype=None):
+# noinspection PyBroadException
+def processDestination(pp_path=None, dest_path=None, global_name=None, data=None, booktype=None):
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book  or False, error_message"""
 
@@ -2187,6 +2182,28 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
     bestmatch = ''
     comicid = ''
     issueid = ''
+    # data can be dict or sqlite3 row
+    if 'AuthorName' in data:
+        authorname = data['AuthorName']
+    else:
+        authorname = ''
+    if 'BookName' in data:
+        bookname = data['BookName']
+    else:
+        bookname = ''
+    if 'BookID' in data:
+        bookid = data['BookID']
+    else:
+        bookid = ''
+    if 'Title' in data:
+        title = data['Title']
+    else:
+        title = ''
+    if 'IssueDate' in data:
+        issuedate = data['IssueDate']
+    else:
+        issuedate = ''
+
     if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
@@ -2234,10 +2251,11 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
             return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
         logger.debug("PreProcessor: %s" % res)
 
-    # If ebook or comic, do we want calibre to import it for us
+    # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
     if (lazylibrarian.CONFIG['IMP_CALIBREDB'] and
             (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
+            (booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']) or
             (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
         dest_dir = lazylibrarian.DIRECTORY('eBook')
         try:
@@ -2269,18 +2287,30 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     identifier = "goodreads:%s" % bookid
                 else:
                     identifier = "google:%s" % bookid
-            else:  # if booktype == 'comic':
+            elif booktype == 'comic':
                 comicid, issueid = bookid.split('_')
                 if comicid.startswith('CV'):
                     identifier = "ComicVine:%s" % comicid[2:]
                 elif comicid.startswith('CX'):
                     identifier = "Comixology:%s" % comicid[2:]
 
-            res, err, rc = calibredb('add', ['-1'], [pp_path])
+            if booktype == 'magazine':
+                issueid = create_id("%s %s" % (title, issuedate))
+                identifier = "lazylibrarian:%s" % issueid
+                jpgfile = jpg_file(pp_path)
+                magfile = book_file(pp_path, "magazine")
+                if magfile and not jpgfile:
+                    jpgfile = createMagCover(magfile, refresh=False)
+
+                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', 'magazines',
+                                         '--series', title, '--title', "%s - %s" % (title, issuedate),
+                                                 '--cover', jpgfile, '--tags', 'Magazine'])
+            else:
+                res, err, rc = calibredb('add', ['-1'], [pp_path])
 
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB'])
-            elif ' --duplicates' in res or ' --duplicates' in err:
+            elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
                 logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                             (authorname, bookname))
                 myDB = database.DBConnection()
@@ -2290,7 +2320,7 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                 return True, ''
             # Answer should look like "Added book ids : bookID" (string may be translated!)
             try:
-                calibre_id = res.split(": ", 1)[1].split("\n", 1)[0].strip()
+                calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
             except IndexError:
                 return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname)
 
@@ -2310,31 +2340,35 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                     cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
                     cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
                     data = myDB.match(cmd, (bookid,))
-                else:  # if booktype == 'comic':
+                elif booktype == 'comic':
                     cmd = 'SELECT Title,comicissues.ComicID,IssueID,IssueAcquired,IssueFile,'
                     cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
                     cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
                     data = myDB.match(cmd, (issueid, comicid))
+
                 if not data:
-                    logger.error('processDestination: No data found for bookid %s' % bookid)
+                    logger.error('No data found for bookid %s' % bookid)
                 else:
                     opfpath = ''
                     if booktype == 'ebook':
                         processIMG(pp_path, data['BookID'], data['BookImg'], global_name, 'book')
                         opfpath, our_opf = createOPF(pp_path, data, global_name, True)
-                    else:  # booktype == 'comic':
+                    elif booktype == 'comic':
                         processIMG(pp_path, data['BookID'], data['Cover'], global_name, 'comic')
                         if not lazylibrarian.CONFIG['IMP_COMICOPF']:
                             logger.debug('createComicOPF is disabled')
                         else:
                             opfpath, our_opf = createComicOPF(pp_path, data, global_name, True)
+                    else:
+                        if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                            logger.debug('createMAGOPF is disabled')
+                        else:
+                            opfpath, our_opf = createMAGOPF(pp_path, bookid, issuedate, issueid)
+
                     if opfpath:
                         _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
                         if rc:
                             logger.warn("calibredb unable to set opf")
-
-                    if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
-                        return True, data['IssueFile']
 
                     tags = ''
                     if booktype == 'ebook':
@@ -2359,17 +2393,27 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                             logger.warn("calibredb unable to set tags")
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
+                if booktype == 'magazine':
+                    authorname = 'magazines'
+                    bookname = "%s - %s" % (title, issuedate)
+                    _, _, rc = calibredb('set_metadata', ['--field', 'pubdate:%s' % issuedate], [calibre_id])
+                    if rc:
+                        logger.warn("calibredb unable to set pubdate")
                 _, _, rc = calibredb('set_metadata', ['--field', 'authors:%s' % unaccented(
-                    authorname, only_ascii=False)], [calibre_id])
+                                     authorname, only_ascii=False)], [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set author")
                 _, _, rc = calibredb('set_metadata', ['--field', 'title:%s' % unaccented(bookname, only_ascii=False)],
                                      [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set title")
+
                 _, _, rc = calibredb('set_metadata', ['--field', 'identifiers:%s' % identifier], [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set identifier")
+
+            if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
+                return True, data['IssueFile']
 
             # Ask calibre for the author/title so we can construct the likely location
             target_dir = ''
@@ -2377,7 +2421,8 @@ def processDestination(pp_path=None, dest_path=None, authorname=None, bookname=N
                                      ['--for-machine'])
             if not rc:
                 try:
-                    res = json.loads(res.strip('[').strip(']'))
+                    res = '{ ' + res.split('{')[1].split('}')[0] + ' }'
+                    res = json.loads(res)
                     target_dir = os.path.join(dest_dir, res['authors'], "%s (%d)" % (res['title'], res['id']))
                 except Exception as e:
                     logger.debug("Unable to read json response; %s" % str(e))
@@ -2653,7 +2698,7 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
-    if len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
+    if issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]
         mn = issue[5:7]
         month = lazylibrarian.MONTHNAMES[int(mn)][0]
@@ -2678,7 +2723,8 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
         'BookImg': global_name + '.jpg',
         'BookPub': '',
         'Series': title,
-        'Series_index': issue
+        'Series_index': issue,
+        'Scheme': 'lazylibrarian',
     }  # type: dict
     # noinspection PyTypeChecker
     return createOPF(dest_path, data, global_name, overwrite=overwrite)
@@ -2699,6 +2745,8 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
         scheme = "COMICVINE"
     elif bookid.startswith('CX'):
         scheme = "COMIXOLOGY"
+    elif 'Scheme' in data:
+        scheme = data['Scheme']
     elif bookid.isdigit():
         scheme = 'GOODREADS'
     else:

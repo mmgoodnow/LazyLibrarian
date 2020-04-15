@@ -300,6 +300,7 @@ CONFIG_DEFINITIONS = {
     'IMP_CALIBREDB': ('str', 'General', ''),
     'IMP_CALIBRE_EBOOK': ('bool', 'General', 1),
     'IMP_CALIBRE_COMIC': ('bool', 'General', 1),
+    'IMP_CALIBRE_MAGAZINE': ('bool', 'General', 1),
     'BLACKLIST_FAILED': ('bool', 'General', 1),
     'BLACKLIST_PROCESSED': ('bool', 'General', 0),
     'CALIBRE_USE_SERVER': ('bool', 'General', 0),
@@ -1997,7 +1998,8 @@ def launch_browser(host, port, root):
         protocol = 'https'
     else:
         protocol = 'http'
-
+    if root and not root.startswith('/'):
+        root = '/' + root
     try:
         webbrowser.open('%s://%s:%i%s/home' % (protocol, host, port, root))
     except Exception as e:
@@ -2040,6 +2042,7 @@ def start():
                 SHOW_SERIES = check_int(res['counter'], 0)
 
         # Crons and scheduled jobs started here
+        # noinspection PyUnresolvedReferences
         SCHED.start()
         restartJobs(start='Start')
         started = True
@@ -2064,6 +2067,7 @@ def shutdown(restart=False, update=False):
     global __INITIALIZED__
     cherrypy.engine.exit()
     if SCHED:
+        # noinspection PyUnresolvedReferences
         SCHED.shutdown(wait=False)
     # config_write() don't automatically rewrite config on exit
 
