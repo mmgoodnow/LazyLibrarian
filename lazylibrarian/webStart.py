@@ -38,6 +38,8 @@ def initialize(options=None):
     https_enabled = options['https_enabled']
     https_cert = options['https_cert']
     https_key = options['https_key']
+    if options['http_root'] and not options['http_root'].startswith('/'):
+        options['http_root'] = '/' + options['http_root']
 
     if https_enabled:
         if not (os.path.exists(https_cert) and os.path.exists(https_key)):
@@ -63,8 +65,8 @@ def initialize(options=None):
     else:
         protocol = "http"
 
-    logger.info("Starting LazyLibrarian web server on %s://%s:%d/" %
-                (protocol, options['http_host'], options['http_port']))
+    logger.info("Starting LazyLibrarian web server on %s://%s:%d%s" %
+                (protocol, options['http_host'], options['http_port'], options['http_root']))
     cherrypy_cors.install()
     cherrypy.config.update(options_dict)
 
@@ -209,6 +211,7 @@ def initialize(options=None):
 
     try:
         if cp_ver and int(cp_ver.split('.')[0]) >= 10:
+            # noinspection PyUnresolvedReferences
             portend.Checker().assert_free(str(options['http_host']), options['http_port'])
         else:
             cherrypy.process.servers.check_port(str(options['http_host']), options['http_port'])
