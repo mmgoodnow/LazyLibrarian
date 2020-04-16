@@ -301,6 +301,7 @@ CONFIG_DEFINITIONS = {
     'IMP_CALIBRE_EBOOK': ('bool', 'General', 1),
     'IMP_CALIBRE_COMIC': ('bool', 'General', 1),
     'IMP_CALIBRE_MAGAZINE': ('bool', 'General', 1),
+    'IMP_CALIBRE_MAGTITLE': ('bool', 'General', 1),
     'BLACKLIST_FAILED': ('bool', 'General', 1),
     'BLACKLIST_PROCESSED': ('bool', 'General', 0),
     'CALIBRE_USE_SERVER': ('bool', 'General', 0),
@@ -1132,6 +1133,9 @@ def config_read(reloaded=False):
                 logger.warn('Please check your %s setting' % fname)
                 CONFIG[fname] = CONFIG[fname].replace('/', '\\')
 
+    for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE']:
+        if os.sep in CONFIG[fname]:
+            logger.warn('Please check your %s setting, contains "%s"' % (fname, os.sep))
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
         CONFIG['HTTP_LOOK'] = 'legacy'

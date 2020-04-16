@@ -181,7 +181,11 @@ def importMag(source_file=None, title=None, issuenum=None):
         if not lazylibrarian.CONFIG['IMP_MAGOPF']:
             logger.debug('createMAGOPF is disabled')
         else:
-            _ = createMAGOPF(dest_file, title, issuenum, issueid)
+            if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                authors = title
+            else:
+                authors = 'magazines'
+            _ = createMAGOPF(dest_file, authors, title, issuenum, issueid)
         if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
             processAutoAdd(dest_path, booktype='mag')
@@ -1107,7 +1111,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                                 logger.debug('createMAGOPF is disabled')
                             else:
-                                _ = createMAGOPF(dest_file, book['BookID'], book['AuxInfo'], issueid)
+                                if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                                    authors = book['BookID']
+                                else:
+                                    authors = 'magazines'
+                                _ = createMAGOPF(dest_file, authors, book['BookID'], book['AuxInfo'], issueid)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 processAutoAdd(dest_path, booktype='mag')
@@ -2302,7 +2310,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 if magfile and not jpgfile:
                     jpgfile = createMagCover(magfile, refresh=False)
 
-                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', 'magazines',
+                if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                    authors = title
+                else:
+                    authors = 'magazines'
+                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', authors,
                                          '--series', title, '--title', "%s - %s" % (title, issuedate),
                                                  '--cover', jpgfile, '--tags', 'Magazine'])
             else:
@@ -2363,7 +2375,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                             logger.debug('createMAGOPF is disabled')
                         else:
-                            opfpath, our_opf = createMAGOPF(pp_path, bookid, issuedate, issueid)
+                            if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                                authors = title
+                            else:
+                                authors = 'magazines'
+                            opfpath, our_opf = createMAGOPF(pp_path, authors, title, issuedate, issueid)
 
                     if opfpath:
                         _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
@@ -2394,7 +2410,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 if booktype == 'magazine':
-                    authorname = 'magazines'
+                    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                        authorname = title
+                    else:
+                        authorname = 'magazines'
+
                     bookname = "%s - %s" % (title, issuedate)
                     _, _, rc = calibredb('set_metadata', ['--field', 'pubdate:%s' % issuedate], [calibre_id])
                     if rc:
@@ -2693,8 +2713,10 @@ def createComicOPF(pp_path, data, global_name, overwrite=False):
     return createOPF(pp_path, data, global_name, overwrite=overwrite)
 
 
-def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
+def createMAGOPF(issuefile, authors, title, issue, issueID, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
+    logger.debug("Creating opf with file:%s authors:%s title:%s issue:%s issueid:%s overwrite:%s" %
+                 (issuefile, authors, title, issue, issueID, overwrite))
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
@@ -2712,7 +2734,7 @@ def createMAGOPF(issuefile, title, issue, issueID, overwrite=False):
     iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
     data = {
-        'AuthorName': title,
+        'AuthorName': authors,
         'BookID': issueID,
         'BookName': iname,
         'FileAs': iname,

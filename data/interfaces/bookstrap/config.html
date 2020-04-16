@@ -2401,6 +2401,17 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="imp_calibre_magtitle">
+                      <input type="checkbox" id="imp_calibre_magtitle" name="imp_calibre_magtitle" value="1" ${checked} />
+                      Use magazine title as author</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['IMP_AUTOADD_COPY'] == True:
                             checked = 'checked="checked"'
                         else:
