@@ -118,14 +118,11 @@ def importMag(source_file=None, title=None, issuenum=None):
             dest_dir = lazylibrarian.DIRECTORY('eBook')
             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
             dest_path = makeUTF8bytes(dest_path)[0]
-            if not make_dirs(dest_path):
-                logger.warn('Unable to create directory %s' % dest_path)
-            else:
-                ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                with open(syspath(ignorefile), 'a'):
-                    os.utime(syspath(ignorefile), None)
         else:
             dest_path = makeUTF8bytes(dest_path)[0]
+
+        if not make_dirs(dest_path):
+            logger.warn('Unable to create directory %s' % dest_path)
 
         if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
             global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
@@ -898,12 +895,13 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         logger.debug('Found match (%s%%): %s for %s %s' % (
                             match, repr(pp_path), book_type, repr(book['NZBtitle'])))
 
-                        cmd = 'SELECT AuthorName,BookName,BookID from books,authors WHERE BookID=?'
+                        cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
                         cmd += ' and books.AuthorID = authors.AuthorID'
                         data = myDB.match(cmd, (book['BookID'],))
                         if data:  # it's ebook/audiobook
                             logger.debug('Processing %s %s' % (book_type, book['BookID']))
                             bookname = data['BookName']
+                            authorname = data['AuthorName']
                             if os.name == 'nt':
                                 if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
                                     logger.warn('Please check your EBOOK_DEST_FOLDER setting')
@@ -925,6 +923,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = makeUTF8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
+                            data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID']}
                         else:
                             data = myDB.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
                             if data:  # it's a magazine
@@ -950,14 +949,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     dest_dir = lazylibrarian.DIRECTORY('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                     dest_path = makeUTF8bytes(dest_path)[0]
-                                    if not make_dirs(dest_path):
-                                        logger.warn('Unable to create directory %s' % dest_path)
-                                    else:
-                                        ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                                        with open(syspath(ignorefile), 'a'):
-                                            os.utime(syspath(ignorefile), None)
                                 else:
                                     dest_path = makeUTF8bytes(dest_path)[0]
+
+                                if not make_dirs(dest_path):
+                                    logger.warn('Unable to create directory %s' % dest_path)
 
                                 if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
                                     global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
@@ -967,13 +963,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 global_name = unaccented(global_name, only_ascii=False)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
-                                try:
+                                if '_' in book['BookID']:
                                     comicid, issueid = book['BookID'].split('_')
                                     data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
-                                except ValueError:
-                                    issueid = 0
+                                else:
                                     data = None
-
                                 if data:  # it's a comic
                                     book_type = 'comic'
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
@@ -984,6 +978,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     else:
                                         comic_name = unaccented(replace_all(data['Title'], namedic),
                                                                 only_ascii=False)
+                                    data = {'Title': comic_name, 'IssueDate': issueid, 'BookID', comicid}
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
@@ -996,14 +991,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                         dest_dir = lazylibrarian.DIRECTORY('eBook')
                                         dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                         dest_path = makeUTF8bytes(dest_path)[0]
-                                        if not make_dirs(dest_path):
-                                            logger.warn('Unable to create directory %s' % dest_path)
-                                        else:
-                                            ignorefile = os.path.join(dest_path, b'.ll_ignore')
-                                            with open(syspath(ignorefile), 'a'):
-                                                os.utime(syspath(ignorefile), None)
                                     else:
                                         dest_path = makeUTF8bytes(dest_path)[0]
+
+                                    if not make_dirs(dest_path):
+                                        logger.warn('Unable to create directory %s' % dest_path)
 
                                 else:  # not recognised, maybe deleted
                                     logger.debug('Nothing in database matching "%s"' % book['BookID'])
@@ -1917,7 +1909,7 @@ def delete_task(Source, DownloadID, remove_data):
     try:
         if Source == "BLACKHOLE":
             logger.warn("Download %s has not been processed from blackhole" % DownloadID)
-        elif Source == "SABNZBD":
+        elif Source == "SABNZBD" and lazylibrarian.CONFIG['SAB_DELETE']:
             sabnzbd.SABnzbd(DownloadID, 'delete', remove_data)
             sabnzbd.SABnzbd(DownloadID, 'delhistory', remove_data)
         elif Source == "NZBGET":
@@ -1972,6 +1964,8 @@ def process_book(pp_path=None, bookID=None, library=None):
         cmd += 'and books.AuthorID = authors.AuthorID'
         data = myDB.match(cmd, (bookID,))
         if data:
+            authorname = data['AuthorName']
+            bookname = data['BookName']
             cmd = 'SELECT BookID, NZBprov, AuxInfo FROM wanted WHERE BookID=? and Status="Snatched"'
             # we may have wanted to snatch an ebook and audiobook of the same title/id
             was_snatched = myDB.select(cmd, (bookID,))
@@ -2034,6 +2028,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 dest_path = stripspaces(os.path.join(dest_dir, namevars['FolderName']))
             dest_path = makeUTF8bytes(dest_path)[0]
 
+            data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': bookID}
             success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
             if success:
                 # update nzbs
@@ -2185,32 +2180,17 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book  or False, error_message"""
 
+    logger.debug("%s [%s] %s" % (booktype, global_name, str(data)))
     booktype = booktype.lower()
     pp_path = makeUnicode(pp_path)
     bestmatch = ''
     comicid = ''
     issueid = ''
-    # data can be dict or sqlite3 row
-    if 'AuthorName' in data:
-        authorname = data['AuthorName']
-    else:
-        authorname = ''
-    if 'BookName' in data:
-        bookname = data['BookName']
-    else:
-        bookname = ''
-    if 'BookID' in data:
-        bookid = data['BookID']
-    else:
-        bookid = ''
-    if 'Title' in data:
-        title = data['Title']
-    else:
-        title = ''
-    if 'IssueDate' in data:
-        issuedate = data['IssueDate']
-    else:
-        issuedate = ''
+    authorname = data.get('AuthorName', '')
+    bookname = data.get('BookName', '')
+    bookid = data.get('BookID', '')
+    title = data.get('Title', '')
+    issuedate = data.get('IssueDate', '')
 
     if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
@@ -2470,13 +2450,19 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 else:
                     return False, 'Failed to locate author folder %s' % author_dir
 
-            remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
-            logger.debug('Scanning directory [%s]' % target_dir)
-            _ = LibraryScan(target_dir, remove=remove)
-            newbookfile = book_file(target_dir, booktype='ebook')
+            if booktype == 'ebook':
+                remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+                logger.debug('Scanning directory [%s]' % target_dir)
+                _ = LibraryScan(target_dir, remove=remove)
+
+            newbookfile = book_file(target_dir, booktype=booktype)
             # should we be setting permissions on calibres directories and files?
             if newbookfile:
                 setperm(target_dir)
+                if booktype in ['magazine', 'comic']:
+                    ignorefile = os.path.join(target_dir, '.ll_ignore')
+                    with open(syspath(ignorefile), 'a'):
+                        os.utime(syspath(ignorefile), None)
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
                 return True, newbookfile
@@ -2567,6 +2553,12 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         logger.debug("Link to first part [%s], %s" % (token, f))
                         tokmatch = token
                         break
+
+        elif booktype in ['magazine', 'comic']:
+            ignorefile = os.path.join(dest_path, '.ll_ignore')
+            with open(syspath(ignorefile), 'a'):
+                os.utime(syspath(ignorefile), None)
+
         if firstfile:
             newbookfile = firstfile
     return True, newbookfile
