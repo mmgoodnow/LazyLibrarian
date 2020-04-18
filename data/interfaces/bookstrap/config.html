@@ -1141,6 +1141,17 @@
                           <br>
                         </div>
                       </div>
+                      <div class="checkbox">
+                        <%
+                          if lazylibrarian.CONFIG['SAB_DELETE'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="sab_delete" class="control-label">
+                        <input type="checkbox" id="sab_delete" name="sab_delete" value="1" ${checked} />
+                        Delete from sabnzbd history</label>
+                      </div>
                     </fieldset>
                     <div class="checkbox">
                       <%

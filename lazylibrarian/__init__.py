@@ -344,6 +344,7 @@ CONFIG_DEFINITIONS = {
     'SAB_PASS': ('str', 'SABnzbd', ''),
     'SAB_API': ('str', 'SABnzbd', ''),
     'SAB_CAT': ('str', 'SABnzbd', ''),
+    'SAB_DELETE': ('bool', 'SABnzbd', 1),
     'SAB_EXTERNAL_HOST': ('str', 'SABnzbd', ''),
     'NZBGET_HOST': ('str', 'NZBGet', ''),
     'NZBGET_PORT': ('int', 'NZBGet', '0'),
