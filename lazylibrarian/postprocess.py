@@ -978,7 +978,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     else:
                                         comic_name = unaccented(replace_all(data['Title'], namedic),
                                                                 only_ascii=False)
-                                    data = {'Title': comic_name, 'IssueDate': issueid, 'BookID', comicid}
+                                    data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
