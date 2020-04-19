@@ -299,7 +299,11 @@ def magazineScan(title=None):
                     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                         logger.debug('createMAGOPF is disabled')
                     else:
-                        lazylibrarian.postprocess.createMAGOPF(issuefile, title, issuedate,
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                            authors = title
+                        else:
+                            authors = 'magazines'
+                        lazylibrarian.postprocess.createMAGOPF(issuefile, authors, title, issuedate,
                                                                issue_id, overwrite=new_entry)
 
                     # see if this issues date values are useful
