@@ -1633,7 +1633,7 @@
                       <span class="input-group-addon">Name</span>
                       <label for="newznab_${loop.index}_dispname" class="sr-only">Newznab Name</label>
                       <input type="text" id="newznab_${loop.index}_dispname" name="newznab_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
-                      <span class="input-group-addon">
+                      <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                       &nbsp;<input type="checkbox" id="newznab_${loop.index}_enabled" name="newznab_${loop.index}_enabled" value="1" ${checked} />&nbsp;
                       </span>
                     </div>
@@ -1678,7 +1678,7 @@
                       <span class="input-group-addon">Name</span>
                       <label for="torznab_${loop.index}_host" class="sr-only">Torznab Name</label>
                       <input type="text" id="torznab_${loop.index}_dispname" name="torznab_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
-                      <span class="input-group-addon">
+                      <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         &nbsp;<input type="checkbox" id="torznab_${loop.index}_enabled" name="torznab_${loop.index}_enabled" value="1" ${checked} />&nbsp;
                         </span>
                     </div>
@@ -1727,7 +1727,7 @@
                       <span class="input-group-addon">Name</span>
                       <label for="rss_${loop.index}_host" class="sr-only">RSS Name</label>
                       <input type="text" id="rss_${loop.index}_dispname" name="rss_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
-                      <span class="input-group-addon">
+                      <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         &nbsp;<input type="checkbox" id="rss_${loop.index}_enabled" name="rss_${loop.index}_enabled" value="1" ${checked} />&nbsp;
                       </span>
                     </div>
@@ -1770,7 +1770,7 @@
                       <label for="kat_host" class="sr-only">KAT Host</label>
                       <div class="input-group">
                         <input type="text" placeholder="KAT Host" id="kat_host" name="kat_host" value="${lazylibrarian.CONFIG['KAT_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="kat" name="kat" value="1" ${checked} />
                         </span>
                       </div>
@@ -1798,7 +1798,7 @@
                       <label for="tpb_host" class="sr-only">TPB Host</label>
                       <div class="input-group">
                         <input type="text" placeholder="TPB Host" id="tpb_host" name="tpb_host" value="${lazylibrarian.CONFIG['TPB_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                           <input type="checkbox" id="tpb" name="tpb" value="1" ${checked} />
                         </span>
                       </div>
@@ -1826,7 +1826,7 @@
                       <label for="wwt_host" class="sr-only">WWT Host</label>
                       <div class="input-group">
                         <input type="text" placeholder="WWT Host" id="wwt_host" name="wwt_host" value="${lazylibrarian.CONFIG['WWT_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                           <input type="checkbox" id="wwt" name="wwt" value="1" ${checked} />
                         </span>
                       </div>
@@ -1854,7 +1854,7 @@
                       <label for="zoo_host" class="sr-only">zooqle host</label>
                       <div class="input-group">
                         <input type="text" placeholder="zooqle host" id="zoo_host" name="zoo_host" value="${lazylibrarian.CONFIG['ZOO_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="zoo" name="zoo" value="1" ${checked} />
                         </span>
                       </div>
@@ -1882,7 +1882,7 @@
                       <label for="tdl_host" class="sr-only">torrentdownload host</label>
                       <div class="input-group">
                         <input type="text" placeholder="torrentdownload host" id="tdl_host" name="tdl_host" value="${lazylibrarian.CONFIG['TDL_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="tdl" name="tdl" value="1" ${checked} />
                         </span>
                       </div>
@@ -1910,7 +1910,7 @@
                       <label for="trf_host" class="sr-only">torrof host</label>
                       <div class="input-group">
                         <input type="text" placeholder="torrof host" id="trf_host" name="trf_host" value="${lazylibrarian.CONFIG['TRF_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="trf" name="trf" value="1" ${checked} />
                         </span>
                       </div>
@@ -1938,7 +1938,7 @@
                       <label for="lime_host" class="sr-only">limetorrent host</label>
                       <div class="input-group">
                         <input type="text" placeholder="limetorrent host" id="lime_host" name="lime_host" value="${lazylibrarian.CONFIG['LIME_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="lime" name="lime" value="1" ${checked} />
                         </span>
                       </div>
@@ -1974,7 +1974,7 @@
                       <span id="log_type" class="input-group-addon">Name</span>
                       <label for="irc_${loop.index}_dispname" class="sr-only">IRC Name</label>
                       <input type="text" id="irc_${loop.index}_dispname" name="irc_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
-                      <span class="input-group-addon">
+                      <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         &nbsp;<input type="checkbox" id="irc_${loop.index}_enabled" name="irc_${loop.index}_enabled" value="1" ${checked} />&nbsp;
                       </span>
                     </div>
@@ -2031,7 +2031,7 @@
                       <div class="input-group">
                         <span class="input-group-addon">LibGen1</span>
                         <input type="text" placeholder="libgen host" id="gen_host" name="gen_host" value="${lazylibrarian.CONFIG['GEN_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="gen" name="gen" value="1" ${checked} />
                         </span>
                       </div>
@@ -2062,7 +2062,7 @@
                       <div class="input-group">
                         <span class="input-group-addon">LibGen2</span>
                         <input type="text" placeholder="libgen host" id="gen2_host" name="gen2_host" value="${lazylibrarian.CONFIG['GEN2_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="gen2" name="gen2" value="1" ${checked} />
                         </span>
                       </div>
@@ -2092,7 +2092,7 @@
                       <div class="input-group">
                         <span class="input-group-addon">ZLibrary</span>
                         <input type="text" placeholder="zlibrary host" id="bok_host" name="bok_host" value="${lazylibrarian.CONFIG['BOK_HOST']}" class="form-control">
-                        <span class="input-group-addon">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         <input type="checkbox" id="bok" name="bok" value="1" ${checked} />
                         </span>
                       </div>
