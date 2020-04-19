@@ -2462,7 +2462,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             if newbookfile:
                 setperm(target_dir)
                 if booktype in ['magazine', 'comic']:
-                    ignorefile = os.path.join(target_dir, b'.ll_ignore')
+                    ignorefile = os.path.join(target_dir, '.ll_ignore')
                     with open(syspath(ignorefile), 'a'):
                         os.utime(syspath(ignorefile), None)
                 for fname in listdir(target_dir):
