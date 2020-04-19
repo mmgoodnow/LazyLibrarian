@@ -2731,7 +2731,7 @@ def createMAGOPF(issuefile, authors, title, issue, issueID, overwrite=False):
         'AuthorName': authors,
         'BookID': issueID,
         'BookName': iname,
-        'FileAs': title,
+        'FileAs': authors,
         'BookDesc': '',
         'BookIsbn': '',
         'BookDate': iss_acquired,
