@@ -963,7 +963,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 global_name = unaccented(global_name, only_ascii=False)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
-                                if '_' in book['BookID']:
+                                if book['BookID'] and '_' in book['BookID']:
                                     comicid, issueid = book['BookID'].split('_')
                                     data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
                                 else:
