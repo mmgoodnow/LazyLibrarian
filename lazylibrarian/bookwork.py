@@ -1162,7 +1162,7 @@ def getWorkSeries(bookID=None, reason=""):
                             match = myDB.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
                                 reason = "Bookid %s: %s" % (bookID, reason)
-                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?)',
+                                myDB.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?)',
                                             (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
                                              0, 0, 0, reason))
     else:
