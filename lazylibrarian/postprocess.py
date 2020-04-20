@@ -151,16 +151,18 @@ def importMag(source_file=None, title=None, issuenum=None):
         maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (title,))
         # create a thumbnail cover for the new issue
         coverfile = createMagCover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
-        myhash = uuid.uuid4().hex
-        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-        copyfile(coverfile, hashname)
-        setperm(hashname)
+        if coverfile:
+            myhash = uuid.uuid4().hex
+            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+            copyfile(coverfile, hashname)
+            setperm(hashname)
+            coverfile = 'cache/magazine/%s.jpg' % myhash
         issueid = create_id("%s %s" % (title, issuenum))
         controlValueDict = {"Title": title, "IssueDate": issuenum}
         newValueDict = {"IssueAcquired": today(),
                         "IssueFile": dest_file,
                         "IssueID": issueid,
-                        "Cover": 'cache/magazine/%s.jpg' % myhash
+                        "Cover": coverfile
                         }
         myDB.upsert("issues", newValueDict, controlValueDict)
 
@@ -172,7 +174,7 @@ def importMag(source_file=None, title=None, issuenum=None):
             newValueDict = {"LastAcquired": today(),
                             "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS'],
                             "IssueDate": issuenum,
-                            "LatestCover": 'cache/magazine/%s.jpg' % myhash}
+                            "LatestCover": coverfile}
         myDB.upsert("magazines", newValueDict, controlValueDict)
 
         if not lazylibrarian.CONFIG['IMP_MAGOPF']:
@@ -1046,24 +1048,25 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     older = False
 
                                 coverfile = createMagCover(dest_file, refresh=True)
-                                myhash = uuid.uuid4().hex
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
-                                copyfile(coverfile, hashname)
-                                setperm(hashname)
-
+                                if coverfile:
+                                    myhash = uuid.uuid4().hex
+                                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    copyfile(coverfile, hashname)
+                                    setperm(hashname)
+                                    coverfile = 'cache/comic/%s.jpg' % myhash
                                 controlValueDict = {"ComicID": comicid}
                                 if older:  # check this in case processing issues arriving out of order
                                     newValueDict = {"LastAcquired": today(),
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 else:
                                     newValueDict = {"LatestIssue": issueid, "LastAcquired": today(),
-                                                    "LatestCover": 'cache/comic/%s.jpg' % myhash,
+                                                    "LatestCover": coverfile,
                                                     "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS']}
                                 myDB.upsert("comics", newValueDict, controlValueDict)
                                 controlValueDict = {"ComicID": comicid, "IssueID": issueid}
                                 newValueDict = {"IssueAcquired": today(),
                                                 "IssueFile": dest_file,
-                                                "Cover": 'cache/comic/%s.jpg' % myhash
+                                                "Cover": coverfile
                                                 }
                                 myDB.upsert("comicissues", newValueDict, controlValueDict)
                         elif not bookname:  # magazine
@@ -1082,16 +1085,18 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             else:
                                 coverpage = check_int(maginfo['CoverPage'], 1)
                             coverfile = createMagCover(dest_file, pagenum=coverpage)
-                            myhash = uuid.uuid4().hex
-                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                            copyfile(coverfile, hashname)
-                            setperm(hashname)
+                            if coverfile:
+                                myhash = uuid.uuid4().hex
+                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                copyfile(coverfile, hashname)
+                                setperm(hashname)
+                                coverfile = 'cache/magazine/%s.jpg' % myhash
                             issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
                             controlValueDict = {"Title": book['BookID'], "IssueDate": book['AuxInfo']}
                             newValueDict = {"IssueAcquired": today(),
                                             "IssueFile": dest_file,
                                             "IssueID": issueid,
-                                            "Cover": 'cache/magazine/%s.jpg' % myhash
+                                            "Cover": coverfile
                                             }
                             myDB.upsert("issues", newValueDict, controlValueDict)
 
@@ -1103,7 +1108,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 newValueDict = {"LastAcquired": today(),
                                                 "IssueStatus": lazylibrarian.CONFIG['FOUND_STATUS'],
                                                 "IssueDate": book['AuxInfo'],
-                                                "LatestCover": 'cache/magazine/%s.jpg' % myhash}
+                                                "LatestCover": coverfile
+                                                }
                             myDB.upsert("magazines", newValueDict, controlValueDict)
 
                             if not lazylibrarian.CONFIG['IMP_MAGOPF']:
