@@ -316,13 +316,19 @@ def import_CSV(search_dir=None, library='eBook'):
                         logger.debug("CSV: Author %s not found" % authorname)
                         newauthor, authorid, new = addAuthorNameToDB(author=authorname,
                                                                      reason="import_CSV %s" % csvFile)
-                        if len(newauthor) and newauthor != authorname:
+                        if newauthor and newauthor != authorname:
                             logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                             authorname = newauthor
                         if new:
                             authcount += 1
+                        if not authorid:
+                            logger.warn("Authorname %s not added to database" % authorname)
 
-                    bookmatch = finditem(item, authorname, library=library, reason='import_CSV: %s' % csvFile)
+                    if authorid:
+                        bookmatch = finditem(item, authorname, library=library, reason='import_CSV: %s' % csvFile)
+                    else:
+                        bookmatch = None
+
                     imported = False
                     results = []
                     if bookmatch:
@@ -346,7 +352,7 @@ def import_CSV(search_dir=None, library='eBook'):
                                 newValueDict = {"AudioStatus": "Wanted"}
                             myDB.upsert("books", newValueDict, controlValueDict)
                             bookcount += 1
-                    else:
+                    elif authorid:
                         searchterm = "%s <ll> %s" % (title, authorname)
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:

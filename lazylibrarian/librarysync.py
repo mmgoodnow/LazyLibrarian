@@ -182,13 +182,15 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         authorid = check_exist_author['AuthorID']
     else:
         newauthor, authorid, new = addAuthorNameToDB(author, False, reason=reason)
-        if len(newauthor) and newauthor != author:
+        if newauthor and newauthor != author:
             if new:
                 logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
             else:
                 logger.debug("Authorname changed from [%s] to existing [%s]" % (author, newauthor))
                 check_exist_author = {'AuthorID': authorid}
             author = makeUnicode(newauthor)
+        if not newauthor:
+            authorid = 0
 
     if not authorid:
         logger.warn("Author [%s] not recognised" % author)
@@ -815,10 +817,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 update_totals(last_authorid)
                             last_authorid = authorid
 
-                            if len(newauthor) and newauthor != author:
+                            if newauthor and newauthor != author:
                                 logger.debug("Preferred authorname changed from [%s] to [%s]" % (author, newauthor))
                                 author = makeUnicode(newauthor)
-                            if author:
+                            if not authorid:
+                                logger.warn("Authorname %s not added to database" % author)
+
+                            if authorid:
                                 # author exists, check if this book by this author is in our database
                                 # metadata might have quotes in book name
                                 # some books might be stored under a different author name

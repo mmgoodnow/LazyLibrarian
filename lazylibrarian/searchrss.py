@@ -172,11 +172,14 @@ def search_wishlist():
                     logger.debug("Author %s not found" % authorname)
                     newauthor, _, _ = addAuthorNameToDB(author=authorname,
                                                         reason="wishlist: %s" % book['rss_title'])
-                    if len(newauthor) and newauthor != authorname:
+                    if newauthor and newauthor != authorname:
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                         authorname = newauthor
+                    if not newauthor:
+                        logger.warn("Authorname %s not added to database" % authorname)
+                        authorname = ''
 
-                if book['rss_isbn']:
+                if authorname and book['rss_isbn']:
                     results = search_for(book['rss_isbn'])
                     for result in results:
                         if result['isbn_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
@@ -185,7 +188,8 @@ def search_wishlist():
                                          result['bookname']))
                             bookmatch = result
                             break
-                if not bookmatch:
+
+                if authorname and not bookmatch:
                     searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
@@ -196,7 +200,9 @@ def search_wishlist():
                                          result['authorname'], result['bookname']))
                             bookmatch = result
                             break
-                if not bookmatch:  # no match on full searchterm, try splitting out subtitle
+
+                if authorname and not bookmatch:
+                    # no match on full searchterm, try splitting out subtitle
                     newtitle, _ = split_title(authorname, book['rss_title'])
                     if newtitle != book['rss_title']:
                         title = newtitle
@@ -210,7 +216,8 @@ def search_wishlist():
                                              result['authorname'], result['bookname']))
                                 bookmatch = result
                                 break
-                if bookmatch:
+
+                if authorname and bookmatch:
                     import_book(bookmatch['bookid'], ebook_status, audio_status,
                                 reason="Added from wishlist %s" % book["dispname"])
                     if ebook_status == 'Wanted':

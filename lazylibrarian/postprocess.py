@@ -324,6 +324,7 @@ def processAlternate(source_dir=None, library='eBook'):
             bookname = metadata['title']
             myDB = database.DBConnection()
             authorid = ''
+            bookid = ''
             authmatch = myDB.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
             if not authmatch:
@@ -355,11 +356,14 @@ def processAlternate(source_dir=None, library='eBook'):
                                                            reason="processAlternate: %s" % bookname)
                     if aname and aname != authorname:
                         authorname = aname
+                    if not aname:
+                        authorid = ''
 
-            bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
-                                        reason="processAlternate: %s" % bookname)
+            if authorid:
+                bookid, _ = find_book_in_db(authorname, bookname, ignored=False, library=library,
+                                            reason="processAlternate: %s" % bookname)
             results = []
-            if not bookid:
+            if authorid and not bookid:
                 # new book, or new author where we didn't want to load their back catalog
                 searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),
                                              unaccented(authorname, only_ascii=False))
