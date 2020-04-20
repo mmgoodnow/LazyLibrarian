@@ -975,18 +975,18 @@ def aaUpdate(refresh=False):
         cmd = 'SELECT AuthorID from authors WHERE Status="Active" or Status="Loading" or Status="Wanted"'
         cmd += ' order by Updated ASC'
         activeauthors = myDB.select(cmd)
-        lazylibrarian.AUTHORS_UPDATE = True
+        lazylibrarian.AUTHORS_UPDATE = 1
         logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
         for author in activeauthors:
             lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'], reason="aaUpdate")
         logger.info('Active author update complete')
-        lazylibrarian.AUTHORS_UPDATE = False
         msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))
         logger.debug(msg)
     except Exception:
-        lazylibrarian.AUTHORS_UPDATE = False
         msg = 'Unhandled exception in aaUpdate: %s' % traceback.format_exc()
         logger.error(msg)
+    finally:
+        lazylibrarian.AUTHORS_UPDATE = 0
     return msg
 
 
