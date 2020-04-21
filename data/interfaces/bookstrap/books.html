@@ -105,11 +105,6 @@
     </div>
   </form>
 </%def>
-<%def name="headIncludes()">
-  %if lazylibrarian.EBOOK_UPDATE == True:
-  <meta http-equiv="refresh" content="10">
-  %endif
-</%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
 
@@ -251,6 +246,18 @@
                 return nRow;
             },
         });
+
+            table.on( 'xhr', function () {
+              var json = table.ajax.json();
+              if (json.loading) {
+                setInterval( function () {
+              table.ajax.reload( null, false );
+            }, 10000 );
+              }
+              else {
+                $('#myAlert').addClass('hidden');
+              };
+            });
 
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {table.draw('page')});

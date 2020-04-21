@@ -67,11 +67,7 @@
       </div>
     </form>
   </%def>
-  <%def name="headIncludes()">
-    %if lazylibrarian.COMIC_UPDATE == True:
-    <meta http-equiv="refresh" content="10">
-    %endif
-  </%def>
+
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
     $(document).ready(function()
@@ -131,6 +127,19 @@
                     return nRow;
                 },
             });
+
+            table.on( 'xhr', function () {
+              var json = table.ajax.json();
+              if (json.loading) {
+                setInterval( function () {
+              table.ajax.reload( null, false );
+            }, 10000 );
+              }
+              else {
+                $('#myAlert').addClass('hidden');
+              };
+            });
+
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {
                 e.preventDefault();

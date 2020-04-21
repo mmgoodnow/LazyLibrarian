@@ -35,7 +35,7 @@
 
 <%def name="body()">
 <h1>${title}</h1>
-  %if lazylibrarian.AUTHORS_UPDATE == True:
+  %if lazylibrarian.AUTHORS_UPDATE == 1:
     <p>
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Author Refresh in progress ...</button>
     </p>
@@ -102,11 +102,6 @@
     </table>
   </div>
 </form>
-</%def>
-<%def name="headIncludes()">
-  %if lazylibrarian.AUTHORS_UPDATE == True:
-    <meta http-equiv="refresh" content="20">
-  %endif
 </%def>
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
@@ -212,6 +207,19 @@
                 },
                 "aaSorting": [[2, 'asc']],
             });
+
+            table.on( 'xhr', function () {
+              var json = table.ajax.json();
+              if (json.loading) {
+                setInterval( function () {
+              table.ajax.reload( null, false );
+            }, 10000 );
+              }
+              else {
+                $('#myAlert').addClass('hidden');
+              };
+            });
+
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         $('a.toggle-vis').click(function (e) {
             e.preventDefault();

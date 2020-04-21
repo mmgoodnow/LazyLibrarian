@@ -177,7 +177,7 @@ class WebInterface(object):
                 title = 'Inactive Authors'
             else:
                 title = 'Ignored Authors'
-        return serve_template(templatename="index.html", title=title, authors=[])
+        return serve_template(templatename="index.html", title=title)
 
     @cherrypy.expose
     def profile(self):
@@ -189,7 +189,7 @@ class WebInterface(object):
                               (cookie['ll_uid'].value,))
             if user:
                 return serve_template(templatename="profile.html", title=title, user=user)
-        return serve_template(templatename="index.html", title=title, authors=[])
+        return serve_template(templatename="index.html", title=title)
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
@@ -301,6 +301,7 @@ class WebInterface(object):
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
+                      'loading': lazylibrarian.AUTHORS_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
@@ -1865,13 +1866,14 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        myDB = database.DBConnection()
+
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
             iDisplayLength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
 
-            myDB = database.DBConnection()
             ToRead = []
             HaveRead = []
             flagTo = 0
@@ -2132,6 +2134,13 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
+            if kwargs['source'] == 'Author':
+                status = myDB.match("SELECT Status from authors WHERE authorid=?", (kwargs['AuthorID'],))
+                mydict['loading'] = status['Status'] == 'Loading'
+            elif kwargs['source'] == 'Books':
+                mydict['loading'] = lazylibrarian.EBOOK_UPDATE
+            elif kwargs['source'] == 'Audio':
+                mydict['loading'] = lazylibrarian.AUDIO_UPDATE
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
             return mydict
@@ -3393,6 +3402,7 @@ class WebInterface(object):
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
+                      'loading': lazylibrarian.COMIC_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
@@ -3561,6 +3571,7 @@ class WebInterface(object):
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
+                      'loading': lazylibrarian.COMIC_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
@@ -3837,6 +3848,7 @@ class WebInterface(object):
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
+                      'loading': lazylibrarian.MAG_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
@@ -3969,6 +3981,7 @@ class WebInterface(object):
             mydict = {'iTotalDisplayRecords': len(filtered),
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
+                      'loading': lazylibrarian.MAG_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(mydict)
@@ -5809,11 +5822,11 @@ class WebInterface(object):
         try:
             params = [ffmpeg, "-version"]
             if os.name != 'nt':
-                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), 
+                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                               stderr=subprocess.STDOUT)
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            
+
             res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
             return "Found ffmpeg version %s" % res
         except Exception as e:
