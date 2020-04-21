@@ -168,6 +168,8 @@ def search_wishlist():
                 authmatch = myDB.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                 if authmatch:
                     logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))
+                    if authmatch['Status'] == 'Ignored':
+                        authorname = ''
                 else:
                     logger.debug("Author %s not found" % authorname)
                     newauthor, _, _ = addAuthorNameToDB(author=authorname,
