@@ -134,10 +134,10 @@ def addTorrent(link, data=None):
 
 def getTorrentFolder(torrentid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Deluge: Get torrent folder name')
-    res = getTorrentStatus(torrentid, ["name", "state"])  # type: dict
+        logger.debug('Deluge: Get torrent folder name/path')
+    res = getTorrentStatus(torrentid, ["name", "save_path", "state"])  # type: dict
     if res and res['result']:
-        return res['result']['name']
+        return res['result']['save_path']
     return ''
 
 
