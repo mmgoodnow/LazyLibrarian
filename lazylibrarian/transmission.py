@@ -68,7 +68,7 @@ def addTorrent(link, directory=None, metainfo=None):
     return False, res
 
 
-def getTorrentFolder(torrentid):  # uses hashid
+def getTorrentName(torrentid):  # uses hashid
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['name', 'percentDone']}
     retries = 3
@@ -78,6 +78,26 @@ def getTorrentFolder(torrentid):  # uses hashid
             percentdone = response['arguments']['torrents'][0]['percentDone']
             if percentdone:
                 return response['arguments']['torrents'][0]['name']
+        else:
+            logger.debug('getTorrentFolder: No response from transmission')
+            return ''
+
+        retries -= 1
+        if retries:
+            time.sleep(5)
+
+    return ''
+
+def getTorrentFolder(torrentid):  # uses hashid
+    method = 'torrent-get'
+    arguments = {'ids': [torrentid], 'fields': ['downloadDir', 'percentDone']}
+    retries = 3
+    while retries:
+        response, _ = torrentAction(method, arguments)  # type: dict
+        if response and len(response['arguments']['torrents']):
+            percentdone = response['arguments']['torrents'][0]['percentDone']
+            if percentdone:
+                return response['arguments']['torrents'][0]['downloadDir']
         else:
             logger.debug('getTorrentFolder: No response from transmission')
             return ''

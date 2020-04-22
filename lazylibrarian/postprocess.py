@@ -1577,7 +1577,7 @@ def getDownloadName(title, source, downloadid):
     try:
         logger.debug("%s was sent to %s" % (title, source))
         if source == 'TRANSMISSION':
-            dlname = transmission.getTorrentFolder(downloadid)
+            dlname = transmission.getTorrentName(downloadid)
         elif source == 'QBITTORRENT':
             dlname = qbittorrent.getName(downloadid)
         elif source == 'UTORRENT':
@@ -1587,7 +1587,7 @@ def getDownloadName(title, source, downloadid):
         elif source == 'SYNOLOGY_TOR':
             dlname = synology.getName(downloadid)
         elif source == 'DELUGEWEBUI':
-            dlname = deluge.getTorrentFolder(downloadid)
+            dlname = deluge.getTorrentName(downloadid)
         elif source == 'DELUGERPC':
             client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'], int(lazylibrarian.CONFIG['DELUGE_PORT']),
                                      lazylibrarian.CONFIG['DELUGE_USER'], lazylibrarian.CONFIG['DELUGE_PASS'],
@@ -1691,8 +1691,8 @@ def getDownloadFolder(source, downloadid):
                 result = client.call('core.get_torrent_status', downloadid, {})
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
-                if 'name' in result:
-                    dlfolder = result['name']
+                if 'save_path' in result:
+                    dlfolder = result['save_path']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         return dlfolder
