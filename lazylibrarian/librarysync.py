@@ -663,7 +663,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     # to merge author aliases together
                     # If all else fails, try pattern match for author/title
                     # and look up isbn/lang from LT or GR later
-                    match = 0
                     if (library == 'eBook' and is_valid_booktype(files, 'ebook')) or \
                             (library == 'AudioBook' and is_valid_booktype(files, 'audiobook')):
 
@@ -691,8 +690,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             if 'title' in res and 'creator' in res:
                                 book = res['title']
                                 author = res['creator']
-                                if author and book and len(book) > 2 and len(author) > 2:
-                                    match = 1
                                 if 'language' in res:
                                     language = res['language']
                                 if 'identifier' in res:
@@ -702,7 +699,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 logger.debug("book meta [%s] [%s] [%s] [%s] [%s]" %
                                              (isbn, language, author, book, extn))
-                            if not match:
+                            if not author and book:
                                 logger.debug("Book meta incomplete in %s" % book_filename)
 
                         # calibre uses "metadata.opf", LL uses "bookname - authorname.opf"
@@ -724,8 +721,6 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             author = res['creator']
                             author = author.strip()  # some audiobooks have fields of spaces
                             book = book.strip()
-                            if author and book and len(book) > 2 and len(author) > 2:
-                                match = 1
                             if 'language' in res:
                                 language = res['language']
                             if 'identifier' in res:
@@ -737,20 +732,18 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             logger.debug(
                                 "file meta [%s] [%s] [%s] [%s] [%s] [%s]" % (
                                     isbn, language, author, book, gr_id, publisher))
-                            if not match:
+                            if not author and book:
                                 logger.debug("File meta incomplete in %s" % metafile)
 
-                        if not match:
+                        if not author and book:
                             # no author/book from metadata file, and not embedded either
                             # or audiobook which may have id3 tags
                             if is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
                                 author, book = id3read(filename)
-                                if author and book:
-                                    match = True
 
                         # Failing anything better, just pattern match on filename
-                        if not match:
+                        if not author and book:
                             # might need a different pattern match for audiobooks
                             # as they often seem to have xxChapter-Seriesnum Author Title
                             # but hopefully the tags will get there first...
@@ -777,19 +770,16 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 book = makeUnicode(book)
                                 author = makeUnicode(author)
-                                if len(book) > 2 and len(author) > 2:
-                                    match = True
-                                else:
-                                    match = False
-                            if not match:
+
+                            if not author and book:
                                 logger.debug("Pattern match failed [%s]" % files)
 
                         if publisher:
                             if publisher.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
                                 logger.warn("Ignoring %s: Publisher %s" % (files, publisher))
-                                match = False
+                                author = ''  # suppress
 
-                        if match:
+                        if author and book:
                             # flag that we found a book in this subdirectory
                             if subdirectory:
                                 processed_subdirectories.append(subdirectory)
