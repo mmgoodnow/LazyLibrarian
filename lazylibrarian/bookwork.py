@@ -920,7 +920,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
         try:
             bookname = unaccented(item[0][1], only_ascii=False)
             order = item[0][0]
-        except IndexError:
+        except (TypeError, IndexError):
             order = 0
             bookname = ''
             rejected = True
