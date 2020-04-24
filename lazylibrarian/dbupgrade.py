@@ -111,8 +111,9 @@ def upgrade_needed():
     # 59 Added per provider seeders instead of global
     # 60 Moved preprocessor into main program and disabled old preprocessor
     # 61 Add reason to series table
+    # 62 Add About to author table
 
-    db_current_version = 61
+    db_current_version = 62
 
     if db_version < db_current_version:
         return db_current_version
@@ -175,7 +176,7 @@ def dbupgrade(db_current_version):
                                 'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
                                 'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
                                 'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, ' +
-                                'LastBookID TEXT, Updated INTEGER DEFAULT 0, Reason TEXT)')
+                                'LastBookID TEXT, Updated INTEGER DEFAULT 0, Reason TEXT, About TEXT)')
                     myDB.action('CREATE TABLE wanted (BookID TEXT, NZBurl TEXT, NZBtitle TEXT, NZBdate TEXT, ' +
                                 'NZBprov TEXT, Status TEXT, NZBsize TEXT, AuxInfo TEXT, NZBmode TEXT, ' +
                                 'Source TEXT, DownloadID TEXT, DLResult TEXT)')
@@ -1737,3 +1738,12 @@ def db_v61(myDB, upgradelog):
         myDB.action('ALTER TABLE series ADD COLUMN Reason TEXT')
         myDB.action('UPDATE series SET Reason="Historic"')
     upgradelog.write("%s v61: complete\n" % time.ctime())
+
+
+def db_v62(myDB, upgradelog):
+    if not has_column(myDB, "authors", "About"):
+        lazylibrarian.UPDATE_MSG = 'Adding About column to authors table'
+        upgradelog.write("%s v62: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE authors ADD COLUMN About TEXT')
+    upgradelog.write("%s v62: complete\n" % time.ctime())
+

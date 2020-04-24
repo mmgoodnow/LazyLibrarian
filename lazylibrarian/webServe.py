@@ -2594,7 +2594,7 @@ class WebInterface(object):
     # kwargs needed for passing utf8 hidden input
     @cherrypy.expose
     def authorUpdate(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
-                     manual='0', **kwargs):
+                     editordata='', manual='0', **kwargs):
         myDB = database.DBConnection()
         if authorid:
             authdata = myDB.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
@@ -2614,6 +2614,8 @@ class WebInterface(object):
                     edited += "Died "
                 if authorimg and (authdata["AuthorImg"] != authorimg):
                     edited += "Image "
+                if not (authdata["About"] == editordata):
+                    edited += "Description "
                 if not (bool(check_int(authdata["Manual"], 0)) == manual):
                     edited += "Manual "
 
@@ -2700,6 +2702,7 @@ class WebInterface(object):
                         'AuthorBorn': authorborn,
                         'AuthorDeath': authordeath,
                         'AuthorImg': authorimg,
+                        'About': editordata,
                         'Manual': bool(manual)
                     }
                     myDB.upsert("authors", newValueDict, controlValueDict)
@@ -5001,7 +5004,10 @@ class WebInterface(object):
         text = 'No Description'
         myDB = database.DBConnection()
         if bookid:
-            if bookid.startswith('CV') or bookid.startswith('CX'):
+            if bookid.startswith('A_'):
+                cmd = "SELECT AuthorName,About,AuthorImg from authors WHERE authorid=?"
+                res = myDB.match(cmd, (bookid[2:],))
+            elif bookid.startswith('CV') or bookid.startswith('CX'):
                 try:
                     comicid, issueid = bookid.split('_')
                     cmd = "SELECT Title as BookName,comicissues.Description as BookDesc,Cover as BookImg,"
@@ -5019,12 +5025,18 @@ class WebInterface(object):
                 res = dict(res)
                 if res['BookDesc']:
                     text = res['BookDesc']
+                elif res['About']:
+                    text = res['About']
                 if 'Contributors' in res and res['Contributors']:
                     text += '<br><br>' + res['Contributors']
                 if res['BookImg']:
                     img = res['BookImg']
+                elif res['AuthorImg']:
+                    img = res['AuthorImg']
                 if res['BookName']:
                     title = res['BookName']
+                elif res['AuthorName']:
+                    title = res['AuthorName']
                 if 'AuthorID' in res:
                     lastauthor = res['AuthorID']
         return img + '^' + title + '^' + text

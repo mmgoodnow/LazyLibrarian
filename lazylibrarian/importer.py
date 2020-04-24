@@ -210,6 +210,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     newValueDict["AuthorImg"] = author['authorimg']
                     newValueDict["AuthorBorn"] = author['authorborn']
                     newValueDict["AuthorDeath"] = author['authordeath']
+                    if 'about' in author:
+                        newValueDict['About'] = author['about']
                     if not dbauthor:
                         newValueDict["AuthorName"] = author['authorname']
                     elif dbauthor['authorname'] != author['authorname']:

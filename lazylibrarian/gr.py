@@ -331,6 +331,7 @@ class GoodReads:
             'authorimg': resultxml.find('image_url').text,
             'authorborn': resultxml.find('born_at').text,
             'authordeath': resultxml.find('died_at').text,
+            'about': resultxml.find('about').text,
             'totalbooks': resultxml.find('works_count').text,
             'authorname': ' '.join(authorname.split())  # remove any extra whitespace
         }

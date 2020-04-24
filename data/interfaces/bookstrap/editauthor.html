@@ -33,6 +33,11 @@
                 <label for="reason" class="control-label">Added by:</label>
                 <input type="text" id="reason" name="reason" value="${config['Reason']}" readonly class="form-control" placeholder="Reason for inclusion">
             </div>
+        <div class="form-group">
+          <!--div><p>${config['About']}</p></div-->
+          <label for="summernote" class="control-label">Author Description</label>
+          <textarea id="summernote" name="editordata" class="form-control" rows="10" placeholder="Nothing to see here...">${config['About']}</textarea>
+        </div>
             <div class="form-group">
                 <label for="authorimg" class="control-label">Current Image:</label>
                 <img src="${config['AuthorImg']}" class="box-shadow img-responsive" alt="${config['AuthorName']}" title="${config['AuthorName']}">
