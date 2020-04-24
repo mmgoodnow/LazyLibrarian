@@ -94,6 +94,8 @@ class PushoverNotifier:
         if request_status == 200:
             if testMessage:
                 logger.debug(request_body)
+                if not PY2:
+                    request_body = request_body.decode()
                 if 'devices' in request_body:
                     return "Devices: %s" % request_body.split('[')[1].split(']')[0]
                 else:
