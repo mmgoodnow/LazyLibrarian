@@ -400,9 +400,18 @@ def get_series_detail_from_search(page_content):
     # Return details for the Comics Series
     series_detail = {}
     soup = BeautifulSoup(page_content, "html5lib")
-    series_detail['publisher'] = soup.find('h3', class_="name").text.strip('\n').strip()
-    series_detail['title'] = soup.find('h1', itemprop='name').text
-    series_detail['description'] = soup.find('div', itemprop='description').text
+    try:
+        series_detail['title'] = soup.find('h1', itemprop='name').text
+    except AttributeError:
+        series_detail['title'] = ''
+    try:
+        series_detail['publisher'] = soup.find('h3', class_="name").text.strip('\n').strip()
+    except AttributeError:
+        pass
+    try:
+        series_detail['description'] = soup.find('div', itemprop='description').text
+    except AttributeError:
+        pass
     issues = soup.find('div', class_="list Issues")
     if issues:
         series_detail['issues'] = issues.find_all('h6')
