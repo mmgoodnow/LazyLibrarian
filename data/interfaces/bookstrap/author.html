@@ -91,7 +91,7 @@
     %if lazylibrarian.CONFIG['AUTHOR_IMG']:
     <div id="authorart_container" class="col-md-3">
         <div id="authorart_menu">
-            <img src="${author['AuthorImg']}" class="box-shadow img-responsive" alt="${author['AuthorName']}" title="${author['AuthorName']}">
+            <button onclick="bookinfo('A_${author['AuthorID']}')" class="button btn-link text-left" type="button" title=""><img src="${author['AuthorImg']}" class="box-shadow img-responsive" alt="${author['AuthorName']}" title="${author['AuthorName']}"></button>
         </div>
     </div>
     %endif

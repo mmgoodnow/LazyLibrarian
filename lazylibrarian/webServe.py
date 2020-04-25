@@ -5023,20 +5023,18 @@ class WebInterface(object):
                 res = myDB.match(cmd, (bookid,))
             if res:
                 res = dict(res)
-                if res['BookDesc']:
-                    text = res['BookDesc']
-                elif res['About']:
-                    text = res['About']
-                if 'Contributors' in res and res['Contributors']:
-                    text += '<br><br>' + res['Contributors']
-                if res['BookImg']:
-                    img = res['BookImg']
-                elif res['AuthorImg']:
-                    img = res['AuthorImg']
-                if res['BookName']:
-                    title = res['BookName']
-                elif res['AuthorName']:
-                    title = res['AuthorName']
+                text = res.get('BookDesc')
+                if not text:
+                    text = res.get('About')
+                contributors = res.get('Contributors')
+                if contributors:
+                    text += '<br><br>' + contributors
+                img = res.get('BookImg')
+                if not img:
+                    img = res.get('AuthorImg')
+                title = res.get('BookName')
+                if not title:
+                    title = res.get('AuthorName')
                 if 'AuthorID' in res:
                     lastauthor = res['AuthorID']
         return img + '^' + title + '^' + text
