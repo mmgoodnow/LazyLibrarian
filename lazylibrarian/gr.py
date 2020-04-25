@@ -657,13 +657,6 @@ class GoodReads:
                         if not rejected:
                             bookname = unaccented(bookname, only_ascii=False)
                             if lazylibrarian.CONFIG['NO_SETS']:
-                                if re.search(r'\d+ of \d+', bookname) or \
-                                        re.search(r'\d+/\d+', bookname):
-                                    rejected = 'set', 'Set or Part'
-                                    logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
-                        if not rejected:
-                            bookname = unaccented(bookname, only_ascii=False)
-                            if lazylibrarian.CONFIG['NO_SETS']:
                                 # allow date ranges eg 1981-95
                                 m = re.search(r'(\d+)-(\d+)', bookname)
                                 if m:
@@ -672,6 +665,10 @@ class GoodReads:
                                     else:
                                         rejected = 'set', 'Set or Part %s' % m.group(0)
                                         logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
+                                elif re.search(r'\d+ of \d+', bookname) or \
+                                        re.search(r'\d+/\d+', bookname):
+                                    rejected = 'set', 'Set or Part'
+                                    logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
 
                         if not rejected:
                             bookname, booksub = split_title(authorNameResult, bookname)

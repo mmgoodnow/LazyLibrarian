@@ -32,7 +32,7 @@ from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries
 from lazylibrarian.images import getBookCover
 from lazylibrarian.cache import gb_json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
-    getList, cleanName, makeUnicode, makeUTF8bytes, replace_with
+    getList, cleanName, makeUnicode, makeUTF8bytes, replace_with, check_year
 from lazylibrarian.common import quotes
 from lazylibrarian.gr import GoodReads
 try:
@@ -627,7 +627,7 @@ class GoogleBooks:
 
             if refresh:
                 logger.info("[%s] Book processing complete: Added %s %s / Updated %s %s" %
-                            (authorname, added_count, plural(added_count, "book"), 
+                            (authorname, added_count, plural(added_count, "book"),
                              updated_count, plural(updated_count, "book")))
             else:
                 logger.info("[%s] Book processing complete: Added %s %s to the database" %
@@ -686,7 +686,18 @@ class GoogleBooks:
                     return
 
         if lazylibrarian.CONFIG['NO_SETS']:
-            if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
+            # allow date ranges eg 1981-95
+            m = re.search(r'(\d+)-(\d+)', bookname)
+            if m:
+                if check_year(m.group(1), past=1800, future=0):
+                    logger.debug("Allow %s, looks like a date range" % bookname)
+                else:
+                    msg = 'Book %s Set or Part'
+                    logger.warn(msg)
+                    if reason.startswith("Series:"):
+                        return
+            elif re.search(r'\d+ of \d+', bookname) or \
+                    re.search(r'\d+/\d+', bookname):
                 msg = 'Book %s Set or Part'
                 logger.warn(msg)
                 if reason.startswith("Series:"):
