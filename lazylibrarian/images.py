@@ -106,9 +106,15 @@ def coverswap(sourcefile):
             with open(srcfile + 'new', "wb") as outputStream:
                 output.write(outputStream)
         logger.debug("Writing new output file")
-        newcopy = safe_copy(srcfile + 'new', original + 'new')
+        try:
+            newcopy = safe_copy(srcfile + 'new', original + 'new')
+        except Exception as e:
+            logger.warn("Failed to copy output file: %s" % str(e))
+            return False
         os.remove(srcfile)
         os.remove(srcfile + 'new')
+        # windows does not allow rename to overwrite an existing file
+        os.remove(original)
         os.rename(newcopy, original)
         logger.info("%s has %d pages. Swapped pages 1 and 2\n" % (sourcefile, cnt))
         return True
@@ -694,7 +700,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                                   stderr=subprocess.STDOUT)
                 else:
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                
+
                 res = makeUnicode(res).strip()
                 if res:
                     logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
@@ -758,7 +764,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                                           stderr=subprocess.STDOUT)
                         else:
                             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        
+
                         res = makeUnicode(res).strip()
                         if not path_isfile(coverfile):
                             logger.debug("Failed to create jpg: %s" % res)
@@ -840,7 +846,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                                                   stderr=subprocess.STDOUT)
                                 else:
                                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                    
+
                                 res = makeUnicode(res).strip()
                                 if not path_isfile(coverfile):
                                     logger.debug("Failed to create jpg: %s" % res)
