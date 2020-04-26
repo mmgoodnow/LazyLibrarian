@@ -223,7 +223,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
     if lazylibrarian.providers.ProviderIsBlocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
-        return False, msg
+        return '', msg
 
     if cache:
         cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
@@ -289,7 +289,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                     irc.join(provider['CHANNEL'])
                 except Exception as e:
                     logger.debug(str(e))
-                    return False, str(e)
+                    return '', str(e)
                 cmd_sent = time.time()
                 last_cmd = 'socket timeout re-join %s' % provider['CHANNEL']
             if status == "waiting":
@@ -311,7 +311,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
         except socket.error as e:
             logger.error("Socket error: %s" % str(e))
             # if disconnected need to reconnect and rejoin channel
-            return False, str(e)
+            return '', str(e)
 
         for lyne in lynes:
             if len(lynes) == 1 and not lyne:
@@ -325,14 +325,14 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                         irc.join(provider['CHANNEL'])
                     except Exception as e:
                         logger.debug(str(e))
-                        return False, str(e)
+                        return '', str(e)
                     last_cmd = 'Empty response, rejoin %s' % provider['CHANNEL']
                     cmd_sent = time.time()
 
             elif 'KICK' in lyne:
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
                 lazylibrarian.providers.BlockProvider(provider['SERVER'], "Kick", 600)
-                return False, "Kick"
+                return '', "Kick"
 
             elif ' 404 ' in lyne:  # cannot send to channel
                 status = ""
@@ -383,7 +383,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                     logger.warn("Request Denied by %s" % cmd)
                     logger.debug(msg)
                     # irc.part(channel)
-                    return False, msg
+                    return '', msg
 
             elif provider['CHANNEL'] in lyne and status == "":
                 status = "joined"
@@ -449,7 +449,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                         if retries > maxretries:
                             msg = "Aborting download, too many retries"
                             logger.warn(msg)
-                            return False, msg
+                            return '', msg
 
                         # check every few seconds so we don't miss a ping from irc server
                         if time.time() > pingcheck + 10:
@@ -468,7 +468,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
             if retries > maxretries:
                 msg = "Aborting, too many retries"
                 logger.warn(msg)
-                return False, msg
+                return '', msg
 
     if cache:
         # still cache if empty response (no matches)
