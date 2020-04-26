@@ -83,6 +83,8 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         params['output'] = 'json'
         if search:
             params['search'] = search
+        if lazylibrarian.CONFIG['SAB_CAT']:
+            params['category'] = lazylibrarian.CONFIG['SAB_CAT']
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -96,6 +98,8 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         params['output'] = 'json'
         if search:
             params['search'] = search
+        if lazylibrarian.CONFIG['SAB_CAT']:
+            params['category'] = lazylibrarian.CONFIG['SAB_CAT']
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
