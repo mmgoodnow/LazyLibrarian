@@ -112,6 +112,8 @@
 
     $(document).ready(function()
     {
+      var selected = [];
+
         $('input.deletable').wrap('<span class="deleteicon" />').after($('<span/>').click(function() {
             $(this).prev('input').val('').trigger('change').focus();
         }));
@@ -126,13 +128,15 @@
                 "bAutoWidth": false,
                 "stateSave": true,
                 "order": [[ 2, 'asc']],
+                "rowId": 10,
                 "columnDefs":
                     [{ targets: 'no-sort', orderable: false },
-                     { targets: [0],
+                      { targets: [0],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return '<input type="checkbox" name="' + row[10] + '" class="checkbox" />';}
-                     },
+                            if ( $.inArray('I' + row[10], selected) !== -1 ) {
+                                return '<input type="checkbox" id="' + row[10] + '" name="' + row[10] + '" class="checkbox" checked=true />'; }
+                            return '<input type="checkbox" id="' + row[10] + '" name="' + row[10] + '" class="checkbox" />';} },
                      { targets: [1],
                          'visible': showimg,
                          'render': function(data, type, row) {
@@ -207,6 +211,17 @@
                 },
                 "aaSorting": [[2, 'asc']],
             });
+
+          $('#author_table tbody').on('click', 'tr', function () {
+              var id = "I" + this.id;
+              var index = $.inArray(id, selected);
+              if ( index === -1 ) {
+                  selected.push( id );
+              } else {
+                  selected.splice( index, 1 );
+              }
+              $(this).toggleClass('selected');
+          } );
 
             table.on( 'xhr', function () {
               var json = table.ajax.json();

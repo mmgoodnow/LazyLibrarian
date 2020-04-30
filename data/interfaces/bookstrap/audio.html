@@ -104,6 +104,8 @@
   <script type="text/javascript">
     $(document).ready(function() {
 
+        var selected = [];
+
         $('#chooselanguage').val(getUrlVars()['BookLang']);
 
         var show = ""+${lazylibrarian.CONFIG['BOOK_IMG']};
@@ -115,12 +117,15 @@
             "bAutoWidth": false,
             "stateSave": true,
             "order": [[ 2, 'asc' ]],
+            "rowId": 0,
             "columnDefs":[
                 { targets: 'no-sort', orderable: false },
                 { targets: [0],
-                    'class': 'text-center',
-                    'render': function(data, type, row) {
-                        return '<input type="checkbox" name="' + data + '" class="checkbox" />';} },
+                  'class': 'text-center',
+                  'render': function(data, type, row) {
+                    if ( $.inArray('A' + data, selected) !== -1 ) {
+                        return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
+                    return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" />';} },
                 { targets: [1],
                     'visible': showimg,
                     'render': function(data, type, row) {
@@ -226,6 +231,17 @@
                 return nRow;
             },
         });
+
+          $('#book_table tbody').on('click', 'tr', function () {
+              var id = "A" + this.id;
+              var index = $.inArray(id, selected);
+              if ( index === -1 ) {
+                  selected.push( id );
+              } else {
+                  selected.splice( index, 1 );
+              }
+              $(this).toggleClass('selected');
+          } );
 
             table.on( 'xhr', function () {
               var json = table.ajax.json();

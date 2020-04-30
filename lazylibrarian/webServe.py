@@ -1925,6 +1925,7 @@ class WebInterface(object):
             if library == 'AudioBook':
                 status_type = 'audiostatus'
             args = []
+
             if kwargs['source'] == "Manage":
                 if kwargs['whichStatus'] == 'ToRead':
                     cmd += ' and books.bookID in (' + ', '.join(ToRead) + ')'
@@ -2042,7 +2043,7 @@ class WebInterface(object):
                     rows = filtered[iDisplayStart:(iDisplayStart + iDisplayLength)]
 
                 # now add html to the ones we want to display
-                d = []  # the masterlist to be filled with the html data
+                data = []  # the masterlist to be filled with the html data
                 for row in rows:
                     worklink = ''
                     sitelink = ''
@@ -2090,15 +2091,12 @@ class WebInterface(object):
                         row[5] = row[14]
                         row[13] = row[15]
 
-                    # if no "added to library" date, show "added to database" date
-                    # if not row[13]:
-                    #    row[13] = row[18]
-
-                    # Need to pass bookid and status twice as datatables modifies first one
+                    # Need to pass bookid and status twice for legacy as datatables modifies first one
                     thisrow = [row[6], row[0], row[1], title, row[12], bookrate, dateFormat(row[4], ''),
                                row[5], row[11], row[6],
                                dateFormat(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
                                row[5], row[16], flag]
+
                     if kwargs['source'] == "Manage":
                         cmd = "SELECT Time,Interval,Count from failedsearch WHERE Bookid=? AND Library='eBook'"
                         searches = myDB.match(cmd, (row[6],))
@@ -2117,8 +2115,9 @@ class WebInterface(object):
 
                     thisrow.append(row[18])
                     thisrow.append(row[19])
-                    d.append(thisrow)
-                rows = d
+                    data.append(thisrow)
+
+                rows = data
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s returning %s to %s, flagged %s,%s" % (
@@ -3533,7 +3532,8 @@ class WebInterface(object):
                 rowlist = []
                 if len(mod_issues):
                     for mag in mod_issues:
-                        entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], comicid]
+                        entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], "%s_%s" % (
+                                 comicid, mag['IssueID'])]
                         rowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:

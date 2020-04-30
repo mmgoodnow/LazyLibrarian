@@ -101,6 +101,8 @@
   <script>
     $(document).ready(function()
     {
+        var selected = [];
+
         var show = ""+${lazylibrarian.CONFIG['COMIC_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
@@ -110,12 +112,15 @@
                 "bAutoWidth": false,
                 "stateSave": true,
                 "order": [[ 2, 'asc']],
+                "rowId": 0,
                 "columnDefs":
                     [{ targets: 'no-sort', orderable: false },
-                    { targets: [0],
-                        'class': 'text-center',
-                        'render': function(data, type, row) {
-                            return '<input type="checkbox" name="' + data + '" class="checkbox" />';} },
+                { targets: [0],
+                  'class': 'text-center',
+                  'render': function(data, type, row) {
+                    if ( $.inArray('C' + data, selected) !== -1 ) {
+                        return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
+                    return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
                         'visible': showimg,

@@ -107,6 +107,8 @@
 
     $(document).ready(function()
     {
+         var selected = [];
+
         $('#whichStatus').change(function(){
             %if authorid != None:
                window.location = 'series?AuthorID=${authorid}&whichStatus=' + $(this).val()
@@ -121,12 +123,15 @@
                 "order": [[3, 'desc']],
                 "bAutoWidth": false,
                 "stateSave": true,
+                "rowId": 0,
                 "columnDefs":
                     [{ targets: 'no-sort', orderable: false },
                     { targets: [0],
-                        'class': 'text-center',
-                        'render': function(data, type, row) {
-                            return '<input type="checkbox" name="' + data + '" class="checkbox" />';}
+                          'class': 'text-center',
+                          'render': function(data, type, row) {
+                            if ( $.inArray('S' + data, selected) !== -1 ) {
+                                return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
+                            return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" />';}
                     },
                     { targets: [1], 'render': function(data, type, row) {
                     %if perm&lazylibrarian.perm_authorbooks:
@@ -189,6 +194,18 @@
                     return nRow;
                 },
             });
+
+          $('#book_table tbody').on('click', 'tr', function () {
+              var id = "S" + this.id;
+              var index = $.inArray(id, selected);
+              if ( index === -1 ) {
+                  selected.push( id );
+              } else {
+                  selected.splice( index, 1 );
+              }
+              $(this).toggleClass('selected');
+          } );
+
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {oTable.draw(false)});
         $('a.toggle-vis').click(function (e) {

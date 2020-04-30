@@ -68,6 +68,9 @@
 <%def name="javascriptIncludes()">
   <script type="text/javascript">
     $(document).ready(function() {
+
+        var selected = [];
+
         $('#whichStatus').change(function(){
             window.location = 'pastIssues?mag=${mag | u}&whichStatus=' + $(this).val()
         })
@@ -77,12 +80,15 @@
                 "order": [[ 1, 'asc']],
                 "bAutoWidth": false,
                 "stateSave": true,
+                "rowId": 0,
                 "columnDefs":
                     [ { targets: 'no-sort', orderable: false },
-                      { targets: [0],
-                        'class': 'text-center',
-                        'render': function(data, type, row) {
-                            return '<input type="checkbox" name="' + data + '" class="checkbox" />';}
+                        { targets: [0],
+                          'class': 'text-center',
+                          'render': function(data, type, row) {
+                            if ( $.inArray('Z' + data, selected) !== -1 ) {
+                                return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
+                            return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" />';}
                       }
                     ]
                 ,
@@ -102,6 +108,18 @@
                 "sAjaxSource": 'getPastIssues?whichStatus=${whichStatus}&mag=${mag | u}',
                 "bFilter": true,
             });
+
+          $('#book_table tbody').on('click', 'tr', function () {
+              var id = "Z" + this.id;
+              var index = $.inArray(id, selected);
+              if ( index === -1 ) {
+                  selected.push( id );
+              } else {
+                  selected.splice( index, 1 );
+              }
+              $(this).toggleClass('selected');
+          } );
+
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {
                 e.preventDefault();

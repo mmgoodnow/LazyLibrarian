@@ -76,7 +76,9 @@
   <script type="text/javascript">
     $(document).ready(function()
     {
-        var show = ""+${lazylibrarian.CONFIG['MAG_IMG']};
+            var selected = [];
+
+            var show = ""+${lazylibrarian.CONFIG['MAG_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
@@ -85,11 +87,14 @@
                 "bAutoWidth": false,
                 "stateSave": true,
                 "order": [[ 2, 'desc']],
+                "rowId": 4,
                 "columnDefs": [{ targets: 'no-sort', orderable: false },
                     { targets: [0],
-                        'class': 'text-center',
-                        'render': function(data, type, row) {
-                            return '<input type="checkbox" name="' + row[4] + '" class="checkbox" />';} },
+                    'class': 'text-center',
+                    'render': function(data, type, row) {
+                        if ( $.inArray('I' + row[4], selected) !== -1 ) {
+                            return '<input type="checkbox" id="' + row[4] + '" name="' + row[4] + '" class="checkbox" checked=true />'; }
+                        return '<input type="checkbox" id="' + row[4] + '" name="' + row[4] + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
                         'visible': showimg,
@@ -129,6 +134,17 @@
                     return nRow;
                 },
             });
+
+          $('#book_table tbody').on('click', 'tr', function () {
+              var id = "I" + this.id;
+              var index = $.inArray(id, selected);
+              if ( index === -1 ) {
+                  selected.push( id );
+              } else {
+                  selected.splice( index, 1 );
+              }
+              $(this).toggleClass('selected');
+          } );
 
             table.on( 'xhr', function () {
               var json = table.ajax.json();
