@@ -732,10 +732,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             logger.debug(
                                 "file meta [%s] [%s] [%s] [%s] [%s] [%s]" % (
                                     isbn, language, author, book, gr_id, publisher))
-                            if not author and book:
+                            if not author or not book:
                                 logger.debug("File meta incomplete in %s" % metafile)
 
-                        if not author and book:
+                        if not author or not book:
                             # no author/book from metadata file, and not embedded either
                             # or audiobook which may have id3 tags
                             if is_valid_booktype(files, 'audiobook'):
@@ -743,7 +743,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 author, book = id3read(filename)
 
                         # Failing anything better, just pattern match on filename
-                        if not author and book:
+                        if not author or not book:
                             # might need a different pattern match for audiobooks
                             # as they often seem to have xxChapter-Seriesnum Author Title
                             # but hopefully the tags will get there first...
@@ -771,7 +771,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 book = makeUnicode(book)
                                 author = makeUnicode(author)
 
-                            if not author and book:
+                            if not author or not book:
                                 logger.debug("Pattern match failed [%s]" % files)
 
                         if publisher:
@@ -779,7 +779,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 logger.warn("Ignoring %s: Publisher %s" % (files, publisher))
                                 author = ''  # suppress
 
-                        if author and book:
+                        if not author or not book:
+                            logger.debug("No valid %s found in %s" % (library, subdirectory))
+                        else:
                             # flag that we found a book in this subdirectory
                             if subdirectory:
                                 processed_subdirectories.append(subdirectory)
