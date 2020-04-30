@@ -1450,11 +1450,16 @@ def saveLog():
 
     basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
     outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
-    passchars = string.ascii_letters + string.digits + ':_/*!%'  # used by slack, telegram and googlebooks
-    redactlist = ['api -> ', 'key -> ', 'secret -> ', 'pass -> ', 'password -> ', 'token -> ', 'keys -> ',
-                  'apitoken -> ', 'username -> ', '&r=', 'using api [', 'apikey=', 'key=', 'apikey%3D', "apikey': ",
-                  "'--password', u'", "'--password', '", "api:", "keys:", "token:", "secret=", "email_from -> ",
-                  "'--password', u\"", "'--password', \"", "email_to -> ", "email_smtp_user -> "]
+    redactlist = []
+    for key in lazylibrarian.CONFIG.keys():
+        if key not in ['BOOK_API', 'GIT_USER']:
+            for word in ['PASS', 'TOKEN', 'SECRET', '_API', '_USER']:
+                if word in key and lazylibrarian.CONFIG[key]:
+                    redactlist.append("%s" % lazylibrarian.CONFIG[key])
+    for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
+        if lazylibrarian.CONFIG[key]:
+            redactlist.append(lazylibrarian.CONFIG[key])
+
     with open(syspath(outfile + '.tmp'), 'w') as out:
         nextfile = True
         extn = 0
@@ -1476,17 +1481,9 @@ def saveLog():
                     lines = reversed(list(open(fname)))
                 for line in lines:
                     for item in redactlist:
-                        startpos = line.find(item)
-                        if startpos >= 0:
-                            startpos += len(item)
-                            endpos = startpos
-                            while endpos < len(line) and not line[endpos] in passchars:
-                                endpos += 1
-                            while endpos < len(line) and line[endpos] in passchars:
-                                endpos += 1
-                            if endpos != startpos:
-                                line = line[:startpos] + '<redacted>' + line[endpos:]
-                                redacts += 1
+                        if item in line:
+                            line = line.replace(item, '<redacted>')
+                            redacts += 1
 
                     item = "Apprise: url:"
                     startpos = line.find(item)
@@ -1512,18 +1509,9 @@ def saveLog():
                 lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
             for line in lines:
                 for item in redactlist:
-                    item = item.replace('->', '=')
-                    startpos = line.find(item)
-                    if startpos >= 0:
-                        startpos += len(item)
-                        endpos = startpos
-                        while endpos < len(line) and not line[endpos] in passchars:
-                            endpos += 1
-                        while endpos < len(line) and line[endpos] in passchars:
-                            endpos += 1
-                        if endpos != startpos:
-                            line = line[:startpos] + '<redacted>' + line[endpos:]
-                            redacts += 1
+                    if item in line:
+                        line = line.replace(item, '<redacted>')
+                        redacts += 1
                 out.write(line)
             out.write('---CONFIG-------------------------------------\n')
 
