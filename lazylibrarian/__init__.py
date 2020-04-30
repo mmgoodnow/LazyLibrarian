@@ -919,48 +919,10 @@ def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
         CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, \
         IRC_PROV
-    # legacy name conversion
-    if not CFG.has_option('General', 'ebook_dir'):
-        ebook_dir = check_setting('str', 'General', 'destination_dir', '')
-        CFG.set('General', 'ebook_dir', ebook_dir)
-        CFG.remove_option('General', 'destination_dir')
-    # legacy type conversion
-    if CFG.has_option('Git', 'git_updated'):
-        oldval = CFG.get('Git', 'git_updated')
-        newval = check_int(oldval, 0)
-        if newval != oldval:
-            CFG.set('Git', 'git_updated', newval)
-    # legacy name conversions, separate out host/port
-    for provider in ['NZBGet', 'UTORRENT', 'QBITTORRENT', 'TRANSMISSION']:
-        if not CFG.has_option(provider, '%s_port' % provider.lower()):
-            port = 0
-            host = check_setting('str', provider, '%s_host' % provider.lower(), '')
-            if host.startswith('http'):
-                hostpart = 2
-            else:
-                hostpart = 1
-            words = host.split(':')
-            if len(words) > hostpart:
-                host = ':'.join(words[:hostpart])
-                port = ':'.join(words[hostpart:])
-            CFG.set(provider, '%s_port' % provider.lower(), port)
-            CFG.set(provider, '%s_host' % provider.lower(), host)
 
     count = 0
     while CFG.has_section('Newznab%i' % count):
         newz_name = 'Newznab%i' % count
-        # legacy name conversions
-        if CFG.has_option(newz_name, 'newznab%i' % count):
-            CFG.set(newz_name, 'ENABLED', CFG.getboolean(newz_name, 'newznab%i' % count))
-            CFG.remove_option(newz_name, 'newznab%i' % count)
-        if CFG.has_option(newz_name, 'newznab_host%i' % count):
-            CFG.set(newz_name, 'HOST', CFG.get(newz_name, 'newznab_host%i' % count))
-            CFG.remove_option(newz_name, 'newznab_host%i' % count)
-        if CFG.has_option(newz_name, 'newznab_api%i' % count):
-            CFG.set(newz_name, 'API', CFG.get(newz_name, 'newznab_api%i' % count))
-            CFG.remove_option(newz_name, 'newznab_api%i' % count)
-        if CFG.has_option(newz_name, 'nzedb'):
-            CFG.remove_option(newz_name, 'nzedb')
         disp_name = check_setting('str', newz_name, 'dispname', newz_name)
 
         NEWZNAB_PROV.append({"NAME": newz_name,
@@ -992,20 +954,6 @@ def config_read(reloaded=False):
     count = 0
     while CFG.has_section('Torznab%i' % count):
         torz_name = 'Torznab%i' % count
-        # legacy name conversions
-        if CFG.has_option(torz_name, 'torznab%i' % count):
-            CFG.set(torz_name, 'ENABLED', CFG.getboolean(torz_name, 'torznab%i' % count))
-            CFG.remove_option(torz_name, 'torznab%i' % count)
-        if CFG.has_option(torz_name, 'torznab_host%i' % count):
-            CFG.set(torz_name, 'HOST', CFG.get(torz_name, 'torznab_host%i' % count))
-            CFG.remove_option(torz_name, 'torznab_host%i' % count)
-        if CFG.has_option(torz_name, 'torznab_api%i' % count):
-            CFG.set(torz_name, 'API', CFG.get(torz_name, 'torznab_api%i' % count))
-            CFG.remove_option(torz_name, 'torznab_api%i' % count)
-        if CFG.has_option(torz_name, 'nzedb'):
-            CFG.remove_option(torz_name, 'nzedb')
-        if not CFG.has_option(torz_name, 'seeders'):
-            CFG.set(torz_name, 'seeders', CFG.get('TORRENT', 'numberofseeders'))
         disp_name = check_setting('str', torz_name, 'dispname', torz_name)
 
         TORZNAB_PROV.append({"NAME": torz_name,
@@ -1038,23 +986,6 @@ def config_read(reloaded=False):
     count = 0
     while CFG.has_section('RSS_%i' % count):
         rss_name = 'RSS_%i' % count
-        # legacy name conversions
-        if CFG.has_option(rss_name, 'rss%i' % count):
-            CFG.set(rss_name, 'ENABLED', CFG.getboolean(rss_name, 'rss%i' % count))
-            CFG.remove_option(rss_name, 'rss%i' % count)
-        if CFG.has_option(rss_name, 'rss_host%i' % count):
-            CFG.set(rss_name, 'HOST', CFG.get(rss_name, 'rss_host%i' % count))
-            CFG.remove_option(rss_name, 'rss_host%i' % count)
-        if CFG.has_option(rss_name, 'rss_user%i' % count):
-            # CFG.set(rss_name, 'USER', CFG.get(rss_name, 'rss_user%i' % count))
-            CFG.remove_option(rss_name, 'rss_user%i' % count)
-        if CFG.has_option(rss_name, 'rss_pass%i' % count):
-            # CFG.set(rss_name, 'PASS', CFG.get(rss_name, 'rss_pass%i' % count))
-            CFG.remove_option(rss_name, 'rss_pass%i' % count)
-        if CFG.has_option(rss_name, 'PASS'):
-            CFG.remove_option(rss_name, 'PASS')
-        if CFG.has_option(rss_name, 'USER'):
-            CFG.remove_option(rss_name, 'USER')
         disp_name = check_setting('str', rss_name, 'dispname', rss_name)
 
         RSS_PROV.append({"NAME": rss_name,
