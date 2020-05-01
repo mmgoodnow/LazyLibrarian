@@ -134,9 +134,9 @@
                       { targets: [0],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            if ( $.inArray('I' + row[10], selected) !== -1 ) {
-                                return '<input type="checkbox" id="' + row[10] + '" name="' + row[10] + '" class="checkbox" checked=true />'; }
-                            return '<input type="checkbox" id="' + row[10] + '" name="' + row[10] + '" class="checkbox" />';} },
+                            if ( $.inArray("I" + row[10], selected) !== -1 ) {
+                                return '<input type="checkbox" id="I' + row[10] + '" name="' + row[10] + '" class="checkbox" checked=true />'; }
+                            return '<input type="checkbox" id="I' + row[10] + '" name="' + row[10] + '" class="checkbox" />';} },
                      { targets: [1],
                          'visible': showimg,
                          'render': function(data, type, row) {
@@ -212,8 +212,8 @@
                 "aaSorting": [[2, 'asc']],
             });
 
-          $('#author_table tbody').on('click', 'tr', function () {
-              var id = "I" + this.id;
+          $('#author_table tbody').on('click', 'tr input:checkbox', function () {
+              var id = this.id;
               var index = $.inArray(id, selected);
               if ( index === -1 ) {
                   selected.push( id );

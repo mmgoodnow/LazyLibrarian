@@ -121,8 +121,8 @@
                   'class': 'text-center',
                   'render': function(data, type, row) {
                     if ( $.inArray('M' + data, selected) !== -1 ) {
-                        return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
-                    return '<input type="checkbox" id="' + data + '" name="' + data + '" class="checkbox" />';} },
+                        return '<input type="checkbox" id="M' + data + '" name="' + data + '" class="checkbox" checked=true />'; }
+                    return '<input type="checkbox" id="M' + data + '" name="' + data + '" class="checkbox" />';} },
                     { targets: [1],
                         'class': 'text-center',
                         'visible': showimg,
@@ -191,8 +191,8 @@
                 },
             });
 
-          $('#book_table tbody').on('click', 'tr', function () {
-              var id = "M" + this.id;
+          $('#book_table tbody').on('click', 'tr input:checkbox', function () {
+              var id = this.id;
               var index = $.inArray(id, selected);
               if ( index === -1 ) {
                   selected.push( id );
