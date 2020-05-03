@@ -52,7 +52,7 @@ from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, t
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
-from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan
+from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan, get_book_meta
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.images import createMagCover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
@@ -317,6 +317,12 @@ def processAlternate(source_dir=None, library='eBook'):
                 logger.warn("No audiobook file found in %s" % source_dir)
                 return False
             author, book = id3read(new_book)
+            if author and book:
+                metadata['creator'] = author
+                metadata['title'] = book
+
+        if 'title' not in metadata or 'creator' not in metadata:
+            author, book = get_book_meta(source_dir, "postprocess")
             if author and book:
                 metadata['creator'] = author
                 metadata['title'] = book
@@ -2301,7 +2307,10 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 magfile = book_file(pp_path, "magazine")
                 if magfile and not jpgfile:
                     jpgfile = createMagCover(magfile, refresh=False)
-
+                # calibre likes "cover.jpg"
+                coverfile = os.path.basename(jpgfile)
+                if coverfile != 'cover.jpg':
+                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
                 if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                     authors = title
                 else:
@@ -2372,6 +2381,10 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                             else:
                                 authors = 'magazines'
                             opfpath, our_opf = createMAGOPF(pp_path, authors, title, issuedate, issueid)
+                            # calibre likes "metadata.opf"
+                            opffile = os.path.basename(opfpath)
+                            if opffile != 'metadata.opf':
+                                opfpath = safe_copy(opfpath, opfpath.replace(opffile, 'metadata.opf'))
 
                     if opfpath:
                         _, _, rc = calibredb('set_metadata', None, [calibre_id, opfpath])
@@ -2473,8 +2486,12 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 setperm(target_dir)
                 if booktype in ['magazine', 'comic']:
                     ignorefile = os.path.join(target_dir, '.ll_ignore')
-                    with open(syspath(ignorefile), 'a'):
-                        os.utime(syspath(ignorefile), None)
+                    try:
+                        with open(syspath(ignorefile), 'a') as f:
+                            f.write("%s" % booktype)
+                    except IOError as e:
+                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
                 return True, newbookfile
@@ -2568,8 +2585,10 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
         elif booktype in ['magazine', 'comic']:
             ignorefile = os.path.join(dest_path, b'.ll_ignore')
-            with open(syspath(ignorefile), 'a'):
-                os.utime(syspath(ignorefile), None)
+            with open(syspath(ignorefile), 'a') as f:
+                f.write("%s" % booktype)
+			except IOError as e:
+                logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
         if firstfile:
             newbookfile = firstfile
