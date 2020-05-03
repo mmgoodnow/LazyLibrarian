@@ -82,11 +82,11 @@ def preprocess_ebook(bookfolder):
             if convert_ver:
                 try:
                     if os.name != 'nt':
-                        _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), 
+                        _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                                     stderr=subprocess.STDOUT)
                     else:
                         _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    
+
                     if created:
                         created += ' '
                     created += ftype
@@ -151,7 +151,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
 
     parts, failed, token, _ = audio_parts(bookfolder, bookname, authorname)
 
-    if failed:
+    if failed or not parts:
         return
     if len(parts) == 1:
         logger.info("Only one audio file found, nothing to merge")
@@ -176,7 +176,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                                                         stderr=subprocess.STDOUT)
                         else:
                             _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        
+
                         os.remove(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
@@ -193,7 +193,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                 _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
             else:
                 _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                
+
             logger.debug("Metadata written to metadata.ll")
         except Exception as e:
             logger.error(str(e))
@@ -204,6 +204,11 @@ def preprocess_audio(bookfolder, authorname, bookname):
         params.extend(getList(lazylibrarian.CONFIG['AUDIO_OPTIONS']))
         params.append('-y')
 
+        # output file will be the same type as the first input file, unless
+        # the user supplies a -f parameter to override it
+        if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
+            out_type = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ')[1].split(',')[0].split(' ')[0]
+            out_type = '.' + out_type
         outfile = "%s - %s%s" % (authorname, bookname, out_type)
         params.append(os.path.join(bookfolder, outfile))
 
@@ -214,7 +219,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                 res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                
+
         except Exception as e:
             logger.error(str(e))
             if res:
