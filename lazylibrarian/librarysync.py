@@ -47,6 +47,43 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 
+def get_book_meta(fdir, reason="get_book_meta"):
+    # look for a bookid in a LL.() filename or a .desktop file and return author/title
+    bookid = ''
+    reson = reason + ' ' + fdir
+    for item in listdir(fdir):
+        if 'LL.(' in item:
+            bookid = item.split('LL.(')[1].split(')')[0]
+            if bookid:
+                logger.debug("bookid %s from %s" % (bookid, item))
+                break
+        if item.endswith('.desktop') or item.endswith('.url'):
+            with open(os.path.join(fdir, item), 'r') as f:
+                lynes = f.readlines()
+            for lyne in lynes:
+                if '/book/show/' in lyne:
+                    bookid = lyne.split('/book/show/')[1].split('-')[0].split('.')[0]
+                    if bookid:
+                        logger.debug("bookid %s from %s" % (bookid, item))
+                        break
+    if bookid:
+        myDB = database.DBConnection()
+        cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
+        cmd += ' and books.BookID=?'
+        existing_book = myDB.match(cmd, (bookid,))
+        if not existing_book:
+            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                GB = GoogleBooks(bookid)
+                GB.find_book(bookid, None, None, reason)
+            else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                GR = GoodReads(bookid)
+                GR.find_book(bookid, None, None, reason)
+            existing_book = myDB.match(cmd, (bookid,))
+        if existing_book:
+            return existing_book['AuthorName'], existing_book['BookName']
+        return "", ""
+
+
 def get_book_info(fname):
     # only handles epub, mobi, azw3 and opf for now,
     # for pdf see notes below
@@ -741,6 +778,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             if is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
                                 author, book = id3read(filename)
+
+                        if not author or not book:
+                            # try for details from a special file
+                            author, book = get_book_meta(rootdir, reason="libraryscan")
 
                         # Failing anything better, just pattern match on filename
                         if not author or not book:
