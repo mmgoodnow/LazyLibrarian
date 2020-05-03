@@ -2490,7 +2490,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         with open(syspath(ignorefile), 'a') as f:
                             f.write("%s" % booktype)
                     except IOError as e:
-                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                        logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
@@ -2585,9 +2585,10 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
         elif booktype in ['magazine', 'comic']:
             ignorefile = os.path.join(dest_path, b'.ll_ignore')
-            with open(syspath(ignorefile), 'a') as f:
-                f.write("%s" % booktype)
-			except IOError as e:
+            try:
+                with open(syspath(ignorefile), 'a') as f:
+                    f.write("%s" % booktype)
+            except IOError as e:
                 logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
         if firstfile:

@@ -88,6 +88,7 @@ def getTorrentName(torrentid):  # uses hashid
 
     return ''
 
+
 def getTorrentFolder(torrentid):  # uses hashid
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['downloadDir', 'percentDone']}

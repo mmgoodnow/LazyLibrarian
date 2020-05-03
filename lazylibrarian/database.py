@@ -56,7 +56,7 @@ class DBConnection:
                 method = frame.function
                 lineno = frame.lineno
             with open(self.dblog, 'a') as f:
-                        f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
+                f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
         with db_lock:
             self.connection.close()
 
@@ -132,7 +132,8 @@ class DBConnection:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a') as f:
                             f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method, query, args))
+                                                                          suppress, program, lineno, method,
+                                                                          query, args))
                             f.write("%s Suppressed: %s\n" % (time.asctime(), msg))
                     self.connection.commit()
                     break
@@ -141,7 +142,8 @@ class DBConnection:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a') as f:
                             f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method, query, args))
+                                                                          suppress, program, lineno, method,
+                                                                          query, args))
                             f.write("%s IntegrityError: %s\n" % (time.asctime(), msg))
                     logger.error('Database IntegrityError: %s' % e)
                     logger.error("Failed query: [%s]" % query)

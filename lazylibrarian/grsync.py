@@ -15,6 +15,7 @@
 import threading
 import time
 import traceback
+# noinspection PyUnresolvedReferences
 import xml.dom.minidom
 from string import Template
 
@@ -182,6 +183,7 @@ class grauth:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                         logger.debug(request_url)
                 else:
+                    # noinspection PyUnresolvedReferences
                     xmldoc = xml.dom.minidom.parseString(content)
 
                     shelf_list = xmldoc.getElementsByTagName('shelves')[0]
@@ -304,6 +306,7 @@ class grauth:
             while True:
                 current_page = current_page + 1
                 content = self.getShelfBooks(current_page, shelf)
+                # noinspection PyUnresolvedReferences
                 xmldoc = xml.dom.minidom.parseString(content)
 
                 page_books = 0
@@ -348,6 +351,7 @@ class grauth:
             logger.error('Cannot fetch userid: %s' % response['status'])
             return ''
 
+        # noinspection PyUnresolvedReferences
         userxml = xml.dom.minidom.parseString(content)
         user_id = userxml.getElementsByTagName('user')[0].attributes['id'].value
         return str(user_id)

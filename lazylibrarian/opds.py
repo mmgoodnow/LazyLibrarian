@@ -131,6 +131,7 @@ class OPDS(object):
                 else:
                     cherrypy.response.headers['Content-Type'] = "text/xml"
                     logger.debug('Returning %s: %s entries' % (self.data['title'], len(self.data['entries'])))
+                    # noinspection PyUnresolvedReferences
                     return lazylibrarian.webServe.serve_template(templatename="opds.html",
                                                                  title=self.data['title'], opds=self.data)
             except Exception as e:

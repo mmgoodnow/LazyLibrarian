@@ -50,7 +50,7 @@ except ImportError:
 def get_book_meta(fdir, reason="get_book_meta"):
     # look for a bookid in a LL.() filename or a .desktop file and return author/title
     bookid = ''
-    reson = reason + ' ' + fdir
+    reason = reason + ' ' + fdir
     for item in listdir(fdir):
         if 'LL.(' in item:
             bookid = item.split('LL.(')[1].split(')')[0]

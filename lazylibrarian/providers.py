@@ -147,6 +147,7 @@ def test_provider(name, host=None, api=None):
                 if provider['DISPNAME']:
                     name = provider['DISPNAME']
                 logger.debug("Testing notifier %s" % name)
+                # noinspection PyUnresolvedReferences
                 noti = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier()
                 return noti.test_notify(host), name
         return False, name
@@ -380,12 +381,12 @@ def get_capabilities(provider, force=False):
                     # noinspection PyUnresolvedReferences
                     if search.attrib['available'] == 'yes':
                         provider['GENERALSEARCH'] = 'search'
-            categories = data.getiterator('category')
+            categories = data.iter('category')
             for cat in categories:
                 if 'name' in cat.attrib:
                     if cat.attrib['name'].lower() == 'audio':
                         provider['AUDIOCAT'] = cat.attrib['id']
-                        subcats = cat.getiterator('subcat')
+                        subcats = cat.iter('subcat')
                         for subcat in subcats:
                             if 'audiobook' in subcat.attrib['name'].lower():
                                 provider['AUDIOCAT'] = subcat.attrib['id']
@@ -415,7 +416,7 @@ def get_capabilities(provider, force=False):
 
                         # subcategories override main category (not in addition to)
                         # but allow multile subcategories (mags->english, mags->french)
-                        subcats = cat.getiterator('subcat')
+                        subcats = cat.iter('subcat')
                         ebooksubs = ''
                         magsubs = ''
                         comicsubs = ''
@@ -1272,7 +1273,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 if not cancelled:  # it was some other problem
                     BlockProvider(provider['HOST'], errormsg)
             else:
-                resultxml = rootxml.getiterator('item')
+                resultxml = rootxml.iter('item')
                 nzbcount = 0
                 maxage = check_int(lazylibrarian.CONFIG['USENET_RETENTION'], 0)
                 for nzb in resultxml:

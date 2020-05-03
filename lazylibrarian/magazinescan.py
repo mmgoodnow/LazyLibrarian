@@ -297,7 +297,7 @@ def magazineScan(title=None):
                         with open(syspath(ignorefile), 'a') as f:
                             f.write("magazine")
                     except IOError as e:
-                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+                        logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
                     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                         logger.debug('createMAGOPF is disabled')
