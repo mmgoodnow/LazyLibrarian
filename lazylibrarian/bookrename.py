@@ -296,7 +296,7 @@ def audioProcess(bookid, rename=False, playlist=False):
 
     parts, failed, _, abridged = audio_parts(r, exists['BookName'], exists['AuthorName'])
 
-    if failed:
+    if failed or not parts:
         return exists['AudioFile']
 
     if abridged:

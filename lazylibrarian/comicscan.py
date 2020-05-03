@@ -236,10 +236,10 @@ def comicScan(comicid=None):
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
-                            with open(syspath(ignorefile), 'a'):
-                                os.utime(ignorefile, None)
+                            with open(syspath(ignorefile), 'a') as f:
+                                f.write('comic')
                         except IOError as e:
-                            logger.warn("Unable to create ignorefile: %s" % str(e))
+                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
                         # see if this issues date values are useful
                         controlValueDict = {"ComicID": comicid}

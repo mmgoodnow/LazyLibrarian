@@ -293,8 +293,11 @@ def magazineScan(title=None):
                         logger.debug("Issue %s %s already exists" % (title, issuedate))
 
                     ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
-                    with open(syspath(ignorefile), 'a'):
-                        os.utime(ignorefile, None)
+                    try:
+                        with open(syspath(ignorefile), 'a') as f:
+                            f.write("magazine")
+                    except IOError as e:
+                            logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
                     if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                         logger.debug('createMAGOPF is disabled')
