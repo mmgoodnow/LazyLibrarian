@@ -83,6 +83,7 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
             if not fname:
                 myprov['IRC'] = None
 
+    # noinspection PyTypeChecker
     downloadID = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
 
     if fname and data:
@@ -307,6 +308,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         try:
             hashid = dl_url.split("md5=")[1].split("&")[0]
         except IndexError:
+            # noinspection PyTypeChecker
             hashid = sha1(bencode(dl_url)).hexdigest()
 
         destfile = os.path.join(destdir, basename + '.' + extn)
@@ -674,6 +676,7 @@ def calculate_torrent_hash(link, data=None):
             try:
                 # noinspection PyUnresolvedReferences
                 info = bdecode(data)["info"]
+                # noinspection PyTypeChecker
                 torrent_hash = sha1(bencode(info)).hexdigest()
             except Exception as e:
                 logger.error("Error calculating hash: %s" % e)

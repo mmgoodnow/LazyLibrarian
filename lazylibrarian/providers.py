@@ -1265,6 +1265,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
             logger.debug('Parsing results from <a href="%s">%s</a>' % (URL, host))
 
             if rootxml.tag == 'error':
+                # noinspection PyTypeChecker
                 errormsg = rootxml.get('description', default='unknown error')
                 errormsg = errormsg[:200]  # sometimes get huge error messages from jackett
                 logger.error("%s - %s" % (host, errormsg))
