@@ -97,6 +97,9 @@ def importMag(source_file=None, title=None, issuenum=None):
             title = unaccented_bytes(replace_all(title, namedic), only_ascii=False)
         else:
             title = unaccented(replace_all(title, namedic), only_ascii=False)
+        if not title:
+            logger.warn("No title for %s, rejecting" % source_file)
+            return False
         myDB = database.DBConnection()
         entry = myDB.match('SELECT * FROM magazines where Title=?', (title,))
         if not entry:
@@ -1927,9 +1930,10 @@ def delete_task(Source, DownloadID, remove_data):
     try:
         if Source == "BLACKHOLE":
             logger.warn("Download %s has not been processed from blackhole" % DownloadID)
-        elif Source == "SABNZBD" and lazylibrarian.CONFIG['SAB_DELETE']:
-            sabnzbd.SABnzbd(DownloadID, 'delete', remove_data)
-            sabnzbd.SABnzbd(DownloadID, 'delhistory', remove_data)
+        elif Source == "SABNZBD":
+            if lazylibrarian.CONFIG['SAB_DELETE']:
+                sabnzbd.SABnzbd(DownloadID, 'delete', remove_data)
+                sabnzbd.SABnzbd(DownloadID, 'delhistory', remove_data)
         elif Source == "NZBGET":
             nzbget.deleteNZB(DownloadID, remove_data)
         elif Source == "UTORRENT":
