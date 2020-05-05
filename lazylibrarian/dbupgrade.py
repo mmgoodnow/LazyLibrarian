@@ -409,6 +409,15 @@ def check_db():
             for author in authors:
                 myDB.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
+        # remove magazines with no name
+        lazylibrarian.UPDATE_MSG = 'Removing magazines with no name'
+        mags = myDB.select('SELECT Title FROM magazines WHERE Title IS NULL or Title = ""')
+        if mags:
+            cnt += len(mags)
+            msg = 'Removing %s %s with no name' % (len(mags), plural(len(mags), "magazine"))
+            logger.warn(msg)
+            myDB.action('DELETE from magazines WHERE Title IS NULL or Title = ""')
+
         # remove authors with no books
         lazylibrarian.UPDATE_MSG = 'Removing authors with no books'
         authors = myDB.select('SELECT AuthorID FROM authors WHERE TotalBooks=0')
