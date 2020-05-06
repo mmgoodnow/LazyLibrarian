@@ -2206,8 +2206,8 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     booktype = booktype.lower()
     pp_path = makeUnicode(pp_path)
     bestmatch = ''
-    comicid = ''
-    issueid = ''
+    comicid = data.get('BookID', '')
+    issueid = data.get('IssueDate', '')
     authorname = data.get('AuthorName', '')
     bookname = data.get('BookName', '')
     bookid = data.get('BookID', '')
@@ -2298,7 +2298,6 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 else:
                     identifier = "google:%s" % bookid
             elif booktype == 'comic':
-                comicid, issueid = bookid.split('_')
                 if comicid.startswith('CV'):
                     identifier = "ComicVine:%s" % comicid[2:]
                 elif comicid.startswith('CX'):
