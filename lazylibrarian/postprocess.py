@@ -995,7 +995,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     else:
                                         comic_name = unaccented(replace_all(data['Title'], namedic),
                                                                 only_ascii=False)
-                                    data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
@@ -1003,6 +1002,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                                     global_name = "%s %s" % (comic_name, issueid)
                                     global_name = unaccented(global_name, only_ascii=False)
+                                    data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
                                     if lazylibrarian.CONFIG['COMIC_RELATIVE']:
                                         dest_dir = lazylibrarian.DIRECTORY('eBook')
