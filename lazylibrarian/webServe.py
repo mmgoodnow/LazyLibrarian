@@ -3475,7 +3475,12 @@ class WebInterface(object):
     @cherrypy.expose
     def openComic(self, comicid=None, issueid=None):
         myDB = database.DBConnection()
+        if comicid and '_' in comicid:
+            comicid = comicid.split('_')[0]
         mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if not mag_data:
+            logger.warn("No data for comic %s" % comicid)
+            raise cherrypy.HTTPRedirect("comics")
         title = mag_data['Title']
         # we may want to open an issue with an issueid
         if issueid:
