@@ -25,7 +25,7 @@ from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import getUserAgent, proxyList, listdir, path_isfile, path_isdir, syspath
-from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, seconds_to_midnight, plural
+from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, seconds_to_midnight, plural, makeUnicode
 
 
 def gr_api_sleep():
@@ -58,7 +58,7 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
-
+    URL = makeUnicode(URL)
     if 'googleapis' in URL:
         lazylibrarian.GB_CALLS += 1
         for entry in lazylibrarian.PROVIDER_BLOCKLIST:
