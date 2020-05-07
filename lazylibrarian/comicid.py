@@ -484,7 +484,7 @@ def cx_identify(fname, best=True):
                     except Exception:
                         pass
                 try:
-                    start = series_detail['title'].rsplit('(', 1)[1].split('-')[0]
+                    start = series_detail['title'].rsplit('(', 1)[1].split('-')[0].rstrip(')')
                 except IndexError:
                     pass
 

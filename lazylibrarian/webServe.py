@@ -3619,11 +3619,10 @@ class WebInterface(object):
     def addComic(self, comicid=None):
         global comicresults
         apikey = lazylibrarian.CONFIG['CV_APIKEY']
-        if not apikey:
-            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
-            comicid = None
-
         if not comicid or comicid == 'None':
+            raise cherrypy.HTTPRedirect("comics")
+        elif comicid.startswith('CV') and not apikey:
+            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
             raise cherrypy.HTTPRedirect("comics")
         else:
             myDB = database.DBConnection()
@@ -3644,7 +3643,7 @@ class WebInterface(object):
                                     'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
                                     'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                     (comicid, item['title'], 'Active', now(), None,
-                                     now(), None, 'Skipped', None, item['searchterm'], item['start'],
+                                     now(), None, 'Wanted', None, item['searchterm'], item['start'],
                                      item['first'], item['last'], item['publisher'], item['link'], aka))
                         match = True
                         break

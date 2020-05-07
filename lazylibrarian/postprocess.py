@@ -1045,11 +1045,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         if bookname and dest_file:  # it's ebook or audiobook, and we know the location
                             processExtras(dest_file, global_name, book['BookID'], book_type)
                         elif book_type == 'comic':
-                            try:
-                                comicid, issueid = book['BookID'].split('_')
-                            except ValueError:
-                                comicid = ''
-                                issueid = 0
+                            comicid = data.get('BookID', '')
+                            issueid = data.get('IssueDate', 0)
                             if comicid:
                                 if mostrecentissue:
                                     older = (int(mostrecentissue) > int(issueid))
