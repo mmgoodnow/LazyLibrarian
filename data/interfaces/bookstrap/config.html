@@ -2782,7 +2782,20 @@
                       <input type="checkbox" id="imp_comiccover" name="imp_comiccover" value="1" ${checked} />
                       Create cover files for comics</label>
                   </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['IMP_COMICOPF'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="imp_comicopf" class="control-label">
+                      <input type="checkbox" id="imp_comicopf" name="imp_comicopf" value="1" ${checked} />
+                      Create opf files for comics</label>
+                  </div>
                   %endif
+                </fieldset>
+                <fieldset>
                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['FULL_SCAN'] == True:

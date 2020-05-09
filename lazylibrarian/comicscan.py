@@ -95,6 +95,7 @@ def comicScan(comicid=None):
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
                 if is_valid_booktype(fname, booktype='comic'):
+                    title = ''
                     issue = ''
                     start = ''
                     first = ''

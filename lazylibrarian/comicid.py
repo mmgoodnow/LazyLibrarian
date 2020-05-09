@@ -217,7 +217,8 @@ def cv_identify(fname, best=True):
                 year = w
                 break
 
-        logger.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug("Checking %s %s" % (len(choices), plural(len(choices), "result")))
         for item in choices:
             present = 0
             noise = 0
@@ -256,8 +257,8 @@ def cv_identify(fname, best=True):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug(str(results))
 
-    if results:
-        return results[0]
+        if results:
+            return results[0]
 
     if not lazylibrarian.CONFIG['CV_WEBSEARCH']:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
