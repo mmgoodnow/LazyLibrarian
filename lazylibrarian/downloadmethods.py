@@ -41,7 +41,7 @@ from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs, namedic, \
     path_isdir, syspath
 from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode, md5_utf8, \
-    seconds_to_midnight, replace_all
+    seconds_to_midnight, replace_all, check_int
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.providers import BlockProvider
 from lazylibrarian.ircbot import ircConnect, ircSearch
@@ -232,7 +232,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     headers = {'Accept-encoding': 'gzip', 'User-Agent': getUserAgent()}
     if provider == 'zlibrary':  # needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
-        if lazylibrarian.BOK_DLCOUNT >= lazylibrarian.CONFIG['BOK_DLLIMIT']:
+        if lazylibrarian.BOK_DLCOUNT >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
             res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
             BlockProvider(provider, res, delay=seconds_to_midnight())
             return False, res
