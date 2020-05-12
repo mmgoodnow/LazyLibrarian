@@ -242,20 +242,29 @@ def BOK(book=None, prov=None, test=False):
 
 def GEN(book=None, prov=None, test=False):
     errmsg = ''
+    host = ''
+    search = ''
+    priority = 0
     provider = "libgen.io"
     if not prov:
-        prov = 'GEN'
-    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        prov = 'GEN_0'
+    if lazylibrarian.providers.ProviderIsBlocked(prov):
         return [], "ProviderIsBlocked"
-    host = lazylibrarian.CONFIG[prov + '_HOST']
-    if not host.startswith('http'):
-        host = 'http://' + host
+    for entry in lazylibrarian.GEN_PROV:
+        if entry['NAME'].lower() == prov.lower():
+            host = entry['HOST']
+            if not host.startswith('http'):
+                host = 'http://' + host
+            search = entry['SEARCH']
+            if not search:
+                search = 'search.php'
+            if search[0] == '/':
+                search = search[1:]
+            priority = entry['DLPRIORITY']
+            break
 
-    search = lazylibrarian.CONFIG[prov + '_SEARCH']
-    if not search:
-        search = 'search.php'
-    if search[0] == '/':
-        search = search[1:]
+    if not host:
+        return [], "Unknown Provider [%s]" % prov
 
     sterm = makeUnicode(book['searchterm'])
 
@@ -285,6 +294,10 @@ def GEN(book=None, prov=None, test=False):
                 "res": maxresults,
                 "req": makeUTF8bytes(book['searchterm'])[0]
             }
+        elif 'comic' in search:
+            params = {
+                "s": makeUTF8bytes(book['searchterm'])[0]
+            }
         else:  # elif 'fiction' in search:
             params = {
                 "q": makeUTF8bytes(book['searchterm'])[0]
@@ -310,7 +323,7 @@ def GEN(book=None, prov=None, test=False):
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
+                lazylibrarian.providers.BlockProvider(prov, errmsg, delay=delay)
             else:
                 logger.debug(searchURL)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -324,10 +337,14 @@ def GEN(book=None, prov=None, test=False):
                 rows = []
 
                 try:
-                    tables = soup.find_all('table', rules='rows')  # the last table with rules=rows
+                    if 'comic' in search:
+                        tables = soup.find_all('table', align='center')
+                    else:
+                        tables = soup.find_all('table', rules='rows')  # the last table with rules=rows
                     if not tables:
                         tables = soup.find_all('table')
                     if tables:
+                        # all rows from the last matching table
                         rows = tables[-1].find_all('tr')
                 except IndexError:  # no results table in result page
                     rows = []
@@ -344,7 +361,36 @@ def GEN(book=None, prov=None, test=False):
                     td = row.find_all('td')
                     links = []
 
-                    if ('fiction' in search or 'index.php' in search) and len(td) > 3:
+                    if td and 'comic' in search:
+                        try:
+                            if 'FILE' in str(td[-1]):
+                                issue = ''
+                                year = ''
+                                publisher = ''
+                                language = ''
+                                newsoup = BeautifulSoup(str(td[1]), 'html5lib')
+                                data = newsoup.find_all('a')
+                                for d in data:
+                                    links.append(d.get('href'))
+                                title = td[3].text.strip()
+                                for f in range(4, len(td)-1):
+                                    if 'Issue: ' in td[f].text:
+                                        issue = td[f].text.split('Issue: ')[1].strip()
+                                    elif 'Year: ' in td[f].text:
+                                        year = td[f].text.split('Year: ')[1].strip()
+                                    elif 'Publisher: ' in td[f].text:
+                                        publisher = td[f].text.split('Publisher: ')[1].strip()
+                                    elif 'Language: ' in td[f].text:
+                                        language = td[f].text.split('Language: ')[1].strip()
+                                    elif not size:
+                                        if '<br' in str(td[f]) and td[f].text[0].isdigit():
+                                            size = str(td[f]).split('>')[1].split('<br')[0]
+                                            extn = str(td[f]).split('<br')[1].split('>')[1].split('<')[0]
+                        except Exception as e:
+                            logger.debug('Error parsing libgen comic results: %s' % str(e))
+                            pass
+
+                    elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
                             author = formatAuthorName(td[0].text)
                             title = td[2].text
@@ -395,7 +441,17 @@ def GEN(book=None, prov=None, test=False):
                         bookresult = None
                         url = None
                         for link in links:
-                            if link.startswith('http'):
+                            if link.startswith('magnet'):
+                                url = link
+                            elif "comic" in search or "booksdescr.org" in link:
+                                # booksdescr is a direct link to book
+                                url = link
+                                if not url.startswith('http'):
+                                    url = url_fix(host + "/" + url)
+                                    logger.debug(url)
+                                success = True
+                                break
+                            elif link.startswith('http'):
                                 url = redirect_url(host, link)
                             else:
                                 if "/index.php?" in link:
@@ -404,12 +460,6 @@ def GEN(book=None, prov=None, test=False):
                                     url = url_fix(host + "/" + link)
                                 else:
                                     url = url_fix(host + "/ads.php?" + link)
-
-                            if "booksdescr.org" in url:
-                                # booksdescr is a direct link to book
-                                logger.debug(url)
-                                success = True
-                                break
 
                             # redirect page for other sources [libgen.me, library1.org, booksdl.org]
                             bookresult, success = fetchURL(url)
@@ -458,7 +508,7 @@ def GEN(book=None, prov=None, test=False):
                                 'tor_url': url,
                                 'tor_size': str(size),
                                 'tor_type': 'direct',
-                                'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                                'priority': priority
                             })
                             logger.debug('Found %s, Size %s' % (title, size))
                         next_page = True
