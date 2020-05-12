@@ -1419,7 +1419,7 @@
         // when the page first loads, hide all tab headers and panels
         $("li[role='presentation']").attr("aria-selected", "false");
         $("li[role='presentation']").removeClass('active');
-        $("div[role='tabpanel']").attr("aria-hidden", "true");
+        //$("div[role='tabpanel']").attr("aria-hidden", "true");
         $("div[role='tabpanel']").removeClass('active');
         // which one do we want to show
         var tabnum = $("#current_tab").val();
@@ -1427,7 +1427,7 @@
         var tabpanel = tabid.attr('aria-controls');
         var tabpanelid = $("#" + tabpanel);
         // show the tab header and panel we want
-        tabpanelid.attr("aria-hidden", "false");
+        //tabpanelid.attr("aria-hidden", "false");
         tabpanelid.addClass('active');
         tabid.attr("aria-selected", "true");
         tabid.addClass('active');
