@@ -68,7 +68,8 @@ notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to L
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
 namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
-           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/', '\\\\': '\\'}
+           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
+           '\\\\': '\\', '\r': '', '\t': '', '\n': ''}
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -1453,12 +1454,18 @@ def saveLog():
     redactlist = []
     for key in lazylibrarian.CONFIG.keys():
         if key not in ['BOOK_API', 'GIT_USER']:
-            for word in ['PASS', 'TOKEN', 'SECRET', '_API', '_USER']:
+            for word in ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']:
                 if word in key and lazylibrarian.CONFIG[key]:
                     redactlist.append("%s" % lazylibrarian.CONFIG[key])
     for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
         if lazylibrarian.CONFIG[key]:
             redactlist.append(lazylibrarian.CONFIG[key])
+    for item in lazylibrarian.NEWZNAB_PROV:
+        if item['API']:
+            redactlist.append(item['API'])
+    for item in lazylibrarian.TORZNAB_PROV:
+        if item['API']:
+            redactlist.append(item['API'])
 
     with open(syspath(outfile + '.tmp'), 'w') as out:
         nextfile = True
