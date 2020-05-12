@@ -232,6 +232,8 @@ def search_comics(comicid=None):
             for item in res:
                 match = None
                 if item['score'] >= 85:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                        logger.debug("Trying to match %s" % item['title'])
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
                     elif comic['ComicID'].startswith('CX'):
