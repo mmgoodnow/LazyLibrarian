@@ -230,6 +230,7 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     logger.debug("Starting Direct Download for [%s]" % dl_title)
     proxies = proxyList()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': getUserAgent()}
+    dl_url = makeUnicode(dl_url)
     if provider == 'zlibrary':  # needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
         if lazylibrarian.BOK_DLCOUNT >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
@@ -277,8 +278,9 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         if ' ' in dl_title:
             basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
         if extn and extn.lower() in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
-            dl_title = '.'.join(dl_title.rsplit(' ', 1))
+            basename = dl_title.rsplit(' ', 1)
         elif magic:
+            extn = ''
             try:
                 mtype = magic.from_buffer(r.content)
                 logger.debug("magic reports %s" % mtype)
@@ -291,12 +293,18 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
                 extn = 'mobi'
             elif 'PDF' in mtype:
                 extn = 'pdf'
+            elif 'RAR' in mtype:
+                extn = 'cbr'
+            elif 'ZIP' in mtype:
+                extn = 'cbz'
             basename = dl_title
         if not extn:
             logger.warn("Don't know the filetype for %s" % dl_title)
             basename = dl_title
+        if '/' in basename:
+            basename = basename.split('/')[0]
 
-        logger.debug("File download got %s bytes for %s" % (len(r.content), dl_title))
+        logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
         if provider == 'zlibrary':
             lazylibrarian.BOK_DLCOUNT += 1
 
