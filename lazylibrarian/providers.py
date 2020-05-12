@@ -14,7 +14,6 @@ import time
 import datetime
 from xml.etree import ElementTree
 
-
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
@@ -94,20 +93,19 @@ def test_provider(name, host=None, api=None):
         if api:
             lazylibrarian.CONFIG['TRF_SEEDERS'] = check_int(api, 0)
         return TRF(book, test=True), "Torrof"
-    if name == 'GEN':
-        logger.debug("Testing provider %s" % name)
-        if host:
-            lazylibrarian.CONFIG['GEN_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['GEN_SEARCH'] = api
-        return GEN(book, prov='GEN', test=True), "LibGen 1"
-    if name == 'GEN2':
-        logger.debug("Testing provider %s" % name)
-        if host:
-            lazylibrarian.CONFIG['GEN2_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['GEN2_SEARCH'] = api
-        return GEN(book, prov='GEN2', test=True), "LibGen 2"
+
+    if name.startswith('gen_'):
+        for provider in lazylibrarian.GEN_PROV:
+            if provider['NAME'].lower() == name:
+                if provider['DISPNAME']:
+                    name = provider['DISPNAME']
+                logger.debug("Testing %s" % name)
+                if host:
+                    provider['HOST'] = host
+                if api:
+                    provider['SEARCH'] = api
+                return GEN(book, prov=provider['NAME'].lower(), test=True), name
+
     if name == 'BOK':
         logger.debug("Testing provider %s" % name)
         if host:
@@ -500,17 +498,23 @@ def IterateOverNewzNabSites(book=None, searchType=None):
 
     for provider in lazylibrarian.NEWZNAB_PROV:
         if provider['ENABLED']:
+            ignored = False
             if ProviderIsBlocked(provider['HOST']):
                 logger.debug('[IterateOverNewzNabSites] - %s is BLOCKED' % provider['HOST'])
+                ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
+                ignored = True
             elif "audio" in searchType and 'A' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
+                ignored = True
             elif "mag" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+                ignored = True
             elif "comic" in searchType and 'C' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
-            else:
+                ignored = True
+            if not ignored:
                 if check_int(provider['APILIMIT'], 0):
                     if 'APICOUNT' in provider:
                         res = check_int(provider['APICOUNT'], 0)
@@ -530,17 +534,23 @@ def IterateOverNewzNabSites(book=None, searchType=None):
 
     for provider in lazylibrarian.TORZNAB_PROV:
         if provider['ENABLED']:
+            ignored = False
             if ProviderIsBlocked(provider['HOST']):
                 logger.debug('[IterateOverNewzNabSites] - %s is BLOCKED' % provider['HOST'])
+                ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
+                ignored = True
             elif "audio" in searchType and 'A' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for AudioBook" % provider['HOST'])
+                ignored = True
             elif "mag" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % provider['HOST'])
+                ignored = True
             elif "comic" in searchType and 'C' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
-            else:
+                ignored = True
+            if not ignored:
                 if check_int(provider['APILIMIT'], 0):
                     if 'APICOUNT' in provider:
                         res = check_int(provider['APICOUNT'], 0)
@@ -574,17 +584,23 @@ def IterateOverTorrentSites(book=None, searchType=None):
 
     for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         if lazylibrarian.CONFIG[prov]:
+            ignored = False
             if ProviderIsBlocked(prov):
                 logger.debug('[IterateOverTorrentSites] - %s is BLOCKED' % lazylibrarian.CONFIG[prov + '_HOST'])
+                ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
+                ignored = True
             elif "audio" in searchType and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for AudioBook" % prov)
+                ignored = True
             elif "mag" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % prov)
+                ignored = True
             elif "comic" in searchType and 'C' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % prov)
-            else:
+                ignored = True
+            if not ignored:
                 logger.debug('[IterateOverTorrentSites] - %s' % lazylibrarian.CONFIG[prov + '_HOST'])
                 if prov == 'KAT':
                     results, error = KAT(book)
@@ -624,31 +640,54 @@ def IterateOverDirectSites(book=None, searchType=None):
         else:
             book['searchterm'] = authorname + ' ' + bookname
 
-    for prov in ['GEN', 'GEN2', 'BOK']:
-        if lazylibrarian.CONFIG[prov]:
-            if ProviderIsBlocked(prov):
-                if prov == 'BOK':
-                    logger.debug('[IterateOverDirectSites] - BOK is BLOCKED')
+    for prov in lazylibrarian.GEN_PROV:
+        if prov['ENABLED']:
+            ignored = False
+            if ProviderIsBlocked(prov['NAME']):
+                logger.debug('[IterateOverDirectSites] - %s is BLOCKED' % prov['NAME'])
+                ignored = True
+            elif searchType in ['book', 'shortbook'] and 'E' not in prov['DLTYPES']:
+                logger.debug("Ignoring %s for eBook" % prov['NAME'])
+                ignored = True
+            elif "audio" in searchType and 'A' not in prov['DLTYPES']:
+                logger.debug("Ignoring %s for AudioBook" % prov['NAME'])
+                ignored = True
+            elif "mag" in searchType and 'M' not in prov['DLTYPES']:
+                logger.debug("Ignoring %s for Magazine" % prov['NAME'])
+                ignored = True
+            elif "comic" in searchType and 'C' not in prov['DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % prov['NAME'])
+                ignored = True
+            if not ignored:
+                logger.debug('[IterateOverDirectSites] - %s' % prov['NAME'])
+                results, error = GEN(book, prov['NAME'])
+                if error:
+                    BlockProvider(prov['NAME'], error)
                 else:
-                    logger.debug('[IterateOverDirectSites] - %s %s is BLOCKED' %
-                                 (lazylibrarian.CONFIG[prov + '_HOST'],
-                                  lazylibrarian.CONFIG[prov + '_SEARCH']))
+                    resultslist += results
+                    providers += 1
+
+    for prov in ['BOK']:
+        if lazylibrarian.CONFIG[prov]:
+            ignored = False
+            if ProviderIsBlocked(prov):
+                logger.debug('[IterateOverDirectSites] - %s is BLOCKED' % prov)
+                ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
+                ignored = True
             elif "audio" in searchType and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for AudioBook" % prov)
+                ignored = True
             elif "mag" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % prov)
-            elif "comic" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                ignored = True
+            elif "comic" in searchType and 'C' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % prov)
-            else:
-                if prov == 'BOK':
-                    logger.debug('[IterateOverDirectSites] - %s' % (lazylibrarian.CONFIG[prov + '_HOST']))
-                    results, error = BOK(book, prov)
-                else:
-                    logger.debug('[IterateOverDirectSites] - %s %s' % (lazylibrarian.CONFIG[prov + '_HOST'],
-                                                                       lazylibrarian.CONFIG[prov + '_SEARCH']))
-                    results, error = GEN(book, prov)
+                ignored = True
+            if not ignored:
+                logger.debug('[IterateOverDirectSites] - %s' % prov)
+                results, error = GEN(book, prov)
                 if error:
                     BlockProvider(prov, error)
                 else:
@@ -723,19 +762,26 @@ def IterateOverIRCSites(book=None, searchType=None):
     providers = 0
     for provider in lazylibrarian.IRC_PROV:
         if provider['ENABLED']:
+            ignored = False
             if ProviderIsBlocked(provider['SERVER']):
                 logger.debug('[IterateOverIRCSites] - %s is BLOCKED' % provider['SERVER'])
+                ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
+                ignored = True
             elif "audio" in searchType and 'A' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for AudioBook" % provider['DISPNAME'])
+                ignored = True
             elif "mag" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Magazine" % provider['DISPNAME'])
+                ignored = True
             elif "comic" in searchType and 'M' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for Comic" % provider['DISPNAME'])
+                ignored = True
             elif not searchType or 'general' in searchType:
                 logger.debug("Ignoring %s for General search" % provider['DISPNAME'])
-            else:
+                ignored = True
+            if not ignored:
                 providers += 1
                 logger.debug('[IterateOverIRCSites] - %s' % provider['SERVER'])
                 success, results = IRCSEARCH(book, provider, searchType)
@@ -1154,8 +1200,8 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
 
 def cancelSearchType(searchType, errorMsg, provider):
     """ See if errorMsg contains a known error response for an unsupported search function
-        depending on which searchType. If it does, disable that searchtype for the relevant provider
-        return True if cancelled
+    depending on which searchType. If it does, disable that searchtype for the relevant provider
+    return True if cancelled
     """
     errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
                  'bad request', 'bad_request', 'incorrect parameter', 'does not support']

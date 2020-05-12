@@ -104,6 +104,7 @@ NABAPICOUNT = ''
 BOK_DLCOUNT = 0
 RSS_PROV = []
 IRC_PROV = []
+GEN_PROV = []
 APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
@@ -448,16 +449,6 @@ CONFIG_DEFINITIONS = {
     'TDL_DLPRIORITY': ('int', 'TDL', 0),
     'TDL_DLTYPES': ('str', 'TDL', 'A,E,M'),
     'TDL_SEEDERS': ('int', 'TDL', 0),
-    'GEN_HOST': ('str', 'GEN', 'gen.lib.rus.ec'),
-    'GEN_SEARCH': ('str', 'GEN', 'foreignfiction/index.php'),
-    'GEN': ('bool', 'GEN', 0),
-    'GEN_DLPRIORITY': ('int', 'GEN', 0),
-    'GEN_DLTYPES': ('str', 'GEN', 'EM'),
-    'GEN2_HOST': ('str', 'GEN', ''),
-    'GEN2_SEARCH': ('str', 'GEN', ''),
-    'GEN2': ('bool', 'GEN', 0),
-    'GEN2_DLPRIORITY': ('int', 'GEN', 0),
-    'GEN2_DLTYPES': ('str', 'GEN2', 'EM'),
     'BOK_HOST': ('str', 'BOK', 'b-ok.cc'),
     'BOK': ('bool', 'BOK', 0),
     'BOK_DLPRIORITY': ('int', 'BOK', 0),
@@ -918,7 +909,26 @@ def initialize():
 def config_read(reloaded=False):
     global CONFIG, CONFIG_DEFINITIONS, CONFIG_NONWEB, CONFIG_NONDEFAULT, NEWZNAB_PROV, TORZNAB_PROV, RSS_PROV, \
         CONFIG_GIT, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, NABAPICOUNT, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, \
-        IRC_PROV
+        IRC_PROV, GEN_PROV
+
+    # legacy name conversion
+    if CFG.has_section('GEN'):
+        check_section('GEN_0')
+        CFG.set('GEN_0', 'ENABLED', CFG.get('GEN', 'GEN'))
+        CFG.set('GEN_0', 'DISPNAME', 'GEN_0')
+        CFG.set('GEN_0', 'HOST', CFG.get('GEN', 'GEN_HOST'))
+        CFG.set('GEN_0', 'SEARCH', CFG.get('GEN', 'GEN_SEARCH'))
+        CFG.set('GEN_0', 'DLPRIORITY', CFG.get('GEN', 'GEN_DLPRIORITY'))
+        CFG.set('GEN_0', 'DLTYPES', CFG.get('GEN', 'GEN_DLTYPES'))
+        check_section('GEN_1')
+        CFG.set('GEN_1', 'ENABLED', CFG.get('GEN', 'GEN2'))
+        CFG.set('GEN_1', 'DISPNAME', 'GEN_1')
+        CFG.set('GEN_1', 'HOST', CFG.get('GEN', 'GEN2_HOST'))
+        CFG.set('GEN_1', 'SEARCH', CFG.get('GEN', 'GEN2_SEARCH'))
+        CFG.set('GEN_1', 'DLPRIORITY', CFG.get('GEN', 'GEN2_DLPRIORITY'))
+        CFG.set('GEN_1', 'DLTYPES', CFG.get('GEN2', 'GEN2_DLTYPES'))
+        CFG.remove_section('GEN')
+        CFG.remove_section('GEN2')
 
     count = 0
     while CFG.has_section('Newznab%i' % count):
@@ -1017,6 +1027,23 @@ def config_read(reloaded=False):
         count += 1
     # if the last slot is full, add an empty one on the end
     add_irc_slot()
+
+    count = 0
+    while CFG.has_section('GEN_%i' % count):
+        gen_name = 'GEN_%i' % count
+        disp_name = check_setting('str', gen_name, 'DISPNAME', gen_name)
+
+        GEN_PROV.append({"NAME": gen_name,
+                         "DISPNAME": disp_name,
+                         "ENABLED": check_setting('bool', gen_name, 'ENABLED', 0),
+                         "HOST": check_setting('str', gen_name, 'HOST', ''),
+                         "SEARCH": check_setting('str', gen_name, 'SEARCH', ''),
+                         "DLPRIORITY": check_setting('int', gen_name, 'DLPRIORITY', 0),
+                         "DLTYPES": check_setting('str', gen_name, 'DLTYPES', 'E'),
+                         })
+        count += 1
+    # if the last slot is full, add an empty one on the end
+    add_gen_slot()
 
     count = 0
     while CFG.has_section('APPRISE_%i' % count):
@@ -1137,7 +1164,7 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV, GEN_PROV
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -1326,6 +1353,48 @@ def config_write(part=None):
 
         RSS_PROV = new_list
         add_rss_slot()
+
+    if not part or part.startswith('GEN_'):
+        GEN_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'SEARCH', 'DLPRIORITY', 'DLTYPES']
+        new_list = []
+        # strip out any empty slots
+        for provider in GEN_PROV:
+            if provider['HOST']:
+                new_list.append(provider)
+
+        if part:  # only update the named provider
+            for provider in new_list:
+                if provider['NAME'].lower() != part:  # keep old values
+                    if CONFIG['LOGLEVEL'] > 2:
+                        logger.debug("Keep %s" % provider['NAME'])
+                    for item in GEN_ITEMS:
+                        provider[item] = CFG.get(provider['NAME'], item.lower())
+
+        # renumber the items
+        for index, item in enumerate(new_list):
+            item['NAME'] = 'GEN_%i' % index
+
+        # strip out the old config entries
+        sections = CFG.sections()
+        for item in sections:
+            if item.startswith('GEN'):
+                CFG.remove_section(item)
+
+        for provider in new_list:
+            check_section(provider['NAME'])
+            for item in GEN_ITEMS:
+                value = provider[item]
+                if isinstance(value, text_type):
+                    value = value.strip()
+                if item == 'DLTYPES':
+                    value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
+                    if not value:
+                        value = 'E'
+                    provider['DLTYPES'] = value
+                CFG.set(provider['NAME'], item, value)
+
+        GEN_PROV = new_list
+        add_gen_slot()
 
     if not part or part.startswith('IRC_'):
         IRC_ITEMS = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS',
@@ -1630,6 +1699,8 @@ def add_irc_slot():
         CFG.set(irc_name, 'CHANNEL', '')
         CFG.set(irc_name, 'BOTNICK', '')
         CFG.set(irc_name, 'BOTPASS', '')
+        CFG.set(irc_name, 'DLPRIORITY', 0)
+        CFG.set(irc_name, 'DLTYPES', 'E')
         IRC_PROV.append({"NAME": irc_name,
                          "DISPNAME": irc_name,
                          "ENABLED": 0,
@@ -1637,6 +1708,27 @@ def add_irc_slot():
                          "CHANNEL": '',
                          "BOTNICK": '',
                          "BOTPASS": '',
+                         "DLPRIORITY": 0,
+                         "DLTYPES": 'E'
+                         })
+
+
+# noinspection PyUnresolvedReferences
+def add_gen_slot():
+    count = len(GEN_PROV)
+    if count == 0 or len(CFG.get('GEN_%i' % int(count - 1), 'HOST')):
+        gen_name = 'GEN_%i' % count
+        check_section(gen_name)
+        CFG.set(gen_name, 'ENABLED', False)
+        CFG.set(gen_name, 'HOST', '')
+        CFG.set(gen_name, 'SEARCH', '')
+        CFG.set(gen_name, 'DLPRIORITY', 0)
+        CFG.set(gen_name, 'DLTYPES', 'E')
+        GEN_PROV.append({"NAME": gen_name,
+                         "DISPNAME": gen_name,
+                         "ENABLED": 0,
+                         "HOST": '',
+                         "SEARCH": '',
                          "DLPRIORITY": 0,
                          "DLTYPES": 'E'
                          })
@@ -1722,9 +1814,11 @@ def USE_TOR():
 
 def USE_DIRECT():
     count = 0
-    for provider in ['GEN', 'GEN2', 'BOK']:
-        if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
+    for provider in GEN_PROV:
+        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
+    if bool(CONFIG['BOK']) and not ProviderIsBlocked('BOK'):
+        count += 1
     return count
 
 

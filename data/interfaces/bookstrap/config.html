@@ -2021,67 +2021,6 @@
                     <legend>Direct Download Providers</legend>
                     </div>
                     <%
-                      if lazylibrarian.CONFIG['GEN'] == True:
-                        checked = 'checked="checked"'
-                      else:
-                        checked = ''
-                    %>
-                    <div class="col-md-4 form-group">
-                      <label for="gen_host" class="sr-only">libgen host</label>
-                      <div class="input-group">
-                        <span class="input-group-addon">LibGen1</span>
-                        <input type="text" placeholder="libgen host" id="gen_host" name="gen_host" value="${lazylibrarian.CONFIG['GEN_HOST']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
-                        <input type="checkbox" id="gen" name="gen" value="1" ${checked} />
-                        </span>
-                      </div>
-                      <label for="gen_search" class="sr-only">libgen search</label>
-                      <div class="input-group">
-                        <span class="input-group-addon">Search</span>
-                        <input type="text" placeholder="libgen search" id="gen_search" name="gen_search" value="${lazylibrarian.CONFIG['GEN_SEARCH']}" class="form-control">
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Priority</span>
-                        <input type="number" id="gen_dlpriority" name="gen_dlpriority" value="${lazylibrarian.CONFIG['GEN_DLPRIORITY']}" class="form-control" placeholder="0">
-                        <span class="input-group-addon">Types</span>
-                        <input type="text" id="gen_dltypes" name="gen_dltypes" value="${lazylibrarian.CONFIG['GEN_DLTYPES']}" class="form-control" placeholder="">
-                        <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="GEN"> Test</button>
-                        </span>
-                      </div>
-                      <span class="help-block">Search Examples: search.php, foreignfiction/index.php, fiction</span>
-                    </div>
-                    <%
-                      if lazylibrarian.CONFIG['GEN2'] == True:
-                        checked = 'checked="checked"'
-                      else:
-                        checked = ''
-                    %>
-                    <div class="col-md-4 form-group">
-                      <label for="gen2_host" class="sr-only">libgen host</label>
-                      <div class="input-group">
-                        <span class="input-group-addon">LibGen2</span>
-                        <input type="text" placeholder="libgen host" id="gen2_host" name="gen2_host" value="${lazylibrarian.CONFIG['GEN2_HOST']}" class="form-control">
-                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
-                        <input type="checkbox" id="gen2" name="gen2" value="1" ${checked} />
-                        </span>
-                      </div>
-                      <label for="gen2_search" class="sr-only">libgen search</label>
-                      <div class="input-group">
-                        <span class="input-group-addon">Search</span>
-                        <input type="text" placeholder="libgen search" id="gen2_search" name="gen2_search" value="${lazylibrarian.CONFIG['GEN2_SEARCH']}" class="form-control">
-                      </div>
-                      <div class="input-group">
-                        <span class="input-group-addon">Priority</span>
-                        <input type="number" id="gen2_dlpriority" name="gen2_dlpriority" value="${lazylibrarian.CONFIG['GEN2_DLPRIORITY']}" class="form-control" placeholder="0">
-                        <span class="input-group-addon">Types</span>
-                        <input type="text" id="gen2_dltypes" name="gen2_dltypes" value="${lazylibrarian.CONFIG['GEN2_DLTYPES']}" class="form-control" placeholder="">
-                        <span class="input-group-addon">
-                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="GEN2"> Test</button>
-                        </span>
-                      </div>
-                    </div>
-                    <%
                       if lazylibrarian.CONFIG['BOK'] == True:
                         checked = 'checked="checked"'
                       else:
@@ -2110,6 +2049,44 @@
                       <input type="number" placeholder="API Limit" id="bok_dllimit" name="bok_dllimit" value="${lazylibrarian.CONFIG['BOK_DLLIMIT']}" class="form-control">
                       </div>
                     </div>
+                  %for provider in lazylibrarian.GEN_PROV:
+                  <%
+                   checked = ''
+                   if provider['ENABLED'] == True:
+                       checked = 'checked="checked"'
+                  %>
+                  <div class="col-md-4 form-group">
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">LibGen</span>
+                      <label for="gen_${loop.index}_dispname" class="sr-only">Name</label>
+                      <input type="text" id="gen_${loop.index}_dispname" name="gen_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="name">
+                      <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
+                        &nbsp;<input type="checkbox" id="gen_${loop.index}_enabled" name="gen_${loop.index}_enabled" value="1" ${checked} />&nbsp;
+                      </span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Server</span>
+                      <label for="gen_${loop.index}_host" class="sr-only">Server</label>
+                      <input type="text" placeholder="GEN server #${loop.index}" id="gen_${loop.index}_host" name="gen_${loop.index}_host" value="${provider['HOST']}" class="form-control" />
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Search</span>
+                      <label for="gen_${loop.index}_search" class="sr-only">Search</label>
+                      <input type="text" placeholder="GEN Search #${loop.index}" id="gen_${loop.index}_search" name="gen_${loop.index}_search" value="${provider['SEARCH']}" class="form-control">
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">Priority</span>
+                      <input type="number" id="gen_${loop.index}_dlpriority" name="gen_${loop.index}_dlpriority" value="${provider['DLPRIORITY']}" class="form-control" placeholder="0">
+                      <span class="input-group-addon">Types</span>
+                      <input type="text" id="gen_${loop.index}_dltypes" name="gen_${loop.index}_dltypes" value="${provider['DLTYPES']}" class="form-control" placeholder="">
+                      <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="gen_${loop.index}"> Test</button>
+                      </span>
+                    </div>
+                  </div>
+                  %endfor
                   </fieldset>
                 </div>
               </div>

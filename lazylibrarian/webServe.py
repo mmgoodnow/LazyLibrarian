@@ -1366,6 +1366,20 @@ class WebInterface(object):
                     'rss_%i_dispname' % count, '')
             count += 1
 
+        count = 0
+        while count < len(lazylibrarian.GEN_PROV):
+            lazylibrarian.GEN_PROV[count]['ENABLED'] = bool(kwargs.get('gen_%i_enabled' % count, False))
+            lazylibrarian.GEN_PROV[count]['HOST'] = kwargs.get('gen_%i_host' % count, '')
+            lazylibrarian.GEN_PROV[count]['SEARCH'] = kwargs.get('gen_%i_search' % count, '')
+            if interface != 'legacy':
+                lazylibrarian.GEN_PROV[count]['DLPRIORITY'] = check_int(kwargs.get(
+                    'gen_%i_dlpriority' % count, 0), 0)
+                lazylibrarian.GEN_PROV[count]['DLTYPES'] = kwargs.get(
+                    'gen_%i_dltypes' % count, 'E')
+                lazylibrarian.GEN_PROV[count]['DISPNAME'] = kwargs.get(
+                    'gen_%i_dispname' % count, '')
+            count += 1
+
         if interface != 'legacy':
             count = 0
             while count < len(lazylibrarian.IRC_PROV):
@@ -2149,6 +2163,7 @@ class WebInterface(object):
         """
         Sort the list into natural alphanumeric order.
         """
+
         def convert(text):
             return int(text) if text and text.isdigit() else text
 
@@ -3538,7 +3553,7 @@ class WebInterface(object):
                 if len(mod_issues):
                     for mag in mod_issues:
                         entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], "%s_%s" % (
-                                 comicid, mag['IssueID'])]
+                            comicid, mag['IssueID'])]
                         rowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
