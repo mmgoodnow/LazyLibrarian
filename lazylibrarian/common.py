@@ -610,6 +610,10 @@ def mimeType(filename):
         return 'application/x-zip-compressed'
     elif name.endswith('.xml'):
         return 'application/rss+xml'
+    elif name.endswith('.cbz'):
+        return 'application/x-cbz'
+    elif name.endswith('.cbr'):
+        return 'application/x-cbr'
     return "application/x-download"
 
 
