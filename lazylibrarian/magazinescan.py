@@ -88,7 +88,7 @@ def magazineScan(title=None):
                         logger.debug('Magazine %s deleted as no issues found' % title)
                         myDB.action('DELETE from magazines WHERE Title=?', (title,))
 
-        logger.info(' Checking [%s] for magazines' % mag_path)
+        logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['MAG_TYPE']))
 
         booktypes = ''
         count = -1
