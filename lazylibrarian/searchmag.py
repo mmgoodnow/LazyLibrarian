@@ -47,6 +47,7 @@ def search_magazines(mags=None, reset=False):
                 threading.currentThread().name = "SEARCHMAG"
 
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
 
         if not mags:  # backlog search
@@ -61,6 +62,8 @@ def search_magazines(mags=None, reset=False):
                     searchmags.append(terms)
 
         if len(searchmags) == 0:
+            logger.debug("No magazines to search for")
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             threading.currentThread().name = "WEBSERVER"
             return
 
@@ -521,14 +524,13 @@ def search_magazines(mags=None, reset=False):
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
         logger.info("Search for magazines complete")
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
-
         if reset:
             scheduleJob(action='Restart', target='search_magazines')
 
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
     finally:
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
         threading.currentThread().name = "WEBSERVER"
 
 

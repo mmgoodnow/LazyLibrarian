@@ -324,6 +324,7 @@ def cleanCache():
         and change database entry if missing """
 
     myDB = database.DBConnection()
+    myDB.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
     result = []
     expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)
     cache = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
@@ -520,5 +521,5 @@ def cleanCache():
     msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)
     logger.debug(msg)
-    myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "CLEANCACHE"})
+    myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
     return result

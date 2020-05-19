@@ -137,6 +137,9 @@ class grauth:
                 token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
                 client = oauth.Client(consumer, token)
                 user_id = self.getUserId()
+                if not user_id:
+                    logger.warn("Goodreads userid error")
+                    return ""
                 return user_id
             except Exception as e:
                 logger.error("Unable to get UserID: %s %s" % (type(e).__name__, str(e)))
@@ -159,7 +162,9 @@ class grauth:
             token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
             client = oauth.Client(consumer, token)
             user_id = self.getUserId()
-
+            if not user_id:
+                logger.warn("Goodreads userid error")
+                return []
             current_page = 0
             shelves = []
             page_shelves = 1
@@ -217,6 +222,8 @@ class grauth:
         token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
         client = oauth.Client(consumer, token)
         user_id = self.getUserId()
+        if not user_id:
+            return False, "Goodreads userid error"
 
         # follow https://www.goodreads.com/author_followings?id=AUTHOR_ID&format=xml
         # unfollow https://www.goodreads.com/author_followings/AUTHOR_FOLLOWING_ID?format=xml
@@ -262,6 +269,8 @@ class grauth:
         token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
         client = oauth.Client(consumer, token)
         user_id = self.getUserId()
+        if not user_id:
+            return False, "Goodreads userid error"
 
         # could also pass [featured] [exclusive_flag] [sortable_flag] all default to False
         body = urlencode({'user_shelf[name]': shelf.lower()})
@@ -297,6 +306,10 @@ class grauth:
             token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
             client = oauth.Client(consumer, token)
             user_id = self.getUserId()
+            if not user_id:
+                logger.warn("Goodreads userid error")
+                return []
+
             logger.debug('User id is: ' + user_id)
 
             current_page = 0
@@ -446,6 +459,8 @@ def sync_to_gr():
     # noinspection PyBroadException
     try:
         threading.currentThread().name = 'GRSync'
+        myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
         if lazylibrarian.CONFIG['GR_OWNED'] and lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
             msg += "Unable to sync ebooks, WANTED and OWNED must be different shelves\n"
         elif lazylibrarian.SHOW_AUDIO and lazylibrarian.CONFIG['GR_AOWNED'] and \
@@ -504,7 +519,7 @@ def sync_to_gr():
 
         logger.info(msg.strip('\n').replace('\n', ', '))
         myDB = database.DBConnection()
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "GRSYNC"})
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
     except Exception:
         logger.error("Exception in sync_to_gr: %s" % traceback.format_exc())
     finally:

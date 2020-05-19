@@ -227,6 +227,15 @@ def checkForUpdates():
     if 'Thread-' in threading.currentThread().name:
         threading.currentThread().name = "CRON-VERSIONCHECK"
         auto_update = lazylibrarian.CONFIG['AUTO_UPDATE']
+    try:
+        myDB = database.DBConnection()
+        columns = myDB.match('PRAGMA table_info(jobs)')
+        if columns:
+            myDB.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
+    except Exception:
+        # jobs table might not exist yet
+        pass
+
     logmsg('debug', 'Setting Install Type, Current & Latest Version and Commit status')
     getInstallType()
     lazylibrarian.CONFIG['CURRENT_VERSION'] = getCurrentVersion()
@@ -261,7 +270,7 @@ def checkForUpdates():
         myDB = database.DBConnection()
         columns = myDB.match('PRAGMA table_info(jobs)')
         if columns:
-            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": "VERSIONCHECK"})
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass
@@ -500,7 +509,7 @@ def update():
             for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
                            'lib', 'lib3', 'mako']:
                 path = os.path.join(lazylibrarian.PROG_DIR, folder)
-                for root, dirs, files in walk(path):
+                for root, _, files in walk(path):
                     for item in files:
                         if not item.endswith('.pyc'):
                             base = root[len(lazylibrarian.PROG_DIR) + 1:]

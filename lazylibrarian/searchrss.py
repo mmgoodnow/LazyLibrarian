@@ -46,6 +46,7 @@ def search_wishlist():
     search_start = time.time()
     try:
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         resultlist, wishproviders = IterateOverWishLists()
         if not wishproviders:
             logger.debug('No wishlists are set')
@@ -246,7 +247,7 @@ def search_wishlist():
             logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
         else:
             logger.debug("Wishlist marked no new items as Wanted")
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())

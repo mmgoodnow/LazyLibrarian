@@ -205,6 +205,7 @@ def search_comics(comicid=None):
                 threading.currentThread().name = "SEARCHCOMIC"
 
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         count = 0
         if comicid:
@@ -333,7 +334,7 @@ def search_comics(comicid=None):
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
         logger.info("ComicSearch for Wanted items complete, found %s %s" % (count, plural(count, "comic")))
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
     finally:

@@ -112,8 +112,9 @@ def upgrade_needed():
     # 60 Moved preprocessor into main program and disabled old preprocessor
     # 61 Add reason to series table
     # 62 Add About to author table
+    # 63 Add Start to jobs table, rename LastRun to Finish
 
-    db_current_version = 62
+    db_current_version = 63
 
     if db_version < db_current_version:
         return db_current_version
@@ -201,7 +202,7 @@ def dbupgrade(db_current_version):
                                 'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
                                 'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
                                 'Publisher TEXT, Link TEXT, aka TEXT, Description TEXT)')
-                    myDB.action('CREATE TABLE jobs (Name TEXT, LastRun INTEGER DEFAULT 0)')
+                    myDB.action('CREATE TABLE jobs (Name TEXT, Finish INTEGER DEFAULT 0, Start INTEGER DEFAULT 0)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -1478,7 +1479,7 @@ def db_v45(myDB, upgradelog):
             runGit('config master.remote origin')
             runGit('config master.merge refs/heads/master')
             runGit('stash clear')
-            res, err = runGit('pull origin master')
+            res, _ = runGit('pull origin master')
             if not res or 'CONFLICT' in res:
                 upgradelog.write("Forcing reset to fix merge conflicts\n")
                 runGit('reset --hard origin/master')
@@ -1755,4 +1756,16 @@ def db_v62(myDB, upgradelog):
         upgradelog.write("%s v62: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE authors ADD COLUMN About TEXT')
     upgradelog.write("%s v62: complete\n" % time.ctime())
+
+
+def db_v63(myDB, upgradelog):
+    if not has_column(myDB, "jobs", "Start"):
+        lazylibrarian.UPDATE_MSG = 'Replacing jobs table'
+        upgradelog.write("%s v63: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('DROP TABLE IF EXISTS temp')
+        myDB.action('ALTER TABLE jobs RENAME to temp')
+        myDB.action('CREATE TABLE jobs (Name TEXT, Finish INTEGER DEFAULT 0, Start INTEGER DEFAULT 0)')
+        myDB.action('INSERT INTO jobs SELECT Name,LastRun as Start,LastRun as Finish FROM temp')
+        myDB.action('DROP TABLE temp')
+    upgradelog.write("%s v63: complete\n" % time.ctime())
 

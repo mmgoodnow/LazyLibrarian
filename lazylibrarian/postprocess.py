@@ -88,7 +88,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         if not source_file or not path_isfile(source_file):
             logger.warn("%s is not a file" % source_file)
             return False
-        basename, extn = os.path.splitext(source_file)
+        _, extn = os.path.splitext(source_file)
         extn = extn.lstrip('.')
         if not extn or extn not in getList(lazylibrarian.CONFIG['MAG_TYPE']):
             logger.warn("%s is not a valid issue file" % source_file)
@@ -664,6 +664,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
     try:
         ppcount = 0
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         skipped_extensions = getList(lazylibrarian.CONFIG['SKIPPED_EXT'])
         if startdir:
             templist = [startdir]
@@ -1383,7 +1384,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 else:
                     logger.debug('%s was sent somewhere?? %s minutes ago ' % (book['NZBtitle'], mins))
 
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
         # Check if postprocessor needs to run again
         snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
         seeding = myDB.select('SELECT * from wanted WHERE Status="Seeding"')

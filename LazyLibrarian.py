@@ -226,7 +226,7 @@ def main():
     if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
             and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-            res, err = runGit('remote -v')
+            res, _ = runGit('remote -v')
             if 'gitlab.com' in res:
                 logger.warn('Unrecognised version, LazyLibrarian may have local changes')
             else:  # upgrading from github

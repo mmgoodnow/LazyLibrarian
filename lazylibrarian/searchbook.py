@@ -95,6 +95,7 @@ def search_book(books=None, library=None):
                 threading.currentThread().name = "SEARCHBOOKS"
 
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
         searchbooks = []
 
@@ -122,7 +123,8 @@ def search_book(books=None, library=None):
                         logger.debug("SearchBooks - BookID %s is not in the database" % book['bookid'])
 
         if len(searchbooks) == 0:
-            logger.debug("SearchBooks - No books to search for")
+            logger.debug("No books to search for")
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             return
 
         nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
@@ -136,6 +138,7 @@ def search_book(books=None, library=None):
             else:
                 msg += " (check you have some enabled)"
             logger.debug(msg)
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             return
 
         modelist = []
@@ -398,9 +401,9 @@ def search_book(books=None, library=None):
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
         logger.info("Search for Wanted items complete, found %s %s" % (book_count, plural(book_count, "book")))
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
     finally:
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
         threading.currentThread().name = "WEBSERVER"

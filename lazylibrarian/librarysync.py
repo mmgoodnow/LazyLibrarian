@@ -50,37 +50,50 @@ except ImportError:
 def get_book_meta(fdir, reason="get_book_meta"):
     # look for a bookid in a LL.() filename or a .desktop file and return author/title
     bookid = ''
-    reason = reason + ' ' + fdir
-    for item in listdir(fdir):
-        if 'LL.(' in item:
-            bookid = item.split('LL.(')[1].split(')')[0]
-            if bookid:
-                logger.debug("bookid %s from %s" % (bookid, item))
-                break
-        if item.endswith('.desktop') or item.endswith('.url'):
-            with open(os.path.join(fdir, item), 'r') as f:
-                lynes = f.readlines()
-            for lyne in lynes:
-                if '/book/show/' in lyne:
-                    bookid = lyne.split('/book/show/')[1].split('-')[0].split('.')[0]
-                    if bookid:
-                        logger.debug("bookid %s from %s" % (bookid, item))
-                        break
-    if bookid:
-        myDB = database.DBConnection()
-        cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
-        cmd += ' and books.BookID=?'
-        existing_book = myDB.match(cmd, (bookid,))
-        if not existing_book:
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
-                GB = GoogleBooks(bookid)
-                GB.find_book(bookid, None, None, reason)
-            else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-                GR = GoodReads(bookid)
-                GR.find_book(bookid, None, None, reason)
+    reason = "%s [%s]" % (reason, fdir)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+        logger.debug(reason)
+    try:
+        for item in listdir(fdir):
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+                logger.debug("Checking [%s]" % item)
+            if 'LL.(' in item:
+                bookid = item.split('LL.(')[1].split(')')[0]
+                if bookid:
+                    logger.debug("bookid %s from %s" % (bookid, item))
+                    break
+            if item.endswith('.desktop') or item.endswith('.url'):
+                with open(os.path.join(fdir, item), 'r') as f:
+                    try:
+                        lynes = f.readlines()
+                    except Exception as e:
+                        logger.debug("Unable to readlines from %s" % item)
+                        logger.debug(str(e))
+                        lynes = []
+                for lyne in lynes:
+                    if '/book/show/' in lyne:
+                        bookid = lyne.split('/book/show/')[1].split('-')[0].split('.')[0]
+                        if bookid:
+                            logger.debug("bookid %s from %s" % (bookid, item))
+                            break
+        if bookid:
+            myDB = database.DBConnection()
+            cmd = 'SELECT AuthorName,BookName FROM authors,books where authors.AuthorID = books.AuthorID'
+            cmd += ' and books.BookID=?'
             existing_book = myDB.match(cmd, (bookid,))
-        if existing_book:
-            return existing_book['AuthorName'], existing_book['BookName']
+            if not existing_book:
+                if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                    GB = GoogleBooks(bookid)
+                    GB.find_book(bookid, None, None, reason)
+                else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                    GR = GoodReads(bookid)
+                    GR.find_book(bookid, None, None, reason)
+                existing_book = myDB.match(cmd, (bookid,))
+            if existing_book:
+                return existing_book['AuthorName'], existing_book['BookName']
+    except Exception:
+        logger.error('Error getting book meta: %s' % traceback.format_exc())
+    finally:
         return "", ""
 
 

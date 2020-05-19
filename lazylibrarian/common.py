@@ -699,15 +699,13 @@ def nextRun(target=None, interval=0, action='', hours=False):
     if not columns:  # no such table
         lastrun = 0
     else:
-        res = myDB.match('SELECT LastRun from jobs WHERE Name=?', (target,))
-        if res and res['LastRun'] > 0:
-            lastrun = res['LastRun']
+        res = myDB.match('SELECT Finish from jobs WHERE Name=?', (target,))
+        if res and res['Finish']:
+            lastrun = res['Finish']
         else:
             lastrun = 0
 
-    if target == 'PostProcessor':  # more readable
-        newtarget = 'processDir'
-    elif target == 'syncToGoodreads':
+    if target == 'syncToGoodreads':
         newtarget = 'sync_to_gr'
     else:
         newtarget = target
@@ -920,6 +918,7 @@ def authorUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('Author')
             if not total:
@@ -933,7 +932,7 @@ def authorUpdate(restart=True):
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = 'Updated author %s' % name
-            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "authorUpdate")
             return msg
@@ -950,6 +949,7 @@ def seriesUpdate(restart=True):
     # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
+        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('Series')
             if not total:
@@ -963,7 +963,7 @@ def seriesUpdate(restart=True):
                 msg = 'Updated series %s' % name
             logger.debug(msg)
 
-            myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "seriesUpdate")
             return msg
@@ -1226,9 +1226,13 @@ def showJobs():
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
         jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
-        res = myDB.match('SELECT LastRun from jobs WHERE Name="%s"' % threadname)
-        if res and res['LastRun'] > 0:
-            jobinfo += " (Last run %s)" % ago(res['LastRun'])
+        res = myDB.match('SELECT Start,Finish from jobs WHERE Name="%s"' % threadname)
+
+        if res:
+            if res['Start'] > res['Finish']:
+                jobinfo += " (Running since %s)" % ago(res['Start'])
+            elif res['Finish']:
+                jobinfo += " (Last run %s)" % ago(res['Finish'])
         result.append(jobinfo)
 
     result.append(' ')
