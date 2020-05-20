@@ -90,7 +90,7 @@ def comicScan(comicid=None):
                         logger.debug('Comic %s deleted as no issues found' % title)
                         myDB.action('DELETE from comics WHERE ComicID=?', (comicid,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, librarian.CONFIG['COMIC_TYPE']))
+        logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['COMIC_TYPE']))
 
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
