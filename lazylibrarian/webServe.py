@@ -890,7 +890,7 @@ class WebInterface(object):
         cmd += ' from member,series,books,authors'
         cmd += ' where series.SeriesID=member.SeriesID and books.BookID=member.BookID'
         cmd += ' and books.AuthorID=authors.AuthorID and '
-        if not ignored:
+        if not ignored or ignored == 'False':
             cmd += '(books.Status != "Ignored" or AudioStatus != "Ignored")'
         else:
             cmd += '(books.Status == "Ignored" and AudioStatus == "Ignored")'
@@ -2972,7 +2972,7 @@ class WebInterface(object):
         if 'marktype' in args:
             library = args['marktype']
 
-        for arg in ['book_table_length', 'ignored', 'library', 'booklang']:
+        for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype']:
             args.pop(arg, None)
 
         myDB = database.DBConnection()
