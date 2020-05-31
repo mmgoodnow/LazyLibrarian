@@ -724,6 +724,7 @@ class GoodReads:
                         cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status FROM books,authors'
                         cmd += ' WHERE authors.AuthorID = books.AuthorID AND BookID=?'
                         match = myDB.match(cmd, (bookid,))
+                        rejectable = True
                         if match:
                             # we have a book with this bookid already
                             if match['BookName'] == 'Untitled' and bookname != 'Untitled':
@@ -741,11 +742,12 @@ class GoodReads:
                             else:
                                 logger.debug('Bookid %s for [%s][%s] is in database marked %s' %
                                              (bookid, authorNameResult, bookname, match['Status']))
-                            # Make sure we don't reject books we have got
-                            if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
-                                rejected = None
 
-                        if not rejected:
+                            # Make sure we don't reject books we have already got
+                            if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
+                                rejectable = False
+
+                        if rejectable and not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
                             cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
                             match = myDB.match(cmd, (bookname, authorNameResult))
@@ -760,8 +762,8 @@ class GoodReads:
 
                         if rejected and rejected[0] not in ignorable:
                             removedResults += 1
-                        if not rejected or (rejected and rejected[0] in ignorable and
-                                            lazylibrarian.CONFIG['IMP_IGNORE']):
+                        if rejectable and not rejected or (rejected and rejected[0] in ignorable and
+                                                           lazylibrarian.CONFIG['IMP_IGNORE']):
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
                             cmd += 'OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?'
                             existing = myDB.match(cmd, (bookid,))
@@ -803,13 +805,13 @@ class GoodReads:
                             if originalpubdate:
                                 bookdate = originalpubdate
 
-                            if not rejected:
+                            if rejectable and not rejected:
                                 if lazylibrarian.CONFIG['NO_FUTURE']:
                                     if bookdate > today()[:len(bookdate)]:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
-                            if not rejected:
+                            if rejectable and not rejected:
                                 if lazylibrarian.CONFIG['NO_PUBDATE']:
                                     if not bookdate or bookdate == '0000':
                                         rejected = 'date', 'No publication date'
