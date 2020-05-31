@@ -1329,14 +1329,18 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                         thisnzb['dispname'] = provider['DISPNAME']
 
                         if 'seeders' in thisnzb:
-                            # its torznab, check if minimum seeders relevant
-                            if check_int(thisnzb['seeders'], 0) >= check_int(provider['SEEDERS'], 0):
-                                nzbcount += 1
-                                results.append(thisnzb)
+                            if 'SEEDERS' not in provider:
+                                # might have provider in newznab instead of torznab slot?
+                                logger.warn("%s does not support seeders" % provider['DISPNAME'])
                             else:
-                                logger.debug('Rejecting %s has %s %s' % (thisnzb['nzbtitle'],
-                                                                         thisnzb['seeders'],
-                                                                         plural(thisnzb['seeders'], "seeder")))
+                                # its torznab, check if minimum seeders relevant
+                                if check_int(thisnzb['seeders'], 0) >= check_int(provider['SEEDERS'], 0):
+                                    nzbcount += 1
+                                    results.append(thisnzb)
+                                else:
+                                    logger.debug('Rejecting %s has %s %s' % (thisnzb['nzbtitle'],
+                                                                             thisnzb['seeders'],
+                                                                             plural(thisnzb['seeders'], "seeder")))
                         else:
                             # its newznab, check if too old
                             if not maxage:
