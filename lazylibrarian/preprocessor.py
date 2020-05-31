@@ -159,6 +159,27 @@ def preprocess_audio(bookfolder, authorname, bookname):
 
     # if we get here, looks like we have all the parts
     out_type = os.path.splitext(parts[0][3])[1]
+    # output file will be the same type as the first input file
+    # unless the user supplies a -f parameter to override it
+    if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
+        out_type = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ')[1].split(',')[0].split(' ')[0]
+        out_type = '.' + out_type
+    if out_type == '.m4b':
+        # ffmpeg doesn't like m4b extension so rename to m4a
+        b_to_a = True
+        out_type = '.m4a'
+        parts_mod = []
+        for part in parts:
+            if part[3].endswith('.m4b'):
+                new_name = part[3].replace('.m4b', '.m4a')
+                os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
+                parts_mod.append([part[0], part[1], part[2], new_name])
+            else:
+                parts_mod.append(part)
+        parts = parts_mod
+    else:
+        b_to_a = False
+
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
@@ -204,11 +225,6 @@ def preprocess_audio(bookfolder, authorname, bookname):
         params.extend(getList(lazylibrarian.CONFIG['AUDIO_OPTIONS']))
         params.append('-y')
 
-        # output file will be the same type as the first input file, unless
-        # the user supplies a -f parameter to override it
-        if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
-            out_type = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ')[1].split(',')[0].split(' ')[0]
-            out_type = '.' + out_type
         outfile = "%s - %s%s" % (authorname, bookname, out_type)
         params.append(os.path.join(bookfolder, outfile))
 
@@ -225,6 +241,11 @@ def preprocess_audio(bookfolder, authorname, bookname):
             if res:
                 logger.error(res)
             return
+
+        if b_to_a and outfile.endswith('.m4a'):
+            new_name = outfile.replace('.m4a', '.m4b')
+            os.rename(os.path.join(bookfolder, outfile), os.path.join(bookfolder, new_name))
+            outfile = new_name
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
         os.remove(os.path.join(bookfolder, "partslist.ll"))
@@ -277,9 +298,15 @@ def preprocess_magazine(bookfolder, cover=0):
             with open(srcfile + 'new', "wb") as outputStream:
                 output.write(outputStream)
         logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
-        newcopy = safe_copy(srcfile + 'new', original + 'new')
-        os.remove(srcfile)
-        os.remove(srcfile + 'new')
-        os.rename(newcopy, original)
+        try:
+            sz = os.stat(srcfile + 'new').st_size
+        except Exception as e:
+            sz = 0
+            logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
+        if sz:
+            newcopy = safe_copy(srcfile + 'new', original + 'new')
+            os.remove(srcfile)
+            os.remove(srcfile + 'new')
+            os.rename(newcopy, original)
     except Exception as e:
         logger.error(str(e))
