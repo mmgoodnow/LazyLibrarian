@@ -303,6 +303,7 @@ CONFIG_DEFINITIONS = {
     'IMP_CALIBRE_COMIC': ('bool', 'General', 0),
     'IMP_CALIBRE_MAGAZINE': ('bool', 'General', 0),
     'IMP_CALIBRE_MAGTITLE': ('bool', 'General', 1),
+    'IMP_CALIBRE_MAGISSUE': ('bool', 'General', 0),
     'BLACKLIST_FAILED': ('bool', 'General', 1),
     'BLACKLIST_PROCESSED': ('bool', 'General', 0),
     'CALIBRE_USE_SERVER': ('bool', 'General', 0),
