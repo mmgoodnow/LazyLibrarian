@@ -79,6 +79,7 @@ def search_book(books=None, library=None):
     library is "eBook" or "AudioBook" or None to search all book types
     """
     global modelist
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
         threadname = threading.currentThread().name
@@ -94,7 +95,6 @@ def search_book(books=None, library=None):
             else:
                 threading.currentThread().name = "SEARCHBOOKS"
 
-        myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
         searchbooks = []

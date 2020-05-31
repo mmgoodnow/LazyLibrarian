@@ -36,6 +36,7 @@ def cron_search_magazines():
 
 def search_magazines(mags=None, reset=False):
     # produce a list of magazines to search for, tor, nzb, torznab, rss
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
         threadname = threading.currentThread().name
@@ -46,7 +47,6 @@ def search_magazines(mags=None, reset=False):
             else:
                 threading.currentThread().name = "SEARCHMAG"
 
-        myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
 

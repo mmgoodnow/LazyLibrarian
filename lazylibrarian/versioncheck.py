@@ -227,6 +227,7 @@ def checkForUpdates():
     if 'Thread-' in threading.currentThread().name:
         threading.currentThread().name = "CRON-VERSIONCHECK"
         auto_update = lazylibrarian.CONFIG['AUTO_UPDATE']
+    # noinspection PyBroadException
     try:
         myDB = database.DBConnection()
         columns = myDB.match('PRAGMA table_info(jobs)')
