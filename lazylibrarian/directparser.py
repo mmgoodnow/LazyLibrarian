@@ -364,15 +364,15 @@ def GEN(book=None, prov=None, test=False):
                     if td and 'comic' in search:
                         try:
                             if 'FILE' in str(td[-1]):
-                                issue = ''
-                                year = ''
-                                publisher = ''
-                                language = ''
                                 newsoup = BeautifulSoup(str(td[1]), 'html5lib')
                                 data = newsoup.find_all('a')
                                 for d in data:
                                     links.append(d.get('href'))
                                 title = td[3].text.strip()
+                                issue = ''
+                                year = ''
+                                publisher = ''
+                                language = ''
                                 for f in range(4, len(td)-1):
                                     if 'Issue: ' in td[f].text:
                                         issue = td[f].text.split('Issue: ')[1].strip()
@@ -386,6 +386,8 @@ def GEN(book=None, prov=None, test=False):
                                         if '<br' in str(td[f]) and td[f].text[0].isdigit():
                                             size = str(td[f]).split('>')[1].split('<br')[0]
                                             extn = str(td[f]).split('<br')[1].split('>')[1].split('<')[0]
+                                    logger.debug("Title: %s Issue:%s Year:%s Pub:%s Lang:%s Size: %s" %
+                                                 (title, issue, year, publisher, language, size))
                         except Exception as e:
                             logger.debug('Error parsing libgen comic results: %s' % str(e))
                             pass

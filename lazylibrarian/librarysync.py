@@ -47,6 +47,7 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 
+# noinspection PyBroadException
 def get_book_meta(fdir, reason="get_book_meta"):
     # look for a bookid in a LL.() filename or a .desktop file and return author/title
     bookid = ''

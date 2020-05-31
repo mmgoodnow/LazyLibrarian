@@ -613,7 +613,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -683,7 +683,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "comic"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "comic"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -753,7 +753,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "magazine"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "magazine"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -903,7 +903,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -975,7 +975,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1069,7 +1069,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         return
 
@@ -1164,7 +1164,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1188,7 +1188,7 @@ class OPDS(object):
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getLink(href='%s/opensearchmagazines.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Magazines'))
-        cmd = "select Title,IssueID,IssueAcquired,IssueDate,IssueFile from issues "
+        cmd = "select Title,IssueID,IssueAcquired,IssueDate,IssueFile,Cover from issues "
         cmd += "where IssueFile != '' "
         if 'query' in kwargs:
             cmd += "AND Title LIKE '%" + kwargs['query'] + "%' "
@@ -1211,9 +1211,7 @@ class OPDS(object):
                      'author': escape(title),
                      'type': mimeType(mag['IssueFile'])}
             if lazylibrarian.CONFIG['OPDS_METAINFO']:
-                fname = os.path.splitext(mag['IssueFile'])[0]
-                res = cache_img('magazine', mag['IssueID'], fname + '.jpg')
-                entry['image'] = self.searchroot + '/' + res[0]
+                entry['image'] = self.searchroot + '/' + mag['Cover']
                 entry['thumbnail'] = entry['image']
             entries.append(entry)
 
@@ -1231,7 +1229,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1299,7 +1297,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "issue"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1441,7 +1439,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
@@ -1528,7 +1526,7 @@ class OPDS(object):
         fin = index + limit
         if fin > len(results):
             fin = len(results)
-        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "audiobook"), 
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "audiobook"),
                                                             index + 1, fin, len(results)))
         self.data = feed
         return
