@@ -2745,7 +2745,9 @@ def createMAGOPF(issuefile, authors, title, issue, issueID, overwrite=False):
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
-    if issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
+    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGISSUE']:
+        iname = issue
+    elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]
         mn = issue[5:7]
         month = lazylibrarian.MONTHNAMES[int(mn)][0]

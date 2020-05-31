@@ -2387,7 +2387,7 @@
                       <input type="checkbox" id="imp_calibre_magazine" name="imp_calibre_magazine" value="1" ${checked} />
                       Use calibredb to import magazines</label>
                   </div>
-                  <div class="checkbox">
+                 <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE'] == True:
                             checked = 'checked="checked"'
@@ -2399,6 +2399,17 @@
                       Use magazine title as author</label>
                   </div>
                   <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGISSUE'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                    %>
+                    <label for="imp_calibre_magissue">
+                      <input type="checkbox" id="imp_calibre_magissue" name="imp_calibre_magissue" value="1" ${checked} />
+                      Use magazine issue as title</label>
+                  </div>
+                   <div class="checkbox">
                     <%
                         if lazylibrarian.CONFIG['IMP_AUTOADD_COPY'] == True:
                             checked = 'checked="checked"'
