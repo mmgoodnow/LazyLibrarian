@@ -458,27 +458,26 @@ def search_magazines(mags=None, reset=False):
                                     "NZBtitle": nzbtitle,
                                     "NZBprov": nzbprov
                                 }
-                                if insert_table == 'pastissues':
-                                    # try to mark ones we've already got
-                                    match = myDB.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
-                                                       (bookid, issuedate))
-                                    if match:
-                                        insert_status = "Have"
-                                    else:
-                                        insert_status = "Skipped"
-                                else:
-                                    insert_status = "Wanted"
                                 newValueDict = {
                                     "NZBurl": nzburl,
                                     "BookID": bookid,
                                     "NZBdate": nzbdate,
                                     "AuxInfo": issuedate,
-                                    "Status": insert_status,
+                                    "Status": "Wanted",
                                     "NZBsize": nzbsize,
                                     "NZBmode": nzbmode
                                 }
+                                if insert_table == 'pastissues':
+                                    # try to mark ones we've already got
+                                    match = myDB.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
+                                                       (bookid, issuedate))
+                                    if match:
+                                        newValueDict["Status"] = "Have"
+                                    else:
+                                        newValueDict["Status"] = "Skipped"
+                                    newValueDict["Added"] = int(time.time())
                                 myDB.upsert(insert_table, newValueDict, controlValueDict)
-                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table, insert_status))
+                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table, newValueDict["Status"]))
 
                 msg = 'Found %i %s for %s. %i new,' % (total_nzbs, plural(total_nzbs, "result"), bookid, new_date)
                 msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
