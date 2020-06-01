@@ -321,7 +321,7 @@ def cleanCache():
     """ Remove unused files from the cache - delete if expired or unused.
         Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic  IRC
         Check covers and authorimages etc referenced in the database exist
-        and change database entry if missing """
+        and change database entry if missing, expire old pastissues table entries """
 
     myDB = database.DBConnection()
     myDB.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
@@ -351,13 +351,13 @@ def cleanCache():
         cache = os.path.join(lazylibrarian.CACHEDIR, cache)
         cleaned = 0
         kept = 0
+        time_now = time.time()
         if expiry and path_isdir(cache):
             for i in '0123456789abcdef':
                 for j in '0123456789abcdef':
                     for cached_file in listdir(os.path.join(cache, i, j)):
                         target = os.path.join(cache, i, j, cached_file)
                         cache_modified_time = os.stat(target).st_mtime
-                        time_now = time.time()
                         if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
                             # Cache is old, delete entry
                             os.remove(syspath(target))
@@ -375,7 +375,6 @@ def cleanCache():
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 for cached_file in listdir(os.path.join(cache, i, j)):
-                    target = os.path.join(cache, i, j, cached_file)
                     try:
                         bookid = cached_file.split('.')[0]
                     except IndexError:
@@ -384,7 +383,7 @@ def cleanCache():
                     item = myDB.match('select BookID from books where BookID=?', (bookid,))
                     if not item:
                         # WorkPage no longer referenced in database, delete cached_file
-                        os.remove(syspath(target))
+                        os.remove(syspath(os.path.join(cache, i, j, cached_file)))
                         cleaned += 1
                     else:
                         kept += 1
@@ -397,7 +396,6 @@ def cleanCache():
     kept = 0
     if path_isdir(cache):
         for cached_file in listdir(cache):
-            target = os.path.join(cache, cached_file)
             try:
                 seriesid = cached_file.split('.')[0]
             except IndexError:
@@ -406,7 +404,7 @@ def cleanCache():
             item = myDB.match('select SeriesID from series where SeriesID=?', (seriesid,))
             if not item:
                 # SeriesPage no longer referenced in database, delete cached_file
-                os.remove(syspath(target))
+                os.remove(syspath(os.path.join(cache, cached_file)))
                 cleaned += 1
             else:
                 kept += 1
@@ -421,8 +419,7 @@ def cleanCache():
         for cached_file in listdir(cache):
             item = myDB.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
             if not item:
-                target = os.path.join(cache, cached_file)
-                os.remove(syspath(target))
+                os.remove(syspath(os.path.join(cache, cached_file)))
                 cleaned += 1
             else:
                 kept += 1
@@ -434,36 +431,60 @@ def cleanCache():
     cleaned = 0
     kept = 0
     cachedir = os.path.join(cache, 'author')
-    if path_isdir(cachedir):
-        for cached_file in listdir(cachedir):
-            target = os.path.join(cachedir, cached_file)
-            if path_isfile(target):
-                item = myDB.match('select * from authors where AuthorImg=?', ('cache/author/%s' % cached_file,))
-                if not item:
+    try:
+        if path_isdir(cachedir):
+            res = myDB.select("SELECT AuthorImg from authors")
+            images = []
+            for item in res:
+                if item['AuthorImg'].startswith('cache/author/'):
+                    images.append(item['AuthorImg'][13:])
+            logger.debug("Checking %s author images" % len(images))
+            for cached_file in listdir(cachedir):
+                if cached_file not in images:
                     # Author Image no longer referenced in database, delete cached_file
-                    os.remove(syspath(target))
+                    os.remove(syspath(os.path.join(cachedir, cached_file)))
                     cleaned += 1
                 else:
                     kept += 1
+        msg = "Cleaned %i orphan %s from AuthorCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
+        result.append(msg)
+        logger.debug(msg)
+    except Exception as e:
+        logger.debug(str(e))
+
     cachedir = os.path.join(cache, 'book')
-    if path_isdir(cachedir):
-        for cached_file in listdir(cachedir):
-            target = os.path.join(cachedir, cached_file)
-            if path_isfile(target):
-                item = myDB.match('select * from books where BookImg=?', ('cache/book/%s' % cached_file,))
-                if not item:
-                    # Book Image no longer referenced in database, delete cached_file
-                    os.remove(syspath(target))
+    cleaned = 0
+    kept = 0
+    try:
+        if path_isdir(cachedir):
+            res = myDB.select("SELECT BookImg from books")
+            images = []
+            for item in res:
+                if item['BookImg'].startswith('cache/book/'):
+                    images.append(item['BookImg'][11:])
+            logger.debug("Checking %s book images" % len(images))
+            for cached_file in listdir(cachedir):
+                if cached_file not in images:
+                    os.remove(syspath(os.path.join(cachedir, cached_file)))
                     cleaned += 1
                 else:
                     kept += 1
+        msg = "Cleaned %i orphan %s from BookCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
+        result.append(msg)
+        logger.debug(msg)
+    except Exception as e:
+        logger.debug(str(e))
 
     # at this point there should be no more .jpg files in the root of the cachedir
     # any that are still there are for books/authors deleted from database
+    cleaned = 0
+    kept = 0
     for cached_file in listdir(cache):
         if cached_file.endswith('.jpg'):
             os.remove(syspath(os.path.join(cache, cached_file)))
             cleaned += 1
+        else:
+            kept += 1
     msg = "Cleaned %i orphan %s from ImageCache, kept %i" % (cleaned, plural(cleaned, "file"), kept)
     result.append(msg)
     logger.debug(msg)
@@ -520,6 +541,27 @@ def cleanCache():
 
     msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)
-    logger.debug(msg)
+
+    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    if expiry:
+        time_now = time.time()
+        too_old = time_now - (expiry * 24 * 60 * 60)
+        # delete any pastissues table entries that are too old
+        count = myDB.match('SELECT COUNT(*) as counter from pastissues')
+        if count:
+            total = count['counter']
+        else:
+            total = 0
+
+        count = myDB.match("SELECT COUNT(*) as counter from pastissues WHERE Added>0 and Added<?", (too_old,))
+        if count:
+            old = count['counter']
+        else:
+            old = 0
+        myDB.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
+    msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
+    result.append(msg)
+
     myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
+    logger.debug(msg)
     return result

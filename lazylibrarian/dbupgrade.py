@@ -113,8 +113,9 @@ def upgrade_needed():
     # 61 Add reason to series table
     # 62 Add About to author table
     # 63 Add Start to jobs table, rename LastRun to Finish
+    # 64 Add Added time to pastissues table
 
-    db_current_version = 63
+    db_current_version = 64
 
     if db_version < db_current_version:
         return db_current_version
@@ -263,6 +264,8 @@ def dbupgrade(db_current_version):
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
                     myDB.action(res['sql'].replace('wanted', 'pastissues'))
+                    myDB.action('ALTER TABLE pastissues ADD COLUMN Added INTEGER DEFAULT 0')
+
 
                     cmd = 'INSERT into users (UserID, UserName, Name, Password, Perms) VALUES (?, ?, ?, ?, ?)'
                     myDB.action(cmd, (pwd_generator(), 'admin', 'admin', md5_utf8('admin'), 65535))
@@ -1768,4 +1771,13 @@ def db_v63(myDB, upgradelog):
         myDB.action('INSERT INTO jobs SELECT Name,LastRun as Start,LastRun as Finish FROM temp')
         myDB.action('DROP TABLE temp')
     upgradelog.write("%s v63: complete\n" % time.ctime())
+
+
+def db_v64(myDB, upgradelog):
+    if not has_column(myDB, "pastissues", "Added"):
+        lazylibrarian.UPDATE_MSG = 'Adding Added column to pastissues table'
+        upgradelog.write("%s v64: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE pastissues ADD COLUMN Added INTEGER DEFAULT 0')
+        myDB.action('UPDATE pastissues SET Added=? WHERE Added=0', (int(time.time()),))
+    upgradelog.write("%s v64: complete\n" % time.ctime())
 
