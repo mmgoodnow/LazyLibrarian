@@ -31,18 +31,23 @@ db_lock = threading.Lock()
 
 class DBConnection:
     def __init__(self):
-        self.connection = sqlite3.connect(lazylibrarian.DBFILE, 20)
-        # journal disabled since we never do rollbacks
-        self.connection.execute("PRAGMA journal_mode = WAL")
-        # sync less often as using WAL mode
-        self.connection.execute("PRAGMA synchronous = NORMAL")
-        # 32mb of cache
-        self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
-        # for cascade deletes
-        if lazylibrarian.FOREIGN_KEY:
-            self.connection.execute("PRAGMA foreign_keys = ON")
-        self.connection.row_factory = sqlite3.Row
-        self.dblog = lazylibrarian.common.syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
+        try:
+            self.connection = sqlite3.connect(lazylibrarian.DBFILE, 20)
+            # journal disabled since we never do rollbacks
+            self.connection.execute("PRAGMA journal_mode = WAL")
+            # sync less often as using WAL mode
+            self.connection.execute("PRAGMA synchronous = NORMAL")
+            # 32mb of cache
+            self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
+            # for cascade deletes
+            if lazylibrarian.FOREIGN_KEY:
+                self.connection.execute("PRAGMA foreign_keys = ON")
+            self.connection.row_factory = sqlite3.Row
+            self.dblog = lazylibrarian.common.syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
+        except Exception as e:
+            logger.debug(str(e))
+            logger.debug(lazylibrarian.DBFILE)
+            logger.debug(str(os.stat(lazylibrarian.DBFILE)))
 
     def close(self):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
