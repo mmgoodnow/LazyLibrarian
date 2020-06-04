@@ -55,7 +55,8 @@ from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.opds import OPDS
-from lazylibrarian.postprocess import processAlternate, processDir, delete_task, getDownloadProgress, importBook
+from lazylibrarian.postprocess import processAlternate, processDir, delete_task, getDownloadProgress, importBook, \
+    createOPF
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
@@ -2955,7 +2956,16 @@ class WebInterface(object):
                     logger.info('Book [%s] has been moved' % bookname)
                 else:
                     logger.debug('Book [%s] has not been moved' % bookname)
-                # if edited or moved:
+                if edited or moved:
+                    data = myDB.match("SELECT * from books WHERE BookID=?", (bookid,))
+                    if data['BookFile']:
+                        dest_path = os.path.dirname(data['BookFile'])
+                        global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
+                        if dest_path:
+                            data = dict(data)
+                            data['AuthorName'] = authorname
+                            createOPF(dest_path, data, global_name, overwrite=True)
+
                 raise cherrypy.HTTPRedirect("editBook?bookid=%s" % bookid)
 
         raise cherrypy.HTTPRedirect("books")
