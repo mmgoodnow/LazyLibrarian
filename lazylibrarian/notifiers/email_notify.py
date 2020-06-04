@@ -176,8 +176,12 @@ class EmailNotifier:
                     typelist = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
-                        preftype = custom_typelist[0]
-                        logger.debug('Preferred filetype = %s' % preftype)
+                        if custom_typelist:
+                            preftype = custom_typelist[0]
+                            logger.debug('Preferred filetype = %s' % preftype)
+                        elif typelist:
+                            preftype = typelist[0]
+                            logger.debug('Default preferred filetype = %s' % preftype)
                     else:
                         myDB = database.DBConnection()
                         cookie = cherrypy.request.cookie
@@ -186,9 +190,9 @@ class EmailNotifier:
                             if res and res['BookType']:
                                 preftype = res['BookType']
                                 logger.debug('User preferred filetype = %s' % preftype)
-                        if not preftype:
-                            logger.debug('Default preferred filetype = %s' % preftype)
+                        if not preftype and typelist:
                             preftype = typelist[0]
+                            logger.debug('Default preferred filetype = %s' % preftype)
 
                     myDB = database.DBConnection()
                     data = myDB.match('SELECT BookFile,BookName from books where BookID=?', (bookid,))
