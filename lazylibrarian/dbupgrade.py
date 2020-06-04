@@ -266,7 +266,6 @@ def dbupgrade(db_current_version):
                     myDB.action(res['sql'].replace('wanted', 'pastissues'))
                     myDB.action('ALTER TABLE pastissues ADD COLUMN Added INTEGER DEFAULT 0')
 
-
                     cmd = 'INSERT into users (UserID, UserName, Name, Password, Perms) VALUES (?, ?, ?, ?, ?)'
                     myDB.action(cmd, (pwd_generator(), 'admin', 'admin', md5_utf8('admin'), 65535))
                     logger.debug('Added admin user')
@@ -553,6 +552,19 @@ def check_db():
             logger.warn(msg)
             for orphan in snatches:
                 myDB.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
+
+        # all authors with no books in the library and none marked wanted
+        cmd = 'select authorid from authors where havebooks=0 except select authorid from wanted,books '
+        cmd += 'where books.bookid=wanted.bookid and books.status=="Wanted";'
+        authors = myDB.select(cmd)
+        if authors:
+            cnt += len(authors)
+            msg = 'Found %s %s with no books in the library or marked wanted' % (cnt, plural(cnt, "author"))
+            logger.warn(msg)
+            # for author in authors:
+                # name = myDB.match("SELECT authorname from authors where authorid=?", (author[0],))
+                # logger.warn("%s %s" % (author[0], name[0]))
+                # myDB.action('DELETE from authors where authorid=?', (author[0],))
 
     except Exception as e:
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
