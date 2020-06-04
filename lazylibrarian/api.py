@@ -131,6 +131,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNoISBN': 'list all books in the database with no isbn',
             'listNoGenre': 'list all books in the database with no genre',
             'listNoBooks': 'list all authors in the database with no books',
+            'removeNoBooks': 'delete all authors in the database with no books',
             'listIgnoredAuthors': 'list all authors in the database marked ignored',
             'listIgnoredBooks': 'list all books in the database marked ignored',
             'listIgnoredSeries': 'list all series in the database marked ignored',
@@ -761,8 +762,18 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _listNoBooks(self):
-        q = 'SELECT AuthorName from authors where TotalBooks=0'
+        q = 'select authorid,authorname from authors where havebooks=0 except select authors.authorid,authorname '
+        q += 'from books,authors where books.authorid=authors.authorid '
+        q += 'and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
+
+    def _removeNoBooks(self):
+        self._listNoBooks()
+        if self.data:
+            myDB = database.DBConnection()
+            for auth in self.data:
+                logger.debug("Deleting %s" % auth['AuthorName'])
+                # myDB.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
 
     def _listIgnoredSeries(self):
         q = 'SELECT SeriesID,SeriesName from series where Status="Ignored"'
