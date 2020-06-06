@@ -557,8 +557,8 @@ def cleanCache():
         else:
             old = 0
         myDB.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
-    msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
-    result.append(msg)
+        msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
+        result.append(msg)
 
     myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
     logger.debug(msg)

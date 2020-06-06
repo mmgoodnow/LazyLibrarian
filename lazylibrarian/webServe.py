@@ -1697,7 +1697,8 @@ class WebInterface(object):
             if library == 'AudioBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
                 if not path_isdir(authordir):
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), surnameFirst(AuthorName)))
+                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'),
+                                                          surnameFirst(AuthorName)))
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
                 if not path_isdir(authordir):

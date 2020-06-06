@@ -562,9 +562,9 @@ def check_db():
             msg = 'Found %s %s with no books in the library or marked wanted' % (cnt, plural(cnt, "author"))
             logger.warn(msg)
             # for author in authors:
-                # name = myDB.match("SELECT authorname from authors where authorid=?", (author[0],))
-                # logger.warn("%s %s" % (author[0], name[0]))
-                # myDB.action('DELETE from authors where authorid=?', (author[0],))
+            # name = myDB.match("SELECT authorname from authors where authorid=?", (author[0],))
+            # logger.warn("%s %s" % (author[0], name[0]))
+            # myDB.action('DELETE from authors where authorid=?', (author[0],))
 
     except Exception as e:
         msg = 'Error: %s %s' % (type(e).__name__, str(e))

@@ -477,7 +477,8 @@ def search_magazines(mags=None, reset=False):
                                         newValueDict["Status"] = "Skipped"
                                     newValueDict["Added"] = int(time.time())
                                 myDB.upsert(insert_table, newValueDict, controlValueDict)
-                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table, newValueDict["Status"]))
+                                logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table,
+                                                                          newValueDict["Status"]))
 
                 msg = 'Found %i %s for %s. %i new,' % (total_nzbs, plural(total_nzbs, "result"), bookid, new_date)
                 msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
