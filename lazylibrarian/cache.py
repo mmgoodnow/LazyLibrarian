@@ -433,11 +433,10 @@ def cleanCache():
     cachedir = os.path.join(cache, 'author')
     try:
         if path_isdir(cachedir):
-            res = myDB.select("SELECT AuthorImg from authors")
+            res = myDB.select('SELECT AuthorImg from authors where AuthorImg like "cache/author/%"')
             images = []
             for item in res:
-                if item['AuthorImg'].startswith('cache/author/'):
-                    images.append(item['AuthorImg'][13:])
+                images.append(item['AuthorImg'][13:])
             logger.debug("Checking %s author images" % len(images))
             for cached_file in listdir(cachedir):
                 if cached_file not in images:
@@ -457,11 +456,10 @@ def cleanCache():
     kept = 0
     try:
         if path_isdir(cachedir):
-            res = myDB.select("SELECT BookImg from books")
+            res = myDB.select('SELECT BookImg from books where BookImg like "cache/book/%"')
             images = []
             for item in res:
-                if item['BookImg'].startswith('cache/book/'):
-                    images.append(item['BookImg'][11:])
+                images.append(item['BookImg'][11:])
             logger.debug("Checking %s book images" % len(images))
             for cached_file in listdir(cachedir):
                 if cached_file not in images:
