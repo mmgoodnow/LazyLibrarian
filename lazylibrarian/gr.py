@@ -1239,8 +1239,8 @@ class GoodReads:
                     newauthor_status = 'Active'
                     if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
-                    # also pause author if adding as a series contributor
-                    if reason.startswith("Series:"):
+                    # also pause author if adding as a series contributor/wishlist/grsync
+                    if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
                         newauthor_status = 'Paused'
                     controlValueDict = {"AuthorID": AuthorID}
                     newValueDict = {

@@ -173,7 +173,7 @@ def search_wishlist():
                         authorname = ''
                 else:
                     logger.debug("Author %s not found" % authorname)
-                    newauthor, _, _ = addAuthorNameToDB(author=authorname,
+                    newauthor, _, _ = addAuthorNameToDB(author=authorname, addbooks=False,
                                                         reason="wishlist: %s" % book['rss_title'])
                     if newauthor and newauthor != authorname:
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
