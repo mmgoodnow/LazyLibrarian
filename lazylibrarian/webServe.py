@@ -1696,8 +1696,12 @@ class WebInterface(object):
 
             if library == 'AudioBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
+                if not path_isdir(authordir):
+                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), surnameFirst(AuthorName)))
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
+                if not path_isdir(authordir):
+                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), surnameFirst(AuthorName)))
             if not path_isdir(authordir):
                 # books might not be in exact same authorname folder due to capitalisation
                 # eg Calibre puts books into folder "Eric Van Lustbader", but
@@ -1706,7 +1710,7 @@ class WebInterface(object):
                 # so convert the name and try again...
                 AuthorName = ' '.join(word[0].upper() + word[1:] for word in AuthorName.split())
                 if library == 'AudioBook':
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('Audio'), AuthorName))
+                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
                 else:  # if library == 'eBook':
                     authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
             if not path_isdir(authordir):
