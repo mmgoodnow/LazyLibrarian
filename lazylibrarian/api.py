@@ -762,9 +762,9 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _listNoBooks(self):
-        q = 'select authorid,authorname from authors where havebooks=0 except select authors.authorid,authorname '
-        q += 'from books,authors where books.authorid=authors.authorid '
-        q += 'and books.status=="Wanted";'
+        q = 'select authorid,authorname,reason from authors where havebooks=0 except '
+        q += 'select authors.authorid,authorname,reason from books,authors where '
+        q += 'books.authorid=authors.authorid and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
 
     def _removeNoBooks(self):
@@ -773,7 +773,7 @@ class Api(object):
             myDB = database.DBConnection()
             for auth in self.data:
                 logger.debug("Deleting %s" % auth['AuthorName'])
-                # myDB.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
+                myDB.action("DELETE from authors WHERE authorID=?", (auth['AuthorID'],))
 
     def _listIgnoredSeries(self):
         q = 'SELECT SeriesID,SeriesName from series where Status="Ignored"'
