@@ -314,7 +314,7 @@ def import_CSV(search_dir=None, library='eBook'):
                         authorid = authmatch['authorid']
                     else:
                         logger.debug("CSV: Author %s not found" % authorname)
-                        newauthor, authorid, new = addAuthorNameToDB(author=authorname,
+                        newauthor, authorid, new = addAuthorNameToDB(author=authorname, addbooks=False,
                                                                      reason="import_CSV %s" % csvFile)
                         if newauthor and newauthor != authorname:
                             logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
