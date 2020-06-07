@@ -164,21 +164,22 @@ def preprocess_audio(bookfolder, authorname, bookname):
     if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
         out_type = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ')[1].split(',')[0].split(' ')[0]
         out_type = '.' + out_type
+
+    b_to_a = False
     if out_type == '.m4b':
         # ffmpeg doesn't like m4b extension so rename to m4a
         b_to_a = True
         out_type = '.m4a'
-        parts_mod = []
-        for part in parts:
-            if part[3].endswith('.m4b'):
-                new_name = part[3].replace('.m4b', '.m4a')
-                os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
-                parts_mod.append([part[0], part[1], part[2], new_name])
-            else:
-                parts_mod.append(part)
-        parts = parts_mod
-    else:
-        b_to_a = False
+    parts_mod = []
+    for part in parts:
+        if part[3].endswith('.m4b'):
+            b_to_a = True
+            new_name = part[3].replace('.m4b', '.m4a')
+            os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
+            parts_mod.append([part[0], part[1], part[2], new_name])
+        else:
+            parts_mod.append(part)
+    parts = parts_mod
 
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
@@ -202,8 +203,11 @@ def preprocess_audio(bookfolder, authorname, bookname):
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
                         logger.debug("Metadata written to %s" % part[3])
+                    except subprocess.CalledProcessError as e:
+                        logger.error("%s: %s" % (type(e).__name__, str(e)))
+                        return
                     except Exception as e:
-                        logger.error(str(e))
+                        logger.error("%s: %s" % (type(e).__name__, str(e)))
                         return
 
     if ff_ver and lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
@@ -216,8 +220,10 @@ def preprocess_audio(bookfolder, authorname, bookname):
                 _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
             logger.debug("Metadata written to metadata.ll")
+        except subprocess.CalledProcessError as e:
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
         except Exception as e:
-            logger.error(str(e))
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
             return
 
         params = [ffmpeg]
@@ -236,16 +242,23 @@ def preprocess_audio(bookfolder, authorname, bookname):
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
+        except subprocess.CalledProcessError as e:
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
         except Exception as e:
-            logger.error(str(e))
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
             if res:
                 logger.error(res)
             return
 
-        if b_to_a and outfile.endswith('.m4a'):
-            new_name = outfile.replace('.m4a', '.m4b')
-            os.rename(os.path.join(bookfolder, outfile), os.path.join(bookfolder, new_name))
-            outfile = new_name
+        if b_to_a:
+            if outfile.endswith('.m4a'):
+                new_name = outfile.replace('.m4a', '.m4b')
+                os.rename(os.path.join(bookfolder, outfile), os.path.join(bookfolder, new_name))
+                outfile = new_name
+            for part in parts:
+                if part[3].endswith('.m4a'):
+                    new_name = part[3].replace('.m4a', '.m4b')
+                    os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
         os.remove(os.path.join(bookfolder, "partslist.ll"))
