@@ -1446,7 +1446,8 @@ class WebInterface(object):
         lazylibrarian.LOGLEVEL = newloglevel
         lazylibrarian.CONFIG['LOGLEVEL'] = newloglevel
         lazylibrarian.config_write()
-        checkRunningJobs()
+        if not lazylibrarian.STOPTHREADS:
+            checkRunningJobs()
 
         if adminmsg:
             return serve_template(templatename="response.html", prefix="",
