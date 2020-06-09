@@ -2185,9 +2185,12 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     processIMG(dest_path, data['BookID'], data['BookImg'], global_name, 'book')
 
     # do we want to create metadata - there may already be one in pp_path, but it was downloaded and might
-    # not contain our choice of authorname/title/identifier, so we ignore it and write our own
+    # not contain our choice of authorname/title/identifier, so if autoadding we ignore it and write our own
     if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
         _ = createOPF(dest_path, data, global_name, overwrite=True)
+    else:
+        _ = createOPF(dest_path, data, global_name, overwrite=False)
+
 
     # If you use auto add by Calibre you need the book in a single directory, not nested
     # So take the files you Copied/Moved to Dest_path and copy/move into Calibre auto add folder.
