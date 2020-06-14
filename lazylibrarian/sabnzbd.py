@@ -196,7 +196,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         if 'nzo_ids' in result:
             if result['nzo_ids']:  # check its not empty
                 return result['nzo_ids'][0], ''
-        return 'unknown'
+        return 'unknown', ''
     elif result['status'] is False:
         res = "SAB returned Error: %s" % result['error']
         logger.error(res)

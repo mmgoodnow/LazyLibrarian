@@ -23,7 +23,7 @@ from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
-from lazylibrarian.common import proxyList, quotes, path_isfile, syspath
+from lazylibrarian.common import proxyList, quotes, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList, makeUTF8bytes, unaccented
 try:
@@ -438,7 +438,7 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
                     if NEW_WHATWORK:
-                        os.remove(syspath(workfile))
+                        remove(workfile)
 
         if path_isfile(workfile):
             # use cached file if possible to speed up refreshactiveauthors and librarysync re-runs

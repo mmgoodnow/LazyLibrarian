@@ -17,7 +17,7 @@ import traceback
 import lazylibrarian
 from lib.six import PY2
 from lazylibrarian import database, logger
-from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath
+from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath, remove
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, formatAuthorName, \
     makeUnicode, split_title, makeBytestr
 from lazylibrarian.importer import search_for, import_book, addAuthorNameToDB, update_totals
@@ -418,7 +418,7 @@ def import_CSV(search_dir=None, library='eBook'):
                 if skipcount == 0:
                     logger.info("Deleting %s on successful completion" % csvFile)
                     try:
-                        os.remove(csvFile)
+                        remove(csvFile)
                     except OSError as why:
                         logger.warn('Unable to delete %s: %s' % (csvFile, why.strerror))
                 else:
@@ -442,7 +442,7 @@ def import_CSV(search_dir=None, library='eBook'):
                         try:
                             with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                 f.write('test')
-                            os.remove(os.path.join(parent, 'll_temp'))
+                            remove(os.path.join(parent, 'll_temp'))
                         except Exception as why:
                             logger.error("Directory %s is not writeable: %s" % (parent, why))
             return msg

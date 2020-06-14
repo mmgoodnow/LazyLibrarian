@@ -202,6 +202,17 @@ def path_islink(name):
     return os.path.islink(syspath(name))
 
 
+def remove(name):
+    try:
+        os.remove(syspath(name))
+    except OSError as e:
+        if e.errno == 2:  # does not exist is ok
+            pass
+        else:
+            logger.warn("Failed to remove %s : %s" % (name, e.strerror))
+            raise
+
+
 def listdir(name):
     """
     listdir ensuring bytestring for unix
@@ -1543,12 +1554,12 @@ def saveLog():
         for line in lines:
             logfile.write(line)
             linecount += 1
-    os.remove(syspath(outfile + '.tmp'))
+    remove(outfile + '.tmp')
     logger.debug("Redacted %s passwords/apikeys" % redacts)
     logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
     with zipfile.ZipFile(outfile + '.zip', 'w') as myzip:
         myzip.write(outfile + '.log', 'debug.log')
-    os.remove(syspath(outfile + '.log'))
+    remove(outfile + '.log')
     return "Debug log saved as %s" % (outfile + '.zip')
 
 

@@ -21,7 +21,7 @@ from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8, check_int
-from lazylibrarian.common import path_isfile, syspath
+from lazylibrarian.common import path_isfile, syspath, remove
 try:
     import zipfile
 except ImportError:
@@ -242,7 +242,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                 # Cache entry is too old, delete it
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
                     logger.debug("Expiring %s" % myhash)
-                os.remove(syspath(hashfilename))
+                remove(hashfilename)
             else:
                 valid_cache = True
 

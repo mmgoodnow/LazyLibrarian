@@ -45,7 +45,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic, \
-    path_isfile, path_isdir, path_exists, syspath
+    path_isfile, path_isdir, path_exists, syspath, remove
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
     makeUTF8bytes, dispName
@@ -142,7 +142,7 @@ def importMag(source_file=None, title=None, issuenum=None):
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
             return False
 
-        os.remove(syspath(source_file))
+        remove(source_file)
         if mostrecentissue:
             if mostrecentissue.isdigit() and str(issuenum).isdigit():
                 older = (int(mostrecentissue) > int(issuenum))  # issuenumber
@@ -1256,7 +1256,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             try:
                                 with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                     f.write('test')
-                                os.remove(syspath(os.path.join(parent, 'll_temp')))
+                                remove(os.path.join(parent, 'll_temp'))
                             except Exception as why:
                                 logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                             logger.warn('Residual files remain in %s' % pp_path)
@@ -2118,7 +2118,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                     try:
                         with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                             f.write('test')
-                        os.remove(syspath(os.path.join(parent, 'll_temp')))
+                        remove(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
                     logger.warn('Residual files remain in %s' % pp_path)
@@ -2190,7 +2190,6 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
         _ = createOPF(dest_path, data, global_name, overwrite=True)
     else:
         _ = createOPF(dest_path, data, global_name, overwrite=False)
-
 
     # If you use auto add by Calibre you need the book in a single directory, not nested
     # So take the files you Copied/Moved to Dest_path and copy/move into Calibre auto add folder.
@@ -2280,7 +2279,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                     if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
                         logger.debug("Removing %s as not %s" % (fname, bestmatch))
-                        os.remove(syspath(srcfile))
+                        remove(srcfile)
                     else:
                         dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
                         # calibre does not like quotes in author names
@@ -2288,7 +2287,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
                     if path_isfile(srcfile):
-                        os.remove(syspath(srcfile))
+                        remove(srcfile)
                     elif path_isdir(srcfile):
                         shutil.rmtree(srcfile)
 
@@ -2480,9 +2479,9 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     return False, 'Failed to locate author folder %s' % author_dir
 
             if booktype == 'ebook':
-                remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+                remv = bool(lazylibrarian.CONFIG['FULL_SCAN'])
                 logger.debug('Scanning directory [%s]' % target_dir)
-                _ = LibraryScan(target_dir, remove=remove)
+                _ = LibraryScan(target_dir, remove=remv)
 
             newbookfile = book_file(target_dir, booktype=booktype)
             # should we be setting permissions on calibres directories and files?
@@ -2516,7 +2515,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
         elif not path_isdir(dest_path):
             logger.debug('%s exists but is not a directory, deleting it' % dest_path)
             try:
-                os.remove(syspath(dest_path))
+                remove(dest_path)
             except OSError as why:
                 return False, 'Unable to delete %s: %s' % (dest_path, why.strerror)
         if path_isdir(dest_path):
@@ -2555,7 +2554,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         try:
                             with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                                 f.write('test')
-                            os.remove(syspath(os.path.join(parent, 'll_temp')))
+                            remove(os.path.join(parent, 'll_temp'))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,

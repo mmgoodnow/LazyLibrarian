@@ -19,7 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.bookrename import audio_parts
-from lazylibrarian.common import listdir, path_exists, safe_copy
+from lazylibrarian.common import listdir, path_exists, safe_copy, remove
 from lazylibrarian.formatter import getList, makeUnicode
 
 try:
@@ -108,10 +108,7 @@ def preprocess_ebook(bookfolder):
             filename, extn = os.path.splitext(fname)
             if not extn or extn.lstrip('.').lower() not in wanted_formats:
                 logger.debug("Deleting %s" % fname)
-                try:
-                    os.remove(os.path.join(bookfolder, fname))
-                except OSError:
-                    pass
+                remove(os.path.join(bookfolder, fname))
     if created:
         logger.debug("Created %s from %s" % (created, source_extn))
     else:
@@ -199,7 +196,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                         else:
                             _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
-                        os.remove(os.path.join(bookfolder, part[3]))
+                        remove(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
                         logger.debug("Metadata written to %s" % part[3])
@@ -261,12 +258,12 @@ def preprocess_audio(bookfolder, authorname, bookname):
                     os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
-        os.remove(os.path.join(bookfolder, "partslist.ll"))
-        os.remove(os.path.join(bookfolder, "metadata.ll"))
+        remove(os.path.join(bookfolder, "partslist.ll"))
+        remove(os.path.join(bookfolder, "metadata.ll"))
         if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO']:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
-                os.remove(os.path.join(bookfolder, part[3]))
+                remove(os.path.join(bookfolder, part[3]))
 
 
 def preprocess_magazine(bookfolder, cover=0):
@@ -318,8 +315,8 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
         if sz:
             newcopy = safe_copy(srcfile + 'new', original + 'new')
-            os.remove(srcfile)
-            os.remove(srcfile + 'new')
+            remove(srcfile)
+            remove(srcfile + 'new')
             os.rename(newcopy, original)
     except Exception as e:
         logger.error(str(e))

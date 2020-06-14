@@ -40,7 +40,8 @@ from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWord
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
-    zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, syspath
+    zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, \
+    syspath, remove
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
@@ -1727,10 +1728,10 @@ class WebInterface(object):
                 if anybook:
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
             if path_isdir(authordir):
-                remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+                remv = bool(lazylibrarian.CONFIG['FULL_SCAN'])
                 try:
                     threading.Thread(target=LibraryScan, name='AUTHOR_SCAN',
-                                     args=[authordir, library, AuthorID, remove]).start()
+                                     args=[authordir, library, AuthorID, remv]).start()
                 except Exception as e:
                     logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
             else:
@@ -4404,12 +4405,10 @@ class WebInterface(object):
     def deleteIssue(issuefile):
         try:
             # delete the magazine file and any cover image / opf
-            if path_exists(issuefile):
-                os.remove(syspath(issuefile))
+            remove(issuefile)
             fname, extn = os.path.splitext(issuefile)
             for extn in ['.opf', '.jpg']:
-                if path_exists(fname + extn):
-                    os.remove(syspath(fname + extn))
+                remove(fname + extn)
 
             # if the directory is now empty, delete that too
             if lazylibrarian.CONFIG['MAG_DELFOLDER']:
@@ -4596,11 +4595,11 @@ class WebInterface(object):
         if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
 
-        remove = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+        removed = bool(lazylibrarian.CONFIG['FULL_SCAN'])
         threadname = "%s_SCAN" % library.upper()
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
-                threading.Thread(target=LibraryScan, name=threadname, args=[None, library, None, remove]).start()
+                threading.Thread(target=LibraryScan, name=threadname, args=[None, library, None, removed]).start()
             except Exception as e:
                 logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
         else:

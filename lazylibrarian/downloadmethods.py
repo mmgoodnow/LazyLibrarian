@@ -39,7 +39,7 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import setperm, getUserAgent, proxyList, make_dirs, namedic, \
-    path_isdir, syspath
+    path_isdir, syspath, remove
 from lazylibrarian.formatter import cleanName, unaccented, unaccented_bytes, getList, makeUnicode, md5_utf8, \
     seconds_to_midnight, replace_all, check_int
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -513,7 +513,7 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 if torrentfile:
                     with open(syspath(torrentfile), 'rb') as f:
                         torrent = f.read()
-                    os.remove(syspath(torrentfile))
+                    remove(torrentfile)
                 if not torrent:
                     logger.debug("Unable to convert magnet")
             if torrent:
