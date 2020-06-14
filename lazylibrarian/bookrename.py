@@ -80,9 +80,18 @@ def id3read(filename):
             logger.debug("id3.albumartist [%s]" % albumartist)
             logger.debug("id3.comment [%s]" % comment)
 
-        if composer:  # if present, should be author
+        myDB = database.DBConnection()
+        # if composer present, should be author
+        if composer and myDB.match("select * from authors where authorname=?", (composer,)):
             author = composer
-        elif albumartist:  # author, or narrator if composer == author
+        # author, or narrator if composer == author
+        elif albumartist and myDB.match("select * from authors where authorname=?", (albumartist,)):
+            author = albumartist
+        elif artist and myDB.match("select * from authors where authorname=?", (artist,)):
+            author = artist
+        elif composer:
+            author = composer
+        elif albumartist:
             author = albumartist
         elif artist:
             author = artist
