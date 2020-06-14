@@ -102,8 +102,15 @@ def findBestResult(resultlist, book, searchtype, source):
         for res in resultlist:
             resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl), only_ascii=False).strip()
             resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
-            Author_match = fuzz.token_set_ratio(author, resultTitle)
             Book_match = fuzz.token_set_ratio(title, resultTitle)
+            if 'booksearch' in res and res['booksearch'] == 'bibliotik':
+                # bibliotik only returns book title, not author name
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                    logger.debug("bibliotik, ignoring author fuzz")
+                Author_match = 100
+            else:
+                Author_match = fuzz.token_set_ratio(author, resultTitle)
+
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                 logger.debug("%s author/book Match: %s/%s %s at %s" %
                              (source.upper(), Author_match, Book_match, resultTitle, res[prefix + 'prov']))

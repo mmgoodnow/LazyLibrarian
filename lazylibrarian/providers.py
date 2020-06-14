@@ -530,7 +530,7 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                     provider = get_capabilities(provider)
                     providers += 1
                     logger.debug('[IterateOverNewzNabSites] - %s' % provider['HOST'])
-                    resultslist += NewzNabPlus(book, provider, searchType, "nzb")
+                    resultslist += NewzNabPlus(book, provider, searchType, "nzb")[1]
 
     for provider in lazylibrarian.TORZNAB_PROV:
         if provider['ENABLED']:
@@ -566,7 +566,7 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                     provider = get_capabilities(provider)
                     providers += 1
                     logger.debug('[IterateOverTorzNabSites] - %s' % provider['HOST'])
-                    resultslist += NewzNabPlus(book, provider, searchType, "torznab")
+                    resultslist += NewzNabPlus(book, provider, searchType, "torznab")[1]
 
     return resultslist, providers
 
@@ -1327,6 +1327,8 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                     try:
                         thisnzb = ReturnResultsFieldsBySearchType(book, nzb, host, searchMode, provider['DLPRIORITY'])
                         thisnzb['dispname'] = provider['DISPNAME']
+                        if searchType in ['book', 'shortbook']:
+                            thisnzb['booksearch'] = provider['BOOKSEARCH']
 
                         if 'seeders' in thisnzb:
                             if 'SEEDERS' not in provider:
@@ -1370,7 +1372,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 logger.debug('Found %s results at %s for: %s' % (nzbcount, host, sterm))
         else:
             logger.debug('No data returned from %s for %s' % (host, sterm))
-    return results
+    return True, results
 
 
 def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
@@ -1378,18 +1380,26 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
     if searchType in ["book", "shortbook"]:
         authorname, bookname = get_searchterm(book, searchType)
         if provider['BOOKSEARCH'] and provider['BOOKCAT']:  # if specific booksearch, use it
-            params = {
-                "t": provider['BOOKSEARCH'],
-                "apikey": api_key,
-                "title": makeUTF8bytes(bookname)[0],
-                "author": makeUTF8bytes(authorname)[0],
-                "cat": provider['BOOKCAT']
-            }
+            if provider['BOOKSEARCH'] == 'bibliotik':
+                params = {
+                    "t": provider['GENERALSEARCH'],
+                    "apikey": api_key,
+                    "q": makeUTF8bytes("@title %s @authors %s" % (bookname, authorname))[0],
+                    "cat": provider['BOOKCAT']
+                }
+            else:
+                params = {
+                    "t": provider['BOOKSEARCH'],
+                    "apikey": api_key,
+                    "title": makeUTF8bytes(bookname)[0],
+                    "author": makeUTF8bytes(authorname)[0],
+                    "cat": provider['BOOKCAT']
+                }
         elif provider['GENERALSEARCH'] and provider['BOOKCAT']:  # if not, try general search
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
-                "q": "%s %s" % (makeUTF8bytes(authorname)[0], makeUTF8bytes(bookname)[0]),
+                "q": makeUTF8bytes("%s %s" % (authorname, bookname))[0],
                 "cat": provider['BOOKCAT']
             }
     elif searchType in ["audio", "shortaudio"]:
@@ -1406,7 +1416,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
-                "q": "%s %s" % (makeUTF8bytes(authorname)[0], makeUTF8bytes(bookname)[0]),
+                "q": makeUTF8bytes("%s %s" % (authorname, bookname))[0],
                 "cat": provider['AUDIOCAT']
             }
     elif searchType == "mag":
