@@ -1229,7 +1229,7 @@ def cancelSearchType(searchType, errorMsg, provider):
                     count = 0
                     while count < len(providerlist):
                         if providerlist[count]['HOST'] == provider['HOST']:
-                            if str(provider['MANUAL']) == 'False':
+                            if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
                                 lazylibrarian.config_write(provider['NAME'])

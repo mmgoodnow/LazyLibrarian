@@ -76,6 +76,16 @@
                     selected = "selected"
                 %endif
                 >To Read</option >
+            <option value="Reading"
+                %if whichStatus == "Reading":
+                    selected = "selected"
+                %endif
+                >Reading</option >
+            <option value="Abandoned"
+                %if whichStatus == "Abandoned":
+                    selected = "selected"
+                %endif
+                >Abandoned</option >
             %endif
           </select>
         </div>
@@ -148,6 +158,8 @@
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>
+        <option value="Reading">Reading</option>
+        <option value="Abandoned">Abandoned</option>
         %endif
         %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
         <option value="NoDelay">No Delay</option>

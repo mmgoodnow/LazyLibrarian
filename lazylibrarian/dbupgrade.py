@@ -114,8 +114,9 @@ def upgrade_needed():
     # 62 Add About to author table
     # 63 Add Start to jobs table, rename LastRun to Finish
     # 64 Add Added time to pastissues table
+    # 65 Add Reading and Abandoned to users table
 
-    db_current_version = 64
+    db_current_version = 65
 
     if db_version < db_current_version:
         return db_current_version
@@ -1792,4 +1793,13 @@ def db_v64(myDB, upgradelog):
         myDB.action('ALTER TABLE pastissues ADD COLUMN Added INTEGER DEFAULT 0')
         myDB.action('UPDATE pastissues SET Added=? WHERE Added=0', (int(time.time()),))
     upgradelog.write("%s v64: complete\n" % time.ctime())
+
+
+def db_v65(myDB, upgradelog):
+    if not has_column(myDB, "users", "Abandoned"):
+        lazylibrarian.UPDATE_MSG = 'Adding Reading,Abandoned columns to users table'
+        upgradelog.write("%s v65: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE users ADD COLUMN Reading TEXT')
+        myDB.action('ALTER TABLE users ADD COLUMN Abandoned TEXT')
+    upgradelog.write("%s v65: complete\n" % time.ctime())
 

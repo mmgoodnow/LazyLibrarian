@@ -909,16 +909,20 @@ class WebInterface(object):
                     multi = "True"
                     break
 
-        ToRead = []
-        HaveRead = []
+        ToRead = set()
+        HaveRead = set()
+        Reading = set()
+        Abandoned = set()
         if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy' and lazylibrarian.CONFIG['USER_ACCOUNTS']:
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
-                res = myDB.match('SELECT UserName,ToRead,HaveRead,Perms from users where UserID=?',
+                res = myDB.match('SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?',
                                  (cookie['ll_uid'].value,))
                 if res:
-                    ToRead = getList(res['ToRead'])
-                    HaveRead = getList(res['HaveRead'])
+                    ToRead = set(getList(res['ToRead']))
+                    HaveRead = set(getList(res['HaveRead']))
+                    Reading = set(getList(res['Reading']))
+                    Abandoned = set(getList(res['Abandoned']))
 
         # turn the sqlite rowlist into a list of lists
         rows = []
@@ -931,6 +935,10 @@ class WebInterface(object):
                     flag = '&nbsp;<i class="far fa-bookmark"></i>'
                 elif entry[0] in HaveRead:
                     flag = '&nbsp;<i class="fas fa-bookmark"></i>'
+                elif entry[0] in Reading:
+                    flag = '&nbsp;<i class="fas fa-play-circle"></i>'
+                elif entry[0] in Abandoned:
+                    flag = '&nbsp;<i class="fas fa-ban"></i>'
                 else:
                     flag = ''
                 newrow = {'BookID': entry[0], 'BookName': entry[1], 'SeriesNum': entry[2], 'BookImg': entry[3],
@@ -961,38 +969,53 @@ class WebInterface(object):
                         else:
                             # stop monitoring
                             myDB.action("UPDATE series SET Updated=0 WHERE SeriesID=?", (seriesid,))
-                elif action in ["Unread", "Read", "ToRead"]:
+                elif action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
-                        res = myDB.match('SELECT ToRead,HaveRead from users where UserID=?',
+                        res = myDB.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
                                          (cookie['ll_uid'].value,))
                         if res:
-                            ToRead = getList(res['ToRead'])
-                            HaveRead = getList(res['HaveRead'])
+                            ToRead = set(getList(res['ToRead']))
+                            HaveRead = set(getList(res['HaveRead']))
+                            Reading = set(getList(res['Reading']))
+                            Abandoned = set(getList(res['Abandoned']))
                             members = myDB.select('SELECT bookid from member where seriesid=?', (seriesid,))
                             if members:
                                 for item in members:
                                     bookid = item['bookid']
                                     if action == "Unread":
-                                        if bookid in ToRead:
-                                            ToRead.remove(bookid)
-                                        if bookid in HaveRead:
-                                            HaveRead.remove(bookid)
+                                        ToRead.discard(bookid)
+                                        HaveRead.discard(bookid)
+                                        Reading.discard(bookid)
+                                        Abandoned.discard(bookid)
                                         logger.debug('Status set to "unread" for "%s"' % bookid)
                                     elif action == "Read":
-                                        if bookid in ToRead:
-                                            ToRead.remove(bookid)
-                                        if bookid not in HaveRead:
-                                            HaveRead.append(bookid)
+                                        ToRead.discard(bookid)
+                                        Reading.discard(bookid)
+                                        Abandoned.discard(bookid)
+                                        HaveRead.add(bookid)
                                         logger.debug('Status set to "read" for "%s"' % bookid)
                                     elif action == "ToRead":
-                                        if bookid not in ToRead:
-                                            ToRead.append(bookid)
-                                        if bookid in HaveRead:
-                                            HaveRead.remove(bookid)
+                                        Reading.discard(bookid)
+                                        Abandoned.discard(bookid)
+                                        HaveRead.discard(bookid)
+                                        ToRead.add(bookid)
                                         logger.debug('Status set to "to read" for "%s"' % bookid)
-                                myDB.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
-                                            (', '.join(ToRead), ', '.join(HaveRead), cookie['ll_uid'].value))
+                                    elif action == "Reading":
+                                        Reading.add(bookid)
+                                        Abandoned.discard(bookid)
+                                        HaveRead.discard(bookid)
+                                        ToRead.discard(bookid)
+                                        logger.debug('Status set to "reading" for "%s"' % bookid)
+                                    elif action == "Abandoned":
+                                        Reading.discard(bookid)
+                                        Abandoned.add(bookid)
+                                        HaveRead.discard(bookid)
+                                        ToRead.discard(bookid)
+                                        logger.debug('Status set to "abandoned" for "%s"' % bookid)
+                                cmd = 'UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?'
+                                myDB.action(cmd, (', '.join(ToRead), ', '.join(HaveRead), ', '.join(Reading),
+                                                  ', '.join(Abandoned), cookie['ll_uid'].value))
             if "redirect" in args:
                 if not args['redirect'] == 'None':
                     raise cherrypy.HTTPRedirect("series?AuthorID=%s" % args['redirect'])
@@ -1896,8 +1919,10 @@ class WebInterface(object):
             iDisplayLength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
 
-            ToRead = []
-            HaveRead = []
+            ToRead = set()
+            HaveRead = set()
+            Reading = set()
+            Abandoned = set()
             flagTo = 0
             flagHave = 0
             if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
@@ -1906,16 +1931,17 @@ class WebInterface(object):
                 perm = 0
                 cookie = cherrypy.request.cookie
                 if cookie and 'll_uid' in list(cookie.keys()):
-                    res = myDB.match('SELECT UserName,ToRead,HaveRead,Perms from users where UserID=?',
-                                     (cookie['ll_uid'].value,))
+                    cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?'
+                    res = myDB.match(cmd, (cookie['ll_uid'].value,))
                     if res:
                         perm = check_int(res['Perms'], 0)
-                        ToRead = getList(res['ToRead'])
-                        HaveRead = getList(res['HaveRead'])
-
+                        ToRead = set(getList(res['ToRead']))
+                        HaveRead = set(getList(res['HaveRead']))
+                        Reading = set(getList(res['Reading']))
+                        Abandoned = set(getList(res['Abandoned']))
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                            logger.debug("getBooks userid %s read %s,%s" % (
-                                cookie['ll_uid'].value, len(ToRead), len(HaveRead)))
+                            logger.debug("getBooks userid %s read %s,%s,%s,%s" % (
+                                cookie['ll_uid'].value, len(ToRead), len(HaveRead), len(Reading), len(Abandoned)))
 
             # group_concat needs sqlite3 >= 3.5.4, we check version in __init__
             if lazylibrarian.GROUP_CONCAT:
@@ -1953,6 +1979,10 @@ class WebInterface(object):
                     cmd += ' and books.bookID in (' + ', '.join(ToRead) + ')'
                 elif kwargs['whichStatus'] == 'Read':
                     cmd += ' and books.bookID in (' + ', '.join(HaveRead) + ')'
+                elif kwargs['whichStatus'] == 'Reading':
+                    cmd += ' and books.bookID in (' + ', '.join(Reading) + ')'
+                elif kwargs['whichStatus'] == 'Abandoned':
+                    cmd += ' and books.bookID in (' + ', '.join(Abandoned) + ')'
                 elif kwargs['whichStatus'] != 'All':
                     cmd += " and " + status_type + "='" + kwargs['whichStatus'] + "'"
 
@@ -2106,6 +2136,10 @@ class WebInterface(object):
                     elif row[6] in HaveRead:
                         flag = '&nbsp;<i class="fas fa-bookmark"></i>'
                         flagHave += 1
+                    elif row[6] in Reading:
+                        flag = '&nbsp;<i class="fas fa-play-circle"></i>'
+                    elif row[6] in Abandoned:
+                        flag = '&nbsp;<i class="fas fa-ban"></i>'
                     else:
                         flag = ''
 
@@ -3000,37 +3034,51 @@ class WebInterface(object):
             check_totals = [AuthorID]
         if action:
             for bookid in args:
-                if action in ["Unread", "Read", "ToRead"]:
+                if action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
                     cookie = cherrypy.request.cookie
                     if cookie and 'll_uid' in list(cookie.keys()):
-                        res = myDB.match('SELECT ToRead,HaveRead from users where UserID=?',
+                        res = myDB.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
                                          (cookie['ll_uid'].value,))
                         if res:
-                            ToRead = getList(res['ToRead'])
-                            HaveRead = getList(res['HaveRead'])
+                            ToRead = set(getList(res['ToRead']))
+                            HaveRead = set(getList(res['HaveRead']))
+                            Reading = set(getList(res['Reading']))
+                            Abandoned = set(getList(res['Abandoned']))
+
                             if action == "Unread":
-                                if bookid in ToRead:
-                                    ToRead.remove(bookid)
-                                if bookid in HaveRead:
-                                    HaveRead.remove(bookid)
+                                ToRead.discard(bookid)
+                                HaveRead.discard(bookid)
+                                Reading.discard(bookid)
+                                Abandoned.discard(bookid)
                                 logger.debug('Status set to "unread" for "%s"' % bookid)
                             elif action == "Read":
-                                if bookid in ToRead:
-                                    ToRead.remove(bookid)
-                                if bookid not in HaveRead:
-                                    HaveRead.append(bookid)
+                                ToRead.discard(bookid)
+                                Reading.discard(bookid)
+                                Abandoned.discard(bookid)
+                                HaveRead.add(bookid)
                                 logger.debug('Status set to "read" for "%s"' % bookid)
                             elif action == "ToRead":
-                                if bookid not in ToRead:
-                                    ToRead.append(bookid)
-                                if bookid in HaveRead:
-                                    HaveRead.remove(bookid)
+                                ToRead.add(bookid)
+                                HaveRead.discard(bookid)
+                                Reading.discard(bookid)
+                                Abandoned.discard(bookid)
                                 logger.debug('Status set to "to read" for "%s"' % bookid)
+                            elif action == "Reading":
+                                ToRead.discard(bookid)
+                                HaveRead.discard(bookid)
+                                Reading.add(bookid)
+                                Abandoned.discard(bookid)
+                                logger.debug('Status set to "reading" for "%s"' % bookid)
+                            elif action == "Abandoned":
+                                ToRead.discard(bookid)
+                                HaveRead.discard(bookid)
+                                Reading.discard(bookid)
+                                Abandoned.add(bookid)
+                                logger.debug('Status set to "abandoned" for "%s"' % bookid)
 
-                            ToRead = list(set(ToRead))
-                            HaveRead = list(set(HaveRead))
-                            myDB.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
-                                        (', '.join(ToRead), ', '.join(HaveRead), cookie['ll_uid'].value))
+                            myDB.action('UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?',
+                                        (', '.join(ToRead), ', '.join(HaveRead), ', '.join(Reading),
+                                            ', '.join(Abandoned), cookie['ll_uid'].value))
 
                 elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook", "WantBoth"]:
                     bookdata = myDB.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
