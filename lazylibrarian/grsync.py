@@ -579,19 +579,32 @@ def grsync(status, shelf, library='eBook', reset=False):
 
         myDB = database.DBConnection()
         if library == 'eBook':
-            cmd = 'select bookid from books where status=?'
             if status == 'Open':
-                cmd += " or status='Have'"
+                cmd = "select bookid from books where status in ('Open', 'Have')"
+            elif status == 'Wanted':
+                cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
+            else:
+                cmd = "select bookid from books where status=?", (status,)
             results = myDB.select(cmd, (status,))
         elif library == 'AudioBook':
-            cmd = 'select bookid from books where audiostatus=?'
+
             if status == 'Open':
-                cmd += " or audiostatus='Have'"
+                cmd = "select bookid from books where audiostatus in ('Open', 'Have')"
+            elif status == 'Wanted':
+                cmd = "select bookid from books where audiostatus in ('Wanted', 'Snatched', 'Matched')"
+            else:
+                cmd = "select bookid from books where audiostatus=?", (status,)
             results = myDB.select(cmd, (status,))
         else:  # 'Audio/eBook'
-            cmd = 'select bookid from books where audiostatus=? or status=?'
             if status == 'Open':
-                cmd += " or audiostatus='Have' or status='Have'"
+                cmd = "select bookid from books where status in ('Open', 'Have')"
+                cmd += " or audiostatus in ('Open', 'Have')"
+            elif status == 'Wanted':
+                cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
+                cmd += " or audiostatus in ('Wanted', 'Snatched', 'Matched')"
+            else:
+                cmd = "select bookid from books where status=?", (status,)
+                cmd += " or audiostatus=?", (status,)
             results = myDB.select(cmd, (status, status))
         ll_list = []
         for terms in results:
