@@ -585,7 +585,7 @@ def grsync(status, shelf, library='eBook', reset=False):
                 cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
             else:
                 cmd = "select bookid from books where status=?", (status,)
-            results = myDB.select(cmd, (status,))
+            results = myDB.select(cmd)
         elif library == 'AudioBook':
 
             if status == 'Open':
@@ -593,8 +593,8 @@ def grsync(status, shelf, library='eBook', reset=False):
             elif status == 'Wanted':
                 cmd = "select bookid from books where audiostatus in ('Wanted', 'Snatched', 'Matched')"
             else:
-                cmd = "select bookid from books where audiostatus=?", (status,)
-            results = myDB.select(cmd, (status,))
+                cmd = "select bookid from books where audiostatus=%s" % status
+            results = myDB.select(cmd)
         else:  # 'Audio/eBook'
             if status == 'Open':
                 cmd = "select bookid from books where status in ('Open', 'Have')"
@@ -603,9 +603,9 @@ def grsync(status, shelf, library='eBook', reset=False):
                 cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
                 cmd += " or audiostatus in ('Wanted', 'Snatched', 'Matched')"
             else:
-                cmd = "select bookid from books where status=?", (status,)
-                cmd += " or audiostatus=?", (status,)
-            results = myDB.select(cmd, (status, status))
+                cmd = "select bookid from books where status=%s" % status
+                cmd += " or audiostatus=%s" % status
+            results = myDB.select(cmd)
         ll_list = []
         for terms in results:
             ll_list.append(terms['bookid'])
