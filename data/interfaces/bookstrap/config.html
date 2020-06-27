@@ -817,6 +817,22 @@
                       <input type="text" id="gr_oauth_token" name="gr_oauth_token" value="${lazylibrarian.CONFIG['GR_OAUTH_TOKEN']}" class="form-control">
                       <label for="gr_oauth_secret">Goodreads OAuth Secret:</label>
                       <input type="text" id="gr_oauth_secret" name="gr_oauth_secret" value="${lazylibrarian.CONFIG['GR_OAUTH_SECRET']}" class="form-control">
+                      <div class="checkbox">
+                        <%
+                          if lazylibrarian.CONFIG['GR_SYNCUSER'] == True:
+                              checked = 'checked="checked"'
+                          else:
+                              checked = ''
+                        %>
+                        <label for="GR_SYNCUSER" class="control-label">
+                          <input type="checkbox" id="gr_syncuser" name="gr_syncuser" value="1" ${checked} />
+                          Use GoodReads shelves as user reading list</label>
+                      </div>
+                      <fieldset id="gruser_options">
+                      <label for="gr_user">UserID to sync:</label>
+                        <input type="text" id="gr_user" name="gr_user" value="${lazylibrarian.CONFIG['GR_USER']}" class="form-control">
+                        </fieldset>
+                      <fieldset id="grlibrary_options">
                       %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                       <label for="gr_wanted">Sync Wanted eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_wanted" name="gr_wanted" value="${lazylibrarian.CONFIG['GR_WANTED']}" class="form-control" placeholder="eg: to-read">
@@ -842,6 +858,7 @@
                             <input type="checkbox" id="gr_unique" name="gr_unique" value="1" ${checked} />
                             Delete from GoodReads Wanted shelf if also on Open/Have shelf</label>
                         </div>
+                      </fieldset>
                       <div class="form-group">
                         <label for="goodreads_interval" class="control-label">Goodreads Sync Interval:</label>
                         <div class="input-group">
@@ -2502,6 +2519,11 @@
                     <label for="name_postfix">Author Name suffix</label>
                     <input type="text" id="name_postfix" name="name_postfix" value="${lazylibrarian.CONFIG['NAME_POSTFIX']}" class="form-control" placeholder="eg snr, jnr">
                     <span class="help-block">Comma separated list of suffixes to ignore when showing surname first</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="name_postfix">Title prefix stripping</label>
+                    <input type="text" id="imp_nosplit" name="imp_nosplit" value="${lazylibrarian.CONFIG['IMP_NOSPLIT']}" class="form-control" placeholder="eg Doctor Who">
+                    <span class="help-block">Comma separated list of prefixes to ignore when splitting titles</span>
                   </div>
                   <legend>Filename Formatting</legend>
                     <span class="help-block">Note: Calibre may override ebook folder and filename patterns</span>

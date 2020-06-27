@@ -528,7 +528,7 @@ def safe_unicode(obj, *args):
 
 
 def split_title(author, book):
-    # Strip title at colon if starts with author, eg Tom Clancy: Ghost Protocol
+    # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
     brace = book.find('(')
@@ -558,6 +558,13 @@ def split_title(author, book):
         if endbrace:
             if ' ' not in book[brace:endbrace - 1]:
                 brace = 0
+    if colon:
+        # check for any we don't want to split...
+        splitlist = getList(lazylibrarian.CONFIG['IMP_NOSPLIT'])
+        for item in splitlist:
+            if item and book.startswith(item):
+                colon = 0
+                break
     if colon and brace:
         if colon < brace:
             parts = book.split(':', 1)

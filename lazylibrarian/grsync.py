@@ -257,7 +257,7 @@ class grauth:
             return True, ''
         return False, 'Failure status: %s' % response['status']
 
-    def create_shelf(self, shelf='lazylibrarian'):
+    def create_shelf(self, shelf='lazylibrarian', exclusive=False, sortable=False):
         global consumer, client, token, user_id
         if not lazylibrarian.CONFIG['GR_API'] or not lazylibrarian.CONFIG['GR_SECRET'] or not \
                 lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] or not lazylibrarian.CONFIG['GR_OAUTH_SECRET']:
@@ -273,7 +273,12 @@ class grauth:
             return False, "Goodreads userid error"
 
         # could also pass [featured] [exclusive_flag] [sortable_flag] all default to False
-        body = urlencode({'user_shelf[name]': shelf.lower()})
+        shelf_info = {'user_shelf[name]': shelf}
+        if exclusive:
+            shelf_info['user_shelf[exclusive_flag]'] = 'true'
+        if sortable:
+            shelf_info['user_shelf[sortable_flag]'] = 'true'
+        body = urlencode(shelf_info)
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         gr_api_sleep()
 
@@ -461,61 +466,89 @@ def sync_to_gr():
         threading.currentThread().name = 'GRSync'
         myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
-        if lazylibrarian.CONFIG['GR_OWNED'] and lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
-            msg += "Unable to sync ebooks, WANTED and OWNED must be different shelves\n"
-        elif lazylibrarian.SHOW_AUDIO and lazylibrarian.CONFIG['GR_AOWNED'] and \
-                lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_AWANTED']:
-            msg += "Unable to sync audiobooks, WANTED and OWNED must be different shelves\n"
-        else:
-            if lazylibrarian.CONFIG['GR_WANTED'] and \
-                    lazylibrarian.CONFIG['GR_AWANTED'] == lazylibrarian.CONFIG['GR_WANTED']:
-                # wanted audio and ebook on same shelf
-                to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'Audio/eBook')
-                msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
-                                                lazylibrarian.CONFIG['GR_WANTED'])
-                msg += "%s %s to Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
-                if ll_wanted:
-                    for item in ll_wanted:
+        if lazylibrarian.CONFIG['GR_SYNCUSER']:
+            user = myDB.match("SELECT * from users WHERE UserID=?", (lazylibrarian.CONFIG['GR_USER'],))
+            if not user:
+                msg = 'Unable to sync user to goodreads, invalid userid'
+            else:
+                to_shelf, to_ll = grsync('Read', 'read', user=user)
+                msg += "%s %s to Read shelf\n" % (to_shelf, plural(to_shelf, "change"))
+                msg += "%s %s to Read from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
+                to_shelf, to_ll = grsync('Reading', 'currently-reading', user=user)
+                msg += "%s %s to Reading shelf\n" % (to_shelf, plural(to_shelf, "change"))
+                msg += "%s %s to Reading from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
+                to_shelf, to_ll = grsync('Unread', 'unread', user=user)
+                msg += "%s %s to Unread shelf\n" % (to_shelf, plural(to_shelf, "change"))
+                msg += "%s %s to Unread from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
+                to_shelf, to_ll = grsync('Abandoned', 'abandoned', user=user)
+                msg += "%s %s to Abandoned shelf\n" % (to_shelf, plural(to_shelf, "change"))
+                msg += "%s %s to Abandoned from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
+                to_shelf, to_ll = grsync('To-Read', 'to-read', user=user)
+                msg += "%s %s to To-Read shelf\n" % (to_shelf, plural(to_shelf, "change"))
+                msg += "%s %s to To-Read from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
+                if to_ll:
+                    for item in to_ll:
                         new_books.append({"bookid": item})
-                        new_audio.append({"bookid": item})
 
-            else:  # see if wanted on separate shelves
-                if lazylibrarian.CONFIG['GR_WANTED']:
-                    to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'eBook')
+        else:  # library sync
+            if lazylibrarian.CONFIG['GR_OWNED'] and \
+                    lazylibrarian.CONFIG['GR_WANTED'] == lazylibrarian.CONFIG['GR_OWNED']:
+                msg += "Unable to sync ebooks, WANTED and OWNED must be different shelves\n"
+            elif lazylibrarian.SHOW_AUDIO and lazylibrarian.CONFIG['GR_AOWNED'] and \
+                    lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_AWANTED']:
+                msg += "Unable to sync audiobooks, WANTED and OWNED must be different shelves\n"
+            else:
+                if lazylibrarian.CONFIG['GR_WANTED'] and \
+                        lazylibrarian.CONFIG['GR_AWANTED'] == lazylibrarian.CONFIG['GR_WANTED']:
+                    # wanted audio and ebook on same shelf
+                    to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'Audio/eBook')
                     msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
                                                     lazylibrarian.CONFIG['GR_WANTED'])
-                    msg += "%s %s to eBook Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
+                    msg += "%s %s to Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
                     if ll_wanted:
                         for item in ll_wanted:
                             new_books.append({"bookid": item})
-
-                if lazylibrarian.CONFIG['GR_AWANTED']:
-                    to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
-                    msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
-                                                    lazylibrarian.CONFIG['GR_AWANTED'])
-                    msg += "%s %s to Audio Wanted from GoodReads\n" % (len(ll_wanted), plural(len(ll_wanted), "change"))
-                    if ll_wanted:
-                        for item in ll_wanted:
                             new_audio.append({"bookid": item})
 
-            if lazylibrarian.CONFIG['GR_OWNED'] and \
-                    lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_OWNED']:
-                # owned audio and ebook on same shelf
-                to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'Audio/eBook')
-                msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
-                                                lazylibrarian.CONFIG['GR_OWNED'])
-                msg += "%s %s to Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
-            else:
-                if lazylibrarian.CONFIG['GR_OWNED']:
-                    to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'eBook')
+                else:  # see if wanted on separate shelves
+                    if lazylibrarian.CONFIG['GR_WANTED']:
+                        to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_WANTED'], 'eBook')
+                        msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
+                                                        lazylibrarian.CONFIG['GR_WANTED'])
+                        msg += "%s %s to eBook Wanted from GoodReads\n" % (len(ll_wanted),
+                                                                           plural(len(ll_wanted), "change"))
+                        if ll_wanted:
+                            for item in ll_wanted:
+                                new_books.append({"bookid": item})
+
+                    if lazylibrarian.CONFIG['GR_AWANTED']:
+                        to_read_shelf, ll_wanted = grsync('Wanted', lazylibrarian.CONFIG['GR_AWANTED'], 'AudioBook')
+                        msg += "%s %s to %s shelf\n" % (to_read_shelf, plural(to_read_shelf, "change"),
+                                                        lazylibrarian.CONFIG['GR_AWANTED'])
+                        msg += "%s %s to Audio Wanted from GoodReads\n" % (len(ll_wanted),
+                                                                           plural(len(ll_wanted), "change"))
+                        if ll_wanted:
+                            for item in ll_wanted:
+                                new_audio.append({"bookid": item})
+
+                if lazylibrarian.CONFIG['GR_OWNED'] and \
+                        lazylibrarian.CONFIG['GR_AOWNED'] == lazylibrarian.CONFIG['GR_OWNED']:
+                    # owned audio and ebook on same shelf
+                    to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'Audio/eBook')
                     msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
                                                     lazylibrarian.CONFIG['GR_OWNED'])
-                    msg += "%s %s to eBook Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
-                if lazylibrarian.CONFIG['GR_AOWNED']:
-                    to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_AOWNED'], 'AudioBook')
-                    msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
-                                                    lazylibrarian.CONFIG['GR_AOWNED'])
-                    msg += "%s %s to Audio Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
+                    msg += "%s %s to Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
+                else:
+                    if lazylibrarian.CONFIG['GR_OWNED']:
+                        to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_OWNED'], 'eBook')
+                        msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
+                                                        lazylibrarian.CONFIG['GR_OWNED'])
+                        msg += "%s %s to eBook Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
+                    if lazylibrarian.CONFIG['GR_AOWNED']:
+                        to_owned_shelf, ll_have = grsync('Open', lazylibrarian.CONFIG['GR_AOWNED'], 'AudioBook')
+                        msg += "%s %s to %s shelf\n" % (to_owned_shelf, plural(to_owned_shelf, "change"),
+                                                        lazylibrarian.CONFIG['GR_AOWNED'])
+                        msg += "%s %s to Audio Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
 
         logger.info(msg.strip('\n').replace('\n', ', '))
         myDB = database.DBConnection()
@@ -568,64 +601,98 @@ def grfollow(authorid, follow=True):
         return "Unable to (un)follow %s, invalid authorid" % authorid
 
 
-def grsync(status, shelf, library='eBook', reset=False):
+def grsync(status, shelf, library='eBook', reset=False, user=None):
+    # noinspection PyBroadException
+    myDB = database.DBConnection()
+    dstatus = status
     # noinspection PyBroadException
     try:
-        shelf = shelf.lower()
-        dstatus = status
-        if dstatus == "Open":
-            dstatus += "/Have"
-        logger.info('Syncing %s %ss to %s shelf' % (dstatus, library, shelf))
+        usershelf = None
+        if user:
+            usershelf = shelf + '_' + user['UserID']
+            logger.info('Syncing %s %ss to %s shelf' % (status, library, shelf))
+            if shelf == 'read':
+                ll_list = getList(user['HaveRead'])
+            elif shelf == 'currently-reading':
+                ll_list = getList(user['Reading'])
+            elif shelf == 'abandoned':
+                ll_list = getList(user['Abandoned'])
+            elif shelf == 'to-read':
+                ll_list = getList(user['ToRead'])
+            else:  # if shelf == 'unread':
+                unread = set()
+                res = myDB.select("SELECT BookID from books where status in ('Open', 'Have')")
+                for item in res:
+                    unread.add(item['BookID'])
+                read = set()
+                for item in ['HaveRead', 'To-Read', 'Reading', 'Abandoned']:
+                    try:
+                        contents = set(getList(user[item]))
+                    except IndexError:
+                        contents = set()
+                    read = read.union(contents)
+                unread.difference_update(read)
+                ll_list = list(unread)
 
-        myDB = database.DBConnection()
-        if library == 'eBook':
-            if status == 'Open':
-                cmd = "select bookid from books where status in ('Open', 'Have')"
-            elif status == 'Wanted':
-                cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
-            else:
-                cmd = "select bookid from books where status=?", (status,)
-            results = myDB.select(cmd)
-        elif library == 'AudioBook':
+        else:
+            if dstatus == "Open":
+                dstatus += "/Have"
+            logger.info('Syncing %s %ss to %s shelf' % (dstatus, library, shelf))
 
-            if status == 'Open':
-                cmd = "select bookid from books where audiostatus in ('Open', 'Have')"
-            elif status == 'Wanted':
-                cmd = "select bookid from books where audiostatus in ('Wanted', 'Snatched', 'Matched')"
-            else:
-                cmd = "select bookid from books where audiostatus=%s" % status
-            results = myDB.select(cmd)
-        else:  # 'Audio/eBook'
-            if status == 'Open':
-                cmd = "select bookid from books where status in ('Open', 'Have')"
-                cmd += " or audiostatus in ('Open', 'Have')"
-            elif status == 'Wanted':
-                cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
-                cmd += " or audiostatus in ('Wanted', 'Snatched', 'Matched')"
-            else:
-                cmd = "select bookid from books where status=%s" % status
-                cmd += " or audiostatus=%s" % status
-            results = myDB.select(cmd)
-        ll_list = []
-        for terms in results:
-            ll_list.append(terms['bookid'])
+            if library == 'eBook':
+                if status == 'Open':
+                    cmd = "select bookid from books where status in ('Open', 'Have')"
+                elif status == 'Wanted':
+                    cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
+                else:
+                    cmd = "select bookid from books where status=?", (status,)
+                results = myDB.select(cmd)
+            elif library == 'AudioBook':
+                if status == 'Open':
+                    cmd = "select bookid from books where audiostatus in ('Open', 'Have')"
+                elif status == 'Wanted':
+                    cmd = "select bookid from books where audiostatus in ('Wanted', 'Snatched', 'Matched')"
+                else:
+                    cmd = "select bookid from books where audiostatus=%s" % status
+                results = myDB.select(cmd)
+            else:  # 'Audio/eBook'
+                if status == 'Open':
+                    cmd = "select bookid from books where status in ('Open', 'Have')"
+                    cmd += " or audiostatus in ('Open', 'Have')"
+                elif status == 'Wanted':
+                    cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
+                    cmd += " or audiostatus in ('Wanted', 'Snatched', 'Matched')"
+                else:
+                    cmd = "select bookid from books where status=%s" % status
+                    cmd += " or audiostatus=%s" % status
+                results = myDB.select(cmd)
+
+            ll_list = []
+            for terms in results:
+                ll_list.append(terms['bookid'])
 
         GA = grauth()
         GR = None
         shelves = GA.get_shelf_list()
         found = False
         for item in shelves:  # type: dict
-            if item['name'] == shelf:
+            if item['name'].lower() == shelf.lower():
                 found = True
                 break
         if not found:
-            res, msg = GA.create_shelf(shelf=shelf)
+            if user:
+                res, msg = GA.create_shelf(shelf=shelf, exclusive=True)
+            else:
+                res, msg = GA.create_shelf(shelf=shelf)
             if not res:
                 logger.debug("Unable to create shelf %s: %s" % (shelf, msg))
                 return 0, []
             else:
                 # make sure no old info lying around
-                myDB.match('DELETE from sync where UserID="goodreads" and Label=?', (shelf,))
+                if user:
+                    myDB.match('DELETE from sync where UserID="goodreads" and Label=?', (usershelf,))
+                else:
+                    myDB.match('DELETE from sync where UserID="goodreads" and Label=?', (shelf,))
                 logger.debug("Created new goodreads shelf: %s" % shelf)
 
         gr_shelf = GA.get_gr_shelf_contents(shelf=shelf)
@@ -663,8 +730,10 @@ def grsync(status, shelf, library='eBook', reset=False):
         # save ll WANTED as last_sync
 
         # For HAVE/OPEN method is the same, but only change status if HAVE, not OPEN
-
-        res = myDB.match('select SyncList from sync where UserID="goodreads" and Label=?', (shelf,))
+        if user:
+            res = myDB.match('select SyncList from sync where UserID="goodreads" and Label=?', (usershelf,))
+        else:
+            res = myDB.match('select SyncList from sync where UserID="goodreads" and Label=?', (shelf,))
         last_sync = []
         shelf_changed = 0
         ll_changed = []
@@ -714,16 +783,41 @@ def grsync(status, shelf, library='eBook', reset=False):
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
-                        logger.warn("Not marking %s [%s] as Skipped, book is marked %s" % (
-                                    res['BookName'], book, res['Status']))
+                        if res['Status'] == 'Open' and shelf == lazylibrarian.CONFIG['GR_OWNED']:
+                            logger.warn("Adding book %s [%s] back to %s shelf" % (
+                                        res['BookName'], book, lazylibrarian.CONFIG['GR_OWNED']))
+                            try:
+                                _, _ = GA.BookToList(book, shelf, action='add')
+                            except Exception as e:
+                                logger.error("Error adding %s back to %s: %s %s" % (
+                                                book, lazylibrarian.CONFIG['GR_OWNED'], type(e).__name__, str(e)))
+                        else:
+                            logger.warn("Not marking %s [%s] as Skipped, book is marked %s" % (
+                                        res['BookName'], book, res['Status']))
+
                 if 'Audio' in library:
                     if res['AudioStatus'] in ['Have', 'Wanted']:
                         myDB.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
-                        logger.warn("Not marking %s [%s] as Skipped, audiobook is marked %s" % (
-                                    res['BookName'], book, res['AudioStatus']))
+                        if res['AudioStatus'] == 'Open' and shelf == lazylibrarian.CONFIG['GR_AOWNED']:
+                            logger.warn("Adding audiobook %s [%s] back to %s shelf" % (
+                                        res['BookName'], book, lazylibrarian.CONFIG['GR_AOWNED']))
+                            try:
+                                _, _ = GA.BookToList(book, shelf, action='add')
+                            except Exception as e:
+                                logger.error("Error adding %s back to %s: %s %s" % (
+                                                book, lazylibrarian.CONFIG['GR_AOWNED'], type(e).__name__, str(e)))
+                        else:
+                            logger.warn("Not marking %s [%s] as Skipped, audiobook is marked %s" % (
+                                        res['BookName'], book, res['AudioStatus']))
+                if user:
+                    try:
+                        ll_list.remove(book)
+                        logger.debug("%10s removed from user %s" % (book, shelf))
+                    except ValueError:
+                        pass
 
         # new additions to lazylibrarian
         logger.info("%s new in lazylibrarian %s" % (len(added_to_ll), shelf))
@@ -820,34 +914,64 @@ def grsync(status, shelf, library='eBook', reset=False):
                         else:
                             logger.warn("Not setting %s [%s] as Wanted, already marked Open" % (res['BookName'], book))
 
+                if user:
+                    ll_list.append(book)
+                    logger.debug("%10s added to user %s" % (book, shelf))
+                    shelf_changed += 1
+
         # get new definitive list from ll
-        if 'eBook' in library:
-            cmd = 'select bookid from books where status=?'
-            if status == 'Open':
-                cmd += " or status='Have'"
-            if 'Audio' in library:
-                cmd += ' or audiostatus=?'
+        if user:
+            controlValueDict = {"UserID": user['UserID']}
+            logger.debug("Updating user %s shelf %s with %s entries" %
+                         (user['UserID'], shelf, len(ll_list)))
+            books = ', '.join(ll_list)
+            if shelf == 'read':
+                newValueDict = {'HaveRead': books}
+                myDB.upsert("users", newValueDict, controlValueDict)
+            elif shelf == 'currently-reading':
+                newValueDict = {'Reading': books}
+                myDB.upsert("users", newValueDict, controlValueDict)
+            elif shelf == 'to-read':
+                newValueDict = {'ToRead': books}
+                myDB.upsert("users", newValueDict, controlValueDict)
+            elif shelf == 'abandoned':
+                newValueDict = {'Abandoned': books}
+                myDB.upsert("users", newValueDict, controlValueDict)
+        else:
+            if 'eBook' in library:
+                cmd = 'select bookid from books where status=?'
+                if status == 'Open':
+                    cmd += " or status='Have'"
+                if 'Audio' in library:
+                    cmd += ' or audiostatus=?'
+                    if status == 'Open':
+                        cmd += " or audiostatus='Have'"
+                    results = myDB.select(cmd, (status, status))
+                else:
+                    results = myDB.select(cmd, (status,))
+            else:
+                cmd = 'select bookid from books where audiostatus=?'
                 if status == 'Open':
                     cmd += " or audiostatus='Have'"
-                results = myDB.select(cmd, (status, status))
-            else:
                 results = myDB.select(cmd, (status,))
-        else:
-            cmd = 'select bookid from books where audiostatus=?'
-            if status == 'Open':
-                cmd += " or audiostatus='Have'"
-            results = myDB.select(cmd, (status,))
-        ll_list = []
-        for terms in results:
-            ll_list.append(terms['bookid'])
+
+            ll_list = []
+            for terms in results:
+                ll_list.append(terms['bookid'])
 
         # store as comparison for next sync
-        controlValueDict = {"UserID": "goodreads", "Label": shelf}
-        newValueDict = {"Date": str(time.time()), "Synclist": ', '.join(ll_list)}
-        # goodreads user does not exist in user table
-        myDB.action('PRAGMA foreign_keys = OFF')
-        myDB.upsert("sync", newValueDict, controlValueDict)
-        myDB.action('PRAGMA foreign_keys = ON')
+        if shelf != 'unread':
+            if user:
+                controlValueDict = {"UserID": "goodreads", "Label": usershelf}
+            else:
+                controlValueDict = {"UserID": "goodreads", "Label": shelf}
+
+            ll_list = ', '.join(str(x) for x in set(ll_list))  # ensure no duplicates
+            newValueDict = {"Date": str(time.time()), "Synclist": ll_list}
+            # goodreads user does not exist in user table
+            myDB.action('PRAGMA foreign_keys = OFF')
+            myDB.upsert("sync", newValueDict, controlValueDict)
+            myDB.action('PRAGMA foreign_keys = ON')
         logger.debug('Sync %s to %s shelf complete' % (status, shelf))
         return shelf_changed, ll_changed
 

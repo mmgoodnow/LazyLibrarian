@@ -221,7 +221,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
-                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES']
+                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -319,6 +319,7 @@ CONFIG_DEFINITIONS = {
     'IMP_MAGCOVER': ('bool', 'General', 1),
     'IMP_COMICCOVER': ('bool', 'General', 1),
     'IMP_CONVERT': ('str', 'General', ''),
+    'IMP_NOSPLIT': ('str', 'General', ''),
     'EXT_PREPROCESS': ('str', 'General', ''),
     'GIT_PROGRAM': ('str', 'General', ''),
     'CACHE_AGE': ('int', 'General', 30),
@@ -601,6 +602,8 @@ CONFIG_DEFINITIONS = {
     'CV_WEBSEARCH': ('bool', 'API', 0),
     'GR_API': ('str', 'API', 'ckvsiSDsuqh7omh74ZZ6Q'),
     'GR_SYNC': ('bool', 'API', 0),
+    'GR_SYNCUSER': ('bool', 'API', 0),
+    'GR_USER': ('str', 'API', ''),
     'GR_SYNCREADONLY': ('bool', 'API', 0),
     'GR_SECRET': ('str', 'API', ''),  # tied to users own api key
     'GR_OAUTH_TOKEN': ('str', 'API', ''),  # gives access to users bookshelves

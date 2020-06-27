@@ -43,6 +43,30 @@
                 }
         });
 
+        if ($("#gr_syncuser").is(":checked"))
+            {
+                    $("#gruser_options").show();
+                    $("#grlibrary_options").hide();
+            }
+        else
+            {
+                    $("#grlibrary_options").show();
+                    $("#gruser_options").hide();
+            }
+
+        $("#gr_syncuser").click(function(){
+                if ($("#gr_syncuser").is(":checked"))
+                {
+                        $("#gruser_options").slideDown();
+                        $("#grlibrary_options").slideUp();
+                }
+                else
+                {
+                        $("#grlibrary_options").slideDown();
+                        $("#gruser_options").slideUp();
+                }
+        });
+
         if ($("#user_accounts").is(":checked"))
             {
                     $("#admin_options").show();
