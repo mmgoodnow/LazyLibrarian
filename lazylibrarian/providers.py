@@ -1289,6 +1289,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 rootxml = ElementTree.fromstring(result)
             except Exception as e:
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))
+                logger.debug(repr(result))
                 rootxml = None
         else:
             try:
