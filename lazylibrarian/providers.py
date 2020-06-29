@@ -687,7 +687,7 @@ def IterateOverDirectSites(book=None, searchType=None):
                 ignored = True
             if not ignored:
                 logger.debug('[IterateOverDirectSites] - %s' % prov)
-                results, error = GEN(book, prov)
+                results, error = BOK(book, prov)
                 if error:
                     BlockProvider(prov, error)
                 else:
