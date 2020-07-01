@@ -2217,23 +2217,34 @@ class WebInterface(object):
 
     @cherrypy.expose
     def addBook(self, bookid=None):
+        if lazylibrarian.SHOW_AUDIO:
+            audio_status = "Wanted"
+        else:
+            audio_status = "Skipped"
+
+        if lazylibrarian.SHOW_EBOOK:
+            ebook_status = "Wanted"
+        else:
+            ebook_status = "Skipped"
+
         myDB = database.DBConnection()
-        AuthorID = ""
         match = myDB.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
         if match:
-            myDB.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
+            myDB.upsert("books", {'Status': ebook_status, 'AudioStatus': audio_status},
+                        {'BookID': bookid})
             AuthorID = match['AuthorID']
             update_totals(AuthorID)
         else:
+            AuthorID = ""
             if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                 GB = GoogleBooks(bookid)
-                t = threading.Thread(target=GB.find_book, name='GB-BOOK', args=[bookid, "Wanted",
-                                                                                None, "Added by webserver"])
+                t = threading.Thread(target=GB.find_book, name='GB-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
             else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                 GR = GoodReads(bookid)
-                t = threading.Thread(target=GR.find_book, name='GR-BOOK', args=[bookid, "Wanted",
-                                                                                None, "Added by webserver"])
+                t = threading.Thread(target=GR.find_book, name='GR-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
         if lazylibrarian.CONFIG['IMP_AUTOSEARCH']:
