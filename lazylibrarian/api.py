@@ -74,7 +74,9 @@ cmd_dict = {'help': 'list available commands. ' +
             'getAuthorImages': '[&wait] get images for all authors without one',
             'getWanted': 'list wanted books',
             'getRead': 'list read books for current user',
+            'getReading': 'list currently-reading books for current user',
             'getToRead': 'list to-read books for current user',
+            'getAbandoned': 'list abandoned books for current user',
             'getSnatched': 'list snatched books',
             'getHistory': 'list history',
             'getLogs': 'show current log',
@@ -597,6 +599,28 @@ class Api(object):
         else:
             self.data = self._dic_from_query(
                 "SELECT toread from users WHERE userid='%s'" % userid)
+
+    def _getReading(self):
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
+        if not userid:
+            self.data = 'No userid'
+        else:
+            self.data = self._dic_from_query(
+                "SELECT reading from users WHERE userid='%s'" % userid)
+
+    def _getAbandoned(self):
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
+        if not userid:
+            self.data = 'No userid'
+        else:
+            self.data = self._dic_from_query(
+                "SELECT abandoned from users WHERE userid='%s'" % userid)
 
     def _vacuum(self):
         msg1 = self._dic_from_query("vacuum")
