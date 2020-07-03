@@ -891,12 +891,13 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 shelf_changed += 1
                             else:
                                 logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
-                        elif res['Status'] != 'Open':
+                        elif res['Status'] not in ['Open', 'Have']:
                             myDB.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
-                            logger.warn("Not setting %s [%s] as Wanted, already marked Open" % (res['BookName'], book))
+                            logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
+                                        (res['BookName'], book, res['Status']))
                 if 'Audio' in library:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
@@ -923,12 +924,13 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 shelf_changed += 1
                             else:
                                 logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
-                        elif res['Status'] != 'Open':
+                        elif res['Status'] not in ['Open', 'Have']:
                             myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
-                            logger.warn("Not setting %s [%s] as Wanted, already marked Open" % (res['BookName'], book))
+                            logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
+                                (res['BookName'], book, res['Status']))
 
         # set new definitive list from ll
         if user:
