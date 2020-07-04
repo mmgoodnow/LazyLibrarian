@@ -16,6 +16,7 @@ import os
 import re
 import time
 import threading
+import traceback
 
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
@@ -717,6 +718,7 @@ def addSeriesMembers(seriesid):
                 logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
     except Exception as e:
         logger.error("%s adding series %s: %s" % (type(e).__name__, seriesid, str(e)))
+        logger.error('%s' % traceback.format_exc())
     finally:
         lazylibrarian.SERIES_UPDATE = False
         return count
