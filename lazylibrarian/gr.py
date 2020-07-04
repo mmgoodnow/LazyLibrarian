@@ -476,8 +476,7 @@ class GoodReads:
                                 logger.warn("Ignoring %s: Publisher %s" % (bookname, bookpub))
                                 rejected = 'publisher', bookpub
 
-                        bookname = replace_all(unaccented(bookname, only_ascii=False),
-                                               {':': ' ', '"': '', '\'': ''}).strip()
+                        bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
 
                         # if not rejected and re.match(r'[^\w-]', bookname):
                         # reject books with bad characters in title
@@ -1264,7 +1263,7 @@ class GoodReads:
             logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
             return
 
-        bookname = unaccented(bookname, only_ascii=False)
+        # bookname = unaccented(bookname, only_ascii=False)
         bookname, booksub = split_title(authorname, bookname)
         dic = {':': '.', '"': ''}
         bookname = replace_all(bookname, dic).strip()

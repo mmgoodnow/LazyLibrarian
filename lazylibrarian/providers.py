@@ -19,7 +19,7 @@ from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
-    makeUnicode, seconds_to_midnight, makeUTF8bytes
+    makeUnicode, seconds_to_midnight, makeUTF8bytes, no_umlauts
 from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
@@ -500,7 +500,7 @@ def IterateOverNewzNabSites(book=None, searchType=None):
         if provider['ENABLED']:
             ignored = False
             if ProviderIsBlocked(provider['HOST']):
-                logger.debug('[IterateOverNewzNabSites] - %s is BLOCKED' % provider['HOST'])
+                logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
@@ -529,14 +529,14 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                 if not ProviderIsBlocked(provider['HOST']):
                     provider = get_capabilities(provider)
                     providers += 1
-                    logger.debug('[IterateOverNewzNabSites] - %s' % provider['HOST'])
+                    logger.debug('Querying provider %s' % provider['HOST'])
                     resultslist += NewzNabPlus(book, provider, searchType, "nzb")[1]
 
     for provider in lazylibrarian.TORZNAB_PROV:
         if provider['ENABLED']:
             ignored = False
             if ProviderIsBlocked(provider['HOST']):
-                logger.debug('[IterateOverNewzNabSites] - %s is BLOCKED' % provider['HOST'])
+                logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
@@ -581,6 +581,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
             book['searchterm'] = bookname
         else:
             book['searchterm'] = authorname + ' ' + bookname
+        book['searchterm'] = no_umlauts(book['searchterm'])
 
     for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         if lazylibrarian.CONFIG[prov]:
@@ -644,7 +645,7 @@ def IterateOverDirectSites(book=None, searchType=None):
         if prov['ENABLED']:
             ignored = False
             if ProviderIsBlocked(prov['NAME']):
-                logger.debug('[IterateOverDirectSites] - %s is BLOCKED' % prov['NAME'])
+                logger.debug('%s is BLOCKED' % prov['NAME'])
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in prov['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov['NAME'])
@@ -659,7 +660,7 @@ def IterateOverDirectSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for Comic" % prov['NAME'])
                 ignored = True
             if not ignored:
-                logger.debug('[IterateOverDirectSites] - %s' % prov['NAME'])
+                logger.debug('Querying %s' % prov['NAME'])
                 results, error = GEN(book, prov['NAME'])
                 if error:
                     BlockProvider(prov['NAME'], error)
@@ -671,7 +672,7 @@ def IterateOverDirectSites(book=None, searchType=None):
         if lazylibrarian.CONFIG[prov]:
             ignored = False
             if ProviderIsBlocked(prov):
-                logger.debug('[IterateOverDirectSites] - %s is BLOCKED' % prov)
+                logger.debug('%s is BLOCKED' % prov)
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
@@ -686,7 +687,7 @@ def IterateOverDirectSites(book=None, searchType=None):
                 logger.debug("Ignoring %s for Comic" % prov)
                 ignored = True
             if not ignored:
-                logger.debug('[IterateOverDirectSites] - %s' % prov)
+                logger.debug('Querying %s' % prov)
                 results, error = BOK(book, prov)
                 if error:
                     BlockProvider(prov, error)
@@ -803,8 +804,8 @@ def IRCSEARCH(book, provider, searchType, test=False):
     if not irc:
         return False, results
 
-    if test:
-        return True, results
+    # if test:
+    #     return True, results
 
     if searchType not in ['mag', 'comic']:
         # For irc search we use just the author name and cache the results
@@ -827,6 +828,8 @@ def IRCSEARCH(book, provider, searchType, test=False):
             results = ircResults(provider, fname)
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
+    if test:
+        return len(results), provider['SERVER']
     return True, results
 
 
@@ -881,7 +884,7 @@ def NYTIMES(host=None, feednr=None, priority=0, dispname=None, types='E', test=F
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     if test:
-        return success
+        return len(results)
     return results
 
 
@@ -940,7 +943,7 @@ def AMAZON(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     if test:
-        return success
+        return len(results)
     return results
 
 
@@ -1009,8 +1012,8 @@ def LISTOPIA(host=None, feednr=None, priority=0, dispname=None, types='E', test=
             logger.debug('No data returned from %s' % URL)
 
         if test:
-            logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
-            return success
+            logger.debug("Test found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+            return len(results)
 
         page += 1
         if maxpage:
@@ -1079,7 +1082,7 @@ def GOODREADS(host=None, feednr=None, priority=0, dispname=None, types='E', test
     else:
         logger.debug('No data returned from %s' % host)
     if test:
-        return success
+        return len(results)
     return results
 
 
@@ -1105,9 +1108,6 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                 result = rss_provider.read()
         except Exception:
             logger.error("%s RSS file provider doesn't exist" % URL)
-
-    if test:
-        return success
 
     if success:
         data = feedparser.parse(result)
@@ -1195,6 +1195,8 @@ def RSS(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                 })
     else:
         logger.debug('No data returned from %s' % host)
+    if test:
+        return len(results)
     return results
 
 
@@ -1282,7 +1284,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 success = False
             if not success:
                 logger.debug(result)
-            return success, result
+                return success, result
 
         if success:
             try:
@@ -1373,6 +1375,8 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 logger.debug('Found %s results at %s for: %s' % (nzbcount, host, sterm))
         else:
             logger.debug('No data returned from %s for %s' % (host, sterm))
+        if test:
+            return len(results), host
     return True, results
 
 
@@ -1380,6 +1384,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
     params = None
     if searchType in ["book", "shortbook"]:
         authorname, bookname = get_searchterm(book, searchType)
+        bookname = no_umlauts(bookname)
         if provider['BOOKSEARCH'] and provider['BOOKCAT']:  # if specific booksearch, use it
             if provider['BOOKSEARCH'] == 'bibliotik':
                 params = {
@@ -1392,7 +1397,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
                 params = {
                     "t": provider['BOOKSEARCH'],
                     "apikey": api_key,
-                    "title": makeUTF8bytes(bookname)[0],
+                    "title": makeUTF8bytes(unaccented(bookname))[0],
                     "author": makeUTF8bytes(authorname)[0],
                     "cat": provider['BOOKCAT']
                 }
@@ -1405,6 +1410,7 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
             }
     elif searchType in ["audio", "shortaudio"]:
         authorname, bookname = get_searchterm(book, searchType)
+        bookname = no_umlauts(bookname)
         if provider['AUDIOSEARCH'] and provider['AUDIOCAT']:  # if specific audiosearch, use it
             params = {
                 "t": provider['AUDIOSEARCH'],
@@ -1440,12 +1446,15 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
     else:
         if provider['GENERALSEARCH']:
             if "shortgeneral" in searchType:
-                searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''), only_ascii=False)
+                searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''),
+                                        only_ascii=False, umlauts=False)
             elif 'title' in searchType:
                 _, searchterm = get_searchterm(book, searchType)
-                searchterm = unaccented(searchterm.replace(':', ''), only_ascii=False)
+                searchterm = unaccented(searchterm.replace(':', ''),
+                                        only_ascii=False, umlauts=False)
             else:
-                searchterm = unaccented(book['searchterm'].replace(':', ''), only_ascii=False)
+                searchterm = unaccented(book['searchterm'].replace(':', ''),
+                                        only_ascii=False, umlauts=False)
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,

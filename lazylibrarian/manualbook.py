@@ -41,9 +41,9 @@ def searchItem(item=None, bookid=None, cat=None):
 
     book = {}
     if PY2:
-        searchterm = unaccented_bytes(item, only_ascii=False)
+        searchterm = unaccented_bytes(item, only_ascii=False, umlauts=False)
     else:
-        searchterm = unaccented(item, only_ascii=False)
+        searchterm = unaccented(item, only_ascii=False, umlauts=False)
 
     book['searchterm'] = searchterm
     if bookid:

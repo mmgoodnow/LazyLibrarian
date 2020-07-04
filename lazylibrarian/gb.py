@@ -195,7 +195,6 @@ class GoogleBooks:
                             bookname = replace_all(book['name'], dic)
 
                             bookname = unaccented(bookname, only_ascii=False)
-                            bookname = bookname.strip()  # strip whitespace
 
                             AuthorID = ''
                             if book['author']:
@@ -401,8 +400,7 @@ class GoogleBooks:
                             logger.debug('Rejecting bookid %s for %s, no bookname' % (bookid, authorname))
                             rejected = 'name', 'No bookname'
                         else:
-                            bookname = replace_all(unaccented(bookname, only_ascii=False),
-                                                   {':': ' ', '"': '', '\'': ''}).strip()
+                            bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
                             # if re.match(r'[^\w-]', bookname):  # remove books with bad characters in title
                             # logger.debug("[%s] removed book for bad characters" % bookname)
                             # rejected = 'chars', 'Bad characters in bookname'
@@ -655,10 +653,7 @@ class GoogleBooks:
 
         book = googleBookDict(jsonresults)
         dic = {':': '.', '"': ''}
-        bookname = replace_all(book['name'], dic)
-
-        bookname = unaccented(bookname, only_ascii=False)
-        bookname = bookname.strip()  # strip whitespace
+        bookname = replace_all(book['name'], dic).strip()
 
         if not book['author']:
             logger.debug('Book %s does not contain author field, skipping' % bookname)

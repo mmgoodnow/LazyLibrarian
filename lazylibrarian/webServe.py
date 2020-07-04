@@ -5253,7 +5253,10 @@ class WebInterface(object):
 
             if result:
                 lazylibrarian.config_write(kwargs['name'])
-                msg = "%s test PASSED" % name
+                if isinstance(result, bool):
+                    msg = "%s test PASSED" % name
+                else:
+                    msg = "%s test PASSED, found %s" % (name, result)
             else:
                 msg = "%s test FAILED, check debug log" % name
         else:

@@ -77,6 +77,8 @@ def BOK(book=None, prov=None, test=False):
     if not prov:
         prov = 'BOK'
     if lazylibrarian.providers.ProviderIsBlocked(provider):
+        if test:
+            return 0
         return [], "ProviderIsBlocked"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
@@ -102,14 +104,15 @@ def BOK(book=None, prov=None, test=False):
         searchURL = providerurl + "?%s" % urlencode(params)
 
         next_page = False
+        bok_sleep()
         result, success = fetchURL(searchURL)
         if not success:
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   searchURL))
-                if not test:
-                    success = True
+                if test:
+                    return 0
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -165,6 +168,7 @@ def BOK(book=None, prov=None, test=False):
                         size = 0
 
                     if url:
+                        bok_sleep()
                         res, succ = fetchURL(url)
                         if succ:
                             try:
@@ -223,7 +227,7 @@ def BOK(book=None, prov=None, test=False):
 
         if test:
             logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
-            return success
+            return len(results)
 
         page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
@@ -249,6 +253,8 @@ def GEN(book=None, prov=None, test=False):
     if not prov:
         prov = 'GEN_0'
     if lazylibrarian.providers.ProviderIsBlocked(prov):
+        if test:
+            return 0
         return [], "ProviderIsBlocked"
     for entry in lazylibrarian.GEN_PROV:
         if entry['NAME'].lower() == prov.lower():
@@ -316,8 +322,8 @@ def GEN(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   searchURL))
-                if not test:
-                    success = True
+                if test:
+                    return 0
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -521,9 +527,7 @@ def GEN(book=None, prov=None, test=False):
 
         if test:
             logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
-            if not len(results):
-                return False
-            return success
+            return len(results)
 
         page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:

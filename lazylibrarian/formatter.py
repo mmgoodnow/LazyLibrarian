@@ -658,19 +658,40 @@ def cleanName(name, extras=None):
     return name
 
 
-def unaccented(str_or_unicode, only_ascii=True):
+umlaut_dict = {'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue', 'ß': 'ss'}
+
+
+def no_umlauts(s):
+    if 'de' not in getList(lazylibrarian.CONFIG['IMP_PREFLANG']):
+        return s
+    # replace any diacritic 0x308 (umlaut) with 'e' so 'ü': 'ue', 'Ä': 'Ae'
+    res = ''
+    for c in s:
+        if unicodedata.combining(c):
+            if ord(c) == 0x308:
+                res += 'e'
+        else:
+            res += c
+    res = replace_all(res, umlaut_dict)
+    return res
+
+
+def unaccented(str_or_unicode, only_ascii=True, umlauts=True):
     if not str_or_unicode:
         return u''
-    return makeUnicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii))
+    return makeUnicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii, umlauts=umlauts))
 
 
-def unaccented_bytes(str_or_unicode, only_ascii=True):
+def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     if not str_or_unicode:
         return ''.encode('ASCII')  # ensure bytestring for python3
     try:
         cleaned = unicodedata.normalize('NFKD', str_or_unicode)
     except TypeError:
         cleaned = unicodedata.normalize('NFKD', str_or_unicode.decode('utf-8', 'replace'))
+
+    if not umlauts:
+        cleaned = no_umlauts(cleaned)
 
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])

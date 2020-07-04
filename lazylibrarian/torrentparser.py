@@ -78,15 +78,13 @@ def TRF(book=None, test=False):
         # may return 404 if no results, not really an error
         if '404' in result:
             logger.debug("No results found from %s for %s" % (provider, sterm))
-            success = True
+            if test:
+                return 0
         else:
             logger.debug(searchURL)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
         result = False
-
-    if test:
-        return success
 
     if result:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
@@ -119,7 +117,8 @@ def TRF(book=None, test=False):
                     rejected = 'audio'
 
                 if not rejected:
-                    resultTitle = unaccented(replace_all(td[1].text, dictrepl), only_ascii=False).strip()
+                    resultTitle = unaccented(replace_all(td[1].text, dictrepl),
+                                             only_ascii=False, umlauts=False).strip()
                     match = fuzz.token_set_ratio(book['searchterm'], resultTitle)
 
                     if match > 90:
@@ -165,7 +164,7 @@ def TRF(book=None, test=False):
                                     size = size.replace('&nbsp;', '')
                                     size = size_in_bytes(size)
                                     res = {
-                                        'bookid': book['bookid'],
+                                        'bookid': book.get('bookid', 'test'),
                                         'tor_prov': provider,
                                         'tor_title': title,
                                         'tor_url': magnet,
@@ -201,6 +200,8 @@ def TRF(book=None, test=False):
                             logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    if test:
+        return len(results)
     return results, errmsg
 
 
@@ -242,15 +243,13 @@ def TPB(book=None, test=False):
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s" % (provider, sterm))
-                success = True
+                if test:
+                    return 0
             else:
                 logger.debug(searchURL)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
             result = False
-
-        if test:
-            return success
 
         if result:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
@@ -302,7 +301,7 @@ def TPB(book=None, test=False):
                                 size = size.replace('&nbsp;', '')
                                 size = size_in_bytes(size)
                                 res = {
-                                    'bookid': book['bookid'],
+                                    'bookid': book.get('bookid', 'test'),
                                     'tor_prov': provider,
                                     'tor_title': title,
                                     'tor_url': magnet,
@@ -333,6 +332,11 @@ def TPB(book=None, test=False):
                     except Exception as e:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+        if test:
+            logger.debug("Test found %i %s from %s for %s" % (len(results), plural(len(results),
+                                                              "result"), provider, sterm))
+            return len(results)
 
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
             logger.warn('Maximum results page search reached, still more results available')
@@ -367,15 +371,13 @@ def KAT(book=None, test=False):
         # seems KAT returns 404 if no results, not really an error
         if '404' in result:
             logger.debug("No results found from %s for %s" % (provider, sterm))
-            success = True
+            if test:
+                return 0
         else:
             logger.debug(searchURL)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
         result = False
-
-    if test:
-        return success
 
     results = []
 
@@ -398,7 +400,7 @@ def KAT(book=None, test=False):
             td = row.find_all('td')
             if len(td) > 3:
                 try:
-                    title = unaccented(td[0].text, only_ascii=False)
+                    title = unaccented(td[0].text, only_ascii=False, umlauts=False)
                     # kat can return magnet or torrent or both.
                     magnet = ''
                     url = ''
@@ -432,7 +434,7 @@ def KAT(book=None, test=False):
                         logger.debug('Missing url or title')
                     elif minimumseeders < seeders:
                         results.append({
-                            'bookid': book['bookid'],
+                            'bookid': book.get('bookid', 'test'),
                             'tor_prov': provider,
                             'tor_title': title,
                             'tor_url': url,
@@ -448,6 +450,8 @@ def KAT(book=None, test=False):
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    if test:
+        return len(results)
     return results, errmsg
 
 
@@ -492,19 +496,18 @@ def WWT(book=None, test=False):
             # might return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s" % (provider, sterm))
-                success = True
+                if test:
+                    return 0
             elif '503' in result:
                 logger.warn("Cloudflare bot detection? %s: %s" % (provider, result))
                 logger.warn("Try unblocking %s from a browser" % providerurl)
-                success = True
+                if test:
+                    return 0
             else:
                 logger.debug(searchURL)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
             result = False
-
-        if test:
-            return success
 
         if result:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
@@ -525,7 +528,7 @@ def WWT(book=None, test=False):
                 td = row.find_all('td')
                 if len(td) > 3:
                     try:
-                        title = unaccented(td[0].text, only_ascii=False)
+                        title = unaccented(td[0].text, only_ascii=False, umlauts=False)
                         # can return magnet or torrent or both.
                         magnet = ''
                         url = ''
@@ -560,7 +563,7 @@ def WWT(book=None, test=False):
                             logger.debug('Missing url or title')
                         elif minimumseeders < seeders:
                             results.append({
-                                'bookid': book['bookid'],
+                                'bookid': book.get('bookid', 'test'),
                                 'tor_prov': provider,
                                 'tor_title': title,
                                 'tor_url': url,
@@ -575,6 +578,12 @@ def WWT(book=None, test=False):
                     except Exception as e:
                         logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+        if test:
+            logger.debug("Test found %i %s from %s for %s" % (len(results), plural(len(results),
+                                                              "result"), provider, sterm))
+            return len(results)
+
         page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
             logger.warn('Maximum results page search reached, still more results available')
@@ -607,15 +616,13 @@ def ZOO(book=None, test=False):
         # may return 404 if no results, not really an error
         if '404' in data:
             logger.debug("No results found from %s for %s" % (provider, sterm))
-            success = True
+            if test:
+                return 0
         else:
             logger.debug(searchURL)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
-
-    if test:
-        return success
 
     results = []
 
@@ -626,7 +633,7 @@ def ZOO(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'], only_ascii=False)
+                    title = unaccented(item['title'], only_ascii=False, umlauts=False)
                     seeders = int(item['torrent_seeds'].replace(',', ''))
                     link = item['links'][1]['href']
                     size = int(item['links'][1]['length'])
@@ -646,7 +653,7 @@ def ZOO(book=None, test=False):
                         logger.debug('No url or title found')
                     elif minimumseeders < seeders:
                         results.append({
-                            'bookid': book['bookid'],
+                            'bookid': book.get('bookid', 'test'),
                             'tor_prov': provider,
                             'tor_title': title,
                             'tor_url': url,
@@ -667,7 +674,8 @@ def ZOO(book=None, test=False):
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-
+    if test:
+        return len(results)
     return results, errmsg
 
 
@@ -691,15 +699,13 @@ def LIME(book=None, test=False):
         # may return 404 if no results, not really an error
         if '404' in data:
             logger.debug("No results found from %s for %s" % (provider, sterm))
-            success = True
+            if test:
+                return 0
         else:
             logger.debug(searchURL)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
-
-    if test:
-        return success
 
     results = []
 
@@ -710,7 +716,7 @@ def LIME(book=None, test=False):
         if len(d.entries):
             for item in d.entries:
                 try:
-                    title = unaccented(item['title'], only_ascii=False)
+                    title = unaccented(item['title'], only_ascii=False, umlauts=False)
                     try:
                         seeders = item['description']
                         seeders = int(seeders.split('Seeds:')[1].split(' ,')[0].replace(',', '').strip())
@@ -737,7 +743,7 @@ def LIME(book=None, test=False):
                         logger.debug('No url or title found')
                     elif minimumseeders < seeders:
                         res = {
-                            'bookid': book['bookid'],
+                            'bookid': book.get('bookid', 'test'),
                             'tor_prov': provider,
                             'tor_title': title,
                             'tor_url': url,
@@ -761,7 +767,8 @@ def LIME(book=None, test=False):
                         logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-
+    if test:
+        return len(results)
     return results, errmsg
 
 
@@ -788,15 +795,13 @@ def TDL(book=None, test=False):
         # may return 404 if no results, not really an error
         if '404' in data:
             logger.debug("No results found from %s for %s" % (provider, sterm))
-            success = True
+            if test:
+                return 0
         else:
             logger.debug(searchURL)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
-
-    if test:
-        return success
 
     results = []
 
@@ -834,7 +839,7 @@ def TDL(book=None, test=False):
                             logger.debug('Missing url or title')
                         else:
                             res = {
-                                'bookid': book['bookid'],
+                                'bookid': book.get('bookid', 'test'),
                                 'tor_prov': provider,
                                 'tor_title': title,
                                 'tor_url': url,
@@ -854,5 +859,6 @@ def TDL(book=None, test=False):
                     logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
-
+    if test:
+        return len(results)
     return results, errmsg
