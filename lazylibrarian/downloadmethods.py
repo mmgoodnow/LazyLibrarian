@@ -261,7 +261,8 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
         res = "Only got %s bytes for %s" % (len(r.content), dl_title)
         logger.debug(res)
         return False, res
-    elif 'application/octet-stream' not in r.headers['Content-Type']:
+    elif 'application' not in r.headers['Content-Type']:
+        # application/octet-stream, application/epub+zip, application/x-mobi8-ebook etc.
         res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
         logger.debug(res)
         if 'text/html' in r.headers['Content-Type']:
