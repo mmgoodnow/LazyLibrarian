@@ -73,7 +73,7 @@ def findBestResult(resultlist, book, searchtype, source):
             author, title = get_searchterm(book, searchtype)
         else:
             author = unaccented(replace_all(book['authorName'], dic), only_ascii=False)
-            title = unaccented(replace_all(book['bookName'], dic), only_ascii=False)
+            title = unaccented(replace_all(book['bookName'], dic), only_ascii=False, umlauts=False)
 
         if 'short' in searchtype and '(' in title:
             title = title.split('(')[0].strip()
@@ -100,7 +100,8 @@ def findBestResult(resultlist, book, searchtype, source):
         matches = []
         ignored_messages = []
         for res in resultlist:
-            resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl), only_ascii=False).strip()
+            resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl),
+                                     only_ascii=False, umlauts=False).strip()
             resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
             Book_match = fuzz.token_set_ratio(title, resultTitle)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
