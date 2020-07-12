@@ -46,7 +46,7 @@ class EmailNotifier:
 
         if files:
             message = MIMEMultipart()
-            message.attach(MIMEText(text))
+            message.attach(MIMEText(text, 'plain', "utf-8"))
         else:
             message = MIMEText(text, 'plain', "utf-8")
 
