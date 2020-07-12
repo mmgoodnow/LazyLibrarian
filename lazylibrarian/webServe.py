@@ -50,7 +50,7 @@ from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, t
     check_year, dispName, is_valid_booktype, replace_with
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.images import getBookCover, createMagCover, coverswap
+from lazylibrarian.images import getBookCover, createMagCover, coverswap, getAuthorImage
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
@@ -2650,10 +2650,16 @@ class WebInterface(object):
     def editAuthor(self, authorid=None):
         self.label_thread('EDIT_AUTHOR')
         myDB = database.DBConnection()
-
         data = myDB.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
         if data:
-            return serve_template(templatename="editauthor.html", title="Edit Author", config=data)
+            images = []
+            res = getAuthorImage(authorid=authorid, refresh=False, max_num=5)
+            if res and os.path.isdir(res):
+                basedir = res.replace(lazylibrarian.DATADIR, '').lstrip('/')
+                for item in os.listdir(res):
+                    images.append([item, os.path.join(basedir, item)])
+            return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
+                                  images=images)
         else:
             logger.info('Missing author %s:' % authorid)
 
@@ -2663,6 +2669,8 @@ class WebInterface(object):
     def authorUpdate(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                      editordata='', manual='0', **kwargs):
         myDB = database.DBConnection()
+        for item in kwargs:
+            print(item, kwargs[item])
         if authorid:
             authdata = myDB.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
             if authdata:
@@ -2679,8 +2687,14 @@ class WebInterface(object):
                     edited += "Born "
                 if not (authdata["AuthorDeath"] == authordeath):
                     edited += "Died "
-                if authorimg and (authdata["AuthorImg"] != authorimg):
-                    edited += "Image "
+                if 'cover' in kwargs:
+                    if kwargs['cover'] == "manual":
+                        if authorimg and (authdata["AuthorImg"] != authorimg):
+                            edited += "Image "
+                    elif kwargs['cover'] != "current":
+                        authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
+                        edited += "Image "
+
                 if not (authdata["About"] == editordata):
                     edited += "Description "
                 if not (bool(check_int(authdata["Manual"], 0)) == manual):
@@ -2736,6 +2750,7 @@ class WebInterface(object):
                             authorimg = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nophoto.png')
 
                         rejected = True
+
                         # Cache file image
                         if path_isfile(authorimg):
                             extn = os.path.splitext(authorimg)[1].lower()
@@ -2778,6 +2793,9 @@ class WebInterface(object):
                 else:
                     logger.debug('Author [%s] has not been changed' % authorname)
 
+            safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
+            icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', safeparams)
+            rmtree(icrawlerdir, ignore_errors=True)
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % authorid)
         else:
             raise cherrypy.HTTPRedirect("authors")

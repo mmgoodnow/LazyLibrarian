@@ -26,6 +26,8 @@ from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
+from icrawler.builtin import GoogleImageCrawler
+from shutil import rmtree
 
 try:
     import zipfile
@@ -486,26 +488,22 @@ def getBookCover(bookID=None, src=None):
                 return None, src
 
         if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
-            # try a google image search...
-            # tbm=isch      search images
-            # tbs=isz:l     large images
-            # ift:jpg       jpeg file type
             if safeparams:
-                URL = "https://www.google.com/search?tbm=isch&tbs=isz:l,ift:jpg&as_q=" + safeparams + "+ebook"
-                img = None
-                result, success = fetchURL(URL)
-                if success:
-                    try:
-                        img = result.split('url?q=')[1].split('">')[1].split('src="')[1].split('"')[0]
-                    except IndexError:
-                        img = None
-
-                if img and img.startswith('http'):
+                icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
+                gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
+                logger.debug(safeparams)
+                gc.crawl(keyword=safeparams, max_num=1)
+                if os.path.exists(icrawlerdir):
+                    res = len(os.listdir(icrawlerdir))
+                else:
+                    res = 0
+                logger.debug("Found %d %s" % (res, plural(res, 'image')))
+                if res:
+                    img = os.path.join(cachedir, 'icrawler', '000001.jpg')
                     if src:
                         coverlink, success, _ = cache_img("book", bookID + '_gb', img)
                     else:
                         coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
-
                     data = ''
                     coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
                     if path_isfile(coverfile):
@@ -516,11 +514,13 @@ def getBookCover(bookID=None, src=None):
                     elif success:
                         logger.debug("Caching google search cover for %s %s" %
                                      (item['AuthorName'], item['BookName']))
+                        # rmtree(icrawlerdir, ignore_errors=True)
                         return coverlink, 'google image'
                     else:
                         logger.debug("Error getting google image %s, [%s]" % (img, coverlink))
                 else:
-                    logger.debug("No image found in google page for %s" % bookID)
+                    logger.debug("No images found in google page for %s" % bookID)
+                # rmtree(icrawlerdir, ignore_errors=True)
             else:
                 logger.debug("No parameters for google image search for %s" % bookID)
             if src:
@@ -533,9 +533,7 @@ def getBookCover(bookID=None, src=None):
     return None, src
 
 
-def getAuthorImage(authorid=None):
-    # tbm=isch      search images
-    # tbs=ift:jpg  jpeg file type
+def getAuthorImage(authorid=None, refresh=False, max_num=1):
     if not authorid:
         logger.error("getAuthorImage: No authorid")
         return None
@@ -543,7 +541,7 @@ def getAuthorImage(authorid=None):
     cachedir = lazylibrarian.CACHEDIR
     coverfile = os.path.join(cachedir, "author", authorid + '.jpg')
 
-    if path_isfile(coverfile):  # use cached image if there is one
+    if path_isfile(coverfile) and max_num == 1 and not refresh:  # use cached image if there is one
         lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
         logger.debug("getAuthorImage: Returning Cached response for %s" % coverfile)
         coverlink = 'cache/author/' + authorid + '.jpg'
@@ -555,27 +553,30 @@ def getAuthorImage(authorid=None):
     if author:
         authorname = safe_unicode(author['AuthorName'])
         safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
-        URL = "https://www.google.com/search?tbm=isch&tbs=ift:jpg,itp:face&as_q=" + safeparams + 'author'
-        result, success = fetchURL(URL)
-        if success:
-            try:
-                img = result.split('url?q=')[1].split('">')[1].split('src="')[1].split('"')[0]
-            except IndexError:
-                img = None
-            if img and img.startswith('http'):
-                coverlink, success, was_in_cache = cache_img("author", authorid, img)
+        icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
+        rmtree(icrawlerdir, ignore_errors=True)
+        gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
+        gc.crawl(keyword=safeparams, max_num=int(max_num))
+        if os.path.exists(icrawlerdir):
+            res = len(os.listdir(icrawlerdir))
+        else:
+            res = 0
+        logger.debug("Found %d %s" % (res, plural(res, 'image')))
+        if max_num == 1:
+            if res:
+                img = os.path.join(cachedir, 'icrawler', '000001.jpg')
+                coverlink, success, was_in_cache = cache_img("author", authorid, img, refresh=refresh)
                 if success:
                     if was_in_cache:
                         logger.debug("Returning cached google image for %s" % authorname)
                     else:
                         logger.debug("Cached google image for %s" % authorname)
                     return coverlink
-                else:
-                    logger.debug("Error getting google image %s, [%s]" % (img, coverlink))
             else:
-                logger.debug("No image found in google page for %s" % authorname)
+                logger.debug("No images found for %s" % authorname)
+            rmtree(icrawlerdir, ignore_errors=True)
         else:
-            logger.debug("Error getting google page for %s, [%s]" % (safeparams, result))
+            return icrawlerdir
     else:
         logger.debug("No author found for %s" % authorid)
     return None
