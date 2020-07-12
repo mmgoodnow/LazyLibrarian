@@ -64,7 +64,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'saveTable': '&table= Save a database table to a file',
             'getIndex': 'list all authors',
             'getAuthor': '&id= get author by AuthorID and list their books',
-            'getAuthorImage': '&id= get an image for this author',
+            'getAuthorImage': '&id= [&refresh] [&max] get one or more images for this author',
             'setAuthorImage': '&id= &img= set a new image for this author',
             'setAuthorLock': '&id= lock author name/image/dates',
             'setAuthorUnlock': '&id= unlock author name/image/dates',
@@ -562,9 +562,7 @@ class Api(object):
                 return
             dest_path = os.path.dirname(res['BookFile'])
             global_name = os.path.splitext(os.path.basename(res['BookFile']))[0]
-            refresh = False
-            if 'refresh' in kwargs:
-                refresh = True
+            refresh = 'refresh' in kwargs
             processIMG(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
             self.data = createOPF(dest_path, res, global_name, refresh)
 
@@ -892,10 +890,7 @@ class Api(object):
             self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
 
     def _createMagCovers(self, **kwargs):
-        if 'refresh' in kwargs:
-            refresh = True
-        else:
-            refresh = False
+        refresh = 'refresh' in kwargs
         if 'wait' in kwargs:
             self.data = createMagCovers(refresh=refresh)
         else:
@@ -905,10 +900,7 @@ class Api(object):
         if 'file' not in kwargs:
             self.data = 'Missing parameter: file'
             return
-        if 'refresh' in kwargs:
-            refresh = True
-        else:
-            refresh = False
+        refresh = 'refresh' in kwargs
         if 'page' in kwargs:
             self.data = createMagCover(issuefile=kwargs['file'], refresh=refresh, pagenum=kwargs['page'])
         else:
@@ -1032,9 +1024,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _refreshAuthor(self, **kwargs):
-        refresh = False
-        if 'refresh' in kwargs:
-            refresh = True
+        refresh = 'refresh' in kwargs
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
@@ -1047,9 +1037,7 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _forceActiveAuthorsUpdate(self, **kwargs):
-        refresh = False
-        if 'refresh' in kwargs:
-            refresh = True
+        refresh = 'refresh' in kwargs
         if 'wait' in kwargs:
             self.data = aaUpdate(refresh=refresh)
         else:
@@ -1112,18 +1100,14 @@ class Api(object):
         startdir = None
         if 'dir' in kwargs:
             startdir = kwargs['dir']
-        ignore = False
-        if 'ignoreclient' in kwargs:
-            ignore = True
-        processDir(startdir=startdir, ignoreclient=ignore)
+        ignoreclient = 'ignoreclient' in kwargs
+        processDir(startdir=startdir, ignoreclient=ignoreclient)
 
     @staticmethod
     def _forceLibraryScan(**kwargs):
         startdir = None
         authid = None
-        remove = False
-        if 'remove' in kwargs:
-            remove = True
+        remove = 'remove' in kwargs
         if 'dir' in kwargs:
             startdir = kwargs['dir']
         if 'id' in kwargs:
@@ -1149,9 +1133,7 @@ class Api(object):
     def _forceAudioBookScan(**kwargs):
         startdir = None
         authid = None
-        remove = False
-        if 'remove' in kwargs:
-            remove = True
+        remove = 'remove' in kwargs
         if 'dir' in kwargs:
             startdir = kwargs['dir']
         if 'id' in kwargs:
@@ -1355,10 +1337,7 @@ class Api(object):
         else:
             self.data = 'Missing parameter: name'
             return
-        if 'xml' in kwargs:
-            xml = True
-        else:
-            xml = False
+        xml = 'xml' in kwargs
         self.data = comic_metadata(name, xml=xml)
 
     def _comicid(self, **kwargs):
@@ -1375,10 +1354,7 @@ class Api(object):
             if source not in ['cv', 'cx']:
                 self.data = 'Invalid parameter: source'
                 return
-        if 'best' in kwargs:
-            best = True
-        else:
-            best = False
+        best = 'best' in kwargs
         if source == 'cv':
             self.data = cv_identify(name, best=best)
         else:
@@ -1441,9 +1417,7 @@ class Api(object):
         library = 'eBook'
         if 'library' in kwargs:
             library = kwargs['library']
-        reset = False
-        if 'reset' in kwargs:
-            reset = True
+        reset = 'reset' in kwargs
         try:
             self.data = grsync(kwargs['status'], kwargs['shelf'], library, reset)
         except Exception as e:
@@ -1612,7 +1586,12 @@ class Api(object):
             return
         else:
             self.id = kwargs['id']
-        self.data = getAuthorImage(self.id)
+        refresh = 'refresh' in kwargs
+        if 'max' in kwargs:
+            max_num = kwargs['max']
+        else:
+            max_num = 1
+        self.data = getAuthorImage(self.id, refresh=refresh, max_num=max_num)
 
     def _lock(self, table, itemid, state):
         myDB = database.DBConnection()
