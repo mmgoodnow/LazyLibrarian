@@ -32,6 +32,7 @@ except ImportError:
         from lib3.csv import writer, reader, QUOTE_MINIMAL
 
 
+# noinspection PyTypeChecker
 def dump_table(table, savedir=None, status=None):
     myDB = database.DBConnection()
     # noinspection PyBroadException
@@ -60,21 +61,22 @@ def dump_table(table, savedir=None, status=None):
             if status:
                 label += '_%s' % status
             csvFile = os.path.join(savedir, "%s.csv" % label)
-
+            headers = headers.split(',')
             if PY2:
-                fmode = 'wb'
-            else:
-                fmode = 'w'
-            with open(syspath(csvFile), fmode) as csvfile:
-                csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
-                headers = headers.split(',')
-                csvwrite.writerow(headers)
-                for item in data:
-                    if PY2:
+                with open(syspath(csvFile), 'wb') as csvfile:
+                    # noinspection PyTypeChecker
+                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                    csvwrite.writerow(headers)
+                    for item in data:
                         csvwrite.writerow([makeBytestr(s) if s else '' for s in item])
-                    else:
+                        count += 1
+            else:
+                with open(syspath(csvFile), 'w', encoding='utf-8') as csvfile:
+                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                    csvwrite.writerow(headers)
+                    for item in data:
                         csvwrite.writerow([str(s) if s else '' for s in item])
-                    count += 1
+                        count += 1
             msg = "Exported %s %s to %s" % (count, plural(count, "item"), csvFile)
             logger.info(msg)
         return count
@@ -186,25 +188,31 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
         else:
             count = 0
             if PY2:
-                fmode = 'wb'
-            else:
-                fmode = 'w'
-            with open(syspath(csvFile), fmode) as csvfile:
-                csvwrite = writer(csvfile, delimiter=',',
-                                  quotechar='"', quoting=QUOTE_MINIMAL)
+                with open(syspath(csvFile), 'wb') as csvfile:
+                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
-                # write headers, change AuthorName BookName BookIsbn to match import csv names
-                csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
+                    # write headers, change AuthorName BookName BookIsbn to match import csv names
+                    csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
 
-                for resulted in find_status:
-                    logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
-                    row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
-                            resulted['BookIsbn'], resulted['AuthorID']])
-                    if PY2:
+                    for resulted in find_status:
+                        logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
+                        row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
+                                resulted['BookIsbn'], resulted['AuthorID']])
                         csvwrite.writerow([("%s" % s).encode(lazylibrarian.SYS_ENCODING) for s in row])
-                    else:
+                        count += 1
+            else:
+                with open(syspath(csvFile), 'w', encoding='utf-8') as csvfile:
+                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+
+                    # write headers, change AuthorName BookName BookIsbn to match import csv names
+                    csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
+
+                    for resulted in find_status:
+                        logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
+                        row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
+                                resulted['BookIsbn'], resulted['AuthorID']])
                         csvwrite.writerow([("%s" % s) for s in row])
-                    count += 1
+                        count += 1
             msg = "CSV exported %s %s to %s" % (count, plural(count, library), csvFile)
             logger.info(msg)
         return msg
