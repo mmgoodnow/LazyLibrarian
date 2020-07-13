@@ -26,7 +26,6 @@ from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote_plus
-from icrawler.builtin import GoogleImageCrawler
 from shutil import rmtree
 
 try:
@@ -41,6 +40,7 @@ try:
     import PIL
     # noinspection PyUnresolvedReferences
     from PIL import Image as PILImage
+    from icrawler.builtin import GoogleImageCrawler
 except ImportError:
     PIL = None
 
@@ -488,7 +488,7 @@ def getBookCover(bookID=None, src=None):
                 return None, src
 
         if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
-            if safeparams:
+            if PIL and safeparams:
                 icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
                 gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
                 logger.debug(safeparams)
@@ -522,7 +522,7 @@ def getBookCover(bookID=None, src=None):
                     logger.debug("No images found in google page for %s" % bookID)
                 # rmtree(icrawlerdir, ignore_errors=True)
             else:
-                logger.debug("No parameters for google image search for %s" % bookID)
+                logger.debug("PIL not found or no parameters for google image search for %s" % bookID)
             if src:
                 return None, src
 
@@ -550,7 +550,7 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
     lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
     myDB = database.DBConnection()
     author = myDB.match('select AuthorName from authors where AuthorID=?', (authorid,))
-    if author:
+    if PIL and author:
         authorname = safe_unicode(author['AuthorName'])
         safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
         icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
@@ -578,7 +578,7 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
         else:
             return icrawlerdir
     else:
-        logger.debug("No author found for %s" % authorid)
+        logger.debug("PIL not installed or no author found for %s" % authorid)
     return None
 
 
