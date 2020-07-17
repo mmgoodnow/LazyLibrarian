@@ -1,0 +1,6 @@
+This is v0.6.3 of icrawler slightly modified for lazylibrarian.
+There is a new regex for google that had not been merged into master at the time, see
+https://github.com/hellock/icrawler/pull/74/files 
+bs4 parsing has been changed from lxml to html5lib as we already have that installed 
+in lazylibrarian, and we try to use relative imports for bs4 and requests as some nas 
+units do not have system-wide versions available
