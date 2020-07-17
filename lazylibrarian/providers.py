@@ -43,7 +43,7 @@ except ImportError:
 
 
 def test_provider(name, host=None, api=None):
-    book = {'searchterm': 'Agatha Christie', 'library': 'eBook'}
+    book = {'searchterm': 'Agatha Christie', 'library': 'eBook', 'bookid': '1'}
     if name == 'TPB':
         logger.debug("Testing provider %s" % name)
         if host:
@@ -291,7 +291,7 @@ def get_capabilities(provider, force=False):
 
         # most providers will give you caps without an api key
         logger.debug('Requesting capabilities for %s' % URL)
-        source_xml, success = fetchURL(URL, raw=True)
+        source_xml, success = fetchURL(URL, retry=False, raw=True)
         data = None
         if not success:
             logger.debug("Error getting xml from %s, %s" % (URL, source_xml))
@@ -1312,7 +1312,6 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
         if rootxml is not None:
             # to debug because of api
             logger.debug('Parsing results from <a href="%s">%s</a>' % (URL, host))
-
             if rootxml.tag == 'error':
                 # noinspection PyTypeChecker
                 errormsg = rootxml.get('description', default='unknown error')
