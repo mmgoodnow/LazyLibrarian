@@ -3130,12 +3130,13 @@ class WebInterface(object):
                                 else:
                                     myDB.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
                                     logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
-                        elif 'eBook' in library:
-                            myDB.upsert("books", {'Status': action}, {'BookID': bookid})
-                            logger.debug('Status set to "%s" for "%s"' % (action, bookname))
-                        elif 'Audio' in library:
-                            myDB.upsert("books", {'AudioStatus': action}, {'BookID': bookid})
-                            logger.debug('AudioStatus set to "%s" for "%s"' % (action, bookname))
+                        else:
+                            if 'eBook' in library:
+                                myDB.upsert("books", {'Status': action}, {'BookID': bookid})
+                                logger.debug('Status set to "%s" for "%s"' % (action, bookname))
+                            if 'Audio' in library:
+                                myDB.upsert("books", {'AudioStatus': action}, {'BookID': bookid})
+                                logger.debug('AudioStatus set to "%s" for "%s"' % (action, bookname))
                     else:
                         logger.warn("Unable to set status %s for %s" % (action, bookid))
                 elif action == "NoDelay":
@@ -5268,7 +5269,6 @@ class WebInterface(object):
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
             result, name = test_provider(kwargs['name'], host=host, api=api)
-
             if result:
                 lazylibrarian.config_write(kwargs['name'])
                 if isinstance(result, bool):
