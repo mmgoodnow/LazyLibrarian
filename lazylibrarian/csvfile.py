@@ -32,7 +32,6 @@ except ImportError:
         from lib3.csv import writer, reader, QUOTE_MINIMAL
 
 
-# noinspection PyTypeChecker
 def dump_table(table, savedir=None, status=None):
     myDB = database.DBConnection()
     # noinspection PyBroadException
@@ -72,6 +71,7 @@ def dump_table(table, savedir=None, status=None):
                         count += 1
             else:
                 with open(syspath(csvFile), 'w', encoding='utf-8') as csvfile:
+                    # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
                     csvwrite.writerow(headers)
                     for item in data:
@@ -189,6 +189,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
             count = 0
             if PY2:
                 with open(syspath(csvFile), 'wb') as csvfile:
+                    # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
                     # write headers, change AuthorName BookName BookIsbn to match import csv names
@@ -202,6 +203,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
                         count += 1
             else:
                 with open(syspath(csvFile), 'w', encoding='utf-8') as csvfile:
+                    # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
                     # write headers, change AuthorName BookName BookIsbn to match import csv names
@@ -265,7 +267,6 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-# noinspection PyTypeChecker
 def import_CSV(search_dir=None, library='eBook'):
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
@@ -335,7 +336,7 @@ def import_CSV(search_dir=None, library='eBook'):
                     if authorid:
                         bookmatch = finditem(item, authorname, library=library, reason='import_CSV: %s' % csvFile)
                     else:
-                        bookmatch = None
+                        bookmatch = {}
 
                     imported = False
                     results = []
