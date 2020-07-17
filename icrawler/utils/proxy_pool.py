@@ -6,7 +6,12 @@ import random
 import threading
 import time
 
-import requests
+try:
+    import urllib3
+    import requests
+except ImportError:
+    import lib.requests as requests
+    
 from lib.six import PY2
 try:
     from bs4 import BeautifulSoup
