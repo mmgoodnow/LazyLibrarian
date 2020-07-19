@@ -1288,6 +1288,9 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
 
         if success:
             try:
+                if PY2:
+                    result = makeBytestr(result)
+
                 rootxml = ElementTree.fromstring(result)
             except Exception as e:
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))
