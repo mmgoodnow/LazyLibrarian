@@ -19,7 +19,7 @@ from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN, BOK
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
-    makeUnicode, seconds_to_midnight, makeUTF8bytes, no_umlauts
+    makeUnicode, seconds_to_midnight, makeUTF8bytes, makeBytestr, no_umlauts
 from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
