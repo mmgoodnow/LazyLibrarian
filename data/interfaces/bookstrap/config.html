@@ -826,7 +826,11 @@
                         %>
                         <label for="GR_SYNCUSER" class="control-label">
                           <input type="checkbox" id="gr_syncuser" name="gr_syncuser" value="1" ${checked} />
-                          Use GoodReads shelves as user reading list</label>
+                          Use GoodReads shelves as user reading list
+                        %if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+                           <p>(enable USER_ACCOUNTS to get user ID)
+                        %endif
+                        </label>
                       </div>
                       <fieldset id="gruser_options">
                       <label for="gr_user">UserID to sync:</label>
