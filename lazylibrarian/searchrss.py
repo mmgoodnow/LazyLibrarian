@@ -384,7 +384,7 @@ def search_rss_book(books=None, library=None):
                 rss_count += 1
 
         logger.info("RSS Search for Wanted items complete, found %s %s" % (rss_count, plural(rss_count, "book")))
-        myDB.upsert("jobs", {"LastRun": time.time()}, {"Name": threading.currentThread().name})
+        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_rss_book: %s' % traceback.format_exc())
