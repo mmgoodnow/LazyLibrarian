@@ -3131,6 +3131,8 @@ class WebInterface(object):
                                     myDB.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
                                     logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
                         else:
+                            if action == 'Ignored':
+                                myDB.upsert("books", {'ScanResult': 'User ignored'}, {'BookID': bookid})
                             if 'eBook' in library:
                                 myDB.upsert("books", {'Status': action}, {'BookID': bookid})
                                 logger.debug('Status set to "%s" for "%s"' % (action, bookname))
@@ -3203,10 +3205,12 @@ class WebInterface(object):
                                 myDB.action('delete from wanted where bookid=?', (bookid,))
                                 logger.info('Removed "%s" from database' % bookname)
                             elif 'eBook' in library:
-                                myDB.upsert("books", {"Status": "Ignored"}, {"BookID": bookid})
+                                myDB.upsert("books", {"Status": "Ignored", "ScanResult": "User deleted"},
+                                                     {"BookID": bookid})
                                 logger.debug('Status set to Ignored for "%s"' % bookname)
                             elif 'Audio' in library:
-                                myDB.upsert("books", {"AudioStatus": "Ignored"}, {"BookID": bookid})
+                                myDB.upsert("books", {"AudioStatus": "Ignored", "ScanResult": "User deleted"},
+                                                     {"BookID": bookid})
                                 logger.debug('AudioStatus set to Ignored for "%s"' % bookname)
                         else:
                             myDB.action('delete from books where bookid=?', (bookid,))

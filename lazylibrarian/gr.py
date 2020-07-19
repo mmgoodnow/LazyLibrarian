@@ -720,8 +720,8 @@ class GoodReads:
                                 logger.debug('Rejecting %s for %s, %s' %
                                              (bookname, authorNameResult, rejected[1]))
 
-                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status FROM books,authors'
-                        cmd += ' WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
+                        cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
                         match = myDB.match(cmd, (bookid,))
                         rejectable = True
                         if match:
@@ -739,8 +739,12 @@ class GoodReads:
                                             authorNameResult, match['AuthorName'])
                                 logger.debug('Rejecting bookid %s, %s' % (bookid, rejected[1]))
                             else:
-                                logger.debug('Bookid %s for [%s][%s] is in database marked %s' %
-                                             (bookid, authorNameResult, bookname, match['Status']))
+                                msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
+                                       bookid, authorNameResult, bookname, match['Status'])
+                                if lazylibrarian.SHOW_AUDIO:
+                                    msg += ",%s" % match['AudioStatus']
+                                msg += " %s" % match['ScanResult']
+                                logger.debug(msg)
 
                             # Make sure we don't reject books we have already got
                             if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
@@ -825,7 +829,10 @@ class GoodReads:
                                 else:
                                     reason = "Rejected: %s" % rejected[1]
                             else:
-                                reason = entryreason
+                                if 'authorUpdate' in entryreason:
+                                    reason = 'Author: %s' % authorNameResult
+                                else:
+                                    reason = entryreason
 
                             # Leave alone if locked
                             if locked:
@@ -902,10 +909,10 @@ class GoodReads:
                                                     bookdate and bookdate != '0000' and
                                                     bookdate <= today()[:len(bookdate)]):
                                     # was rejected on previous scan but bookdate is now valid
-                                    new_status, new_astatus = getStatus(bookid, serieslist, book_status, audio_status,
-                                                                        entrystatus)
-                                    updateValueDict["Status"] = new_status
-                                    updateValueDict["AudioStatus"] = new_astatus
+                                    book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
+                                                                          entrystatus)
+                                    updateValueDict["Status"] = book_status
+                                    updateValueDict["AudioStatus"] = audio_status
 
                                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                                     # try to get a cover from another source

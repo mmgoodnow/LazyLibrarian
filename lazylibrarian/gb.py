@@ -432,19 +432,23 @@ class GoogleBooks:
                                     rejected = 'bookid', 'Got under different bookid %s' % bookid
                                     duplicates += 1
 
-                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status FROM books,authors'
-                        cmd += ' WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                        cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
+                        cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
                         match = myDB.match(cmd, (bookid,))
                         if match:  # we have a book with this bookid already
                             if bookname != match['BookName'] or authorname != match['AuthorName']:
                                 logger.debug('Rejecting bookid %s for [%s][%s] already got bookid for [%s][%s]' %
                                              (bookid, authorname, bookname, match['AuthorName'], match['BookName']))
+                                duplicates += 1
+                                rejected = 'got', 'Already got this book in database'
                             else:
-                                logger.debug('Rejecting bookid %s for [%s][%s] already got this book in database' %
-                                             (bookid, authorname, bookname))
+                                msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
+                                       bookid, authorname, bookname, match['Status'])
+                                if lazylibrarian.SHOW_AUDIO:
+                                    msg += ",%s" % match['AudioStatus']
+                                msg += " %s" % match['ScanResult']
+                                logger.debug(msg)
                                 check_status = True
-                            duplicates += 1
-                            rejected = 'got', 'Already got this book in database'
 
                             # Make sure we don't reject books we have got
                             if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
@@ -487,7 +491,10 @@ class GoogleBooks:
                                 else:
                                     reason = "Rejected: %s" % rejected[1]
                             else:
-                                reason = entryreason
+                                if 'authorUpdate' in entryreason:
+                                    reason = 'Author: %s' % authorname
+                                else:
+                                    reason = entryreason
 
                             if locked:
                                 locked_count += 1
