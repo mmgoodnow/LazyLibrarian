@@ -343,7 +343,7 @@ def syspath(path, prefix=True):
             encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
             path = path.decode(encoding, 'replace')
 
-    if len(path) < 4 and path[1] == ':':  # it's just a drive letter (E: or E:/)
+    if 1 < len(path) < 4 and path[1] == ':':  # it's just a drive letter (E: or E:/)
         return path
 
     # the html cache addressing uses forwardslash as a separator but windows file system needs backslash
