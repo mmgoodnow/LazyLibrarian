@@ -908,11 +908,16 @@ class GoodReads:
                                                     ' publication date' in existing['ScanResult'] and
                                                     bookdate and bookdate != '0000' and
                                                     bookdate <= today()[:len(bookdate)]):
+                                    logger.debug("previous scanresult [%s]" % existing['ScanResult'])
+                                    logger.debug("bookdate is now [%s]" % bookdate)
                                     # was rejected on previous scan but bookdate is now valid
+                                    logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
                                     book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
                                                                           entrystatus)
+                                    logger.debug("status is now %s,%s" % (book_status, audio_status))
                                     updateValueDict["Status"] = book_status
                                     updateValueDict["AudioStatus"] = audio_status
+                                    updateValueDict["ScanResult"] = "bookdate %s is now valid" % bookdate
 
                                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                                     # try to get a cover from another source
