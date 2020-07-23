@@ -908,7 +908,8 @@ class GoodReads:
                                                     ' publication date' in existing['ScanResult'] and
                                                     bookdate and bookdate != '0000' and
                                                     bookdate <= today()[:len(bookdate)]):
-                                    logger.debug("previous scanresult [%s]" % existing['ScanResult'])
+                                    if existing:
+                                        logger.debug("previous scanresult [%s]" % existing['ScanResult'])
                                     logger.debug("bookdate is now [%s]" % bookdate)
                                     # was rejected on previous scan but bookdate is now valid
                                     logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
