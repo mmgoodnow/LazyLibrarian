@@ -1296,6 +1296,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))
                 logger.debug(repr(result))
                 rootxml = None
+                success = False
         else:
             try:
                 result = result.decode('utf-8')
@@ -1307,6 +1308,8 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
             if not result or result == "''":
                 result = "Got an empty response"
             logger.error('Error reading data from %s: %s' % (host, result))
+
+        if not success:
             # maybe the host doesn't support the search type
             cancelled = cancelSearchType(searchType, result, provider)
             if not cancelled:  # it was some other problem
