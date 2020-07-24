@@ -43,18 +43,20 @@
 
 <form name="markAuthors" id="markAuthors" action="markAuthors" method="get" class="form-inline" onsubmit="return false;">
   <div class="row">
-    %if perm&lazylibrarian.perm_status:
+    %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
           <div class="form-group">
             <label for="markAuthors" class="control-label">Mark selected as</label>
             <select class="markAuthors form-control input-sm" id="action" name="action">
+              %if perm&lazylibrarian.perm_status:
               <option value="Active">Active</option>
               <option value="Wanted">Wanted</option>
               <option value="Ignored">Ignored</option>
               <option value="Paused">Paused</option>
               <option value="Remove">Remove</option>
               <option value="Delete">Delete</option>
-              %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+              %endif
+              %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
                 <option value="Subscribe">Subscribe</option>
                 <option value="Unsubscribe">Unsubscribe</option>
               %endif

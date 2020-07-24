@@ -45,7 +45,7 @@
     <div class="row">
       <input type="hidden" name="booklang" value=${booklang}>
       <input type="hidden" name="redirect" value='books'>
-      %if perm&lazylibrarian.perm_status or  lazylibrarian.CONFIG['USER_ACCOUNTS']:
+      %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
         <div class="form-group">
           <label for="markBooks" class="control-label">Mark selected as</label>
@@ -57,6 +57,7 @@
             <option value="Skipped">Skipped</option>
             <option value="Remove">Remove</option>
             <option value="Delete">Delete</option>
+          %endif
             %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
               <option value="Unread">Unread</option>
               <option value="Read">Read</option>
@@ -64,7 +65,6 @@
               <option value="Reading">Reading</option>
               <option value="Abandoned">Abandoned</option>
             %endif
-          %endif
           </select>
         </div>
         <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
