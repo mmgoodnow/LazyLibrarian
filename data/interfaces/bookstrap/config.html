@@ -1759,10 +1759,13 @@
                       <span class="input-group-addon"></span>
                     </div>
                       <%
-                        if '/list/show/' in provider['HOST']:
+                        label = 'Priority'
+                        if 'list_rss' in provider['HOST']:
                           label = 'Pages'
-                        else:
-                          label = 'Priority'
+                        if '/book/' in provider['HOST']:
+                          label = 'Pages'
+                        if '/show/' in provider['HOST']:
+                          label = 'Pages'
                       %>
                     <div class="input-group">
                       <span class="input-group-addon">${label}</span>

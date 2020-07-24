@@ -190,7 +190,31 @@ class WebInterface(object):
             user = myDB.match('SELECT UserName,UserID,Name,Email,SendTo from users where UserID=?',
                               (cookie['ll_uid'].value,))
             if user:
-                return serve_template(templatename="profile.html", title=title, user=user)
+                subs = myDB.select('SELECT Type,WantID from subscribers WHERE UserID=?', (cookie['ll_uid'].value,))
+                subscriptions=''
+                for item in subs:
+                    if subscriptions:
+                        subscriptions += '\n'
+                    item_name = ''
+                    if item['Type'] == 'author':
+                        res = myDB.match('SELECT AuthorName from authors WHERE authorid=?', (item['WantID'],))
+                        if res:
+                            item_name = "(%s)" % res['AuthorName']
+                    elif item['Type'] == 'series':
+                        res = myDB.match('SELECT SeriesName from series WHERE seriesid=?', (item['WantID'],))
+                        if res:
+                            item_name = "(%s)" % res['SeriesName']
+                    elif item['Type'] == 'comic':
+                        try:
+                            comicid, issueid = item['WantID'].split('_')
+                        except ValueError:
+                            comicid=''
+                        if comicid:
+                            res = myDB.match('SELECT Title from comics WHERE comicid=?', (comicid,))
+                            if res:
+                                item_name = "(%s)" % res['Title']
+                    subscriptions += '%s %s %s' % (item['Type'], item['WantID'], item_name)
+                return serve_template(templatename="profile.html", title=title, user=user, subs=subscriptions)
         return serve_template(templatename="index.html", title=title)
 
     # noinspection PyUnusedLocal
@@ -544,13 +568,19 @@ class WebInterface(object):
         myDB = database.DBConnection()
         match = myDB.match('SELECT * from users where UserName=?', (kwargs['user'],))
         if match:
+            subs = myDB.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
+            subscriptions=''
+            for item in subs:
+                if subscriptions:
+                    subscriptions += '\n'
+                subscriptions += '%s %s' % (item['Type'], item['WantID'])
             res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
                               'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
                               'sendto': match['SendTo'], 'booktype': match['BookType'],
-                              'userid': match['UserID']})
+                              'userid': match['UserID'], 'subs': subscriptions})
         else:
             res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '',
-                              'sendto': '', 'booktype': '', 'userid': ''})
+                              'sendto': '', 'booktype': '', 'userid': '', 'subs': ''})
         return res
 
     @cherrypy.expose
@@ -1016,6 +1046,21 @@ class WebInterface(object):
                                 cmd = 'UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?'
                                 myDB.action(cmd, (', '.join(ToRead), ', '.join(HaveRead), ', '.join(Reading),
                                                   ', '.join(Abandoned), cookie['ll_uid'].value))
+                elif action == 'Subscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                                    (userid, 'series', seriesid))
+                        logger.debug("Subscribe %s to series %s" % (userid, seriesid))
+                elif action == 'Unsubscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        myDB.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                    (userid, 'series', seriesid))
+                        logger.debug("Unsubscribe %s to series %s" % (userid, seriesid))
+
             if "redirect" in args:
                 if not args['redirect'] == 'None':
                     raise cherrypy.HTTPRedirect("series?AuthorID=%s" % args['redirect'])
@@ -1545,6 +1590,20 @@ class WebInterface(object):
                 elif action == "Remove":
                     logger.info("Removing author: %s" % check['AuthorName'])
                     myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                elif action == 'Subscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                                    (userid, 'author', authorid))
+                        logger.debug("Subscribe %s author %s" % (userid, authorid))
+                elif action == 'Unsubscribe':
+                    cookie = cherrypy.request.cookie
+                    if cookie and 'll_uid' in list(cookie.keys()):
+                        userid = cookie['ll_uid'].value
+                        myDB.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                    (userid, 'author', authorid))
+                        logger.debug("Unsubscribe %s author %s" % (userid, authorid))
 
         raise cherrypy.HTTPRedirect(redirect)
 
@@ -3813,6 +3872,21 @@ class WebInterface(object):
                 myDB.upsert("comics", newValueDict, controlValueDict)
                 logger.info('Comic %s details reset' % item)
 
+            if action == 'Subscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                                (userid, 'comic', item))
+                    logger.debug("Subscribe %s to comic %s" % (userid, item))
+            if action == 'Unsubscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    myDB.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                (userid, 'comic', item))
+                    logger.debug("Unsubscribe %s to comic %s" % (userid, item))
+
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
@@ -4542,7 +4616,7 @@ class WebInterface(object):
                 myDB.action('DELETE from pastissues WHERE BookID=?', (title,))
                 myDB.action('DELETE from wanted where BookID=?', (title,))
                 logger.info('Magazine %s removed from database' % title)
-            if action == "Reset":
+            elif action == "Reset":
                 controlValueDict = {"Title": title}
                 newValueDict = {
                     "LastAcquired": None,
@@ -4552,6 +4626,20 @@ class WebInterface(object):
                 }
                 myDB.upsert("magazines", newValueDict, controlValueDict)
                 logger.info('Magazine %s details reset' % title)
+            elif action == 'Subscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                                (userid, 'magazine', title))
+                    logger.debug("Subscribe %s to magazine %s" % (userid, title))
+            elif action == 'Unsubscribe':
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
+                    myDB.action('DELETE from subscribers WHERE UserID=? and Type=? and WantID=?',
+                                (userid, 'magazine', title))
+                    logger.debug("Unsubscribe %s to magazine %s" % (userid, title))
 
         raise cherrypy.HTTPRedirect("magazines")
 

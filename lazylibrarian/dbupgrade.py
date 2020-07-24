@@ -115,8 +115,9 @@ def upgrade_needed():
     # 63 Add Start to jobs table, rename LastRun to Finish
     # 64 Add Added time to pastissues table
     # 65 Add Reading and Abandoned to users table
+    # 66 Add subscribers table
 
-    db_current_version = 65
+    db_current_version = 66
 
     if db_version < db_current_version:
         return db_current_version
@@ -205,6 +206,8 @@ def dbupgrade(db_current_version):
                                 'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
                                 'Publisher TEXT, Link TEXT, aka TEXT, Description TEXT)')
                     myDB.action('CREATE TABLE jobs (Name TEXT, Finish INTEGER DEFAULT 0, Start INTEGER DEFAULT 0)')
+                    myDB.action('CREATE TABLE subscribers (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
+                                'Type TEXT, WantID Text)')
 
                     if lazylibrarian.FOREIGN_KEY:
                         myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
@@ -1803,3 +1806,12 @@ def db_v65(myDB, upgradelog):
         myDB.action('ALTER TABLE users ADD COLUMN Abandoned TEXT')
     upgradelog.write("%s v65: complete\n" % time.ctime())
 
+
+def db_v66(myDB, upgradelog):
+    if not has_column(myDB, "subscribers", "UserID"):
+        lazylibrarian.UPDATE_MSG = 'Creating subscribers table'
+        upgradelog.write("%s v66: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        act = 'CREATE TABLE subscribers (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE,'
+        act += ' Type TEXT, WantID Text)'
+        myDB.action(act)
+    upgradelog.write("%s v53: complete\n" % time.ctime())

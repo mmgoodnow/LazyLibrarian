@@ -54,6 +54,10 @@
             <option value="Reset">Reset</option>
             <option value="Remove">Remove</option>
             <option value="Delete">Delete</option>
+            %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+            <option value="Subscribe">Subscribe</option>
+            <option value="Unsubscribe">Unsubscribe</option>
+            %endif
           </select>
         </div>
         <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>

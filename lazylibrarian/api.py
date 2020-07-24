@@ -198,6 +198,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'cpuUse': 'recent cpu usage of the program',
             'nice': 'show current nice level',
             'nicer': 'make a little nicer',
+            'subscribe': '&user= &feed= subscribe a user to a feed',
+            'unsubscribe': '&user= &feed= remove a user from a feed',
             }
 
 
@@ -382,6 +384,41 @@ class Api(object):
         if 'read' in kwargs:
             col1 = kwargs['read']
         self.data = syncCalibreList(col1, col2)
+
+    def _subscribe(self, **kwargs):
+        if 'user' not in kwargs:
+            self.data = 'Missing parameter: user'
+            return
+        if 'feed' not in kwargs:
+            self.data = 'Missing parameter: feed'
+            return
+        myDB = database.DBConnection()
+        res = myDB.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
+        if not res:
+            self.data = 'Invalid userid'
+            return
+        for provider in lazylibrarian.RSS_PROV:
+            if provider['DISPNAME'] == kwargs['feed']:
+                if lazylibrarian.WishListType(provider['HOST']):
+                    myDB.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
+                            (kwargs['user'], 'feed', kwargs['feed']))
+                    self.data = 'OK'
+                    return
+        self.data = 'Invalid feed'
+        return
+
+    def _unsubscribe(self, **kwargs):
+        if 'user' not in kwargs:
+            self.data = 'Missing parameter: user'
+            return
+        if 'feed' not in kwargs:
+            self.data = 'Missing parameter: feed'
+            return
+        myDB = database.DBConnection()
+        myDB.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
+                            (kwargs['user'], 'feed', kwargs['feed']))
+        self.data = 'OK'
+        return
 
     def _calibreList(self, **kwargs):
         col1 = None

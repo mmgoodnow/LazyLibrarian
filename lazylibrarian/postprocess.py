@@ -27,7 +27,6 @@ import uuid
 from shutil import copyfile
 
 import lazylibrarian
-from lazylibrarian.common import listdir
 from lib.six import PY2
 
 try:
@@ -44,7 +43,7 @@ from lazylibrarian.bookrename import nameVars, audioProcess, stripspaces, id3rea
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, runScript, multibook, namedic, \
+    safe_copy, safe_move, make_dirs, runScript, multibook, namedic, listdir, \
     path_isfile, path_isdir, path_exists, syspath, remove
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
@@ -54,6 +53,7 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan, get_book_meta
 from lazylibrarian.magazinescan import create_id
+from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.images import createMagCover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download
@@ -1214,10 +1214,12 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             custom_notify_download("%s %s" % (book['BookID'], book_type))
                             notify_download("%s %s from %s at %s" %
                                             (book_type, global_name, dispname, now()), book['BookID'])
+                            mailing_list(book_type, global_name, book['BookID'])
                         else:
                             custom_notify_download("%s %s" % (book['BookID'], book['NZBUrl']))
                             notify_download("%s %s from %s at %s" %
                                             (book_type, global_name, dispname, now()), issueid)
+                            mailing_list(book_type, global_name, issueid)
 
                         update_downloads(book['NZBprov'])
                     else:
@@ -2092,6 +2094,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                     frm = 'from '
 
                 notify_download("%s %s %s%s at %s" % (book_type, global_name, frm, snatched_from, now()), bookID)
+                mailing_list(book_type, global_name, bookID)
                 if was_snatched:
                     update_downloads(dispName(was_snatched[0]['NZBprov']))
                 else:

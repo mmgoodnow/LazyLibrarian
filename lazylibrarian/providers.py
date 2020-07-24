@@ -133,6 +133,9 @@ def test_provider(name, host=None, api=None):
                     elif 'amazon' in host and '/charts' in host:
                         return AMAZON(host, provider['NAME'], provider['DLPRIORITY'],
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'nytimes' in host:
+                        return NYTIMES(host, provider['NAME'], provider['DLPRIORITY'],
+                                      provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return RSS(host, provider['NAME'], provider['DLPRIORITY'],
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -587,7 +590,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
         if lazylibrarian.CONFIG[prov]:
             ignored = False
             if ProviderIsBlocked(prov):
-                logger.debug('[IterateOverTorrentSites] - %s is BLOCKED' % lazylibrarian.CONFIG[prov + '_HOST'])
+                logger.debug('%s is BLOCKED' % lazylibrarian.CONFIG[prov + '_HOST'])
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
@@ -705,7 +708,7 @@ def IterateOverRSSSites():
     for provider in lazylibrarian.RSS_PROV:
         if provider['ENABLED'] and not lazylibrarian.WishListType(provider['HOST']):
             if ProviderIsBlocked(provider['HOST']):
-                logger.debug('[IterateOverRSSSites] - %s is BLOCKED' % provider['HOST'])
+                logger.debug('%s is BLOCKED' % provider['HOST'])
             else:
                 providers += 1
                 logger.debug('[IterateOverRSSSites] - %s' % provider['HOST'])
@@ -724,7 +727,7 @@ def IterateOverWishLists():
             wishtype = lazylibrarian.WishListType(provider['HOST'])
             if wishtype == 'GOODREADS':
                 if ProviderIsBlocked(provider['HOST']):
-                    logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
@@ -732,7 +735,7 @@ def IterateOverWishLists():
                                              provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
             elif wishtype == 'LISTOPIA':
                 if ProviderIsBlocked(provider['HOST']):
-                    logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
@@ -740,7 +743,7 @@ def IterateOverWishLists():
                                             provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
             elif wishtype == 'AMAZON':
                 if ProviderIsBlocked(provider['HOST']):
-                    logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
@@ -748,7 +751,7 @@ def IterateOverWishLists():
                                           provider['DLPRIORITY'], provider['DISPNAME'], provider['DLTYPES'])
             elif wishtype == 'NYTIMES':
                 if ProviderIsBlocked(provider['HOST']):
-                    logger.debug('[IterateOverWishLists] - %s is BLOCKED' % provider['HOST'])
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[IterateOverWishLists] - %s' % provider['HOST'])
@@ -765,7 +768,7 @@ def IterateOverIRCSites(book=None, searchType=None):
         if provider['ENABLED']:
             ignored = False
             if ProviderIsBlocked(provider['SERVER']):
-                logger.debug('[IterateOverIRCSites] - %s is BLOCKED' % provider['SERVER'])
+                logger.debug('%s is BLOCKED' % provider['SERVER'])
                 ignored = True
             elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
