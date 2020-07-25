@@ -565,6 +565,12 @@ class GoogleBooks:
                                     updateValueDict["Status"] = book_status
                                     updateValueDict["AudioStatus"] = audio_status
 
+                                    if existing:
+                                        # was rejected on previous scan but bookdate has become valid
+                                        logger.debug("valid bookdate [%s] previous scanresult [%s]" %
+                                                     (book['date'], existing['ScanResult']))
+                                        updateValueDict["ScanResult"] = "bookdate %s is now valid" % book['date']
+
                                 worklink = getWorkPage(bookid)
                                 if worklink:
                                     updateValueDict["WorkPage"] = worklink
