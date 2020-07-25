@@ -213,7 +213,7 @@ class EmailNotifier:
                             # if the format we want to send is available, select it
                             if preftype in types:
                                 filename = basename + '.' + preftype
-
+                                logger.debug('Found preferred filetype %s' % preftype)
                             # if the format is not available, see if it's a type we want to convert,
                             # otherwise send the first available format
                             else:
@@ -221,16 +221,22 @@ class EmailNotifier:
                                 # convert it
                                 for convertable_format in getList(lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']):
                                     if convertable_format in types:
+                                        logger.debug('Converting %s to preferred filetype %s' %
+                                                     (convertable_format, preftype))
                                         # noinspection PyBroadException
                                         try:
                                             filename = ebook_convert.convert(basename + '.' + convertable_format,
                                                                              preftype)
+                                            logger.debug('Converted %s to preferred filetype %s' %
+                                                         (convertable_format, preftype))
                                             break
                                         except Exception:
+                                            logger.debug("Conversion %s to %s failed" % (convertable_format, preftype))
                                             continue
                                 # If no convertable formats found, revert to default behavior of sending
                                 # first available format
                                 else:
+                                    logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
                                     filename = basename + '.' + types[0]
 
                         title = data['BookName']
