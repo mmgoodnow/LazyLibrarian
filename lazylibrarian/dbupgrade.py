@@ -557,7 +557,7 @@ def check_db():
             for orphan in snatches:
                 myDB.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
 
-        # all authors with no books in the library and none marked wanted
+        # all authors with no books in the library and no books marked wanted
         cmd = 'select authorid from authors where havebooks=0 except select authorid from wanted,books '
         cmd += 'where books.bookid=wanted.bookid and books.status=="Wanted";'
         authors = myDB.select(cmd)
@@ -569,6 +569,15 @@ def check_db():
             # name = myDB.match("SELECT authorname from authors where authorid=?", (author[0],))
             # logger.warn("%s %s" % (author[0], name[0]))
             # myDB.action('DELETE from authors where authorid=?', (author[0],))
+
+        # update empty bookdate to "0000"
+        lazylibrarian.UPDATE_MSG = 'Updating books with no bookdate'
+        books = myDB.select('SELECT * FROM books WHERE BookDate is NULL or BookDate=""')
+        if books:
+            cnt += len(books)
+            msg = 'Found %s %s with no bookdate' % (len(books), plural(len(books), "book"))
+            logger.warn(msg)
+            myDB.action('UPDATE books SET BookDate="0000" WHERE BookDate is NULL or BookDate=""')
 
     except Exception as e:
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
