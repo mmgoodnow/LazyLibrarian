@@ -1211,7 +1211,7 @@ def cancelSearchType(searchType, errorMsg, provider):
     errorlist = ['no such function', 'unknown parameter', 'unknown function', 'bad_gateway',
                  'bad request', 'bad_request', 'incorrect parameter', 'does not support']
 
-    errormsg = errorMsg.lower()
+    errormsg = makeUnicode(errorMsg).lower()
 
     if (provider['BOOKSEARCH'] and searchType in ["book", "shortbook"]) or \
             (provider['AUDIOSEARCH'] and searchType in ["audio", "shortaudio"]):
