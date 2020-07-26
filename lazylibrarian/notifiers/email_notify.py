@@ -190,6 +190,10 @@ class EmailNotifier:
                             if res and res['BookType']:
                                 preftype = res['BookType']
                                 logger.debug('User preferred filetype = %s' % preftype)
+                            else:
+                                logger.debug('No user preference for %s' % cookie['ll_uid'].value)
+                        else:
+                            logger.debug('No user login cookie')
                         if not preftype and typelist:
                             preftype = typelist[0]
                             logger.debug('Default preferred filetype = %s' % preftype)
