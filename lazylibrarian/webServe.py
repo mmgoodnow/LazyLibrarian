@@ -191,7 +191,7 @@ class WebInterface(object):
                               (cookie['ll_uid'].value,))
             if user:
                 subs = myDB.select('SELECT Type,WantID from subscribers WHERE UserID=?', (cookie['ll_uid'].value,))
-                subscriptions=''
+                subscriptions = ''
                 for item in subs:
                     if subscriptions:
                         subscriptions += '\n'
@@ -208,7 +208,7 @@ class WebInterface(object):
                         try:
                             comicid, issueid = item['WantID'].split('_')
                         except ValueError:
-                            comicid=''
+                            comicid = ''
                         if comicid:
                             res = myDB.match('SELECT Title from comics WHERE comicid=?', (comicid,))
                             if res:
@@ -542,6 +542,67 @@ class WebInterface(object):
         return serve_template(templatename="users.html", title=title, users=users)
 
     @cherrypy.expose
+    def updateFeeds(self, **kwargs):
+        if 'value' in kwargs and kwargs['value'] == '':
+            # cancel or [x] pressed
+            return 'No changes made'
+        user = kwargs.pop('user', '')
+        value = getList(kwargs.pop('value[]', ''))
+        cnt = 0
+        myDB = database.DBConnection()
+        for item in kwargs:
+            if '[text]' in item:
+                feedname = kwargs[item]
+                feednum = kwargs.get(item.replace('[text]', '[value]'), '')
+                if feedname and feednum:
+                    res = myDB.match('SELECT * from subscribers WHERE Type=? and UserID=? and WantID=?',
+                                     ("feed", user, feedname))
+                    if feednum in value:
+                        if res:
+                            logger.debug("%s %s was already subscribed" % (feedname, user))
+                        else:
+                            cnt += 1
+                            myDB.action('INSERT INTO subscribers (Type, UserID, WantID) VALUES (?, ?, ?)',
+                                        ("feed", user, feedname))
+                            logger.debug("Subscribed %s to %s" % (user, feedname))
+                    else:
+                        if res:
+                            cnt += 1
+                            myDB.action('DELETE from subscribers WHERE Type=? and UserID=? and WantID=?',
+                                        ("feed", user, feedname))
+                            logger.debug("Unsubscribed %s to %s" % (user, feedname))
+                        else:
+                            logger.debug("%s %s was already unsubscribed" % (feedname, user))
+
+        return "Changed %s %s" % (cnt, plural(cnt, 'feed'))
+
+    @cherrypy.expose
+    def userFeeds(self, **kwargs):
+        myDB = database.DBConnection()
+        user = kwargs['user']
+        if user:
+            feedlist = []
+            value = []
+            cnt = 0
+            feeds = myDB.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
+            for provider in lazylibrarian.RSS_PROV:
+                wishtype = lazylibrarian.WishListType(provider['HOST'])
+                if wishtype:
+                    cnt += 1
+                    subscribed = False
+                    for item in feeds:
+                        if item['WantID'] == provider['DISPNAME']:
+                            subscribed = True
+                            break
+                    feedlist.append({'text': provider['DISPNAME'], 'value': str(cnt)})
+                    if subscribed:
+                        value.append(str(cnt))
+            res = json.dumps({'feeds': feedlist, 'value': value})
+            logger.debug(res)
+            return res
+        return json.dumps({'feeds': '', 'value': ''})
+
+    @cherrypy.expose
     def admin_delete(self, **kwargs):
         myDB = database.DBConnection()
         user = kwargs['user']
@@ -569,7 +630,7 @@ class WebInterface(object):
         match = myDB.match('SELECT * from users where UserName=?', (kwargs['user'],))
         if match:
             subs = myDB.select('SELECT Type,WantID from subscribers WHERE UserID=?', (match['userid'],))
-            subscriptions=''
+            subscriptions = ''
             for item in subs:
                 if subscriptions:
                     subscriptions += '\n'

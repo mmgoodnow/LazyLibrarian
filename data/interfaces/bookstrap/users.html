@@ -20,10 +20,11 @@
                 </select>
             </div>
             <div>
-                <label for="saveusers" class="control-label">Import/Export Users</label>
+                <label for="saveusers" class="control-label">Import/Export Users/edit feeds</label>
                 <div>
                   <input type="button" value="Import" id="loadusers" class="btn btn-default" />
                   <input type="button" value="Export" id="saveusers" class="btn btn-default" />
+                  <input type="button" value="Feeds" id="userfeeds" class="btn btn-default" />
                 </div>
             </div>
         <div class="row">
@@ -130,6 +131,35 @@
             $("#userid").val(obj['userid']);
             $("#password").val("");
             $("#summernote").val(obj['subs']);
+            });
+        });
+
+        $('#userfeeds').on('click', function(e) {
+          var user = $.trim($("#userid").val());
+            $.get('userFeeds', {'user': user}, function(data) {
+              var obj = JSON.parse(data);
+              bootbox.prompt({
+                  title: "User Feeds",
+                  value: obj['value'],
+                  inputType: 'checkbox',
+                  inputOptions: obj['feeds'],
+                  callback: function (result) {
+                      $.get("updateFeeds", {'user': user, 'value': result, 'feeds': obj['feeds']},
+                            function (data) {
+                            bootbox.dialog({
+                                title: 'Updated User',
+                                message: '<pre>'+data+'</pre>',
+                                buttons: {
+                                    primary: {
+                                        label: "Close",
+                                        className: 'btn-primary',
+                                        callback: function(result){ window.location.reload(true) }
+                                    }
+                                }
+                            });
+                      });
+                  }
+              });
             });
         });
 
