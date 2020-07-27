@@ -130,6 +130,7 @@ def mailing_list(book_type, global_name, book_id):
 
     count = 0
     for user in userlist:
+        msg = ''
         res = myDB.match('SELECT SendTo,BookType from users where UserID=?', (user,))
         if res and res['SendTo']:
             if booktype == 'ebook':
@@ -138,21 +139,21 @@ def mailing_list(book_type, global_name, book_id):
                 prefname = "%s.%s" % (basename, pref)
                 if os.path.exists(prefname):
                     filename = prefname
+                else:
+                    msg = global_name + ' is available for download, but not as ' + pref
+                    filename = ''
 
             if filename:
                 logger.debug("Emailing %s to %s" % (filename, res['SendTo']))
-                if global_name:
-                    msg = global_name + ' is attached'
-                else:
-                    msg = ''
+                msg = global_name + ' is attached'
                 result = email_notifier.email_file(subject="Message from LazyLibrarian",
                                                    message=msg, to_addr=res['SendTo'], files=[filename])
             else:
-                if global_name:
-                    logger.debug("Notifying %s to %s" % (global_name, res['SendTo']))
+                logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
+                if not msg:
                     msg = global_name + ' is available for download'
-                    result = email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                       message=msg, to_addr=res['SendTo'], files=[])
+                result = email_notifier.email_file(subject="Message from LazyLibrarian",
+                                                   message=msg, to_addr=res['SendTo'], files=[])
 
             if result:
                 count += 1
@@ -163,4 +164,4 @@ def mailing_list(book_type, global_name, book_id):
                 msg = "Failed to email file %s to %s" % (os.path.split(filename)[1], res['SendTo'])
                 logger.error(msg)
 
-    logger.debug("Emailed %s %s to %s %s" % (book_type, global_name, count, plural(count, 'user')))
+    logger.debug("Emailed/Notified %s %s to %s %s" % (book_type, global_name, count, plural(count, 'user')))
