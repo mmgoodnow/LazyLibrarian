@@ -904,11 +904,12 @@ class GoodReads:
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                if not rejected and existing and existing['ScanResult'] and
-                                        ' publication date' in existing['ScanResult'] and bookdate and
+                                if not rejected and existing and existing['ScanResult'] and \
+                                        ' publication date' in existing['ScanResult'] and bookdate and \
                                         bookdate != '0000' and bookdate <= today()[:len(bookdate)]:
                                     # was rejected on previous scan but bookdate has become valid
-                                    logger.debug("valid bookdate [%s] previous scanresult [%s]" % (bookdate, existing['ScanResult']))
+                                    logger.debug("valid bookdate [%s] previous scanresult [%s]" %
+                                                 (bookdate, existing['ScanResult']))
                                     logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
                                     book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
                                                                           entrystatus)
