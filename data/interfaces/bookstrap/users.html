@@ -70,7 +70,17 @@
               </div>
               <div class="form-group col-md-6">
                 <label for="booktype">Preferred BookType to open/email</label>
-                <input id="booktype" name="booktype" class="form-control" value="">
+                        <select name="booktype" id="booktype" class="form-control">
+                          %for btype in typelist:
+                          <%
+                            if btype == "epub":
+                                selected = 'selected="selected"'
+                            else:
+                                selected = ''
+                          %>
+                          <option value="${btype}" ${selected}>${btype}</option>
+                          %endfor
+                        </select>
               </div>
               <div class="form-group col-md-6">
                 <label for="userid">UserID (for information only)</label>

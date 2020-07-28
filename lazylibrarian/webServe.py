@@ -539,7 +539,7 @@ class WebInterface(object):
         title = "Manage User Accounts"
         cmd = 'SELECT UserID, UserName, Name, Email, SendTo, Perms, CalibreRead, CalibreToRead, BookType from users'
         users = myDB.select(cmd)
-        return serve_template(templatename="users.html", title=title, users=users)
+        return serve_template(templatename="users.html", title=title, users=users, typelist=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
 
     @cherrypy.expose
     def updateFeeds(self, **kwargs):
