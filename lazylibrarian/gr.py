@@ -904,22 +904,18 @@ class GoodReads:
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                if not existing or (existing['ScanResult'] and
-                                                    ' publication date' in existing['ScanResult'] and
-                                                    bookdate and bookdate != '0000' and
-                                                    bookdate <= today()[:len(bookdate)]):
-
+                                if not rejected and existing and existing['ScanResult'] and
+                                        ' publication date' in existing['ScanResult'] and bookdate and
+                                        bookdate != '0000' and bookdate <= today()[:len(bookdate)]:
+                                    # was rejected on previous scan but bookdate has become valid
+                                    logger.debug("valid bookdate [%s] previous scanresult [%s]" % (bookdate, existing['ScanResult']))
                                     logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
                                     book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
                                                                           entrystatus)
                                     logger.debug("status is now %s,%s" % (book_status, audio_status))
+                                    updateValueDict["ScanResult"] = "bookdate %s is now valid" % bookdate
                                     updateValueDict["Status"] = book_status
                                     updateValueDict["AudioStatus"] = audio_status
-
-                                    if existing:
-                                        # was rejected on previous scan but bookdate has become valid
-                                        logger.debug("valid bookdate [%s] previous scanresult [%s]" % (bookdate, existing['ScanResult']))
-                                        updateValueDict["ScanResult"] = "bookdate %s is now valid" % bookdate
 
                                 if 'nocover' in bookimg or 'nophoto' in bookimg:
                                     # try to get a cover from another source
