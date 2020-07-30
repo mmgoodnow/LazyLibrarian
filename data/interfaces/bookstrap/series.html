@@ -11,6 +11,13 @@
         %else:
           <label for="dummy" class="control-label"> </label>
         %endif
+            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+              %if lazylibrarian.MY_SERIES == True:
+                <a href="toggleMySeries" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+              %else:
+                <a href="toggleMySeries" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+              %endif
+            %endif
         </div>
         <div class="clearfix visible-xs"><hr/></div>
         %if perm&lazylibrarian.perm_search:

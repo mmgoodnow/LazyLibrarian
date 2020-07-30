@@ -17,10 +17,10 @@ import json
 import os
 import random
 import re
+import subprocess
 import threading
 import time
 import traceback
-import subprocess
 import uuid
 from shutil import copyfile, rmtree
 
@@ -224,6 +224,11 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
+
         # noinspection PyBroadException
         try:
             myDB = database.DBConnection()
@@ -241,7 +246,17 @@ class WebInterface(object):
                 cmd += 'where Status != "Ignored" '
                 if lazylibrarian.CONFIG['IGNORE_PAUSED']:
                     cmd += 'and  Status != "Paused" '
-            cmd += 'order by AuthorName COLLATE NOCASE'
+
+            myauthors = []
+            if userid and lazylibrarian.MY_AUTHORS:
+                res = myDB.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("User subscribes to %s authors" % len(res))
+                for author in res:
+                    myauthors.append(author['WantID'])
+                cmd += ' and AuthorID in (' + ', '.join(myauthors) + ')'
+
+            cmd += ' order by AuthorName COLLATE NOCASE'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getIndex %s" % cmd)
@@ -539,7 +554,8 @@ class WebInterface(object):
         title = "Manage User Accounts"
         cmd = 'SELECT UserID, UserName, Name, Email, SendTo, Perms, CalibreRead, CalibreToRead, BookType from users'
         users = myDB.select(cmd)
-        return serve_template(templatename="users.html", title=title, users=users, typelist=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
+        return serve_template(templatename="users.html", title=title, users=users,
+                              typelist=getList(lazylibrarian.CONFIG['EBOOK_TYPE']))
 
     @cherrypy.expose
     def updateFeeds(self, **kwargs):
@@ -840,6 +856,11 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
+
         # noinspection PyBroadException
         try:
             # kwargs is used by datatables to pass params
@@ -878,6 +899,16 @@ class WebInterface(object):
             if AuthorID:
                 cmd += ' and seriesauthors.AuthorID=?'
                 args.append(AuthorID)
+
+            myseries = []
+            if userid and lazylibrarian.MY_SERIES:
+                res = myDB.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("User subscribes to %s series" % len(res))
+                for series in res:
+                    myseries.append(series['WantID'])
+                cmd += ' and series.seriesID in (' + ', '.join(myseries) + ')'
+
             cmd += ' GROUP BY series.seriesID'
             cmd += ' order by AuthorName,SeriesName'
 
@@ -1909,6 +1940,54 @@ class WebInterface(object):
             lazylibrarian.IGNORED_AUTHORS = True
         raise cherrypy.HTTPRedirect("home")
 
+    @cherrypy.expose
+    def toggleMyAuth(self):
+        if lazylibrarian.MY_AUTHORS:
+            lazylibrarian.MY_AUTHORS = False
+        else:
+            lazylibrarian.MY_AUTHORS = True
+        raise cherrypy.HTTPRedirect("home")
+
+    @cherrypy.expose
+    def toggleMySeries(self):
+        if lazylibrarian.MY_SERIES:
+            lazylibrarian.MY_SERIES = False
+        else:
+            lazylibrarian.MY_SERIES = True
+        raise cherrypy.HTTPRedirect("series")
+
+    @cherrypy.expose
+    def toggleMyFeeds(self):
+        if lazylibrarian.MY_FEEDS:
+            lazylibrarian.MY_FEEDS = False
+        else:
+            lazylibrarian.MY_FEEDS = True
+        raise cherrypy.HTTPRedirect("books")
+
+    @cherrypy.expose
+    def toggleMyAFeeds(self):
+        if lazylibrarian.MY_AFEEDS:
+            lazylibrarian.MY_AFEEDS = False
+        else:
+            lazylibrarian.MY_AFEEDS = True
+        raise cherrypy.HTTPRedirect("audio")
+
+    @cherrypy.expose
+    def toggleMyMags(self):
+        if lazylibrarian.MY_MAGS:
+            lazylibrarian.MY_MAGS = False
+        else:
+            lazylibrarian.MY_MAGS = True
+        raise cherrypy.HTTPRedirect("magazines")
+
+    @cherrypy.expose
+    def toggleMyComics(self):
+        if lazylibrarian.MY_COMICS:
+            lazylibrarian.MY_COMICS = False
+        else:
+            lazylibrarian.MY_COMICS = True
+        raise cherrypy.HTTPRedirect("comics")
+
     # BOOKS #############################################################
 
     @cherrypy.expose
@@ -2045,14 +2124,16 @@ class WebInterface(object):
             Abandoned = set()
             flagTo = 0
             flagHave = 0
+            userid = None
             if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
                 perm = lazylibrarian.perm_admin
             else:
                 perm = 0
                 cookie = cherrypy.request.cookie
                 if cookie and 'll_uid' in list(cookie.keys()):
+                    userid = cookie['ll_uid'].value
                     cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?'
-                    res = myDB.match(cmd, (cookie['ll_uid'].value,))
+                    res = myDB.match(cmd, (userid,))
                     if res:
                         perm = check_int(res['Perms'], 0)
                         ToRead = set(getList(res['ToRead']))
@@ -2123,6 +2204,44 @@ class WebInterface(object):
                 if 'booklang' in kwargs and kwargs['booklang'] != '' and kwargs['booklang'] != 'None':
                     cmd += ' and BOOKLANG=?'
                     args.append(kwargs['booklang'])
+
+            if kwargs['source'] in ["Books", "Audio"]:
+                if userid and lazylibrarian.MY_FEEDS:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("Getting user booklist")
+                    mybooks = []
+                    res = myDB.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("User subscribes to %s authors" % len(res))
+                    for authorid in res:
+                        bookids = myDB.select('SELECT BookID from books WHERE AuthorID=?', (authorid['WantID'],))
+                        for bookid in bookids:
+                            mybooks.append(bookid['BookID'])
+
+                    res = myDB.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("User subscribes to %s series" % len(res))
+                    for series in res:
+                        sel = 'SELECT BookID from member,series WHERE series.seriesid=?'
+                        sel += ' and member.seriesid=series.seriesid'
+                        bookids = myDB.select(sel, (series['WantID'],))
+                        for bookid in bookids:
+                            mybooks.append(bookid['BookID'])
+
+                    res = myDB.select('SELECT WantID from subscribers WHERE Type="feed" and UserID=?', (userid,))
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("User subscribes to %s feeds" % len(res))
+                    for feed in res:
+                        sel = 'SELECT BookID from books WHERE Requester like "%?%"'
+                        sel += '  or AudioRequester like "%?%"'
+                        bookids = myDB.select(sel, (feed['WantID'], feed['WantID']))
+                        for bookid in bookids:
+                            mybooks.append(bookid['BookID'])
+
+                    mybooks = set(mybooks)
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                        logger.debug("User booklist length %s" % len(mybooks))
+                    cmd += ' and books.bookID in (' + ', '.join(mybooks) + ')'
 
             if lazylibrarian.GROUP_CONCAT:
                 cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
@@ -3554,6 +3673,10 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
@@ -3562,8 +3685,17 @@ class WebInterface(object):
             mags = []
             myDB = database.DBConnection()
             cmd = 'select comics.*,(select count(*) as counter from comicissues '
-            cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics order by Title'
+            cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics'
 
+            mycomics = []
+            if userid and lazylibrarian.MY_COMICS:
+                res = myDB.select('SELECT WantID from subscribers WHERE Type="comic" and UserID=?', (userid,))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("User subscribes to %s comics" % len(res))
+                for mag in res:
+                    mycomics.append(mag['WantID'])
+                cmd += ' WHERE comics.comicid in (' + ', '.join(mycomics) + ')'
+            cmd += ' order by Title'
             rowlist = myDB.select(cmd)
 
             if len(rowlist):
@@ -4019,6 +4151,10 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        userid = None
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            userid = cookie['ll_uid'].value
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
@@ -4027,7 +4163,21 @@ class WebInterface(object):
             mags = []
             myDB = database.DBConnection()
             cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
-            cmd += ' as Iss_Cnt from magazines order by Title'
+            cmd += ' as Iss_Cnt from magazines'
+
+            mymags = []
+            if userid and lazylibrarian.MY_MAGS:
+                res = myDB.select('SELECT WantID from subscribers WHERE Type="magazine" and UserID=?', (userid,))
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
+                    logger.debug("User subscribes to %s magazines" % len(res))
+                maglist = ''
+                for mag in res:
+                    if maglist:
+                        maglist += ', '
+                    maglist += '"%s"' % mag['WantID']
+                cmd += ' WHERE Title in (' + maglist + ')'
+            cmd += ' order by Title'
+
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug(cmd)
             rowlist = myDB.select(cmd)

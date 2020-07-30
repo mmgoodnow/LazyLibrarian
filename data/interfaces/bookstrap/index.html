@@ -14,6 +14,13 @@
             %else:
               <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user-secret"></i> Show Inactive Authors</a>
             %endif
+            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+              %if lazylibrarian.MY_AUTHORS == True:
+                <a href="toggleMyAuth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+              %else:
+                <a href="toggleMyAuth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+              %endif
+            %endif
         </div>
         <div class="clearfix visible-xs"><hr/></div>
         %if perm&lazylibrarian.perm_search:

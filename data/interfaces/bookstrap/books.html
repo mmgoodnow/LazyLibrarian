@@ -18,6 +18,11 @@
             <a href="rssFeed?user=${user}&type=eBook&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rssFeed?user=${user}&type=eBook&limit=10.xml">
           %endif
+          %if lazylibrarian.MY_FEEDS == True:
+            <a href="toggleMyFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+          %else:
+            <a href="toggleMyFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+          %endif
         %endif
       </div>
         %if len(languages) > 1:
