@@ -148,11 +148,15 @@
           var user = $.trim($("#userid").val());
             $.get('userFeeds', {'user': user}, function(data) {
               var obj = JSON.parse(data);
+              var feeds = obj['feeds']
+              if (feeds.length === 0) {
+                alert("No wishlists found");
+              }
               bootbox.prompt({
                   title: "User Feeds",
                   value: obj['value'],
                   inputType: 'checkbox',
-                  inputOptions: obj['feeds'],
+                  inputOptions: feeds,
                   callback: function (result) {
                       $.get("updateFeeds", {'user': user, 'value': result, 'feeds': obj['feeds']},
                             function (data) {
