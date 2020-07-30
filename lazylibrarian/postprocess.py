@@ -2909,8 +2909,12 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
 
-    opfinfo = makeUnicode(replace_all(opfinfo, dic))
-    fmode = 'w'
+    if PY2:
+        opfinfo = makeUTF8bytes(replace_all(opfinfo, dic))[0]
+        fmode = 'wb'
+    else:
+        opfinfo = makeUnicode(replace_all(opfinfo, dic))
+        fmode = 'w'
     with open(syspath(opfpath), fmode) as opf:
         opf.write(opfinfo)
     logger.debug('Saved metadata to: ' + opfpath)
