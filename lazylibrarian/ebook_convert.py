@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import lazylibrarian
+from lazylibrarian.common import calibre_prg
 
 
 def convert(input_file, output_format):
@@ -13,19 +14,20 @@ def convert(input_file, output_format):
     :return: Filepath of the converted book
     """
 
-    # Check to see if calibredb exists. If it does not, we cannot find ebook-convert, and we raise an error
-    if not lazylibrarian.CONFIG['IMP_CALIBREDB']:
-        sys.stderr.write("Error, No calibredb configured")
-        raise ValueError("No calibredb configured")
+    converter = calibre_prg('ebook-convert')
+    if not converter:
+        sys.stderr.write("Error, No ebook-convert found")
+        raise ValueError("No ebook-convert found")
 
-    calibredb = lazylibrarian.CONFIG['IMP_CALIBREDB']
+    calibredb = calibre_prg('calibredb')
+    if not calibredb:
+        sys.stderr.write("Error, No calibredb found")
+        raise ValueError("No calibredb found")
 
     if lazylibrarian.CONFIG['CALIBRE_USE_SERVER']:
         ebook_directory = lazylibrarian.CONFIG['CALIBRE_SERVER']
     else:
         ebook_directory = lazylibrarian.DIRECTORY('eBook')
-
-    converter = os.path.join(os.path.dirname(calibredb), 'ebook-convert')
 
     basename, extn = os.path.splitext(input_file)
 
@@ -40,7 +42,7 @@ def convert(input_file, output_format):
     except IndexError:
         calibreid = ''
 
-    if not ebook_directory or not calibredb:
+    if not ebook_directory:
         calibreid = ''
 
     params = [converter, input_file, basename + '.' + output_format]

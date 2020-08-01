@@ -23,7 +23,7 @@ import sys
 import threading
 import time
 import traceback
-from subprocess import Popen, PIPE
+import subprocess
 
 from lib.six import PY2, text_type
 
@@ -1591,12 +1591,60 @@ def runScript(params):
     logger.debug(str(params))
     try:
         if os.name != 'nt':
-            p = Popen(params, preexec_fn=lambda: os.nice(10), stdout=PIPE, stderr=PIPE)
+            p = subprocess.Popen(params, preexec_fn=lambda: os.nice(10),
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         else:
-            p = Popen(params, stdout=PIPE, stderr=PIPE)
+            p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
         return p.returncode, makeUnicode(res), makeUnicode(err)
     except Exception as e:
         err = "runScript exception: %s %s" % (type(e).__name__, str(e))
         logger.error(err)
         return 1, '', err
+
+
+def calibre_prg(prgname):
+    # Try to locate a calibre ancilliary program
+    # Try explicit path or in the calibredb location
+    # or in current path or system path
+    target = ''
+    if prgname == 'ebook-convert':
+        target = lazylibrarian.CONFIG['EBOOK_CONVERT']
+    if not target:
+        calibredb = lazylibrarian.CONFIG['IMP_CALIBREDB']
+        if calibredb:
+            target = os.path.join(os.path.dirname(calibredb), prgname)
+        else:
+            logger.debug("No calibredb configured")
+
+    if not target or not os.path.exists(target):
+        target = os.path.join(os.getcwd(), prgname)
+        if not os.path.exists(target):
+            logger.debug("%s not found" % target)
+            if os.name == 'nt':
+                try:
+                    params = ["where", prgname]
+                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    target = makeUnicode(res).strip()
+                except Exception as e:
+                    logger.debug("where %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
+                    target = ''
+            else:
+                try:
+                    params = ["which", prgname]
+                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    target = makeUnicode(res).strip()
+                except Exception as e:
+                    logger.debug("which %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
+                    target = ''
+    if target:
+        logger.debug("Using %s" % target)
+        try:
+            params = [target, "--version"]
+            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res).strip().split("(")[1].split(")")[0]
+            logger.debug("Found %s version %s" % (prgname, res))
+        except Exception as e:
+            logger.debug("%s --version failed: %s %s" % (prgname, type(e).__name__, str(e)))
+            target = ''
+    return target

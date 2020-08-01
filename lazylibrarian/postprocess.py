@@ -18,6 +18,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import tarfile
 import tempfile
 import threading
@@ -44,7 +45,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import scheduleJob, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, runScript, multibook, namedic, listdir, \
-    path_isfile, path_isdir, path_exists, syspath, remove
+    path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, getList, surnameFirst, makeUnicode, check_int, is_valid_type, split_title, \
     makeUTF8bytes, dispName
@@ -2193,6 +2194,8 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
         _ = createOPF(dest_path, data, global_name, overwrite=True)
     else:
         _ = createOPF(dest_path, data, global_name, overwrite=False)
+    # if our_opf:
+    #     write_meta(dest_path, opf_file)  # write metadata from opf to all ebook types in dest folder
 
     # If you use auto add by Calibre you need the book in a single directory, not nested
     # So take the files you Copied/Moved to Dest_path and copy/move into Calibre auto add folder.
@@ -2372,6 +2375,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     if booktype == 'ebook':
                         processIMG(pp_path, data['BookID'], data['BookImg'], global_name, 'book')
                         opfpath, our_opf = createOPF(pp_path, data, global_name, True)
+                        # if we send an opf, does calibre update the book-meta as well?
                     elif booktype == 'comic':
                         processIMG(pp_path, data['BookID'], data['Cover'], global_name, 'comic')
                         if not lazylibrarian.CONFIG['IMP_COMICOPF']:
@@ -2908,15 +2912,41 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 </package>' % global_name  # file in current directory, not full path
 
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
-
+    opfinfo = makeUnicode(replace_all(opfinfo, dic))
     if PY2:
-        opfinfo = makeUTF8bytes(replace_all(opfinfo, dic))[0]
-        fmode = 'wb'
+        import codecs
+        with codecs.open(syspath(opfpath), 'w', encoding='utf-8') as opf:
+            opf.write(opfinfo)
     else:
-        opfinfo = makeUnicode(replace_all(opfinfo, dic))
-        fmode = 'w'
-    with open(syspath(opfpath), fmode) as opf:
-        opf.write(opfinfo)
+        with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
+            opf.write(opfinfo)
     logger.debug('Saved metadata to: ' + opfpath)
     setperm(opfpath)
     return opfpath, True
+
+
+def write_meta(book_folder, opf):
+    if not os.path.exists(opf):
+        logger.error("No opf file [%s]" % opf)
+        return
+
+    ebook_meta = calibre_prg('ebook-meta')
+    if not ebook_meta:
+        logger.debug("No ebook-meta found")
+        return
+
+    flist = listdir(book_folder)
+    for fname in flist:
+        if is_valid_booktype(fname, booktype='ebook'):
+            book = os.path.join(book_folder, fname)
+            params = [ebook_meta, book, "--write_meta", opf]
+            logger.debug("Writing metadata to [%s]" % fname)
+            try:
+                if os.name != 'nt':
+                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                stderr=subprocess.STDOUT)
+                else:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                logger.debug("Metadata written from %s" % opf)
+            except Exception as e:
+                logger.error(str(e))

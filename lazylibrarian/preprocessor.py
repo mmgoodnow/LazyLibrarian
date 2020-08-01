@@ -19,7 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.bookrename import audio_parts
-from lazylibrarian.common import listdir, path_exists, safe_copy, remove
+from lazylibrarian.common import listdir, path_exists, safe_copy, remove, calibre_prg
 from lazylibrarian.formatter import getList, makeUnicode
 
 try:
@@ -35,22 +35,12 @@ except ImportError:
 
 
 def preprocess_ebook(bookfolder):
-    ebook_convert = lazylibrarian.CONFIG['EBOOK_CONVERT']
+    logger.debug("Preprocess ebook %s" % bookfolder)
+    ebook_convert = calibre_prg('ebook-convert')
     if not ebook_convert:
-        logger.error("Check config setting for ebook-convert")
+        logger.error("No ebook-convert found")
         return
 
-    try:
-        params = [ebook_convert, "--version"]
-        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-        res = makeUnicode(res).strip().split("(")[1].split(")")[0]
-        logger.debug("Found ebook-convert version %s" % res)
-        convert_ver = res
-    except Exception as e:
-        logger.debug("ebook-convert --version failed: %s %s" % (type(e).__name__, str(e)))
-        convert_ver = ''
-
-    logger.debug("Preprocess ebook %s" % bookfolder)
     sourcefile = None
     created = ''
     for fname in listdir(bookfolder):
@@ -79,23 +69,20 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            if convert_ver:
-                try:
-                    if os.name != 'nt':
-                        _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                    stderr=subprocess.STDOUT)
-                    else:
-                        _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            try:
+                if os.name != 'nt':
+                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                stderr=subprocess.STDOUT)
+                else:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
-                    if created:
-                        created += ' '
-                    created += ftype
-                except Exception as e:
-                    logger.error("%s" % e)
-                    logger.error(repr(params))
-                    return
-            else:
-                logger.warn("Unable to create %s" % ftype)
+                if created:
+                    created += ' '
+                created += ftype
+            except Exception as e:
+                logger.error("%s" % e)
+                logger.error(repr(params))
+                return
         else:
             logger.debug("Found %s" % ftype)
 
