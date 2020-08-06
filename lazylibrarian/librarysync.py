@@ -20,7 +20,7 @@ from lib.six import PY2
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setWorkPages
-from lazylibrarian.bookrename import bookRename, audioProcess, id3read
+from lazylibrarian.bookrename import bookRename, audioRename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes, \
     path_isdir, path_isfile, path_exists
@@ -30,6 +30,7 @@ from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, ge
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
+from lazylibrarian.preprocessor import preprocess_audio
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -1159,9 +1160,11 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
                                                 if lazylibrarian.CONFIG['IMP_RENAME']:
-                                                    book_filename = audioProcess(bookid, rename=True, playlist=True)
+                                                    book_filename = audioRename(bookid, rename=True, playlist=True)
+                                                    preprocess_audio(os.path.dirname(book_filename),
+                                                                     author, book, tag=True)
                                                 else:
-                                                    book_filename = audioProcess(bookid, rename=False, playlist=True)
+                                                    book_filename = audioRename(bookid, rename=False, playlist=True)
 
                                             # location may have changed since last scan
                                             if book_filename and book_filename != check_status['AudioFile']:

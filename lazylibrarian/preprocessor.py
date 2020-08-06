@@ -102,8 +102,12 @@ def preprocess_ebook(bookfolder):
         logger.debug("No extra ebook formats created")
 
 
-def preprocess_audio(bookfolder, authorname, bookname):
-    if not lazylibrarian.CONFIG['CREATE_SINGLEAUDIO'] and not lazylibrarian.CONFIG['WRITE_AUDIOTAGS']:
+def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
+    if merge is None:
+        merge = lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']
+    if tag is None:
+        tag = lazylibrarian.CONFIG['WRITE_AUDIOTAGS']
+    if not merge and not tag:
         return
 
     ffmpeg = lazylibrarian.CONFIG['FFMPEG']
@@ -168,7 +172,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
-            if ff_ver and lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] and authorname and bookname:
+            if ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -194,7 +198,7 @@ def preprocess_audio(bookfolder, authorname, bookname):
                         logger.error("%s: %s" % (type(e).__name__, str(e)))
                         return
 
-    if ff_ver and lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
+    if ff_ver and merge:
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
         try:
