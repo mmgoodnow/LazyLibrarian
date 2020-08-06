@@ -25,7 +25,7 @@ from lib.six.moves.urllib_parse import urlsplit, urlunsplit
 import cherrypy
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookrename import audioProcess, nameVars
+from lazylibrarian.bookrename import audioRename, nameVars
 from lazylibrarian.bookwork import setWorkPages, getWorkSeries, getWorkPage, setAllBookSeries, \
     getSeriesMembers, getSeriesAuthors, deleteEmptySeries, getBookAuthors, setAllBookAuthors, \
     setWorkID, get_gb_info, setGenres, genreFilter, getBookPubdate, addSeriesMembers
@@ -191,7 +191,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
             'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
             'importMag': '&title= &num= &file= add magazine issue from file',
-            'preprocessAudio': '&dir= &author= &title= preprocess an audiobook folder',
+            'preprocessAudio': '&dir= &author= &title= [&tag] [&merge] preprocess an audiobook folder',
             'preprocessBook': '&dir= preprocess an ebook folder',
             'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
             'memUse': 'memory usage of the program in kB',
@@ -290,6 +290,7 @@ class Api(object):
         rows_as_dic = []
 
         for row in rows:
+            # noinspection PyTypeChecker
             row_as_dic = dict(list(zip(list(row.keys()), row)))
             rows_as_dic.append(row_as_dic)
 
@@ -401,7 +402,7 @@ class Api(object):
             if provider['DISPNAME'] == kwargs['feed']:
                 if lazylibrarian.WishListType(provider['HOST']):
                     myDB.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
-                            (kwargs['user'], 'feed', kwargs['feed']))
+                                (kwargs['user'], 'feed', kwargs['feed']))
                     self.data = 'OK'
                     return
         self.data = 'Invalid feed'
@@ -416,7 +417,7 @@ class Api(object):
             return
         myDB = database.DBConnection()
         myDB.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
-                            (kwargs['user'], 'feed', kwargs['feed']))
+                    (kwargs['user'], 'feed', kwargs['feed']))
         self.data = 'OK'
         return
 
@@ -488,7 +489,7 @@ class Api(object):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-        self.data = audioProcess(kwargs['id'], rename=True)
+        self.data = audioRename(kwargs['id'], rename=True)
 
     def _getBookPubdate(self, **kwargs):
         if 'id' not in kwargs:
@@ -500,14 +501,16 @@ class Api(object):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-        self.data = audioProcess(kwargs['id'], playlist=True)
+        self.data = audioRename(kwargs['id'], playlist=True)
 
     def _preprocessAudio(self, **kwargs):
         for item in ['dir', 'title', 'author']:
             if item not in kwargs:
                 self.data = 'Missing parameter: %s' % item
                 return
-        self.data = preprocess_audio(kwargs['dir'], kwargs['author'], kwargs['title'])
+        tag = True if 'tag' in kwargs else None
+        merge = True if 'merge' in kwargs else None
+        self.data = preprocess_audio(kwargs['dir'], kwargs['author'], kwargs['title'], merge=merge, tag=tag)
 
     def _preprocessBook(self, **kwargs):
         if 'dir' not in kwargs:
