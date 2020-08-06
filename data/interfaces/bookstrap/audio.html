@@ -17,7 +17,7 @@
             <a href="rssFeed?user=${user}&type=AudioBook&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rssFeed?user=${user}&type=AudioBook&limit=10.xml">
           %endif
-          %if lazylibrarian.MY_AFEEDS == True:
+          %if pref&lazylibrarian.pref_myafeeds:
             <a href="toggleMyAFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
           %else:
             <a href="toggleMyAFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>

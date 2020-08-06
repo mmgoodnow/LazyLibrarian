@@ -116,8 +116,9 @@ def upgrade_needed():
     # 64 Add Added time to pastissues table
     # 65 Add Reading and Abandoned to users table
     # 66 Add subscribers table
+    # 67 Add prefs to user table
 
-    db_current_version = 66
+    db_current_version = 67
 
     if db_version < db_current_version:
         return db_current_version
@@ -1824,3 +1825,11 @@ def db_v66(myDB, upgradelog):
         act += ' Type TEXT, WantID Text)'
         myDB.action(act)
     upgradelog.write("%s v53: complete\n" % time.ctime())
+
+
+def db_v67(myDB, upgradelog):
+    if not has_column(myDB, "users", "Prefs"):
+        lazylibrarian.UPDATE_MSG = 'Adding Prefs to users table'
+        upgradelog.write("%s v67: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE users ADD COLUMN Prefs INTEGER DEFAULT 0')
+    upgradelog.write("%s v67: complete\n" % time.ctime())

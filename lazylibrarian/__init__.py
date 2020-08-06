@@ -84,12 +84,6 @@ NO_CV_MSG = 0
 NO_DIRECT_MSG = 0
 NO_IRC_MSG = 0
 IGNORED_AUTHORS = 0
-MY_AUTHORS = 0
-MY_SERIES = 0
-MY_FEEDS = 0
-MY_AFEEDS = 0
-MY_MAGS = 0
-MY_COMICS = 0
 CURRENT_TAB = '1'
 CACHE_HIT = 0
 CACHE_MISS = 0
@@ -173,6 +167,14 @@ perm_authorbooks = perm_audio + perm_ebook
 perm_guest = perm_download + perm_series + perm_authorbooks + perm_magazines + perm_comics
 perm_friend = perm_guest + perm_search + perm_status
 perm_admin = 65535
+
+# user prefs
+pref_myauthors = 1 << 0
+pref_myseries = 1 << 1
+pref_mymags = 1 << 2
+pref_mycomics = 1 << 3
+pref_myfeeds = 1 << 4
+pref_myafeeds = 1 << 5
 
 # Shared dictionaries
 isbn_979_dict = {
@@ -1083,18 +1085,10 @@ def config_read(reloaded=False):
         CONFIG['HTTP_PORT'] = 5299
 
     # to make extension matching easier
-    CONFIG['EBOOK_TYPE'] = CONFIG['EBOOK_TYPE'].lower()
-    CONFIG['EMAIL_CONVERT_FROM'] = CONFIG['EMAIL_CONVERT_FROM'].lower()
-    CONFIG['EMAIL_SEND_TYPE'] = CONFIG['EMAIL_SEND_TYPE'].lower()
-    CONFIG['AUDIOBOOK_TYPE'] = CONFIG['AUDIOBOOK_TYPE'].lower()
-    CONFIG['MAG_TYPE'] = CONFIG['MAG_TYPE'].lower()
-    CONFIG['COMIC_TYPE'] = CONFIG['COMIC_TYPE'].lower()
-    CONFIG['REJECT_MAGS'] = CONFIG['REJECT_MAGS'].lower()
-    CONFIG['REJECT_WORDS'] = CONFIG['REJECT_WORDS'].lower()
-    CONFIG['REJECT_AUDIO'] = CONFIG['REJECT_AUDIO'].lower()
-    CONFIG['REJECT_COMIC'] = CONFIG['REJECT_COMIC'].lower()
-    CONFIG['BANNED_EXT'] = CONFIG['BANNED_EXT'].lower()
-    CONFIG['REJECT_PUBLISHER'] = CONFIG['REJECT_PUBLISHER'].lower()
+    for item in ['EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'AUDIOBOOK_TYPE', 'MAG_TYPE',
+                 'COMIC_TYPE', 'REJECT_MAGS', 'REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_COMIC',
+                 'REJECT_PUBLISHER', 'BANNED_EXT']:
+        CONFIG[item] = CONFIG[item].lower()
 
     if os.name == 'nt':
         for fname in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
@@ -1133,22 +1127,10 @@ def config_read(reloaded=False):
     if not CONFIG['SERIES_TAB']:
         SHOW_SERIES = 0
     # Suppress tabs if disabled
-    if CONFIG['EBOOK_TAB']:
-        SHOW_EBOOK = 1
-    else:
-        SHOW_EBOOK = 0
-    if CONFIG['MAG_TAB']:
-        SHOW_MAGS = 1
-    else:
-        SHOW_MAGS = 0
-    if CONFIG['COMIC_TAB']:
-        SHOW_COMICS = 1
-    else:
-        SHOW_COMICS = 0
-    if CONFIG['AUDIO_TAB']:
-        SHOW_AUDIO = 1
-    else:
-        SHOW_AUDIO = 0
+    SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
+    SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
+    SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
+    SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
     # Suppress audio/comic tabs if on legacy interface
     if CONFIG['HTTP_LOOK'] == 'legacy':
         SHOW_AUDIO = 0
@@ -1156,10 +1138,7 @@ def config_read(reloaded=False):
         SHOW_EBOOK = 1
 
     for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
-        if CONFIG[item]:
-            CONFIG[item] = 1
-        else:
-            CONFIG[item] = 0
+        CONFIG[item] = 1 if CONFIG[item] else 0
 
     if CONFIG['SSL_CERTS'] and not path_exists(CONFIG['SSL_CERTS']):
         logger.warn("SSL_CERTS [%s] not found" % CONFIG['SSL_CERTS'])
@@ -1495,25 +1474,10 @@ def config_write(part=None):
     if not CONFIG['SERIES_TAB']:
         SHOW_SERIES = 0
 
-    if CONFIG['MAG_TAB']:
-        SHOW_MAGS = 1
-    else:
-        SHOW_MAGS = 0
-
-    if CONFIG['COMIC_TAB']:
-        SHOW_COMICS = 1
-    else:
-        SHOW_COMICS = 0
-
-    if CONFIG['EBOOK_TAB']:
-        SHOW_EBOOK = 1
-    else:
-        SHOW_EBOOK = 0
-
-    if CONFIG['AUDIO_TAB']:
-        SHOW_AUDIO = 1
-    else:
-        SHOW_AUDIO = 0
+    SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
+    SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
+    SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
+    SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
 
     if CONFIG['HTTP_LOOK'] == 'legacy':
         SHOW_AUDIO = 0
@@ -2057,22 +2021,11 @@ def start():
                 SHOW_COMICS = 0
                 SHOW_SERIES = 0
             else:
-                if CONFIG['EBOOK_TAB']:
-                    SHOW_EBOOK = 1
-                else:
-                    SHOW_EBOOK = 0
-                if CONFIG['MAG_TAB']:
-                    SHOW_MAGS = 1
-                else:
-                    SHOW_MAGS = 0
-                if CONFIG['COMIC_TAB']:
-                    SHOW_COMICS = 1
-                else:
-                    SHOW_COMICS = 0
-                if CONFIG['AUDIO_TAB']:
-                    SHOW_AUDIO = 1
-                else:
-                    SHOW_AUDIO = 0
+                SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
+                SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
+                SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
+                SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
+
                 if CONFIG['ADD_SERIES']:
                     SHOW_SERIES = 1
                 if not CONFIG['SERIES_TAB']:

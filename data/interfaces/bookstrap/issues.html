@@ -158,6 +158,11 @@
               };
             });
 
+            var page = oTable.page();
+            if ( page != '0' ) {
+                if (${firstpage}) { oTable.page( 'first' ).draw( 'page' ); }
+            }
+
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {
                 e.preventDefault();

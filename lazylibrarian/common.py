@@ -997,6 +997,9 @@ def aaUpdate(refresh=False):
         lazylibrarian.AUTHORS_UPDATE = 1
         logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
         for author in activeauthors:
+            if lazylibrarian.STOPTHREADS:
+                logger.debug("Aborting ActiveAuthorUpdate")
+                break
             lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'], reason="aaUpdate")
         logger.info('Active author update complete')
         msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))

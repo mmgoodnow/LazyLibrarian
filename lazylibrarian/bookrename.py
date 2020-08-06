@@ -271,7 +271,7 @@ def audio_parts(folder, bookname, authorname):
     return parts, failed, tokmatch, abridged
 
 
-def audioProcess(bookid, rename=False, playlist=False):
+def audioRename(bookid, rename=False, playlist=False):
     """
     :param bookid: book to process
     :param rename: rename to match audiobook filename pattern
@@ -282,7 +282,7 @@ def audioProcess(bookid, rename=False, playlist=False):
         if '$Part' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] or (
             '$Title' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] and
                 '$SortTitle' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']):
-            logger.error("Unable to audioProcess, check AUDIOBOOK_DEST_FILE")
+            logger.error("Unable to audioRename, check AUDIOBOOK_DEST_FILE")
             return ''
 
     myDB = database.DBConnection()
@@ -293,10 +293,10 @@ def audioProcess(bookid, rename=False, playlist=False):
         if book_filename:
             r = os.path.dirname(book_filename)
         else:
-            logger.debug("No filename for %s in audioProcess" % bookid)
+            logger.debug("No filename for %s in audioRename" % bookid)
             return ''
     else:
-        logger.debug("Invalid bookid in audioProcess %s" % bookid)
+        logger.debug("Invalid bookid in audioRename %s" % bookid)
         return ''
 
     if not TinyTag:
@@ -368,7 +368,7 @@ def audioProcess(bookid, rename=False, playlist=False):
                     n = safe_move(o, n)
                     if part[0] == 1:
                         book_filename = n  # return part 1 of set
-                    logger.debug('%s: audioProcess [%s] to [%s]' % (exists['BookName'], o, n))
+                    logger.debug('%s: audioRename [%s] to [%s]' % (exists['BookName'], o, n))
                 except Exception as e:
                     logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
     if playlist:

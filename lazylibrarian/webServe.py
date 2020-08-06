@@ -77,6 +77,10 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 
+lastauthor = ''
+lastmagazine = ''
+lastcomic = ''
+
 
 def serve_template(templatename, **kwargs):
     threading.currentThread().name = "WEBSERVER"
@@ -103,6 +107,7 @@ def serve_template(templatename, **kwargs):
         username = ''  # anyone logged in yet?
         perm = 0
         res = None
+        userprefs = 0
         myDB = database.DBConnection()
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
@@ -115,8 +120,9 @@ def serve_template(templatename, **kwargs):
                 cnt = myDB.match("select count(*) as counter from users")
             if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
                     templatename not in ["register.html", "response.html", "opds.html"]:
-                res = myDB.match('SELECT UserName,Perms,UserID from users')
+                res = myDB.match('SELECT UserName,Perms,Prefs,UserID from users')
                 cherrypy.response.cookie['ll_uid'] = res['UserID']
+                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
                 logger.debug("Auto-login for %s" % res['UserName'])
                 lazylibrarian.SHOWLOGOUT = 0
             else:
@@ -124,6 +130,8 @@ def serve_template(templatename, **kwargs):
         if res:
             perm = check_int(res['Perms'], 0)
             username = res['UserName']
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
             templatename = "login.html"
@@ -148,7 +156,7 @@ def serve_template(templatename, **kwargs):
             templatename = "login.html"
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
-            logger.debug("User %s: %s %s" % (username, perm, templatename))
+            logger.debug("User %s: %s %s %s" % (username, perm, userprefs, templatename))
         template = _hplookup.get_template(templatename)
         if templatename == "login.html":
             lazylibrarian.SUPPRESS_UPDATE = True
@@ -158,9 +166,10 @@ def serve_template(templatename, **kwargs):
             lazylibrarian.SUPPRESS_UPDATE = True
         else:
             lazylibrarian.SUPPRESS_UPDATE = False
+            # keep template name for help context
             cherrypy.response.cookie['ll_template'] = templatename
             # noinspection PyArgumentList
-            return template.render(perm=perm, **kwargs)
+            return template.render(perm=perm, pref=userprefs, **kwargs)
     except Exception:
         return exceptions.html_error_template().render()
 
@@ -225,9 +234,12 @@ class WebInterface(object):
         filtered = []
         rowlist = []
         userid = None
+        userprefs = 0
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         # noinspection PyBroadException
         try:
@@ -248,7 +260,7 @@ class WebInterface(object):
                     cmd += 'and  Status != "Paused" '
 
             myauthors = []
-            if userid and lazylibrarian.MY_AUTHORS:
+            if userid and userprefs & lazylibrarian.pref_myauthors:
                 res = myDB.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("User subscribes to %s authors" % len(res))
@@ -393,8 +405,17 @@ class WebInterface(object):
 
     @cherrypy.expose
     def logout(self):
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        if cookie and 'll_uid' in list(cookie.keys()):
+            myDB = database.DBConnection()
+            myDB.action('UPDATE users SET prefs=? where UserID=?', (userprefs, cookie['ll_uid'].value))
         cherrypy.response.cookie['ll_uid'] = ''
         cherrypy.response.cookie['ll_uid']['expires'] = 0
+        cherrypy.response.cookie['ll_prefs'] = '0'
+        cherrypy.response.cookie['ll_prefs']['expires'] = 0
         # cherrypy.lib.sessions.expire()
         raise cherrypy.HTTPRedirect("home")
 
@@ -486,6 +507,7 @@ class WebInterface(object):
         cookie = cherrypy.request.cookie
         if not cookie or 'll_uid' not in list(cookie.keys()):
             cherrypy.response.cookie['ll_uid'] = ''
+            cherrypy.response.cookie['ll_prefs'] = ''
         username = ''
         password = ''
         res = {}
@@ -496,9 +518,10 @@ class WebInterface(object):
             password = kwargs['password']
         if username and password:
             pwd = md5_utf8(password)
-            res = myDB.match('SELECT UserID, Password from users where username=?', (username,))  # type: dict
+            res = myDB.match('SELECT UserID,Prefs,Password from users where username=?', (username,))  # type: dict
         if res and pwd == res['Password']:
             cherrypy.response.cookie['ll_uid'] = res['UserID']
+            cherrypy.response.cookie['ll_prefs'] = res['Prefs']
             if 'remember' in kwargs:
                 cherrypy.response.cookie['ll_uid']['Max-Age'] = '86400'
 
@@ -857,9 +880,12 @@ class WebInterface(object):
         filtered = []
         rowlist = []
         userid = None
+        userprefs = 0
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         # noinspection PyBroadException
         try:
@@ -901,7 +927,7 @@ class WebInterface(object):
                 args.append(AuthorID)
 
             myseries = []
-            if userid and lazylibrarian.MY_SERIES:
+            if userid and userprefs & lazylibrarian.pref_myseries:
                 res = myDB.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("User subscribes to %s series" % len(res))
@@ -1699,10 +1725,6 @@ class WebInterface(object):
 
         raise cherrypy.HTTPRedirect(redirect)
 
-    global lastauthor
-    # noinspection PyRedeclaration
-    lastauthor = ''
-
     # noinspection PyGlobalUndefined
     @cherrypy.expose
     def authorPage(self, AuthorID, BookLang=None, library='eBook', Ignored=False):
@@ -1942,50 +1964,62 @@ class WebInterface(object):
 
     @cherrypy.expose
     def toggleMyAuth(self):
-        if lazylibrarian.MY_AUTHORS:
-            lazylibrarian.MY_AUTHORS = False
-        else:
-            lazylibrarian.MY_AUTHORS = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_myauthors
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
     def toggleMySeries(self):
-        if lazylibrarian.MY_SERIES:
-            lazylibrarian.MY_SERIES = False
-        else:
-            lazylibrarian.MY_SERIES = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_myseries
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
     def toggleMyFeeds(self):
-        if lazylibrarian.MY_FEEDS:
-            lazylibrarian.MY_FEEDS = False
-        else:
-            lazylibrarian.MY_FEEDS = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_myfeeds
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("books")
 
     @cherrypy.expose
     def toggleMyAFeeds(self):
-        if lazylibrarian.MY_AFEEDS:
-            lazylibrarian.MY_AFEEDS = False
-        else:
-            lazylibrarian.MY_AFEEDS = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_myafeeds
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("audio")
 
     @cherrypy.expose
     def toggleMyMags(self):
-        if lazylibrarian.MY_MAGS:
-            lazylibrarian.MY_MAGS = False
-        else:
-            lazylibrarian.MY_MAGS = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_mymags
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("magazines")
 
     @cherrypy.expose
     def toggleMyComics(self):
-        if lazylibrarian.MY_COMICS:
-            lazylibrarian.MY_COMICS = False
-        else:
-            lazylibrarian.MY_COMICS = True
+        userprefs = 0
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
+        userprefs = userprefs ^ lazylibrarian.pref_mycomics
+        cherrypy.response.cookie['ll_prefs'] = userprefs
         raise cherrypy.HTTPRedirect("comics")
 
     # BOOKS #############################################################
@@ -2125,11 +2159,14 @@ class WebInterface(object):
             flagTo = 0
             flagHave = 0
             userid = None
+            userprefs = 0
             if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
                 perm = lazylibrarian.perm_admin
             else:
                 perm = 0
                 cookie = cherrypy.request.cookie
+                if cookie and 'll_prefs' in list(cookie.keys()):
+                    userprefs = check_int(cookie['ll_prefs'].value, 0)
                 if cookie and 'll_uid' in list(cookie.keys()):
                     userid = cookie['ll_uid'].value
                     cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?'
@@ -2206,7 +2243,8 @@ class WebInterface(object):
                     args.append(kwargs['booklang'])
 
             if kwargs['source'] in ["Books", "Audio"]:
-                if userid and lazylibrarian.MY_FEEDS:
+                if userid and userprefs & lazylibrarian.pref_myfeeds or \
+                        userprefs & lazylibrarian.pref_myafeeds:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                         logger.debug("Getting user booklist")
                     mybooks = []
@@ -3674,9 +3712,12 @@ class WebInterface(object):
         filtered = []
         rowlist = []
         userid = None
+        userprefs = 0
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
@@ -3688,7 +3729,7 @@ class WebInterface(object):
             cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics'
 
             mycomics = []
-            if userid and lazylibrarian.MY_COMICS:
+            if userid and userprefs & lazylibrarian.pref_mycomics:
                 res = myDB.select('SELECT WantID from subscribers WHERE Type="comic" and UserID=?', (userid,))
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("User subscribes to %s comics" % len(res))
@@ -3799,24 +3840,8 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
-    def comicPage(self, comicid):
-        myDB = database.DBConnection()
-        mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
-        title = mag_data['Title']
-        if title and '&' in title and '&amp;' not in title:  # could use htmlparser but seems overkill for just '&'
-            safetitle = title.replace('&', '&amp;')
-        else:
-            safetitle = title
-
-        # use server-side processing
-        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
-            covercount = 0
-        else:
-            covercount = 1
-        return serve_template(templatename="comicissues.html", title=safetitle, issues=[], covercount=covercount)
-
-    @cherrypy.expose
     def comicissuePage(self, comicid):
+        global lastcomic
         myDB = database.DBConnection()
         mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
         title = mag_data['Title']
@@ -3835,8 +3860,17 @@ class WebInterface(object):
             covercount = 0
         else:
             covercount = 1
+
+        # if we've changed comic, reset to first page of new comics issues
+        if comicid == lastcomic:
+            firstpage = 'false'
+        else:
+            lastcomic = comicid
+            firstpage = 'true'
+
         return serve_template(templatename="comicissues.html", comicid=comicid,
-                              title=safetitle, issues=[], covercount=covercount, user=user)
+                              title=safetitle, issues=[], covercount=covercount, user=user,
+                              firstpage=firstpage)
 
     @cherrypy.expose
     def openComic(self, comicid=None, issueid=None):
@@ -4152,9 +4186,12 @@ class WebInterface(object):
         filtered = []
         rowlist = []
         userid = None
+        userprefs = 0
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
+        if cookie and 'll_prefs' in list(cookie.keys()):
+            userprefs = check_int(cookie['ll_prefs'].value, 0)
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
@@ -4166,7 +4203,7 @@ class WebInterface(object):
             cmd += ' as Iss_Cnt from magazines'
 
             mymags = []
-            if userid and lazylibrarian.MY_MAGS:
+            if userid and userprefs & lazylibrarian.pref_mymags:
                 res = myDB.select('SELECT WantID from subscribers WHERE Type="magazine" and UserID=?', (userid,))
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("User subscribes to %s magazines" % len(res))
@@ -4395,10 +4432,18 @@ class WebInterface(object):
 
     @cherrypy.expose
     def issuePage(self, title):
+        global lastmagazine
         if title and '&' in title and '&amp;' not in title:  # could use htmlparser but seems overkill for just '&'
             safetitle = title.replace('&', '&amp;')
         else:
             safetitle = title
+
+        # if we've changed magazine, reset to first page of new magazines issues
+        if title == lastmagazine:
+            firstpage = 'false'
+        else:
+            lastmagazine = title
+            firstpage = 'true'
 
         if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
             # use server-side processing
@@ -4417,7 +4462,7 @@ class WebInterface(object):
                 if res and res['SendTo']:
                     email = res['SendTo']
             return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
-                                  user=user, email=email)
+                                  user=user, email=email, firstpage=firstpage)
 
         myDB = database.DBConnection()
 
@@ -4441,7 +4486,8 @@ class WebInterface(object):
             if not lazylibrarian.CONFIG['MAG_IMG'] or not lazylibrarian.CONFIG['IMP_MAGCOVER']:
                 covercount = 0
 
-        return serve_template(templatename="issues.html", title=safetitle, issues=mod_issues, covercount=covercount)
+        return serve_template(templatename="issues.html", title=safetitle, issues=mod_issues, covercount=covercount,
+                              firstpage=firstpage)
 
     @cherrypy.expose
     def pastIssues(self, whichStatus=None, mag=None):
