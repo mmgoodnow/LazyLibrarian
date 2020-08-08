@@ -382,6 +382,8 @@ def torrentAction(method, arguments):
     # Prepare real request
     headers = {'x-transmission-session-id': session_id}
     data = {'method': method, 'arguments': arguments}
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('Transmission request %s' % str(data))
     try:
         response = requests.post(host_url, json=data, headers=headers, proxies=proxies,
                                  auth=auth, timeout=timeout)
@@ -397,6 +399,8 @@ def torrentAction(method, arguments):
             return False, res
         try:
             res = response.json()
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug('Transmission returned %s' % str(res))
         except ValueError:
             res = "Expected json, Transmission returned %s" % response.text
             logger.error(res)
