@@ -242,8 +242,10 @@ class GoodReads:
                             resultxml = None
 
             except Exception as err:
+                # noinspection PyUnresolvedReferences
                 if hasattr(err, 'code') and err.code == 404:
                     logger.error('Received a 404 error when searching for author')
+                # noinspection PyUnresolvedReferences
                 elif hasattr(err, 'code') and err.code == 403:
                     logger.warn('Access to api is denied 403: usage exceeded')
                 else:
@@ -268,7 +270,6 @@ class GoodReads:
         # googlebooks gives us author names with long form unicode characters
         author = makeUnicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
-
         logger.debug("Searching for author with name: %s" % author)
 
         try:
