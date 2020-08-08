@@ -55,6 +55,14 @@ from lib.bencode import bencode, bdecode
 from lib.six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import quote
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    if PY2:
+        from lib.bs4 import BeautifulSoup
+    else:
+        from lib3.bs4 import BeautifulSoup
 
 
 def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=None):
@@ -237,116 +245,153 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
             BlockProvider(provider, res, delay=seconds_to_midnight())
             return False, res
-    try:
-        logger.debug("%s %s" % (provider, str(headers)))
-        if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies,
-                             verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
-        else:
-            r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
-    except requests.exceptions.Timeout:
-        res = 'Timeout fetching file from url: %s' % dl_url
-        logger.warn(res)
-        return False, res
-    except Exception as e:
-        res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
-        logger.warn(res)
-        return False, res
 
-    if not str(r.status_code).startswith('2'):
-        res = "Got a %s response for %s" % (r.status_code, dl_url)
-        logger.debug(res)
-        return False, res
-    elif len(r.content) < 1000:
-        res = "Only got %s bytes for %s" % (len(r.content), dl_title)
-        logger.debug(res)
-        return False, res
-    elif 'application' not in r.headers['Content-Type']:
-        # application/octet-stream, application/epub+zip, application/x-mobi8-ebook etc.
-        res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
-        logger.debug(res)
-        if 'text/html' in r.headers['Content-Type']:
-            cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
-            myhash = md5_utf8(dl_url)
-            hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + ".html")
-            with open(syspath(hashfilename), "wb") as cachefile:
-                cachefile.write(r.content)
-            logger.debug(hashfilename)
-        return False, res
-    else:
-        extn = ''
-        basename = ''
-        if ' ' in dl_title:
-            basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
-        if extn and extn.lower() in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
-            basename = dl_title.rsplit(' ', 1)
-        elif magic:
-            extn = ''
-            try:
-                mtype = magic.from_buffer(r.content)
-                logger.debug("magic reports %s" % mtype)
-            except Exception as e:
-                logger.debug("%s reading magic from %s, %s" % (type(e).__name__, dl_title, e))
-                mtype = ''
-            if 'EPUB' in mtype:
-                extn = 'epub'
-            elif 'Mobipocket' in mtype:  # also true for azw and azw3, does it matter?
-                extn = 'mobi'
-            elif 'PDF' in mtype:
-                extn = 'pdf'
-            elif 'RAR' in mtype:
-                extn = 'cbr'
-            elif 'ZIP' in mtype:
-                extn = 'cbz'
-            basename = dl_title
-        if not extn:
-            logger.warn("Don't know the filetype for %s" % dl_title)
-            basename = dl_title
-        if '/' in basename:
-            basename = basename.split('/')[0]
-
-        logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
-        if provider == 'zlibrary':
-            lazylibrarian.BOK_DLCOUNT += 1
-
-        basename = replace_all(basename, namedic)
-        destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
-        if not path_isdir(destdir):
-            _ = make_dirs(destdir)
-
+    redirects = 0
+    while redirects < 5:
+        redirects += 1
         try:
-            hashid = dl_url.split("md5=")[1].split("&")[0]
-        except IndexError:
-            # noinspection PyTypeChecker
-            hashid = sha1(bencode(dl_url)).hexdigest()
-
-        destfile = os.path.join(destdir, basename + '.' + extn)
-
-        if os.name == 'nt':  # Windows has max path length of 256
-            destfile = '\\\\?\\' + destfile
-
-        try:
-            with open(syspath(destfile), 'wb') as bookfile:
-                bookfile.write(r.content)
-            setperm(destfile)
-            downloadID = hashid
-        except Exception as e:
-            res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
-            logger.error(res)
+            logger.debug("%s: %s %s" % (redirects, provider, str(headers)))
+            if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+                r = requests.get(dl_url, headers=headers, timeout=90,
+                                 proxies=proxies,
+                                 verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG[
+                                     'SSL_CERTS'] else True)
+            else:
+                r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+        except requests.exceptions.Timeout:
+            res = 'Timeout fetching file from url: %s' % dl_url
+            logger.warn(res)
             return False, res
-    if downloadID:
-        logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
-        if library == 'eBook':
-            myDB.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
-        elif library == 'AudioBook':
-            myDB.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-        myDB.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                    (Source, downloadID, dl_url))
-        return True, ''
-    else:
-        res = 'Failed to download file @ <a href="%s">%s</a>' % (dl_url, dl_url)
-        logger.error(res)
-        return False, res
+        except Exception as e:
+            res = '%s fetching file from url: %s, %s' % (type(e).__name__, dl_url, str(e))
+            logger.warn(res)
+            return False, res
+
+        if not str(r.status_code).startswith('2'):
+            res = "Got a %s response for %s" % (r.status_code, dl_url)
+            logger.debug(res)
+            return False, res
+        elif len(r.content) < 1000:
+            res = "Only got %s bytes for %s" % (len(r.content), dl_title)
+            logger.debug(res)
+            return False, res
+        elif 'application' in r.headers['Content-Type']:
+            # application/octet-stream, application/epub+zip, application/x-mobi8-ebook etc.
+            extn = ''
+            basename = ''
+            if ' ' in dl_title:
+                basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
+            if extn and extn.lower() in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
+                basename = dl_title.rsplit(' ', 1)
+            elif magic:
+                extn = ''
+                try:
+                    mtype = magic.from_buffer(r.content)
+                    logger.debug("magic reports %s" % mtype)
+                except Exception as e:
+                    logger.debug("%s reading magic from %s, %s" % (type(e).__name__, dl_title, e))
+                    mtype = ''
+                if 'EPUB' in mtype:
+                    extn = 'epub'
+                elif 'Mobipocket' in mtype:  # also true for azw and azw3, does it matter?
+                    extn = 'mobi'
+                elif 'PDF' in mtype:
+                    extn = 'pdf'
+                elif 'RAR' in mtype:
+                    extn = 'cbr'
+                elif 'ZIP' in mtype:
+                    extn = 'cbz'
+                basename = dl_title
+            if not extn:
+                logger.warn("Don't know the filetype for %s" % dl_title)
+                basename = dl_title
+            if '/' in basename:
+                basename = basename.split('/')[0]
+
+            logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
+            if provider == 'zlibrary':
+                lazylibrarian.BOK_DLCOUNT += 1
+
+            basename = replace_all(basename, namedic)
+            destdir = os.path.join(lazylibrarian.DIRECTORY('Download'), basename)
+            if not path_isdir(destdir):
+                _ = make_dirs(destdir)
+
+            try:
+                hashid = dl_url.split("md5=")[1].split("&")[0]
+            except IndexError:
+                # noinspection PyTypeChecker
+                hashid = sha1(bencode(dl_url)).hexdigest()
+
+            destfile = os.path.join(destdir, basename + '.' + extn)
+
+            if os.name == 'nt':  # Windows has max path length of 256
+                destfile = '\\\\?\\' + destfile
+
+            try:
+                with open(syspath(destfile), 'wb') as bookfile:
+                    bookfile.write(r.content)
+                setperm(destfile)
+                downloadID = hashid
+                logger.debug('File %s has been downloaded from %s' % (dl_title, dl_url))
+                if library == 'eBook':
+                    myDB.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
+                elif library == 'AudioBook':
+                    myDB.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
+                myDB.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
+                            (Source, downloadID, dl_url))
+                return True, ''
+            except Exception as e:
+                res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
+                logger.error(res)
+                return False, res
+        else:
+            res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
+            logger.debug(res)
+            if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
+                host = lazylibrarian.CONFIG['BOK_HOST']
+                headers['Referer'] = dl_url
+                res, succ = fetchURL(r.url)
+                if not succ:
+                    return False, "Unable to fetch %s: %s" % (r.url, succ)
+                try:
+                    newsoup = BeautifulSoup(res, "html5lib")
+                    a = newsoup.find('a', {"class": "dlButton"})
+                    if not a:
+                        link = ''
+                        delay = 0
+                        msg = ''
+                        if 'WARNING' in res and '24 hours' in res:
+                            msg = res.split('WARNING')[1].split('24 hours')[0]
+                            msg = 'WARNING' + msg + '24 hours'
+                            delay = seconds_to_midnight()
+                        elif 'Too many requests' in res:
+                            msg = res
+                            delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                        if delay:
+                            BlockProvider(provider, msg, delay=delay)
+                            logger.warn(msg)
+                            return False, msg
+                    else:
+                        link = a.get('href')
+                    if link and len(link) > 2:
+                        dl_url = host + link
+                    else:
+                        return False, 'No link available'
+                except Exception as e:
+                    return False, "An error occurred parsing %s: %s" % (r.url, str(e))
+            else:
+                cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
+                myhash = md5_utf8(dl_url)
+                hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + ".html")
+                with open(syspath(hashfilename), "wb") as cachefile:
+                    cachefile.write(r.content)
+                logger.debug("Saved html page: %s" % hashfilename)
+                return False, res
+
+    res = 'Failed to download file @ <a href="%s">%s</a>' % (dl_url, dl_url)
+    logger.error(res)
+    return False, res
 
 
 def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'):
