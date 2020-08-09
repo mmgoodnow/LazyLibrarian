@@ -92,6 +92,7 @@ LAST_GOODREADS = 0
 LAST_LIBRARYTHING = 0
 LAST_COMICVINE = 0
 LAST_ZLIBRARY = 0
+LAST_BOOKFI = 0
 GR_SLEEP = 0.0
 LT_SLEEP = 0.0
 CV_SLEEP = 0.0
@@ -464,6 +465,10 @@ CONFIG_DEFINITIONS = {
     'BOK_DLPRIORITY': ('int', 'BOK', 0),
     'BOK_DLLIMIT': ('int', 'BOK', 5),
     'BOK_DLTYPES': ('str', 'BOK', 'E'),
+    'BFI_HOST': ('str', 'BFI', 'en.bookfi.net'),
+    'BFI': ('bool', 'BFI', 0),
+    'BFI_DLPRIORITY': ('int', 'BFI', 0),
+    'BFI_DLTYPES': ('str', 'BFI', 'E'),
     'LIME_HOST': ('str', 'LIME', 'https://www.limetorrents.cc'),
     'LIME': ('bool', 'LIME', 0),
     'LIME_DLPRIORITY': ('int', 'LIME', 0),
@@ -1792,6 +1797,8 @@ def USE_DIRECT():
         if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
             count += 1
     if bool(CONFIG['BOK']) and not ProviderIsBlocked('BOK'):
+        count += 1
+    if bool(CONFIG['BFI']) and not ProviderIsBlocked('BFI'):
         count += 1
     return count
 

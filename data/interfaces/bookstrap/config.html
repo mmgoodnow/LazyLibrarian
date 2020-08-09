@@ -2073,6 +2073,31 @@
                       <input type="number" placeholder="API Limit" id="bok_dllimit" name="bok_dllimit" value="${lazylibrarian.CONFIG['BOK_DLLIMIT']}" class="form-control">
                       </div>
                     </div>
+                    <%
+                    if lazylibrarian.CONFIG['BFI'] == True:
+                    checked = 'checked="checked"'
+                    else:
+                    checked = ''
+                    %>
+                    <div class="col-md-4 form-group">
+                      <label for="bok_host" class="sr-only">bookfi host</label>
+                      <div class="input-group">
+                        <span class="input-group-addon">BookFi</span>
+                        <input type="text" placeholder="bookfi host" id="bfi_host" name="bfi_host" value="${lazylibrarian.CONFIG['BFI_HOST']}" class="form-control">
+                        <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
+                        <input type="checkbox" id="bfi" name="bfi" value="1" ${checked} />
+                        </span>
+                      </div>
+                      <div class="input-group">
+                        <span class="input-group-addon">Priority</span>
+                        <input type="number" id="bfi_dlpriority" name="bfi_dlpriority" value="${lazylibrarian.CONFIG['BFI_DLPRIORITY']}" class="form-control" placeholder="0">
+                        <span class="input-group-addon">Types</span>
+                        <input type="text" id="bfi_dltypes" name="bfi_dltypes" value="${lazylibrarian.CONFIG['BFI_DLTYPES']}" class="form-control" placeholder="">
+                        <span class="input-group-addon">
+                        <button role="testprov" class="button btn btn-xs btn-warning btn-primary" type="button" value="BFI"> Test</button>
+                        </span>
+                      </div>
+                    </div>
                   %for provider in lazylibrarian.GEN_PROV:
                   <%
                    checked = ''

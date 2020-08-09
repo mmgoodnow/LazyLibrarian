@@ -17,7 +17,7 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
-from lazylibrarian.directparser import GEN, BOK
+from lazylibrarian.directparser import GEN, BOK, BFI
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
     makeUnicode, seconds_to_midnight, makeUTF8bytes, makeBytestr, no_umlauts
 from lazylibrarian.common import syspath
@@ -111,6 +111,11 @@ def test_provider(name, host=None, api=None):
         if host:
             lazylibrarian.CONFIG['BOK_HOST'] = host
         return BOK(book, prov='BOK', test=True), "ZLibrary"
+    if name == 'BFI':
+        logger.debug("Testing provider %s" % name)
+        if host:
+            lazylibrarian.CONFIG['BFI_HOST'] = host
+        return BFI(book, prov='BFI', test=True), "BookFi"
     if name.startswith('rss_'):
         try:
             prov = name.split('_')[1]
@@ -692,6 +697,35 @@ def IterateOverDirectSites(book=None, searchType=None):
             if not ignored:
                 logger.debug('Querying %s' % prov)
                 results, error = BOK(book, prov)
+                if error:
+                    BlockProvider(prov, error)
+                else:
+                    resultslist += results
+                    providers += 1
+
+    return resultslist, providers
+
+    for prov in ['BFI']:
+        if lazylibrarian.CONFIG[prov]:
+            ignored = False
+            if ProviderIsBlocked(prov):
+                logger.debug('%s is BLOCKED' % prov)
+                ignored = True
+            elif searchType in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for eBook" % prov)
+                ignored = True
+            elif "audio" in searchType and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for AudioBook" % prov)
+                ignored = True
+            elif "mag" in searchType and 'M' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for Magazine" % prov)
+                ignored = True
+            elif "comic" in searchType and 'C' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+                logger.debug("Ignoring %s for Comic" % prov)
+                ignored = True
+            if not ignored:
+                logger.debug('Querying %s' % prov)
+                results, error = BFI(book, prov)
                 if error:
                     BlockProvider(prov, error)
                 else:
