@@ -25,7 +25,7 @@ from lib.six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, proxyList
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxyList
 from lazylibrarian.formatter import check_int
 
 # from lazylibrarian.exceptions import ex
@@ -144,9 +144,12 @@ class BoxcarNotifier:
     # Public functions
     #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONSNATCH']:
-            self._notify(notifyStrings[NOTIFY_SNATCH], title)
+            if fail:
+                self._notify(notifyStrings[NOTIFY_FAIL], title)
+            else:
+                self._notify(notifyStrings[NOTIFY_SNATCH], title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONDOWNLOAD']:

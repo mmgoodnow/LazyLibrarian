@@ -26,7 +26,7 @@ from lib.six.moves.http_client import HTTPSConnection
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
 
 
@@ -132,12 +132,15 @@ class PushoverNotifier:
         return self._sendPushover(message, event, pushover_apitoken, pushover_keys,
                                   pushover_device, notificationType, method, force)
 
-#
-# Public functions
-#
+    #
+    # Public functions
+    #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
+            if fail:
+                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notificationType='note')
+        else:
             self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notificationType='note')
 
     def notify_download(self, title):

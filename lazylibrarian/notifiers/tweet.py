@@ -21,6 +21,7 @@ import lib.pythontwitter as twitter
 from lazylibrarian import logger, common, formatter
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import parse_qsl
+
 try:
     import oauth2 as oauth
 except ImportError:
@@ -40,9 +41,12 @@ class TwitterNotifier:
     AUTHORIZATION_URL = 'https://api.twitter.com/oauth/authorize'
     SIGNIN_URL = 'https://api.twitter.com/oauth/authenticate'
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONSNATCH']:
-            self._notifyTwitter(common.notifyStrings[common.NOTIFY_SNATCH] + ': ' + title)
+            if fail:
+                self._notifyTwitter(common.notifyStrings[common.NOTIFY_FAIL] + ': ' + title)
+            else:
+                self._notifyTwitter(common.notifyStrings[common.NOTIFY_SNATCH] + ': ' + title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONDOWNLOAD']:

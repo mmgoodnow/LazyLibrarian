@@ -20,7 +20,7 @@
 import lazylibrarian
 
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import unaccented
 from .pushbullet2 import PushBullet
 
@@ -83,12 +83,15 @@ class PushbulletNotifier:
 
         return self._sendPushbullet(message, event, pushbullet_token, pushbullet_deviceid, force=force)
 
-#
-# Public functions
-#
+    #
+    # Public functions
+    #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONSNATCH']:
+            if fail:
+                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
+        else:
             self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):

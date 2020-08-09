@@ -63,8 +63,9 @@ from lazylibrarian.formatter import plural, next_run, is_valid_booktype, check_i
 # Notification Types
 NOTIFY_SNATCH = 1
 NOTIFY_DOWNLOAD = 2
+NOTIFY_FAIL = 3
 
-notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library"}
+notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library", NOTIFY_FAIL: "Download failed"}
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
 namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',

@@ -25,7 +25,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, proxyList
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxyList
 from lazylibrarian.formatter import check_int
 from lib.six import PY2
 
@@ -82,6 +82,7 @@ class AndroidPNNotifier:
         except Exception as e:
             # URLError only returns a reason, not a code. HTTPError gives a code
             # FIXME: Python 2.5 hack, it wrongly reports 201 as an error
+            # noinspection PyUnresolvedReferences
             if hasattr(e, 'code') and e.code == 201:
                 logger.debug("ANDROIDPN: Notification successful.")
                 return True
@@ -127,9 +128,12 @@ class AndroidPNNotifier:
     # Public functions
     #
 
-    def notify_snatch(self, ep_name):
+    def notify_snatch(self, ep_name, fail=False):
         if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONSNATCH']:
-            self._notify(notifyStrings[NOTIFY_SNATCH], ep_name)
+            if fail:
+                self._notify(notifyStrings[NOTIFY_FAIL], ep_name)
+            else:
+                self._notify(notifyStrings[NOTIFY_SNATCH], ep_name)
 
     def notify_download(self, ep_name):
         if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONDOWNLOAD']:

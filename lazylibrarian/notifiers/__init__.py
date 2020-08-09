@@ -69,9 +69,9 @@ def custom_notify_download(bookid):
         logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
-def custom_notify_snatch(bookid):
+def custom_notify_snatch(bookid, fail=False):
     try:
-        custom_notifier.notify_snatch(bookid)
+        custom_notifier.notify_snatch(bookid, fail=fail)
     except Exception as e:
         logger.warn('Custom notify snatch failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())
@@ -89,10 +89,10 @@ def notify_download(title, bookid=None):
         logger.error('Unhandled exception: %s' % traceback.format_exc())
 
 
-def notify_snatch(title):
+def notify_snatch(title, fail=False):
     try:
         for n in notifiers:
-            n.notify_snatch(title)
+            n.notify_snatch(title, fail=fail)
     except Exception as e:
         logger.warn('Notify snatch failed: %s' % str(e))
         logger.error('Unhandled exception: %s' % traceback.format_exc())

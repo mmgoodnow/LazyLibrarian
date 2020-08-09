@@ -15,7 +15,7 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, runScript
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, runScript
 
 
 class CustomNotifier:
@@ -60,13 +60,15 @@ class CustomNotifier:
                                     (bookid, ident, wanted_status))
 
         if book:
+            # noinspection PyTypeChecker
             dictionary = dict(list(zip(list(book.keys()), book)))
         else:
             dictionary = {}
-        
+
         dictionary['Event'] = event
 
         if wanted:
+            # noinspection PyTypeChecker
             wanted_dictionary = dict(list(zip(list(wanted.keys()), wanted)))
             for item in wanted_dictionary:
                 if item in ['Status', 'BookID']:  # rename to avoid clash
@@ -79,7 +81,7 @@ class CustomNotifier:
                 dictionary['AuxInfo'] = ident
             else:
                 dictionary['AuxInfo'] = 'Magazine'
-        
+
         try:
             # call the custom notifier script here, passing dictionary deconstructed as strings
             if lazylibrarian.CONFIG['CUSTOM_SCRIPT']:
@@ -106,13 +108,16 @@ class CustomNotifier:
             logger.warn('Error sending custom notification: %s' % e)
             return False
 
-        #
-        # Public functions
-        #
+    #
+    # Public functions
+    #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONSNATCH']:
-            self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
+            if fail:
+                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
+            else:
+                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONDOWNLOAD']:

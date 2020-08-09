@@ -57,7 +57,7 @@ from lazylibrarian.magazinescan import create_id
 from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.images import createMagCover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
-from lazylibrarian.notifiers import notify_download, custom_notify_download
+from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
 
 try:
     from deluge_client import DelugeRPCClient
@@ -1225,6 +1225,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         update_downloads(book['NZBprov'])
                     else:
                         logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
+                        dispname = dispName(book['NZBprov'])
+                        custom_notify_snatch("%s %s" % (book['BookID'], book_type), fail=True)
+                        notify_snatch("%s %s from %s at %s" %
+                                      (book_type, global_name, dispname, now()), fail=True)
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         newValueDict = {"Status": "Failed", "DLResult": makeUnicode(dest_file), "NZBDate": now()}
                         myDB.upsert("wanted", newValueDict, controlValueDict)
@@ -1360,6 +1364,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
                     logger.warn('%s, deleting failed task' % dlresult)
+                
+                custom_notify_snatch("%s %s" % (book['BookID'], book['Source']), fail=True)
+                notify_snatch("%s from %s at %s" %
+                              (book['NZBtitle'], book['Source'], now()), fail=True)
+
                 # change status to "Failed", and ask downloader to delete task and files
                 # Only reset book status to wanted if still snatched in case another download task succeeded
                 if book['BookID'] != 'unknown':

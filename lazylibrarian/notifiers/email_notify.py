@@ -25,7 +25,8 @@ import lazylibrarian
 import os
 import traceback
 from lazylibrarian import logger, database, ebook_convert
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, isValidEmail, path_isfile, syspath
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
+    isValidEmail, path_isfile, syspath
 from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
 from lib.six import PY2
 
@@ -140,9 +141,9 @@ class EmailNotifier:
             logger.error('Email traceback: %s' % traceback.format_exc())
             return False
 
-            #
-            # Public functions
-            #
+        #
+        # Public functions
+        #
 
     def notify_message(self, subject, message, to_addr):
         return self._notify(message=message, event=subject, force=True, to_addr=to_addr)
@@ -152,9 +153,12 @@ class EmailNotifier:
         res = self._notify(message=message, event=subject, force=True, files=files, to_addr=to_addr)
         return res
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONSNATCH']:
-            return self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
+            if fail:
+                return self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
+            else:
+                return self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
         return False
 
     def notify_download(self, title, bookid=None, force=False):

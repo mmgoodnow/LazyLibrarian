@@ -1,6 +1,6 @@
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
@@ -65,13 +65,17 @@ class Prowl_Notifier:
         except Exception as e:
             logger.warn('Error sending to Prowl: %s' % e)
             return False
-        #
-        # Public functions
-        #
 
-    def notify_snatch(self, title):
+    #
+    # Public functions
+    #
+
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['PROWL_ONSNATCH']:
-            self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+            if fail:
+                self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+            else:
+                self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['PROWL_ONDOWNLOAD']:

@@ -1,12 +1,13 @@
 import os
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, syspath
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, syspath
 from lib.six import PY2
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import urlencode
 # noinspection PyUnresolvedReferences
 from lib.six.moves.http_client import HTTPSConnection
+
 try:
     import gntp.notifier as gntp_notifier
 except ImportError:
@@ -98,13 +99,16 @@ class Growl_Notifier:
         logger.info(u"Growl notification sent.")
         return True
 
-        #
-        # Public functions
-        #
+    #
+    # Public functions
+    #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['GROWL_ONSNATCH']:
-            self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+            if fail:
+                self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+            else:
+                self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD']:

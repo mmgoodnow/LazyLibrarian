@@ -1,6 +1,7 @@
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+
 try:
     from pynma import pynma
 except ImportError:
@@ -49,12 +50,15 @@ class NMA_Notifier:
             logger.debug(u"NMA: Success. NotifyMyAndroid returned : %s" % response[nma_api][u'code'])
             return True
 
-#
-# Public functions
-#
+    #
+    # Public functions
+    #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['NMA_ONSNATCH']:
+            if fail:
+                self._sendNMA(nma_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+        else:
             self._sendNMA(nma_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):

@@ -6,7 +6,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 
 class Telegram_Notifier:
@@ -50,13 +50,17 @@ class Telegram_Notifier:
             logger.warn('Could not send notification to TelegramBot (token=%s). Response: [%s]' %
                         (telegram_token, response.text))
             return False
-            #
-            # Public functions
-            #
+        #
+        # Public functions
+        #
 
-    def notify_snatch(self, title):
+    def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['TELEGRAM_ONSNATCH']:
-            self._notify(telegram_token=None, telegram_userid=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+            if fail:
+                self._notify(telegram_token=None, telegram_userid=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+            else:
+                self._notify(telegram_token=None, telegram_userid=None, event=notifyStrings[NOTIFY_SNATCH],
+                             message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['TELEGRAM_ONDOWNLOAD']:
