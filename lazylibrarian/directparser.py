@@ -322,11 +322,12 @@ def BFI(book=None, prov=None, test=False):
                     else:
                         extn = ''
                     author = rowsoup.find('a', itemprop='author').text
-                    detail = rowsoup.find("span", itemprop='inLanguage').find_parent().text
+
                     try:
+                        detail = rowsoup.find("span", itemprop='inLanguage').find_parent().text
                         size = detail.split('\n')[0]
                         size = size_in_bytes(size.upper())
-                    except IndexError:
+                    except (IndexError, AttributeError):
                         size = 0
 
                     if url:
