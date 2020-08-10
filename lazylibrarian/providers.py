@@ -703,8 +703,6 @@ def IterateOverDirectSites(book=None, searchType=None):
                     resultslist += results
                     providers += 1
 
-    return resultslist, providers
-
     for prov in ['BFI']:
         if lazylibrarian.CONFIG[prov]:
             ignored = False
