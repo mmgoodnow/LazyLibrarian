@@ -310,7 +310,7 @@ def BFI(book=None, prov=None, test=False):
                 link = rowsoup.find('a', {"class": "ddownload"})
                 url = link['href']
 
-                extn = re.search("\((.*)\)", link.text).group()
+                extn = re.search("\((.*)\)", link.text).group(1)
                 if extn:
                     extn = extn.lower()
                 else:
