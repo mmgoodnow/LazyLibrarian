@@ -677,7 +677,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
             "\\$Abridged", "(?P<abridged>.*?)").replace(
             "\\$\\$", "\\ ") + r'\.[' + booktypes + ']'
 
-        pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
+        # noinspection PyBroadException
+        try:
+            pattern = re.compile(matchString, re.VERBOSE | re.IGNORECASE)
+        except Exception as e:
+            logger.error("Pattern failed for [%s] %s" % (matchto, str(e)))
+            pattern = None
+
         last_authorid = None
         for rootdir, dirnames, filenames in walk(startdir):
             for directory in dirnames:
@@ -799,7 +805,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             author, book = get_book_meta(rootdir, reason="libraryscan")
 
                         # Failing anything better, just pattern match on filename
-                        if not author or not book:
+                        if pattern and (not author or not book):
                             # might need a different pattern match for audiobooks
                             # as they often seem to have xxChapter-Seriesnum Author Title
                             # but hopefully the tags will get there first...
