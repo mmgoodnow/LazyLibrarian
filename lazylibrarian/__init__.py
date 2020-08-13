@@ -34,7 +34,7 @@ from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir, \
     path_isdir, path_isfile, path_exists, syspath
 from lazylibrarian.formatter import getList, bookSeries, unaccented, check_int, unaccented_bytes, \
     makeUnicode, makeBytestr
-from lazylibrarian.dbupgrade import check_db
+from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.providers import ProviderIsBlocked
 
 from lib.apscheduler.scheduler import Scheduler
@@ -879,7 +879,11 @@ def initialize():
             sys.exit(0)
 
         if version:
-            check_db()
+            db_changes = check_db()
+            if db_changes:
+                myDB.action('PRAGMA user_version=%s' % db_current_version)
+                myDB.action('vacuum')
+                logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
 
         # group_concat needs sqlite3 >= 3.5.4
         GROUP_CONCAT = False
