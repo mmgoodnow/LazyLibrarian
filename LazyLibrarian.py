@@ -77,6 +77,8 @@ def main():
                  dest='nolaunch', help="Don't start browser")
     p.add_option('--update', action="store_true",
                  dest='update', help="Update to latest version (only git or source installs)")
+    p.add_option('--upgrade', action="store_true",
+                 dest='update', help="Update to latest version (only git or source installs)")
     p.add_option('--port',
                  dest='port', default=None,
                  help="Force webinterface to listen on this port")
