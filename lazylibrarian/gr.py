@@ -292,9 +292,15 @@ class GoodReads:
         # who only has one book listed under googlebooks, the rest are under "James Lovelock"
         # goodreads has all his books under "James E. Lovelock". Can't come up with a good solution yet.
         # For now we'll have to let the user handle this by selecting/adding the author manually
-        for author in resultxml:
-            authorid = author.attrib.get("id")
-            return self.get_author_info(authorid)
+        for res in resultxml:
+            authorid = res.attrib.get("id")
+            authorname = res.find('name').text
+            authorname = formatAuthorName(unaccented(authorname, only_ascii=False))
+            match = fuzz.ratio(author, authorname)
+            if match >= lazylibrarian.CONFIG['NAME_RATIO']:
+                return self.get_author_info(authorid)
+            else:
+                logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
         return {}
 
     def get_author_info(self, authorid=None):
