@@ -657,7 +657,7 @@ def update():
                                lazylibrarian.PROG_DIR, content_dir, rootdir, curfile)
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg('error', msg)
-                    if os.path.isfile(new_path):
+                    if os.path.isfile(syspath(new_path)):
                         os.remove(syspath(new_path))
                     os.renames(syspath(old_path), syspath(new_path))
 

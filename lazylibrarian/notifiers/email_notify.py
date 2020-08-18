@@ -80,7 +80,7 @@ class EmailNotifier:
 
         if files:
             for f in files:
-                fsize = check_int(os.path.getsize(f), 0)
+                fsize = check_int(os.path.getsize(syspath(f)), 0)
                 if fsize > 20000000:
                     oversize = True
                     msg = '%s is too large (%s) to email' % (os.path.basename(f), fsize)

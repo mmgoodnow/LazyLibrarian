@@ -859,7 +859,7 @@ class Api(object):
             for cached_file in listdir(cache):
                 target = os.path.join(cache, cached_file)
                 if path_isfile(target):
-                    if os.path.getsize(target) < 500 and '.' in cached_file:
+                    if os.path.getsize(syspath(target)) < 500 and '.' in cached_file:
                         bookid = cached_file.split('.')[0]
                         res.append({"BookID": bookid})
         self.data = res

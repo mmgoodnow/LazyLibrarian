@@ -1620,7 +1620,7 @@ def DIRECTORY(dirname):
 
     if usedir and not path_isdir(usedir):
         try:
-            os.makedirs(usedir)
+            os.makedirs(syspath(usedir))
             logger.info("Created new %s folder: %s" % (dirname, usedir))
         except OSError as e:
             logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
@@ -1633,6 +1633,7 @@ def DIRECTORY(dirname):
             os.remove(syspath(os.path.join(usedir, 'll_temp')))
         except Exception as why:
             logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
+            usedir = syspath(usedir)
             logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
                                                                                     oct(os.stat(usedir).st_mode),
                                                                                     os.stat(usedir).st_uid,
@@ -2189,7 +2190,7 @@ def shutdown(restart=False, update=False):
                             upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg("info", msg)
                         try:
-                            os.remove(archivename)
+                            os.remove(syspath(archivename))
                         except OSError as e:
                             if e.errno != 2:  # doesn't exist is ok
                                 msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',

@@ -432,8 +432,8 @@ def getBookWork(bookID=None, reason='', seriesID=None):
         # does the workpage need to expire? For now only expire if it was an error page
         # (small file) or a series page as librarything might get better info over time, more series members etc
         if path_isfile(workfile):
-            if seriesID or os.path.getsize(workfile) < 500:
-                cache_modified_time = os.stat(workfile).st_mtime
+            if seriesID or os.path.getsize(syspath(workfile)) < 500:
+                cache_modified_time = os.stat(syspath(workfile)).st_mtime
                 time_now = time.time()
                 expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
                 if cache_modified_time < time_now - expiry:

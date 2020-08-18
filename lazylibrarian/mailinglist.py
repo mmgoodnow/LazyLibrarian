@@ -13,6 +13,7 @@
 import os
 import lazylibrarian
 from lazylibrarian import database, logger
+from lazylibrarian.common import path_exists, syspath
 from lazylibrarian.formatter import plural, getList, check_int
 from lazylibrarian.notifiers import email_notifier
 
@@ -116,12 +117,12 @@ def mailing_list(book_type, global_name, book_id):
     else:
         logger.debug("%s %s wanted by %s %s" % (book_type, global_name, len(userlist), plural(len(userlist), 'user')))
 
-    if not data or not data['filename'] or not os.path.exists(data['filename']):
+    if not data or not data['filename'] or not path_exists(data['filename']):
         logger.error("Unable to locate %s %s" % (booktype, book_id))
         return
 
     filename = data['filename']
-    fsize = check_int(os.path.getsize(filename), 0)
+    fsize = check_int(os.path.getsize(syspath(filename)), 0)
     limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
     if limit and fsize > limit * 1024 * 1024:
         msg = '%s is too large (%s) to email' % (os.path.split(filename)[1], fsize)
@@ -137,7 +138,7 @@ def mailing_list(book_type, global_name, book_id):
                 pref = res['BookType']
                 basename, extn = os.path.splitext(filename)
                 prefname = "%s.%s" % (basename, pref)
-                if os.path.exists(prefname):
+                if path_exists(prefname):
                     filename = prefname
                 else:
                     msg = global_name + ' is available for download, but not as ' + pref

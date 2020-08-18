@@ -328,9 +328,8 @@ def syspath(path, prefix=True):
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    # Don't do anything if we're not on windows
     if os.path.__name__ != 'ntpath':
-        return path
+        return makeBytestr(path)
 
     if not isinstance(path, text_type):
         # Beets currently represents Windows paths internally with UTF-8
@@ -490,7 +489,7 @@ def setperm(file_or_dir):
         return False
 
     want_perm = oct(perm)[-3:].zfill(3)
-    st = os.stat(file_or_dir)
+    st = os.stat(syspath(file_or_dir))
     old_perm = oct(st.st_mode)[-3:].zfill(3)
     if old_perm == want_perm:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
@@ -498,12 +497,12 @@ def setperm(file_or_dir):
         return True
 
     try:
-        os.chmod(file_or_dir, perm)
+        os.chmod(syspath(file_or_dir), perm)
     except Exception as e:
         logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir, type(e).__name__, str(e)))
         return False
 
-    st = os.stat(file_or_dir)
+    st = os.stat(syspath(file_or_dir))
     new_perm = oct(st.st_mode)[-3:].zfill(3)
 
     if new_perm == want_perm:

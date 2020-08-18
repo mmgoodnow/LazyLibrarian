@@ -166,7 +166,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
             msg = "Alternate Directory [%s] not found" % search_dir
             logger.warn(msg)
             return msg
-        elif not os.access(search_dir, os.W_OK | os.X_OK):
+        elif not os.access(syspath(search_dir), os.W_OK | os.X_OK):
             msg = "Alternate Directory [%s] not writable" % search_dir
             logger.warn(msg)
             return msg
@@ -443,9 +443,9 @@ def import_CSV(search_dir=None, library='eBook'):
                     except Exception as e:
                         logger.error("Unable to rename %s, %s %s" %
                                      (csvFile, type(e).__name__, str(e)))
-                        if not os.access(csvFile, os.R_OK):
+                        if not os.access(syspath(csvFile), os.R_OK):
                             logger.error("%s is not readable" % csvFile)
-                        if not os.access(csvFile, os.W_OK):
+                        if not os.access(syspath(csvFile), os.W_OK):
                             logger.error("%s is not writeable" % csvFile)
                         parent = os.path.dirname(csvFile)
                         try:

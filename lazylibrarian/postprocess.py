@@ -1253,11 +1253,11 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         except Exception as why:
                             logger.error("Unable to rename %s, %s %s" %
                                          (repr(pp_path), type(why).__name__, str(why)))
-                            if not os.access(pp_path, os.R_OK):
+                            if not os.access(syspath(pp_path), os.R_OK):
                                 logger.error("%s is not readable" % repr(pp_path))
-                            if not os.access(pp_path, os.W_OK):
+                            if not os.access(syspath(pp_path), os.W_OK):
                                 logger.error("%s is not writeable" % repr(pp_path))
-                            if not os.access(pp_path, os.X_OK):
+                            if not os.access(syspath(pp_path), os.X_OK):
                                 logger.error("%s is not executable" % repr(pp_path))
                             parent = os.path.dirname(pp_path)
                             try:
@@ -2123,9 +2123,9 @@ def process_book(pp_path=None, bookID=None, library=None):
                 except Exception as e:
                     logger.error("Unable to rename %s, %s %s" %
                                  (repr(pp_path), type(e).__name__, str(e)))
-                    if not os.access(pp_path, os.R_OK):
+                    if not os.access(syspath(pp_path), os.R_OK):
                         logger.error("%s is not readable" % repr(pp_path))
-                    if not os.access(pp_path, os.W_OK):
+                    if not os.access(syspath(pp_path), os.W_OK):
                         logger.error("%s is not writeable" % repr(pp_path))
                     parent = os.path.dirname(pp_path)
                     try:
@@ -2674,7 +2674,7 @@ def processAutoAdd(src_path=None, booktype='book'):
                                  (name, type(why).__name__, str(why)))
                     return False
                 try:
-                    os.chmod(dstname, 0o666)  # make rw for calibre
+                    os.chmod(syspath(dstname), 0o666)  # make rw for calibre
                 except OSError as why:
                     logger.warn("Could not set permission of %s because [%s]" % (dstname, why.strerror))
                     # permissions might not be fatal, continue
@@ -2935,7 +2935,7 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 
 
 def write_meta(book_folder, opf):
-    if not os.path.exists(opf):
+    if not path_exists(opf):
         logger.error("No opf file [%s]" % opf)
         return
 

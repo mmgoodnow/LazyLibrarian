@@ -22,7 +22,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
-from lazylibrarian.common import syspath
+from lazylibrarian.common import syspath, path_exists
 
 cp_ver = getattr(cherrypy, '__version__', None)
 if cp_ver and int(cp_ver.split('.')[0]) >= 10:
@@ -42,7 +42,7 @@ def initialize(options=None):
         options['http_root'] = '/' + options['http_root']
 
     if https_enabled:
-        if not (os.path.exists(https_cert) and os.path.exists(https_key)):
+        if not (path_exists(https_cert) and path_exists(https_key)):
             logger.warn("Disabled HTTPS because of missing certificate and key.")
             https_enabled = False
 
@@ -182,7 +182,7 @@ def initialize(options=None):
         conf['/opds'] = {'tools.auth_basic.on': False}
 
     opensearch = os.path.join(lazylibrarian.PROG_DIR, 'data', 'opensearch.template')
-    if os.path.exists(opensearch):
+    if path_exists(opensearch):
         with open(syspath(opensearch), 'r') as s:
             data = s.read().splitlines()
         # (title, function)

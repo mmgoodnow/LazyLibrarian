@@ -176,7 +176,7 @@ def magazineScan(title=None):
                             continue
 
                         issuefile = os.path.join(rootdir, fname)  # full path to issue.pdf
-                        mtime = os.path.getmtime(issuefile)
+                        mtime = os.path.getmtime(syspath(issuefile))
                         iss_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
                         logger.debug("Found %s Issue %s" % (title, issuedate))

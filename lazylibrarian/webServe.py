@@ -39,7 +39,7 @@ from lazylibrarian.calibre import calibreTest, syncCalibreList, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, nameWords, titleWords
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
-    setperm, aaUpdate, csv_file, saveLog, logHeader, pwd_generator, pwd_check, isValidEmail, mimeType, \
+    setperm, aaUpdate, csv_file, saveLog, logHeader, listdir, pwd_generator, pwd_check, isValidEmail, mimeType, \
     zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, \
     syspath, remove
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
@@ -1222,7 +1222,7 @@ class WebInterface(object):
     def config(self):
         self.label_thread('CONFIG')
         http_look_dir = os.path.join(lazylibrarian.PROG_DIR, 'data' + os.path.sep + 'interfaces')
-        http_look_list = [name for name in os.listdir(http_look_dir)
+        http_look_list = [name for name in listdir(http_look_dir)
                           if path_isdir(os.path.join(http_look_dir, name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
         apprise_list = lazylibrarian.notifiers.apprise_notify.Apprise_Notifier.notify_types()
@@ -2931,9 +2931,9 @@ class WebInterface(object):
         if data:
             images = []
             res = getAuthorImage(authorid=authorid, refresh=False, max_num=5)
-            if res and os.path.isdir(res):
+            if res and path_isdir(res):
                 basedir = res.replace(lazylibrarian.DATADIR, '').lstrip('/')
-                for item in os.listdir(res):
+                for item in listdir(res):
                     images.append([item, os.path.join(basedir, item)])
             return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
                                   images=images)
@@ -4078,7 +4078,7 @@ class WebInterface(object):
                 if issuedir and lazylibrarian.CONFIG['COMIC_DELFOLDER']:
                     magdir = os.path.dirname(issuedir)
                     try:
-                        os.rmdir(magdir)
+                        os.rmdir(syspath(magdir))
                         logger.debug('Comic directory %s deleted from disc' % magdir)
                     except OSError:
                         logger.debug('Comic directory %s is not empty' % magdir)
@@ -4150,11 +4150,11 @@ class WebInterface(object):
                         issuefile = newest['IssueFile']
                         if path_exists(issuefile):
                             cover = os.path.splitext(issuefile)[0] + '.jpg'
-                            mtime = os.path.getmtime(issuefile)
+                            mtime = os.path.getmtime(syspath(issuefile))
                             new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                         issuefile = oldest['IssueFile']
                         if path_exists(issuefile):
-                            mtime = os.path.getmtime(issuefile)
+                            mtime = os.path.getmtime(syspath(issuefile))
                             old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
                         newValueDict = {
@@ -4788,11 +4788,11 @@ class WebInterface(object):
                             issuefile = newest['IssueFile']
                             if path_exists(issuefile):
                                 cover = os.path.splitext(issuefile)[0] + '.jpg'
-                                mtime = os.path.getmtime(issuefile)
+                                mtime = os.path.getmtime(syspath(issuefile))
                                 new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                             issuefile = oldest['IssueFile']
                             if path_exists(issuefile):
-                                mtime = os.path.getmtime(issuefile)
+                                mtime = os.path.getmtime(syspath(issuefile))
                                 old_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
 
                             newValueDict = {
@@ -4826,7 +4826,7 @@ class WebInterface(object):
             # if the directory is now empty, delete that too
             if lazylibrarian.CONFIG['MAG_DELFOLDER']:
                 try:
-                    os.rmdir(os.path.dirname(issuefile))
+                    os.rmdir(syspath(os.path.dirname(issuefile)))
                 except OSError as e:
                     logger.debug('Directory %s not deleted: %s' % (os.path.dirname(issuefile), str(e)))
                 return True
@@ -4862,7 +4862,7 @@ class WebInterface(object):
                 if issuedir and lazylibrarian.CONFIG['MAG_DELFOLDER']:
                     magdir = os.path.dirname(issuedir)
                     try:
-                        os.rmdir(magdir)
+                        os.rmdir(syspath(magdir))
                         logger.debug('Magazine directory %s deleted from disc' % magdir)
                     except OSError:
                         logger.debug('Magazine directory %s is not empty' % magdir)
@@ -6352,13 +6352,14 @@ class WebInterface(object):
 
     @staticmethod
     def send_file(basefile, name=None, email=False):
+        basefile = syspath(basefile)
         if lazylibrarian.CONFIG['USER_ACCOUNTS']:
             myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
             if email and cookie and 'll_uid' in list(cookie.keys()):
                 res = myDB.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
                 if res and res['SendTo']:
-                    fsize = check_int(os.path.getsize(basefile), 0)
+                    fsize = check_int(os.path.getsize(syspath(basefile)), 0)
                     limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
                     if limit and fsize > limit * 1024 * 1024:
                         msg = '%s is too large (%s) to email' % (os.path.split(basefile)[1], fsize)
