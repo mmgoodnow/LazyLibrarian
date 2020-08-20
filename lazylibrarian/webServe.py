@@ -2703,44 +2703,45 @@ class WebInterface(object):
                 res = myDB.match(cmd, (comicid, issueid))
             except (IndexError, ValueError):
                 res = None
+                issueid = 0
 
             if res:
                 target = res['IssueFile']
-
                 if target and path_isfile(target):
                     logger.debug('Opening %s %s' % (ftype, target))
-                    return self.send_file(target)
+                    return self.send_file(target, name="%s %s%s" % (res['Title'], issueid,
+                                          os.path.splitext(target)[1]))
 
         elif ftype == 'audio':
             res = myDB.match('SELECT AudioFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
                 cnt = 0
-                basefile = res['AudioFile']
+                myfile = res['AudioFile']
                 # count the audiobook parts
-                if basefile and path_isfile(basefile):
-                    parentdir = os.path.dirname(basefile)
+                if myfile and path_isfile(myfile):
+                    parentdir = os.path.dirname(myfile)
                     for _, _, filenames in walk(parentdir):
                         for filename in filenames:
                             if is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
 
                 if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
-                    target = zipAudio(os.path.dirname(basefile), res['BookName'])
+                    target = zipAudio(os.path.dirname(myfile), res['BookName'])
                     logger.debug('Opening %s %s' % (ftype, target))
                     return self.send_file(target, name=res['BookName'] + '.zip')
 
-                if basefile and path_isfile(basefile):
-                    logger.debug('Opening %s %s' % (ftype, basefile))
-                    return self.send_file(basefile)
+                if myfile and path_isfile(myfile):
+                    logger.debug('Opening %s %s' % (ftype, myfile))
+                    return self.send_file(myfile)
 
         elif ftype == 'book':
             res = myDB.match('SELECT BookFile,BookName from books WHERE BookID=?', (itemid,))
             if res:
-                basefile = res['BookFile']
-                basename, extn = os.path.splitext(basefile)
+                myfile = res['BookFile']
+                fname, extn = os.path.splitext(myfile)
                 types = []
                 for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
-                    target = basename + '.' + item
+                    target = fname + '.' + item
                     if path_isfile(target):
                         types.append(item)
 
@@ -2749,18 +2750,19 @@ class WebInterface(object):
                     extn = preftype
                 else:
                     extn = types[0]
-                basefile = basename + '.' + extn
-                if path_isfile(basefile):
-                    logger.debug('Opening %s %s' % (ftype, basefile))
-                    return self.send_file(basefile)
+                myfile = fname + '.' + extn
+                if path_isfile(myfile):
+                    logger.debug('Opening %s %s' % (ftype, myfile))
+                    return self.send_file(myfile)
 
         elif ftype == 'issue':
-            res = myDB.match('SELECT IssueFile from issues WHERE IssueID=?', (itemid,))
+            res = myDB.match('SELECT Title,IssueFile from issues WHERE IssueID=?', (itemid,))
             if res:
-                basefile = res['IssueFile']
-                if basefile and path_isfile(basefile):
-                    logger.debug('Opening %s %s' % (ftype, basefile))
-                    return self.send_file(basefile)
+                myfile = res['IssueFile']
+                if myfile and path_isfile(myfile):
+                    logger.debug('Opening %s %s' % (ftype, myfile))
+                    return self.send_file(myfile, name="%s %s%s" % (res['Title'], itemid,
+                                          os.path.splitext(myfile)[1]))
         logger.warn("No file found for %s %s" % (ftype, itemid))
 
     @cherrypy.expose
@@ -2812,8 +2814,7 @@ class WebInterface(object):
                                     logger.debug('Emailing %s %s' % (library, zipfile))
                                 else:
                                     logger.debug('Opening %s %s' % (library, zipfile))
-                                return self.send_file(zipfile, name="Audiobook zip of %s" % bookName,
-                                                      email=email)
+                                return self.send_file(zipfile, name="%s.zip" % bookName, email=email)
                             idx = check_int(booktype, 0)
                             if idx:
                                 with open(syspath(index), 'r') as f:
@@ -2823,8 +2824,8 @@ class WebInterface(object):
                                     logger.debug('Emailing %s %s' % (library, bookfile))
                                 else:
                                     logger.debug('Opening %s %s' % (library, bookfile))
-                                return self.send_file(bookfile, name="Audiobook part %s of %s" % (idx, bookName),
-                                                      email=email)
+                                return self.send_file(bookfile, name="%s part%s%s" %
+                                                      (bookName, idx, os.path.splitext(bookfile)[1]), email=email)
                             # noinspection PyUnusedLocal
                             cnt = sum(1 for line in open(index))
                             if cnt <= 1:
@@ -2832,8 +2833,7 @@ class WebInterface(object):
                                     logger.debug('Emailing %s %s' % (library, bookfile))
                                 else:
                                     logger.debug('Opening %s %s' % (library, bookfile))
-                                return self.send_file(bookfile, name="Audiobook %s" % bookName,
-                                                      email=email)
+                                return self.send_file(bookfile, email=email)
                             else:
                                 msg = "Please select which part to "
                                 if email:
@@ -2860,22 +2860,21 @@ class WebInterface(object):
                                 logger.debug('Emailing %s %s' % (library, bookfile))
                             else:
                                 logger.debug('Opening %s %s' % (library, bookfile))
-                            return self.send_file(bookfile, name="Audiobook %s" % bookName,
-                                                  email=email)
+                            return self.send_file(bookfile, email=email)
                 else:
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
                     if bookfile and path_isfile(bookfile):
-                        basename, _ = os.path.splitext(bookfile)
+                        fname, _ = os.path.splitext(bookfile)
                         types = []
                         for item in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
-                            target = basename + '.' + item
+                            target = fname + '.' + item
                             if path_isfile(target):
                                 types.append(item)
                         logger.debug('Preftype:%s Types:%s' % (preftype, str(types)))
                         if preftype and len(types):
                             if preftype in types:
-                                bookfile = basename + '.' + preftype
+                                bookfile = fname + '.' + preftype
                             else:
                                 msg = "%s<br> Not available as %s, only " % (bookName, preftype)
                                 typestr = ''
@@ -2910,8 +2909,7 @@ class WebInterface(object):
                                 logger.debug('Emailing %s %s' % (library, bookfile))
                             else:
                                 logger.debug('Opening %s %s' % (library, bookfile))
-                            return self.send_file(bookfile, name="eBook %s" % bookName,
-                                                  email=email)
+                            return self.send_file(bookfile, email=email)
                         else:
                             logger.debug('Unable to send %s %s, no valid types?' % (library, bookName))
 
@@ -3877,30 +3875,38 @@ class WebInterface(object):
         myDB = database.DBConnection()
         if comicid and '_' in comicid:
             comicid = comicid.split('_')[0]
-        mag_data = myDB.match('SELECT * from comics WHERE ComicID=?', (comicid,))
-        if not mag_data:
-            logger.warn("No data for comic %s" % comicid)
-            raise cherrypy.HTTPRedirect("comics")
-        title = mag_data['Title']
+
         # we may want to open an issue with an issueid
-        if issueid:
-            cmd = 'SELECT * from comicissues WHERE ComicID=? and IssueID=?'
+        if comicid and issueid:
+            cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
+            cmd += ' and ComicID=? and IssueID=?'
             iss_data = myDB.match(cmd, (comicid, issueid))
             if iss_data:
                 IssueFile = iss_data["IssueFile"]
                 if IssueFile and path_isfile(IssueFile):
                     logger.debug('Opening file %s' % IssueFile)
-                    return self.send_file(IssueFile, name="Comic %s %s" % (title, issueid))
+                    return self.send_file(IssueFile, name="%s %s%s" %
+                                          (iss_data["Title"], issueid, os.path.splitext(IssueFile)[1]))
 
-        # or we may just have an id to find comic in comicissues table
-        iss_data = myDB.select('SELECT * from comicissues WHERE ComicID=?', (comicid,))
-        if len(iss_data) == 0:  # no issues!
-            iss_data = []
+        # or we may just have a comicid to find comic in comicissues table
+        cmd = 'SELECT Title,IssueFile,IssueID from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
+        cmd += ' and ComicID=?'
+        iss_data = myDB.select(cmd, (comicid,))
+        if len(iss_data) == 0:
+            logger.warn("No issues for comic %s" % comicid)
+            raise cherrypy.HTTPRedirect("comics")
+
         if len(iss_data) == 1 and lazylibrarian.CONFIG['COMIC_SINGLE']:  # we only have one issue, get it
+            Title = iss_data[0]["Title"]
             IssueID = iss_data[0]["IssueID"]
             IssueFile = iss_data[0]["IssueFile"]
-            logger.debug('Opening %s - %s' % (comicid, IssueID))
-            return self.send_file(IssueFile, name="Comic %s %s" % (comicid, IssueID))
+            if IssueFile and path_isfile(IssueFile):
+                logger.debug('Opening %s - %s' % (comicid, IssueID))
+                return self.send_file(IssueFile, name="%s %s%s" % (Title, IssueID, os.path.splitext(IssueFile)[1]))
+            else:
+                logger.warn("No issue %s for comic %s" % (IssueID, Title))
+                raise cherrypy.HTTPRedirect("comics")
+
         else:  # multiple issues, show a list
             logger.debug("%s has %s %s" % (comicid, len(iss_data), plural(len(iss_data), "issue")))
             raise cherrypy.HTTPRedirect("comicissuePage?comicid=%s" % comicid)
@@ -4591,23 +4597,29 @@ class WebInterface(object):
                     logger.debug('Emailing file %s' % IssueFile)
                 else:
                     logger.debug('Opening file %s' % IssueFile)
-                return self.send_file(IssueFile,
-                                      name="Magazine %s %s" % (mag_data["Title"], mag_data["IssueDate"]),
-                                      email=email)
+                return self.send_file(IssueFile, name="%s %s%s" %
+                                                      (mag_data["Title"], mag_data["IssueDate"],
+                                                       os.path.splitext(IssueFile)[1]), email=email)
 
         # or we may just have a title to find magazine in issues table
         mag_data = myDB.select('SELECT * from issues WHERE Title=?', (bookid,))
-        if len(mag_data) == 0:  # no issues!
-            mag_data = []
+        if len(mag_data) == 0:
+            logger.warn("No issues for magazine %s" % bookid)
+            raise cherrypy.HTTPRedirect("magazines")
+
         if len(mag_data) == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:  # we only have one issue, get it
             IssueDate = mag_data[0]["IssueDate"]
             IssueFile = mag_data[0]["IssueFile"]
-            if email:
-                logger.debug('Emailing %s - %s' % (bookid, IssueDate))
+            if IssueFile and path_isfile(IssueFile):
+                if email:
+                    logger.debug('Emailing %s - %s' % (bookid, IssueDate))
+                else:
+                    logger.debug('Opening %s - %s' % (bookid, IssueDate))
+                return self.send_file(IssueFile, name="%s %s%s" % (bookid, IssueDate,
+                                      os.path.splitext(IssueFile)[1]), email=email)
             else:
-                logger.debug('Opening %s - %s' % (bookid, IssueDate))
-            return self.send_file(IssueFile, name="Magazine %s %s" % (bookid, IssueDate),
-                                  email=email)
+                logger.warn("No issue %s for magazine %s" % (IssueDate, bookid))
+                raise cherrypy.HTTPRedirect("magazines")
         else:  # multiple issues, show a list
             logger.debug("%s has %s %s" % (bookid, len(mag_data), plural(len(mag_data), "issue")))
             raise cherrypy.HTTPRedirect("issuePage?title=%s" % quote_plus(makeUTF8bytes(bookid)[0]))
@@ -6351,37 +6363,35 @@ class WebInterface(object):
         return data
 
     @staticmethod
-    def send_file(basefile, name=None, email=False):
-        basefile = syspath(basefile)
+    def send_file(myfile, name=None, email=False):
         if lazylibrarian.CONFIG['USER_ACCOUNTS']:
             myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
             if email and cookie and 'll_uid' in list(cookie.keys()):
                 res = myDB.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
                 if res and res['SendTo']:
-                    fsize = check_int(os.path.getsize(syspath(basefile)), 0)
+                    fsize = check_int(os.path.getsize(syspath(myfile)), 0)
                     limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
                     if limit and fsize > limit * 1024 * 1024:
-                        msg = '%s is too large (%s) to email' % (os.path.split(basefile)[1], fsize)
+                        msg = '%s is too large (%s) to email' % (os.path.basename(myfile), fsize)
                         logger.debug(msg)
                     else:
-                        logger.debug("Emailing %s to %s" % (basefile, res['SendTo']))
+                        logger.debug("Emailing %s to %s" % (myfile, res['SendTo']))
                         if name:
                             msg = name + ' is attached'
                         else:
                             msg = ''
                         result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
                                                                      message=msg, to_addr=res['SendTo'],
-                                                                     files=[basefile])
+                                                                     files=[myfile])
                         if result:
-                            msg = "Emailed file %s to %s" % (os.path.split(basefile)[1], res['SendTo'])
+                            msg = "Emailed file %s to %s" % (os.path.basename(myfile), res['SendTo'])
                             logger.debug(msg)
                         else:
-                            msg = "Failed to email file %s to %s" % (os.path.split(basefile)[1], res['SendTo'])
+                            msg = "Failed to email file %s to %s" % (os.path.basename(myfile), res['SendTo'])
                             logger.error(msg)
                     return serve_template(templatename="choosetype.html", title='Send file',
                                           pop_message=msg, pop_types='', bookid='', valid='', email=email)
-
-        if name and name.endswith('zip'):
-            return serve_file(basefile, mimeType(basefile), "attachment", name=name)
-        return serve_file(basefile, mimeType(basefile), "attachment")
+        if not name:
+            name = os.path.basename(myfile)
+        return serve_file(myfile, mimeType(myfile), "attachment", name=name)
