@@ -371,19 +371,17 @@ def safe_move(src, dst, action='move'):
         eg windows can't handle <>?":| (and maybe others) in filenames
         Return (new) dst if success """
 
-    src = syspath(src)
-    dst = syspath(dst)
     if src == dst:  # nothing to do
         return dst
 
     while action:  # might have more than one problem...
         try:
             if action == 'copy':
-                shutil.copy(src, dst)
+                shutil.copy(syspath(src), syspath(dst))
             elif path_isdir(src) and dst.startswith(src):
-                shutil.copytree(src, dst)
+                shutil.copytree(syspath(src), syspath(dst))
             else:
-                shutil.move(src, dst)
+                shutil.move(syspath(src), syspath(dst))
             return dst
 
         except UnicodeEncodeError:
