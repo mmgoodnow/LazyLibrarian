@@ -30,6 +30,9 @@ def checkLink():
     auth, _ = SABnzbd(nzburl='auth')
     if not auth:
         return "Unable to talk to SABnzbd, check HOST/PORT/SUBDIR"
+    vers, _ = SABnzbd(nzburl='version')
+    if not vers or 'version' not in vers:
+        vers = {'version': 'unknown'}
     # check apikey is valid
     cats, _ = SABnzbd(nzburl='get_cats')  # type: dict
     if not cats:
@@ -41,7 +44,7 @@ def checkLink():
         if lazylibrarian.CONFIG['SAB_CAT'] not in cats['categories']:
             return "SABnzbd: Unknown category [%s]\nValid categories:\n%s" % (
                     lazylibrarian.CONFIG['SAB_CAT'], str(cats['categories']))
-    return "SABnzbd connection successful"
+    return "SABnzbd connection successful, version %s" % vers['version']
 
 
 def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
@@ -70,8 +73,8 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
 
     params = {}
 
-    if nzburl == 'auth' or nzburl == 'get_cats':
-        # connection test, check auth mode or get_cats
+    if nzburl in ['auth', 'get_cats', 'version']:
+        # connection test
         params['mode'] = nzburl
         params['output'] = 'json'
         if lazylibrarian.CONFIG['SAB_API']:
