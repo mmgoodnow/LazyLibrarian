@@ -40,7 +40,7 @@ def checkLink():
     # check category exists
     if lazylibrarian.CONFIG['SAB_CAT']:
         if 'categories' not in cats or not len(cats['categories']):
-            return "SABnzbd seems to have no categories set"
+            return "Failed to get SABnzbd categories: %s" % str(cats)
         if lazylibrarian.CONFIG['SAB_CAT'] not in cats['categories']:
             return "SABnzbd: Unknown category [%s]\nValid categories:\n%s" % (
                     lazylibrarian.CONFIG['SAB_CAT'], str(cats['categories']))
