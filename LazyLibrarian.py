@@ -91,6 +91,9 @@ def main():
     p.add_option('-p', '--pidfile',
                  dest='pidfile', default=None,
                  help="Store the process id in the given file")
+    p.add_option('-u', '--userid',
+                 dest='userid', default=None,
+                 help="Login as this userid")
     p.add_option('--loglevel',
                  dest='loglevel', default=None,
                  help="Debug loglevel")
@@ -299,6 +302,11 @@ def main():
         'opds_password': lazylibrarian.CONFIG['OPDS_PASSWORD'],
     })
 
+    if options.userid:
+        lazylibrarian.LOGINUSER = options.userid
+    else:
+        lazylibrarian.LOGINUSER = None
+
     if lazylibrarian.CONFIG['LAUNCH_BROWSER'] and not options.nolaunch:
         lazylibrarian.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
                                      lazylibrarian.CONFIG['HTTP_PORT'],
@@ -307,7 +315,7 @@ def main():
     curr_ver = dbupgrade.upgrade_needed()
     if curr_ver:
         lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
-        threading.Thread(target=dbupgrade.dbupgrade, name="DB_UPGRADE", args=[curr_ver]).start()
+        dbupgrade.dbupgrade(curr_ver)
 
     lazylibrarian.start()
 

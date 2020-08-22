@@ -274,8 +274,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                         # GoodReads may have altered authorid?
                         logger.warn("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
                                     (authorname, author['authorid'], dbauthor['authorid']))
-                        if lazylibrarian.FOREIGN_KEY:
-                            myDB.action("PRAGMA foreign_keys = OFF")
+                        myDB.action("PRAGMA foreign_keys = OFF")
                         myDB.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
                                     (author['authorid'], dbauthor['authorid']))
                         myDB.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
@@ -289,7 +288,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     newValueDict["AuthorDeath"] = author['authordeath']
 
                 myDB.upsert("authors", newValueDict, controlValueDict)
-                if dbauthor is None and lazylibrarian.FOREIGN_KEY:
+                if dbauthor is None:
                     myDB.action("PRAGMA foreign_keys = ON")
                 match = True
             else:

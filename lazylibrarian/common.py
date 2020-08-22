@@ -1355,9 +1355,6 @@ def logHeader():
         tls_version = str(e)
     header += "tls: %s\n" % tls_version
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
-    if not lazylibrarian.FOREIGN_KEY:
-        # 3.6.19 is the earliest version with FOREIGN_KEY which we use, but is not essential
-        header += 'sqlite3: missing required functionality. Try upgrading to v3.6.19 or newer. You have '
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
 
     if lazylibrarian.UNRARLIB == 1:

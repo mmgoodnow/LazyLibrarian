@@ -109,10 +109,25 @@ def serve_template(templatename, **kwargs):
         res = None
         userprefs = 0
         myDB = database.DBConnection()
+
+        if lazylibrarian.LOGINUSER:
+            res = myDB.match('SELECT UserName from users where UserID=?', (lazylibrarian.LOGINUSER,))
+            if res:
+                cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
+                logger.debug("Auto-login for %s" % res['UserName'])
+                lazylibrarian.SHOWLOGOUT = 0
+            else:
+                logger.debug("Auto-login failed for userid %s" % lazylibrarian.LOGINUSER)
+                cherrypy.response.cookie['ll_uid'] = ''
+                cherrypy.response.cookie['ll_uid']['expires'] = 0
+                cherrypy.response.cookie['ll_prefs'] = '0'
+                cherrypy.response.cookie['ll_prefs']['expires'] = 0
+            lazylibrarian.LOGINUSER = None
+
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
-        else:
+        if not res:
             columns = myDB.select('PRAGMA table_info(users)')
             if not columns:  # no such table
                 cnt = 0
@@ -654,7 +669,7 @@ class WebInterface(object):
                     perms = myDB.select('SELECT Perms from users')
                     for item in perms:
                         val = check_int(item['Perms'], 0)
-                        if val & 1:
+                        if val & lazylibrarian.perm_config:
                             count += 1
                     if count < 2:
                         return "Unable to delete last administrator"
@@ -2181,19 +2196,13 @@ class WebInterface(object):
                             logger.debug("getBooks userid %s read %s,%s,%s,%s" % (
                                 cookie['ll_uid'].value, len(ToRead), len(HaveRead), len(Reading), len(Abandoned)))
 
-            # group_concat needs sqlite3 >= 3.5.4, we check version in __init__
-            if lazylibrarian.GROUP_CONCAT:
-                cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
-                cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-                cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
-                cmd += 'bookadded,scanresult FROM books, authors'
-                cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
-                cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
-                cmd += ' WHERE books.AuthorID = authors.AuthorID'
-            else:
-                cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,bookid,booklang,'
-                cmd += 'booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-                cmd += 'bookgenre,bookadded,scanresult from books,authors where books.AuthorID = authors.AuthorID'
+            cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
+            cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
+            cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
+            cmd += 'bookadded,scanresult FROM books, authors'
+            cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
+            cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
+            cmd += ' WHERE books.AuthorID = authors.AuthorID'
 
             types = []
             if lazylibrarian.SHOW_EBOOK:
@@ -2281,10 +2290,9 @@ class WebInterface(object):
                         logger.debug("User booklist length %s" % len(mybooks))
                     cmd += ' and books.bookID in (' + ', '.join(mybooks) + ')'
 
-            if lazylibrarian.GROUP_CONCAT:
-                cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
-                cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
-                cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult'
+            cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
+            cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
+            cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
@@ -2403,9 +2411,6 @@ class WebInterface(object):
 
                     if lazylibrarian.CONFIG['SHOW_GENRES'] and bookgenre and bookgenre != 'Unknown':
                         title += ' [' + bookgenre + ']'
-
-                    if not lazylibrarian.GROUP_CONCAT:
-                        row.append('')  # empty string for series links as no group_concat
 
                     if row[6] in ToRead:
                         flag = '&nbsp;<i class="far fa-bookmark"></i>'
@@ -2944,8 +2949,6 @@ class WebInterface(object):
     def authorUpdate(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                      editordata='', manual='0', **kwargs):
         myDB = database.DBConnection()
-        for item in kwargs:
-            print(item, kwargs[item])
         if authorid:
             authdata = myDB.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
             if authdata:

@@ -14,7 +14,6 @@ from __future__ import with_statement
 
 import datetime
 import os
-import shutil
 import time
 import traceback
 import uuid
@@ -23,87 +22,86 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import setGenres
-from lazylibrarian.common import restartJobs, pwd_generator, listdir, setperm, syspath
+from lazylibrarian.common import restartJobs, pwd_generator, setperm, syspath
 from lazylibrarian.formatter import plural, md5_utf8, getList, check_int
-from lazylibrarian.importer import addAuthorToDB, update_totals
-from lazylibrarian.versioncheck import runGit
-from lazylibrarian.common import path_isfile, path_exists
+from lazylibrarian.importer import update_totals
+from lazylibrarian.common import path_exists
 
-
-    # database version history:
-    # 0 original version or new empty database
-    # 1 changes up to June 2016
-    # 2 removed " MB" from nzbsize field in wanted table
-    # 3 removed SeriesOrder column from books table as redundant
-    # 4 added duplicates column to stats table
-    # 5 issue numbers padded to 4 digits with leading zeros
-    # 6 added Manual field to books table for user editing
-    # 7 added Source and DownloadID to wanted table for download monitoring
-    # 8 move image cache from data/images/cache into datadir
-    # 9 add regex to magazine table
-    # 10 check for missing columns in pastissues table
-    # 11 Keep most recent book image in author table
-    # 12 Keep latest issue cover in magazine table
-    # 13 add Manual column to author table for user editing
-    # 14 separate book and author images in case id numbers collide
-    # 15 move series and seriesnum into separate tables so book can appear in multiple series
-    # 16 remove series, authorlink, authorname columns from book table, only in series/author tables now
-    # 17 remove authorid from series table, new seriesauthor table to allow multiple authors per series
-    # 18 Added unique constraint to seriesauthors table
-    # 19 add seriesdisplay to book table
-    # 20 add booklibrary date to book table
-    # 21 add audiofile audiolibrary date and audiostatus to books table
-    # 22 add goodreads "follow" to author table
-    # 23 add user accounts
-    # 24 add HaveRead and ToRead to user accounts
-    # 25 add index for magazine issues (title) for new dbchanges
-    # 26 create Sync table
-    # 27 add indexes for book/author/wanted status
-    # 28 add CalibreRead and CalibreToRead columns to user table
-    # 29 add goodreads workid to books table
-    # 30 add BookType to users table
-    # 31 add DateType to magazines table
-    # 32 add counters to series table
-    # 33 add DLResult to wanted table
-    # 34 add ScanResult to books table, and new isbn table
-    # 35 add OriginalPubDate to books table
-    # 36 create failedsearch table
-    # 37 add delete cascade to tables
-    # 38 change series count and total to integers
-    # 39 add LastBookID to author table
-    # 40 add CoverPage to magazines table
-    # 41 add Requester and AudioRequester to books table
-    # 42 add SendTo to users table
-    # 43 remove foreign key constraint on wanted table
-    # 44 move hosting to gitlab
-    # ---------- Removed support for upgrades earlier than this ----------------
-    # ----------   v45+ lets us migrate last dobytang version   ------------
-    # 45 update local git repo to new origin
-    # 46 remove pastissues table and rebuild to ensure no foreign key
-    # 47 genres and genrebooks tables
-    # 48 ensure magazine table schema is current
-    # 49 ensure author table schema is current
-    # 50 add comics and comicissues tables
-    # 51 add aka to comics table
-    # 52 add updated to series table
-    # 53 add jobs table
-    # 54 separated author added date from updated timestamp
-    # 55 Add Reason to author table
-    # 56 Add Cover column to comicissues and issues tables
-    # 57 Add Description to comics and Description/Contributors to comicissues
-    # 58 Ensure Link was added to comicissues (was missing for new installs in v57)
-    # 59 Added per provider seeders instead of global
-    # 60 Moved preprocessor into main program and disabled old preprocessor
-    # --------- Database upgrades from this point are checked at every startup ------------
-    # 61 Add reason to series table
-    # 62 Add About to author table
-    # 63 Add Start to jobs table, rename LastRun to Finish
-    # 64 Add Added time to pastissues table
-    # 65 Add Reading and Abandoned to users table
-    # 66 Add subscribers table
-    # 67 Add prefs to user table
+# database version history:
+# 0 original version or new empty database
+# 1 changes up to June 2016
+# 2 removed " MB" from nzbsize field in wanted table
+# 3 removed SeriesOrder column from books table as redundant
+# 4 added duplicates column to stats table
+# 5 issue numbers padded to 4 digits with leading zeros
+# 6 added Manual field to books table for user editing
+# 7 added Source and DownloadID to wanted table for download monitoring
+# 8 move image cache from data/images/cache into datadir
+# 9 add regex to magazine table
+# 10 check for missing columns in pastissues table
+# 11 Keep most recent book image in author table
+# 12 Keep latest issue cover in magazine table
+# 13 add Manual column to author table for user editing
+# 14 separate book and author images in case id numbers collide
+# 15 move series and seriesnum into separate tables so book can appear in multiple series
+# 16 remove series, authorlink, authorname columns from book table, only in series/author tables now
+# 17 remove authorid from series table, new seriesauthor table to allow multiple authors per series
+# 18 Added unique constraint to seriesauthors table
+# 19 add seriesdisplay to book table
+# 20 add booklibrary date to book table
+# 21 add audiofile audiolibrary date and audiostatus to books table
+# 22 add goodreads "follow" to author table
+# 23 add user accounts
+# 24 add HaveRead and ToRead to user accounts
+# 25 add index for magazine issues (title) for new dbchanges
+# 26 create Sync table
+# 27 add indexes for book/author/wanted status
+# 28 add CalibreRead and CalibreToRead columns to user table
+# 29 add goodreads workid to books table
+# 30 add BookType to users table
+# 31 add DateType to magazines table
+# 32 add counters to series table
+# 33 add DLResult to wanted table
+# 34 add ScanResult to books table, and new isbn table
+# 35 add OriginalPubDate to books table
+# 36 create failedsearch table
+# 37 add delete cascade to tables
+# 38 change series count and total to integers
+# 39 add LastBookID to author table
+# 40 add CoverPage to magazines table
+# 41 add Requester and AudioRequester to books table
+# 42 add SendTo to users table
+# 43 remove foreign key constraint on wanted table
+# 44 move hosting to gitlab
+# ---------- Removed support for upgrades earlier than this ----------------
+# ----------   v45+ lets us migrate last dobytang version   ------------
+# 45 update local git repo to new origin
+# 46 remove pastissues table and rebuild to ensure no foreign key
+# 47 genres and genrebooks tables
+# 48 ensure magazine table schema is current
+# 49 ensure author table schema is current
+# 50 add comics and comicissues tables
+# 51 add aka to comics table
+# 52 add updated to series table
+# 53 add jobs table
+# 54 separated author added date from updated timestamp
+# 55 Add Reason to author table
+# 56 Add Cover column to comicissues and issues tables
+# 57 Add Description to comics and Description/Contributors to comicissues
+# 58 Ensure Link was added to comicissues (was missing for new installs in v57)
+# 59 Added per provider seeders instead of global
+# 60 Moved preprocessor into main program and disabled old preprocessor
+# --------- Database upgrades from this point are checked at every startup ------------
+# 61 Add reason to series table
+# 62 Add About to author table
+# 63 Add Start to jobs table, rename LastRun to Finish
+# 64 Add Added time to pastissues table
+# 65 Add Reading and Abandoned to users table
+# 66 Add subscribers table
+# 67 Add prefs to user table
 
 db_current_version = 67
+
 
 def upgrade_needed():
     """
@@ -211,61 +209,35 @@ def dbupgrade(db_current_version):
                                 'Publisher TEXT, Link TEXT, aka TEXT, Description TEXT)')
                     myDB.action('CREATE TABLE jobs (Name TEXT, Finish INTEGER DEFAULT 0, Start INTEGER DEFAULT 0)')
 
-                    if lazylibrarian.FOREIGN_KEY:
-                        myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
-                                    'ON DELETE CASCADE, BookName TEXT, BookSub TEXT, BookDesc TEXT, ' +
-                                    'BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, BookRate INTEGER DEFAULT 0, ' +
-                                    'BookImg TEXT, BookPages INTEGER DEFAULT 0, BookLink TEXT, BookID TEXT UNIQUE, ' +
-                                    'BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
-                                    'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
-                                    'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
-                                    'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
-                        myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
-                                    'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
-                                    'IssueFile TEXT, Cover TEXT)')
-                        myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
-                                    'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
-                                    'WorkID TEXT, SeriesNum TEXT)')
-                        myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, ' +
-                                    'AuthorID TEXT REFERENCES authors (AuthorID) ON DELETE CASCADE, ' +
-                                    'UNIQUE (SeriesID,AuthorID))')
-                        myDB.action('CREATE TABLE sync (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
-                                    'Label TEXT, Date TEXT, SyncList TEXT)')
-                        myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
-                                    'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
-                                    'Count INTEGER DEFAULT 0)')
-                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ' +
-                                    'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
-                                    'UNIQUE (GenreID,BookID))')
-                        myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
-                                    'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
-                                    'Cover TEXT, Description TEXT, Link TEXT, Contributors TEXT, ' +
-                                    'UNIQUE (ComicID, IssueID))')
-                    else:
-                        # running a very old sqlite on a nas that can't be updated, no foreign key support
-                        # so orphans get cleaned up at program startup
-                        myDB.action('CREATE TABLE books (AuthorID TEXT, BookName TEXT, BookSub TEXT, ' +
-                                    'BookDesc TEXT, BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, ' +
-                                    'BookRate INTEGER DEFAULT 0, BookImg TEXT, BookPages INTEGER DEFAULT 0, ' +
-                                    'BookLink TEXT, BookID TEXT UNIQUE, BookFile TEXT, BookDate TEXT, ' +
-                                    'BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
-                                    'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
-                                    'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
-                                    'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
-                        myDB.action('CREATE TABLE issues (Title TEXT, IssueID TEXT UNIQUE, ' +
-                                    'IssueAcquired TEXT, IssueDate TEXT, IssueFile TEXT, Cover TEXT)')
-                        myDB.action('CREATE TABLE member (SeriesID INTEGER, BookID TEXT, WorkID TEXT, ' +
-                                    'SeriesNum TEXT)')
-                        myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, AuthorID TEXT, ' +
-                                    'UNIQUE (SeriesID,AuthorID))')
-                        myDB.action('CREATE TABLE sync (UserID TEXT, Label TEXT, Date TEXT, SyncList TEXT)')
-                        myDB.action('CREATE TABLE failedsearch (BookID TEXT, Library TEXT, Time TEXT, ' +
-                                    'Interval INTEGER DEFAULT 0, Count INTEGER DEFAULT 0)')
-                        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
-                                    'UNIQUE (GenreID,BookID))')
-                        myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
-                                    'IssueAcquired TEXT, IssueFile TEXT, Cover TEXT, ' +
-                                    'Description TEXT, Link TEXT, Contributors TEXT, UNIQUE (ComicID, IssueID))')
+                    myDB.action('CREATE TABLE books (AuthorID TEXT REFERENCES authors (AuthorID) ' +
+                                'ON DELETE CASCADE, BookName TEXT, BookSub TEXT, BookDesc TEXT, ' +
+                                'BookGenre TEXT, BookIsbn TEXT, BookPub TEXT, BookRate INTEGER DEFAULT 0, ' +
+                                'BookImg TEXT, BookPages INTEGER DEFAULT 0, BookLink TEXT, BookID TEXT UNIQUE, ' +
+                                'BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
+                                'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
+                                'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
+                                'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
+                    myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
+                                'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
+                                'IssueFile TEXT, Cover TEXT)')
+                    myDB.action('CREATE TABLE member (SeriesID INTEGER REFERENCES series (SeriesID) ' +
+                                'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                                'WorkID TEXT, SeriesNum TEXT)')
+                    myDB.action('CREATE TABLE seriesauthors (SeriesID INTEGER, ' +
+                                'AuthorID TEXT REFERENCES authors (AuthorID) ON DELETE CASCADE, ' +
+                                'UNIQUE (SeriesID,AuthorID))')
+                    myDB.action('CREATE TABLE sync (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE, ' +
+                                'Label TEXT, Date TEXT, SyncList TEXT)')
+                    myDB.action('CREATE TABLE failedsearch (BookID TEXT REFERENCES books (BookID) ' +
+                                'ON DELETE CASCADE, Library TEXT, Time TEXT, Interval INTEGER DEFAULT 0, ' +
+                                'Count INTEGER DEFAULT 0)')
+                    myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ' +
+                                'ON DELETE CASCADE, BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                                'UNIQUE (GenreID,BookID))')
+                    myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
+                                'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
+                                'Cover TEXT, Description TEXT, Link TEXT, Contributors TEXT, ' +
+                                'UNIQUE (ComicID, IssueID))')
 
                     # pastissues table has same layout as wanted table, code below is to save typos if columns change
                     res = myDB.match("SELECT sql FROM sqlite_master WHERE type='table' AND name='wanted'")
@@ -636,13 +608,9 @@ def db_v47(myDB, upgradelog):
     upgradelog.write("%s v47: %s\n" % (time.ctime(), "Creating genre tables"))
     if not has_column(myDB, "genres", "GenreID"):
         myDB.action('CREATE TABLE genres (GenreID INTEGER PRIMARY KEY AUTOINCREMENT, GenreName TEXT UNIQUE)')
-        if lazylibrarian.FOREIGN_KEY:
-            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
-                        'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
-                        'UNIQUE (GenreID,BookID))')
-        else:
-            myDB.action('CREATE TABLE genrebooks (GenreID INTEGER, BookID TEXT, ' +
-                        'UNIQUE (GenreID,BookID))')
+        myDB.action('CREATE TABLE genrebooks (GenreID INTEGER REFERENCES genres (GenreID) ON DELETE CASCADE, ' +
+                    'BookID TEXT REFERENCES books (BookID) ON DELETE CASCADE, ' +
+                    'UNIQUE (GenreID,BookID))')
     res = myDB.select('SELECT bookid,bookgenre FROM books WHERE (Status="Open" or AudioStatus="Open")')
     tot = len(res)
     if tot:
@@ -710,13 +678,9 @@ def db_v50(myDB, upgradelog):
                     'Added TEXT, LastAcquired TEXT, Updated TEXT, LatestIssue TEXT, IssueStatus TEXT, ' +
                     'LatestCover TEXT, SearchTerm TEXT, Start TEXT, First INTEGER, Last INTEGER, ' +
                     'Publisher TEXT, Link TEXT)')
-        if lazylibrarian.FOREIGN_KEY:
-            myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
-                        'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
-                        'UNIQUE (ComicID, IssueID))')
-        else:
-            myDB.action('CREATE TABLE comicissues (ComicID TEXT, IssueID TEXT, ' +
-                        'IssueAcquired TEXT, IssueFile TEXT, UNIQUE (ComicID, IssueID))')
+        myDB.action('CREATE TABLE comicissues (ComicID TEXT REFERENCES comics (ComicID) ' +
+                    'ON DELETE CASCADE, IssueID TEXT, IssueAcquired TEXT, IssueFile TEXT, ' +
+                    'UNIQUE (ComicID, IssueID))')
 
 
 def db_v51(myDB, upgradelog):
@@ -932,10 +896,7 @@ def update_schema(myDB, upgradelog):
         changes += 1
         lazylibrarian.UPDATE_MSG = 'Creating subscribers table'
         upgradelog.write("%s v66: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
-        if lazylibrarian.FOREIGN_KEY:
-            act = 'CREATE TABLE subscribers (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE,'
-        else:
-            act = 'CREATE TABLE subscribers (UserID TEXT,'
+        act = 'CREATE TABLE subscribers (UserID TEXT REFERENCES users (UserID) ON DELETE CASCADE,'
         act += ' Type TEXT, WantID Text)'
         myDB.action(act)
 

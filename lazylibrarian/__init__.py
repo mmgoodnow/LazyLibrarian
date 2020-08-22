@@ -25,8 +25,8 @@ import time
 import sqlite3
 import traceback
 import tarfile
-
 import cherrypy
+
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
     importer, grsync, comicsearch
 from lazylibrarian.cache import fetchURL
@@ -54,6 +54,7 @@ DATADIR = ''
 CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGLEVEL = 1
+LOGINUSER = None
 CONFIG = {}
 CFG = ''
 DBFILE = None
@@ -121,8 +122,6 @@ COMIC_UPDATE = 0
 SERIES_UPDATE = 0
 AUTHORS_UPDATE = 0
 LOGIN_MSG = ''
-GROUP_CONCAT = 0
-FOREIGN_KEY = 0
 HIST_REFRESH = 1000
 GITLAB_TOKEN = 'gitlab+deploy-token-26212:Hbo3d8rfZmSx4hL1Fdms@gitlab.com'
 GRGENRES = {}
@@ -763,8 +762,8 @@ def initialize():
         UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, LAST_LIBRARYTHING, LAST_GOODREADS, SHOW_SERIES, SHOW_MAGS, \
         SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
-        GROUP_CONCAT, GR_SLEEP, LT_SLEEP, GB_CALLS, FOREIGN_KEY, GRGENRES, SHOW_COMICS, LAST_COMICVINE, CV_SLEEP, \
-        SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE
+        GR_SLEEP, LT_SLEEP, GB_CALLS, GRGENRES, SHOW_COMICS, LAST_COMICVINE, CV_SLEEP, \
+        SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE, LOGINUSER
 
     with INIT_LOCK:
 
@@ -886,17 +885,14 @@ def initialize():
                 logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
 
         # group_concat needs sqlite3 >= 3.5.4
-        GROUP_CONCAT = False
-        # foreign_key needs sqlite3 >= 3.6.19
-        FOREIGN_KEY = False
+        # foreign_key needs sqlite3 >= 3.6.19 (Oct 2009)
         try:
             sqlv = getattr(sqlite3, 'sqlite_version', None)
             parts = sqlv.split('.')
             if int(parts[0]) == 3:
-                if int(parts[1]) > 5 or int(parts[1]) == 5 and int(parts[2]) >= 4:
-                    GROUP_CONCAT = True
-                if int(parts[1]) > 6 or int(parts[1]) == 6 and int(parts[2]) >= 19:
-                    FOREIGN_KEY = True
+                if int(parts[1]) < 6 or int(parts[1]) == 6 and int(parts[2]) < 19:
+                    logger.error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
+                    sys.exit(0)
         except Exception as e:
             logger.warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
 
