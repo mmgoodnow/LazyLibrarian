@@ -574,7 +574,8 @@ def check_db(upgradelog=None):
         authors = myDB.select(cmd)
         if authors:
             cnt += len(authors)
-            msg = 'Found %s %s with no books in the library or marked wanted' % (cnt, plural(cnt, "author"))
+            msg = 'Found %s %s with no books in the library or marked wanted' % (len(authors),
+                                                                                 plural(len(authors), "author"))
             logger.warn(msg)
             # for author in authors:
             # name = myDB.match("SELECT authorname from authors where authorid=?", (author[0],))

@@ -872,7 +872,7 @@ def initialize():
                 version = result[0]
             else:
                 version = 0
-            logger.info("Database is version %s, integrity check: %s" % (version, check[0]))
+            logger.info("Database is v%s, integrity check: %s" % (version, check[0]))
         except Exception as e:
             logger.error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
             sys.exit(0)
