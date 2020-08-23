@@ -473,10 +473,11 @@ class GoodReads:
                         isbn13 = bookdict['isbn13']
                         isbn10 = bookdict['isbn10']
                         bookdate = bookdict['pub_year']
-                        pubmonth = check_int(bookdict['pub_month'], 0)
-                        pubday = check_int(bookdict['pub_day'], 0)
-                        if pubmonth and pubday and bookdate != '0000':
-                            bookdate = "%s-%02d-%02d" % (bookdate, pubmonth, pubday)
+                        if check_year(bookdate, past=1800, future=0):
+                            mn = check_int(bookdict['pub_month'], 0)
+                            dy = check_int(bookdict['pub_day'], 0)
+                            if mn and dy:
+                                bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
 
                         if not bookname:
                             logger.debug('Rejecting bookid %s for %s, no bookname' %
@@ -738,25 +739,21 @@ class GoodReads:
                         rejectable = True
                         if match:
                             # we have a book with this bookid already
-                            if match['BookName'] == 'Untitled' and bookname != 'Untitled':
-                                # goodreads has updated the name
-                                logger.debug('Renaming bookid %s for [%s][%s] to [%s]' %
-                                             (bookid, authorNameResult, match['BookName'], bookname))
-                            elif bookname != match['BookName']:
-                                rejected = 'bookname', 'Different bookname for this bookid [%s][%s]' % (
-                                            bookname, match['BookName'])
-                                logger.debug('Rejecting bookid %s, %s' % (bookid, rejected[1]))
-                            elif authorNameResult != match['AuthorName']:
+                            if authorNameResult != match['AuthorName']:
                                 rejected = 'author', 'Different author for this bookid [%s][%s]' % (
                                             authorNameResult, match['AuthorName'])
                                 logger.debug('Rejecting bookid %s, %s' % (bookid, rejected[1]))
-                            else:
-                                msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
-                                       bookid, authorNameResult, bookname, match['Status'])
-                                if lazylibrarian.SHOW_AUDIO:
-                                    msg += ",%s" % match['AudioStatus']
-                                msg += " %s" % match['ScanResult']
-                                logger.debug(msg)
+                            elif bookname != match['BookName']:
+                                # same bookid and author, assume goodreads fixed the title, use the new title
+                                myDB.action("UPDATE books SET BookName=? WHERE BookID=?", (bookname, bookid))
+                                logger.warn('Updated bookname [%s] to [%s]' % (match['BookName'], bookname))
+
+                            msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
+                                   bookid, authorNameResult, bookname, match['Status'])
+                            if lazylibrarian.SHOW_AUDIO:
+                                msg += ",%s" % match['AudioStatus']
+                            msg += " %s" % match['ScanResult']
+                            logger.debug(msg)
 
                             # Make sure we don't reject books we have already got
                             if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
@@ -1176,13 +1173,14 @@ class GoodReads:
                 bookdate = "0000"
             else:
                 bookdate = rootxml.find('./book/publication_year').text
-                try:
-                    mn = check_int(rootxml.find('./book/publication_month').text, 0)
-                    dy = check_int(rootxml.find('./book/publication_day').text, 0)
-                    if mn and dy:
-                        bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
-                except (KeyError, AttributeError):
-                    pass
+                if check_year(bookdate, past=1800, future=0):
+                    try:
+                        mn = check_int(rootxml.find('./book/publication_month').text, 0)
+                        dy = check_int(rootxml.find('./book/publication_day').text, 0)
+                        if mn and dy:
+                            bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
+                    except (KeyError, AttributeError):
+                        pass
         else:
             originalpubdate = rootxml.find('./book/work/original_publication_year').text
             if check_year(originalpubdate, past=1800, future=0):
