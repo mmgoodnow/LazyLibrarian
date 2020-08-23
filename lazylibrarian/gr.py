@@ -356,7 +356,9 @@ class GoodReads:
             ('link', 'link', ''),
             ('rate', 'average_rating', 0.0),
             ('pages', 'num_pages', 0),
-            ('date', 'publication_year', '0000'),
+            ('pub_year', 'publication_year', '0000'),
+            ('pub_month', 'publication_month', '0'),
+            ('pub_day', 'publication_day', '0'),
             ('workid', 'work/id', ''),
             ('isbn13', 'isbn13', ''),
             ('isbn10', 'isbn', ''),
@@ -393,7 +395,6 @@ class GoodReads:
             controlValueDict = {"AuthorID": authorid}
             newValueDict = {"Status": "Loading"}
             myDB.upsert("authors", newValueDict, controlValueDict)
-
             try:
                 rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
             except Exception as e:
@@ -467,11 +468,15 @@ class GoodReads:
                         booklink = bookdict['link']
                         bookrate = bookdict['rate']
                         bookpages = bookdict['pages']
-                        bookdate = bookdict['date']
                         bookimg = bookdict['img']
                         workid = bookdict['workid']
                         isbn13 = bookdict['isbn13']
                         isbn10 = bookdict['isbn10']
+                        bookdate = bookdict['pub_year']
+                        pubmonth = check_int(bookdict['pub_month'], 0)
+                        pubday = check_int(bookdict['pub_day'], 0)
+                        if pubmonth and pubday and bookdate != '0000':
+                            bookdate = "%s-%02d-%02d" % (bookdate, pubmonth, pubday)
 
                         if not bookname:
                             logger.debug('Rejecting bookid %s for %s, no bookname' %
@@ -1172,9 +1177,10 @@ class GoodReads:
             else:
                 bookdate = rootxml.find('./book/publication_year').text
                 try:
-                    bookmonth = rootxml.find('./book/publication_month').text
-                    bookday = rootxml.find('./book/publication_day').text
-                    bookdate = "%s-%s-%s" % (bookdate, bookmonth, bookday)
+                    mn = check_int(rootxml.find('./book/publication_month').text, 0)
+                    dy = check_int(rootxml.find('./book/publication_day').text, 0)
+                    if mn and dy:
+                        bookdate = "%s-%02d-%02d" % (bookdate, mn, dy)
                 except (KeyError, AttributeError):
                     pass
         else:

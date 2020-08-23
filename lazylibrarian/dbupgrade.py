@@ -137,7 +137,7 @@ def has_column(myDB, table, column):
     return False
 
 
-def dbupgrade(db_current_version):
+def dbupgrade(current_version):
     with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:
@@ -158,11 +158,11 @@ def dbupgrade(db_current_version):
                     logger.error('Database integrity check: %s' % result)
                     # should probably abort now if result is not "ok"
 
-            if db_version < db_current_version:
+            if db_version < current_version:
                 myDB = database.DBConnection()
                 if db_version:
                     lazylibrarian.UPDATE_MSG = 'Updating database to version %s, current version is %s' % (
-                        db_current_version, db_version)
+                        current_version, db_version)
                     logger.info(lazylibrarian.UPDATE_MSG)
                     upgradelog.write("%s v0: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
                 else:
@@ -273,11 +273,11 @@ def dbupgrade(db_current_version):
             db_changes += check_db(upgradelog=upgradelog)
 
             if db_changes:
-                myDB.action('PRAGMA user_version=%s' % db_current_version)
+                myDB.action('PRAGMA user_version=%s' % current_version)
                 lazylibrarian.UPDATE_MSG = 'Cleaning Database'
                 upgradelog.write("%s: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
                 myDB.action('vacuum')
-                lazylibrarian.UPDATE_MSG = 'Database updated to version %s' % db_current_version
+                lazylibrarian.UPDATE_MSG = 'Database updated to version %s' % current_version
                 logger.info(lazylibrarian.UPDATE_MSG)
                 upgradelog.write("%s: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
 
@@ -321,6 +321,28 @@ def check_db(upgradelog=None):
         cnt = 1
 
     try:
+        # correct any unpadded dates
+        lazylibrarian.UPDATE_MSG = 'Checking dates'
+        cmd = 'SELECT BookID,BookDate from books WHERE  BookDate LIKE "%-_-%" or BookDate LIKE "%-_"'
+        res = myDB.select(cmd)
+        tot = len(res)
+        if tot:
+            cnt += tot
+            msg = 'Updating %s %s with unpadded bookdate' % (tot, plural(tot, "book"))
+            logger.warn(msg)
+            for item in res:
+                parts = item['BookDate'].split('-')
+                if len(parts) == 3:
+                    mn = check_int(parts[1], 0)
+                    dy = check_int(parts[2], 0)
+                    if mn and dy:
+                        bookdate = "%s-%02d-%02d" % (parts[0], mn, dy)
+                        myDB.action("UPDATE books SET BookDate=? WHERE BookID=?", (bookdate, item['BookID']))
+                    else:
+                        logger.warn("Invalid Month/Day (%s) for %s" % (item['BookDate'], item['BookID']))
+                else:
+                    logger.warn("Invalid BookDate (%s) for %s" % (item['BookDate'], item['BookID']))
+
         # update any series "Skipped" to series "Paused"
         res = myDB.match('SELECT count(*) as counter from series WHERE Status="Skipped"')
         tot = res['counter']
@@ -328,6 +350,7 @@ def check_db(upgradelog=None):
             cnt += tot
             logger.warn("Found %s series marked Skipped, updating to Paused" % tot)
             myDB.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
+
         # replace faulty/html language results with Unknown
         lazylibrarian.UPDATE_MSG = 'Checking languages'
         filt = 'BookLang is NULL or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
@@ -501,7 +524,7 @@ def check_db(upgradelog=None):
             for item in genres:
                 myDB.action('DELETE from genres WHERE GenreID=?', (item["GenreID"],))
 
-        # remove orphan entries (needed if foreign key not available)
+        # remove any orphan entries (shouldnt happen with foreign key active)
         lazylibrarian.UPDATE_MSG = 'Removing orphans'
         for entry in [
                         ['authorid', 'books', 'authors'],
