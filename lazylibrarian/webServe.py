@@ -2698,9 +2698,11 @@ class WebInterface(object):
                 res = myDB.match('SELECT BookName,BookImg from books WHERE BookID=?', (itemid,))
                 if res:
                     target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
-                    return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
+                    if target and path_isfile(target):
+                        return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
             target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
-            return self.send_file(target, name='lazylibrarian.png')
+            if target and path_isfile(target):
+                return self.send_file(target, name='lazylibrarian.png')
 
         elif ftype == 'comic':
             try:
@@ -2734,8 +2736,9 @@ class WebInterface(object):
 
                 if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
                     target = zipAudio(os.path.dirname(myfile), res['BookName'])
-                    logger.debug('Opening %s %s' % (ftype, target))
-                    return self.send_file(target, name=res['BookName'] + '.zip')
+                    if target and path_isfile(target):
+                        logger.debug('Opening %s %s' % (ftype, target))
+                        return self.send_file(target, name=res['BookName'] + '.zip')
 
                 if myfile and path_isfile(myfile):
                     logger.debug('Opening %s %s' % (ftype, myfile))
@@ -2817,22 +2820,25 @@ class WebInterface(object):
                         if path_isfile(index):
                             if booktype == 'zip':
                                 zipfile = zipAudio(parentdir, bookName)
-                                if email:
-                                    logger.debug('Emailing %s %s' % (library, zipfile))
-                                else:
-                                    logger.debug('Opening %s %s' % (library, zipfile))
-                                return self.send_file(zipfile, name="%s.zip" % bookName, email=email)
+                                if zipfile and path_isfile(zipfile):
+                                    if email:
+                                        logger.debug('Emailing %s %s' % (library, zipfile))
+                                    else:
+                                        logger.debug('Opening %s %s' % (library, zipfile))
+                                    return self.send_file(zipfile, name="%s.zip" % bookName, email=email)
                             idx = check_int(booktype, 0)
                             if idx:
                                 with open(syspath(index), 'r') as f:
                                     part = f.read().splitlines()[idx - 1]
                                 bookfile = os.path.join(parentdir, part)
-                                if email:
-                                    logger.debug('Emailing %s %s' % (library, bookfile))
-                                else:
-                                    logger.debug('Opening %s %s' % (library, bookfile))
-                                return self.send_file(bookfile, name="%s part%s%s" %
-                                                      (bookName, idx, os.path.splitext(bookfile)[1]), email=email)
+                                if bookfile and path_isfile(bookfile):
+                                    if email:
+                                        logger.debug('Emailing %s %s' % (library, bookfile))
+                                    else:
+                                        logger.debug('Opening %s %s' % (library, bookfile))
+                                    return self.send_file(bookfile, name="%s part%s%s" %
+                                                          (bookName, idx, os.path.splitext(bookfile)[1]),
+                                                          email=email)
                             # noinspection PyUnusedLocal
                             cnt = sum(1 for line in open(index))
                             if cnt <= 1:
@@ -2857,17 +2863,16 @@ class WebInterface(object):
                                     partlist += ' zip'
                                 safetitle = bookName.replace('&', '&amp;').replace("'", "")
 
-                            return serve_template(templatename="choosetype.html",
-                                                  title=safetitle, pop_message=msg,
-                                                  pop_types=partlist, bookid=bookid,
-                                                  valid=getList(partlist.replace(' ', ',')),
-                                                  email=email)
+                                return serve_template(templatename="choosetype.html",
+                                                      title=safetitle, pop_message=msg,
+                                                      pop_types=partlist, bookid=bookid,
+                                                      valid=getList(partlist.replace(' ', ',')),
+                                                      email=email)
+                        if email:
+                            logger.debug('Emailing %s %s' % (library, bookfile))
                         else:
-                            if email:
-                                logger.debug('Emailing %s %s' % (library, bookfile))
-                            else:
-                                logger.debug('Opening %s %s' % (library, bookfile))
-                            return self.send_file(bookfile, email=email)
+                            logger.debug('Opening %s %s' % (library, bookfile))
+                        return self.send_file(bookfile, email=email)
                 else:
                     library = 'eBook'
                     bookfile = bookdata["BookFile"]
@@ -2911,7 +2916,7 @@ class WebInterface(object):
                                                   pop_types=typestr, bookid=bookid,
                                                   valid=getList(lazylibrarian.CONFIG['EBOOK_TYPE']),
                                                   email=email)
-                        if len(types):
+                        if len(types) and bookfile and path_isfile(bookfile):
                             if email:
                                 logger.debug('Emailing %s %s' % (library, bookfile))
                             else:
@@ -6399,4 +6404,7 @@ class WebInterface(object):
                                           pop_message=msg, pop_types='', bookid='', valid='', email=email)
         if not name:
             name = os.path.basename(myfile)
-        return serve_file(myfile, mimeType(myfile), "attachment", name=name)
+        if path_isfile(myfile):
+            return serve_file(myfile, mimeType(myfile), "attachment", name=name)
+        else:
+            logger.error("No file [%s]" % myfile)
