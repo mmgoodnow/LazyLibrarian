@@ -400,7 +400,12 @@ def KAT(book=None, test=False):
             td = row.find_all('td')
             if len(td) > 3:
                 try:
-                    title = unaccented(td[0].text, only_ascii=False, umlauts=False)
+                    # some mirrors of kat return multiple text items, some just the title
+                    try:
+                        title = td[0].split('class="cellMainLink">')[1].split('<')[0]
+                    except IndexError:
+                        title = td[0].text
+                    title = unaccented(title, only_ascii=False, umlauts=False)
                     # kat can return magnet or torrent or both.
                     magnet = ''
                     url = ''
@@ -425,6 +430,7 @@ def KAT(book=None, test=False):
                         size = size_in_bytes(size)
                     except ValueError:
                         size = 0
+
                     try:
                         seeders = int(td[3].text.replace(',', ''))
                     except ValueError:
