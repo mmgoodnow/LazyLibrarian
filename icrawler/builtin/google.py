@@ -162,7 +162,8 @@ class GoogleParser(Parser):
                 continue
             txt = re.sub(r"^AF_initDataCallback\({.*key: 'ds:(\d)'.+data:(.+)}\);?$",
                          "\\2", txt, 0, re.DOTALL)
-
+            if not txt.endswith(']'):
+                txt = txt.rsplit(']',1)[0] + ']'
             meta = json.loads(txt)
             data = meta[31][0][12][2]
 
