@@ -824,7 +824,7 @@ def initialize():
                 logger.error('Could not create cachedir; %s' % e)
 
         for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
-                     'magazine', 'comic', 'IRCCache', 'icrawler']:
+                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
             cachelocation = os.path.join(CACHEDIR, item)
             try:
                 os.makedirs(cachelocation)

@@ -91,7 +91,8 @@ def serve_template(templatename, **kwargs):
         lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
         template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
-    _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8')
+    _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
+                               module_directory=os.path.join(lazylibrarian.CACHEDIR, 'mako'))
     # noinspection PyBroadException
     try:
         if lazylibrarian.UPDATE_MSG:
@@ -173,18 +174,19 @@ def serve_template(templatename, **kwargs):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
             logger.debug("User %s: %s %s %s" % (username, perm, userprefs, templatename))
         template = _hplookup.get_template(templatename)
+
         if templatename == "login.html":
             lazylibrarian.SUPPRESS_UPDATE = True
             cherrypy.response.cookie['ll_template'] = ''
             return template.render(perm=0, title="Redirected")
-        elif templatename == 'config.html' and not perm & lazylibrarian.perm_config:
-            lazylibrarian.SUPPRESS_UPDATE = True
-        else:
-            lazylibrarian.SUPPRESS_UPDATE = False
-            # keep template name for help context
-            cherrypy.response.cookie['ll_template'] = templatename
-            # noinspection PyArgumentList
-            return template.render(perm=perm, pref=userprefs, **kwargs)
+
+        lazylibrarian.SUPPRESS_UPDATE = not perm & lazylibrarian.perm_config
+
+        # keep template name for help context
+        cherrypy.response.cookie['ll_template'] = templatename
+        # noinspection PyArgumentList
+        return template.render(perm=perm, pref=userprefs, **kwargs)
+
     except Exception:
         return exceptions.html_error_template().render()
 
