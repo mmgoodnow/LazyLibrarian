@@ -12,6 +12,7 @@
 
 import traceback
 import time
+import re
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -239,6 +240,117 @@ def BOK(book=None, prov=None, test=False):
         if lazylibrarian.providers.ProviderIsBlocked(provider):
             errmsg = "ProviderIsBlocked"
             next_page = False
+
+    logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
+    return results, errmsg
+
+def BFI(book=None, prov=None, test=False):
+    errmsg = ''
+    provider = "BookFi"
+    if not prov:
+        prov = 'BFI'
+    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        if test:
+            return 0
+        return [], "ProviderIsBlocked"
+
+    host = lazylibrarian.CONFIG[prov + '_HOST']
+    if not host.startswith('http'):
+        host = 'http://' + host
+
+    sterm = makeUnicode(book['searchterm'])
+    results = []
+    removed = 0
+    if test:
+        book['bookid'] = '0'
+
+    params = {
+        "q": makeUTF8bytes(book['searchterm'])[0]
+    }
+
+    providerurl = url_fix(host + "/s/")
+    searchURL = providerurl + "?%s" % urlencode(params)
+
+    result, success = fetchURL(searchURL)
+    if not success:
+        # may return 404 if no results, not really an error
+        if '404' in result:
+            logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
+                                                                              searchURL))
+            if test:
+                return 0
+        elif '111' in result:
+            # may have ip based access limits
+            logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
+            errmsg = result
+            delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+            lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
+        else:
+            logger.debug(searchURL)
+            logger.debug('Error fetching page data from %s: %s' % (provider, result))
+            errmsg = result
+        result = ''
+
+    if len(result):
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        try:
+            soup = BeautifulSoup(result, "html5lib")
+            try:
+                rows = soup.find_all('div', {"class": "resItemBox"})
+            except IndexError:
+                rows = []
+
+            for row in rows:
+                if lazylibrarian.providers.ProviderIsBlocked(provider):
+                    next_page = False
+                    break
+                url = None
+                rowsoup = BeautifulSoup(str(row), 'html5lib')
+                title = rowsoup.find('h3', itemprop='name').text
+                link = rowsoup.find('a', {"class": "ddownload"})
+                url = link['href']
+
+                extn = re.search("\((.*)\)", link.text).group(1)
+                if extn:
+                    extn = extn.lower()
+                else:
+                    extn = ''
+                author = rowsoup.find('a', itemprop='author').text
+
+                try:
+                    detail = rowsoup.find("span", itemprop='inLanguage').find_parent().text
+                    size = detail.split('\n')[0]
+                    size = size_in_bytes(size.upper())
+                except (IndexError, AttributeError):
+                    size = 0
+
+                if url:
+                    if author:
+                        title = author.strip() + ' ' + title.strip()
+                    if extn:
+                        title = title + '.' + extn
+
+                    results.append({
+                        'bookid': book['bookid'],
+                        'tor_prov': provider,
+                        'tor_title': title,
+                        'tor_url': url,
+                        'tor_size': str(size),
+                        'tor_type': 'direct',
+                        'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                    })
+                    logger.debug('Found %s, Size %s' % (title, size))
+
+        except Exception as e:
+            logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
+            logger.debug('%s: %s' % (provider, traceback.format_exc()))
+
+    if test:
+        logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
+        return len(results)
+
+    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        errmsg = "ProviderIsBlocked"
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
