@@ -169,7 +169,7 @@ def dbupgrade(current_version):
                     # it's a new database. Create v60 tables and then upgrade as required
                     db_version = 60
                     lazylibrarian.UPDATE_MSG = 'Creating new database, version %s' % db_version
-                    upgradelog.write("%s %s: %s\n" % (time.ctime(), db_version, lazylibrarian.UPDATE_MSG))
+                    upgradelog.write("%s v%s: %s\n" % (time.ctime(), db_version, lazylibrarian.UPDATE_MSG))
                     logger.info(lazylibrarian.UPDATE_MSG)
                     # sanity check for incomplete initialisations
                     res = myDB.select("select name from sqlite_master where type is 'table'")
