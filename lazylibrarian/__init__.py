@@ -206,11 +206,10 @@ isbn_978_dict = {
 # Any _NOT_ in the web ui will remain unchanged on config save
 CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDATED', 'CURRENT_VERSION',
               'GIT_HOST', 'COMMITS_BEHIND', 'INSTALL_TYPE', 'AUTO_UPDATE']
-CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP',
-                 'WALL_COLUMNS', 'HTTP_TIMEOUT', 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG',
-                 'SYS_ENCODING', 'HIST_REFRESH', 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME',
-                 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
+CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP','WALL_COLUMNS', 'HTTP_TIMEOUT',
+                 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
+                 'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
+                 'PREF_UNRARLIB','SEARCH_RATELIMIT', 'EMAIL_LIMIT']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -228,7 +227,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
-                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT']
+                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
+                     'NAME_DEFINITE']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -292,6 +292,7 @@ CONFIG_DEFINITIONS = {
     'PROXY_TYPE': ('str', 'General', ''),
     'PROXY_LOCAL': ('str', 'General', ''),
     'NAME_POSTFIX': ('str', 'General', 'snr, jnr, jr, sr, phd'),
+    'NAME_DEFINITE': ('str', 'General', 'the, a'),
     'SKIPPED_EXT': ('str', 'General', 'fail, part, bts, !ut, torrent, magnet, nzb, unpack'),
     'BANNED_EXT': ('str', 'General', 'avi, mp4, mov, iso, m4v'),
     'IMP_PREFLANG': ('str', 'General', 'en, eng, en-US, en-GB'),
@@ -1087,7 +1088,7 @@ def config_read(reloaded=False):
     # to make extension matching easier
     for item in ['EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'AUDIOBOOK_TYPE', 'MAG_TYPE',
                  'COMIC_TYPE', 'REJECT_MAGS', 'REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_COMIC',
-                 'REJECT_PUBLISHER', 'BANNED_EXT']:
+                 'REJECT_PUBLISHER', 'BANNED_EXT', 'NAME_POSTFIX', 'NAME_DEFINITE']:
         CONFIG[item] = CONFIG[item].lower()
 
     if os.name == 'nt':

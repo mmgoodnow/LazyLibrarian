@@ -624,21 +624,18 @@ def formatAuthorName(author):
 
 
 def sortDefinite(title):
-    if not title:
-        return ''
-    if title[:4] == 'The ':
-        return title[4:] + ', The'
-    if title[2:] == 'A ':
-        return title[2:] + ', A'
+    words = getList(title)
+    if len(words) < 2:
+        return title
+    word = words.pop(0)
+    if word.lower() in getList(lazylibrarian.CONFIG['NAME_DEFINITE']):
+        return ' '.join(words) + ', ' + word
     return title
 
 
 def surnameFirst(authorname):
     """ swap authorname round into surname, forenames for display and sorting"""
-    if not authorname:
-        return ''
     words = getList(authorname)
-
     if len(words) < 2:
         return authorname
     res = words.pop()
