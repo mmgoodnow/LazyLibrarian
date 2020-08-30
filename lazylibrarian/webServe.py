@@ -91,8 +91,12 @@ def serve_template(templatename, **kwargs):
         lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
         template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
+    if templatename == 'logs.html':
+        module_directory = None
+    else:
+        module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako')
     _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
-                               module_directory=os.path.join(lazylibrarian.CACHEDIR, 'mako'))
+                               module_directory=module_directory)
     # noinspection PyBroadException
     try:
         if lazylibrarian.UPDATE_MSG:
