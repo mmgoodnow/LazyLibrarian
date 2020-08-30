@@ -10,19 +10,18 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import traceback
 import time
-import re
+import traceback
+
+# noinspection PyUnresolvedReferences
+from lib.six.moves.urllib_parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, \
     makeUTF8bytes, seconds_to_midnight, check_int
-
 from lib.six import PY2
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlparse, urlencode
 
 try:
     import html5lib
@@ -302,17 +301,14 @@ def BFI(book=None, prov=None, test=False):
 
             for row in rows:
                 if lazylibrarian.providers.ProviderIsBlocked(provider):
-                    next_page = False
                     break
-                url = None
                 rowsoup = BeautifulSoup(str(row), 'html5lib')
                 title = rowsoup.find('h3', itemprop='name').text
                 link = rowsoup.find('a', {"class": "ddownload"})
                 url = link['href']
 
-                extn = re.search("\((.*)\)", link.text).group(1)
-                if extn:
-                    extn = extn.lower()
+                if '(' in link.text:
+                    extn = link.text.split('(')[1].split(')')[0].lower()
                 else:
                     extn = ''
                 author = rowsoup.find('a', itemprop='author').text
