@@ -1364,7 +1364,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
                     logger.warn('%s, deleting failed task' % dlresult)
-                
+
                 custom_notify_snatch("%s %s" % (book['BookID'], book['Source']), fail=True)
                 notify_snatch("%s from %s at %s" %
                               (book['NZBtitle'], book['Source'], now()), fail=True)
@@ -2461,6 +2461,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
             # Ask calibre for the author/title so we can construct the likely location
             target_dir = ''
+            calibre_authorname = ''
             res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', 'id:%s' % calibre_id],
                                      ['--for-machine'])
             if not rc:
@@ -2468,9 +2469,27 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     res = '{ ' + res.split('{')[1].split('}')[0] + ' }'
                     res = json.loads(res)
                     target_dir = os.path.join(dest_dir, res['authors'], "%s (%d)" % (res['title'], res['id']))
+                    logger.debug("Calibre target: %s" % target_dir)
+                    calibre_authorname = res['authors']
+                    calibre_id = res['id']
                 except Exception as e:
                     logger.debug("Unable to read json response; %s" % str(e))
                     target_dir = ''
+
+            if not target_dir or not path_isdir(target_dir) and calibre_authorname:
+                author_dir = os.path.join(dest_dir, calibre_authorname)
+                if path_isdir(author_dir):  # assumed author directory
+                    our_id = '(%s)' % calibre_id
+                    entries = listdir(author_dir)
+                    for entry in entries:
+                        if entry.endswith(our_id):
+                            target_dir = os.path.join(author_dir, entry)
+                            break
+
+                    if not target_dir or not path_isdir(target_dir):
+                        logger.debug('Failed to locate calibre folder with id %s in %s' % (our_id, author_dir))
+                else:
+                    logger.debug('Failed to locate calibre author folder %s' % author_dir)
 
             if not target_dir or not path_isdir(target_dir):
                 # calibre does not like accents or quotes in names
@@ -2514,7 +2533,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
                 return True, newbookfile
-            return False, "Failed to find a valid ebook in [%s]" % target_dir
+            return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir)
         except Exception as e:
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e))

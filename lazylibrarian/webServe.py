@@ -91,7 +91,8 @@ def serve_template(templatename, **kwargs):
         lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
         template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
-    if templatename == 'logs.html':
+    if templatename in ['logs.html', 'history.html']:
+        # don't cache these so we can change refresh rate
         module_directory = None
     else:
         module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako')
