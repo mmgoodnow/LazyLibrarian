@@ -12,6 +12,7 @@
 
 
 import os
+import re
 import string
 import traceback
 
@@ -115,80 +116,89 @@ def audio_parts(folder, bookname, authorname):
     abridged = ''
     tokmatch = ''
     total = 0
+    wholebook = ''
     for f in listdir(folder):
         if is_valid_booktype(f, booktype='audiobook'):
-            cnt += 1
-            audio_file = f
-            try:
-                audio_path = os.path.join(folder, f)
-                artist = ''
-                composer = ''
-                albumartist = ''
-                comment = ''
-                book = ''
-                title = ''
-                track = 0
-                if TinyTag.is_supported(audio_path):
-                    id3r = TinyTag.get(audio_path)
-                    artist = id3r.artist
-                    composer = id3r.composer
-                    albumartist = id3r.albumartist
-                    book = id3r.album
-                    title = id3r.title
-                    comment = id3r.comment
-                    track = id3r.track
-                    total = id3r.track_total
+            # if no number_period or number_space in filename assume its whole-book
+            if not re.findall(r'\d+\b', f):
+                wholebook = f
+            else:
+                cnt += 1
+                audio_file = f
+                try:
+                    audio_path = os.path.join(folder, f)
+                    artist = ''
+                    composer = ''
+                    albumartist = ''
+                    comment = ''
+                    book = ''
+                    title = ''
+                    track = 0
+                    if TinyTag.is_supported(audio_path):
+                        id3r = TinyTag.get(audio_path)
+                        artist = id3r.artist
+                        composer = id3r.composer
+                        albumartist = id3r.albumartist
+                        book = id3r.album
+                        title = id3r.title
+                        comment = id3r.comment
+                        track = id3r.track
+                        total = id3r.track_total
 
-                    track = check_int(track, 0)
-                    total = check_int(total, 0)
+                        track = check_int(track, 0)
+                        total = check_int(total, 0)
 
-                    if artist:
-                        artist = artist.strip().rstrip('\x00')
-                    if composer:
-                        composer = composer.strip().rstrip('\x00')
-                    if book:
-                        book = book.strip().rstrip('\x00')
-                    if albumartist:
-                        albumartist = albumartist.strip().rstrip('\x00')
+                        if artist:
+                            artist = artist.strip().rstrip('\x00')
+                        if composer:
+                            composer = composer.strip().rstrip('\x00')
+                        if book:
+                            book = book.strip().rstrip('\x00')
+                        if albumartist:
+                            albumartist = albumartist.strip().rstrip('\x00')
 
-                author = ''
-                if composer:  # if present, should be author
-                    author = composer
-                elif albumartist:  # author, or narrator if composer == author
-                    author = albumartist
-                elif artist:
-                    author = artist
-                if author and book:
-                    parts.append([track, book, author, f])
-                if not abridged:
-                    # unabridged is sometimes shortened to unabr.
-                    for tag in [book, title, albumartist, artist, composer, comment]:
-                        if tag and 'unabr' in tag.lower():
+                    author = ''
+                    if composer:  # if present, should be author
+                        author = composer
+                    elif albumartist:  # author, or narrator if composer == author
+                        author = albumartist
+                    elif artist:
+                        author = artist
+                    if author and book:
+                        parts.append([track, book, author, f])
+                    if not abridged:
+                        # unabridged is sometimes shortened to unabr.
+                        for tag in [book, title, albumartist, artist, composer, comment]:
+                            if tag and 'unabr' in tag.lower():
+                                abridged = 'Unabridged'
+                                break
+                    if not abridged:
+                        for tag in [book, title, albumartist, artist, composer, comment]:
+                            if tag and 'abridged' in tag.lower():
+                                abridged = 'Abridged'
+                                break
+
+                except Exception as e:
+                    logger.error("tinytag %s %s" % (type(e).__name__, str(e)))
+                    pass
+                finally:
+                    if not abridged:
+                        if audio_file and 'unabr' in audio_file.lower():
                             abridged = 'Unabridged'
                             break
-                if not abridged:
-                    for tag in [book, title, albumartist, artist, composer, comment]:
-                        if tag and 'abridged' in tag.lower():
+                    if not abridged:
+                        if audio_file and 'abridged' in audio_file.lower():
                             abridged = 'Abridged'
                             break
 
-            except Exception as e:
-                logger.error("tinytag %s %s" % (type(e).__name__, str(e)))
-                pass
-            finally:
-                if not abridged:
-                    if audio_file and 'unabr' in audio_file.lower():
-                        abridged = 'Unabridged'
-                        break
-                if not abridged:
-                    if audio_file and 'abridged' in audio_file.lower():
-                        abridged = 'Abridged'
-                        break
-
-    if cnt == 1 and not parts:  # single file audiobook with no tags
+    if cnt == 1 and not parts:  # single file audiobook with number but no tags
         parts = [[1, bookname, authorname, audio_file]]
 
     logger.debug("Audiobook found %s %s" % (cnt, plural(cnt, "part")))
+
+    if cnt == 0 and wholebook:  # only single file audiobook, no part files
+        cnt = 1
+        parts = [[1, bookname, authorname, wholebook]]
 
     failed = False
     try:
