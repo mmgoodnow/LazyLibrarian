@@ -249,6 +249,30 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
                     os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
+        extn = os.path.splitext(outfile)[1]
+        params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
+                  '-y', '-c:a', 'copy', '-metadata', "album=%s" % bookname,
+                  '-metadata', "artist=%s" % authorname,
+                  '-metadata', 'track="1/1"',
+                  os.path.join(bookfolder, "tempaudio%s" % extn)]
+        try:
+            if os.name != 'nt':
+                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                            stderr=subprocess.STDOUT)
+            else:
+                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+
+            remove(os.path.join(bookfolder, outfile))
+            os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
+                      os.path.join(bookfolder, outfile))
+            logger.debug("Metadata written to %s" % outfile)
+        except subprocess.CalledProcessError as e:
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
+            return
+        except Exception as e:
+            logger.error("%s: %s" % (type(e).__name__, str(e)))
+            return
+
         remove(os.path.join(bookfolder, "partslist.ll"))
         remove(os.path.join(bookfolder, "metadata.ll"))
         if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO']:
