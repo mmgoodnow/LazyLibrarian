@@ -194,7 +194,6 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
             GR = GoodReads(authorid)
             author = GR.get_author_info(authorid=authorid)
-
             if author:
                 authorname = author['authorname']
                 authorimg = author['authorimg']
@@ -207,12 +206,12 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     newValueDict['Reason'] = reason
                     newValueDict["DateAdded"] = today()
                 if not dbauthor or (dbauthor and not dbauthor['manual']):
-                    newValueDict["AuthorImg"] = author['authorimg']
                     newValueDict["AuthorBorn"] = author['authorborn']
                     newValueDict["AuthorDeath"] = author['authordeath']
                     if 'about' in author:
                         newValueDict['About'] = author['about']
                     if not dbauthor:
+                        newValueDict["AuthorImg"] = author['authorimg']
                         newValueDict["AuthorName"] = author['authorname']
                     elif dbauthor['authorname'] != author['authorname']:
                         authorname = dbauthor['authorname']
@@ -310,19 +309,19 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     authorimg = newimg
                     new_img = True
 
-        # allow caching
-        if authorimg and authorimg.startswith('http'):
-            newimg, success, _ = cache_img("author", authorid, authorimg, refresh=refresh)
-            if success:
-                authorimg = newimg
-                new_img = True
-            else:
-                logger.debug('Failed to cache image for %s' % authorimg)
+            # allow caching new image
+            if authorimg and authorimg.startswith('http'):
+                newimg, success, _ = cache_img("author", authorid, authorimg, refresh=refresh)
+                if success:
+                    authorimg = newimg
+                    new_img = True
+                else:
+                    logger.debug('Failed to cache image for %s' % authorimg)
 
-        if new_img:
-            controlValueDict = {"AuthorID": authorid}
-            newValueDict = {"AuthorImg": authorimg}
-            myDB.upsert("authors", newValueDict, controlValueDict)
+            if new_img:
+                controlValueDict = {"AuthorID": authorid}
+                newValueDict = {"AuthorImg": authorimg}
+                myDB.upsert("authors", newValueDict, controlValueDict)
 
         if addbooks:
             if new_author:
