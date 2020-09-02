@@ -20,7 +20,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import mimeType
+from lazylibrarian.common import mimeType, path_exists
 
 # noinspection PyUnresolvedReferences
 from lib.six.moves.urllib_parse import unquote_plus
@@ -109,7 +109,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 if user:
                     link = '%s/serveAudio/%s%s%s' % (baseurl, user, res['BookID'], extn)
 
-                if TinyTag and TinyTag.is_supported(res['AudioFile']):
+                if TinyTag and TinyTag.is_supported(res['AudioFile']) and path_exists(res['AudioFile']):
                     id3r = TinyTag.get(res['AudioFile'])
                     secs = id3r.duration
                     duration = time.strftime('%H:%M:%S', time.gmtime(secs))
