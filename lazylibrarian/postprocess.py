@@ -2608,18 +2608,28 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     firstfile = preferred_type
                     break
 
-        # link to the first part of multi-part audiobooks
+        # link to the first part of multi-part audiobooks unless there is a whole-book file
         elif booktype == 'audiobook':
             tokmatch = ''
+            for f in listdir(dest_path):
+                # if no number_period or number_space in filename assume its whole-book
+                if not re.findall(r'\d+\b', f) and is_valid_booktype(f, booktype='audiobook'):
+                    firstfile = os.path.join(udest_path, f)
+                    tokmatch = 'whole'
+                    break
             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:
                 if tokmatch:
                     break
                 for f in listdir(dest_path):
-                    if is_valid_booktype(f, booktype='audiobook') and token in f:
-                        firstfile = os.path.join(udest_path, f)
-                        logger.debug("Link to first part [%s], %s" % (token, f))
-                        tokmatch = token
-                        break
+                    if is_valid_booktype(f, booktype='audiobook'):
+                        if not firstfile:
+                            firstfile = os.path.join(udest_path, f)
+                            logger.debug("Link to %s" % f)
+                        if token in f:
+                            firstfile = os.path.join(udest_path, f)
+                            logger.debug("Link to first part [%s], %s" % (token, f))
+                            tokmatch = token
+                            break
 
         elif booktype in ['magazine', 'comic']:
             ignorefile = os.path.join(dest_path, b'.ll_ignore')
