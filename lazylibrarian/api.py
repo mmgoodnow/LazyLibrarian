@@ -362,7 +362,7 @@ class Api(object):
             authorid = None
 
         # url might end in .xml
-        if not limit.isdigit():
+        if not str(limit).isdigit():
             try:
                 limit = int(limit.split('.')[0])
             except (IndexError, ValueError):
