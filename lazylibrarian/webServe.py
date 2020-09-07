@@ -44,7 +44,8 @@ from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, sch
     syspath, remove
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
-from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
+from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod, \
+    IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
     check_year, dispName, is_valid_booktype, replace_with
@@ -2108,6 +2109,8 @@ class WebInterface(object):
                 snatch, res = TORDownloadMethod(bookid, bookdata["BookName"], url, library)
             elif mode == 'nzb':
                 snatch, res = NZBDownloadMethod(bookid, bookdata["BookName"], url, library)
+            elif mode == 'irc':
+                snatch, res = IrcDownloadMethod(bookid, bookdata["BookName"], url, library, provider)
             else:
                 res = 'Unhandled NZBmode [%s] for %s' % (mode, url)
                 logger.error(res)
@@ -5177,6 +5180,7 @@ class WebInterface(object):
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
         res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid, onetitle=onetitle)
+        logger.debug("Feed is %s bytes, %s" % (len(res), res[1]))
         return makeUTF8bytes(res)[0]
 
     @cherrypy.expose

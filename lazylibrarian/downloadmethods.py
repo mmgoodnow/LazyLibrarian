@@ -75,7 +75,7 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     myprov = None
 
     for item in lazylibrarian.IRC_PROV:
-        if item['NAME'] == provider:
+        if item['NAME'] == provider or item['DISPNAME'] == provider:
             myprov = item
             break
 
@@ -123,6 +123,8 @@ def IrcDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook', 
     elif not fname:
         msg = 'UPDATE wanted SET status="Failed", Source=?, DownloadID=?, DLResult=? '
         msg += 'WHERE NZBurl=? and NZBtitle=?'
+        if not data:
+            data = 'Failed'
         myDB.action(msg, (Source, downloadID, data, dl_url, dl_title))
         msg = data
         if 'timed out' in data:  # need to reconnect
