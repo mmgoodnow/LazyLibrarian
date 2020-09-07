@@ -86,63 +86,63 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         if not results:
             podcast = False
 
-        for res in results:
+        for result in results:
             link = ''
             itunes_item = ''
             if ftype == 'eBook':
-                pubdate = datetime.datetime.strptime(res['BookLibrary'], '%Y-%m-%d %H:%M:%S')
-                title = res['BookName']
-                author = res['AuthorName']
-                description = res['BookDesc']
-                bookid = res['BookID']
-                extn = os.path.splitext(res['BookFile'])[1]
+                pubdate = datetime.datetime.strptime(result['BookLibrary'], '%Y-%m-%d %H:%M:%S')
+                title = result['BookName']
+                author = result['AuthorName']
+                description = result['BookDesc']
+                bookid = result['BookID']
+                extn = os.path.splitext(result['BookFile'])[1]
                 if user:
-                    link = '%s/serveBook/%s%s%s' % (baseurl, user, res['BookID'], extn)
+                    link = '%s/serveBook/%s%s%s' % (baseurl, user, result['BookID'], extn)
 
             elif ftype == 'AudioBook':
-                pubdate = datetime.datetime.strptime(res['AudioLibrary'], '%Y-%m-%d %H:%M:%S')
-                title = res['BookName']
-                author = res['AuthorName']
-                description = res['BookDesc']
-                bookid = res['BookID']
-                extn = os.path.splitext(res['AudioFile'])[1]
+                pubdate = datetime.datetime.strptime(result['AudioLibrary'], '%Y-%m-%d %H:%M:%S')
+                title = result['BookName']
+                author = result['AuthorName']
+                description = result['BookDesc']
+                bookid = result['BookID']
+                extn = os.path.splitext(result['AudioFile'])[1]
                 if user:
-                    link = '%s/serveAudio/%s%s%s' % (baseurl, user, res['BookID'], extn)
+                    link = '%s/serveAudio/%s%s%s' % (baseurl, user, result['BookID'], extn)
 
-                if TinyTag and TinyTag.is_supported(res['AudioFile']) and path_exists(res['AudioFile']):
-                    id3r = TinyTag.get(res['AudioFile'])
+                if TinyTag and TinyTag.is_supported(result['AudioFile']) and path_exists(result['AudioFile']):
+                    id3r = TinyTag.get(result['AudioFile'])
                     secs = id3r.duration
                     duration = time.strftime('%H:%M:%S', time.gmtime(secs))
                 else:
                     duration = "01:11:02"  # any value as default
 
                 itunes_item = iTunesItem(
-                    author=res['AuthorName'],
-                    image='%s/serveImg/%s%s.jpg' % (baseurl, user, res['BookID']),
+                    author=result['AuthorName'],
+                    image='%s/serveImg/%s%s.jpg' % (baseurl, user, result['BookID']),
                     duration=duration,
                     explicit="clean",
-                    subtitle=res['BookSub'],
-                    summary=res['BookDesc'])
+                    subtitle=result['BookSub'],
+                    summary=result['BookDesc'])
 
             elif ftype == 'Magazine':
-                pubdate = datetime.datetime.strptime(res['IssueAcquired'], '%Y-%m-%d')
-                title = "%s (%s)" % (res['Title'], res['IssueDate'])
-                author = res['Title']
+                pubdate = datetime.datetime.strptime(result['IssueAcquired'], '%Y-%m-%d')
+                title = "%s (%s)" % (result['Title'], result['IssueDate'])
+                author = result['Title']
                 description = title
-                bookid = res['IssueID']
-                extn = os.path.splitext(res['IssueFile'])[1]
+                bookid = result['IssueID']
+                extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
-                    link = '%s/serveIssue/%s%s%s' % (baseurl, user, res['IssueID'], extn)
+                    link = '%s/serveIssue/%s%s%s' % (baseurl, user, result['IssueID'], extn)
 
             else:  # if ftype == 'Comic':
-                pubdate = datetime.datetime.strptime(res['IssueAcquired'], '%Y-%m-%d')
-                title = res['Title']
-                author = res['Publisher']
+                pubdate = datetime.datetime.strptime(result['IssueAcquired'], '%Y-%m-%d')
+                title = result['Title']
+                author = result['Publisher']
                 description = title
-                bookid = res['IssueID']
-                extn = os.path.splitext(res['IssueFile'])[1]
+                bookid = result['IssueID']
+                extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
-                    link = '%s/serveComic/%s%s_%s%s' % (baseurl, user, res['ComicID'], res['IssueID'], extn)
+                    link = '%s/serveComic/%s%s_%s%s' % (baseurl, user, result['ComicID'], result['IssueID'], extn)
 
             if podcast:
                 item = Item(
@@ -152,7 +152,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                     author=author,
                     guid=Guid(bookid),
                     pubDate=pubdate,
-                    enclosure=Enclosure(url=link, length=0, type=mimeType(res['AudioFile'])),
+                    enclosure=Enclosure(url=link, length=0, type=mimeType(result['AudioFile'])),
                     extensions=[itunes_item]
                 )
             else:
