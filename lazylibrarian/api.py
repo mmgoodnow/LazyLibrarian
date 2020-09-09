@@ -666,8 +666,9 @@ class Api(object):
         self.data = str(msg1) + str(msg2)
 
     def _getSnatched(self):
-        self.data = self._dic_from_query(
-            "SELECT * from books,wanted WHERE books.bookid=wanted.bookid and books.Status='Snatched' or AudioStatus='Snatched'")
+        cmd = "SELECT * from books,wanted WHERE books.bookid=wanted.bookid "
+        cmd += "and books.Status='Snatched' or AudioStatus='Snatched'"
+        self.data = self._dic_from_query(cmd)
 
     def _getLogs(self):
         self.data = lazylibrarian.LOGLIST

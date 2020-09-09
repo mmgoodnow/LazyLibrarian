@@ -5180,8 +5180,9 @@ class WebInterface(object):
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
         res = genFeed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid, onetitle=onetitle)
-        logger.debug("Feed is %s bytes, %s" % (len(res), res[1]))
-        return makeUTF8bytes(res)[0]
+        if PY2:
+            return makeUTF8bytes(res)[0]
+        return res.encode('UTF-8')
 
     @cherrypy.expose
     def importCSV(self, library='eBook'):
