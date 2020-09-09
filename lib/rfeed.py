@@ -15,7 +15,9 @@ else:
     try:
         from cStringIO import StringIO
     except ImportError:
+        # noinspection PyUnresolvedReferences
         from StringIO import StringIO
+
 
 class Serializable:
     """ Represents an object that can be serialized as part of the feed.
@@ -27,24 +29,28 @@ class Serializable:
         self.handler = None
 
     def publish(self, handler):
-        """ This method produces the XML representation of the object to be included in the feed. In your implementation,
-        make sure you always call this base class method before adding your own code.
+        """ This method produces the XML representation of the object to be included in the feed.
+        In your implementation, make sure you always call this base class method before adding your own code.
         Keyword arguments:
-        handler -- An xml.sax.saxutils.XMLGenerator instance that you can use to create the XML representation of the object.
+        handler -- An xml.sax.saxutils.XMLGenerator instance that you can use to create the XML representation
+        of the object.
         """
         self.handler = handler
 
-    def _date(self, date):
+    @staticmethod
+    def _date(date):
         """ Converts a datetime into an RFC 2822 formatted date.
         Returns None if None is provided as an argument.
         Keyword arguments:
         date -- A datetime object in GMT format.
         """
 
-        # Alright, I admit it: this method looks hideous. The thing is that RFC 822 requires a specific format for dates, and strftime is
+        # Alright, I admit it: this method looks hideous.
+        # The thing is that RFC 822 requires a specific format for dates, and strftime is
         # locale dependent, so I can't use it to create the final date unless I force change the system locale.
         #
-        # I looked into that (locale.setlocale, then restore), but I got the feeling that I was doing things that I was going to regret later.
+        # I looked into that (locale.setlocale, then restore), but I got the feeling that I was doing things
+        # that I was going to regret later.
         # Maybe it's just me, but it doesn't feel right to force change the locale just to create a simple date.
         #
         # So, not having a better solution, I went ahead and used the original method from the PyRSS2Gen library.
@@ -52,33 +58,58 @@ class Serializable:
         if date is None:
             return None
 
-        return "%s, %02d %s %04d %02d:%02d:%02d GMT" % (["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][date.weekday()], date.day,
-            ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][date.month-1], date.year, date.hour, date.minute, date.second)
+        return "%s, %02d %s %04d %02d:%02d:%02d GMT" % (["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                                                        [date.weekday()], date.day,
+                                                        ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                                                         "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+                                                        [date.month-1], date.year, date.hour, date.minute, date.second)
 
-    def _write_element(self, name, value, attributes = {}):
+    # noinspection PyDefaultArgument
+    def _write_element(self, name, value, attributes={}):
+        def parse_cdata(string):
+            cdata_begin = string.find("<![CDATA[")
+            if cdata_begin != -1:
+                cdata_end = string[cdata_begin:].find("]]>")
+                if cdata_end != -1:
+                    return {"begin": cdata_begin, "end": cdata_begin + cdata_end + 3}
+                else:
+                    return None
+            else:
+                return None
+
         if value is not None or attributes != {}:
             self.handler.startElement(name, attributes)
 
             if value is not None:
-                if isinstance(value, basestring):
-                    self.handler.characters(value)
-                else:
-                    self.handler.characters(str(value))
+                str_value = value if isinstance(value, basestring) else str(value)
+                while len(str_value):
+                    cdata_section = parse_cdata(str_value)
+                    if cdata_section is not None:
+                        self.handler.characters(str_value[:cdata_section["begin"]])
+                        self.handler.ignorableWhitespace(
+                            str_value[cdata_section["begin"]:cdata_section["end"]])
+                        str_value = str_value[cdata_section["end"]:]
+                    else:
+                        self.handler.characters(str_value)
+                        break
 
             self.handler.endElement(name)
+
 
 class Extension(Serializable):
     def get_namespace(self):
         """ Returns the namespace (if any) for this extension. The namespace information is added as an attribute in
         the <rss> element of the feed. The return value should be a dictionary.
-        For example, here is the code for this method on the iTunes extension: return {"xmlns:itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
+        For example, here is the code for this method on the iTunes extension:
+        return {"xmlns:itunes": "http://www.itunes.com/dtds/podcast-1.0.dtd"}
         """
         pass
+
 
 class Host(Serializable):
     """ Represents an object that can be host to other extensions.
     """
-    def __init__(self, extensions = None):
+    def __init__(self, extensions=None):
         Serializable.__init__(self)
 
         self.extensions = [] if extensions is None else extensions
@@ -92,11 +123,12 @@ class Host(Serializable):
 
         self.extensions.append(extension)
 
+
 class Category(Serializable):
     """ A Category object specifies one or more categories that the channel or item belongs to.
     More information at http://cyber.law.harvard.edu/rss/rss.html#ltcategorygtSubelementOfLtitemgt
     """
-    def __init__(self, category, domain = None):
+    def __init__(self, category, domain=None):
         """ Keyword arguments:
         category --	The name of the category
         domain -- Optional. A string that identifies a categorization taxonomy.
@@ -104,7 +136,8 @@ class Category(Serializable):
 
         Serializable.__init__(self)
 
-        if category is None: raise ElementRequiredError("category")
+        if category is None:
+            raise ElementRequiredError("category")
 
         self.category = category
         self.domain = domain
@@ -112,10 +145,12 @@ class Category(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self._write_element("category", self.category, { "domain": self.domain } if self.domain is not None else {})
+        self._write_element("category", self.category, {"domain": self.domain} if self.domain is not None else {})
+
 
 class Cloud(Serializable):
-    """ A Cloud object specifies a web service that supports the rssCloud interface which can be implemented in HTTP-POST, XML-RPC or SOAP 1.1.
+    """ A Cloud object specifies a web service that supports the rssCloud interface which can be implemented
+    in HTTP-POST, XML-RPC or SOAP 1.1.
     More information at http://cyber.law.harvard.edu/rss/rss.html#ltcloudgtSubelementOfLtchannelgt
     """
     def __init__(self, domain, port, path, registerProcedure, protocol):
@@ -129,11 +164,16 @@ class Cloud(Serializable):
 
         Serializable.__init__(self)
 
-        if domain is None: raise ElementRequiredError("domain")
-        if port is None: raise ElementRequiredError("port")
-        if path is None: raise ElementRequiredError("path")
-        if registerProcedure is None: raise ElementRequiredError("registerProcedure")
-        if protocol is None: raise ElementRequiredError("protocol")
+        if domain is None:
+            raise ElementRequiredError("domain")
+        if port is None:
+            raise ElementRequiredError("port")
+        if path is None:
+            raise ElementRequiredError("path")
+        if registerProcedure is None:
+            raise ElementRequiredError("registerProcedure")
+        if protocol is None:
+            raise ElementRequiredError("protocol")
 
         self.domain = domain
         self.port = port
@@ -144,27 +184,34 @@ class Cloud(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self._write_element("cloud", None, { "domain": self.domain, "port": str(self.port), "path": self.path, "registerProcedure": self.registerProcedure, "protocol": self.protocol })
+        self._write_element("cloud", None, {"domain": self.domain, "port": str(self.port), "path": self.path,
+                                            "registerProcedure": self.registerProcedure, "protocol": self.protocol})
+
 
 class Image(Serializable):
     """ An Image object specifies a GIF, JPEG or PNG image that can be displayed with the channel.
     More information at http://cyber.law.harvard.edu/rss/rss.html#ltimagegtSubelementOfLtchannelgt
     """
-    def __init__(self, url, title, link, width = None, height = None, description = None):
+    def __init__(self, url, title, link, width=None, height=None, description=None):
         """ Keyword arguments:
         url -- The URL of the image that represents the channel.
-        title -- Describes the image. It's used in the ALT attribute of the HTML <img> tag when the channel is rendered in HTML.
+        title -- Describes the image. It's used in the ALT attribute of the HTML <img> tag when the channel
+        is rendered in HTML.
         link -- The URL of the site. When the channel is rendered the image is a link to the site.
         width -- Optional. The width of the image in pixels.
         height -- Optional. The height of the image in pixels.
-        description -- Optional. Contains text that is included in the TITLE attribute of the link formed around the image in the HTML rendering.
+        description -- Optional. Contains text that is included in the TITLE attribute of the link formed
+        around the image in the HTML rendering.
         """
 
         Serializable.__init__(self)
 
-        if url is None: raise ElementRequiredError("url")
-        if title is None: raise ElementRequiredError("title")
-        if link is None: raise ElementRequiredError("link")
+        if url is None:
+            raise ElementRequiredError("url")
+        if title is None:
+            raise ElementRequiredError("title")
+        if link is None:
+            raise ElementRequiredError("link")
 
         self.url = url
         self.title = title
@@ -186,6 +233,7 @@ class Image(Serializable):
 
         self.handler.endElement("image")
 
+
 class TextInput(Serializable):
     """ A TextInput object specifies a text input box that can be displayed with the channel.
     More information at http://cyber.law.harvard.edu/rss/rss.html#lttextinputgtSubelementOfLtchannelgt
@@ -200,10 +248,14 @@ class TextInput(Serializable):
 
         Serializable.__init__(self)
 
-        if title is None: raise ElementRequiredError("title")
-        if description is None: raise ElementRequiredError("description")
-        if name is None: raise ElementRequiredError("name")
-        if link is None: raise ElementRequiredError("link")
+        if title is None:
+            raise ElementRequiredError("title")
+        if description is None:
+            raise ElementRequiredError("description")
+        if name is None:
+            raise ElementRequiredError("name")
+        if link is None:
+            raise ElementRequiredError("link")
 
         self.title = title
         self.description = description
@@ -221,6 +273,7 @@ class TextInput(Serializable):
 
         self.handler.endElement("textInput")
 
+
 class SkipHours(Serializable):
     """ A SkipHours object is a hint for aggregators telling them which hours they can skip.
     More information at http://cyber.law.harvard.edu/rss/skipHoursDays.html#skiphours
@@ -232,7 +285,8 @@ class SkipHours(Serializable):
 
         Serializable.__init__(self)
 
-        if hours is None: raise ElementRequiredError("hours")
+        if hours is None:
+            raise ElementRequiredError("hours")
 
         self.hours = hours
 
@@ -247,18 +301,21 @@ class SkipHours(Serializable):
 
             self.handler.endElement("skipHours")
 
+
 class SkipDays(Serializable):
     """ A SkipDays object is a hint for aggregators telling them which days they can skip.
     More information at http://cyber.law.harvard.edu/rss/skipHoursDays.html#skipdays
     """
     def __init__(self, days):
         """ Keyword arguments:
-        days -- A list containing up to 7 values. Possible values are Monday, Tuesday, Wednesday, Thursday, Friday, Saturday or Sunday.
+        days -- A list containing up to 7 values. Possible values are Monday, Tuesday, Wednesday, Thursday,
+        Friday, Saturday or Sunday.
         """
 
         Serializable.__init__(self)
 
-        if days is None: raise ElementRequiredError("days")
+        if days is None:
+            raise ElementRequiredError("days")
 
         self.days = days
 
@@ -273,6 +330,7 @@ class SkipDays(Serializable):
 
             self.handler.endElement("skipDays")
 
+
 class Enclosure(Serializable):
     """ An Enclosure object describes a media object that is attached to the item.
     More information at http://cyber.law.harvard.edu/rss/rss.html#ltenclosuregtSubelementOfLtitemgt
@@ -285,9 +343,12 @@ class Enclosure(Serializable):
         """
         Serializable.__init__(self)
 
-        if url is None: raise ElementRequiredError("url")
-        if length is None: raise ElementRequiredError("length")
-        if type is None: raise ElementRequiredError("type")
+        if url is None:
+            raise ElementRequiredError("url")
+        if length is None:
+            raise ElementRequiredError("length")
+        if type is None:
+            raise ElementRequiredError("type")
 
         self.url = url
         self.length = length
@@ -296,20 +357,23 @@ class Enclosure(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self._write_element("enclosure", None, { "url": self.url, "length": str(self.length), "type": self.type })
+        self._write_element("enclosure", None, {"url": self.url, "length": str(self.length), "type": self.type})
+
 
 class Guid(Serializable):
     """ A Guid object represents a string that uniquely identifies the item.
     More information at http://cyber.law.harvard.edu/rss/rss.html#ltguidgtSubelementOfLtitemgt
     """
-    def __init__(self, guid, isPermaLink = True):
+    def __init__(self, guid, isPermaLink=True):
         """ Keyword arguments:
-        guid -- This is a string that uniquely identifies the item. When present, an aggregator may choose to use this string to determine if an item is new.
+        guid -- This is a string that uniquely identifies the item. When present, an aggregator may choose to use
+        this string to determine if an item is new.
         isPermaLink -- Indicates whether the guid is a url that points to the item.
         """
         Serializable.__init__(self)
 
-        if guid is None: raise ElementRequiredError("guid")
+        if guid is None:
+            raise ElementRequiredError("guid")
 
         self.guid = guid
         self.isPermaLink = True if isPermaLink is None else isPermaLink
@@ -317,7 +381,8 @@ class Guid(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self._write_element("guid", self.guid, { "isPermaLink": "true" if self.isPermaLink else "false" })
+        self._write_element("guid", self.guid, {"isPermaLink": "true" if self.isPermaLink else "false"})
+
 
 class Source(Serializable):
     """ A Source object represents the RSS channel that the item came from.
@@ -330,8 +395,10 @@ class Source(Serializable):
         """
         Serializable.__init__(self)
 
-        if name is None: raise ElementRequiredError("name")
-        if url is None: raise ElementRequiredError("url")
+        if name is None:
+            raise ElementRequiredError("name")
+        if url is None:
+            raise ElementRequiredError("url")
 
         self.name = name
         self.url = url
@@ -339,10 +406,12 @@ class Source(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self._write_element("source", self.name, { "url": self.url })
+        self._write_element("source", self.name, {"url": self.url})
+
 
 class iTunesOwner(Serializable):
-    """ An iTunesOwner object contains contact information for the owner of the podcast intended to be used for administrative communication.
+    """ An iTunesOwner object contains contact information for the owner of the podcast intended to be used
+    for administrative communication.
     More information at https://www.apple.com/itunes/podcasts/specs.html#owner
     """
     def __init__(self, name, email):
@@ -352,8 +421,10 @@ class iTunesOwner(Serializable):
         """
         Serializable.__init__(self)
 
-        if name is None: raise ElementRequiredError("name")
-        if email is None: raise ElementRequiredError("email")
+        if name is None:
+            raise ElementRequiredError("name")
+        if email is None:
+            raise ElementRequiredError("email")
 
         self.name = name
         self.email = email
@@ -366,18 +437,20 @@ class iTunesOwner(Serializable):
         self._write_element("itunes:email", self.email)
         self.handler.endElement("itunes:owner")
 
+
 class iTunesCategory(Serializable):
     """ An iTunesCategory object specified the browsing category of the feed.
     More information at https://www.apple.com/itunes/podcasts/specs.html#category
     """
-    def __init__(self, name, subcategory = None):
+    def __init__(self, name, subcategory=None):
         """ Keyword arguments
         name -- The name of the category
         subcategory -- Optional. The name of the subcategory.
         """
         Serializable.__init__(self)
 
-        if name is None: raise ElementRequiredError("name")
+        if name is None:
+            raise ElementRequiredError("name")
 
         self.name = name
         self.subcategory = subcategory
@@ -385,19 +458,20 @@ class iTunesCategory(Serializable):
     def publish(self, handler):
         Serializable.publish(self, handler)
 
-        self.handler.startElement("itunes:category", { "text": self.name })
+        self.handler.startElement("itunes:category", {"text": self.name})
 
         if self.subcategory is not None:
-            self._write_element("itunes:category", None, { "text": self.subcategory })
+            self._write_element("itunes:category", None, {"text": self.subcategory})
 
         self.handler.endElement("itunes:category")
+
 
 class iTunes(Extension):
     """ Extension for iTunes metatags.
     More information at https://www.apple.com/itunes/podcasts/specs.html
     """
-    def __init__(self, author = None, block = None, categories = None, image = None, explicit = None, complete = None, owner = None, subtitle = None,
-        summary = None, new_feed_url = None, type=None):
+    def __init__(self, author=None, block=None, categories=None, image=None, explicit=None, complete=None, owner=None,
+                 subtitle=None, summary=None, new_feed_url=None, type=None):
         """ Keyword arguments:
         author -- The author of the podcast. Visible under podcast title and in iTunes Store Browse.
         block -- Whether the podcast should appear in the iTunes Store podcast directory.
@@ -443,7 +517,7 @@ class iTunes(Extension):
             self._write_element("itunes:block", "yes" if self.block is True else "no")
 
         if self.image is not None:
-            self._write_element("itunes:image", None, {"href" : self.image })
+            self._write_element("itunes:image", None, {"href": self.image})
 
         if self.explicit is not None:
             self._write_element("itunes:explicit", "yes" if self.explicit is True else "clean")
@@ -465,12 +539,13 @@ class iTunes(Extension):
                 category = iTunesCategory(category)
             category.publish(self.handler)
 
+
 class iTunesItem(Serializable):
     """ Extension for iTunes Item metatags.
     More information at https://www.apple.com/itunes/podcasts/specs.html
     """
-    def __init__(self, author = None, block = None, image = None, duration = None, explicit = None, is_closed_captioned = None, order = None, subtitle = None, summary = None,
-        title=None, episode=None, episodeType=None, season=None):
+    def __init__(self, author=None, block=None, image=None, duration=None, explicit=None, is_closed_captioned=None,
+                 order=None, subtitle=None, summary=None, title=None, episode=None, episodeType=None, season=None):
         """ Keyword arguments:
         author -- The author of the episode.
         block -- Whether the episode should appear in the iTunes Store podcast directory.
@@ -493,7 +568,8 @@ class iTunesItem(Serializable):
         self.image = image
         self.duration = duration
         self.explicit = True if (isinstance(explicit, basestring) and explicit.lower() == 'yes') else explicit
-        self.is_closed_captioned = True if (isinstance(is_closed_captioned, basestring) and is_closed_captioned.lower() == 'yes') else is_closed_captioned
+        self.is_closed_captioned = True if (isinstance(is_closed_captioned, basestring) and
+                                            is_closed_captioned.lower() == 'yes') else is_closed_captioned
         self.order = order
         self.subtitle = subtitle
         self.summary = summary
@@ -511,7 +587,7 @@ class iTunesItem(Serializable):
             self._write_element("itunes:block", "yes" if self.block is True else "no")
 
         if self.image is not None:
-            self._write_element("itunes:image", None, {"href" : self.image })
+            self._write_element("itunes:image", None, {"href": self.image})
 
         self._write_element("itunes:duration", self.duration)
 
@@ -521,7 +597,9 @@ class iTunesItem(Serializable):
         if self.is_closed_captioned is not None:
             self._write_element("itunes:is_closed_captioned", "yes" if self.is_closed_captioned is True else "no")
 
-        self._write_element("itunes:order", str(self.order))
+        if self.order is not None:
+            self._write_element("itunes:order", str(self.order))
+
         self._write_element("itunes:subtitle", self.subtitle)
         self._write_element("itunes:summary", self.summary)
 
@@ -532,14 +610,15 @@ class iTunesItem(Serializable):
 
 
 class Item(Host):
-    """ An Item object may represent a "story" - much like a story in a newspaper or magazine; if so its description is a synopsis of the story, and the link points to the full story.
-    An item may also be complete in itself, if so, the description contains the text, and the link and title may be omitted. All elements of an item are optional, however at least one
+    """ An Item object may represent a "story" - much like a story in a newspaper or magazine;
+    if so its description is a synopsis of the story, and the link points to the full story.
+    An item may also be complete in itself, if so, the description contains the text,
+    and the link and title may be omitted. All elements of an item are optional, however at least one
     of title or description must be present.
     More information at http://cyber.law.harvard.edu/rss/rss.html#hrelementsOfLtitemgt
     """
-    def __init__(self, title = None, link = None, description = None, author = None,
-    creator = None, categories = None, comments = None, enclosure = None,
-        guid = None, pubDate = None, source = None, extensions = None):
+    def __init__(self, title=None, link=None, description=None, author=None, creator=None, categories=None,
+                 comments=None, enclosure=None, guid=None, pubDate=None, source=None, extensions=None):
         """ Keyword arguments:
         title -- Optional. The title of the item.
         link  -- Optional. The URL of the item.
@@ -610,10 +689,12 @@ class Item(Host):
 
         self.handler.endElement("item")
 
+
 class Feed(Host):
-    def __init__(self, title, link, description, language = None, copyright = None, managingEditor = None, webMaster = None, pubDate = None,
-        lastBuildDate = None, categories = None, generator = None, docs = None, cloud = None, ttl = None, image = None, rating = None,
-        textInput = None, skipHours = None, skipDays = None, items = None, extensions = None):
+    def __init__(self, title, link, description, language=None, copyright=None, managingEditor=None, webMaster=None,
+                 pubDate=None, lastBuildDate=None, categories=None, generator=None, docs=None, cloud=None,
+                 ttl=None, image=None, rating=None, textInput=None, skipHours=None, skipDays=None, items=None,
+                 extensions=None):
         """ Keyword arguments:
         title -- The name of the channel.
         link -- The URL to the HTML website corresponding to the channel.
@@ -622,13 +703,17 @@ class Feed(Host):
         copyright -- Optional. Copyright notice for content in the channel.
         managingEditor -- Optional. Email address for person responsible for editorial content.
         webMaster -- Optional. Email address for person responsible for technical issues relating to channel.
-        pubDate -- Optional. The publication date for the content in the channel. This should be a datetime in GMT format.
-        lastBuildDate -- Optional. The last time the content of the channel changed. This should be a datetime in GMT format.
+        pubDate -- Optional. The publication date for the content in the channel.
+            This should be a datetime in GMT format.
+        lastBuildDate -- Optional. The last time the content of the channel changed.
+            This should be a datetime in GMT format.
         categories -- Optional. Specify one or more categories that the channel belongs to.
         generator -- Optional. A string indicating the program used to generate the channel.
         docs -- Optional. A URL that points to the documentation for the format used in the RSS file.
-        cloud -- Optional. Allows processes to register with a cloud to be notified of updates to the channel. This is a Cloud object.
-        ttl -- Optional. The number of minutes that indicates how long a channel can be cached before refreshing from the source. This should be an integer value.
+        cloud -- Optional. Allows processes to register with a cloud to be notified of updates to the channel.
+            This is a Cloud object.
+        ttl -- Optional. The number of minutes that indicates how long a channel can be cached before refreshing
+            from the source. This should be an integer value.
         image -- Optional. Specifies an image that can be displayed with the channel. This is an Image object.
         rating -- Optional. The PICS rating for the channel. See http://www.w3.org/PICS/.
         textInput -- Optional. Specifies a text input box that can be displayed with the channel.
@@ -640,9 +725,12 @@ class Feed(Host):
 
         Host.__init__(self, extensions)
 
-        if title is None: raise ElementRequiredError("title")
-        if link is None: raise ElementRequiredError("link")
-        if description is None: raise ElementRequiredError("description")
+        if title is None:
+            raise ElementRequiredError("title")
+        if link is None:
+            raise ElementRequiredError("link")
+        if description is None:
+            raise ElementRequiredError("description")
 
         self.title = title
         self.link = link
@@ -732,18 +820,20 @@ class Feed(Host):
         handler.endElement("channel")
 
     def _get_attributes(self):
-        attributes = {"version": "2.0", "xmlns:dc" : "http://purl.org/dc/elements/1.1/"}
+        attributes = {"version": "2.0", "xmlns:dc": "http://purl.org/dc/elements/1.1/"}
 
         for extension in self.extensions:
             if isinstance(extension, Extension):
                 namespace = extension.get_namespace()
                 if namespace is not None:
+                    # noinspection PyUnresolvedReferences
                     attributes = dict(itertools.chain(attributes.items(), namespace.items()))
 
         return attributes
 
+
 class ElementRequiredError(Exception):
-    def __init__(self, element1, element2 = None):
+    def __init__(self, element1, element2=None):
         self.element1 = element1
         self.element2 = element2
 
