@@ -166,7 +166,8 @@ def initialize(options=None):
             'response.timeout': 3600,
         })
 
-    conf['/rssFeed'].update({'tools.auth_basic.on': False})
+        conf['/rssFeed'].update({'tools.auth_basic.on': False})
+        conf['/nzbfile.nzb'].update({'tools.auth_basic.on': False})
 
     if options['opds_authentication']:
         user_list = {}

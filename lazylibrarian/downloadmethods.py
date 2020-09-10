@@ -161,7 +161,7 @@ def NZBDownloadMethod(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                         nzb_url = 'http://' + nzb_url
                 if lazylibrarian.CONFIG['HTTP_ROOT']:
                     nzb_url = nzb_url + '/' + lazylibrarian.CONFIG['HTTP_ROOT']
-                nzb_url = nzb_url + '/cache/nzbfile.nzb'
+                nzb_url = nzb_url + '/nzbfile.nzb'
                 logger.debug("nzb_url [%s]" % nzb_url)
                 downloadID, res = sabnzbd.SABnzbd(nzbtitle, nzb_url, False)  # returns nzb_ids or False
                 logger.debug("Sab returned %s/%s" % (downloadID, res))
