@@ -63,7 +63,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-02-02 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2020-09-13 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -375,12 +375,15 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
                     logger.debug("Found %d matches" % matches)
                     if not matches:
                         status = "finished"
-                elif 'Request Denied' in lyne:
+                elif 'Request Denied' in lyne or 'Search denied' in lyne:
                     try:
                         msg = lyne.split("PRIVMSG")[1].split('\n')[0]
                     except IndexError:
                         msg = lyne
-                    logger.warn("Request Denied by %s" % cmd)
+                    if 'Request Denied' in lyne:
+                        logger.warn("Request Denied by %s" % cmd)
+                    else:
+                        logger.warn("Search Denied by %s" % cmd)
                     logger.debug(msg)
                     # irc.part(channel)
                     return '', msg

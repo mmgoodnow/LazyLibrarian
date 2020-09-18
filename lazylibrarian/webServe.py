@@ -5378,7 +5378,6 @@ class WebInterface(object):
             iDisplayStart = int(iDisplayStart)
             iDisplayLength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = iDisplayLength
-            myDB = database.DBConnection()
             cmd = "SELECT NZBTitle,AuxInfo,BookID,NZBProv,NZBDate,NZBSize,Status,Source,DownloadID,rowid from wanted"
             rowlist = myDB.select(cmd)
             # turn the sqlite rowlist into a list of dicts
