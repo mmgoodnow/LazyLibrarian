@@ -17,7 +17,7 @@ import os
 import subprocess
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts
 from lazylibrarian.common import listdir, path_exists, safe_copy, remove, calibre_prg
 from lazylibrarian.formatter import getList, makeUnicode
@@ -32,6 +32,11 @@ except ImportError:
     except ImportError:
         PdfFileWriter = None
         PdfFileReader = None
+
+try:
+    from lib.tinytag import TinyTag
+except ImportError:
+    TinyTag = None
 
 
 def preprocess_ebook(bookfolder):
@@ -69,6 +74,9 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                params.append('-report')
+                logger.debug(str(params))
             try:
                 if os.name != 'nt':
                     _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
@@ -102,7 +110,7 @@ def preprocess_ebook(bookfolder):
         logger.debug("No extra ebook formats created")
 
 
-def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
+def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None):
     if merge is None:
         merge = lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']
     if tag is None:
@@ -180,6 +188,9 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
                               '-metadata', "artist=%s" % authorname,
                               '-metadata', "track=%s" % part[0],
                               os.path.join(bookfolder, "tempaudio%s" % extn)]
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                        params.append('-report')
+                        logger.debug(str(params))
                     try:
                         if os.name != 'nt':
                             _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
@@ -201,6 +212,9 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
     if ff_ver and merge:
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            params.append('-report')
+            logger.debug(str(params))
         try:
             if os.name != 'nt':
                 _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
@@ -221,7 +235,9 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
 
         outfile = "%s - %s%s" % (authorname, bookname, out_type)
         params.append(os.path.join(bookfolder, outfile))
-
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            params.append('-report')
+            logger.debug(str(params))
         res = ''
         try:
             logger.debug("Merging %d files" % len(parts))
@@ -232,6 +248,7 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
 
         except subprocess.CalledProcessError as e:
             logger.error("%s: %s" % (type(e).__name__, str(e)))
+            return
         except Exception as e:
             logger.error("%s: %s" % (type(e).__name__, str(e)))
             if res:
@@ -250,11 +267,69 @@ def preprocess_audio(bookfolder, authorname, bookname, merge=None, tag=None):
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
         extn = os.path.splitext(outfile)[1]
+
         params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
-                  '-y', '-c:a', 'copy', '-metadata', "album=%s" % bookname,
-                  '-metadata', "artist=%s" % authorname,
-                  '-metadata', 'track="1/1"',
-                  os.path.join(bookfolder, "tempaudio%s" % extn)]
+                  '-y', '-c:a', 'copy',
+                  '-metadata', 'track="1/1"']
+
+        myDB = database.DBConnection()
+        match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
+        audio_path = os.path.join(bookfolder, parts[0][3])
+        if tag and match and TinyTag and TinyTag.is_supported(audio_path):
+            id3r = TinyTag.get(audio_path)
+            artist = id3r.artist
+            composer = id3r.composer
+            album_artist = id3r.albumartist
+            album = id3r.album
+            title = id3r.title
+            # "unused" locals are used in eval() statement below
+            # noinspection PyUnusedLocal
+            comment = id3r.comment
+            # noinspection PyUnusedLocal
+            author = authorname
+            # noinspection PyUnusedLocal
+            media_type = "Audiobook"
+            # noinspection PyUnusedLocal
+            genre = match['BookGenre']
+            # noinspection PyUnusedLocal
+            description = match['BookDesc']
+            # noinspection PyUnusedLocal
+            date = match['BookDate']
+            if date == '0000':
+                # noinspection PyUnusedLocal
+                date = ''
+            if artist:
+                # noinspection PyUnusedLocal
+                artist = artist.strip().rstrip('\x00')
+            if composer:
+                # noinspection PyUnusedLocal
+                composer = composer.strip().rstrip('\x00')
+            if album:
+                # noinspection PyUnusedLocal
+                album = album.strip().rstrip('\x00')
+            if album_artist:
+                # noinspection PyUnusedLocal
+                album_artist = album_artist.strip().rstrip('\x00')
+            if match['SeriesDisplay']:
+                series = match['SeriesDisplay'].split('<br>')[0].strip()
+                if series and title and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+                    title = "%s (%s)" % (title, series)
+                    outfile, extn = os.path.splitext(outfile)
+                    outfile = "%s (%s)%s" % (outfile, series, extn)
+
+            params.extend(['-metadata', "title=%s" % title])
+            for item in ['artist', 'album_artist', 'composer', 'album', 'author',
+                         'date', 'comment', 'description', 'genre', 'media_type']:
+                value = eval(item)
+                if value:
+                    params.extend(['-metadata', "%s=%s" % (item, value)])
+        else:
+            params.extend(['-metadata', "album=%s" % bookname,
+                           '-metadata', "artist=%s" % authorname])
+        params.append(os.path.join(bookfolder, "tempaudio%s" % extn))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            params.append('-report')
+            logger.debug(str(params))
         try:
             if os.name != 'nt':
                 _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
