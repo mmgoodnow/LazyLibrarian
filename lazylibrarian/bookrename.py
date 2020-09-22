@@ -513,6 +513,8 @@ def nameVars(bookid, abridged=''):
         mydict['Title'] = 'The Fellowship of the Ring'
         mydict['SortAuthor'] = surnameFirst(mydict['Author'])
         mydict['SortTitle'] = sortDefinite(mydict['Title'])
+        mydict['Part'] = '1'
+        mydict['Total'] = '3'
         res = {}
     else:
         cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
@@ -683,6 +685,8 @@ def replacevars(base, mydict):
         '$PadNum', mydict['PadNum']).replace(
         '$PubYear', mydict['PubYear']).replace(
         '$SerYear', mydict['SerYear']).replace(
+        '$Part', mydict['Part']).replace(
+        '$Total', mydict['Total']).replace(
         '$Abridged', mydict['Abridged']).replace(
         '$$', ' ')
     return ' '.join(res.split()).strip()
