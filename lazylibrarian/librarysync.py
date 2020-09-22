@@ -1167,7 +1167,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
                                                 if lazylibrarian.CONFIG['IMP_RENAME']:
                                                     book_filename = audioRename(bookid, rename=True, playlist=True)
-                                                    preprocess_audio(os.path.dirname(book_filename),
+                                                    preprocess_audio(os.path.dirname(book_filename), bookid,
                                                                      author, book, tag=True)
                                                 else:
                                                     book_filename = audioRename(bookid, rename=False, playlist=True)

@@ -2257,7 +2257,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     if booktype == 'ebook':
         preprocess_ebook(pp_path)
     elif 'audio' in booktype:
-        preprocess_audio(pp_path, authorname, bookname)
+        preprocess_audio(pp_path, bookid, authorname, bookname)
     elif booktype == 'magazine':
         myDB = database.DBConnection()
         res = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))

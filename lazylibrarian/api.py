@@ -191,7 +191,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNewBooks': '[&limit=] List newest books and show when added and reason for adding',
             'importBook': '[&library=] &id= &dir= add library [eBook|Audio] bookid from folder',
             'importMag': '&title= &num= &file= add magazine issue from file',
-            'preprocessAudio': '&dir= &author= &title= [&tag] [&merge] preprocess an audiobook folder',
+            'preprocessAudio': '&dir= &author= &title= [&id=] [&tag] [&merge] preprocess an audiobook folder',
             'preprocessBook': '&dir= preprocess an ebook folder',
             'preprocessMagazine': '&dir= &cover= preprocess a magazine folder',
             'memUse': 'memory usage of the program in kB',
@@ -510,7 +510,8 @@ class Api(object):
                 return
         tag = True if 'tag' in kwargs else None
         merge = True if 'merge' in kwargs else None
-        self.data = preprocess_audio(kwargs['dir'], kwargs['author'], kwargs['title'], merge=merge, tag=tag)
+        bookid = kwargs['id'] if 'id' in kwargs else 0
+        self.data = preprocess_audio(kwargs['dir'], bookid, kwargs['author'], kwargs['title'], merge=merge, tag=tag)
 
     def _preprocessBook(self, **kwargs):
         if 'dir' not in kwargs:
