@@ -207,10 +207,10 @@ isbn_978_dict = {
 # Any _NOT_ in the web ui will remain unchanged on config save
 CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDATED', 'CURRENT_VERSION',
               'GIT_HOST', 'COMMITS_BEHIND', 'INSTALL_TYPE', 'AUTO_UPDATE']
-CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP','WALL_COLUMNS', 'HTTP_TIMEOUT',
+CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMNS', 'HTTP_TIMEOUT',
                  'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
-                 'PREF_UNRARLIB','SEARCH_RATELIMIT', 'EMAIL_LIMIT']
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -651,7 +651,7 @@ CONFIG_DEFINITIONS = {
     'KEEP_OPF': ('bool', 'Preprocess', 1),
     'KEEP_JPG': ('bool', 'Preprocess', 1),
     'FFMPEG': ('str', 'Preprocess', 'ffmpeg'),
-    'AUDIO_OPTIONS': ('str', 'Preprocess', '-ab, 320k'),
+    'AUDIO_OPTIONS': ('str', 'Preprocess', '-b:a, 320k -f mp3'),
     'CREATE_SINGLEAUDIO': ('bool', 'Preprocess', 0),
     'KEEP_SEPARATEAUDIO': ('bool', 'Preprocess', 0),
     'WRITE_AUDIOTAGS': ('bool', 'Preprocess', 0),
