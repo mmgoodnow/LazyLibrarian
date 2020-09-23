@@ -517,6 +517,8 @@ def nameVars(bookid, abridged=''):
         mydict['Total'] = '3'
         res = {}
     else:
+        mydict['Part'] = ''
+        mydict['Total'] = ''
         cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
         res = myDB.match(cmd, (bookid,))
         if res:
@@ -672,21 +674,10 @@ def only_punctuation(value):
 
 
 def replacevars(base, mydict):
-    res = base.replace(
-        '$Author', mydict['Author']).replace(
-        '$SortAuthor', mydict['SortAuthor']).replace(
-        '$Title', mydict['Title']).replace(
-        '$SortTitle', mydict['SortTitle']).replace(
-        '$Series', mydict['Series']).replace(
-        '$FmtName', mydict['FmtName']).replace(
-        '$FmtNum', mydict['FmtNum']).replace(
-        '$SerName', mydict['SerName']).replace(
-        '$SerNum', mydict['SerNum']).replace(
-        '$PadNum', mydict['PadNum']).replace(
-        '$PubYear', mydict['PubYear']).replace(
-        '$SerYear', mydict['SerYear']).replace(
-        '$Part', mydict['Part']).replace(
-        '$Total', mydict['Total']).replace(
-        '$Abridged', mydict['Abridged']).replace(
-        '$$', ' ')
+    for item in ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
+                 '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
+                 '$Abridged']:
+        if item in base and item[1:] in mydict:
+            base = base.replace(item, mydict[item[1:]])
+    res = base.replace('$$', ' ')
     return ' '.join(res.split()).strip()
