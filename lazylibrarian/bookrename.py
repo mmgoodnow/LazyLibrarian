@@ -276,7 +276,8 @@ def audio_parts(folder, bookname, authorname):
             failed = True
             break
         if parts[cnt][0] != cnt + 1:
-            logger.warn('%s: No part %i found, "%s" for token "%s"' % (bookname, cnt + 1, parts[cnt][0], tokmatch))
+            logger.warn('%s: No part %i found, "%s" for token "%s" %s' % (bookname, cnt + 1, parts[cnt][0],
+                                                                          tokmatch, parts[cnt][3]))
             failed = True
             break
         cnt += 1
@@ -291,10 +292,12 @@ def audioRename(bookid, rename=False, playlist=False):
     :return: filename of part 01 of the audiobook
     """
     if rename:
-        if '$Part' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] or (
-            '$Title' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] and
-                '$SortTitle' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']):
-            logger.error("Unable to audioRename, check AUDIOBOOK_DEST_FILE")
+        if '$Part' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+            logger.error("Unable to rename, no $Part in AUDIOBOOK_DEST_FILE")
+            return
+        if '$Title' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] and \
+                '$SortTitle' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+            logger.error("Unable to rename, no $Title or $SortTitle in AUDIOBOOK_DEST_FILE")
             return ''
 
     myDB = database.DBConnection()
@@ -366,9 +369,9 @@ def audioRename(bookid, rename=False, playlist=False):
                     playlist.write("%s\n" % makeUTF8bytes(part[3])[0])
             else:
                 if rename:
-                    playlist.write("%s\n" % makeUnicode(pattern)[0])
+                    playlist.write("%s\n" % makeUnicode(pattern))
                 else:
-                    playlist.write("%s\n" % makeUnicode(part[3])[0])
+                    playlist.write("%s\n" % makeUnicode(part[3]))
         if rename:
             n = os.path.join(makeUnicode(r), makeUnicode(pattern))
             o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
