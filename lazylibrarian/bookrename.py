@@ -254,6 +254,8 @@ def audio_parts(folder, bookname, authorname):
                         pattern = ' %s ' % str(cnt).zfill(2)
                     elif tokmatch == ' 1 ':
                         pattern = ' %s ' % str(cnt)
+                    elif tokmatch == '001':
+                        pattern = '%s' % str(cnt).zfill(3)
                     else:
                         pattern = '%s' % str(cnt).zfill(2)
                     # standardise numbering of the parts
@@ -274,7 +276,7 @@ def audio_parts(folder, bookname, authorname):
             failed = True
             break
         if parts[cnt][0] != cnt + 1:
-            logger.warn("%s: No part %i found" % (bookname, cnt + 1))
+            logger.warn('%s: No part %i found, "%s" for token "%s"' % (bookname, cnt + 1, parts[cnt][0], tokmatch))
             failed = True
             break
         cnt += 1
@@ -517,8 +519,6 @@ def nameVars(bookid, abridged=''):
         mydict['Total'] = '3'
         res = {}
     else:
-        mydict['Part'] = ''
-        mydict['Total'] = ''
         cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
         res = myDB.match(cmd, (bookid,))
         if res:
@@ -677,7 +677,7 @@ def replacevars(base, mydict):
     for item in ['$Author', '$SortAuthor', '$Title', '$SortTitle', '$Series', '$FmtName', '$FmtNum',
                  '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
                  '$Abridged']:
-        if item in base and item[1:] in mydict:
+        if item[1:] in mydict:
             base = base.replace(item, mydict[item[1:]])
     res = base.replace('$$', ' ')
     return ' '.join(res.split()).strip()

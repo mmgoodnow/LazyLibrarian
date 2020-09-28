@@ -2624,7 +2624,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     if is_valid_booktype(f, booktype='audiobook'):
                         if not firstfile:
                             firstfile = os.path.join(udest_path, f)
-                            logger.debug("Link to %s" % f)
+                            logger.debug("Primary link to %s" % f)
                         if token in f:
                             firstfile = os.path.join(udest_path, f)
                             logger.debug("Link to first part [%s], %s" % (token, f))
