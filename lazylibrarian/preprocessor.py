@@ -75,7 +75,6 @@ def preprocess_ebook(bookfolder):
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-                params.append('-report')
                 logger.debug(str(params))
             try:
                 if os.name != 'nt':
