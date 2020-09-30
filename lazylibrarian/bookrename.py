@@ -599,7 +599,6 @@ def nameVars(bookid, abridged=''):
     else:
         fmtname = ''
 
-    fmtname = ' '.join(fmtname.split())
     if only_punctuation(fmtname):
         fmtname = ''
 
@@ -611,7 +610,6 @@ def nameVars(bookid, abridged=''):
     else:
         fmtnum = ''
 
-    fmtnum = ' '.join(fmtnum.split())
     if only_punctuation(fmtnum):
         fmtnum = ''
 
@@ -626,7 +624,6 @@ def nameVars(bookid, abridged=''):
     else:
         fmtseries = ''
 
-    fmtseries = ' '.join(fmtseries.split())
     if only_punctuation(fmtseries):
         fmtseries = ''
 
@@ -682,5 +679,4 @@ def replacevars(base, mydict):
                  '$Abridged']:
         if item[1:] in mydict:
             base = base.replace(item, mydict[item[1:]])
-    res = base.replace('$$', ' ')
-    return ' '.join(res.split()).strip()
+    return base.replace('$$', ' ')
