@@ -900,7 +900,21 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         if authorid != match['AuthorID']:
                                             logger.warn("Metadata authorid [%s] does not match database [%s]" %
                                                         (authorid, match['AuthorID']))
-                                    else:
+                                    if not match:
+                                        cmd = 'SELECT Status,BookID FROM books where BookName=? and AuthorID=?'
+                                        match = myDB.match(cmd, (book, authorid))
+                                        if match:
+                                            logger.warn("Metadata bookid [%s] not found in database, title matches %s" %
+                                                        (bookid, match['BookID']))
+                                            mtype = match['Status']
+                                            # update stored bookid to match preferred (owned) book
+                                            myDB.action('PRAGMA foreign_keys = OFF')
+                                            for table in ['books', 'member', 'wanted', 'failedsearch', 'genrebooks']:
+                                                cmd = 'UPDATE %s SET BookID=? WHERE BookID=?' % table
+                                                myDB.action(cmd, (bookid, match['BookID']))
+                                            myDB.action('PRAGMA foreign_keys = ON')
+
+                                    if not match:
                                         logger.warn("Metadata bookid [%s] not found in database, trying to add..." %
                                                     (bookid,))
                                         if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
