@@ -1357,6 +1357,10 @@ def logHeader():
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
 
+    if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
+        header += "apprise: library version %s\n" % lazylibrarian.APPRISE
+    else:
+        header += "apprise: library missing\n"
     if lazylibrarian.UNRARLIB == 1:
         vers = lazylibrarian.RARFILE.unrarlib.RARGetDllVersion()
         header += "unrar: library version %s\n" % vers
