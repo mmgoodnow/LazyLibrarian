@@ -709,7 +709,7 @@
                           <input type="checkbox" id="show_genres" name="show_genres" value="1" ${checked} />
                           Show genres</label>
                       </div>
-                      %if lazylibrarian.APPRISE == True:
+                      %if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
                       <div class="col-md-6">
                         <%
                           if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == True:
@@ -3767,7 +3767,7 @@
                   </fieldset>
                 </div>
               </div>
-              %if lazylibrarian.APPRISE == True:
+              %if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
                 <div id="apprise">
                   <div class="col-md-12">
                     <legend>Apprise Notifiers
