@@ -26,6 +26,7 @@ import sqlite3
 import traceback
 import tarfile
 import cherrypy
+from shutil import rmtree
 
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
     importer, grsync, comicsearch
@@ -854,6 +855,26 @@ def initialize():
                 if len(itm) > 2:
                     os.rename(syspath(os.path.join(pth, itm)),
                               syspath(os.path.join(pth, itm[0], itm[1], itm)))
+
+        last_run_version = None
+        makocache = os.path.join(CACHEDIR, 'mako')
+        version_file = os.path.join(makocache, 'python_version.txt')
+
+        if os.path.isfile(version_file):
+            with open(version_file, 'r') as fp:
+                last_run_version = fp.read().strip(' \n\r')
+
+        if last_run_version != sys.version.split()[0]:
+            if last_run_version:
+                logger.debug("Python version change (%s to %s)" % (last_run_version, sys.version.split()[0]))
+            else:
+                logger.debug("Python version may have changed to %s" % sys.version.split()[0])
+            logger.debug("Clearing mako cache")
+            rmtree(makocache)
+            os.makedirs(makocache)
+            with open(version_file, 'w') as fp:
+                fp.write(sys.version.split()[0])
+
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
