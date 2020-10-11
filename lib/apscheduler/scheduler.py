@@ -127,7 +127,7 @@ class Scheduler(object):
 
     @property
     def running(self):
-        return not self._stopped and self._thread and self._thread.isAlive()
+        return not self._stopped and self._thread and self._thread.is_alive()
 
     def add_jobstore(self, jobstore, alias, quiet=False):
         """

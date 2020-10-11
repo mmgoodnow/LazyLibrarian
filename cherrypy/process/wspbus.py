@@ -331,7 +331,7 @@ class Bus(object):
             # that another thread executes cherrypy.engine.exit()
             if (
                     t != threading.currentThread() and
-                    t.isAlive() and
+                    t.is_alive() and
                     not isinstance(t, threading._MainThread)
             ):
                 # Note that any dummy (external) threads are always daemonic.
