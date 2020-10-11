@@ -21,10 +21,13 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.images import getAuthorImage
 from lazylibrarian.cache import cache_img
-from lazylibrarian.formatter import today, unaccented, formatAuthorName, makeUnicode
+from lazylibrarian.formatter import today, unaccented, formatAuthorName, makeUnicode, safe_unicode, \
+    surnameFirst, plural
 from lazylibrarian.grsync import grfollow
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.common import path_isdir
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -324,12 +327,28 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 myDB.upsert("authors", newValueDict, controlValueDict)
 
         if addbooks:
+            dupes = 0
             if new_author:
                 bookstatus = lazylibrarian.CONFIG['NEWAUTHOR_STATUS']
                 audiostatus = lazylibrarian.CONFIG['NEWAUTHOR_AUDIO']
             else:
                 bookstatus = lazylibrarian.CONFIG['NEWBOOK_STATUS']
                 audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
+                books = myDB.select('SELECT BookName from books where AuthorID=? and Status != "Ignored"', (authorid,))
+                titles = []
+                for book in books:
+                    titles.append(book['BookName'])
+
+                dupes = len(titles) - len(set(titles))
+                if dupes:
+                    logger.debug("Found %s duplicate %s in the library for %s" % (dupes, plural(dupes, "title"), authorname))
+                    myDB.action('DELETE from books WHERE AuthorID=?', (authorid,))
+                    # if the author was the only remaining contributor to a series, remove the series
+                    orphans = myDB.select('select seriesid from series except select seriesid from seriesauthors')
+                    if len(orphans):
+                        logger.debug("Found %s orphan series" % len(orphans))
+                    for orphan in orphans:
+                        myDB.action('DELETE from series where seriesid=?', (orphan[0],))
 
             if entry_status not in ['Active', 'Wanted', 'Ignored', 'Paused']:
                 entry_status = 'Active'  # default for invalid/unknown or "loading"
@@ -356,8 +375,21 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 #     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                 #                               audiostatus=audiostatus, entrystatus=entry_status,
                 #                               refresh=refresh)
-
-            update_totals(authorid)
+            if dupes:
+                for library in ['eBook', 'AudioBook']:
+                    if lazylibrarian.DIRECTORY(library):
+                        authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY(library), authorname))
+                        if not path_isdir(authordir):
+                            authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY(library),
+                                                                  surnameFirst(authorname)))
+                        if not path_isdir(authordir):
+                            authorname = ' '.join(word[0].upper() + word[1:] for word in authorname.split())
+                            authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY(library), authorname))
+                        if path_isdir(authordir):
+                            lazylibrarian.librarysync.LibraryScan(authordir, library, authorid,
+                                                                  bool(lazylibrarian.CONFIG['FULL_SCAN']))
+            else:
+                update_totals(authorid)
 
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                 msg = "[%s] Author update aborted, status %s" % (authorname, entry_status)
