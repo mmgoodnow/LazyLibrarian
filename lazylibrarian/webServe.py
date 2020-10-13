@@ -17,6 +17,7 @@ import json
 import os
 import random
 import re
+import sys
 import subprocess
 import threading
 import time
@@ -83,6 +84,16 @@ lastmagazine = ''
 lastcomic = ''
 
 
+def clear_mako_cache():
+    logger.warn("Clearing mako cache")
+    makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
+    try:
+        rmtree(makocache, ignore_errors=True)
+        os.makedirs(makocache, exist_ok=True)
+    except Exception as e:
+        logger.error("Error clearing mako cache: %s" % str(e))
+
+
 def serve_template(templatename, **kwargs):
     threading.currentThread().name = "WEBSERVER"
     interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data', 'interfaces')
@@ -107,7 +118,11 @@ def serve_template(templatename, **kwargs):
                                    title="Database Upgrade", timer=5)
 
         if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
-            template = _hplookup.get_template(templatename)
+            try:
+                template = _hplookup.get_template(templatename)
+            except AttributeError:
+                clear_mako_cache()
+                template = _hplookup.get_template(templatename)
             # noinspection PyArgumentList
             return template.render(perm=lazylibrarian.perm_admin, **kwargs)
 
@@ -179,7 +194,12 @@ def serve_template(templatename, **kwargs):
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
             logger.debug("User %s: %s %s %s" % (username, perm, userprefs, templatename))
-        template = _hplookup.get_template(templatename)
+
+        try:
+            template = _hplookup.get_template(templatename)
+        except AttributeError:
+            clear_mako_cache()
+            template = _hplookup.get_template(templatename)
 
         if templatename == "login.html":
             lazylibrarian.SUPPRESS_UPDATE = True
