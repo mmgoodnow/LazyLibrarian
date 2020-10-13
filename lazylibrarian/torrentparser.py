@@ -402,7 +402,7 @@ def KAT(book=None, test=False):
                 try:
                     # some mirrors of kat return multiple text items, some just the title
                     try:
-                        title = td[0].split('class="cellMainLink">')[1].split('<')[0]
+                        title = str(td[0]).split('class="cellMainLink"')[1].split('>')[1].split('<')[0]
                     except IndexError:
                         title = td[0].text
                     title = unaccented(title, only_ascii=False, umlauts=False)
