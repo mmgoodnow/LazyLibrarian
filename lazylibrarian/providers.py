@@ -140,7 +140,7 @@ def test_provider(name, host=None, api=None):
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'nytimes' in host:
                         return NYTIMES(host, provider['NAME'], provider['DLPRIORITY'],
-                                      provider['DISPNAME'], test=True), provider['DISPNAME']
+                                       provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return RSS(host, provider['NAME'], provider['DLPRIORITY'],
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -1362,6 +1362,9 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                 cancelled = cancelSearchType(searchType, errormsg, provider)
                 if not cancelled:  # it was some other problem
                     BlockProvider(provider['HOST'], errormsg)
+
+                if test and searchType == 'book' and cancelled:
+                    return NewzNabPlus(book, provider, 'general', searchMode, test)
             else:
                 resultxml = rootxml.iter('item')
                 nzbcount = 0
