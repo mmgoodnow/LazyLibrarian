@@ -43,6 +43,7 @@ try:
     from icrawler.builtin import GoogleImageCrawler
 except ImportError:
     PIL = None
+    GoogleImageCrawler = None
 
 try:
     # noinspection PyProtectedMember

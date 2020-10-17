@@ -362,7 +362,7 @@ def setWorkID(books=None):
             else:
                 resultxml = rootxml.find('work-ids')
                 if len(resultxml):
-                    ids = resultxml.getiterator('item')
+                    ids = resultxml.iter('item')
                     books = getList(page)
                     cnt = 0
                     for item in ids:
@@ -604,7 +604,7 @@ def getBookAuthors(bookid):
 
         book = rootxml.find('book')
         authors = book.find('authors')
-        anames = authors.getiterator('author')
+        anames = authors.iter('author')
         if anames is None:
             logger.warn('No authors found for %s' % bookid)
             return []
@@ -768,7 +768,7 @@ def getSeriesAuthors(seriesid):
                     if rootxml is None:
                         logger.warn('Error getting XML for %s' % searchname)
                     else:
-                        resultxml = rootxml.getiterator('work')
+                        resultxml = rootxml.iter('work')
                         for item in resultxml:
                             try:
                                 booktitle = item.find('./best_book/title').text
@@ -804,7 +804,7 @@ def getSeriesAuthors(seriesid):
                         if rootxml is None:
                             logger.warn('Error getting XML for %s' % searchname)
                         else:
-                            resultxml = rootxml.getiterator('work')
+                            resultxml = rootxml.iter('work')
                             for item in resultxml:
                                 booktitle = item.find('./best_book/title').text
                                 booktitle = replace_all(booktitle, quotes)
@@ -870,7 +870,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
             return [], api_hits
 
         works = rootxml.find('series/series_works')
-        books = works.getiterator('series_work')
+        books = works.iter('series_work')
         if books is None:
             logger.warn('No books found for %s' % seriesID)
             return [], api_hits
@@ -1123,7 +1123,7 @@ def getWorkSeries(bookID=None, reason=""):
         if rootxml is None:
             logger.warn('Error getting XML for %s' % seriesurl)
         else:
-            resultxml = rootxml.getiterator('series_work')
+            resultxml = rootxml.iter('series_work')
             for item in resultxml:
                 try:
                     seriesname = item.find('./series/title').text

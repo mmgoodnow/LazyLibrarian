@@ -930,7 +930,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.debug("%10s set to Wanted" % book)
                         else:
                             logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
-                                (res['BookName'], book, res['Status']))
+                                        (res['BookName'], book, res['Status']))
 
         # set new definitive list from ll
         if user:

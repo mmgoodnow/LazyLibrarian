@@ -999,7 +999,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             else:
                                                 book, _ = split_title(author, book)
                                                 book = replace_with(book, quotes, '')
-                                                resultxml = rootxml.getiterator('work')
+                                                resultxml = rootxml.iter('work')
                                                 for item in resultxml:
                                                     try:
                                                         booktitle = item.find('./best_book/title').text
@@ -1049,7 +1049,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                     logger.warn("Rescan no match for [%s] %s" % (author, book))
 
                                                     # see if title was found under a different author
-                                                    resultxml = rootxml.getiterator('work')
+                                                    resultxml = rootxml.iter('work')
                                                     for item in resultxml:
                                                         try:
                                                             booktitle = item.find('./best_book/title').text

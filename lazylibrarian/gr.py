@@ -83,7 +83,7 @@ class GoodReads:
 
                 totalresults = check_int(rootxml.find('search/total-results').text, 0)
 
-                resultxml = rootxml.getiterator('work')
+                resultxml = rootxml.iter('work')
                 loopCount = 1
                 while resultxml:
                     for author in resultxml:
@@ -230,7 +230,7 @@ class GoodReads:
                             if rootxml is None:
                                 logger.debug('Error requesting page %s of results' % loopCount)
                             else:
-                                resultxml = rootxml.getiterator('work')
+                                resultxml = rootxml.iter('work')
                                 if not in_cache:
                                     api_hits += 1
                         except Exception as e:
@@ -281,7 +281,7 @@ class GoodReads:
             logger.debug("Error requesting authorid")
             return {}
 
-        resultxml = rootxml.getiterator('author')
+        resultxml = rootxml.iter('author')
 
         if resultxml is None:
             logger.warn('No authors found with name: %s' % author)
@@ -406,7 +406,7 @@ class GoodReads:
             if not in_cache:
                 api_hits += 1
 
-            resultxml = rootxml.getiterator('book')
+            resultxml = rootxml.iter('book')
 
             valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
 
@@ -706,7 +706,7 @@ class GoodReads:
                             # We can't call book/show for every book because of api limits, and we can't scrape
                             # the html as it breaks goodreads terms of service
                             authors = book.find('authors')
-                            anames = authors.getiterator('author')
+                            anames = authors.iter('author')
                             amatch = False
                             alist = ''
                             role = ''
@@ -980,7 +980,7 @@ class GoodReads:
                             if rootxml is None:
                                 logger.debug('Error requesting next page of results')
                             else:
-                                resultxml = rootxml.getiterator('book')
+                                resultxml = rootxml.iter('book')
                                 if not in_cache:
                                     api_hits += 1
                         except Exception as e:
@@ -1101,7 +1101,7 @@ class GoodReads:
                 else:
                     resultxml = rootxml.find('work-ids')
                     if len(resultxml):
-                        ids = resultxml.getiterator('item')
+                        ids = resultxml.iter('item')
                         books = getList(page)
                         cnt = 0
                         for item in ids:

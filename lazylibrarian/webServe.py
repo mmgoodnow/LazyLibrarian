@@ -17,7 +17,6 @@ import json
 import os
 import random
 import re
-import sys
 import subprocess
 import threading
 import time
