@@ -1126,10 +1126,36 @@ class GoodReads:
                 logger.error("%s parsing id_to_work_id page: %s" % (type(e).__name__, str(e)))
         logger.debug("BookID/WorkID Found %d, Differ %d, Missing %d" % (found, differ, len(notfound)))
 
+        cnt = 0
         for bookid in notfound:
-            res = myDB.match("SELECT BookName from books WHERE bookid=?", (bookid,))
+            res = myDB.match("SELECT BookName,Status,AudioStatus from books WHERE bookid=?", (bookid,))
             if res:
-                logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+                if lazylibrarian.CONFIG['FULL_SCAN']:
+                    if res['Status'] in ['Wanted', 'Open', 'Have']:
+                        logger.warn("Keeping unknown goodreads bookid %s: %s, Status is %s" %
+                                    (bookid, res['BookName'], res['Status']))
+                    elif res['AudioStatus'] in ['Wanted', 'Open', 'Have']:
+                        logger.warn("Keeping unknown goodreads bookid %s: %s, AudioStatus is %s" %
+                                    (bookid, res['BookName'], res['Status']))
+                    else:
+                        logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+                        myDB.action("DELETE from books WHERE BookID=?", (bookid,))
+                        cnt += 1
+                else:
+                    logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
+        if cnt:
+            logger.warn("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
+
+        cmd = "select count('bookname'),bookname from books where Status != 'Ignored' and authorid=?"
+        cmd += "group by bookname having ( count(bookname) > 1 )"
+        res = myDB.select(cmd, (authorid,))
+        dupes = len(res)
+        if dupes:
+            author = myDB.match("SELECT AuthorName from authors where AuthorID=?", (authorid,))
+            logger.warn("There %s %s duplicate %s for %s" % (plural(dupes, 'is'), dupes, plural(dupes, 'title'),
+                                                             author['AuthorName']))
+            for item in res:
+                logger.debug("%02d: %s" % (item[0], item[1]))
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
