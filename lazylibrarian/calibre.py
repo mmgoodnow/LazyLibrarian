@@ -367,11 +367,11 @@ def calibreTest():
             return msg + err
         return msg + res
 
-    res = res.strip('\n')
-    if '(calibre ' in res and res.endswith(')'):
+    if '(calibre ' in res:
         # extract calibredb version number
-        res = res.split('(calibre ')[1]
-        vernum = res[:-1]
+        vernum = res.split('(calibre ')[1]
+        if ')' in vernum:
+            vernum = vernum.split(')')[0]
         res = 'calibredb ok, version ' + vernum
 
         # get a list of categories and counters from the database in CSV format
