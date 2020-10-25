@@ -2192,9 +2192,18 @@
                   </div>
                   <div class="form-group">
                     <label class="control-label">Post-Processing Interval:</label>
+                    <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="How often to check for new downloads"</span>
                     <div class="input-group">
                       <input type="number" id="scan_interval" name="scan_interval" value="${lazylibrarian.CONFIG['SCAN_INTERVAL']}" class="form-control" placeholder="0 to disable">
                       <span class="input-group-addon">Minutes</span>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label class="control-label">Post-Processing Delay:</label>
+                    <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="How long to wait after download is complete before processing"</span>
+                    <div class="input-group">
+                      <input type="number" id="pp_delay" name="pp_delay" value="${lazylibrarian.CONFIG['PP_DELAY']}" class="form-control" placeholder="0 to disable">
+                      <span class="input-group-addon">Seconds</span>
                     </div>
                   </div>
                   <div class="form-group">

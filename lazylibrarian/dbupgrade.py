@@ -99,8 +99,9 @@ from lazylibrarian.common import path_exists
 # 65 Add Reading and Abandoned to users table
 # 66 Add subscribers table
 # 67 Add prefs to user table
+# 68 Add completed time to wanted table
 
-db_current_version = 67
+db_current_version = 68
 
 
 def upgrade_needed():
@@ -929,6 +930,12 @@ def update_schema(myDB, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding Prefs to users table'
         upgradelog.write("%s v67: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE users ADD COLUMN Prefs INTEGER DEFAULT 0')
+
+    if not has_column(myDB, "wanted", "Completed"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Completed to wanted table'
+        upgradelog.write("%s v68: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE wanted ADD COLUMN Completed INTEGER DEFAULT 0')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

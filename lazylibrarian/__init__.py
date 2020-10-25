@@ -541,6 +541,7 @@ CONFIG_DEFINITIONS = {
     'MAG_DEST_FILE': ('str', 'PostProcess', '$IssueDate - $Title'),
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),
     'MAG_DELFOLDER': ('bool', 'PostProcess', 1),
+    'PP_DELAY': ('int', 'PostProcess', 0),
     'HIDE_OLD_NOTIFIERS': ('bool', 'General', 0),
     'USE_TWITTER': ('bool', 'Twitter', 0),
     'TWITTER_NOTIFY_ONSNATCH': ('bool', 'Twitter', 0),

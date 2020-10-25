@@ -726,6 +726,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     (rejected, book['BookID']))
                         delete_task(book['Source'], book['DownloadID'], True)
                 else:
+                    _ = getDownloadProgress(book['Source'], book['DownloadID'])  # set completion time
                     dlfolder = getDownloadFolder(book['Source'], book['DownloadID'])
                     if dlfolder:
                         match = False
@@ -754,6 +755,19 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 snatched = myDB.select('SELECT * from wanted WHERE Status="Snatched"')
             if len(snatched):
                 for book in snatched:
+                    # check if we need to wait a while before processing, might be copying/unpacking/moving
+                    delay = check_int(lazylibrarian.CONFIG['PP_DELAY'], 0)
+                    if delay:
+                        completion = time.time() - check_int(book['Completed'], 0)
+                        if completion < delay:
+                            completion = int(-(-completion // 1))  # round up to int
+                            logger.warn("Ignoring %s as completion was %s %s ago" %
+                                        (book['NZBtitle'], completion, plural(completion, 'second')))
+                            continue
+                        elif check_int(book['Completed'], 0):
+                            logger.debug("%s was completed %s %s ago" %
+                                         (book['NZBtitle'], completion, plural(completion, 'second')))
+
                     book_type = bookType(book)
                     # remove accents and convert not-ascii apostrophes
                     if PY2:
@@ -1725,17 +1739,16 @@ def getDownloadFolder(source, downloadid):
 def getDownloadProgress(source, downloadid):
     progress = 0
     finished = False
+    myDB = database.DBConnection()
     try:
         if source == 'TRANSMISSION':
             progress, errorstring, finished = transmission.getTorrentProgress(downloadid)
             if errorstring:
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, (errorstring, downloadid, source))
                 progress = -1
 
         elif source == 'DIRECT':
-            myDB = database.DBConnection()
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
             data = myDB.match(cmd, (downloadid, source))
             if data:
@@ -1745,7 +1758,6 @@ def getDownloadProgress(source, downloadid):
                 progress = 0
 
         elif source.startswith('IRC'):
-            myDB = database.DBConnection()
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
             data = myDB.match(cmd, (downloadid, source))
             if data:
@@ -1755,7 +1767,6 @@ def getDownloadProgress(source, downloadid):
                 progress = 0
 
         elif source == 'SABNZBD':
-            myDB = database.DBConnection()
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
             search = None
             data = myDB.match(cmd, (downloadid, source))
@@ -1786,7 +1797,6 @@ def getDownloadProgress(source, downloadid):
                             elif item['status'] in ['Extracting', 'Fetching']:
                                 progress = 99
                             elif item['status'] == 'Failed' or item['fail_message']:
-                                myDB = database.DBConnection()
                                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                                 myDB.action(cmd, (item['fail_message'], downloadid, source))
                                 progress = -1
@@ -1827,7 +1837,6 @@ def getDownloadProgress(source, downloadid):
                                     progress = 100
                                     finished = True
                                 elif 'WARNING' in item['Status'] or 'FAILURE' in item['Status']:
-                                    myDB = database.DBConnection()
                                     cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? '
                                     cmd += 'WHERE DownloadID=? and Source=?'
                                     myDB.action(cmd, (item['Status'], downloadid, source))
@@ -1843,7 +1852,6 @@ def getDownloadProgress(source, downloadid):
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = 0
             if status == 'error':
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, ("QBITTORRENT returned error", downloadid, source))
                 progress = -1
@@ -1854,7 +1862,6 @@ def getDownloadProgress(source, downloadid):
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = 0
             if status & 16:  # Error
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, ("UTORRENT returned error status %d" % status, downloadid, source))
                 progress = -1
@@ -1867,7 +1874,6 @@ def getDownloadProgress(source, downloadid):
             if status == 'finished':
                 progress = 100
             elif status == 'error':
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, ("rTorrent returned error", downloadid, source))
                 progress = -1
@@ -1877,7 +1883,6 @@ def getDownloadProgress(source, downloadid):
             if status == 'finished':
                 progress = 100
             elif status == 'error':
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, ("Synology returned error", downloadid, source))
                 progress = -1
@@ -1885,7 +1890,6 @@ def getDownloadProgress(source, downloadid):
         elif source == 'DELUGEWEBUI':
             progress, message, finished = deluge.getTorrentProgress(downloadid)
             if message and message != 'OK':
-                myDB = database.DBConnection()
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, (message, downloadid, source))
                 progress = -1
@@ -1911,7 +1915,6 @@ def getDownloadProgress(source, downloadid):
                     progress = -1
                     finished = False
                 if 'message' in result and result['message'] != 'OK':
-                    myDB = database.DBConnection()
                     cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                     myDB.action(cmd, (result['message'], downloadid, source))
                     progress = -1
@@ -1928,6 +1931,13 @@ def getDownloadProgress(source, downloadid):
         except ValueError:
             logger.debug("Progress value error %s [%s] %s" % (source, progress, downloadid))
             progress = 0
+
+        if finished:  # store when we noticed it was completed (can ask some downloaders, but not all)
+            res = myDB.match('SELECT Completed from wanted WHERE DownloadID=? and Source=?', (downloadid, source))
+            if res and not res['Completed']:
+                myDB.action('UPDATE wanted SET Completed=? WHERE DownloadID=? and Source=?',
+                            (int(time.time()), downloadid, source))
+
         return progress, finished
 
     except Exception as e:
