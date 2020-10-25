@@ -264,15 +264,13 @@ class GoodReads:
     def find_author_id(self, refresh=False):
         author = self.name
         author = formatAuthorName(unaccented(author, only_ascii=False))
-        URL = 'https://www.goodreads.com/api/author_url/' + quote(author) + \
-              '?' + urlencode(self.params)
-
         # googlebooks gives us author names with long form unicode characters
         author = makeUnicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
         logger.debug("Searching for author with name: %s" % author)
-
+        URL = 'https://www.goodreads.com/api/author_url/'
         try:
+            URL += quote(makeUTF8bytes(author)[0]) + '?' + urlencode(self.params)
             rootxml, _ = gr_xml_request(URL, useCache=not refresh)
         except Exception as e:
             logger.error("%s finding authorid: %s, %s" % (type(e).__name__, URL, str(e)))
