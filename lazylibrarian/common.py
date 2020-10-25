@@ -1358,19 +1358,19 @@ def logHeader():
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
 
     if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
-        header += "apprise: library version %s\n" % lazylibrarian.APPRISE
+        header += "apprise: %s\n" % lazylibrarian.APPRISE
     else:
         header += "apprise: library missing\n"
     if lazylibrarian.UNRARLIB == 1:
         vers = lazylibrarian.RARFILE.unrarlib.RARGetDllVersion()
-        header += "unrar: library version %s\n" % vers
+        header += "unrar: %s\n" % vers
     elif lazylibrarian.UNRARLIB == 2:
         import lib.UnRAR2 as UnRAR2
         vers = getattr(UnRAR2, '__version__', None)
-        header += "unrar2: library version %s\n" % vers
+        header += "unrar2: %s\n" % vers
         if os.name == 'nt':
             vers = UnRAR2.windows.RARGetDllVersion()
-            header += "windows dll version %s\n" % vers
+            header += "unrar dll: %s\n" % vers
     else:
         header += "unrar: library missing\n"
 
