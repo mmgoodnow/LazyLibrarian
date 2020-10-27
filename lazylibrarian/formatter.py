@@ -701,9 +701,13 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     # e6 ae, f0 eth, f7 divide, f8 ostroke, fe thorn
     dic.update({u'\xe6': 'a', u'\xf0': 'o', u'\xf7': '/', u'\xf8': 'o', u'\xfe': 'p'})
     stripped = replace_all(stripped, dic)
-    if only_ascii:
+    if only_ascii is not False:
         # now get rid of any other non-ascii
-        stripped = stripped.encode('ASCII', 'ignore')
+        if only_ascii is True:  # just strip out
+            stripped = stripped.encode('ASCII', 'ignore')
+        else:  # replace with specified char (use '_' for goodreads author names)
+            stripped = stripped.encode('ASCII', 'replace')  # replaces with '?'
+            stripped = stripped.replace(b'?', makeBytestr(str(only_ascii)[0]))
 
     stripped = stripped.strip()
     if not stripped:
