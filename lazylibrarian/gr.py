@@ -263,7 +263,7 @@ class GoodReads:
 
     def find_author_id(self, refresh=False):
         author = self.name
-        author = formatAuthorName(unaccented(author, only_ascii=False))
+        author = formatAuthorName(unaccented(author, only_ascii='_'))
         # googlebooks gives us author names with long form unicode characters
         author = makeUnicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
