@@ -112,6 +112,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'restart': 'restart lazylibrarian',
             'update': 'update lazylibrarian',
             'findAuthor': '&name= search goodreads/googlebooks for named author',
+            'findAuthorID': '&name= find goodreads ID for named author',
             'findBook': '&name= search goodreads/googlebooks for named book',
             'addBook': '&id= add book details to the database',
             'moveBooks': '&fromname= &toname= move all books from one author to another by AuthorName',
@@ -1263,6 +1264,14 @@ class Api(object):
     @staticmethod
     def _update():
         lazylibrarian.SIGNAL = 'update'
+
+    def _findAuthorID(self, **kwargs):
+        if 'name' not in kwargs:
+            self.data = 'Missing parameter: name'
+            return
+        authorname = formatAuthorName(kwargs['name'])
+        GR = GoodReads(authorname)
+        self.data = GR.find_author_id()
 
     def _findAuthor(self, **kwargs):
         if 'name' not in kwargs:
