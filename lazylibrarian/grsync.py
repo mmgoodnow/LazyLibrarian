@@ -71,7 +71,9 @@ class grauth:
 
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
-            return "Exception in client.request: see debug log"
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
+            return "Exception in client.request: see error log"
 
         if not response['status'].startswith('2'):
             return 'Invalid response [%s] from: %s' % (response['status'], request_token_url)
@@ -109,6 +111,8 @@ class grauth:
             response, content = client.request(access_token_url, 'POST')
         except Exception as e:
             logger.error("Exception in oauth2 client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return "Error in oauth2 client request: see error log"
 
         if not response['status'].startswith('2'):
@@ -181,6 +185,8 @@ class grauth:
                     response, content = client.request(request_url, 'GET', body, headers)
                 except Exception as e:
                     logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+                    if type(e).__name__ == 'SSLError':
+                        logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                     return shelves
 
                 if not response['status'].startswith('2'):
@@ -237,6 +243,8 @@ class grauth:
                                                    headers)
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+                if type(e).__name__ == 'SSLError':
+                    logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                 return False, "Error in client.request: see error log"
         else:
             body = urlencode({'format': 'xml'})
@@ -246,6 +254,8 @@ class grauth:
                                                    'DELETE', body, headers)
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+                if type(e).__name__ == 'SSLError':
+                    logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
                 return False, "Error in client.request: see error log"
 
         if follow and response['status'] == '422':
@@ -287,6 +297,8 @@ class grauth:
                                          body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return False, "Error in client.request: see error log"
 
         if not response['status'].startswith('2'):
@@ -364,6 +376,8 @@ class grauth:
             response, content = client.request('%s/api/auth_user' % 'https://www.goodreads.com', 'GET')
         except Exception as e:
             logger.error("Error in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return ''
         if not response['status'].startswith('2'):
             logger.error('Cannot fetch userid: %s' % response['status'])
@@ -394,6 +408,8 @@ class grauth:
             response, content = client.request(request_url, 'GET', body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return "Error in client.request: see error log"
         if not response['status'].startswith('2'):
             logger.error('Failure status: %s for %s page %s' % (response['status'], shelf_name, page))
@@ -426,6 +442,8 @@ class grauth:
                                                body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
+            if type(e).__name__ == 'SSLError':
+                logger.warn("SSLError: if running Ubuntu 20.04/20.10 see lazylibrarian FAQ")
             return False, "Error in client.request: see error log"
 
         if not response['status'].startswith('2'):
