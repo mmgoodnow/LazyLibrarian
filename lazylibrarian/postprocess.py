@@ -83,7 +83,7 @@ def importMag(source_file=None, title=None, issuenum=None):
     # import a magazine issue by title/num
     # Assumes the source file is the correct file for the issue and renames it to match
     # Adds the magazine id to the database if not already there
-
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
         if not source_file or not path_isfile(source_file):
@@ -101,7 +101,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         if not title:
             logger.warn("No title for %s, rejecting" % source_file)
             return False
-        myDB = database.DBConnection()
+
         entry = myDB.match('SELECT * FROM magazines where Title=?', (title,))
         if not entry:
             logger.debug("Magazine title [%s] not found, adding it" % title)
@@ -192,6 +192,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
             processAutoAdd(dest_path, booktype='mag')
+        return True
 
     except Exception:
         logger.error('Unhandled exception in importMag: %s' % traceback.format_exc())
@@ -202,7 +203,7 @@ def importBook(source_dir=None, library='eBook', bookid=None):
     # import a book by id from a directory
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there
-
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
         if not source_dir or not path_isdir(source_dir):
@@ -217,7 +218,6 @@ def importBook(source_dir=None, library='eBook', bookid=None):
             logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
             return False
 
-        myDB = database.DBConnection()
         if library in ['eBook', 'Audio']:
             logger.debug('Processing %s directory %s' % (library, source_dir))
             book = myDB.match('SELECT * from books where BookID=?', (bookid,))
@@ -661,10 +661,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
         return status
 
     threading.currentThread().name = "POSTPROCESS"
+    myDB = database.DBConnection()
     # noinspection PyBroadException,PyStatementEffect
     try:
         ppcount = 0
-        myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         skipped_extensions = getList(lazylibrarian.CONFIG['SKIPPED_EXT'])
         if startdir:
@@ -759,8 +759,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     delay = check_int(lazylibrarian.CONFIG['PP_DELAY'], 0)
                     if delay:
                         completion = time.time() - check_int(book['Completed'], 0)
+                        completion = int(-(-completion // 1))  # round up to int
                         if completion < delay:
-                            completion = int(-(-completion // 1))  # round up to int
                             logger.warn("Ignoring %s as completion was %s %s ago" %
                                         (book['NZBtitle'], completion, plural(completion, 'second')))
                             continue
@@ -1405,8 +1405,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
                 if book['Source']:
-                    logger.debug('%s was sent to %s %s minutes ago. Progress %s' %
-                                 (book['NZBtitle'], book['Source'], mins, progress))
+                    logger.debug('%s was sent to %s %s %s ago. Progress %s' %
+                                 (book['NZBtitle'], book['Source'], mins, plural(mins, 'minute'), progress))
                 else:
                     logger.debug('%s was sent somewhere?? %s minutes ago ' % (book['NZBtitle'], mins))
 
@@ -1937,7 +1937,6 @@ def getDownloadProgress(source, downloadid):
             if res and not res['Completed']:
                 myDB.action('UPDATE wanted SET Completed=? WHERE DownloadID=? and Source=?',
                             (int(time.time()), downloadid, source))
-
         return progress, finished
 
     except Exception as e:
@@ -1992,6 +1991,7 @@ def delete_task(Source, DownloadID, remove_data):
 
 
 def process_book(pp_path=None, bookID=None, library=None):
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
         # Move a book into LL folder structure given just the folder and bookID, returns True or False
@@ -2001,7 +2001,6 @@ def process_book(pp_path=None, bookID=None, library=None):
         is_audio = (book_file(pp_path, "audiobook") != '')
         is_ebook = (book_file(pp_path, "ebook") != '')
 
-        myDB = database.DBConnection()
         cmd = 'SELECT AuthorName,BookName,BookID from books,authors WHERE BookID=? '
         cmd += 'and books.AuthorID = authors.AuthorID'
         data = myDB.match(cmd, (bookID,))
