@@ -927,9 +927,12 @@ def authorUpdate(restart=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "AUTHORUPDATE"
+
+    myDB = database.DBConnection()
+    msg = ''
+
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('Author')
@@ -947,20 +950,23 @@ def authorUpdate(restart=True):
             myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "authorUpdate")
-            return msg
-        return ''
     except Exception:
         logger.error('Unhandled exception in AuthorUpdate: %s' % traceback.format_exc())
-        return "Unhandled exception in AuthorUpdate"
+        msg = "Unhandled exception in AuthorUpdate"
+    finally:
+        return msg
 
 
 def seriesUpdate(restart=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "SERIESUPDATE"
+
+    myDB = database.DBConnection()
+    msg = ''
+
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('Series')
@@ -978,17 +984,17 @@ def seriesUpdate(restart=True):
             myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 scheduleJob("Restart", "seriesUpdate")
-            return msg
-        return ''
     except Exception:
         logger.error('Unhandled exception in seriesUpdate: %s' % traceback.format_exc())
-        return "Unhandled exception in seriesUpdate"
+        msg = "Unhandled exception in seriesUpdate"
+    finally:
+        return msg
 
 
 def aaUpdate(refresh=False):
+    myDB = database.DBConnection()
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
         cmd = 'SELECT AuthorID from authors WHERE Status="Active" or Status="Loading" or Status="Wanted"'
         cmd += ' order by Updated ASC'
         activeauthors = myDB.select(cmd)
@@ -1136,11 +1142,18 @@ def showStats():
     res = myDB.match("SELECT count(*) as counter FROM books")
     book_stats.append(['eBooks', res['counter']])
     audio_stats.append(['Audio', res['counter']])
-    for status in ['Have', 'Open', 'Wanted', 'Ignored']:
-        res = myDB.match('SELECT count(*) as counter FROM books WHERE Status="%s"' % status)
-        book_stats.append([status, res['counter']])
-        res = myDB.match('SELECT count(*) as counter FROM books WHERE AudioStatus="%s"' % status)
-        audio_stats.append([status, res['counter']])
+    res = myDB.select("SELECT Status,count(*) as counter from books group by Status")
+    statusdict = {}
+    for item in res:
+        statusdict[item['Status']] = item['counter']
+    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
+        book_stats.append([item, statusdict.get(item, 0)])
+    res = myDB.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
+    statusdict = {}
+    for item in res:
+        statusdict[item['AudioStatus']] = item['counter']
+    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
+        audio_stats.append([item, statusdict.get(item, 0)])
     for column in ['BookGenre', 'BookDesc']:
         cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
         cmd += "(%s is null or %s = '')"
