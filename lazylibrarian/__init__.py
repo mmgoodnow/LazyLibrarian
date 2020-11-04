@@ -911,6 +911,7 @@ def initialize():
                 myDB.action('vacuum')
                 logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
 
+        myDB.close()
         # group_concat needs sqlite3 >= 3.5.4
         # foreign_key needs sqlite3 >= 3.6.19 (Oct 2009)
         try:
@@ -993,6 +994,7 @@ def config_read(reloaded=False):
                              "MANUAL": check_setting('bool', newz_name, 'manual', 0),
                              "APILIMIT": check_setting('int', newz_name, 'apilimit', 0),
                              "APICOUNT": 0,
+                             "RATELIMIT": 0,
                              "DLPRIORITY": check_setting('int', newz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', newz_name, 'dltypes', 'A,E,M'),
                              })
@@ -1024,6 +1026,7 @@ def config_read(reloaded=False):
                              "MANUAL": check_setting('bool', torz_name, 'manual', 0),
                              "APILIMIT": check_setting('int', torz_name, 'apilimit', 0),
                              "APICOUNT": 0,
+                             "RATELIMIT": 0,
                              "DLPRIORITY": check_setting('int', torz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', torz_name, 'dltypes', 'A,E,M'),
                              "SEEDERS": check_setting('int', torz_name, 'seeders', 0),
@@ -1146,7 +1149,7 @@ def config_read(reloaded=False):
     if version:  # if zero, there is no series table yet
         res = myDB.match('SELECT count(*) as counter from series')
         counter = check_int(res['counter'], 0)
-
+    myDB.close()
     SHOW_SERIES = counter
     if CONFIG['ADD_SERIES']:
         SHOW_SERIES = 1
@@ -1280,7 +1283,7 @@ def config_write(part=None):
     if not part or part.lower().startswith('newznab') or part.lower().startswith('torznab'):
         NAB_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'API', 'GENERALSEARCH', 'BOOKSEARCH', 'MAGSEARCH',
                      'AUDIOSEARCH', 'BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'EXTENDED', 'DLPRIORITY', 'DLTYPES',
-                     'UPDATED', 'MANUAL', 'APILIMIT', 'COMICSEARCH', 'COMICCAT']
+                     'UPDATED', 'MANUAL', 'APILIMIT', 'RATELIMIT', 'COMICSEARCH', 'COMICCAT']
         for entry in [[NEWZNAB_PROV, 'Newznab', []], [TORZNAB_PROV, 'Torznab', ['SEEDERS']]]:
             new_list = []
             # strip out any empty slots
@@ -1513,7 +1516,7 @@ def config_write(part=None):
 
     if CONFIG['NO_SINGLE_BOOK_SERIES']:
         myDB.action('DELETE from series where total=1')
-
+    myDB.close()
     msg = None
     try:
         if PY2:
@@ -1578,6 +1581,7 @@ def add_newz_slot():
                  "MANUAL": 0,
                  "APILIMIT": 0,
                  "APICOUNT": 0,
+                 "RATELIMIT": 0,
                  "DLPRIORITY": 0,
                  "DLTYPES": 'A,C,E,M'
                  }
@@ -1613,6 +1617,7 @@ def add_torz_slot():
                  "MANUAL": 0,
                  "APILIMIT": 0,
                  "APICOUNT": 0,
+                 "RATELIMIT": 0,
                  "DLPRIORITY": 0,
                  "DLTYPES": 'A,C,E,M',
                  "SEEDERS": 0
@@ -2062,6 +2067,7 @@ def start():
                     SHOW_SERIES = 0
                 myDB = database.DBConnection()
                 res = myDB.match('SELECT count(*) as counter from series')
+                myDB.close()
                 SHOW_SERIES = check_int(res['counter'], 0)
 
         # Crons and scheduled jobs started here

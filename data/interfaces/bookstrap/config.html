@@ -3935,6 +3935,10 @@
                   <label for="newznab_${loop.index}_apilimit" class="control-label">Daily API Limit: (used ${provider['APICOUNT']})</label>
                   <input type="number" placeholder="API Limit" id="newznab_${loop.index}_apilimit" name="newznab_${loop.index}_apilimit" value="${provider['APILIMIT']}" class="form-control">
                 </div>
+                <div class="col-md-6">
+                  <label for="newznab_${loop.index}_ratelimit" class="control-label">Rate Limit:</label>
+                  <input type="number" placeholder="Rate Limit" id="newznab_${loop.index}_ratelimit" name="newznab_${loop.index}_ratelimit" value="${provider['RATELIMIT']}" class="form-control">
+                </div>
                 <div class="checkbox col-md-6">
                   <%
                     if provider['MANUAL'] == True:
@@ -4024,6 +4028,10 @@
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_apilimit" class="control-label">Daily API Limit: (used ${provider['APICOUNT']})</label>
                   <input type="number" placeholder="API Limit" id="torznab_${loop.index}_apilimit" name="torznab_${loop.index}_apilimit" value="${provider['APILIMIT']}" class="form-control">
+                </div>
+                <div class="col-md-6">
+                  <label for="torznab_${loop.index}_ratelimit" class="control-label">Rate Limit:</label>
+                  <input type="number" placeholder="Rate Limit" id="torznab_${loop.index}_ratelimit" name="torznab_${loop.index}_ratelimit" value="${provider['RATELIMIT']}" class="form-control">
                 </div>
                 <div class="checkbox col-md-6">
                   <%

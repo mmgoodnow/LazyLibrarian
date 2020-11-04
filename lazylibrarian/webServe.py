@@ -1534,6 +1534,8 @@ class WebInterface(object):
             if interface != 'legacy':
                 lazylibrarian.NEWZNAB_PROV[count]['APILIMIT'] = check_int(kwargs.get(
                     'newznab_%i_apilimit' % count, 0), 0)
+                lazylibrarian.NEWZNAB_PROV[count]['RATELIMIT'] = check_int(kwargs.get(
+                    'newznab_%i_ratelimit' % count, 0), 0)
                 lazylibrarian.NEWZNAB_PROV[count]['DLPRIORITY'] = check_int(kwargs.get(
                     'newznab_%i_dlpriority' % count, 0), 0)
                 lazylibrarian.NEWZNAB_PROV[count]['DLTYPES'] = kwargs.get(
@@ -1577,6 +1579,8 @@ class WebInterface(object):
             if interface != 'legacy':
                 lazylibrarian.TORZNAB_PROV[count]['APILIMIT'] = check_int(kwargs.get(
                     'torznab_%i_apilimit' % count, 0), 0)
+                lazylibrarian.TORZNAB_PROV[count]['RATELIMIT'] = check_int(kwargs.get(
+                    'torznab_%i_ratelimit' % count, 0), 0)
                 lazylibrarian.TORZNAB_PROV[count]['DLPRIORITY'] = check_int(kwargs.get(
                     'torznab_%i_dlpriority' % count, 0), 0)
                 lazylibrarian.TORZNAB_PROV[count]['DLTYPES'] = kwargs.get(

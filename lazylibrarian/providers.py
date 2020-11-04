@@ -352,6 +352,7 @@ def get_capabilities(provider, force=False):
                 provider['COMICSEARCH'] = ''
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
+                provider['RATELIMIT'] = 0
                 lazylibrarian.config_write(provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % URL)
@@ -535,6 +536,14 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                         provider['APICOUNT'] = res + 1
 
                 if not ProviderIsBlocked(provider['HOST']):
+                    ratelimit = check_int(provider['RATELIMIT'], 0)
+                    if ratelimit:
+                        if 'LASTUSED' in provider:
+                            delay = provider['LASTUSED'] + ratelimit - time.time()
+                            if delay > 0:
+                                time.sleep(delay)
+                        provider['LASTUSED'] = time.time()
+
                     provider = get_capabilities(provider)
                     providers += 1
                     logger.debug('Querying provider %s' % provider['HOST'])
@@ -571,6 +580,14 @@ def IterateOverNewzNabSites(book=None, searchType=None):
                         provider['APICOUNT'] = res + 1
 
                 if not ProviderIsBlocked(provider['HOST']):
+                    ratelimit = check_int(provider['RATELIMIT'], 0)
+                    if ratelimit:
+                        if 'LASTUSED' in provider:
+                            delay = provider['LASTUSED'] + ratelimit - time.time()
+                            if delay > 0:
+                                time.sleep(delay)
+                        provider['LASTUSED'] = time.time()
+
                     provider = get_capabilities(provider)
                     providers += 1
                     logger.debug('[IterateOverTorzNabSites] - %s' % provider['HOST'])
