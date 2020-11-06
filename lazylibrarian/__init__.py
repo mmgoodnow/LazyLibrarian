@@ -658,6 +658,7 @@ CONFIG_DEFINITIONS = {
     'KEEP_SEPARATEAUDIO': ('bool', 'Preprocess', 0),
     'WRITE_AUDIOTAGS': ('bool', 'Preprocess', 0),
     'SWAP_COVERPAGE': ('bool', 'Preprocess', 0),
+    'SHRINK_MAG': ('int', 'Preprocess', 0),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
 if os.name == 'nt':
@@ -840,7 +841,7 @@ def initialize():
                 if not path_isdir(cachelocation):
                     logger.error('Could not create %s: %s' % (cachelocation, e))
 
-        # nest these caches 2 levels to make smaller directory lists
+        # nest these caches 2 levels to make smaller/faster directory lists
         caches = ["XMLCache", "JSONCache", "WorkCache", "HTMLCache"]
         for item in caches:
             pth = os.path.join(CACHEDIR, item)

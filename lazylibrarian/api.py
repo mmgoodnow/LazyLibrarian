@@ -42,7 +42,7 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.images import getAuthorImage, getAuthorImages, getBookCover, getBookCovers, createMagCovers, \
-    createMagCover
+    createMagCover, shrinkMag
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.magazinescan import magazineScan
@@ -71,6 +71,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'setBookLock': '&id= lock book details',
             'setBookUnlock': '&id= unlock book details',
             'setBookImage': '&id= &img= set a new image for this book',
+            'shrinkMag': '&name= &size= shrink magazine size',
             'getAuthorImages': '[&wait] get images for all authors without one',
             'getWanted': 'list wanted books',
             'getRead': 'list read books for current user',
@@ -901,6 +902,15 @@ class Api(object):
             'SELECT * from issues WHERE Title="' + self.id + '" order by IssueDate DESC')
 
         self.data = {'magazine': magazine, 'issues': issues}
+
+    def _shrinkMag(self, **kwargs):
+        for item in ['name', 'dpi']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
+        self.data = ''
+        res = shrinkMag(kwargs['name'], kwargs['dpi'])
+        self.data = res
 
     def _getIssueName(self, **kwargs):
         if 'name' not in kwargs:

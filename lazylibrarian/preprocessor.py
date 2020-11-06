@@ -19,8 +19,9 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts
-from lazylibrarian.common import listdir, path_exists, safe_copy, remove, calibre_prg
-from lazylibrarian.formatter import getList, makeUnicode
+from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg
+from lazylibrarian.formatter import getList, makeUnicode, check_int
+from lazylibrarian.images import shrinkMag
 
 try:
     # noinspection PyProtectedMember
@@ -357,16 +358,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
 def preprocess_magazine(bookfolder, cover=0):
     logger.debug("Preprocess magazine %s cover=%s" % (bookfolder, cover))
-    if not lazylibrarian.CONFIG['SWAP_COVERPAGE']:
-        return
-
-    if cover < 2:
-        return
-
-    if not PdfFileWriter:
-        logger.error("PdfFileWriter not found")
-        return
-
     try:
         sourcefile = None
         for fname in listdir(bookfolder):
@@ -379,33 +370,56 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.error("No suitable sourcefile found in %s" % bookfolder)
             return
 
-        # reordering pages is quite slow if the source is on a networked drive
+        dpi = check_int(lazylibrarian.CONFIG['SHRINK_MAG'], 0)
+        if not dpi and not (lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover >= 2):
+            return
+
+        # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
         original = os.path.join(bookfolder, sourcefile)
         srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, sourcefile))
-        output = PdfFileWriter()
-        with open(srcfile, "rb") as f:
-            cover -= 1  # zero based page count
-            input1 = PdfFileReader(f)
-            cnt = input1.getNumPages()
-            output.addPage(input1.getPage(cover))
-            p = 0
-            while p < cnt:
-                if p != cover:
-                    output.addPage(input1.getPage(p))
-                p = p + 1
-            with open(srcfile + 'new', "wb") as outputStream:
-                output.write(outputStream)
-        logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
-        try:
-            sz = os.stat(srcfile + 'new').st_size
-        except Exception as e:
-            sz = 0
-            logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
-        if sz:
-            newcopy = safe_copy(srcfile + 'new', original + 'new')
-            remove(srcfile)
-            remove(srcfile + 'new')
-            os.rename(newcopy, original)
+
+        if dpi:
+            shrunkfile = shrinkMag(srcfile, dpi)
+            old_size = os.stat(srcfile).st_size
+            if shrunkfile:
+                new_size = os.stat(shrunkfile).st_size
+            else:
+                new_size = 0
+            if new_size and new_size < old_size:
+                remove(srcfile)
+                os.rename(shrunkfile, srcfile)
+            elif shrunkfile:
+                remove(shrunkfile)
+
+        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover >= 2:
+            if not PdfFileWriter:
+                logger.error("PdfFileWriter not found")
+            else:
+                output = PdfFileWriter()
+                with open(srcfile, "rb") as f:
+                    cover -= 1  # zero based page count
+                    input1 = PdfFileReader(f)
+                    cnt = input1.getNumPages()
+                    output.addPage(input1.getPage(cover))
+                    p = 0
+                    while p < cnt:
+                        if p != cover:
+                            output.addPage(input1.getPage(p))
+                        p = p + 1
+                    with open(srcfile + 'new', "wb") as outputStream:
+                        output.write(outputStream)
+                logger.debug("%s has %d pages. Cover from page %d" % (srcfile, cnt, cover + 1))
+                try:
+                    sz = os.stat(srcfile + 'new').st_size
+                except Exception as e:
+                    sz = 0
+                    logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
+                if sz:
+                    remove(srcfile)
+                    newcopy = safe_move(srcfile + 'new', original + 'new')
+                    os.rename(newcopy, original)
+                    return
+        safe_move(srcfile, original)
     except Exception as e:
         logger.error(str(e))

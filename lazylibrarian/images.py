@@ -500,7 +500,7 @@ def getBookCover(bookID=None, src=None):
                     res = 0
                 logger.debug("Found %d %s" % (res, plural(res, 'image')))
                 if res:
-                    img = os.path.join(cachedir, 'icrawler', '000001.jpg')
+                    img = os.path.join(icrawlerdir, '000001.jpg')
                     if src:
                         coverlink, success, _ = cache_img("book", bookID + '_gb', img)
                     else:
@@ -511,11 +511,11 @@ def getBookCover(bookID=None, src=None):
                         with open(syspath(coverfile), 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
-                        logger.debug('Got an empty goodreads image for %s [%s]' % (bookID, coverlink))
+                        logger.debug('Got an empty google search image for %s [%s]' % (bookID, coverlink))
                     elif success:
-                        logger.debug("Caching google search cover for %s %s" %
+                        logger.debug("Cached google search cover for %s %s" %
                                      (item['AuthorName'], item['BookName']))
-                        # rmtree(icrawlerdir, ignore_errors=True)
+                        rmtree(icrawlerdir, ignore_errors=True)
                         return coverlink, 'google image'
                     else:
                         logger.debug("Error getting google image %s, [%s]" % (img, coverlink))
@@ -565,7 +565,7 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
         logger.debug("Found %d %s" % (res, plural(res, 'image')))
         if max_num == 1:
             if res:
-                img = os.path.join(cachedir, 'icrawler', '000001.jpg')
+                img = os.path.join(icrawlerdir, '000001.jpg')
                 coverlink, success, was_in_cache = cache_img("author", authorid, img, refresh=refresh)
                 if success:
                     if was_in_cache:
@@ -606,6 +606,103 @@ def createMagCovers(refresh=False):
     if refresh:
         return "Created covers for %s %s" % (cnt, plural(cnt, "issue"))
     return "Checked covers for %s %s" % (cnt, plural(cnt, "issue"))
+
+
+def find_gs():
+    global GS, GS_VER, generator
+    if not GS:
+        if os.name == 'nt':
+            GS = os.path.join(os.getcwd(), "gswin64c.exe")
+            generator = "local gswin64c"
+            if not path_isfile(GS):
+                logger.debug("%s not found" % GS)
+                GS = os.path.join(os.getcwd(), "gswin32c.exe")
+                generator = "local gswin32c"
+            if not path_isfile(GS):
+                logger.debug("%s not found" % GS)
+                params = ["where", "gswin64c"]
+                try:
+                    GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    GS = makeUnicode(GS).strip()
+                    generator = "gswin64c"
+                except Exception as e:
+                    logger.debug("where gswin64c failed: %s %s" % (type(e).__name__, str(e)))
+                    GS = ''
+            if not path_isfile(GS):
+                params = ["where", "gswin32c"]
+                try:
+                    GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    GS = makeUnicode(GS).strip()
+                    generator = "gswin32c"
+                except Exception as e:
+                    logger.debug("where gswin32c failed: %s %s" % (type(e).__name__, str(e)))
+            if not path_isfile(GS):
+                logger.debug("No gswin found")
+                generator = "(no windows ghostscript found)"
+                GS = ''
+        else:
+            GS = os.path.join(os.getcwd(), "gs")
+            generator = "local gs"
+            if not path_isfile(GS):
+                logger.debug("%s not found" % GS)
+                GS = ''
+                params = ["which", "gs"]
+                try:
+                    GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    GS = makeUnicode(GS).strip()
+                    generator = GS
+                except subprocess.CalledProcessError as e:
+                    if e.returncode == 1:
+                        logger.debug("Could not find gs in your system path")
+                    else:
+                        logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
+            if not path_isfile(GS):
+                logger.debug("Cannot find gs")
+                generator = "(no gs found)"
+                GS = ''
+        if GS:
+            GS_VER = ''
+            # noinspection PyBroadException
+            try:
+                params = [GS, "--version"]
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                res = makeUnicode(res).strip()
+                logger.debug("Found %s [%s] version %s" % (generator, GS, res))
+                generator = "%s version %s" % (generator, res)
+                GS_VER = res
+            except Exception as e:
+                logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
+
+    return GS, GS_VER, generator
+
+
+def shrinkMag(filename, dpi):
+    global GS, GS_VER, generator
+    if not GS:
+        GS, GS_VER, generator = find_gs()
+        if GS_VER:
+            outfile = "%s_%s%s" % (filename, dpi, '.pdf')
+            params = [GS, "-sDEVICE=pdfwrite", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                      "-dCompatibilityLevel=1.3", "-dPDFSETTINGS=/screen",
+                      "-dEmbedAllFonts=true", "-dSubsetFonts=true",
+                      "-dAutoRotatePages=/None",
+                      "-dColorImageDownsampleType=/Bicubic",
+                      "-dColorImageResolution=%s" % dpi,
+                      "-dGrayImageDownsampleType=/Bicubic",
+                      "-dGrayImageResolution=%s" % dpi,
+                      "-dMonoImageDownsampleType=/Subsample",
+                      "-dMonoImageResolution=%s" % dpi,
+                      "-dUseCropBox", "-sOutputFile=%s" % outfile, filename]
+            try:
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                res = makeUnicode(res).strip()
+                if not path_isfile(outfile):
+                    logger.debug("Failed to shrink file: %s" % res)
+                    return ''
+                return outfile
+            except Exception as e:
+                logger.debug("Failed to shrink file with %s [%s]" % (str(params), e))
+                return ''
 
 
 # noinspection PyUnresolvedReferences
@@ -713,66 +810,22 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
 
         elif os.name == 'nt':
             if not GS:
-                GS = os.path.join(os.getcwd(), "gswin64c.exe")
-                generator = "local gswin64c"
-                if not path_isfile(GS):
-                    logger.debug("%s not found" % GS)
-                    GS = os.path.join(os.getcwd(), "gswin32c.exe")
-                    generator = "local gswin32c"
-                if not path_isfile(GS):
-                    logger.debug("%s not found" % GS)
-                    params = ["where", "gswin64c"]
+                GS, GS_VER, generator = find_gs()
+                if GS_VER:
+                    issuefile = issuefile.split('[')[0]
+                    params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                              "-dFirstPage=%d" % check_int(pagenum, 1),
+                              "-dLastPage=%d" % check_int(pagenum, 1),
+                              "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                     try:
-                        GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        GS = makeUnicode(GS).strip()
-                        generator = "gswin64c"
-                    except Exception as e:
-                        logger.debug("where gswin64c failed: %s %s" % (type(e).__name__, str(e)))
-                        GS = ''
-            if not path_isfile(GS):
-                params = ["where", "gswin32c"]
-                try:
-                    GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    GS = makeUnicode(GS).strip()
-                    generator = "gswin32c"
-                except Exception as e:
-                    logger.debug("where gswin32c failed: %s %s" % (type(e).__name__, str(e)))
-            if not path_isfile(GS):
-                logger.debug("No gswin found")
-                generator = "(no windows ghostscript found)"
-                GS = ''
-            else:
-                # noinspection PyBroadException
-                try:
-                    if not GS_VER:
-                        try:
-                            params = [GS, "--version"]
-                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                            res = makeUnicode(res).strip()
-                            logger.debug("Found %s [%s] version %s" % (generator, GS, res))
-                            generator = "%s version %s" % (generator, res)
-                            GS_VER = res
-                        except Exception as e:
-                            logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
-                            GS_VER = ''
-                    if GS_VER:
-                        issuefile = issuefile.split('[')[0]
-                        params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                                  "-dFirstPage=%d" % check_int(pagenum, 1),
-                                  "-dLastPage=%d" % check_int(pagenum, 1),
-                                  "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
-                        if os.name != 'nt':
-                            res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                          stderr=subprocess.STDOUT)
-                        else:
-                            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-
+                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         res = makeUnicode(res).strip()
                         if not path_isfile(coverfile):
                             logger.debug("Failed to create jpg: %s" % res)
-                except Exception:  # as why:
+                    except Exception as e:
+                        logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
+                else:
                     logger.warn("Failed to create jpg for %s" % issuefile)
-                    logger.debug('Exception in gswin create_cover: %s' % traceback.format_exc())
         else:  # not windows
             try:
                 # noinspection PyUnresolvedReferences
@@ -805,37 +858,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
 
                 else:
                     if not GS:
-                        GS = os.path.join(os.getcwd(), "gs")
-                        generator = "local gs"
-                        if not path_isfile(GS):
-                            logger.debug("%s not found" % GS)
-                            GS = ''
-                            params = ["which", "gs"]
-                            try:
-                                GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                GS = makeUnicode(GS).strip()
-                                generator = GS
-                            except subprocess.CalledProcessError as e:
-                                if e.returncode == 1:
-                                    logger.debug("Could not find gs in your system path")
-                                else:
-                                    logger.debug("which gs failed: %s %s" % (type(e).__name__, str(e)))
-                    if not path_isfile(GS):
-                        logger.debug("Cannot find gs")
-                        generator = "(no gs found)"
-                        GS = ''
-                    else:
-                        if not GS_VER:
-                            params = [GS, "--version"]
-                            try:
-                                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                                res = makeUnicode(res).strip()
-                                logger.debug("gs found [%s] version %s" % (GS, res))
-                                GS_VER = res
-                                generator = "%s version %s" % (generator, res)
-                            except Exception as e:
-                                logger.debug("gs --version failed: %s %s" % (type(e).__name__, str(e)))
-                                GS_VER = ''
+                        GS, GS_VER, generator = find_gs()
                         if GS_VER:
                             issuefile = issuefile.split('[')[0]
                             params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
@@ -843,12 +866,8 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                                       "-dLastPage=%d" % check_int(pagenum, 1),
                                       "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                             try:
-                                if os.name != 'nt':
-                                    res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                                  stderr=subprocess.STDOUT)
-                                else:
-                                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-
+                                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                              stderr=subprocess.STDOUT)
                                 res = makeUnicode(res).strip()
                                 if not path_isfile(coverfile):
                                     logger.debug("Failed to create jpg: %s" % res)
