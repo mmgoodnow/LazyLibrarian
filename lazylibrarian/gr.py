@@ -734,7 +734,7 @@ class GoodReads:
                         cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
                         cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
                         match = myDB.match(cmd, (bookid,))
-                        rejectable = True
+                        rejectable = None
                         if match:
                             # we have a book with this bookid already
                             if authorNameResult != match['AuthorName']:
@@ -753,27 +753,32 @@ class GoodReads:
                             msg += " %s" % match['ScanResult']
                             logger.debug(msg)
 
-                            # Make sure we don't reject books we have already got
-                            if match['Status'] in ['Open', 'Have'] or match['AudioStatus'] in ['Open', 'Have']:
-                                rejectable = False
+                            # Make sure we don't reject books we have already got or want
+                            if match['Status'] not in ['Ignored', 'Skipped']:
+                                rejectable = "Status: %s" % match['Status']
+                            elif match['AudioStatus'] not in ['Ignored', 'Skipped']:
+                                rejectable = "AudioStatus: %s" % match['AudioStatus']
 
-                        if rejectable and not rejected:
+                        if not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
                             cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
                             match = myDB.match(cmd, (bookname, authorNameResult))
 
-                            if match:
-                                if match['BookID'] != bookid:
-                                    # we have a different bookid for this author/title already
+                            if match and match['BookID'] != bookid:
+                                # we have a different bookid for this author/title already
+                                if rejectable is None:
                                     duplicates += 1
                                     rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
                                     logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                                  (bookid, authorNameResult, bookname, match['BookID']))
+                                else:
+                                    logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
+                                                 (bookname, bookid, match['BookID'], rejectable))
 
                         if rejected and rejected[0] not in ignorable:
                             removedResults += 1
-                        if rejectable and not rejected or (rejected and rejected[0] in ignorable and
-                                                           lazylibrarian.CONFIG['IMP_IGNORE']):
+                        if not rejected or (rejected and rejected[0] in ignorable and
+                                            lazylibrarian.CONFIG['IMP_IGNORE']):
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
                             cmd += 'OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?'
                             existing = myDB.match(cmd, (bookid,))
@@ -815,17 +820,23 @@ class GoodReads:
                             if originalpubdate:
                                 bookdate = originalpubdate
 
-                            if rejectable and not rejected:
-                                if lazylibrarian.CONFIG['NO_FUTURE']:
-                                    if bookdate > today()[:len(bookdate)]:
+                            if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
+                                if bookdate > today()[:len(bookdate)]:
+                                    if rejectable is None:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                    else:
+                                        logger.debug("Not rejecting %s (future pub date %s) as %s" %
+                                                     (bookname, bookdate, rejectable))
 
-                            if rejectable and not rejected:
-                                if lazylibrarian.CONFIG['NO_PUBDATE']:
-                                    if not bookdate or bookdate == '0000':
+                            if not rejected and lazylibrarian.CONFIG['NO_PUBDATE']:
+                                if not bookdate or bookdate == '0000':
+                                    if rejectable is None:
                                         rejected = 'date', 'No publication date'
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
+                                    else:
+                                        logger.debug("Not rejecting %s (no pub date) as %s" %
+                                                     (bookname, rejectable))
 
                             if rejected:
                                 if rejected[0] in ignorable:
@@ -1144,8 +1155,33 @@ class GoodReads:
         if cnt:
             logger.warn("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
 
-        cmd = "select count('bookname'),bookname from books where Status != 'Ignored' and authorid=?"
+        # Check for any duplicate titles for this author in the library
+        cmd = "select count('bookname'),bookname from books where authorid=? and "
         cmd += "group by bookname having ( count(bookname) > 1 )"
+        res = myDB.select(cmd, (authorid,))
+        dupes = len(res)
+        if dupes:
+            for item in res:
+                cmd = "select BookID,Status,AudioStatus from books where bookname=? and authorid=?"
+                dupe_books = myDB.select(cmd, (item['bookname'], authorid))
+                cnt = len(dupe_books)
+                for dupe in dupe_books:
+                    cnt -= 1
+                    if dupe['Status'] not in ['Ignored', 'Skipped'] \
+                            or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
+                            # this one is important (owned/wanted/snatched)
+                            logger.debug("Keeping bookid %s (%s/%s)" %
+                                         (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                    elif cnt:
+                        logger.debug("Removing bookid %s (%s/%s)" %
+                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                    else:
+                        logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
+                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
+
+        # Warn about any remaining unignored dupes
+        cmd = "select count('bookname'),bookname from books where authorid=? and "
+        cmd += "( Status != 'Ignored' or AudioStatus != 'Ignored' ) group by bookname having ( count(bookname) > 1 )"
         res = myDB.select(cmd, (authorid,))
         dupes = len(res)
         if dupes:
