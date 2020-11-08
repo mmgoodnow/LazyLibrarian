@@ -676,12 +676,15 @@ def find_gs():
     return GS, GS_VER, generator
 
 
-def shrinkMag(filename, dpi):
+def shrinkMag(issuefile, dpi=0):
     global GS, GS_VER, generator
+    if not issuefilename or not path_isfile(issuefile):
+        logger.warn('No issuefile %s' % issuefile)
+        return ''
     if not GS:
         GS, GS_VER, generator = find_gs()
         if GS_VER:
-            outfile = "%s_%s%s" % (filename, dpi, '.pdf')
+            outfile = "%s_%s%s" % (issuefile, dpi, '.pdf')
             params = [GS, "-sDEVICE=pdfwrite", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                       "-dCompatibilityLevel=1.3", "-dPDFSETTINGS=/screen",
                       "-dEmbedAllFonts=true", "-dSubsetFonts=true",
@@ -692,7 +695,7 @@ def shrinkMag(filename, dpi):
                       "-dGrayImageResolution=%s" % dpi,
                       "-dMonoImageDownsampleType=/Subsample",
                       "-dMonoImageResolution=%s" % dpi,
-                      "-dUseCropBox", "-sOutputFile=%s" % outfile, filename]
+                      "-dUseCropBox", "-sOutputFile=%s" % outfile, issuefile]
             try:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                 res = makeUnicode(res).strip()

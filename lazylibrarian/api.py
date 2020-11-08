@@ -526,7 +526,7 @@ class Api(object):
             if item not in kwargs:
                 self.data = 'Missing parameter: %s' % item
                 return
-        self.data = preprocess_magazine(kwargs['dir'], kwargs['cover'])
+        self.data = preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
 
     def _importBook(self, **kwargs):
         if 'id' not in kwargs:
@@ -909,7 +909,7 @@ class Api(object):
                 self.data = 'Missing parameter: ' + item
                 return
         self.data = ''
-        res = shrinkMag(kwargs['name'], kwargs['dpi'])
+        res = shrinkMag(kwargs['name'], check_int(kwargs['dpi'], 0))
         self.data = res
 
     def _getIssueName(self, **kwargs):
