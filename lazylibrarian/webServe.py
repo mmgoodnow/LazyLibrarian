@@ -132,7 +132,7 @@ def serve_template(templatename, **kwargs):
         myDB = database.DBConnection()
 
         if lazylibrarian.LOGINUSER:
-            res = myDB.match('SELECT UserName from users where UserID=?', (lazylibrarian.LOGINUSER,))
+            res = myDB.match('SELECT UserName,Perms from users where UserID=?', (lazylibrarian.LOGINUSER,))
             if res:
                 cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
                 logger.debug("Auto-login for %s" % res['UserName'])
@@ -145,24 +145,25 @@ def serve_template(templatename, **kwargs):
                 cherrypy.response.cookie['ll_prefs']['expires'] = 0
             lazylibrarian.LOGINUSER = None
 
-        cookie = cherrypy.request.cookie
-        if cookie and 'll_uid' in list(cookie.keys()):
-            res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
-        if not res:
-            columns = myDB.select('PRAGMA table_info(users)')
-            if not columns:  # no such table
-                cnt = 0
-            else:
-                cnt = myDB.match("select count(*) as counter from users")
-            if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
-                    templatename not in ["register.html", "response.html", "opds.html"]:
-                res = myDB.match('SELECT UserName,Perms,Prefs,UserID from users')
-                cherrypy.response.cookie['ll_uid'] = res['UserID']
-                cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-                logger.debug("Auto-login for %s" % res['UserName'])
-                lazylibrarian.SHOWLOGOUT = 0
-            else:
-                lazylibrarian.SHOWLOGOUT = 1
+        else:
+            cookie = cherrypy.request.cookie
+            if cookie and 'll_uid' in list(cookie.keys()):
+                res = myDB.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
+            if not res:
+                columns = myDB.select('PRAGMA table_info(users)')
+                if not columns:  # no such table
+                    cnt = 0
+                else:
+                    cnt = myDB.match("select count(*) as counter from users")
+                if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG['SINGLE_USER'] and \
+                        templatename not in ["register.html", "response.html", "opds.html"]:
+                    res = myDB.match('SELECT UserName,Perms,Prefs,UserID from users')
+                    cherrypy.response.cookie['ll_uid'] = res['UserID']
+                    cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+                    logger.debug("Auto-login for %s" % res['UserName'])
+                    lazylibrarian.SHOWLOGOUT = 0
+                else:
+                    lazylibrarian.SHOWLOGOUT = 1
         if res:
             perm = check_int(res['Perms'], 0)
             username = res['UserName']

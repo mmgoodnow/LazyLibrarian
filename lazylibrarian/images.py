@@ -814,21 +814,21 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
         elif os.name == 'nt':
             if not GS:
                 GS, GS_VER, generator = find_gs()
-                if GS_VER:
-                    issuefile = issuefile.split('[')[0]
-                    params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                              "-dFirstPage=%d" % check_int(pagenum, 1),
-                              "-dLastPage=%d" % check_int(pagenum, 1),
-                              "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
-                    try:
-                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        res = makeUnicode(res).strip()
-                        if not path_isfile(coverfile):
-                            logger.debug("Failed to create jpg: %s" % res)
-                    except Exception as e:
-                        logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
-                else:
-                    logger.warn("Failed to create jpg for %s" % issuefile)
+            if GS_VER:
+                issuefile = issuefile.split('[')[0]
+                params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                          "-dFirstPage=%d" % check_int(pagenum, 1),
+                            "-dLastPage=%d" % check_int(pagenum, 1),
+                          "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                try:
+                    res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    res = makeUnicode(res).strip()
+                    if not path_isfile(coverfile):
+                        logger.debug("Failed to create jpg: %s" % res)
+                except Exception as e:
+                    logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
+            else:
+                logger.warn("Failed to create jpg for %s" % issuefile)
         else:  # not windows
             try:
                 # noinspection PyUnresolvedReferences
@@ -862,20 +862,22 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 else:
                     if not GS:
                         GS, GS_VER, generator = find_gs()
-                        if GS_VER:
-                            issuefile = issuefile.split('[')[0]
-                            params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                                      "-dFirstPage=%d" % check_int(pagenum, 1),
-                                      "-dLastPage=%d" % check_int(pagenum, 1),
-                                      "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
-                            try:
-                                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                              stderr=subprocess.STDOUT)
-                                res = makeUnicode(res).strip()
-                                if not path_isfile(coverfile):
-                                    logger.debug("Failed to create jpg: %s" % res)
-                            except Exception as e:
-                                logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
+                    if GS_VER:
+                        issuefile = issuefile.split('[')[0]
+                        params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                                  "-dFirstPage=%d" % check_int(pagenum, 1),
+                                  "-dLastPage=%d" % check_int(pagenum, 1),
+                                    "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                        try:
+                            res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                          stderr=subprocess.STDOUT)
+                            res = makeUnicode(res).strip()
+                            if not path_isfile(coverfile):
+                                logger.debug("Failed to create jpg: %s" % res)
+                        except Exception as e:
+                            logger.debug("Failed to create cover with %s [%s]" % (str(params), e))
+                    else:
+                        logger.warn("Failed to create jpg for %s" % issuefile)
             except Exception as e:
                 logger.warn("Unable to create cover for %s using %s %s" % (issuefile, type(e).__name__, generator))
                 logger.debug('Exception in create_cover: %s' % traceback.format_exc())
