@@ -678,7 +678,7 @@ def find_gs():
 
 def shrinkMag(issuefile, dpi=0):
     global GS, GS_VER, generator
-    if not issuefilename or not path_isfile(issuefile):
+    if not issuefile or not path_isfile(issuefile):
         logger.warn('No issuefile %s' % issuefile)
         return ''
     if not GS:
@@ -818,7 +818,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 issuefile = issuefile.split('[')[0]
                 params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                           "-dFirstPage=%d" % check_int(pagenum, 1),
-                            "-dLastPage=%d" % check_int(pagenum, 1),
+                          "-dLastPage=%d" % check_int(pagenum, 1),
                           "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                 try:
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -867,7 +867,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                         params = [GS, "-sDEVICE=jpeg", "-dNOPAUSE", "-dBATCH", "-dSAFER",
                                   "-dFirstPage=%d" % check_int(pagenum, 1),
                                   "-dLastPage=%d" % check_int(pagenum, 1),
-                                    "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
+                                  "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                         try:
                             res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                                           stderr=subprocess.STDOUT)
