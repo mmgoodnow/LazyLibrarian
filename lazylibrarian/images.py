@@ -683,29 +683,30 @@ def shrinkMag(issuefile, dpi=0):
         return ''
     if not GS:
         GS, GS_VER, generator = find_gs()
-        if GS_VER:
-            outfile = "%s_%s%s" % (issuefile, dpi, '.pdf')
-            params = [GS, "-sDEVICE=pdfwrite", "-dNOPAUSE", "-dBATCH", "-dSAFER",
-                      "-dCompatibilityLevel=1.3", "-dPDFSETTINGS=/screen",
-                      "-dEmbedAllFonts=true", "-dSubsetFonts=true",
-                      "-dAutoRotatePages=/None",
-                      "-dColorImageDownsampleType=/Bicubic",
-                      "-dColorImageResolution=%s" % dpi,
-                      "-dGrayImageDownsampleType=/Bicubic",
-                      "-dGrayImageResolution=%s" % dpi,
-                      "-dMonoImageDownsampleType=/Subsample",
-                      "-dMonoImageResolution=%s" % dpi,
-                      "-dUseCropBox", "-sOutputFile=%s" % outfile, issuefile]
-            try:
-                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                res = makeUnicode(res).strip()
-                if not path_isfile(outfile):
-                    logger.debug("Failed to shrink file: %s" % res)
-                    return ''
-                return outfile
-            except Exception as e:
-                logger.debug("Failed to shrink file with %s [%s]" % (str(params), e))
+    if GS_VER:
+        outfile = "%s_%s%s" % (issuefile, dpi, '.pdf')
+        params = [GS, "-sDEVICE=pdfwrite", "-dNOPAUSE", "-dBATCH", "-dSAFER",
+                  "-dCompatibilityLevel=1.3", "-dPDFSETTINGS=/screen",
+                  "-dEmbedAllFonts=true", "-dSubsetFonts=true",
+                  "-dAutoRotatePages=/None",
+                  "-dColorImageDownsampleType=/Bicubic",
+                  "-dColorImageResolution=%s" % dpi,
+                  "-dGrayImageDownsampleType=/Bicubic",
+                  "-dGrayImageResolution=%s" % dpi,
+                  "-dMonoImageDownsampleType=/Subsample",
+                  "-dMonoImageResolution=%s" % dpi,
+                  "-dUseCropBox", "-sOutputFile=%s" % outfile, issuefile]
+        try:
+            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res).strip()
+            if not path_isfile(outfile):
+                logger.debug("Failed to shrink file: %s" % res)
                 return ''
+            logger.debug("Resized file: %s" % outfile)
+            return outfile
+        except Exception as e:
+            logger.debug("Failed to shrink file with %s [%s]" % (str(params), e))
+            return ''
 
 
 # noinspection PyUnresolvedReferences

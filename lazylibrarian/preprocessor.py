@@ -380,7 +380,7 @@ def preprocess_magazine(bookfolder, cover=0):
         srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, sourcefile))
 
         if dpi:
-            logger.debug("Resizing to %s dpi" % dpi)
+            logger.debug("Resizing %s to %s dpi" % (srcfile, dpi))
             shrunkfile = shrinkMag(srcfile, dpi)
             old_size = os.stat(srcfile).st_size
             if shrunkfile:

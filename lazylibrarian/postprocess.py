@@ -402,12 +402,8 @@ def processAlternate(source_dir=None, library='eBook'):
                     logger.info("Found (%s%%) %s: %s for %s: %s" %
                                 (match['book_fuzz'], match['authorname'], match['bookname'],
                                  authorname, bookname))
-                    if library == 'eBook':
-                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
-                                    reason="Added from alternate dir")
-                    else:
-                        import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
-                                    reason="Added from alternate dir")
+                    import_book(match['bookid'], ebook="Skipped", audio="Skipped", wait=True,
+                                reason="Added from alternate dir")
                     imported = myDB.match('select * from books where BookID=?', (match['bookid'],))
                     if imported:
                         bookid = match['bookid']
