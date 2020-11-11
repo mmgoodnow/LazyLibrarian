@@ -1156,7 +1156,7 @@ class GoodReads:
             logger.warn("Deleted %s %s with unknown goodreads bookid" % (cnt, plural(cnt, 'entry')))
 
         # Check for any duplicate titles for this author in the library
-        cmd = "select count('bookname'),bookname from books where authorid=? and "
+        cmd = "select count('bookname'),bookname from books where authorid=? "
         cmd += "group by bookname having ( count(bookname) > 1 )"
         res = myDB.select(cmd, (authorid,))
         dupes = len(res)
