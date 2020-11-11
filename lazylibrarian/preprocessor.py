@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg
-from lazylibrarian.formatter import getList, makeUnicode, check_int
+from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size
 from lazylibrarian.images import shrinkMag
 
 try:
@@ -94,7 +94,7 @@ def preprocess_ebook(bookfolder):
         else:
             logger.debug("Found %s" % ftype)
 
-    if lazylibrarian.CONFIG['DELETE_OTHER_FORMATS']:
+    if wanted_formats and lazylibrarian.CONFIG['DELETE_OTHER_FORMATS']:
         if lazylibrarian.CONFIG['KEEP_OPF']:
             wanted_formats.append('opf')
         if lazylibrarian.CONFIG['KEEP_JPG']:
@@ -387,7 +387,7 @@ def preprocess_magazine(bookfolder, cover=0):
                 new_size = os.stat(shrunkfile).st_size
             else:
                 new_size = 0
-            logger.debug("New size %s, was %s" % (new_size, old_size))
+            logger.debug("New size %s, was %s" % (human_size(new_size), human_size(old_size)))
             if new_size and new_size < old_size:
                 remove(srcfile)
                 os.rename(shrunkfile, srcfile)
