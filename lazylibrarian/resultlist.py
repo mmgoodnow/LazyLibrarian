@@ -103,7 +103,11 @@ def findBestResult(resultlist, book, searchtype, source):
             resultTitle = unaccented(replace_all(res[prefix + 'title'], dictrepl),
                                      only_ascii=False, umlauts=False).strip()
             resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
-            Book_match = fuzz.token_set_ratio(title, resultTitle)
+            onlyTitle = resultTitle.replace(author, '')
+            if not onlyTitle or onlyTitle.isspace():
+                Book_match = fuzz.token_set_ratio(title, resultTitle)
+            else:
+                Book_match = fuzz.token_set_ratio(title.replace(author, ''), onlyTitle)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
                 # bibliotik only returns book title, not author name
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
@@ -223,7 +227,10 @@ def findBestResult(resultlist, book, searchtype, source):
                     newValueDict['NZBprov'] = res['tor_feed']
                     newValueDict['NZBtitle'] = res[prefix + 'title']
 
-                score = (Book_match + Author_match) / 2  # as a percentage
+                if Author_match >= lazylibrarian.CONFIG['MATCH_RATIO']:
+                    score = Book_match
+                else:
+                    score = (Book_match + Author_match) / 2  # as a percentage
                 # lose a point for each unwanted word in the title so we get the closest match
                 # but for RSS ignore anything at the end in square braces [keywords, genres etc]
                 if source == 'rss':
