@@ -647,7 +647,7 @@ CONFIG_DEFINITIONS = {
     'PREF_UNRARLIB': ('int', 'General', 1),
     'USER_AGENT': ('str', 'General', ''),
     'RATESTARS': ('bool', 'General', 1),
-    'EBOOK_WANTED_FORMATS': ('str', 'Preprocess', 'epub, mobi'),
+    'EBOOK_WANTED_FORMATS': ('str', 'Preprocess', ''),
     'DELETE_OTHER_FORMATS': ('bool', 'Preprocess', 0),
     'EBOOK_CONVERT': ('str', 'Preprocess', 'ebook-convert'),
     'KEEP_OPF': ('bool', 'Preprocess', 1),
