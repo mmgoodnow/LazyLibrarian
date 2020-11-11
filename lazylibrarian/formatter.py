@@ -348,6 +348,15 @@ def check_float(var, default):
             return 0.0
 
 
+def human_size(num):
+    num = check_int(num, 0)
+    for unit in ['B','KiB','MiB','GiB']:
+        if abs(num) < 1024.0:
+            return "%3.2f%s%s" % (num, unit)
+        num /= 1024.0
+    return "%.2f%s%s" % (num, 'TiB')
+
+
 def size_in_bytes(size):
     """
     Take a size string with units eg 10 Mb, 5.3Kb
