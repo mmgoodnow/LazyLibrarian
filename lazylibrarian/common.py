@@ -35,6 +35,8 @@ except ImportError:
     else:
         import lib3.zipfile as zipfile
 
+if PY2:
+    import codecs
 import re
 import ssl
 import sqlite3
@@ -1493,82 +1495,92 @@ def saveLog():
         if key not in ['BOOK_API', 'GIT_USER']:
             for word in ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']:
                 if word in key and lazylibrarian.CONFIG[key]:
-                    redactlist.append("%s" % lazylibrarian.CONFIG[key])
+                    if key != 'SINGLE_USER':
+                        redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
     for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
         if lazylibrarian.CONFIG[key]:
-            redactlist.append(lazylibrarian.CONFIG[key])
+            redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['API']:
-            redactlist.append(item['API'])
+            redactlist.append(u"%s" % item['API'])
     for item in lazylibrarian.TORZNAB_PROV:
         if item['API']:
-            redactlist.append(item['API'])
+            redactlist.append(u"%s" % item['API'])
 
-    with open(syspath(outfile + '.tmp'), 'w') as out:
-        nextfile = True
-        extn = 0
-        redacts = 0
-        while nextfile:
-            fname = basename
-            if extn > 0:
-                fname = fname + '.' + str(extn)
-            if not path_exists(fname):
-                logger.debug("logfile [%s] does not exist" % fname)
-                nextfile = False
-            else:
-                logger.debug('Processing logfile [%s]' % fname)
-                linecount = 0
+    if PY2:
+        out = codecs.open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
+    else:
+        out = open(syspath(outfile + '.tmp'), 'w')
 
-                if PY2:
-                    lines = reversed(open(fname).readlines())
-                else:
-                    lines = reversed(list(open(fname)))
-                for line in lines:
-                    for item in redactlist:
-                        if item in line:
-                            line = line.replace(item, '<redacted>')
-                            redacts += 1
-
-                    item = "Apprise: url:"
-                    startpos = line.find(item)
-                    if startpos >= 0:
-                        startpos += len(item)
-                        endpos = line.find('//', startpos)
-                        line = line[:endpos] + '<redacted>'
-                        redacts += 1
-
-                    out.write(line)
-                    if "Debug log ON" in line:
-                        logger.debug('Found "Debug log ON" line %s in %s' % (linecount, fname))
-                        nextfile = False
-                        break
-                    linecount += 1
-                extn += 1
-
-        if path_exists(lazylibrarian.CONFIGFILE):
-            out.write('---END-CONFIG---------------------------------\n')
+    nextfile = True
+    extn = 0
+    redacts = 0
+    while nextfile:
+        fname = basename
+        if extn > 0:
+            fname = fname + '.' + str(extn)
+        if not path_exists(fname):
+            logger.debug("logfile [%s] does not exist" % fname)
+            nextfile = False
+        else:
+            logger.debug('Processing logfile [%s]' % fname)
+            linecount = 0
             if PY2:
-                lines = reversed(open(lazylibrarian.CONFIGFILE).readlines())
+                lines = reversed(open(fname).readlines())
+                lines = [makeUnicode(lyne) for lyne in lines]
             else:
-                lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
+                lines = reversed(list(open(fname)))
             for line in lines:
                 for item in redactlist:
                     if item in line:
                         line = line.replace(item, '<redacted>')
                         redacts += 1
-                out.write(line)
-            out.write('---CONFIG-------------------------------------\n')
 
-    with open(syspath(outfile + '.log'), 'w') as logfile:
-        logfile.write(logHeader())
-        linecount = 0
+                item = "Apprise: url:"
+                startpos = line.find(item)
+                if startpos >= 0:
+                    startpos += len(item)
+                    endpos = line.find('//', startpos)
+                    line = line[:endpos] + '<redacted>'
+                    redacts += 1
+
+                out.write(line)
+                if "Debug log ON" in line:
+                    logger.debug('Found "Debug log ON" line %s in %s' % (linecount, fname))
+                    nextfile = False
+                    break
+                linecount += 1
+            extn += 1
+
+    if path_exists(lazylibrarian.CONFIGFILE):
+        out.write('---END-CONFIG---------------------------------\n')
         if PY2:
-            lines = reversed(open(outfile + '.tmp').readlines())
+            lines = reversed(open(lazylibrarian.CONFIGFILE).readlines())
+            lines = [makeUnicode(lyne) for lyne in lines]
         else:
-            lines = reversed(list(open(outfile + '.tmp')))
+            lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
         for line in lines:
-            logfile.write(line)
-            linecount += 1
+            for item in redactlist:
+                if item in line:
+                    line = line.replace(item, '<redacted>')
+                    redacts += 1
+            out.write(line)
+        out.write('---CONFIG-------------------------------------\n')
+    out.close()
+    if PY2:
+        logfile = codecs.open(syspath(outfile + '.log'), 'w', encoding='utf-8')
+    else:
+        logfile = open(syspath(outfile + '.log'), 'w')
+    logfile.write(logHeader())
+    linecount = 0
+    if PY2:
+        lines = reversed(open(outfile + '.tmp').readlines())
+        lines = [makeUnicode(lyne) for lyne in lines]
+    else:
+        lines = reversed(list(open(outfile + '.tmp')))
+    for line in lines:
+        logfile.write(line)
+        linecount += 1
     remove(outfile + '.tmp')
     logger.debug("Redacted %s passwords/apikeys" % redacts)
     logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
@@ -1663,3 +1675,12 @@ def calibre_prg(prgname):
             logger.debug("%s --version failed: %s %s" % (prgname, type(e).__name__, str(e)))
             target = ''
     return target
+
+
+def only_punctuation(value):
+    for c in value:
+        if c not in string.punctuation and c not in string.whitespace:
+            return False
+    return True
+
+
