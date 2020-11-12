@@ -17,12 +17,13 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import scheduleJob
+from lazylibrarian.common import scheduleJob, only_punctuation
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, \
     DirectDownloadMethod, IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, replace_all, getList, now, check_int, dispName
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -104,7 +105,7 @@ def findBestResult(resultlist, book, searchtype, source):
                                      only_ascii=False, umlauts=False).strip()
             resultTitle = ' '.join(resultTitle.split())  # remove extra whitespace
             onlyTitle = resultTitle.replace(author, '')
-            if not onlyTitle or onlyTitle.isspace():
+            if not onlyTitle or only_punctuation(onlyTitle):
                 Book_match = fuzz.token_set_ratio(title, resultTitle)
             else:
                 Book_match = fuzz.token_set_ratio(title.replace(author, ''), onlyTitle)

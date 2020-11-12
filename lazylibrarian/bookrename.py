@@ -13,12 +13,11 @@
 
 import os
 import re
-import string
 import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir
+from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir, only_punctuation
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
     makeUnicode, makeBytestr, makeUTF8bytes, sortDefinite, surnameFirst
 from lib.six import PY2
@@ -664,13 +663,6 @@ def nameVars(bookid, abridged=''):
     audiofile = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'], mydict)
     mydict['AudioFile'] = audiofile.replace(os.sep, '_')
     return mydict
-
-
-def only_punctuation(value):
-    for c in value:
-        if c not in string.punctuation and c not in string.whitespace:
-            return False
-    return True
 
 
 def replacevars(base, mydict):
