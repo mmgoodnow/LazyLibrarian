@@ -653,7 +653,7 @@ CONFIG_DEFINITIONS = {
     'KEEP_OPF': ('bool', 'Preprocess', 1),
     'KEEP_JPG': ('bool', 'Preprocess', 1),
     'FFMPEG': ('str', 'Preprocess', 'ffmpeg'),
-    'AUDIO_OPTIONS': ('str', 'Preprocess', '-b:a 128k -f mp3'),
+    'AUDIO_OPTIONS': ('str', 'Preprocess', '-vn -b:a 128k -f mp3'),
     'CREATE_SINGLEAUDIO': ('bool', 'Preprocess', 0),
     'KEEP_SEPARATEAUDIO': ('bool', 'Preprocess', 0),
     'WRITE_AUDIOTAGS': ('bool', 'Preprocess', 0),
