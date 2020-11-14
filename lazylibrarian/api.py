@@ -135,6 +135,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'listNoISBN': 'list all books in the database with no isbn',
             'listNoGenre': 'list all books in the database with no genre',
             'listNoBooks': 'list all authors in the database with no books',
+            'listDupeBooks': 'list all books in the database with more than one entry',
+            'listDupeBookStatus': 'list all copies of books in the database with more than one entry',
             'removeNoBooks': 'delete all authors in the database with no books',
             'listIgnoredAuthors': 'list all authors in the database marked ignored',
             'listIgnoredBooks': 'list all books in the database marked ignored',
@@ -844,6 +846,30 @@ class Api(object):
     def _listIgnoredSeries(self):
         q = 'SELECT SeriesID,SeriesName from series where Status="Ignored"'
         self.data = self._dic_from_query(q)
+
+    def _listDupeBooks(self):
+        self.data = []
+        q = "select authorid,authorname from authors"
+        res = self._dic_from_query(q)
+        for author in res:
+            q = "select count('bookname'),authorid,bookname from books where "
+            q += "AuthorID=%s " % (author['AuthorID'])
+            q += "and ( Status != 'Ignored' or AudioStatus != 'Ignored' ) "
+            q += "group by bookname having ( count(bookname) > 1 )"
+            r = self._dic_from_query(q)
+            self.data += r
+
+    def _listDupeBookStatus(self):
+        self._listDupeBooks()
+        res = self.data
+        self.data = []
+        for item in res:
+            q = 'select BookID,BookName,AuthorName,books.Status,AudioStatus from books,authors where '
+            q += 'books.authorid=authors.authorid and books.authorid=%s ' % item['AuthorID']
+            q += 'and BookName="%s" ' % item['BookName']
+            q += "and ( books.Status != 'Ignored' or AudioStatus != 'Ignored' )"
+            r = self._dic_from_query(q)
+            self.data += r
 
     def _listIgnoredBooks(self):
         q = 'SELECT BookID,BookName from books where Status="Ignored"'
