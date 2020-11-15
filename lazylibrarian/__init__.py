@@ -230,7 +230,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
-                     'NAME_DEFINITE']
+                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -542,6 +542,8 @@ CONFIG_DEFINITIONS = {
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),
     'MAG_DELFOLDER': ('bool', 'PostProcess', 1),
     'PP_DELAY': ('int', 'PostProcess', 0),
+    'DEL_FAILED': ('bool', 'PostProcess', 1),
+    'DEL_COMPLETED': ('bool', 'PostProcess', 1),
     'HIDE_OLD_NOTIFIERS': ('bool', 'General', 0),
     'USE_TWITTER': ('bool', 'Twitter', 0),
     'TWITTER_NOTIFY_ONSNATCH': ('bool', 'Twitter', 0),
