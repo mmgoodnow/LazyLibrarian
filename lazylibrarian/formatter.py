@@ -350,7 +350,7 @@ def check_float(var, default):
 
 def human_size(num):
     num = check_int(num, 0)
-    for unit in ['B','KiB','MiB','GiB']:
+    for unit in ['B', 'KiB', 'MiB', 'GiB']:
         if abs(num) < 1024.0:
             return "%3.2f%s" % (num, unit)
         num /= 1024.0
@@ -494,7 +494,7 @@ def is_valid_booktype(filename, booktype=None):
     """
     if booktype.startswith('mag'):  # default is book
         booktype_list = getList(lazylibrarian.CONFIG['MAG_TYPE'])
-    elif booktype == 'audiobook':
+    elif booktype.startswith('audio'):
         booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
     elif booktype == 'comic':
         booktype_list = getList(lazylibrarian.CONFIG['COMIC_TYPE'])
