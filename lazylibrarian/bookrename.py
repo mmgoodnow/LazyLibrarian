@@ -360,6 +360,9 @@ def audioRename(bookid, rename=False, playlist=False):
             '$Total', str(len(parts)))
         pattern = ' '.join(pattern.split()).strip()
         pattern = pattern + os.path.splitext(part[3])[1]
+        if rename:
+            pattern = replace_all(pattern, namedic)
+
         if playlist:
             if PY2:
                 if rename:
