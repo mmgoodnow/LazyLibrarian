@@ -5644,7 +5644,8 @@ class WebInterface(object):
                     elif book['AuxInfo'] == 'AudioBook':
                         myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
                                     (book['BookID'], status))
-                    delete_task(book['Source'], book['DownloadID'], True)
+                    if lazylibrarian.CONFIG['DEL_FAILED']:
+                        delete_task(book['Source'], book['DownloadID'], True)
             myDB.action("DELETE from wanted")
         else:
             logger.info("Clearing history where status is %s" % status)
@@ -5661,7 +5662,8 @@ class WebInterface(object):
                         elif book['AuxInfo'] == 'AudioBook':
                             myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
                                         (book['BookID'], status))
-                    delete_task(book['Source'], book['DownloadID'], True)
+                    if lazylibrarian.CONFIG['DEL_FAILED']:
+                        delete_task(book['Source'], book['DownloadID'], True)
             myDB.action('DELETE from wanted WHERE Status=?', (status,))
         raise cherrypy.HTTPRedirect("history")
 
@@ -6359,8 +6361,25 @@ class WebInterface(object):
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
-            res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
-            return "Found ffmpeg version %s" % res
+            ff_ver = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
+
+            ff_aac = ''
+            if ff_ver:
+                try:
+                    params = [ffmpeg, "-codecs"]
+                    if os.name != 'nt':
+                        res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                      stderr=subprocess.STDOUT)
+                    else:
+                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                    res = makeUnicode(res)
+                    for lyne in res.split('\n'):
+                        if 'AAC' in lyne:
+                            ff_aac = lyne.strip().split(' ')[0]
+                            break
+                except Exception as e:
+                    logger.debug("ffmpeg -codecs failed: %s %s" % (type(e).__name__, str(e)))
+            return "Found ffmpeg version %s, AAC:%s" % (ff_ver, ff_aac)
         except Exception as e:
             return "ffmpeg -version failed: %s %s" % (type(e).__name__, str(e))
 

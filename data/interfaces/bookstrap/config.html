@@ -1629,6 +1629,28 @@
                       <input type="checkbox" id="seed_wait" name="seed_wait" value="1" ${checked} />
                       Do not delete if still seeding</label>
                     </div>
+                    <div class="checkbox">
+                      <%
+                        if lazylibrarian.CONFIG['DEL_COMPLETED'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="del_completed" class="control-label">
+                      <input type="checkbox" id="del_completed" name="del_completed" value="1" ${checked} />
+                      Delete completed tasks from downloader</label>
+                    </div>
+                    <div class="checkbox">
+                      <%
+                        if lazylibrarian.CONFIG['DEL_FAILED'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="del_failed" class="control-label">
+                      <input type="checkbox" id="del_failed" name="del_failed" value="1" ${checked} />
+                      Delete failed tasks from downloader</label>
+                    </div>
                   </fieldset>
                 </fieldset>
               </div>

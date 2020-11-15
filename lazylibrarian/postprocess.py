@@ -720,7 +720,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             myDB.action(cmd, (book['BookID'],))
                         myDB.action('UPDATE wanted SET Status="Failed",DLResult=? WHERE BookID=?',
                                     (rejected, book['BookID']))
-                        delete_task(book['Source'], book['DownloadID'], True)
+                        if lazylibrarian.CONFIG['DEL_FAILED']:
+                            delete_task(book['Source'], book['DownloadID'], True)
                 else:
                     _ = getDownloadProgress(book['Source'], book['DownloadID'])  # set completion time
                     dlfolder = getDownloadFolder(book['Source'], book['DownloadID'])
@@ -1174,8 +1175,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
                                 logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
                                 if progress == 100 and finished:
-                                    logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
-                                    delete_task(book['Source'], book['DownloadID'], False)
+                                    if lazylibrarian.CONFIG['DEL_COMPLETED']:
+                                        logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
+                                        delete_task(book['Source'], book['DownloadID'], False)
                                 elif progress < 0:
                                     logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
                                 elif book['NZBmode'] in ['torrent', 'magnet', 'torznab']:
@@ -1310,7 +1312,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     else:
                         logger.debug('%s not seeding at %s' % (book['NZBtitle'], book['Source']))
                     pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
-                    delete_task(book['Source'], book['DownloadID'], True)
+                    if lazylibrarian.CONFIG['DEL_COMPLETED']:
+                        delete_task(book['Source'], book['DownloadID'], True)
                     if book['BookID'] != 'unknown':
                         cmd = 'UPDATE wanted SET status="Processed",NZBDate=? WHERE status="Seeding" and BookID=?'
                         myDB.action(cmd, (now(), book['BookID']))
@@ -1373,7 +1376,6 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                                                                       hours, progress)
                     else:
                         dlresult = '%s was aborted by %s' % (book['NZBtitle'], book['Source'])
-                    logger.warn('%s, deleting failed task' % dlresult)
 
                 custom_notify_snatch("%s %s" % (book['BookID'], book['Source']), fail=True)
                 notify_snatch("%s from %s at %s" %
@@ -1398,7 +1400,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         q = 'UPDATE wanted SET Status="Failed" WHERE NZBurl=? and Status="Aborted"'
                         myDB.action(q, (book['NZBurl'],))
 
-                    delete_task(book['Source'], book['DownloadID'], True)
+                    if lazylibrarian.CONFIG['DEL_FAILED']:
+                        logger.warn('%s, deleting failed task' % dlresult)
+                        delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
                 if book['Source']:
                     logger.debug('%s was sent to %s %s %s ago. Progress %s' %

@@ -699,7 +699,8 @@ def TORDownloadMethod(bookid=None, tor_title=None, tor_url=None, library='eBook'
                 if rejected:
                     myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                                 (rejected, full_url))
-                    delete_task(Source, downloadID, True)
+                    if lazylibrarian.CONFIG['DEL_FAILED']:
+                        delete_task(Source, downloadID, True)
                     return False, rejected
                 else:
                     logger.debug('%s setting torrent name to [%s]' % (Source, tor_title))
