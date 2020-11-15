@@ -128,6 +128,7 @@ def serve_template(templatename, **kwargs):
         username = ''  # anyone logged in yet?
         perm = 0
         res = None
+        cookie = None
         userprefs = 0
         myDB = database.DBConnection()
 
