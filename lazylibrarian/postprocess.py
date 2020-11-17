@@ -134,6 +134,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         else:
             global_name = "%s %s" % (title, issuenum)
         global_name = unaccented(global_name, only_ascii=False)
+        global_name = replace_all(global_name, namedic)
         tempdir = tempfile.mkdtemp()
         _ = safe_copy(source_file, tempdir)
         data = {"IssueDate": issuenum, "Title": title}
@@ -209,8 +210,8 @@ def importBook(source_dir=None, library='eBook', bookid=None):
         if not source_dir or not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
-        if source_dir == lazylibrarian.DIRECTORY(library):
-            logger.warn('Source directory must not be the same as library')
+        if source_dir.startswith(lazylibrarian.DIRECTORY(library)):
+            logger.warn('Source directory must not be the same as or inside library')
             return False
 
         reject = multibook(source_dir)
@@ -253,8 +254,8 @@ def processAlternate(source_dir=None, library='eBook'):
         if not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
-        if source_dir == lazylibrarian.DIRECTORY('eBook'):
-            logger.warn('Alternate directory must not be the same as Destination')
+        if source_dir.startswith(lazylibrarian.DIRECTORY('eBook')):
+            logger.warn('Alternate directory must not be the same as or inside Destination')
             return False
 
         logger.debug('Processing %s directory %s' % (library, source_dir))
@@ -951,6 +952,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = makeUTF8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
+                            global_name = replace_all(global_name, namedic)
                             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID']}
                         else:
                             data = myDB.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
@@ -989,6 +991,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 else:
                                     global_name = "%s %s" % (mag_name, book['AuxInfo'])
                                 global_name = unaccented(global_name, only_ascii=False)
+                                global_name = replace_all(global_name, namedic)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
                                 if book['BookID'] and '_' in book['BookID']:
@@ -1015,6 +1018,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                                     global_name = "%s %s" % (comic_name, issueid)
                                     global_name = unaccented(global_name, only_ascii=False)
+                                    global_name = replace_all(global_name, namedic)
                                     data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
                                     if lazylibrarian.CONFIG['COMIC_RELATIVE']:
@@ -2063,6 +2067,7 @@ def process_book(pp_path=None, bookID=None, library=None):
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
             global_name = namevars['BookFile']
+            global_name = replace_all(global_name, namedic)
             if book_type == "AudioBook":
                 dest_path = stripspaces(os.path.join(dest_dir, namevars['AudioFolderName']))
             else:
