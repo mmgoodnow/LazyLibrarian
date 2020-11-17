@@ -2584,8 +2584,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 logger.debug("Ignoring %s as not %s" % (fname, bestmatch))
             else:
                 if is_valid_booktype(fname, booktype=booktype) or \
-                        ((fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"))
-                         and not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']):
+                        (fname.lower().endswith(".jpg") or fname.lower().endswith(".opf")):
                     srcfile = os.path.join(pp_path, fname)
                     if booktype in ['audiobook', 'comic']:
                         destfile = os.path.join(udest_path, fname)  # don't rename, just copy it
@@ -2736,9 +2735,9 @@ def processAutoAdd(src_path=None, booktype='book'):
 
 def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cache='book', overwrite=False):
     """ cache the bookimg from url or filename, and optionally copy it to bookdir """
-    if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
-        logger.debug('Not creating coverfile, bookonly is set')
-        return
+    # if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
+    #     logger.debug('Not creating coverfile, bookonly is set')
+    #     return
 
     jpgfile = jpg_file(dest_path)
     if not overwrite and jpgfile:
