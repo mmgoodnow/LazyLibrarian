@@ -132,6 +132,23 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         logger.debug("ffmpeg -version failed: %s %s" % (type(e).__name__, str(e)))
         ff_ver = ''
 
+    ff_aac = ''
+    if ff_ver:
+        try:
+            params = [ffmpeg, "-codecs"]
+            if os.name != 'nt':
+                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                stderr=subprocess.STDOUT)
+            else:
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res)
+            for lyne in res.split('\n'):
+                if 'AAC' in lyne:
+                    ff_aac = lyne.strip().split(' ')[0]
+                    break
+        except Exception as e:
+            logger.debug("ffmpeg -codecs failed: %s %s" % (type(e).__name__, str(e)))
+
     logger.debug("Preprocess audio %s %s %s" % (bookfolder, authorname, bookname))
     partslist = os.path.join(bookfolder, "partslist.ll")
     metadata = os.path.join(bookfolder, "metadata.ll")
@@ -169,11 +186,14 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     force_mp4 = False
     if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
         force_mp4 = True
-    else:
-        for part in parts:
-            if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
-                force_mp4 = True
-                break
+        if 'D' not in ff_aac or 'E' not in ff_aac:
+            logger.warn("Your version of ffmpeg does not report supporting read/write aac (%s) trying anyway" %
+                        ff_aac)
+    # else:  # should we force mp4 if input is mp4 but output is mp3?
+    #     for part in parts:
+    #         if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
+    #             force_mp4 = True
+    #            break
 
     if force_mp4 and force_type != 'mp4':
         if force_type:
