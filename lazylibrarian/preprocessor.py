@@ -154,28 +154,38 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         return
 
     # if we get here, looks like we have all the parts
-    out_type = os.path.splitext(parts[0][3])[1]
     # output file will be the same type as the first input file
-    # unless the user supplies a -f parameter to override it
-    if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
-        out_type = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ')[1].split(',')[0].split(' ')[0]
-        out_type = '.' + out_type
+    # unless the user supplies a parameter to override it
+    if lazylibrarian.CONFIG['FFMPEG_OUT']:
+        out_type = '.' + lazylibrarian.CONFIG['FFMPEG_OUT'].lower().lstrip('.')
+    else:
+        out_type = os.path.splitext(parts[0][3])[1]
 
-    b_to_a = False
-    if out_type == '.m4b':
-        # ffmpeg doesn't like m4b extension so rename to m4a
-        b_to_a = True
-        out_type = '.m4a'
-    parts_mod = []
-    for part in parts:
-        if part[3].endswith('.m4b'):
-            b_to_a = True
-            new_name = part[3].replace('.m4b', '.m4a')
-            os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
-            parts_mod.append([part[0], part[1], part[2], new_name])
+    if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
+        force_type = '.' + lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
+    else:
+        force_type = ''
+
+    force_mp4 = False
+    if out_type in ['.m4b', '.m4a', '.aac', '.mp4']:
+        force_mp4 = True
+    else:
+        for part in parts:
+            if os.path.splitext(part[3])[1] in ['.m4b', '.m4a', '.aac', '.mp4']:
+                force_mp4 = True
+                break
+
+    if force_mp4 and force_type != 'mp4':
+        if force_type:
+            pre, post = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)
+            post = post.lstrip()
+            post = post[len(force_type) + 1:]
+            ffmpeg_options = pre + '-f mp4 ' + post
         else:
-            parts_mod.append(part)
-    parts = parts_mod
+            ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
+        logger.debug("ffmpeg options: %s" % ffmpeg_options)
+    else:
+        ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS']
 
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
@@ -230,7 +240,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
         params = [ffmpeg]
         params.extend(ffmpeg_params)
-        params.extend(getList(lazylibrarian.CONFIG['AUDIO_OPTIONS']))
+        params.extend(getList(ffmpeg_options))
         params.append('-y')
 
         outfile = "%s - %s%s" % (authorname, bookname, out_type)
@@ -254,16 +264,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             if res:
                 logger.error(res)
             return
-
-        if b_to_a:
-            if outfile.endswith('.m4a'):
-                new_name = outfile.replace('.m4a', '.m4b')
-                os.rename(os.path.join(bookfolder, outfile), os.path.join(bookfolder, new_name))
-                outfile = new_name
-            for part in parts:
-                if part[3].endswith('.m4a'):
-                    new_name = part[3].replace('.m4a', '.m4b')
-                    os.rename(os.path.join(bookfolder, part[3]), os.path.join(bookfolder, new_name))
 
         logger.info("%d files merged into %s" % (len(parts), outfile))
         extn = os.path.splitext(outfile)[1]

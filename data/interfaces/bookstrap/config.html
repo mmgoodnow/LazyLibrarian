@@ -2383,6 +2383,11 @@
                     <label for="ffmpeg">ffmpeg program:</label>
                     <input type="text" id="ffmpeg" name="ffmpeg" value="${lazylibrarian.CONFIG['FFMPEG']}" class="form-control" placeholder="ffmpeg program">
                     <span class="help-block">Path to "ffmpeg" to merge audiobook parts or add tags</span>
+                  </div>
+                  <div class="form-group">
+                    <label for="ffmpeg">ffmpeg output extension:</label>
+                    <input type="text" id="ffmpeg_out" name="ffmpeg_out" value="${lazylibrarian.CONFIG['FFMPEG_OUT']}" class="form-control" placeholder="leave blank to use input extension">
+                    <span class="help-block">If you need to force a particular output type</span>
                     <input type="button" value="Test ffmpeg" id="testffmpeg" class="btn btn-default" />
                   </div>
                   <div class="form-group">
