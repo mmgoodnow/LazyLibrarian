@@ -225,6 +225,8 @@ class GoodReads:
                     else:
                         URL = set_url + '&page=' + str(loopCount)
                         resultxml = None
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                            logger.debug(set_url)
                         try:
                             rootxml, in_cache = gr_xml_request(URL)
                             if rootxml is None:
@@ -271,6 +273,8 @@ class GoodReads:
         URL = 'https://www.goodreads.com/api/author_url/'
         try:
             URL += quote(makeUTF8bytes(author)[0]) + '?' + urlencode(self.params)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                logger.debug(URL)
             rootxml, _ = gr_xml_request(URL, useCache=not refresh)
         except Exception as e:
             logger.error("%s finding authorid: %s, %s" % (type(e).__name__, URL, str(e)))
@@ -306,6 +310,8 @@ class GoodReads:
         URL = 'https://www.goodreads.com/author/show/' + authorid + '.xml?' + urlencode(self.params)
 
         try:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                logger.debug(URL)
             rootxml, _ = gr_xml_request(URL)
         except Exception as e:
             logger.error("%s getting author info: %s" % (type(e).__name__, str(e)))
@@ -394,6 +400,8 @@ class GoodReads:
             newValueDict = {"Status": "Loading"}
             myDB.upsert("authors", newValueDict, controlValueDict)
             try:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                    logger.debug(URL)
                 rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
             except Exception as e:
                 logger.error("%s fetching author books: %s" % (type(e).__name__, str(e)))
@@ -985,6 +993,8 @@ class GoodReads:
                               urlencode(self.params) + '&page=' + str(loopCount)
                         resultxml = None
                         try:
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                logger.debug(URL)
                             rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
                             if rootxml is None:
                                 logger.debug('Error requesting next page of results')
@@ -1104,6 +1114,8 @@ class GoodReads:
             pagecount += 1
             URL = 'https://www.goodreads.com/book/id_to_work_id/' + page + '?' + urlencode(self.params)
             try:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                    logger.debug(URL)
                 rootxml, _ = gr_xml_request(URL, useCache=False)
                 if rootxml is None:
                     logger.debug("Error requesting id_to_work_id page")
@@ -1169,9 +1181,9 @@ class GoodReads:
                     cnt -= 1
                     if dupe['Status'] not in ['Ignored', 'Skipped'] \
                             or dupe['AudioStatus'] not in ['Ignored', 'Skipped']:
-                            # this one is important (owned/wanted/snatched)
-                            logger.debug("Keeping bookid %s (%s/%s)" %
-                                         (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                        # this one is important (owned/wanted/snatched)
+                        logger.debug("Keeping bookid %s (%s/%s)" %
+                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
                     elif cnt:
                         logger.debug("Removing bookid %s (%s/%s)" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
@@ -1196,6 +1208,8 @@ class GoodReads:
         myDB = database.DBConnection()
         URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
         try:
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                logger.debug(URL)
             rootxml, _ = gr_xml_request(URL)
             if rootxml is None:
                 logger.debug("Error requesting book")
@@ -1294,6 +1308,7 @@ class GoodReads:
             bookimg = 'images/nocover.png'
 
         authorname = rootxml.find('./book/authors/author/name').text
+        authorid = rootxml.find('./book/authors/author/id').text
         bookdesc = rootxml.find('./book/description').text
         bookisbn = rootxml.find('./book/isbn13').text
         if not bookisbn:
@@ -1304,43 +1319,48 @@ class GoodReads:
         bookpages = rootxml.find('.book/num_pages').text
         workid = rootxml.find('.book/work/id').text
 
-        GR = GoodReads(authorname)
-        author = GR.find_author_id()
+        match = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+        if match:
+            author = {'authorid': authorid, 'authorname': match['AuthorName']}
+        else:
+            match = myDB.match('SELECT AuthorID from authors WHERE AuthorName=?', (authorname,))
+            if match:
+                logger.debug('%s: Changing authorid from %s to %s' %
+                             (authorname, authorid, match['AuthorID']))
+                author = {'authorid': match['AuthorID'], 'authorname': authorname}
+            else:
+                GR = GoodReads(authorname)
+                author = GR.find_author_id()
         if author:
             AuthorID = author['authorid']
             match = myDB.match('SELECT AuthorID from authors WHERE AuthorID=?', (AuthorID,))
             if not match:
-                match = myDB.match('SELECT AuthorID from authors WHERE AuthorName=?', (author['authorname'],))
-                if match:
-                    logger.debug('%s: Changing authorid from %s to %s' %
-                                 (author['authorname'], AuthorID, match['AuthorID']))
-                    AuthorID = match['AuthorID']  # we have a different authorid for that authorname
-                else:  # no author but request to add book, add author with newauthor status
-                    # User hit "add book" button from a search, or a wishlist import, or api call
-                    newauthor_status = 'Active'
-                    if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
-                        newauthor_status = 'Paused'
-                    # also pause author if adding as a series contributor/wishlist/grsync
-                    if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
-                        newauthor_status = 'Paused'
-                    controlValueDict = {"AuthorID": AuthorID}
-                    newValueDict = {
-                        "AuthorName": author['authorname'],
-                        "AuthorImg": author['authorimg'],
-                        "AuthorLink": author['authorlink'],
-                        "AuthorBorn": author['authorborn'],
-                        "AuthorDeath": author['authordeath'],
-                        "DateAdded": today(),
-                        "Updated": int(time.time()),
-                        "Status": newauthor_status,
-                        "Reason": reason
-                    }
-                    authorname = author['authorname']
-                    myDB.upsert("authors", newValueDict, controlValueDict)
+                # no author but request to add book, add author with newauthor status
+                # User hit "add book" button from a search, or a wishlist import, or api call
+                newauthor_status = 'Active'
+                if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
+                    newauthor_status = 'Paused'
+                # also pause author if adding as a series contributor/wishlist/grsync
+                if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
+                    newauthor_status = 'Paused'
+                controlValueDict = {"AuthorID": AuthorID}
+                newValueDict = {
+                    "AuthorName": author['authorname'],
+                    "AuthorImg": author['authorimg'],
+                    "AuthorLink": author['authorlink'],
+                    "AuthorBorn": author['authorborn'],
+                    "AuthorDeath": author['authordeath'],
+                    "DateAdded": today(),
+                    "Updated": int(time.time()),
+                    "Status": newauthor_status,
+                    "Reason": reason
+                }
+                authorname = author['authorname']
+                myDB.upsert("authors", newValueDict, controlValueDict)
 
-                    if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] and newauthor_status != 'Paused':
-                        self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
-                                              reason=reason)
+                if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] and newauthor_status != 'Paused':
+                    self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
+                                          reason=reason)
         else:
             logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
             return

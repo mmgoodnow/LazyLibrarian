@@ -104,6 +104,8 @@
                                 but_class2 = "btn-info"
                             elif 'Skipped' in value2:
                                 destination2 = "addBook?bookid="+result['bookid']
+                                if result['authorid']:
+                                    destination2 = destination2 + "&authorid="+result['authorid']
                                 value2 = "Add Book"
                                 but_class2 = "btn-success"
                             else:
@@ -111,6 +113,8 @@
                                 but_class2 = "btn-default"
                         else:
                             destination2 = "addBook?bookid="+result['bookid']
+                            if result['authorid']:
+                                destination2 = destination2 + "&authorid="+result['authorid']
                             value2 = "Add Book"
                             but_class2 = "btn-success"
                     else:

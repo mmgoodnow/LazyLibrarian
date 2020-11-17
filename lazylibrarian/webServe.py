@@ -2537,7 +2537,7 @@ class WebInterface(object):
         lst.sort(key=sort_key, reverse=reverse)
 
     @cherrypy.expose
-    def addBook(self, bookid=None):
+    def addBook(self, bookid=None, authorid=None):
         if lazylibrarian.SHOW_AUDIO:
             audio_status = "Wanted"
         else:
@@ -2548,15 +2548,18 @@ class WebInterface(object):
         else:
             ebook_status = "Skipped"
 
+        AuthorID = ''
         myDB = database.DBConnection()
         match = myDB.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
+        if not match and authorid:
+            _ = addAuthorToDB(None, False, authorid, False, 'WebServer addBook %s' % bookid)
+            match = myDB.match('SELECT AuthorID from books WHERE BookID=?', (bookid,))
         if match:
             myDB.upsert("books", {'Status': ebook_status, 'AudioStatus': audio_status},
                         {'BookID': bookid})
             AuthorID = match['AuthorID']
             update_totals(AuthorID)
         else:
-            AuthorID = ""
             if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                 GB = GoogleBooks(bookid)
                 t = threading.Thread(target=GB.find_book, name='GB-BOOK',
@@ -2568,6 +2571,7 @@ class WebInterface(object):
                                      args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
+
         if lazylibrarian.CONFIG['IMP_AUTOSEARCH']:
             books = [{"bookid": bookid}]
             self.startBookSearch(books)
@@ -6363,24 +6367,7 @@ class WebInterface(object):
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
             ff_ver = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
-
-            ff_aac = ''
-            if ff_ver:
-                try:
-                    params = [ffmpeg, "-codecs"]
-                    if os.name != 'nt':
-                        res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                      stderr=subprocess.STDOUT)
-                    else:
-                        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    res = makeUnicode(res)
-                    for lyne in res.split('\n'):
-                        if 'AAC' in lyne:
-                            ff_aac = lyne.strip().split(' ')[0]
-                            break
-                except Exception as e:
-                    logger.debug("ffmpeg -codecs failed: %s %s" % (type(e).__name__, str(e)))
-            return "Found ffmpeg version %s, AAC:%s" % (ff_ver, ff_aac)
+            return "Found ffmpeg version %s" % ff_ver
         except Exception as e:
             return "ffmpeg -version failed: %s %s" % (type(e).__name__, str(e))
 
