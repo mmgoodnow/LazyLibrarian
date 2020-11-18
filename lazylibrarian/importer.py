@@ -76,7 +76,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None):
                     author = item['AuthorName']
                     break
 
-    if not check_exist_author and lazylibrarian.CONFIG['ADD_AUTHOR']:
+    if not check_exist_author and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
         logger.debug('Author %s not found in database, trying to add' % author)
         # no match for supplied author, but we're allowed to add new ones
         GR = GoodReads(author)
