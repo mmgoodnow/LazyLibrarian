@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg
-from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size
+from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now
 from lazylibrarian.images import shrinkMag
 
 try:
@@ -138,7 +138,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params = [ffmpeg, "-codecs"]
             if os.name != 'nt':
                 res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                stderr=subprocess.STDOUT)
+                                              stderr=subprocess.STDOUT)
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = makeUnicode(res)
@@ -210,7 +210,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
-            if ff_ver and tag and authorname and bookname:
+            if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -221,12 +221,18 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                         params.append('-report')
                         logger.debug(str(params))
+                        ffmpeg_env = os.environ.copy()
+                        ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
+                                                                        "ffmpeg-tag-%s.log" %
+                                                                        now().replace(':', '-').replace(' ', '-'))
+                    else:
+                        ffmpeg_env = None
                     try:
                         if os.name != 'nt':
                             _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                                        stderr=subprocess.STDOUT)
+                                                        stderr=subprocess.STDOUT, env=ffmpeg_env)
                         else:
-                            _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                            _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
                         remove(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
@@ -245,11 +251,17 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')
             logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'], "ffmpeg-meta-%s.log" %
+                                                            now().replace(':', '-').replace(' ', '-'))
+        else:
+            ffmpeg_env = None
         try:
             if os.name != 'nt':
-                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
+                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                            stderr=subprocess.STDOUT, env=ffmpeg_env)
             else:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
             logger.debug("Metadata written to metadata.ll")
         except subprocess.CalledProcessError as e:
@@ -268,13 +280,19 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')
             logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'], "ffmpeg-merge-%s.log" %
+                                                            now().replace(':', '-').replace(' ', '-'))
+        else:
+            ffmpeg_env = None
         res = ''
         try:
             logger.debug("Merging %d files" % len(parts))
             if os.name != 'nt':
-                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10), stderr=subprocess.STDOUT)
+                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                              stderr=subprocess.STDOUT, env=ffmpeg_env)
             else:
-                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
         except subprocess.CalledProcessError as e:
             logger.error("%s: %s" % (type(e).__name__, str(e)))
@@ -350,12 +368,18 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')
             logger.debug(str(params))
+            ffmpeg_env = os.environ.copy()
+            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
+                                                            "ffmpeg-merge_tag-%s.log" %
+                                                            now().replace(':', '-').replace(' ', '-'))
+        else:
+            ffmpeg_env = None
         try:
             if os.name != 'nt':
                 _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                            stderr=subprocess.STDOUT)
+                                            stderr=subprocess.STDOUT, env=ffmpeg_env)
             else:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
             remove(os.path.join(bookfolder, outfile))
             os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),

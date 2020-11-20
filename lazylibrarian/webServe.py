@@ -6359,12 +6359,21 @@ class WebInterface(object):
             lazylibrarian.CONFIG['FFMPEG'] = kwargs['prg']
         ffmpeg = lazylibrarian.CONFIG['FFMPEG']
         try:
-            params = [ffmpeg, "-version"]
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                ffmpeg_env = os.environ.copy()
+                ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
+                                                                "ffmpeg-test-%s.log" %
+                                                                now().replace(':', '-').replace(' ', '-'))
+                params = [ffmpeg, "-version", "-report"]
+            else:
+                params = [ffmpeg, "-version"]
+                ffmpeg_env = None
+
             if os.name != 'nt':
                 res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                              stderr=subprocess.STDOUT)
+                                              stderr=subprocess.STDOUT, env=ffmpeg_env)
             else:
-                res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+                res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
             ff_ver = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
             return "Found ffmpeg version %s" % ff_ver
