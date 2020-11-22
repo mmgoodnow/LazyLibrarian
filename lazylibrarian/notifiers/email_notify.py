@@ -94,30 +94,23 @@ class EmailNotifier:
                         message.attach(part)
 
         try:
-            context = None
-            if not PY2:
-                # Create a secure SSL context
-                context = ssl.create_default_context()
+            # Create a secure SSL context
+            context = ssl.create_default_context()
 
             if lazylibrarian.CONFIG['EMAIL_SSL']:
-                if PY2:
-                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
-                else:
-                    # noinspection PyArgumentList
-                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
-                                                  context=context)
+                # noinspection PyArgumentList
+                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+                                              context=context)
             else:
                 mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                           check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
 
             if lazylibrarian.CONFIG['EMAIL_TLS']:
-                if context:
-                    # noinspection PyArgumentList
-                    mailserver.starttls(context=context)
-                else:
+                if PY2:
                     mailserver.starttls()
+                else:
+                    mailserver.starttls(context=context)
             else:
                 mailserver.ehlo()
 

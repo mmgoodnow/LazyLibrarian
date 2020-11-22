@@ -12,6 +12,7 @@
 
 
 import socket
+import ssl
 from time import sleep
 
 import lazylibrarian
@@ -39,7 +40,11 @@ def getServer():
 
     try:
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
-        server = xmlrpc_client.ServerProxy(host)
+        if host.startswith("https://"):
+            context = ssl.create_default_context()
+            server = xmlrpc_client.ServerProxy(host, context=context)
+        else:
+            server = xmlrpc_client.ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
