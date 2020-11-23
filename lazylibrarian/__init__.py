@@ -998,7 +998,7 @@ def config_read(reloaded=False):
                              "MANUAL": check_setting('bool', newz_name, 'manual', 0),
                              "APILIMIT": check_setting('int', newz_name, 'apilimit', 0),
                              "APICOUNT": 0,
-                             "RATELIMIT": 0,
+                             "RATELIMIT": check_setting('int', newz_name, 'ratelimit', 0),
                              "DLPRIORITY": check_setting('int', newz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', newz_name, 'dltypes', 'A,E,M'),
                              })
@@ -1030,7 +1030,7 @@ def config_read(reloaded=False):
                              "MANUAL": check_setting('bool', torz_name, 'manual', 0),
                              "APILIMIT": check_setting('int', torz_name, 'apilimit', 0),
                              "APICOUNT": 0,
-                             "RATELIMIT": 0,
+                             "RATELIMIT": check_setting('int', newz_name, 'ratelimit', 0),
                              "DLPRIORITY": check_setting('int', torz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', torz_name, 'dltypes', 'A,E,M'),
                              "SEEDERS": check_setting('int', torz_name, 'seeders', 0),
@@ -1302,7 +1302,11 @@ def config_write(part=None):
                         if CONFIG['LOGLEVEL'] > 2:
                             logger.debug("Keep %s" % provider['NAME'])
                         for item in NAB_ITEMS + entry[2]:
-                            provider[item] = CFG.get(provider['NAME'], item.lower())
+                            try:
+                                provider[item] = CFG.get(provider['NAME'], item.lower())
+                            except NoOptionError:
+                                logger.debug("No option [%s] in %s" % (item, provider['NAME']))
+                                pass
 
             # renumber the items
             for index, item in enumerate(new_list):
@@ -1349,7 +1353,11 @@ def config_write(part=None):
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in RSS_ITEMS:
-                        provider[item] = CFG.get(provider['NAME'], item.lower())
+                        try:
+                            provider[item] = CFG.get(provider['NAME'], item.lower())
+                        except NoOptionError:
+                            logger.debug("No option [%s] in %s" % (item, provider['NAME']))
+                            pass
 
         # renumber the items
         for index, item in enumerate(new_list):
@@ -1391,7 +1399,11 @@ def config_write(part=None):
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in GEN_ITEMS:
-                        provider[item] = CFG.get(provider['NAME'], item.lower())
+                        try:
+                            provider[item] = CFG.get(provider['NAME'], item.lower())
+                        except NoOptionError:
+                            logger.debug("No option [%s] in %s" % (item, provider['NAME']))
+                            pass
 
         # renumber the items
         for index, item in enumerate(new_list):
@@ -1434,7 +1446,11 @@ def config_write(part=None):
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in IRC_ITEMS:
-                        provider[item] = CFG.get(provider['NAME'], item.lower())
+                        try:
+                            provider[item] = CFG.get(provider['NAME'], item.lower())
+                        except NoOptionError:
+                            logger.debug("No option [%s] in %s" % (item, provider['NAME']))
+                            pass
 
         # renumber the items
         for index, item in enumerate(new_list):
@@ -1476,7 +1492,11 @@ def config_write(part=None):
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in APPRISE_ITEMS:
-                        provider[item] = CFG.get(provider['NAME'], item.lower())
+                        try:
+                            provider[item] = CFG.get(provider['NAME'], item.lower())
+                        except NoOptionError:
+                            logger.debug("No option [%s] in %s" % (item, provider['NAME']))
+                            pass
 
         # renumber the items
         for index, item in enumerate(new_list):
