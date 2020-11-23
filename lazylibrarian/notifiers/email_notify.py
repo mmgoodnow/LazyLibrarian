@@ -96,6 +96,10 @@ class EmailNotifier:
         try:
             # Create a secure SSL context
             context = ssl.create_default_context()
+            # but allow no certificate check so self-signed work
+            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
 
             if lazylibrarian.CONFIG['EMAIL_SSL']:
                 # noinspection PyArgumentList

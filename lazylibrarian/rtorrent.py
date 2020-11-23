@@ -42,6 +42,9 @@ def getServer():
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
         if host.startswith("https://"):
             context = ssl.create_default_context()
+            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+                context.check_hostname = False
+                context.verify_mode = ssl.CERT_NONE
             server = xmlrpc_client.ServerProxy(host, context=context)
         else:
             server = xmlrpc_client.ServerProxy(host)
