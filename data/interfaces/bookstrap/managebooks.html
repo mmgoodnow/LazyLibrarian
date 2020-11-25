@@ -58,7 +58,7 @@
         <div class="form-group">
           <label for="whichStatus" class="control-label">Status:</label>
           <select name="whichStatus" id="whichStatus" class="form-control input-sm">
-            %for item in ['All', 'Skipped', 'Wanted', 'Open', 'Have', 'Ignored']:
+            %for item in ['All', 'Skipped', 'Wanted', 'Open', 'Have', 'Ignored', 'Snatched']:
             <option value="${item}"
                     %if whichStatus == item:
                         selected = "selected"
@@ -138,22 +138,22 @@
     <div class="form-group">
       <label for="markBooks" class="control-label">Mark selected ${library}s as</label>
       <select id="markBooks" class="markBooks form-control input-sm" name="action">
-        %if lazylibrarian.SHOW_EBOOK > 0:
-          %if library == 'AudioBook' or whichStatus != 'Wanted':
+        %if whichStatus != 'Wanted':
+          %if lazylibrarian.SHOW_EBOOK > 0 and library == 'AudioBook':
             <option value="WantEbook">eBook Wanted</option>
           %endif
-        %endif
-        %if lazylibrarian.SHOW_AUDIO > 0:
-          %if library != 'AudioBook' or whichStatus != 'Wanted':
+          %if lazylibrarian.SHOW_AUDIO > 0 and library != 'AudioBook':
             <option value="WantAudio">Audio Wanted</option>
           %endif
         %endif
-        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0 and whichStatus != 'Wanted':
+        %if whichStatus not in ['Wanted', 'Snatched']:
+          %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
             <option value="WantBoth">both Wanted</option>
+          %endif
+          %for item in ['Skipped', 'Have', 'Ignored']:
+            <option value="${item}">${item}</option>
+          %endfor
         %endif
-        %for item in ['Skipped', 'Have', 'Ignored']:
-        <option value="${item}">${item}</option>
-        %endfor
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
