@@ -61,8 +61,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         logger.error(res)
         return False, res
 
-    if hostname.endswith('/'):
-        hostname = hostname[:-1]
+    hostname = hostname.rstrip('/')
     if not hostname.startswith("http://") and not hostname.startswith("https://"):
         hostname = 'http://' + hostname
 

@@ -47,8 +47,7 @@ class utorrentclient(object):
         if not host.startswith("http://") and not host.startswith("https://"):
             host = 'http://' + host
 
-        if host.endswith('/'):
-            host = host[:-1]
+        host = host.rstrip('/')
 
         if host.endswith('/gui'):
             host = host[:-4]

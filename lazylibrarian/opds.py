@@ -58,10 +58,7 @@ class OPDS(object):
         elif lazylibrarian.CONFIG['HTTP_ROOT'].endswith('/'):
             self.opdsroot = lazylibrarian.CONFIG['HTTP_ROOT'] + 'opds'
         else:
-            if lazylibrarian.CONFIG['HTTP_ROOT'] != '/':
-                self.opdsroot = lazylibrarian.CONFIG['HTTP_ROOT'] + '/opds'
-            else:
-                self.opdsroot = lazylibrarian.CONFIG['HTTP_ROOT'] + 'opds'
+            self.opdsroot = lazylibrarian.CONFIG['HTTP_ROOT'] + '/opds'
         """
         my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
         if not my_ip:

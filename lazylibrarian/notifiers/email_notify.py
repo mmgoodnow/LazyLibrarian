@@ -114,6 +114,7 @@ class EmailNotifier:
                 if PY2:
                     mailserver.starttls()
                 else:
+                    # noinspection PyArgumentList
                     mailserver.starttls(context=context)
             else:
                 mailserver.ehlo()

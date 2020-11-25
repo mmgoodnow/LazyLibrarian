@@ -66,8 +66,7 @@ def sendNZB(nzb=None, cmd=None, nzbID=None):
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
 
-    if host.endswith('/'):
-        host = host[:-1]
+    host = host.rstrip('/')
     hostparts = host.split('://')
 
     url = hostparts[0] + '://' + nzbgetXMLrpc % {"host": hostparts[1],

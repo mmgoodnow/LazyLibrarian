@@ -304,8 +304,7 @@ def _hostURL():
         return False
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
-    if host.endswith('/'):
-        host = host[:-1]
+    host = host.rstrip('/')
     return "%s:%s/webapi/" % (host, port)
 
 

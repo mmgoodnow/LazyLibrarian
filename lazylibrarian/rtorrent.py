@@ -27,10 +27,9 @@ def getServer():
         logger.error("rtorrent error: No host found, check your config")
         return False, ''
 
+    host = host.rstrip('/')
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
-    if host.endswith('/'):
-        host = host[:-1]
 
     if lazylibrarian.CONFIG['RTORRENT_USER']:
         user = lazylibrarian.CONFIG['RTORRENT_USER']
