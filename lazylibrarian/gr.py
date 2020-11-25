@@ -930,46 +930,57 @@ class GoodReads:
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         updateValueDict["OriginalPubDate"] = pubdate
 
-                                if not rejected and existing and existing['ScanResult'] and \
-                                        ' publication date' in existing['ScanResult'] and bookdate and \
-                                        bookdate != '0000' and bookdate <= today()[:len(bookdate)]:
-                                    # was rejected on previous scan but bookdate has become valid
-                                    logger.debug("valid bookdate [%s] previous scanresult [%s]" %
-                                                 (bookdate, existing['ScanResult']))
-                                    logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
-                                    book_status, audio_status = getStatus(bookid, serieslist, bookstatus, audiostatus,
-                                                                          entrystatus)
-                                    logger.debug("status is now %s,%s" % (book_status, audio_status))
-                                    updateValueDict["ScanResult"] = "bookdate %s is now valid" % bookdate
-                                    updateValueDict["Status"] = book_status
-                                    updateValueDict["AudioStatus"] = audio_status
+                                if not rejected:
+                                    if existing and existing['ScanResult'] and \
+                                            ' publication date' in existing['ScanResult'] and \
+                                            bookdate and bookdate != '0000' and \
+                                            bookdate <= today()[:len(bookdate)]:
+                                        # was rejected on previous scan but bookdate has become valid
+                                        logger.debug("valid bookdate [%s] previous scanresult [%s]" %
+                                                     (bookdate, existing['ScanResult']))
+                                        updateValueDict["ScanResult"] = "bookdate %s is now valid" % bookdate
+                                    elif not existing:
+                                        updateValueDict["ScanResult"] = reason
 
-                                if 'nocover' in bookimg or 'nophoto' in bookimg:
-                                    # try to get a cover from another source
-                                    start = time.time()
-                                    workcover, source = getBookCover(bookid)
-                                    if source != 'cache':
-                                        cover_count += 1
-                                        cover_time += (time.time() - start)
+                                    if "ScanResult" in updateValueDict:
+                                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                            logger.debug("entry status %s %s,%s" % (entrystatus,
+                                                                                    bookstatus,
+                                                                                    audiostatus))
+                                        book_status, audio_status = getStatus(bookid, serieslist, bookstatus,
+                                                                              audiostatus, entrystatus)
+                                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                            logger.debug("status is now %s,%s" % (book_status,
+                                                                                  audio_status))
+                                        updateValueDict["Status"] = book_status
+                                        updateValueDict["AudioStatus"] = audio_status
 
-                                    if workcover:
-                                        logger.debug('Updated cover for %s using %s' % (bookname, source))
-                                        updateValueDict["BookImg"] = workcover
+                                    if 'nocover' in bookimg or 'nophoto' in bookimg:
+                                        # try to get a cover from another source
+                                        start = time.time()
+                                        workcover, source = getBookCover(bookid)
+                                        if source != 'cache':
+                                            cover_count += 1
+                                            cover_time += (time.time() - start)
 
-                                elif bookimg and bookimg.startswith('http'):
-                                    start = time.time()
-                                    link, success, was_already_cached = cache_img("book", bookid, bookimg)
-                                    if not was_already_cached:
-                                        cover_count += 1
-                                        cover_time += (time.time() - start)
-                                    if success:
-                                        updateValueDict["BookImg"] = link
-                                    else:
-                                        logger.debug('Failed to cache image for %s' % bookimg)
+                                        if workcover:
+                                            logger.debug('Updated cover for %s using %s' % (bookname, source))
+                                            updateValueDict["BookImg"] = workcover
 
-                                worklink = getWorkPage(bookid)
-                                if worklink:
-                                    updateValueDict["WorkPage"] = worklink
+                                    elif bookimg and bookimg.startswith('http'):
+                                        start = time.time()
+                                        link, success, was_already_cached = cache_img("book", bookid, bookimg)
+                                        if not was_already_cached:
+                                            cover_count += 1
+                                            cover_time += (time.time() - start)
+                                        if success:
+                                            updateValueDict["BookImg"] = link
+                                        else:
+                                            logger.debug('Failed to cache image for %s' % bookimg)
+
+                                    worklink = getWorkPage(bookid)
+                                    if worklink:
+                                        updateValueDict["WorkPage"] = worklink
 
                                 if updateValueDict:
                                     myDB.upsert("books", updateValueDict, controlValueDict)
