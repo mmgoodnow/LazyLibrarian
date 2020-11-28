@@ -10,7 +10,7 @@ except ImportError:
 
 import re
 
-from lib.six import string_types
+from six import string_types
 
 from . import base
 from .._utils import moduleFactoryFactory

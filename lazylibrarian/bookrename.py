@@ -20,7 +20,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir, only_punctuation
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
     makeUnicode, makeBytestr, makeUTF8bytes, sortDefinite, surnameFirst
-from lib.six import PY2
+from six import PY2
 
 try:
     from lib.tinytag import TinyTag
@@ -461,7 +461,7 @@ def bookRename(bookid):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
                 return f
 
-    book_basename, prefextn = os.path.splitext(os.path.basename(f))
+    book_basename, _ = os.path.splitext(os.path.basename(f))
 
     if book_basename != new_basename:
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf

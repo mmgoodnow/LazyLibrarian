@@ -13,15 +13,15 @@
 
 
 import datetime
-import hashlib
+from hashlib import md5
 import os
 import re
 import unicodedata
 
 import lazylibrarian
-from lib.six import PY2, text_type
+from six import PY2, text_type
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
+from six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
 
 
 def url_fix(s, charset='utf-8'):
@@ -384,7 +384,8 @@ def size_in_bytes(size):
 def md5_utf8(txt):
     if isinstance(txt, text_type):
         txt = txt.encode('utf-8')
-    return hashlib.md5(txt).hexdigest()
+    # noinspection PyDeprecation
+    return md5(txt).hexdigest()
 
 
 # Special character hex range:

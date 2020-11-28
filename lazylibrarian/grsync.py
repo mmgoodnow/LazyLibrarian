@@ -18,16 +18,15 @@ import traceback
 # noinspection PyUnresolvedReferences
 import xml.dom.minidom
 from string import Template
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlencode, parse_qsl
+from six.moves.urllib_parse import urlencode, parse_qsl
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, getList
 from lazylibrarian.gr import GoodReads
-from lib.six import PY2
+from six import PY2
 
 try:
     import oauth2 as oauth

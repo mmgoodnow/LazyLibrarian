@@ -17,10 +17,8 @@ import re
 import time
 import threading
 import traceback
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, quote, urlencode
-
+from six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
@@ -31,7 +29,7 @@ try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
-from lib.six import PY2
+from six import PY2
 
 try:
     import urllib3
@@ -661,7 +659,7 @@ def addSeriesMembers(seriesid):
         lazylibrarian.SERIES_UPDATE = True
         seriesname = series['SeriesName']
         logger.debug("Updating series members for %s" % seriesname)
-        members, api_hits = getSeriesMembers(seriesid, seriesname)
+        members, _ = getSeriesMembers(seriesid, seriesname)
 
         for member in members:
             # order = member[0]

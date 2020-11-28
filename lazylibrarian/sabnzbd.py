@@ -22,7 +22,7 @@ from lazylibrarian import logger
 from lazylibrarian.common import proxyList
 from lazylibrarian.formatter import check_int, makeUTF8bytes
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlencode
+from six.moves.urllib_parse import urlencode
 
 
 def checkLink():

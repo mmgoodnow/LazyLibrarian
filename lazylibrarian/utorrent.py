@@ -13,22 +13,19 @@
 
 import json
 import re
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves import http_cookiejar
+from six.moves import http_cookiejar
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_error import HTTPError
+from six.moves.urllib_parse import urljoin, urlencode
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urljoin, urlencode
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
+from six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
     build_opener, install_opener, Request
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import getUserAgent
 from lazylibrarian.formatter import check_int, getList
-from lib.six import PY2
+from six import PY2
 
 
 class utorrentclient(object):

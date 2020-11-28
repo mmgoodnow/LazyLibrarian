@@ -24,7 +24,7 @@ from lazylibrarian.common import walk, setperm, path_isfile, syspath
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now
 from lazylibrarian.images import createMagCover
 from lazylibrarian.postprocess import createComicOPF
-from lib.six import PY2
+from six import PY2
 
 
 def comicScan(comicid=None):

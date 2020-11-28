@@ -4,7 +4,7 @@ import datetime
 import json
 import re
 
-from lib.six import PY2
+from six import PY2
 try:
     import html5lib
     from bs4 import BeautifulSoup
@@ -14,7 +14,7 @@ except ImportError:
     else:
         from lib3.bs4 import BeautifulSoup
 
-from lib.six.moves.urllib.parse import urlencode
+from six.moves.urllib.parse import urlencode
 
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
 from icrawler.builtin.filter import Filter

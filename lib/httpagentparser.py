@@ -10,7 +10,7 @@ Tries to
 
 __version__ = '1.8.1'
 
-from lib.six import PY2
+from six import PY2
 
 
 class DetectorsHub(dict):

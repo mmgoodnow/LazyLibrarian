@@ -23,9 +23,9 @@ from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, g
 from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
-from lib.six import PY2
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlencode, urlparse
+from six.moves.urllib_parse import urlencode, urlparse
 
 if PY2:
     import lib.feedparser as feedparser

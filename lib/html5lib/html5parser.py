@@ -1,5 +1,5 @@
 from __future__ import absolute_import, division, unicode_literals
-from lib.six import with_metaclass, viewkeys, PY3
+from six import with_metaclass, viewkeys, PY3
 
 import types
 

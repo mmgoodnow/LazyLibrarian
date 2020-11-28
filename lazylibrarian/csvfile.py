@@ -15,7 +15,7 @@ import shutil
 import traceback
 
 import lazylibrarian
-from lib.six import PY2
+from six import PY2
 from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath, remove
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, formatAuthorName, \
@@ -32,6 +32,7 @@ except ImportError:
         from lib3.csv import writer, reader, QUOTE_MINIMAL
 
 
+# noinspection PyArgumentList
 def dump_table(table, savedir=None, status=None):
     myDB = database.DBConnection()
     # noinspection PyBroadException
@@ -202,6 +203,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
                         csvwrite.writerow([("%s" % s).encode(lazylibrarian.SYS_ENCODING) for s in row])
                         count += 1
             else:
+                # noinspection PyArgumentList
                 with open(syspath(csvFile), 'w', encoding='utf-8') as csvfile:
                     # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)

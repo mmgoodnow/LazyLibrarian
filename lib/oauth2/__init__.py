@@ -26,9 +26,9 @@ import time
 import random
 import hmac
 import binascii
-from lib.six import PY2, iteritems
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import parse_qs, parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
+from six.moves.urllib_parse import parse_qs, parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
 if PY2:
     import lib.httplib2 as httplib2
 else:

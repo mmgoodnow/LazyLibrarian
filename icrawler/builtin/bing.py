@@ -2,8 +2,8 @@
 
 import re
 
-from lib.six.moves import html_parser
-from lib.six import PY2, PY3
+from six.moves import html_parser
+from six import PY2, PY3
 try:
     import html5lib
     from bs4 import BeautifulSoup

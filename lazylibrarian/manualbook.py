@@ -21,9 +21,9 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 
-from lib.six import PY2
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus
+from six.moves.urllib_parse import quote_plus
 
 
 def searchItem(item=None, bookid=None, cat=None):

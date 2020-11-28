@@ -21,9 +21,8 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import mimeType, path_exists
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import unquote_plus
+from six.moves.urllib_parse import unquote_plus
 
 try:
     from rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure

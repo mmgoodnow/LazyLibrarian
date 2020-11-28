@@ -28,7 +28,7 @@ import uuid
 from shutil import copyfile
 
 import lazylibrarian
-from lib.six import PY2
+from six import PY2
 
 try:
     import zipfile
@@ -36,7 +36,7 @@ except ImportError:
     if PY2:
         import lib.zipfile as zipfile
     else:
-        import lib3.zipfile as zipfile
+        import lib3.zipfile as zipfile 
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
@@ -2969,6 +2969,7 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
         with codecs.open(syspath(opfpath), 'w', encoding='utf-8') as opf:
             opf.write(opfinfo)
     else:
+        # noinspection PyArgumentList
         with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
             opf.write(opfinfo)
     logger.debug('Saved metadata to: ' + opfpath)

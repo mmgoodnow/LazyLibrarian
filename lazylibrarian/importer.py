@@ -30,7 +30,7 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 # noinspection PyUnresolvedReferences
-from lib.six.moves import queue
+from six.moves import queue
 
 
 def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None):

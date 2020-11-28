@@ -22,8 +22,7 @@ from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes, plural
 from lazylibrarian.common import quotes, path_isfile
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus
-
+from six.moves.urllib_parse import quote_plus
 
 try:
     import urllib3
@@ -31,7 +30,7 @@ try:
 except ImportError:
     import lib.requests as requests
 
-from lib.six import PY2
+from six import PY2
 try:
     import html5lib
     from bs4 import BeautifulSoup

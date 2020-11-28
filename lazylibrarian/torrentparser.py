@@ -18,9 +18,9 @@ from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, \
     replace_all, getList, month2num, check_year, makeUTF8bytes
-from lib.six import PY2
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote, urlencode, quote_plus
+from six.moves.urllib_parse import quote, urlencode, quote_plus
 
 try:
     from fuzzywuzzy import fuzz

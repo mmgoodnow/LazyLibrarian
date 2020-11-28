@@ -36,7 +36,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, makeUnicode
 from lazylibrarian.common import make_dirs, path_isdir, syspath
-from lib.six import PY2
+from six import PY2
 
 delugeweb_auth = {}
 delugeweb_url = ''

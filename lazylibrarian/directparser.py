@@ -12,16 +12,15 @@
 
 import time
 import traceback
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlparse, urlencode
+from six.moves.urllib_parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, \
     makeUTF8bytes, seconds_to_midnight, check_int
-from lib.six import PY2
+from six import PY2
 
 try:
     import html5lib

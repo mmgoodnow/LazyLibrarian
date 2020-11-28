@@ -26,9 +26,9 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, makeUnicode
 # noinspection PyUnresolvedReferences
-from lib.six.moves import xmlrpc_client, http_client
+from six.moves import xmlrpc_client, http_client
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote
+from six.moves.urllib_parse import quote
 
 
 def checkLink():

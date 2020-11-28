@@ -23,9 +23,8 @@ import time
 import traceback
 import uuid
 from shutil import copyfile, rmtree
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlunsplit
+from six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import cherrypy
 import lazylibrarian
@@ -69,7 +68,7 @@ try:
     from deluge_client import DelugeRPCClient
 except ImportError:
     from lib.deluge_client import DelugeRPCClient
-from lib.six import PY2, text_type
+from six import PY2, text_type
 from mako import exceptions
 from mako.lookup import TemplateLookup
 
@@ -88,6 +87,7 @@ def clear_mako_cache():
     makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
     try:
         rmtree(makocache, ignore_errors=True)
+        # noinspection PyArgumentList
         os.makedirs(makocache, exist_ok=True)
     except Exception as e:
         logger.error("Error clearing mako cache: %s" % str(e))

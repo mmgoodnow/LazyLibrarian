@@ -19,18 +19,17 @@
 
 import datetime
 import os
-
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, urlsplit
-
 import cherrypy
 import lazylibrarian
+
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
 from lazylibrarian.cache import cache_img
 from lazylibrarian.common import mimeType, zipAudio, path_isfile
 from lazylibrarian.formatter import makeUnicode, check_int, plural, getList
-from lib.six import text_type, string_types
+from six import text_type, string_types
+# noinspection PyUnresolvedReferences
+from six.moves.urllib_parse import quote_plus
 
 searchable = ['Authors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
               'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres', 'Comics',

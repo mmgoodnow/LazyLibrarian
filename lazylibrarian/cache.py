@@ -20,7 +20,7 @@ try:
     import requests
 except ImportError:
     import lib.requests as requests
-from lib.six import PY2
+from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database

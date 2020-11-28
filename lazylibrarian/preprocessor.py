@@ -50,7 +50,7 @@ def preprocess_ebook(bookfolder):
     sourcefile = None
     created = ''
     for fname in listdir(bookfolder):
-        filename, extn = os.path.splitext(fname)
+        _, extn = os.path.splitext(fname)
         if extn.lower() == '.epub':
             sourcefile = fname
             break
@@ -405,7 +405,7 @@ def preprocess_magazine(bookfolder, cover=0):
     try:
         sourcefile = None
         for fname in listdir(bookfolder):
-            filename, extn = os.path.splitext(fname)
+            _, extn = os.path.splitext(fname)
             if extn.lower() == '.pdf':
                 sourcefile = fname
                 break

@@ -3,7 +3,7 @@
 import os
 import os.path as osp
 
-from lib.six import string_types
+from six import string_types
 
 from icrawler.storage import BaseStorage
 

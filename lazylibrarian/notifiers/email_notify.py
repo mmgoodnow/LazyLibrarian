@@ -28,7 +28,7 @@ from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
     isValidEmail, path_isfile, syspath
 from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
-from lib.six import PY2
+from six import PY2
 
 
 class EmailNotifier:

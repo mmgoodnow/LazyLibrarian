@@ -12,7 +12,7 @@ try:
 except ImportError:
     import lib.requests as requests
     
-from lib.six import PY2
+from six import PY2
 try:
     from bs4 import BeautifulSoup
 except ImportError:
@@ -21,7 +21,7 @@ except ImportError:
     else:
         from lib3.bs4 import BeautifulSoup
 
-from lib.six.moves import queue
+from six.moves import queue
 
 
 class Proxy(object):

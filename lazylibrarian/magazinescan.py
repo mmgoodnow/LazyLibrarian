@@ -24,7 +24,7 @@ from lazylibrarian.common import safe_move, walk, make_dirs, setperm, path_exist
 from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeBytestr, \
     replace_all, check_year
 from lazylibrarian.images import createMagCover
-from lib.six import PY2
+from six import PY2
 
 
 def create_id(issuename=None):

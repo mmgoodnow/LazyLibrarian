@@ -20,7 +20,7 @@ import lazylibrarian
 import lib.pythontwitter as twitter
 from lazylibrarian import logger, common, formatter
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import parse_qsl
+from six.moves.urllib_parse import parse_qsl
 
 try:
     import oauth2 as oauth

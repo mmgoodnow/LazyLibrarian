@@ -18,7 +18,7 @@ from time import sleep
 import lazylibrarian
 from lazylibrarian import logger
 # noinspection PyUnresolvedReferences
-from lib.six.moves import xmlrpc_client
+from six.moves import xmlrpc_client
 
 
 def getServer():

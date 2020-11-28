@@ -52,9 +52,8 @@ except ImportError:
     from lib.deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
-from lib.six import PY2, text_type
-# noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote
+from six import PY2, text_type
+
 try:
     import html5lib
     from bs4 import BeautifulSoup

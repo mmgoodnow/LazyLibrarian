@@ -35,10 +35,8 @@ try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
-
-
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
+from six.moves.urllib_parse import quote, quote_plus, urlencode
 
 
 class GoodReads:

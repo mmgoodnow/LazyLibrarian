@@ -15,7 +15,7 @@ import re
 import traceback
 import shutil
 from xml.etree import ElementTree
-from lib.six import PY2
+from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -37,7 +37,7 @@ except ImportError:
     from lib.fuzzywuzzy import fuzz
 from lib.mobi import Mobi
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus, urlencode
+from six.moves.urllib_parse import quote_plus, urlencode
 
 try:
     import zipfile

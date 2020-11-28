@@ -25,7 +25,7 @@ import time
 import traceback
 import subprocess
 
-from lib.six import PY2, text_type
+from six import PY2, text_type
 
 try:
     import zipfile

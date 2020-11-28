@@ -40,9 +40,9 @@ try:
 except ImportError:
     from lib.fuzzywuzzy import fuzz
 
-from lib.six import PY2
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote, quote_plus, urlencode
+from six.moves.urllib_parse import quote, quote_plus, urlencode
 
 
 class GoogleBooks:

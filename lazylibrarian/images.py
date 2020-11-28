@@ -23,9 +23,9 @@ from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unico
 from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath
 from lazylibrarian.cache import cache_img, fetchURL
 from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
-from lib.six import PY2, text_type
+from six import PY2, text_type
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import quote_plus
+from six.moves.urllib_parse import quote_plus
 from shutil import rmtree
 
 try:

@@ -18,9 +18,9 @@ import sys
 import threading
 
 # noinspection PyUnresolvedReferences
-from lib.six.moves import configparser, queue
+from six.moves import configparser, queue
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlsplit, urlunsplit
+from six.moves.urllib_parse import urlsplit, urlunsplit
 
 import cherrypy
 import lazylibrarian
@@ -54,7 +54,7 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
-from lib.six import PY2, string_types
+from six import PY2, string_types
 
 cmd_dict = {'help': 'list available commands. ' +
                     'Time consuming commands take an optional &wait parameter if you want to wait for completion, ' +
@@ -515,20 +515,23 @@ class Api(object):
         tag = True if 'tag' in kwargs else None
         merge = True if 'merge' in kwargs else None
         bookid = kwargs['id'] if 'id' in kwargs else 0
-        self.data = preprocess_audio(kwargs['dir'], bookid, kwargs['author'], kwargs['title'], merge=merge, tag=tag)
+        preprocess_audio(kwargs['dir'], bookid, kwargs['author'], kwargs['title'], merge=merge, tag=tag)
+        self.data = 'OK'
 
     def _preprocessBook(self, **kwargs):
         if 'dir' not in kwargs:
             self.data = 'Missing parameter: dir'
             return
-        self.data = preprocess_ebook(kwargs['dir'])
+        preprocess_ebook(kwargs['dir'])
+        self.data = 'OK'
 
     def _preprocessMagazine(self, **kwargs):
         for item in ['dir', 'cover']:
             if item not in kwargs:
                 self.data = 'Missing parameter: %s' % item
                 return
-        self.data = preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
+        preprocess_magazine(kwargs['dir'], check_int(kwargs['cover'], 0))
+        self.data = 'OK'
 
     def _importBook(self, **kwargs):
         if 'id' not in kwargs:

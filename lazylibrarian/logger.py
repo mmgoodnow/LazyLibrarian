@@ -17,7 +17,7 @@ import threading
 
 import lazylibrarian
 from lazylibrarian import formatter
-from lib.six import PY2
+from six import PY2
 
 
 # Simple rotating log handler that uses RotatingFileHandler

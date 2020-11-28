@@ -1,11 +1,11 @@
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lib.six import PY2
+from six import PY2
 # noinspection PyUnresolvedReferences
-from lib.six.moves.urllib_parse import urlencode
+from six.moves.urllib_parse import urlencode
 # noinspection PyUnresolvedReferences
-from lib.six.moves.http_client import HTTPSConnection
+from six.moves.http_client import HTTPSConnection
 
 
 class Prowl_Notifier:

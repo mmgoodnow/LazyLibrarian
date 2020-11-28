@@ -1,6 +1,6 @@
 from __future__ import absolute_import, division, unicode_literals
 
-from lib.six import unichr as chr
+from six import unichr as chr
 
 from collections import deque
 

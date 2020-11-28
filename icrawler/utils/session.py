@@ -4,7 +4,7 @@ try:
 except ImportError:
     import lib.requests as requests
     
-from lib.six.moves.urllib.parse import urlsplit
+from six.moves.urllib.parse import urlsplit
 
 
 class Session(requests.Session):

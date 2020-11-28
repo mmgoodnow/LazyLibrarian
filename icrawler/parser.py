@@ -4,8 +4,8 @@ import logging
 import time
 from threading import current_thread
 
-from lib.six.moves import queue
-from lib.six.moves.urllib.parse import urlsplit
+from six.moves import queue
+from six.moves.urllib.parse import urlsplit
 
 from icrawler.utils import ThreadPool
 

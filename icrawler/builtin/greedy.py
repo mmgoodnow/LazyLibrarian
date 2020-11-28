@@ -3,7 +3,7 @@
 import re
 import time
 
-from lib.six import PY2
+from six import PY2
 try:
     import html5lib
     from bs4 import BeautifulSoup
@@ -13,7 +13,7 @@ except ImportError:
     else:
         from lib3.bs4 import BeautifulSoup
 
-from lib.six.moves.urllib.parse import urljoin, urlsplit
+from six.moves.urllib.parse import urljoin, urlsplit
 
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
 

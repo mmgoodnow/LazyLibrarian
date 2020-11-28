@@ -29,7 +29,7 @@ import cherrypy
 from shutil import rmtree
 
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
-    importer, grsync, comicsearch
+    importer, grsync, comicscan
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir, \
     path_isdir, path_isfile, path_exists, syspath
@@ -39,9 +39,9 @@ from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.providers import ProviderIsBlocked
 
 from lib.apscheduler.scheduler import Scheduler
-from lib.six import PY2, text_type
+from six import PY2, text_type
 # noinspection PyUnresolvedReferences
-from lib.six.moves import configparser
+from six.moves import configparser
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
@@ -57,7 +57,7 @@ SYS_ENCODING = ''
 LOGLEVEL = 1
 LOGINUSER = None
 CONFIG = {}
-CFG = ''
+CFG = None
 DBFILE = None
 COMMIT_LIST = None
 SHOWLOGOUT = 1
@@ -1030,7 +1030,7 @@ def config_read(reloaded=False):
                              "MANUAL": check_setting('bool', torz_name, 'manual', 0),
                              "APILIMIT": check_setting('int', torz_name, 'apilimit', 0),
                              "APICOUNT": 0,
-                             "RATELIMIT": check_setting('int', newz_name, 'ratelimit', 0),
+                             "RATELIMIT": check_setting('int', torz_name, 'ratelimit', 0),
                              "DLPRIORITY": check_setting('int', torz_name, 'dlpriority', 0),
                              "DLTYPES": check_setting('str', torz_name, 'dltypes', 'A,E,M'),
                              "SEEDERS": check_setting('int', torz_name, 'seeders', 0),
@@ -1304,7 +1304,7 @@ def config_write(part=None):
                         for item in NAB_ITEMS + entry[2]:
                             try:
                                 provider[item] = CFG.get(provider['NAME'], item.lower())
-                            except NoOptionError:
+                            except configparser.NoOptionError:
                                 logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                                 pass
 
@@ -1355,7 +1355,7 @@ def config_write(part=None):
                     for item in RSS_ITEMS:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
-                        except NoOptionError:
+                        except configparser.NoOptionError:
                             logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                             pass
 
@@ -1401,7 +1401,7 @@ def config_write(part=None):
                     for item in GEN_ITEMS:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
-                        except NoOptionError:
+                        except configparser.NoOptionError:
                             logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                             pass
 
@@ -1448,7 +1448,7 @@ def config_write(part=None):
                     for item in IRC_ITEMS:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
-                        except NoOptionError:
+                        except configparser.NoOptionError:
                             logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                             pass
 
@@ -1494,7 +1494,7 @@ def config_write(part=None):
                     for item in APPRISE_ITEMS:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
-                        except NoOptionError:
+                        except configparser.NoOptionError:
                             logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                             pass
 

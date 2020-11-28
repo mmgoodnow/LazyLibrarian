@@ -17,7 +17,7 @@ import socket
 import time
 import struct
 import os
-from lib.six import PY2
+from six import PY2
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8, check_int

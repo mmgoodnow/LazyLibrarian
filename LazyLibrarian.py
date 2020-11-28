@@ -15,7 +15,7 @@ from lazylibrarian.formatter import check_int
 from lazylibrarian.versioncheck import runGit
 from lazylibrarian.common import path_isfile, path_isdir, syspath
 # noinspection PyUnresolvedReferences
-from lib.six.moves import configparser
+from six.moves import configparser
 
 
 # The following should probably be made configurable at the settings level
@@ -98,7 +98,7 @@ def main():
                  dest='loglevel', default=None,
                  help="Debug loglevel")
 
-    options, args = p.parse_args()
+    options, _ = p.parse_args()
 
     lazylibrarian.LOGLEVEL = 1
     if options.debug:
@@ -240,7 +240,7 @@ def main():
                 runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
                 runGit('config master.remote origin')
                 runGit('config master.merge refs/heads/master')
-                res, err = runGit('pull origin master')
+                res, _ = runGit('pull origin master')
                 if 'CONFLICT' in res:
                     logger.warn("Forcing reset to fix merge conflicts")
                     runGit('reset --hard origin/master')
