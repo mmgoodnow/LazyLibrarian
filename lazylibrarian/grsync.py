@@ -24,7 +24,7 @@ from six.moves.urllib_parse import urlencode, parse_qsl
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
-from lazylibrarian.formatter import plural, getList
+from lazylibrarian.formatter import plural, getList, check_int
 from lazylibrarian.gr import GoodReads
 from six import PY2
 
@@ -485,6 +485,7 @@ def sync_to_gr():
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
         if lazylibrarian.CONFIG['GR_SYNCUSER']:
             user = myDB.match("SELECT * from users WHERE UserID=?", (lazylibrarian.CONFIG['GR_USER'],))
+
             if not user:
                 msg = 'Unable to sync user to goodreads, invalid userid'
             else:
@@ -503,9 +504,14 @@ def sync_to_gr():
                 to_shelf, to_ll = grsync('To-Read', 'to-read', user=user)
                 msg += "%s %s to To-Read shelf\n" % (to_shelf, plural(to_shelf, "change"))
                 msg += "%s %s to To-Read from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
-                if to_ll:
-                    for item in to_ll:
-                        new_books.append({"bookid": item})
+                perm = check_int(user['Perms'], 0)
+                if to_ll and perm & lazylibrarian.perm_search:
+                    if lazylibrarian.SHOW_EBOOK:
+                        for item in to_ll:
+                            new_books.append({"bookid": item})
+                    if lazylibrarian.SHOW_AUDIO:
+                        for item in to_ll:
+                            new_audio.append({"bookid": item})
 
         else:  # library sync
             if lazylibrarian.CONFIG['GR_OWNED'] and \
@@ -881,6 +887,16 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 ll_list.append(book)
                 logger.debug("%10s added to user %s" % (book, shelf))
                 shelf_changed += 1
+                perm = check_int(user['Perms'], 0)
+                if status == 'Wanted' and perm & lazylibrarian.perm_status:
+                    if lazylibrarian.SHOW_EBOOK and res['Status'] not in ['Open', 'Have']:
+                        myDB.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
+                        ll_changed.append(book)
+                        logger.debug("%10s set to Wanted" % book)
+                    if lazylibrarian.SHOW_AUDIO and res['AudioStatus'] not in ['Open', 'Have']:
+                        myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
+                        ll_changed.append(book)
+                        logger.debug("%10s set to Wanted" % book)
             else:
                 if 'eBook' in library:
                     if status == 'Open':
@@ -941,7 +957,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                                 shelf_changed += 1
                             else:
                                 logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
-                        elif res['Status'] not in ['Open', 'Have']:
+                        elif res['AudioStatus'] not in ['Open', 'Have']:
                             myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
@@ -949,8 +965,9 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.warn("Not setting %s [%s] as Wanted, already marked %s" %
                                         (res['BookName'], book, res['Status']))
 
-        # set new definitive list from ll
+        # set new definitive list for ll
         if user:
+            newValueDict = {}
             controlValueDict = {"UserID": user['UserID']}
             ll_set = set(ll_list)
             count = len(ll_set)
@@ -958,16 +975,24 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
             if shelf == 'read':
                 newValueDict = {'HaveRead': books}
-                myDB.upsert("users", newValueDict, controlValueDict)
             elif shelf == 'currently-reading':
                 newValueDict = {'Reading': books}
-                myDB.upsert("users", newValueDict, controlValueDict)
             elif shelf == 'to-read':
                 newValueDict = {'ToRead': books}
-                myDB.upsert("users", newValueDict, controlValueDict)
             elif shelf == 'abandoned':
                 newValueDict = {'Abandoned': books}
+            if newValueDict:
                 myDB.upsert("users", newValueDict, controlValueDict)
+
+                if shelf_changed:
+                    for exclusive_shelf in ['HaveRead', 'ToRead', 'Reading' 'Abandoned']:
+                        if exclusive_shelf not in newValueDict:
+                            old_set = set(getList(user[exclusive_shelf]))
+                            new_set = old_set - ll_set
+                            if len(old_set) != len(new_set):
+                                new_list = ', '.join(str(x) for x in new_set)
+                                myDB.upsert("users", {exclusive_shelf: new_list}, controlValueDict)
+                                logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
         else:
             # get new definitive list from ll
             if 'eBook' in library:
