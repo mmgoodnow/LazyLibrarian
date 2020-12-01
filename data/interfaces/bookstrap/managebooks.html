@@ -134,7 +134,7 @@
         </thead>
       </table>
     </div>
-    %if perm&lazylibrarian.perm_status:
+    %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
       <label for="markBooks" class="control-label">Mark selected ${library}s as</label>
       <select id="markBooks" class="markBooks form-control input-sm" name="action">
@@ -150,6 +150,8 @@
           %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
             <option value="WantBoth">both Wanted</option>
           %endif
+        %endif
+        %if whichStatus != 'Snatched':
           %for item in ['Skipped', 'Have', 'Ignored']:
             <option value="${item}">${item}</option>
           %endfor
