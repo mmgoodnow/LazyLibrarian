@@ -18,7 +18,7 @@ import subprocess
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookrename import audio_parts
+from lazylibrarian.bookrename import audio_parts, nameVars
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg
 from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now
 from lazylibrarian.images import shrinkMag
@@ -162,13 +162,15 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     ffmpeg_params = ['-f', 'concat', '-safe', '0', '-i', partslist, '-f', 'ffmetadata',
                      '-i', metadata, '-map_metadata', '1', '-id3v2_version', '3']
 
-    parts, failed, token, _ = audio_parts(bookfolder, bookname, authorname)
+    parts, failed, token, abridged = audio_parts(bookfolder, bookname, authorname)
 
     if failed or not parts:
         return
     if len(parts) == 1:
         logger.info("Only one audio file found, nothing to merge")
         return
+
+    name_vars = nameVars(bookid, abridged)
 
     # if we get here, looks like we have all the parts
     # output file will be the same type as the first input file
@@ -246,6 +248,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         return
 
     if ff_ver and merge:
+        # read metadata from first file
         params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                   '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
@@ -275,7 +278,11 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         params.extend(getList(ffmpeg_options))
         params.append('-y')
 
-        outfile = "%s - %s%s" % (authorname, bookname, out_type)
+        bookfile = name_vars('AudioSingleFile')
+        if not bookfile:
+            bookfile = "%s - %s" % (authorname, bookname)
+        outfile = bookfile + out_type
+
         params.append(os.path.join(bookfolder, outfile))
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')
@@ -319,7 +326,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             composer = id3r.composer
             album_artist = id3r.albumartist
             album = id3r.album
-            title = id3r.title
+            # title = id3r.title
             # "unused" locals are used in eval() statement below
             # noinspection PyUnusedLocal
             comment = id3r.comment
@@ -348,13 +355,18 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             if album_artist:
                 # noinspection PyUnusedLocal
                 album_artist = album_artist.strip().rstrip('\x00')
-            if match['SeriesDisplay']:
-                series = match['SeriesDisplay'].split('<br>')[0].strip()
-                if series and title and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                    title = "%s (%s)" % (title, series)
-                    outfile, extn = os.path.splitext(outfile)
-                    outfile = "%s (%s)%s" % (outfile, series, extn)
 
+            bookfile = name_vars('AudioSingleFile')
+            if bookfile:
+                title = bookfile
+            else:
+                title = "%s - %s" % (authorname, bookname)
+                if match['SeriesDisplay']:
+                    series = match['SeriesDisplay'].split('<br>')[0].strip()
+                    if series and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+                        title = "%s (%s)" % (title, series)
+                        outfile, extn = os.path.splitext(outfile)
+                        outfile = "%s (%s)%s" % (outfile, series, extn)
             params.extend(['-metadata', "title=%s" % title])
             for item in ['artist', 'album_artist', 'composer', 'album', 'author',
                          'date', 'comment', 'description', 'genre', 'media_type']:
@@ -363,7 +375,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     params.extend(['-metadata', "%s=%s" % (item, value)])
         else:
             params.extend(['-metadata', "album=%s" % bookname,
-                           '-metadata', "artist=%s" % authorname])
+                           '-metadata', "artist=%s" % authorname,
+                           '-metadata', "title=%s" % bookfile])
         params.append(os.path.join(bookfolder, "tempaudio%s" % extn))
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')

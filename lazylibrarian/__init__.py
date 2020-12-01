@@ -230,7 +230,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
-                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED']
+                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -529,6 +529,7 @@ CONFIG_DEFINITIONS = {
     'EBOOK_DEST_FOLDER': ('str', 'PostProcess', '$Author/$Title'),
     'EBOOK_DEST_FILE': ('str', 'PostProcess', '$Title - $Author'),
     'AUDIOBOOK_DEST_FILE': ('str', 'PostProcess', '$Author - $Title Part $Part of $Total'),
+    'AUDIOBOOK_SINGLE_FILE': ('str', 'PostProcess', ''),
     'AUDIOBOOK_DEST_FOLDER': ('str', 'PostProcess', 'None'),
     'ONE_FORMAT': ('bool', 'PostProcess', 0),
     'COMIC_DEST_FOLDER': ('str', 'PostProcess', '_Comics/$Title/$Issue'),
@@ -1130,7 +1131,7 @@ def config_read(reloaded=False):
                 logger.warn('Please check your %s setting' % fname)
                 CONFIG[fname] = CONFIG[fname].replace('/', '\\')
 
-    for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE']:
+    for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
         if os.sep in CONFIG[fname]:
             logger.warn('Please check your %s setting, contains "%s"' % (fname, os.sep))
     if CONFIG['HTTP_LOOK'] == 'default':

@@ -664,7 +664,9 @@ def nameVars(bookid, abridged=''):
     # replace all '/' with '_' as '/' is a directory separator but also used in some multi-book titles
     mydict['BookFile'] = bookfile.replace(os.sep, '_')
     audiofile = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'], mydict)
+    audiosingle = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'], mydict)
     mydict['AudioFile'] = audiofile.replace(os.sep, '_')
+    mydict['AudioSingleFile'] = audiosingle.replace(os.sep, '_')
     return mydict
 
 

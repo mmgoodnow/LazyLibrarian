@@ -2217,7 +2217,7 @@
                     <div class="input-group">
                       <input type="number" id="scan_interval" name="scan_interval" value="${lazylibrarian.CONFIG['SCAN_INTERVAL']}" class="form-control" placeholder="0 to disable">
                       <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="How often to check for new downloads">Minutes</span>
-                    </div></span>
+                    </div>
                   </div>
                   <div class="form-group">
                     <label class="control-label">Post-Processing Delay:</label>
@@ -2644,6 +2644,13 @@
                     <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged, $Part, $Total, $$, any string.<br/>
                       <strong>Current limitation: Has to include $Title or $SortTitle and $Part</strong></span>
                       <small>Example:  <mark>${config['namevars']['AudioFile']}</mark></small>
+                  </div>
+                  <div class="form-group">
+                    <label for="audiobook_single_file">AudioBook Filename Pattern for single file:</label>
+                    <input type="text" id="audiobook_single_file" name="audiobook_single_file" value="${lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE']}" class="form-control" placeholder="Single file audioBook">
+                    <span class="help-block">Options: $Author, $SortAuthor, $Title, $SortTitle, $Series, $SerName, $SerNum, $FmtName, $FmtNum, $PadNum, $PubYear, $SerYear, $Abridged $$, any string.<br/>
+                      <strong>Current limitation: Has to include $Title or $SortTitle</strong></span>
+                      <small>Example:  <mark>${config['namevars']['AudioSingleFile']}</mark></small>
                   </div>
                   %endif
                   <div class="checkbox">
