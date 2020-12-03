@@ -379,7 +379,8 @@ class WebInterface(object):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
-                filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                              reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -1033,7 +1034,8 @@ class WebInterface(object):
                     else:
                         filtered.sort(key=lambda y: (int(y[9]), -int(y[7])))
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -2409,9 +2411,11 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 elif sortcolumn in [2]:  # title
-                    filtered.sort(key=lambda y: y[sortcolumn].lower(), reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -3825,9 +3829,11 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 elif sortcolumn == 2:  # title
-                    filtered.sort(key=lambda y: y[sortcolumn].lower(), reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -4013,7 +4019,8 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -4314,9 +4321,11 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 elif sortcolumn == 2:  # title
-                    filtered.sort(key=lambda y: y[sortcolumn].lower(), reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn].lower() if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -4448,7 +4457,8 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -4607,7 +4617,8 @@ class WebInterface(object):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
-                filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                              reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     rows = filtered
@@ -5375,7 +5386,8 @@ class WebInterface(object):
 
             sortcolumn = int(iSortCol_0)
 
-            filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+            filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                          reverse=sSortDir_0 == "desc")
             if iDisplayLength < 0:  # display = all
                 rows = filtered
             else:
@@ -5448,7 +5460,8 @@ class WebInterface(object):
                     self.natural_sort(filtered, key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
                                       reverse=sSortDir_0 == "desc")
                 else:
-                    filtered.sort(key=lambda y: y[sortcolumn], reverse=sSortDir_0 == "desc")
+                    filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
+                                  reverse=sSortDir_0 == "desc")
 
                 if iDisplayLength < 0:  # display = all
                     nrows = filtered
