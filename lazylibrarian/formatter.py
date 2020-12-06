@@ -665,8 +665,8 @@ def cleanName(name, extras=None):
         return cleaned
     return name
 
-
-umlaut_dict = {'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'Ä': 'Ae', 'Ö': 'Oe', 'Ü': 'Ue', 'ß': 'ss'}
+#   ä ö ü Ä Ö Ü ß
+umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
 
 
 def no_umlauts(s):
