@@ -166,9 +166,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
     if failed or not parts:
         return
-    if len(parts) == 1:
-        logger.info("Only one audio file found, nothing to merge")
-        return
 
     name_vars = nameVars(bookid, abridged)
 
@@ -224,9 +221,9 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         params.append('-report')
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
-                        ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
-                                                                        "ffmpeg-tag-%s.log" %
-                                                                        now().replace(':', '-').replace(' ', '-'))
+                        ffmpeg_env["FFREPORT"] = "file=" + \
+                                                 lazylibrarian.DBFILE.replace('.db', "_ffmpeg-tag-%s.log" %
+                                                                              now().replace(':', '-').replace(' ', '-'))
                     else:
                         ffmpeg_env = None
                     try:
@@ -247,72 +244,78 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         logger.error("%s: %s" % (type(e).__name__, str(e)))
                         return
 
+    bookfile = name_vars['AudioSingleFile']
+    if not bookfile:
+        bookfile = "%s - %s" % (authorname, bookname)
+    outfile = bookfile + out_type
+
     if ff_ver and merge:
-        # read metadata from first file
-        params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
-                  '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            params.append('-report')
-            logger.debug(str(params))
-            ffmpeg_env = os.environ.copy()
-            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'], "ffmpeg-meta-%s.log" %
-                                                            now().replace(':', '-').replace(' ', '-'))
+        if len(parts) == 1:
+            logger.info("Only one audio file found, nothing to merge")
         else:
-            ffmpeg_env = None
-        try:
-            if os.name != 'nt':
-                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                            stderr=subprocess.STDOUT, env=ffmpeg_env)
+            # read metadata from first file
+            params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
+                      '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                params.append('-report')
+                logger.debug(str(params))
+                ffmpeg_env = os.environ.copy()
+                ffmpeg_env["FFREPORT"] = "file=" + \
+                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-meta-%s.log" %
+                                                                      now().replace(':', '-').replace(' ', '-'))
             else:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+                ffmpeg_env = None
+            try:
+                if os.name != 'nt':
+                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                stderr=subprocess.STDOUT, env=ffmpeg_env)
+                else:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
-            logger.debug("Metadata written to metadata.ll")
-        except subprocess.CalledProcessError as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-        except Exception as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-            return
+                logger.debug("Metadata written to metadata.ll")
+            except subprocess.CalledProcessError as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+            except Exception as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                return
 
-        params = [ffmpeg]
-        params.extend(ffmpeg_params)
-        params.extend(getList(ffmpeg_options))
-        params.append('-y')
-
-        bookfile = name_vars('AudioSingleFile')
-        if not bookfile:
-            bookfile = "%s - %s" % (authorname, bookname)
-        outfile = bookfile + out_type
-
-        params.append(os.path.join(bookfolder, outfile))
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            params.append('-report')
-            logger.debug(str(params))
-            ffmpeg_env = os.environ.copy()
-            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'], "ffmpeg-merge-%s.log" %
-                                                            now().replace(':', '-').replace(' ', '-'))
-        else:
-            ffmpeg_env = None
-        res = ''
-        try:
-            logger.debug("Merging %d files" % len(parts))
-            if os.name != 'nt':
-                res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                              stderr=subprocess.STDOUT, env=ffmpeg_env)
+            params = [ffmpeg]
+            params.extend(ffmpeg_params)
+            params.extend(getList(ffmpeg_options))
+            params.append('-y')
+            params.append(os.path.join(bookfolder, outfile))
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                params.append('-report')
+                logger.debug(str(params))
+                ffmpeg_env = os.environ.copy()
+                ffmpeg_env["FFREPORT"] = "file=" + \
+                                         lazylibrarian.DBFILE.replace('.db',
+                                                                      "_ffmpeg-merge-%s.log" %
+                                                                      now().replace(':', '-').replace(' ', '-'))
             else:
-                res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+                ffmpeg_env = None
+            res = ''
+            try:
+                logger.debug("Merging %d files" % len(parts))
+                if os.name != 'nt':
+                    res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                  stderr=subprocess.STDOUT, env=ffmpeg_env)
+                else:
+                    res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
-        except subprocess.CalledProcessError as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-            return
-        except Exception as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-            if res:
-                logger.error(res)
-            return
+            except subprocess.CalledProcessError as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                return
+            except Exception as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                if res:
+                    logger.error(res)
+                return
 
-        logger.info("%d files merged into %s" % (len(parts), outfile))
+            logger.info("%d files merged into %s" % (len(parts), outfile))
+
+    if ff_ver and tag:
         extn = os.path.splitext(outfile)[1]
-
         params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
                   '-y', '-c:a', 'copy',
                   '-metadata', 'track="1/1"']
@@ -320,7 +323,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         myDB = database.DBConnection()
         match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
         audio_path = os.path.join(bookfolder, parts[0][3])
-        if tag and match and TinyTag and TinyTag.is_supported(audio_path):
+        if match and TinyTag and TinyTag.is_supported(audio_path):
             id3r = TinyTag.get(audio_path)
             artist = id3r.artist
             composer = id3r.composer
@@ -356,7 +359,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 # noinspection PyUnusedLocal
                 album_artist = album_artist.strip().rstrip('\x00')
 
-            bookfile = name_vars('AudioSingleFile')
             if bookfile:
                 title = bookfile
             else:
@@ -382,9 +384,9 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params.append('-report')
             logger.debug(str(params))
             ffmpeg_env = os.environ.copy()
-            ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
-                                                            "ffmpeg-merge_tag-%s.log" %
-                                                            now().replace(':', '-').replace(' ', '-'))
+            ffmpeg_env["FFREPORT"] = "file=" + \
+                                     lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
+                                                                  now().replace(':', '-').replace(' ', '-'))
         else:
             ffmpeg_env = None
         try:
@@ -405,12 +407,12 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             logger.error("%s: %s" % (type(e).__name__, str(e)))
             return
 
-        remove(os.path.join(bookfolder, "partslist.ll"))
-        remove(os.path.join(bookfolder, "metadata.ll"))
-        if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO']:
-            logger.debug("Removing %d part files" % len(parts))
-            for part in parts:
-                remove(os.path.join(bookfolder, part[3]))
+    remove(os.path.join(bookfolder, "partslist.ll"))
+    remove(os.path.join(bookfolder, "metadata.ll"))
+    if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and len(parts) > 1:
+        logger.debug("Removing %d part files" % len(parts))
+        for part in parts:
+            remove(os.path.join(bookfolder, part[3]))
 
 
 def preprocess_magazine(bookfolder, cover=0):
