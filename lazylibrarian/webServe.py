@@ -3936,7 +3936,7 @@ class WebInterface(object):
         # we may want to open an issue with an issueid
         if comicid and issueid:
             cmd = 'SELECT Title,IssueFile from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
-            cmd += ' and ComicID=? and IssueID=?'
+            cmd += ' and comics.ComicID=? and IssueID=?'
             iss_data = myDB.match(cmd, (comicid, issueid))
             if iss_data:
                 IssueFile = iss_data["IssueFile"]
@@ -3947,7 +3947,7 @@ class WebInterface(object):
 
         # or we may just have a comicid to find comic in comicissues table
         cmd = 'SELECT Title,IssueFile,IssueID from comics,comicissues WHERE comics.ComicID=comicissues.ComicID'
-        cmd += ' and ComicID=?'
+        cmd += ' and comics.ComicID=?'
         iss_data = myDB.select(cmd, (comicid,))
         if len(iss_data) == 0:
             logger.warn("No issues for comic %s" % comicid)
