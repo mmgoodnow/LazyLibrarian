@@ -272,6 +272,7 @@ def get_searchterm(book, searchType):
         if 'short' in searchType and '(' in bookname:
             bookname = bookname.split('(')[0].strip()
 
+    bookname = bookname.replace('#', '_').replace('/', '_')
     return authorname, bookname
 
 
@@ -1506,15 +1507,14 @@ def ReturnSearchTypeStructure(provider, api_key, book, searchType, searchMode):
     else:
         if provider['GENERALSEARCH']:
             if "shortgeneral" in searchType:
-                searchterm = unaccented(book['searchterm'].split('(')[0].replace(':', ''),
-                                        only_ascii=False, umlauts=False)
+                searchterm = unaccented(book['searchterm'].split('(')[0], only_ascii=False, umlauts=False)
+                searchterm = searchterm.replace('/', '_').replace('#', '_').replace(':', '')
             elif 'title' in searchType:
                 _, searchterm = get_searchterm(book, searchType)
-                searchterm = unaccented(searchterm.replace(':', ''),
-                                        only_ascii=False, umlauts=False)
+                searchterm = unaccented(searchterm.replace(':', ''), only_ascii=False, umlauts=False)
             else:
-                searchterm = unaccented(book['searchterm'].replace(':', ''),
-                                        only_ascii=False, umlauts=False)
+                searchterm = unaccented(book['searchterm'], only_ascii=False, umlauts=False)
+                searchterm = searchterm.replace('/', '_').replace('#', '_').replace(':', '')
             params = {
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
