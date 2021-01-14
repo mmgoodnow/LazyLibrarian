@@ -102,10 +102,13 @@ class EmailNotifier:
                 context.verify_mode = ssl.CERT_NONE
 
             if lazylibrarian.CONFIG['EMAIL_SSL']:
-                # noinspection PyArgumentList
-                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
-                                              context=context)
+                if PY2:
+                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
+                else:
+                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+                                                  context=context)
             else:
                 mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                           check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
