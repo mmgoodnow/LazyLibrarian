@@ -113,8 +113,12 @@
             <td class="bookart text-center hidden-xs"><a href="${result['BookImg']}" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" class="bookcover-xs img-responsive" alt="Cover"></a></td>
             <td class="bookname">
             <button onclick="bookinfo(${result['BookID']})" class="button btn-link text-left" type="button">${result['BookName']}</button><br>
-              <a href="${result['BookLink']}" target="_new"><small><i>GoodReads</i></small></a>&nbsp;
-              <a href="${result['WorkPage']}" target="_new"><small><i>LibraryThing</i></small></a>&nbsp;
+              %if 'GoodReads' in result['BookLink']:
+                <a href="${result['BookLink']}" target="_new"><small><i>GoodReads</i></small></a>&nbsp;
+              %endif
+              %if 'http' in result['WorkPage']:
+                <a href="${result['WorkPage']}" target="_new"><small><i>LibraryThing</i></small></a>&nbsp;
+              %endif
               %if perm&lazylibrarian.perm_edit:
               <a href="editBook?bookid=${result['BookID']}" target="_new"><small><i>Manual</i></small></a>
               %endif
