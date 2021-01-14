@@ -848,26 +848,18 @@
               <br>
               <h3>Direct Download Providers</h3>
               <br>
-              <%
-                if lazylibrarian.CONFIG['GEN'] == True:
+                %for prov in lazylibrarian.GEN_PROV:
+                <%
+                if prov['ENABLED'] == True:
                     checked = 'checked="checked"'
                 else:
                     checked = ''
-              %>
-              <input type="checkbox" id="gen" name="gen" value=1 ${checked} style="margin-bottom:4px;" /> libgen (1)
-              <input type="text" placeholder="Enter URL Here" id="gen_host" name="gen_host" value="${lazylibrarian.CONFIG['GEN_HOST']}" size="26">
-              <input type="text" placeholder="Search option" id="gen_search" name="gen_search" value="${lazylibrarian.CONFIG['GEN_SEARCH']}" size="26">
-              <br><br>
-              <%
-                if lazylibrarian.CONFIG['GEN2'] == True:
-                    checked = 'checked="checked"'
-                else:
-                    checked = ''
-              %>
-              <input type="checkbox" id="gen2" name="gen2" value=1 ${checked} style="margin-bottom:4px;" /> libgen (2)
-              <input type="text" placeholder="Enter URL Here" id="gen2_host" name="gen2_host" value="${lazylibrarian.CONFIG['GEN2_HOST']}" size="26">
-              <input type="text" placeholder="Search option" id="gen2_search" name="gen2_search" value="${lazylibrarian.CONFIG['GEN2_SEARCH']}" size="26">
-              <br><br>
+                %>
+                <input type="checkbox" id="gen_${loop.index}_enabled" name="gen_${loop.index}_enabled" value=1 ${checked} style="margin-bottom:4px;" />
+                <input type="text" placeholder="Enter URL Here" id="gen_${loop.index}_host" name="gen_${loop.index}_host" value="${prov['HOST']}" size="26">
+                <input type="text" placeholder="Search option" id="gen_${loop.index}_search" name="gen_${loop.index}_search" value="${prov['SEARCH']}" size="26">
+                <br><br>
+                %endfor
               <%
                 if lazylibrarian.CONFIG['BOK'] == True:
                     checked = 'checked="checked"'
@@ -876,6 +868,14 @@
               %>
               <input type="checkbox" id="bok" name="bok" value=1 ${checked} style="margin-bottom:4px;" /> zlibrary
               <input type="text" placeholder="Enter URL Here" id="bok_host" name="bok_host" value="${lazylibrarian.CONFIG['BOK_HOST']}" size="26">
+            <%
+                if lazylibrarian.CONFIG['BFI'] == True:
+                    checked = 'checked="checked"'
+                else:
+                    checked = ''
+              %>
+              <input type="checkbox" id="bfi" name="bfi" value=1 ${checked} style="margin-bottom:4px;" /> bookfi
+              <input type="text" placeholder="Enter URL Here" id="bfi_host" name="bfi_host" value="${lazylibrarian.CONFIG['BFI_HOST']}" size="26">
             </td>
           </tr>
         </table>
