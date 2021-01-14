@@ -36,7 +36,7 @@ except ImportError:
     if PY2:
         import lib.zipfile as zipfile
     else:
-        import lib3.zipfile as zipfile 
+        import lib3.zipfile as zipfile
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
@@ -51,6 +51,7 @@ from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, t
     makeUTF8bytes, dispName
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.gb import GoogleBooks
+from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, LibraryScan, get_book_meta
 from lazylibrarian.magazinescan import create_id
@@ -230,6 +231,9 @@ def importBook(source_dir=None, library='eBook', bookid=None):
                 elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                     GB_ID = GoogleBooks(bookid)
                     GB_ID.find_book(bookid, None, None, "Added by importBook %s" % source_dir)
+                elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                    OL_ID = OpenLibrary(bookid)
+                    OL_ID.find_book(bookid, None, None, "Added by importBook %s" % source_dir)
                 # see if it's there now...
                 book = myDB.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
@@ -366,7 +370,8 @@ def processAlternate(source_dir=None, library='eBook'):
                                   reason="processAlternate: %s" % bookname)
                 else:
                     aname, authorid, _ = addAuthorNameToDB(author=authorname,
-                                                           reason="processAlternate: %s" % bookname)
+                                                           reason="processAlternate: %s" % bookname,
+                                                           title=bookname)
                     if aname and aname != authorname:
                         authorname = aname
                     if not aname:
@@ -1435,8 +1440,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
         logger.error('Unhandled exception in processDir: %s' % traceback.format_exc())
 
     finally:
-        threading.currentThread().name = threadname
         logger.debug('Returning %s' % status)
+        threading.currentThread().name = threadname
         return status
 
 
@@ -2335,14 +2340,17 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             if booktype == 'magazine':
                 issueid = create_id("%s %s" % (title, issuedate))
                 identifier = "lazylibrarian:%s" % issueid
-                jpgfile = jpg_file(pp_path)
                 magfile = book_file(pp_path, "magazine")
-                if magfile and not jpgfile:
-                    jpgfile = createMagCover(magfile, refresh=False)
-                # calibre likes "cover.jpg"
-                coverfile = os.path.basename(jpgfile)
-                if coverfile != 'cover.jpg':
+                jpgfile = os.path.splitext(magfile)[0] + '.jpg'
+                if path_isfile(jpgfile):
+                    # calibre likes "cover.jpg"
+                    coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+                elif magfile:
+                    jpgfile = createMagCover(magfile, refresh=False)
+                    coverfile = os.path.basename(jpgfile)
+                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+
                 if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                     authors = title
                 else:
@@ -2587,7 +2595,10 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         (fname.lower().endswith(".jpg") or fname.lower().endswith(".opf")):
                     srcfile = os.path.join(pp_path, fname)
                     if booktype in ['audiobook', 'comic']:
-                        destfile = os.path.join(udest_path, fname)  # don't rename, just copy it
+                        if fname.lower().endswith(".jpg") or fname.lower().endswith(".opf"):
+                            destfile = os.path.join(udest_path, makeUnicode(global_name) + os.path.splitext(fname)[1])
+                        else:
+                            destfile = os.path.join(udest_path, fname)  # don't rename audio or comic files, just copy
                     else:
                         destfile = os.path.join(udest_path, makeUnicode(global_name) + os.path.splitext(fname)[1])
                     try:
