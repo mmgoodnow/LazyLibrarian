@@ -13,6 +13,7 @@
 import json
 import os
 import shutil
+import threading
 import time
 from xml.etree import ElementTree
 try:
@@ -183,7 +184,7 @@ def gr_xml_request(my_url, useCache=True, expire=True):
     return result, in_cache
 
 
-def gb_json_request(my_url, useCache=True, expire=True):
+def json_request(my_url, useCache=True, expire=True):
     result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="JSON", expire=expire)
     return result, in_cache
 
@@ -322,6 +323,10 @@ def cleanCache():
         Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic  IRC
         Check covers and authorimages etc referenced in the database exist
         and change database entry if missing, expire old pastissues table entries """
+
+    threadname = threading.currentThread().name
+    if "Thread-" in threadname:
+        threading.currentThread().name = "CLEANCACHE"
 
     myDB = database.DBConnection()
     myDB.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
@@ -539,6 +544,7 @@ def cleanCache():
 
     msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)
+    logger.debug(msg)
 
     expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
     if expiry:
@@ -559,7 +565,8 @@ def cleanCache():
         myDB.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
         msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
         result.append(msg)
-
+        logger.debug(msg)
     myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
-    logger.debug(msg)
+
+    threading.currentThread().name = threadname
     return result

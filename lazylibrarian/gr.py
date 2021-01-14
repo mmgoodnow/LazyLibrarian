@@ -1293,7 +1293,7 @@ class GoodReads:
 
         if lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
-                msg = 'Book %s Set or Part'
+                msg = 'Book %s Set or Part' % bookname
                 logger.warn(msg)
                 if reason.startswith("Series:"):
                     return
