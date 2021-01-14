@@ -211,7 +211,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMNS', 'HTTP_TIMEOUT',
                  'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT']
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'AUDIO_NARRATOR', 'AUDIO_AUTHOR']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -230,7 +230,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
-                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE']
+                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
+                     'AUTH_TYPE']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -242,6 +243,7 @@ CONFIG_DEFINITIONS = {
     'LOGLIMIT': ('int', 'General', 500),
     'LOGFILES': ('int', 'General', 10),
     'LOGSIZE': ('int', 'General', 204800),
+    'AUTH_TYPE': ('str', 'General', "BASIC"),
     'LOGLEVEL': ('int', 'General', 1),
     'WALL_COLUMNS': ('int', 'General', 6),
     'FILE_PERM': ('str', 'General', '0o644'),
@@ -733,7 +735,8 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
     # noinspection PyUnresolvedReferences
     CFG.set(cfg_name, item_name, my_val)
     if log:
-        logger.debug("%s : %s -> %s" % (cfg_name, item_name, my_val))
+        if LOGLEVEL & log_admin:
+            logger.debug("%s : %s -> %s" % (cfg_name, item_name, my_val))
 
     return my_val
 
@@ -863,23 +866,37 @@ def initialize():
                               syspath(os.path.join(pth, itm[0], itm[1], itm)))
 
         last_run_version = None
+        last_run_interface = None
         makocache = os.path.join(CACHEDIR, 'mako')
         version_file = os.path.join(makocache, 'python_version.txt')
 
         if os.path.isfile(version_file):
             with open(version_file, 'r') as fp:
-                last_run_version = fp.read().strip(' \n\r')
+                last_time = fp.read().strip(' \n\r')
+            if ':' in last_time:
+                last_run_version, last_run_interface = last_time.split(':', 1)
+            else:
+                last_run_version = last_time
 
+        clean_cache = False
         if last_run_version != sys.version.split()[0]:
             if last_run_version:
                 logger.debug("Python version change (%s to %s)" % (last_run_version, sys.version.split()[0]))
             else:
                 logger.debug("Previous python version unknown, now %s" % sys.version.split()[0])
+            clean_cache = True
+        if last_run_interface != CONFIG['HTTP_LOOK']:
+            if last_run_interface:
+                logger.debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
+            else:
+                logger.debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
+            clean_cache = True
+        if clean_cache:
             logger.debug("Clearing mako cache")
             rmtree(makocache)
             os.makedirs(makocache)
             with open(version_file, 'w') as fp:
-                fp.write(sys.version.split()[0])
+                fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
 
         # keep track of last api calls so we don't call more than once per second
         # to respect api terms, but don't wait un-necessarily either
@@ -1150,12 +1167,6 @@ def config_read(reloaded=False):
     # ensure all these are boolean 1 0, not True False for javascript #
     ###################################################################
     # Suppress series tab if there are none and user doesn't want to add any
-    counter = 0
-    if version:  # if zero, there is no series table yet
-        res = myDB.match('SELECT count(*) as counter from series')
-        counter = check_int(res['counter'], 0)
-    myDB.close()
-    SHOW_SERIES = counter
     if CONFIG['ADD_SERIES']:
         SHOW_SERIES = 1
     # Or suppress if tab is disabled
@@ -1197,6 +1208,14 @@ def config_write(part=None):
     threading.currentThread().name = "CONFIG_WRITE"
 
     interface = CFG.get('General', 'http_look')
+    if CONFIG['HTTP_LOOK'] != interface:
+        makocache = os.path.join(CACHEDIR, 'mako')
+        logger.debug("Clearing mako cache")
+        rmtree(makocache)
+        os.makedirs(makocache)
+        version_file = os.path.join(makocache, 'python_version.txt')
+        with open(version_file, 'w') as fp:
+            fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
 
     for key in list(CONFIG_DEFINITIONS.keys()):
         _, section, _ = CONFIG_DEFINITIONS[key]

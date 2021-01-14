@@ -29,6 +29,7 @@ from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, ge
     formatAuthorName, makeUTF8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import update_totals, addAuthorNameToDB
 from lazylibrarian.preprocessor import preprocess_audio
 try:
@@ -87,9 +88,12 @@ def get_book_meta(fdir, reason="get_book_meta"):
                 if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                     GB = GoogleBooks(bookid)
                     GB.find_book(bookid, None, None, reason)
-                else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                     GR = GoodReads(bookid)
                     GR.find_book(bookid, None, None, reason)
+                elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                    OL = OpenLibrary(bookid)
+                    OL.find_book(bookid, None, None, reason)
                 existing_book = myDB.match(cmd, (bookid,))
             if existing_book:
                 return existing_book['AuthorName'], existing_book['BookName']
@@ -217,6 +221,8 @@ def get_book_info(fname):
                     res['identifier'] = txt
             elif 'identifier' in tag and 'goodreads' in attrib:
                 res['gr_id'] = txt
+            elif 'identifier' in tag and 'openlibrary' in attrib:
+                res['ol_id'] = txt
         n += 1
     return res
 
@@ -233,7 +239,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     if check_exist_author:
         authorid = check_exist_author['AuthorID']
     else:
-        newauthor, authorid, new = addAuthorNameToDB(author, False, reason=reason)
+        newauthor, authorid, new = addAuthorNameToDB(author, False, reason=reason, title=book)
         if newauthor and newauthor != author:
             if new:
                 logger.debug("Authorname changed from [%s] to [%s]" % (author, newauthor))
@@ -732,6 +738,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                         author = ""
                         gr_id = ""
                         gb_id = ""
+                        ol_id = ""
                         publisher = ""
                         extn = os.path.splitext(files)[1]
 
@@ -785,11 +792,19 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 isbn = res['identifier']
                             if 'publisher' in res:
                                 publisher = res['publisher']
+                            ident = ''
                             if 'gr_id' in res:
                                 gr_id = res['gr_id']
+                                ident = "GR: " + gr_id
+                            if 'gb_id' in res:
+                                gb_id = res['gb_id']
+                                ident = "GB: " + gb_id
+                            if 'ol_id' in res:
+                                ol_id = res['ol_id']
+                                ident = "OL: " + ol_id
                             logger.debug(
                                 "file meta [%s] [%s] [%s] [%s] [%s] [%s]" % (
-                                    isbn, language, author, book, gr_id, publisher))
+                                    isbn, language, author, book, ident, publisher))
                             if not author or not book:
                                 logger.debug("File meta incomplete in %s" % metafile)
 
@@ -865,7 +880,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     logger.debug("Already cached Lang [%s] ISBN [%s]" % (language, isbnhead))
 
                             newauthor, authorid, _ = addAuthorNameToDB(author, addbooks=True,
-                                                                       reason="Add author of %s" % book)
+                                                                       reason="Add author of %s" % book, title=book)
 
                             if last_authorid and last_authorid != authorid:
                                 update_totals(last_authorid)
@@ -892,6 +907,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                     bookid = gr_id
                                 elif gb_id:
                                     bookid = gb_id
+                                elif ol_id:
+                                    bookid = ol_id
                                 if bookid:
                                     match = myDB.match('SELECT AuthorID,Status FROM books where BookID=?',
                                                        (bookid,))
@@ -923,6 +940,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
                                             GB_ID = GoogleBooks(gb_id)
                                             GB_ID.find_book(gb_id, None, None, "Added by librarysync")
+                                        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
+                                            OL_ID = OpenLibrary(ol_id)
+                                            OL_ID.find_book(ol_id, None, None, "Added by librarysync")
                                         # see if it's there now...
                                         match = myDB.match('SELECT AuthorID,Status from books where BookID=?',
                                                            (bookid,))
@@ -1101,6 +1121,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         # if we get here using googlebooks it's because googlebooks
                                         # doesn't have the book. No point in looking for it again.
                                         logger.warn("GoogleBooks doesn't know about %s" % book)
+                                    elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                                        logger.warn("OpenLibrary doesn't know about %s" % book)
 
                                 # see if it's there now...
                                 if bookid:
@@ -1259,7 +1281,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
                 logger.debug("GoogleBooks language was changed %s %s" %
                              (st['GB_lang_change'], plural(st['GB_lang_change'], "time")))
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                 logger.debug("GoodReads was hit %s %s for books" %
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
                 logger.debug("GoodReads was hit %s %s for languages" %

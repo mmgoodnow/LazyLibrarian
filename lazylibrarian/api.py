@@ -40,6 +40,7 @@ from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table
 from lazylibrarian.formatter import today, formatAuthorName, check_int, plural, replace_all
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.grsync import grfollow, grsync
 from lazylibrarian.images import getAuthorImage, getAuthorImages, getBookCover, getBookCovers, createMagCovers, \
     createMagCover, shrinkMag
@@ -1323,10 +1324,15 @@ class Api(object):
             myqueue = queue.Queue()
             search_api = threading.Thread(target=GB.find_results, name='API-GBRESULTS', args=[authorname, myqueue])
             search_api.start()
-        else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             GR = GoodReads(authorname)
             myqueue = queue.Queue()
             search_api = threading.Thread(target=GR.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
+            search_api.start()
+        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+            OL = OpenLibrary(authorname)
+            myqueue = queue.Queue()
+            search_api = threading.Thread(target=OL.find_results, name='API-OLRESULTS', args=[authorname, myqueue])
             search_api.start()
 
         search_api.join()
@@ -1342,10 +1348,15 @@ class Api(object):
             myqueue = queue.Queue()
             search_api = threading.Thread(target=GB.find_results, name='API-GBRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
-        else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             GR = GoodReads(kwargs['name'])
             myqueue = queue.Queue()
             search_api = threading.Thread(target=GR.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
+            search_api.start()
+        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+            OL = OpenLibrary(kwargs['name'])
+            myqueue = queue.Queue()
+            search_api = threading.Thread(target=OL.find_results, name='API-OLRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
 
         search_api.join()
@@ -1360,9 +1371,13 @@ class Api(object):
             GB = GoogleBooks(kwargs['id'])
             threading.Thread(target=GB.find_book, name='API-GBRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
-        else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             GR = GoodReads(kwargs['id'])
             threading.Thread(target=GR.find_book, name='API-GRRESULTS', args=[kwargs['id'],
+                                                                              None, None, "Added by API"]).start()
+        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+            OL = OpenLibrary(kwargs['id'])
+            threading.Thread(target=OL.find_book, name='API-OLRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
 
     def _moveBook(self, **kwargs):

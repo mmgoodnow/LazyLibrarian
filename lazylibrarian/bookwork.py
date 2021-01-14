@@ -21,7 +21,7 @@ import traceback
 from six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.cache import fetchURL, gr_xml_request, gb_json_request
+from lazylibrarian.cache import fetchURL, gr_xml_request, json_request
 from lazylibrarian.common import proxyList, quotes, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList, makeUTF8bytes, unaccented
@@ -90,7 +90,8 @@ def setBookAuthors(book):
                 authorname, authorid, new = lazylibrarian.importer.addAuthorNameToDB(authorname,
                                                                                      refresh=False,
                                                                                      addbooks=False,
-                                                                                     reason=reason)
+                                                                                     reason=reason,
+                                                                                     title=book['bookname'])
                 if new and authorid:
                     newauthors += 1
             if authorid:
@@ -114,10 +115,16 @@ def setAllBookSeries():
                 workid = book['WorkID']
                 if not workid:
                     logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
-            else:
+            elif lazylibrarian.CONFIG['BOOK_API'] == 'GoogleBooks':
                 workid = book['BookID']
                 if not workid:
                     logger.debug("No bookid for book: %s" % book['BookName'])
+            elif lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+                workid = book['WorkID']
+                if not workid:
+                    logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
+            else:
+                workid = None
             if workid:
                 serieslist = getWorkSeries(workid, "setAllBookSeries")
                 if serieslist:
@@ -286,34 +293,6 @@ def deleteEmptySeries():
             count += 1
             myDB.action('DELETE from series where SeriesID=?', (item['SeriesID'],))
     return count
-
-
-def setWorkPages():
-    """ the workpage link for any books that don't already have one """
-
-    myDB = database.DBConnection()
-    cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
-    cmd += ' and books.AuthorID = authors.AuthorID'
-    books = myDB.select(cmd)
-    if books:
-        logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
-        counter = 0
-        for book in books:
-            bookid = book['BookID']
-            worklink = getWorkPage(bookid)
-            if worklink:
-                controlValueDict = {"BookID": bookid}
-                newValueDict = {"WorkPage": worklink}
-                myDB.upsert("books", newValueDict, controlValueDict)
-                counter += 1
-            else:
-                logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
-        msg = 'Updated %s %s' % (counter, plural(counter, "page"))
-        logger.debug("setWorkPages complete: " + msg)
-    else:
-        msg = 'No missing WorkPages'
-        logger.debug(msg)
-    return msg
 
 
 def setWorkID(books=None):
@@ -542,6 +521,35 @@ def getBookWork(bookID=None, reason='', seriesID=None):
         else:
             logger.debug('Get Book Work - Invalid seriesID [%s]' % seriesID)
         return None
+
+
+def setWorkPages():
+    """ the workpage link for any books that don't already have one """
+    global LAST_NEW
+    myDB = database.DBConnection()
+    cmd = 'select BookID,AuthorName,BookName from books,authors where length(WorkPage) < 4'
+    cmd += ' and books.AuthorID = authors.AuthorID'
+    books = myDB.select(cmd)
+    if books:
+        logger.debug('Setting WorkPage for %s %s' % (len(books), plural(len(books), "book")))
+        counter = 0
+        for book in books:
+            bookid = book['BookID']
+            worklink = getWorkPage(bookid)
+            if worklink:
+                controlValueDict = {"BookID": bookid}
+                newValueDict = {"WorkPage": worklink}
+                myDB.upsert("books", newValueDict, controlValueDict)
+                counter += 1
+            else:
+                if check_int(LAST_NEW, 0) + 43200 < time.time():
+                    logger.debug('No WorkPage found for %s: %s' % (book['AuthorName'], book['BookName']))
+        msg = 'Updated %s %s' % (counter, plural(counter, "page"))
+        logger.debug("setWorkPages complete: " + msg)
+    else:
+        msg = 'No missing WorkPages'
+        logger.debug(msg)
+    return msg
 
 
 def getWorkPage(bookID=None):
@@ -891,7 +899,8 @@ def getSeriesMembers(seriesID=None, seriesname=None):
             results.append([mydict['order'], mydict['bookname'], mydict['authorname'],
                             mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
                             mydict['pubday'], mydict['bookid']])
-    else:
+
+    elif lazylibrarian.CONFIG['BOOK_API'] == 'GoogleBooks':
         api_hits = 0
         data = getBookWork(None, "SeriesPage", seriesID)
         if data:
@@ -978,7 +987,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                 url += '&key=' + lazylibrarian.CONFIG['GB_API']
             if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY']) == 2:
                 url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
-            results, cached = gb_json_request(url, expire=expire)
+            results, cached = json_request(url, expire=expire)
             if results is None:  # there was an error
                 return None
             if results and not cached:
@@ -1360,7 +1369,7 @@ def getBookPubdate(bookid, refresh=False):
             return bookdate, False
 
         URL = 'https://www.googleapis.com/books/v1/volumes/%s?key=%s' % (bookid, lazylibrarian.CONFIG['GB_API'])
-        jsonresults, in_cache = gb_json_request(URL)
+        jsonresults, in_cache = json_request(URL)
         if not jsonresults:
             logger.debug('No results found for %s' % bookid)
         else:

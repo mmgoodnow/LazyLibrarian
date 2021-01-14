@@ -50,6 +50,7 @@ from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, t
     check_year, dispName, is_valid_booktype, replace_with
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.images import getBookCover, createMagCover, coverswap, getAuthorImage
 from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for
 from lazylibrarian.librarysync import LibraryScan
@@ -63,6 +64,7 @@ from lazylibrarian.rssfeed import genFeed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines
 from lazylibrarian.searchrss import search_wishlist
+from lazylibrarian.auth import AuthController
 
 try:
     from deluge_client import DelugeRPCClient
@@ -172,7 +174,10 @@ def serve_template(templatename, **kwargs):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-            templatename = "login.html"
+            if 'auth_type' in lazylibrarian.CONFIG and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+                templatename = "formlogin.html"
+            else:
+                templatename = "login.html"
         elif (templatename == 'config.html' and not perm & lazylibrarian.perm_config) or \
                 (templatename == 'logs.html' and not perm & lazylibrarian.perm_logs) or \
                 (templatename == 'history.html' and not perm & lazylibrarian.perm_history) or \
@@ -191,7 +196,10 @@ def serve_template(templatename, **kwargs):
                 (templatename in ['manualsearch.html', 'searchresults.html']
                  and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
-            templatename = "login.html"
+            if 'auth_type' in lazylibrarian.CONFIG and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+                templatename = "formlogin.html"
+            else:
+                templatename = "login.html"
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
             logger.debug("User %s: %s %s %s" % (username, perm, userprefs, templatename))
@@ -202,7 +210,7 @@ def serve_template(templatename, **kwargs):
             clear_mako_cache()
             template = _hplookup.get_template(templatename)
 
-        if templatename == "login.html":
+        if templatename in ["login.html", "formlogin.html"]:
             lazylibrarian.SUPPRESS_UPDATE = True
             cherrypy.response.cookie['ll_template'] = ''
             return template.render(perm=0, title="Redirected")
@@ -220,6 +228,9 @@ def serve_template(templatename, **kwargs):
 
 # noinspection PyProtectedMember,PyGlobalUndefined,PyGlobalUndefined
 class WebInterface(object):
+
+    auth = AuthController()
+
     @cherrypy.expose
     def index(self):
         raise cherrypy.HTTPRedirect("home")
@@ -1884,7 +1895,7 @@ class WebInterface(object):
         myDB = database.DBConnection()
         authorsearch = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (AuthorID,))
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
-            threading.Thread(target=addAuthorToDB, name='REFRESHAUTHOR',
+            threading.Thread(target=addAuthorToDB, name='REFRESHAUTHOR_%s' % AuthorID,
                              args=[None, True, AuthorID, True, "WebServer refreshAuthor %s" % AuthorID]).start()
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
         else:
@@ -1980,7 +1991,7 @@ class WebInterface(object):
             if path_isdir(authordir):
                 remv = bool(lazylibrarian.CONFIG['FULL_SCAN'])
                 try:
-                    threading.Thread(target=LibraryScan, name='AUTHOR_SCAN',
+                    threading.Thread(target=LibraryScan, name='AUTHOR_SCAN_%s' % AuthorID,
                                      args=[authordir, library, AuthorID, remv]).start()
                 except Exception as e:
                     logger.error('Unable to complete the scan: %s %s' % (type(e).__name__, str(e)))
@@ -2002,7 +2013,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def addAuthorID(self, AuthorID):
-        threading.Thread(target=addAuthorToDB, name='ADDAUTHOR',
+        threading.Thread(target=addAuthorToDB, name='ADDAUTHORID',
                          args=['', False, AuthorID, True, 'WebServer addAuthorID %s' % AuthorID]).start()
         time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % AuthorID)
@@ -2240,7 +2251,7 @@ class WebInterface(object):
             cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
             cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
             cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
-            cmd += 'bookadded,scanresult FROM books, authors'
+            cmd += 'bookadded,scanresult,lt_workid FROM books, authors'
             cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
             cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
             cmd += ' WHERE books.AuthorID = authors.AuthorID'
@@ -2333,7 +2344,7 @@ class WebInterface(object):
 
             cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
             cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
-            cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult'
+            cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult, lt_workid'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("getBooks %s: %s" % (cmd, str(args)))
@@ -2348,6 +2359,8 @@ class WebInterface(object):
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     entry = list(row)
+                    if entry[16] is None:
+                        entry[16] = ""
                     if lazylibrarian.CONFIG['SORT_SURNAME']:
                         entry[1] = surnameFirst(entry[1])
                     if lazylibrarian.CONFIG['SORT_DEFINITE']:
@@ -2434,12 +2447,19 @@ class WebInterface(object):
                     else:
                         bookrate = row[3]
 
-                    if row[10] and len(row[10]) > 4:  # is there a workpage link
+                    if row[20]:  # is there a librarything workid
+                        worklink = '<a href="' + 'http://www.librarything.com/work/' + row[20] + \
+                            '" target="_new"><small><i>LibraryThing</i></small></a>'
+                    elif row[10] and len(row[10]) > 4:  # is there a workpage link
                         worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
 
                     editpage = '<a href="editBook?bookid=' + row[6] + '" target="_new"><small><i>Manual</i></a>'
 
-                    if 'goodreads' in row[9]:
+                    if row[9].startswith('/works/'):
+                        ref = 'https://openlibrary.org' + row[9]
+                        sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
+
+                    elif 'goodreads' in row[9]:
                         sitelink = '<a href="%s" target="_new"><small><i>GoodReads</i></small></a>' % row[9]
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s" target="_new"><small><i>GoogleBooks</i></small></a>' % row[9]
@@ -2522,7 +2542,7 @@ class WebInterface(object):
             elif kwargs['source'] == 'Audio':
                 mydict['loading'] = lazylibrarian.AUDIO_UPDATE
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @staticmethod
@@ -2569,9 +2589,14 @@ class WebInterface(object):
                 t = threading.Thread(target=GB.find_book, name='GB-BOOK',
                                      args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
-            else:  # lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                 GR = GoodReads(bookid)
                 t = threading.Thread(target=GR.find_book, name='GR-BOOK',
+                                     args=[bookid, ebook_status, audio_status, "Added by user"])
+                t.start()
+            else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                OL = OpenLibrary(bookid)
+                t = threading.Thread(target=OL.find_book, name='OL-BOOK',
                                      args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
@@ -3403,6 +3428,12 @@ class WebInterface(object):
                             HaveRead = set(getList(res['HaveRead']))
                             Reading = set(getList(res['Reading']))
                             Abandoned = set(getList(res['Abandoned']))
+
+                            for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype']:
+                                ToRead.discard(arg)
+                                HaveRead.discard(arg)
+                                Reading.discard(arg)
+                                Abandoned.discard(arg)
 
                             if action == "Unread":
                                 ToRead.discard(bookid)
@@ -5231,6 +5262,7 @@ class WebInterface(object):
     @cherrypy.expose
     def importCSV(self, library='eBook'):
         if 'IMPORTCSV' not in [n.name for n in [t for t in threading.enumerate()]]:
+            self.label_thread('IMPORTCSV')
             try:
                 csvFile = csv_file(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
                 if path_exists(csvFile):
@@ -5373,6 +5405,7 @@ class WebInterface(object):
         # kwargs is used by datatables to pass params
         rows = []
         filtered = []
+
         # noinspection PyBroadException
         try:
             iDisplayStart = int(iDisplayStart)
@@ -5417,6 +5450,7 @@ class WebInterface(object):
         rows = []
         filtered = []
         rowlist = []
+        self.label_thread('WEBSERVER')
         # noinspection PyBroadException
         try:
             myDB = database.DBConnection()
@@ -5537,10 +5571,10 @@ class WebInterface(object):
     def bookdesc(self, bookid=None):
         # noinspection PyGlobalUndefined
         global lastauthor
-        img = 'nocover.jpg'
-        title = 'BookID not found'
-        text = 'No Description'
         myDB = database.DBConnection()
+        img = None
+        title = None
+        text = None
         if bookid:
             if bookid.startswith('A_'):
                 cmd = "SELECT AuthorName,About,AuthorImg from authors WHERE authorid=?"
@@ -5575,6 +5609,12 @@ class WebInterface(object):
                     title = res.get('AuthorName')
                 if 'AuthorID' in res:
                     lastauthor = res['AuthorID']
+        if not img:
+            img = 'images/nocover.jpg'
+        if not title:
+            title = 'BookID not found'
+        if not text:
+            text = 'No Description'
         return img + '^' + title + '^' + text
 
     @cherrypy.expose
@@ -6433,6 +6473,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def opds(self, **kwargs):
+        self.label_thread('OPDS Server')
         op = OPDS()
         op.checkParams(**kwargs)
         data = op.fetchData()
