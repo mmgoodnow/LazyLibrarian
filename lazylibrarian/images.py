@@ -401,7 +401,7 @@ def getBookCover(bookID=None, src=None):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
-            if not ProviderIsBlocked("openlibrary") and item['BookISBN']:
+            if not ProviderIsBlocked("openlibrary") and item and item['BookISBN']:
                 baseurl = 'https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:'
                 result, success = fetchURL(baseurl + item['BookISBN'])
                 if success:
@@ -523,7 +523,10 @@ def getBookCover(bookID=None, src=None):
                     logger.debug("No images found in google page for %s" % bookID)
                 # rmtree(icrawlerdir, ignore_errors=True)
             else:
-                logger.debug("PIL not found or no parameters for google image search for %s" % bookID)
+                if not PIL:
+                    logger.debug("PIL not found for google image search for %s" % bookID)
+                else:
+                    logger.debug("No parameters for google image search for %s" % bookID)
             if src:
                 return None, src
 
@@ -578,8 +581,10 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
             rmtree(icrawlerdir, ignore_errors=True)
         else:
             return icrawlerdir
+    elif not PIL:
+        logger.debug("PIL not installed, not looking for author image")
     else:
-        logger.debug("PIL not installed or no author found for %s" % authorid)
+        logger.debug("No author found for %s" % authorid)
     return None
 
 
