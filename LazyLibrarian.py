@@ -299,6 +299,8 @@ def main():
         'opds_authentication': lazylibrarian.CONFIG['OPDS_AUTHENTICATION'],
         'opds_username': lazylibrarian.CONFIG['OPDS_USERNAME'],
         'opds_password': lazylibrarian.CONFIG['OPDS_PASSWORD'],
+        'authentication': lazylibrarian.CONFIG['AUTH_TYPE'],
+        'login_timeout': 43800,
     })
 
     if options.userid:

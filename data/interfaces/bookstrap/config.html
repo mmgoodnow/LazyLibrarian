@@ -69,7 +69,8 @@
                       <label for="user_agent" class="input-group-addon">User Agent</label>
                       <input type="text" id="user_agent" name="user_agent" value="${lazylibrarian.CONFIG['USER_AGENT']}" class="form-control" placeholder="">
                     </div>
-                    <fieldset>
+                  </fieldset>
+                  <fieldset>
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
@@ -94,7 +95,7 @@
                         HTTPS access to lazylibrarian</label>
                     </div>
                     </div>
-                    </fieldset>
+                  </fieldset>
                     <fieldset id="https_options">
                       <div class="form-group">
                         <label for="https_cert" class="control-label">Https Certificate:</label>
@@ -166,6 +167,7 @@
                       </div>
                       %if lazylibrarian.LOGLEVEL > 1:
                       <br>
+                      <fieldset id=debug_options>
                       <legend>Detailed Debug Options</legend>
                       <div class="row checkbox">
                         <div class="col-md-6">
@@ -471,6 +473,27 @@
                       <label for="http_pass" class="input-group-addon">Pass</label>
                       <input type="password" id="http_pass" name="http_pass" value="${lazylibrarian.CONFIG['HTTP_PASS']}" class="form-control" placeholder="Password">
                     </div>
+                    <legend>Authentication</legend>
+                    <div class="input-group col-md-6">
+                      <label for="auth_type" class="input-group-addon">Auth Type:</label>
+                      <select id="auth_type" name="auth_type" class="form-control">
+                        <%
+                        if lazylibrarian.CONFIG['AUTH_TYPE'] == 'BASIC':
+                            selected = 'selected="selected"'
+                        else:
+                            selected = ''
+                        %>
+                        <option value="BASIC" ${selected}>Basic (Browser Popup)</option>
+                        <%
+                        if lazylibrarian.CONFIG['AUTH_TYPE'] == 'FORM':
+                            selected = 'selected="selected"'
+                        else:
+                            selected = ''
+                        %>
+                        <option value="FORM" ${selected}>Form (Login Page)</option>
+                      </select>
+                    </div>
+
                     </fieldset>
                     <small>Enabling/Disabling user accounts or changing webserver user/pass requires restart<br></small>
                   </fieldset>
@@ -763,14 +786,21 @@
                     if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                         gr_selected = 'selected="selected"'
                         gb_selected = ''
-                    else:
+                        ol_selected = ''
+                    elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                         gr_selected = ''
                         gb_selected = 'selected="selected"'
+                        ol_selected = ''
+                    elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                        gr_selected = ''
+                        gb_selected = ''
+                        ol_selected = 'selected="selected"'
                     %>
                     <label for="book_api" class="control-label">Book Information</label>
                     <select id="book_api" name="book_api" class="form-control">
                       <option value = "GoodReads" ${gr_selected}>GoodReads</option>
                       <option value = "GoogleBooks" ${gb_selected}>GoogleBooks</option>
+                      <option value = "OpenLibrary" ${ol_selected}>OpenLibrary</option>
                     </select>
                   </div>
                   <fieldset id="gb_options">
@@ -882,7 +912,7 @@
                   </fieldset>
                   <div class="form-group">
                     <label for="lt_devkey" class="control-label">LibraryThing Developer Key:</label>
-                    <input type="text" id="lt_devkey" name="lt_devkey" value="${lazylibrarian.CONFIG['LT_DEVKEY']}" class="form-control" placeholder="optional">
+                    <input type="text" id="lt_devkey" name="lt_devkey" value="${lazylibrarian.CONFIG['LT_DEVKEY']}" class="form-control" placeholder="optional, for book covers">
                   </div>
                 </fieldset>
                 <fieldset>

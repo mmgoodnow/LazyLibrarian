@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en" >
+
+<head>
+  <meta charset="UTF-8">
+  <title>LazyLibrarian</title>
+  <style>
+  img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  p {
+   text-align:center
+  }
+  h1 {
+   text-align:center
+  }
+  </style>
+</head>
+
+<body>
+  <form action="login" method="post">
+    <input type="hidden" name="from_page" value="${from_page}" />
+    <img src="${img}" alt="LazyLibrarian" style="width:10%;">
+    <p>
+      <input type="text" placeholder="username" name="current_username" id="current_username" required autofocus autocomplete/>
+    </p>
+    <p>
+		  <input type="password" placeholder="password" name="current_password" id="current_password" required autocomplete/>
+    </p>
+    <p>
+      <button>Sign in</button>
+    </p>
+  </form>
+</body>
+
+</html>
+
