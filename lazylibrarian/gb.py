@@ -30,7 +30,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getWorkSeries, getWorkPage, deleteEmptySeries, \
     setSeries, getStatus, thingLang, googleBookDict
 from lazylibrarian.images import getBookCover
-from lazylibrarian.cache import gb_json_request, cache_img
+from lazylibrarian.cache import json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
     getList, cleanName, makeUnicode, makeUTF8bytes, replace_with, check_year
 from lazylibrarian.common import quotes
@@ -120,7 +120,7 @@ class GoogleBooks:
                         URL = set_url + '&' + urlencode(self.params)
 
                         try:
-                            jsonresults, in_cache = gb_json_request(URL)
+                            jsonresults, in_cache = json_request(URL)
                             if not jsonresults:
                                 number_results = 0
                             else:
@@ -289,7 +289,7 @@ class GoogleBooks:
                     URL = set_url + '&' + urlencode(self.params)
 
                     try:
-                        jsonresults, in_cache = gb_json_request(URL, useCache=not refresh)
+                        jsonresults, in_cache = json_request(URL, useCache=not refresh)
                         if not jsonresults:
                             number_results = 0
                         else:
@@ -653,7 +653,7 @@ class GoogleBooks:
             logger.warn('No GoogleBooks API key, check config')
         URL = 'https://www.googleapis.com/books/v1/volumes/' + \
               str(bookid) + "?key=" + lazylibrarian.CONFIG['GB_API']
-        jsonresults, _ = gb_json_request(URL)
+        jsonresults, _ = json_request(URL)
 
         if not jsonresults:
             logger.debug('No results found for %s' % bookid)
