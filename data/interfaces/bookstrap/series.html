@@ -157,7 +157,7 @@
                         return '<a href="seriesMembers?seriesid=' + row[5] + '">' + row[2] + '</a>';}
                     },
                     { targets: [3], 'render': function(data, type, row) {
-                        percent = row[8]
+                        percent = row[9]
                         if (percent <= 25) {css = 'danger'}
                         else if (percent <= 50) {css = 'warning'}
                         else if (percent <= 75) {css = 'info'}
