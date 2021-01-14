@@ -18,7 +18,7 @@ from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.cache import html_request, gb_json_request, cv_api_sleep
+from lazylibrarian.cache import html_request, json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes, plural
 from lazylibrarian.common import quotes, path_isfile
 # noinspection PyUnresolvedReferences
@@ -152,7 +152,7 @@ def cv_identify(fname, best=True):
         url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
         url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(makeUTF8bytes(matchwords)[0]), off)
         cv_api_sleep()
-        res, _ = gb_json_request(url)
+        res, _ = json_request(url)
 
         if not res:
             next_page = False
@@ -674,7 +674,7 @@ def cv_issue(seriesid, issuenum):
     url = 'https://comicvine.gamespot.com/api/issues/?api_key=%s' % apikey
     url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
     cv_api_sleep()
-    data, _ = gb_json_request(url)
+    data, _ = json_request(url)
     # comicvine api "/issue" and "issue_detail_url" seem broken, always get 404
     # so try to extract site-detail-url from data, then page scrape
     # to get names and roles
