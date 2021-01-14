@@ -125,7 +125,8 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
     for item in calibre_list:
         if toreadcol and toreadcol in item or readcol and readcol in item:
             authorname, _, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False,
-                                                     reason="syncCalibreList: %s" % item['title'])
+                                                     reason="syncCalibreList: %s" % item['title'],
+                                                     title=item['title'])
             if authorname:
                 if authorname != item['authors']:
                     logger.debug("Changed authorname for [%s] from [%s] to [%s]" %
