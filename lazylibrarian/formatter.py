@@ -203,6 +203,7 @@ def dateFormat(datestr, formatstr="$Y-$m-$d"):
     # Newznab/Torznab Tue, 23 Aug 2016 17:33:26 +0100
     # LimeTorrent 13 Nov 2014 05:01:18 +0200
     # TPB 04-25 23:46 or 2018-04-25
+    # openlibrary May 1995 or June 20, 2008
     # We could use dateutil module but it's not standard library and we only have a few formats
     # so we can roll our own. To make it simple we'll ignore timezone and seconds
 
@@ -212,7 +213,7 @@ def dateFormat(datestr, formatstr="$Y-$m-$d"):
     if datestr.isdigit():  # issue number
         return datestr
 
-    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').split()
+    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').split()
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 6:
@@ -225,8 +226,16 @@ def dateFormat(datestr, formatstr="$Y-$m-$d"):
     elif len(dateparts) == 4:  # 04-25 23:46 (this year)
         m, d, hh, mm = dateparts
         y = now()[:4]
-    elif len(dateparts) == 3:  # 2018-04-25
-        y, m, d = dateparts
+    elif len(dateparts) == 3:  # 2018-04-25 or June 20 2008
+        if check_year(dateparts[0]):
+            y, m, d = dateparts
+        else:
+            m, d, y = dateparts
+        hh = '00'
+        mm = '00'
+    elif len(dateparts) == 2:  # May 1995
+        m, y = dateparts
+        d = '01'
         hh = '00'
         mm = '00'
     else:
@@ -630,7 +639,10 @@ def formatAuthorName(author):
                                            (author, forename, surname))
             author = forename + ' ' + surname
 
-    return ' '.join(author.split())  # ensure no extra whitespace
+    res = ' '.join(author.split())  # ensure no extra whitespace
+    if res.isupper() or res.islower():
+        res = res.title()
+    return res
 
 
 def sortDefinite(title):
@@ -664,6 +676,7 @@ def cleanName(name, extras=None):
     if cleaned:
         return cleaned
     return name
+
 
 #   ä ö ü Ä Ö Ü ß
 umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
