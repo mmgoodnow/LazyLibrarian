@@ -51,7 +51,7 @@ def id3read(filename):
         id3r = TinyTag.get(filename)
         artist = id3r.artist
         composer = id3r.composer
-        book = id3r.album
+        album = id3r.album
         albumartist = id3r.albumartist
         comment = id3r.comment
 
@@ -63,46 +63,60 @@ def id3read(filename):
             composer = composer.strip().rstrip('\x00')
         else:
             composer = ''
-        if book:
-            book = book.strip().rstrip('\x00')
+        if album:
+            album = album.strip().rstrip('\x00')
         else:
-            book = ''
+            album = ''
         if albumartist:
             albumartist = albumartist.strip().rstrip('\x00')
         else:
             albumartist = ''
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
-            logger.debug("id3.filename [%s]" % filename)
-            logger.debug("id3.artist [%s]" % artist)
-            logger.debug("id3.composer [%s]" % composer)
-            logger.debug("id3.album [%s]" % book)
-            logger.debug("id3.albumartist [%s]" % albumartist)
-            logger.debug("id3.comment [%s]" % comment)
+            for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
+                        'track_total', 'comment']:
+                logger.debug("id3r.%s [%s]" % (tag, eval(tag)))
+
+        if artist == 'None':
+            artist = ''
+        if albumartist == 'None':
+            albumartist = ''
+        if composer == 'None':
+            composer = ''
 
         myDB = database.DBConnection()
-        # if composer present, should be author
-        if composer and myDB.match("select * from authors where authorname=?", (composer,)):
-            author = composer
-        # author, or narrator if composer == author
-        elif albumartist and myDB.match("select * from authors where authorname=?", (albumartist,)):
+
+        # Commonly used tags, eg plex:
+        # ARTIST  Author or Author, Narrator
+        # ALBUMARTIST     Author
+        # COMPOSER    Narrator
+        author = ''
+        if albumartist:
             author = albumartist
-        elif artist and myDB.match("select * from authors where authorname=?", (artist,)):
-            author = artist
-        elif composer:
-            author = composer
-        elif albumartist:
-            author = albumartist
-        elif artist:
-            author = artist
-        else:
-            author = None
+        elif artist and composer and artist != composer:
+            author = artist.split(',', 1)[0]
+
+        if not author:
+            # if artist exists in library, should be author. Unlikely to get one author narrating anothers books?
+            if artist and myDB.match("select * from authors where authorname=?", (artist,)):
+                author = artist
+            elif albumartist and myDB.match("select * from authors where authorname=?", (albumartist,)):
+                author = albumartist
+            elif composer and myDB.match("select * from authors where authorname=?", (composer,)):
+                author = composer
+            elif artist:
+                author = artist
+            elif albumartist:
+                author = albumartist
+            elif composer:
+                author = composer
+
         if author and type(author) is list:
             lst = ', '.join(author)
             logger.debug("id3reader author list [%s]" % lst)
             author = author[0]  # if multiple authors, just use the first one
-        if author and book:
-            return makeUnicode(author), makeUnicode(book)
+        if author and album:
+            return makeUnicode(author), makeUnicode(album)
     except Exception:
         logger.error("tinytag error %s" % traceback.format_exc())
     return None, None
