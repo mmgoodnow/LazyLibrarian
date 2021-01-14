@@ -864,7 +864,7 @@ def scheduleJob(action='Start', target=None):
         elif 'cleanCache' in newtarget:
             days = lazylibrarian.CONFIG['CACHE_AGE']
             if days:
-                interval = 24
+                interval = 8
                 startdate = nextRun("CLEANCACHE", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.cleanCache,
                                                      hours=interval, start_date=startdate)
