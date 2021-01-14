@@ -153,21 +153,42 @@ def initialize(options=None):
             'tools.proxy.local': lazylibrarian.CONFIG['PROXY_LOCAL']
         })
     if options['http_pass'] != "":
-        logger.info("Web server authentication is enabled, username is '%s'" % options['http_user'])
-        conf['/'].update({
-            'tools.auth_basic.on': True,
-            'tools.auth_basic.realm': 'LazyLibrarian',
-            'tools.auth_basic.checkpassword': cherrypy.lib.auth_basic.checkpassword_dict({
-                options['http_user']: options['http_pass']
+        logger.info("Web server %s authentication is enabled, username is '%s'" %
+                    (options['authentication'], options['http_user']))
+        if options['authentication'] == 'FORM':
+            # Set up a sessions based login page instead of using basic auth,
+            # using the credentials set for basic auth. Attempting to browse to
+            # a restricted page without a session token will result in a
+            # redirect to the login page. A sucessful login should then redirect
+            # to the originally requested page.
+            #
+            # Login sessions timeout after 43800 minutes (1 month) unless
+            # changed in the config.
+            cherrypy.tools.sessions.timeout = options['login_timeout']
+            conf['/'].update({
+                'tools.sessions.on': True,
+                'tools.auth.on': True,
+                'auth.forms_username': options['http_user'],
+                'auth.forms_password': options['http_pass'],
+                # Set all pages to require authentication.
+                # You can also set auth requirements on a per-method basis by
+                # using the @require() decorator on the methods in webserve.py
+                'auth.require': []
             })
-        })
-        conf['/api'].update({
-            'tools.auth_basic.on': False,
-            'response.timeout': 3600,
-        })
-
-        conf['/rssFeed'].update({'tools.auth_basic.on': False})
-        conf['/nzbfile.nzb'].update({'tools.auth_basic.on': False})
+        elif options['authentication'] == 'BASIC':
+            conf['/'].update({
+                'tools.auth_basic.on': True,
+                'tools.auth_basic.realm': 'LazyLibrarian',
+                'tools.auth_basic.checkpassword': cherrypy.lib.auth_basic.checkpassword_dict({
+                    options['http_user']: options['http_pass']
+                })
+            })
+        # exempt api, login page and static elements from authentication requirements
+        for i in ('/api', '/auth/login', '/css', '/images', '/js', 'favicon.ico', '/rssFeed', '/nzbfile.nzb'):
+            if i in conf:
+                conf[i].update({'tools.auth.on': False, 'tools.auth_basic.on': False})
+            else:
+                conf[i] = {'tools.auth.on': False, 'tools.auth_basic.on': False}
 
     if options['opds_authentication']:
         user_list = {}
