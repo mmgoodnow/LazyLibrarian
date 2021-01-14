@@ -100,8 +100,9 @@ from lazylibrarian.common import path_exists
 # 66 Add subscribers table
 # 67 Add prefs to user table
 # 68 Add completed time to wanted table
+# 69 Add LT_WorkID to books table and AKA to authors
 
-db_current_version = 68
+db_current_version = 69
 
 
 def upgrade_needed():
@@ -169,7 +170,7 @@ def dbupgrade(current_version):
                 else:
                     # it's a new database. Create v60 tables and then upgrade as required
                     db_version = 60
-                    lazylibrarian.UPDATE_MSG = 'Creating new database, version %s' % db_version
+                    lazylibrarian.UPDATE_MSG = 'Creating new database, version %s' % db_current_version
                     upgradelog.write("%s v%s: %s\n" % (time.ctime(), db_version, lazylibrarian.UPDATE_MSG))
                     logger.info(lazylibrarian.UPDATE_MSG)
                     # sanity check for incomplete initialisations
@@ -183,7 +184,7 @@ def dbupgrade(current_version):
                                 'LastBookImg TEXT, LastLink TEXT, LastDate TEXT, HaveBooks INTEGER DEFAULT 0, ' +
                                 'TotalBooks INTEGER DEFAULT 0, AuthorBorn TEXT, AuthorDeath TEXT, ' +
                                 'UnignoredBooks INTEGER DEFAULT 0, Manual TEXT, GRfollow TEXT, ' +
-                                'LastBookID TEXT, Updated INTEGER DEFAULT 0, Reason TEXT, About TEXT)')
+                                'LastBookID TEXT, Updated INTEGER DEFAULT 0, Reason TEXT, About TEXT, AKA TEXT)')
                     myDB.action('CREATE TABLE wanted (BookID TEXT, NZBurl TEXT, NZBtitle TEXT, NZBdate TEXT, ' +
                                 'NZBprov TEXT, Status TEXT, NZBsize TEXT, AuxInfo TEXT, NZBmode TEXT, ' +
                                 'Source TEXT, DownloadID TEXT, DLResult TEXT)')
@@ -217,7 +218,8 @@ def dbupgrade(current_version):
                                 'BookFile TEXT, BookDate TEXT, BookLang TEXT, BookAdded TEXT, Status TEXT, ' +
                                 'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
                                 'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
-                                'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT)')
+                                'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT, ' +
+                                'LT_WorkID TEXT)')
                     myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
                                 'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
                                 'IssueFile TEXT, Cover TEXT)')
@@ -936,6 +938,18 @@ def update_schema(myDB, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding Completed to wanted table'
         upgradelog.write("%s v68: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         myDB.action('ALTER TABLE wanted ADD COLUMN Completed INTEGER DEFAULT 0')
+
+    if not has_column(myDB, "authors", "AKA"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding AKA to authors table'
+        upgradelog.write("%s v69: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE authors ADD COLUMN AKA TEXT')
+
+    if not has_column(myDB, "books", "LT_WorkID"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding LT_WorkID to books table'
+        upgradelog.write("%s v69: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE books ADD COLUMN LT_WorkID TEXT')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))
