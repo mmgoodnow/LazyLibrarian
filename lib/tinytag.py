@@ -31,7 +31,6 @@
 
 
 from __future__ import print_function
-from collections import MutableMapping
 import codecs
 from functools import reduce
 import struct
@@ -39,6 +38,11 @@ import os
 import io
 import sys
 from io import BytesIO
+try:
+    from collections.abc import MutableMapping  # required for python 3.9+
+except ImportError:
+    from collections import MutableMapping  # python2 or python3 up to 3.8
+
 DEBUG = False  # some of the parsers will print some debug info when set to True
 
 
