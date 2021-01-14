@@ -19,8 +19,8 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts, nameVars
-from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg
-from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now
+from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm
+from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrinkMag
 
 try:
@@ -209,6 +209,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
+
             if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
@@ -278,6 +279,67 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             except Exception as e:
                 logger.error("%s: %s" % (type(e).__name__, str(e)))
                 return
+
+            part_durations = []
+            for part in parts:
+                params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
+                          '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                    params.append('-report')
+                    logger.debug(str(params))
+                    ffmpeg_env = os.environ.copy()
+                    ffmpeg_env["FFREPORT"] = "file=" + \
+                        lazylibrarian.DBFILE.replace('.db', "_ffmpeg-part-%s.log" %
+                                                     now().replace(':', '-').replace(' ', '-'))
+                else:
+                    ffmpeg_env = None
+                try:
+                    if os.name != 'nt':
+                        res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                      stderr=subprocess.STDOUT, env=ffmpeg_env)
+                    else:
+                        res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+
+                    res = res.decode('utf-8')
+                    if 'Duration: ' in res:
+                        try:
+                            duration = res.split('Duration: ', 1)[1].split(',')[0]
+                            h, m, s = duration.split(':')
+                            secs = check_float(s, 0) + (check_int(m, 0) * 60) + (check_int(h, 0) * 3600)
+                            part_durations.append([part[0], secs])
+                            logger.debug("Part %s, duration %s" % (part[0], secs))
+                        except IndexError:
+                            pass
+
+                except subprocess.CalledProcessError as e:
+                    logger.error("%s: %s" % (type(e).__name__, str(e)))
+                    return
+                except Exception as e:
+                    logger.error("%s: %s" % (type(e).__name__, str(e)))
+                    return
+
+            if part_durations:
+                part_durations.sort(key=lambda x: x[0])
+                start = 0
+                with open(os.path.join(bookfolder, "metadata.ll"), 'r') as f:
+                    with open(os.path.join(bookfolder, "newmetadata.ll"), 'w') as o:
+                        for lyne in f.readlines():
+                            if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
+                                if not lyne.startswith('START=') and not lyne.startswith('END='):
+                                    if not lyne.startswith('title='):
+                                        o.write(lyne)
+                    remove(os.path.join(bookfolder, "metadata.ll"))
+                    os.rename(os.path.join(bookfolder, "newmetadata.ll"),
+                              os.path.join(bookfolder, "metadata.ll"))
+
+                with open(os.path.join(bookfolder, "metadata.ll"), 'a') as f:
+                    for item in part_durations:
+                        if item[0]:
+                            f.write("[CHAPTER]\nTIMEBASE=1/1000\n")
+                            f.write("START=%s\n" % int(start))
+                            start = start + (1000 * item[1])
+                            f.write("END=%s\n" % int(start))
+                            f.write("title=Chapter %s\n" % item[0])
 
             params = [ffmpeg]
             params.extend(ffmpeg_params)
@@ -450,6 +512,7 @@ def preprocess_magazine(bookfolder, cover=0):
             if new_size and new_size < old_size:
                 remove(srcfile)
                 os.rename(shrunkfile, srcfile)
+                _ = setperm(srcfile)
             elif shrunkfile:
                 remove(shrunkfile)
 
@@ -480,7 +543,9 @@ def preprocess_magazine(bookfolder, cover=0):
                     remove(srcfile)
                     newcopy = safe_move(srcfile + 'new', original + 'new')
                     os.rename(newcopy, original)
+                    _ = setperm(original)
                     return
         safe_move(srcfile, original)
+        _ = setperm(original)
     except Exception as e:
         logger.error(str(e))
