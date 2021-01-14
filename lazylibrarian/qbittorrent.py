@@ -112,7 +112,8 @@ class qbittorrentclient(object):
         return
 
     def _command(self, command, args=None, content_type=None, files=None):
-        logger.debug('QBittorrent WebAPI Command: %s' % command)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('QBittorrent WebAPI Command: %s' % command)
         if self.cmdset == 2:
             url = self.base_url + '/api/v2/' + command
         else:
@@ -151,13 +152,18 @@ class qbittorrentclient(object):
             else:
                 # some commands return plain text
                 resp = makeUnicode(resp)
-                logger.debug("QBitTorrent returned %s" % resp)
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug("QBitTorrent returned %s" % resp)
                 if command in ['version/api', 'app/webapiVersion']:
                     return resp
                 # some just return Ok. or Fails.
                 if resp and resp != 'Ok.':
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                        logger.debug("QBitTorrent returned False")
                     return False
             # some commands return nothing but response code (always 200)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("QBitTorrent returned True")
             return True
         except URLError as err:
             logger.debug('Failed URL: %s' % url)
@@ -167,20 +173,25 @@ class qbittorrentclient(object):
     def _get_list(self, **args):
         # type: (dict) -> list
         if self.cmdset == 2:
-            return self._command('torrents/info', args)
+            value = self._command('torrents/info', args)
         else:
-            return self._command('query/torrents', args)
+            value = self._command('query/torrents', args)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('get_list() returned %s' % str(value))
+        return value
 
     def _get_settings(self):
         if self.cmdset == 2:
             value = self._command('app/preferences')
         else:
             value = self._command('query/preferences')
-        logger.debug('get_settings() returned %d items' % len(value))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('get_settings() returned %d items' % len(value))
         return value
 
     def get_savepath(self, hashid):
-        logger.debug('qb.get_savepath(%s)' % hashid)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.get_savepath(%s)' % hashid)
         hashid = hashid.lower()
         torrentList = self._get_list()
         for torrent in list(torrentList):
@@ -189,7 +200,8 @@ class qbittorrentclient(object):
         return None
 
     def start(self, hashid):
-        logger.debug('qb.start(%s)' % hashid)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.start(%s)' % hashid)
         args = {'hash': hashid}
         if self.cmdset == 2:
             return self._command('torrents/resume', args, 'application/x-www-form-urlencoded')
@@ -197,7 +209,8 @@ class qbittorrentclient(object):
             return self._command('command/resume', args, 'application/x-www-form-urlencoded')
 
     def pause(self, hashid):
-        logger.debug('qb.pause(%s)' % hashid)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.pause(%s)' % hashid)
         args = {'hash': hashid}
         if self.cmdset == 2:
             return self._command('torrents/pause', args, 'application/x-www-form-urlencoded')
@@ -205,21 +218,24 @@ class qbittorrentclient(object):
             return self._command('command/pause', args, 'application/x-www-form-urlencoded')
 
     def getfiles(self, hashid):
-        logger.debug('qb.getfiles(%s)' % hashid)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.getfiles(%s)' % hashid)
         if self.cmdset == 2:
             return self._command('torrents/files?hash=' + hashid)
         else:
             return self._command('query/propertiesFiles/' + hashid)
 
     def getprops(self, hashid):
-        logger.debug('qb.getprops(%s)' % hashid)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.getprops(%s)' % hashid)
         if self.cmdset == 2:
             return self._command('torrents/properties?hash=' + hashid)
         else:
             return self._command('query/propertiesGeneral/' + hashid)
 
     def remove(self, hashid, remove_data=False):
-        logger.debug('qb.remove(%s,%s)' % (hashid, remove_data))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('qb.remove(%s,%s)' % (hashid, remove_data))
         args = {'hashes': hashid}
         if self.cmdset == 2:
             command = 'torrents/delete'
@@ -234,11 +250,13 @@ class qbittorrentclient(object):
 
 
 def getProgress(hashid):
-    logger.debug('getProgress(%s)' % hashid)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('getProgress(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
-        logger.debug("Failed to login to qBittorrent")
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("Failed to login to qBittorrent")
         return -1, '', False
     # noinspection PyProtectedMember
     preferences = qbclient._get_settings()
@@ -280,7 +298,8 @@ def getProgress(hashid):
 
 
 def removeTorrent(hashid, remove_data=False):
-    logger.debug('removeTorrent(%s,%s)' % (hashid, remove_data))
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('removeTorrent(%s,%s)' % (hashid, remove_data))
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
@@ -322,7 +341,8 @@ def checkLink():
 
 
 def addTorrent(link, hashid):
-    logger.debug('addTorrent(%s)' % link)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('addTorrent(%s)' % link)
     args = {}
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
@@ -342,7 +362,8 @@ def addTorrent(link, hashid):
                 args['label'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
             elif qbclient.api >= 10:
                 args['category'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
-    logger.debug('addTorrent args(%s)' % args)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('addTorrent args(%s)' % args)
     args['urls'] = link
 
     if qbclient.cmdset == 2:
@@ -359,15 +380,18 @@ def addTorrent(link, hashid):
     # noinspection PyProtectedMember
     torrents = qbclient._get_list()
     if hashid in str(torrents).lower():
-        logger.debug("qBittorrent: hashid found in torrent list, assume success")
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("qBittorrent: hashid found in torrent list, assume success")
         return True, ''
     res = "qBittorrent: hashid not found in torrent list, addTorrent failed"
-    logger.debug(res)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug(res)
     return False, res
 
 
 def addFile(data, hashid, title):
-    logger.debug('addFile(data)')
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('addFile(data)')
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
@@ -393,19 +417,23 @@ def addFile(data, hashid, title):
     # noinspection PyProtectedMember
     torrents = qbclient._get_list()
     if hashid in str(torrents).lower():
-        logger.debug("qBittorrent: hashid found in torrent list, assume success")
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("qBittorrent: hashid found in torrent list, assume success")
         if qbclient.cmdset == 2 and lazylibrarian.CONFIG['QBITTORRENT_LABEL']:
             args = {'hash': hashid, 'category': lazylibrarian.CONFIG['QBITTORRENT_LABEL']}
             # noinspection PyProtectedMember
             qbclient._command('torrents/setCategory', args, 'application/x-www-form-urlencoded')
         return True, ''
+
     res = "qBittorrent: hashid not found in torrent list, addFile failed"
-    logger.debug(res)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug(res)
     return False, res
 
 
 def getName(hashid):
-    logger.debug('getName(%s)' % hashid)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('getName(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
@@ -429,7 +457,8 @@ def getName(hashid):
 
 
 def getFiles(hashid):
-    logger.debug('getFiles(%s)' % hashid)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('getFiles(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
@@ -448,7 +477,8 @@ def getFiles(hashid):
 
 
 def getFolder(hashid):
-    logger.debug('getFolder(%s)' % hashid)
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('getFolder(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = qbittorrentclient()
     if not qbclient.cmdset:
