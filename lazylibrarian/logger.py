@@ -102,7 +102,8 @@ class RotatingLogger(object):
             message = formatter.unaccented(message)
         elif PY2:
             message = formatter.safe_unicode(message).encode(lazylibrarian.SYS_ENCODING)
-        message = message.replace('\x98', '')  # invalid utf-8 eg La mosai\x98que Parsifal
+        elif not PY2:
+            message = message.replace('\x98', '')  # invalid utf-8 eg La mosai\x98que Parsifal
 
         if level != 'DEBUG' or lazylibrarian.LOGLEVEL >= 2:
             # Limit the size of the "in-memory" log, as gets slow if too long
