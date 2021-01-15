@@ -20,9 +20,13 @@
 # from cherrypy/tools on github
 
 import cherrypy
-from html import escape
 import lazylibrarian
 from lazylibrarian import logger
+from six import PY2
+if PY2:
+    from cgi import escape
+else:
+    from html import escape
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote
 

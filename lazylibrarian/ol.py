@@ -21,7 +21,16 @@ from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, 
     getList, makeUTF8bytes, plural, unaccented, replace_all, check_year, today, dateFormat
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genreFilter, getStatus, \
     thingLang
-from lib3.bs4 import BeautifulSoup
+from six import PY2
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    if PY2:
+        from lib.bs4 import BeautifulSoup
+    else:
+        from lib3.bs4 import BeautifulSoup
+
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
 
