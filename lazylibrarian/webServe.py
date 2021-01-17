@@ -1147,8 +1147,9 @@ class WebInterface(object):
                 else:
                     flag = ''
                 newrow = {'BookID': entry[0], 'BookName': entry[1], 'SeriesNum': entry[2], 'BookImg': entry[3],
-                          'Status': entry[4], 'AuthorName': entry[5], 'AuthorID': entry[6], 'BookLink': entry[7],
-                          'WorkPage': entry[8], 'AudioStatus': entry[9], 'Flag': flag}
+                          'Status': entry[4], 'AuthorName': entry[5], 'AuthorID': entry[6],
+                          'BookLink': entry[7] if entry[7] else '', 'WorkPage': entry[8] if entry[8] else '',
+                          'AudioStatus': entry[9], 'Flag': flag}
                 rows.append(newrow)  # add the new dict to the masterlist
 
         return serve_template(templatename="members.html", title=series['SeriesName'],
@@ -2450,12 +2451,17 @@ class WebInterface(object):
                     if row[20]:  # is there a librarything workid
                         worklink = '<a href="' + 'http://www.librarything.com/work/' + row[20] + \
                             '" target="_new"><small><i>LibraryThing</i></small></a>'
-                    elif row[10] and len(row[10]) > 4:  # is there a workpage link
+                    elif row[10]:  # is there a workpage link
                         worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
+                    else:
+                        row[10] = ''
+                        row[20] = ''
 
                     editpage = '<a href="editBook?bookid=' + row[6] + '" target="_new"><small><i>Manual</i></a>'
 
-                    if row[9].startswith('/works/'):
+                    if not row[9]:
+                        row[9] = ''
+                    elif row[9].startswith('/works/'):
                         ref = 'https://openlibrary.org' + row[9]
                         sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
 
