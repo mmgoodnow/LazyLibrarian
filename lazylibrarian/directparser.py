@@ -105,7 +105,7 @@ def BOK(book=None, prov=None, test=False):
         next_page = False
         bok_sleep()
         result, success = fetchURL(searchURL)
-        if not success:
+        if not success or len(result) < 100:  # may return a "blocked" message
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
