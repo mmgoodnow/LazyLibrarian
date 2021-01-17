@@ -441,7 +441,16 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params.extend(['-metadata', "album=%s" % bookname,
                            '-metadata', "artist=%s" % authorname,
                            '-metadata', "title=%s" % bookfile])
-        params.append(os.path.join(bookfolder, "tempaudio%s" % extn))
+
+        tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
+        if extn == '.m4b':
+            # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
+            b2a = True
+            os.rename(tempfile, tempfile.replace('.m4b', '.m4a'))
+        else:
+            b2a = False
+
+        params.append(tempfile)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             params.append('-report')
             logger.debug(str(params))
@@ -458,9 +467,11 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             else:
                 _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
-            remove(os.path.join(bookfolder, outfile))
-            os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
-                      os.path.join(bookfolder, outfile))
+            outfile = os.path.join(bookfolder, outfile)
+            remove(outfile)
+            if b2a:
+                tempfile.replace('.m4a', '.m4b')
+            os.rename(tempfile, outfile)
             logger.debug("Metadata written to %s" % outfile)
         except subprocess.CalledProcessError as e:
             logger.error("%s: %s" % (type(e).__name__, str(e)))
