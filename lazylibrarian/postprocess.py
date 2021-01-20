@@ -25,7 +25,6 @@ import threading
 import time
 import traceback
 import uuid
-from shutil import copyfile
 
 import lazylibrarian
 from six import PY2
@@ -160,7 +159,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         if coverfile:
             myhash = uuid.uuid4().hex
             hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-            copyfile(coverfile, hashname)
+            shutil.copyfile(coverfile, hashname)
             setperm(hashname)
             coverfile = 'cache/magazine/%s.jpg' % myhash
         issueid = create_id("%s %s" % (title, issuenum))
@@ -1054,6 +1053,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     if not dest_path:
                         continue
 
+                    data['NZBmode'] = book['NZBmode']
                     success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
                     if success:
                         logger.debug("Processed %s: %s, %s" % (book['NZBmode'], global_name, book['NZBurl']))
@@ -1079,7 +1079,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 if coverfile:
                                     myhash = uuid.uuid4().hex
                                     hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
-                                    copyfile(coverfile, hashname)
+                                    shutil.copyfile(coverfile, hashname)
                                     setperm(hashname)
                                     coverfile = 'cache/comic/%s.jpg' % myhash
                                 controlValueDict = {"ComicID": comicid}
@@ -1116,7 +1116,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                             if coverfile:
                                 myhash = uuid.uuid4().hex
                                 hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
-                                copyfile(coverfile, hashname)
+                                shutil.copyfile(coverfile, hashname)
                                 setperm(hashname)
                                 coverfile = 'cache/magazine/%s.jpg' % myhash
                             issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
@@ -2016,7 +2016,7 @@ def process_book(pp_path=None, bookID=None, library=None):
         if data:
             authorname = data['AuthorName']
             bookname = data['BookName']
-            cmd = 'SELECT BookID, NZBprov, AuxInfo FROM wanted WHERE BookID=? and Status="Snatched"'
+            cmd = 'SELECT BookID, NZBprov, NZBmode,AuxInfo FROM wanted WHERE BookID=? and Status="Snatched"'
             # we may have wanted to snatch an ebook and audiobook of the same title/id
             was_snatched = myDB.select(cmd, (bookID,))
             want_audio = False
@@ -2247,6 +2247,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     bookid = data.get('BookID', '')
     title = data.get('Title', '')
     issuedate = data.get('IssueDate', '')
+    mode = data.get('NZBmode', '')
 
     if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
         booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
@@ -2271,6 +2272,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
         # no book/mag found in a format we wanted. Leave for the user to delete or convert manually
         return False, 'Unable to locate a valid filetype (%s) in %s, leaving for manual processing' % (
             booktype, pp_path)
+
+    if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG['DESTINATION_COPY'] or
+                                            (mode in ['torrent', 'magnet', 'torznab'] and
+                                             lazylibrarian.CONFIG['KEEP_SEEDING'])):
+        pp_path = shutil.copytree(pp_path, pp_path + '.unpack')
 
     logger.debug("preprocess (%s)" % booktype)
     if booktype == 'ebook':
