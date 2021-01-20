@@ -47,12 +47,12 @@ from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, 
     IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
-    check_year, dispName, is_valid_booktype, replace_with
+    check_year, dispName, is_valid_booktype, replace_with, formatAuthorName
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.images import getBookCover, createMagCover, coverswap, getAuthorImage
-from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for
+from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, getPreferredAuthorName
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
@@ -1960,24 +1960,32 @@ class WebInterface(object):
 
             if library == 'AudioBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
-                if not path_isdir(authordir):
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'),
-                                                          surnameFirst(AuthorName)))
             else:  # if library == 'eBook':
                 authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
-                if not path_isdir(authordir):
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), surnameFirst(AuthorName)))
             if not path_isdir(authordir):
                 # books might not be in exact same authorname folder due to capitalisation
+                # or accent stripping etc.
                 # eg Calibre puts books into folder "Eric Van Lustbader", but
                 # goodreads told lazylibrarian he's "Eric van Lustbader", note the lowercase 'v'
                 # or calibre calls "Neil deGrasse Tyson" "Neil DeGrasse Tyson" with a capital 'D'
-                # so convert the name and try again...
-                AuthorName = ' '.join(word[0].upper() + word[1:] for word in AuthorName.split())
-                if library == 'AudioBook':
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('AudioBook'), AuthorName))
-                else:  # if library == 'eBook':
-                    authordir = safe_unicode(os.path.join(lazylibrarian.DIRECTORY('eBook'), AuthorName))
+                # so try a fuzzy match...
+                libdir = os.path.dirname(authordir)
+                matchname, exists = getPreferredAuthorName(AuthorName)
+                if exists:
+                    AuthorName = matchname
+                matchname = unaccented(matchname).lower()
+                bestmatch = [0, '']
+                for item in listdir(libdir):
+                    match = fuzz.ratio(formatAuthorName(unaccented(item)).lower(), matchname)
+                    if match >= lazylibrarian.CONFIG['NAME_RATIO']:
+                        authordir = os.path.join(libdir, item)
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                            logger.debug("Fuzzy match folder %s%% %s for %s" % (match, item, AuthorName))
+                        # Add this name variant as an aka if not already there?
+                        break
+                    elif match > bestmatch[0]:
+                        bestmatch = [match, item]
+
             if not path_isdir(authordir):
                 # if still not found, see if we have a book by them, and what directory it's in
                 if library == 'AudioBook':

@@ -34,6 +34,38 @@ except ImportError:
 from six.moves import queue
 
 
+def getPreferredAuthorName(author):
+    # Look up an authorname in the database, if not found try fuzzy match
+    # Return possibly changed authorname and whether found in library
+    author = formatAuthorName(author)
+    match = False
+    myDB = database.DBConnection()
+    check_exist_author = myDB.match('SELECT * FROM authors where AuthorName=?', (author,))
+    if check_exist_author:
+        match = True
+    else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
+        match_name = author.lower()
+        res = myDB.action('select AuthorID,AuthorName,AKA from authors')
+        for item in res:
+            aname = item['AuthorName']
+            if aname:
+                match_fuzz = fuzz.ratio(aname.lower(), match_name)
+                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
+                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
+                    author = item['AuthorName']
+                    match = True
+                    break
+            aka = item['AKA']
+            if aka:
+                match_fuzz = fuzz.ratio(aka.lower(), match_name)
+                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
+                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
+                    author = item['AuthorName']
+                    match = True
+                    break
+    return author, match
+
+
 def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, title=None):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
@@ -58,35 +90,14 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
 
-    author = formatAuthorName(author)
     myDB = database.DBConnection()
-
     # Check if the author exists, and import the author if not,
-    check_exist_author = myDB.match('SELECT * FROM authors where AuthorName=?', (author,))
-
-    # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
-    if not check_exist_author:
-        match_name = author.lower()
-        res = myDB.action('select AuthorID,AuthorName,AKA from authors')
-        for item in res:
-            aname = item['AuthorName']
-            if aname:
-                match_fuzz = fuzz.ratio(aname.lower(), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
-                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
-                    check_exist_author = item
-                    author = item['AuthorName']
-                    break
-            aka = item['AKA']
-            if aka:
-                match_fuzz = fuzz.ratio(aka.lower(), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
-                    logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
-                    check_exist_author = item
-                    author = item['AuthorName']
-                    break
-
-    if not check_exist_author and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
+    author, exists = getPreferredAuthorName(author)
+    if exists:
+        check_exist_author = myDB.match('SELECT * FROM authors where AuthorName=?', (author,))
+    else:
+        check_exist_author = None
+    if not exists and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
         logger.debug('Author %s not found in database, trying to add' % author)
         # no match for supplied author, but we're allowed to add new ones
         if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
