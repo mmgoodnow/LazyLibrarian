@@ -446,7 +446,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if extn == '.m4b':
             # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
             b2a = True
-            os.rename(tempfile, tempfile.replace('.m4b', '.m4a'))
+            tempfile = tempfile.replace('.m4b', '.m4a')
         else:
             b2a = False
 
