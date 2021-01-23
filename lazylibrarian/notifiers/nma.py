@@ -58,8 +58,8 @@ class NMA_Notifier:
         if lazylibrarian.CONFIG['NMA_ONSNATCH']:
             if fail:
                 self._sendNMA(nma_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
-        else:
-            self._sendNMA(nma_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+            else:
+                self._sendNMA(nma_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['NMA_ONDOWNLOAD']:

@@ -140,8 +140,8 @@ class PushoverNotifier:
         if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notificationType='note')
-        else:
-            self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notificationType='note')
+            else:
+                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notificationType='note')
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD']:

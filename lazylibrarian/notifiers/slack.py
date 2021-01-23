@@ -98,8 +98,8 @@ class SlackNotifier:
         if lazylibrarian.CONFIG['SLACK_NOTIFY_ONSNATCH']:
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
-        else:
-            self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
+            else:
+                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['SLACK_NOTIFY_ONDOWNLOAD']:
