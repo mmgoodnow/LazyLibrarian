@@ -30,7 +30,7 @@ from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, ge
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
-from lazylibrarian.importer import update_totals, addAuthorNameToDB
+from lazylibrarian.importer import update_totals, addAuthorNameToDB, search_for
 from lazylibrarian.preprocessor import preprocess_audio
 try:
     from fuzzywuzzy import fuzz
@@ -1122,7 +1122,47 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         # doesn't have the book. No point in looking for it again.
                                         logger.warn("GoogleBooks doesn't know about %s" % book)
                                     elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
-                                        logger.warn("OpenLibrary doesn't know about %s" % book)
+                                        # Either openlibrary doesn't have the book or it didn't match language prefs
+                                        # or it's under a different author (pseudonym, series continuation author)
+                                        # Since we have the book anyway, try and reload it
+                                        rescan_count += 1
+                                        res = search_for(book + ' <ll> ' + author)
+                                        bookid = ''
+                                        bookauthor = ''
+                                        booktitle = ''
+                                        for item in res:
+                                            if item['book_fuzz'] >= 98:
+                                                rescan_hits += 1
+                                                logger.debug("Rescan found [%s] %s : %s: %s" %
+                                                             (item['authorname'], item['bookname'],
+                                                              item['booklang'], item['bookid']))
+                                                bookid = item['bookid']
+                                                bookauthor = item['authorname']
+                                                booktitle = item['bookname']
+                                                language = item['booklang']
+                                                break
+                                        if bookid:
+                                            cmd = 'SELECT * from books WHERE BookID=?'
+                                            check_status = myDB.match(cmd, (bookid,))
+                                            if check_status:
+                                                logger.debug("%s [%s] matched on rescan for %s" %
+                                                                (bookid, bookauthor, booktitle))
+                                            else:
+                                                logger.debug("Adding %s [%s] on rescan for %s" %
+                                                                (bookid, bookauthor, booktitle))
+                                                OL_ID = OpenLibrary(bookid)
+                                                OL_ID.find_book(bookid,
+                                                                reason="Librarysync rescan %s" %
+                                                                bookauthor)
+                                                if language and language != "Unknown":
+                                                    # set language from book metadata
+                                                    msg = "Setting language from metadata %s : %s"
+                                                    logger.debug(msg % (booktitle, language))
+                                                    cmd = 'UPDATE books SET BookLang=?'
+                                                    cmd += ' WHERE BookID=?'
+                                                    myDB.action(cmd, (language, bookid))
+                                        else:
+                                            logger.warn("OpenLibrary doesn't know about %s" % book)
 
                                 # see if it's there now...
                                 if bookid:

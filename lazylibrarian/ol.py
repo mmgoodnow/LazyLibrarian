@@ -88,7 +88,7 @@ class OpenLibrary:
                 if not in_cache:
                     api_hits += 1
                 if results and 'numFound' in results:
-                    logger.debug("Found %s results for searchterm" % results['numFound'])
+                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], offset))
                 else:
                     break
 
@@ -511,7 +511,7 @@ class OpenLibrary:
                                 if lang:
                                     myDB.action('insert into languages values (?, ?)', (isbnhead, lang))
 
-                        if lang and lang not in wantedlanguages :
+                        if lang and lang not in wantedlanguages:
                             rejected = 'lang', 'Invalid language: %s' % lang
 
                         if not lang:
