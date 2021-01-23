@@ -1342,7 +1342,7 @@ class GoodReads:
                 author = GR.find_author_id()
         if author:
             AuthorID = author['authorid']
-            match = myDB.match('SELECT AuthorID from authors WHERE AuthorID=?', (AuthorID,))
+            match = myDB.match('SELECT * from authors WHERE AuthorID=?', (AuthorID,))
             if not match:
                 # no author but request to add book, add author with newauthor status
                 # User hit "add book" button from a search, or a wishlist import, or api call
@@ -1364,9 +1364,16 @@ class GoodReads:
                     "Status": newauthor_status,
                     "Reason": reason
                 }
-                authorname = author['authorname']
-                myDB.upsert("authors", newValueDict, controlValueDict)
+                logger.debug("Adding author %s %s, %s" % (AuthorID, author['authorname'], newauthor_status))
+                # cmd = 'insert into authors (AuthorID, AuthorName, AuthorImg, AuthorLink, AuthorBorn,'
+                # cmd += ' AuthorDeath, DateAdded, Updated, Status, Reason) values (?,?,?,?,?,?,?,?,?,?)'
+                # myDB.action(cmd, (AuthorID, author['authorname'], author['authorimg'], author['authorlink'],
+                #                   author['authorborn'], author['authordeath'], today(), int(time.time()),
+                #                   newauthor_status, reason))
 
+                myDB.upsert("authors", newValueDict, controlValueDict)
+                myDB.commit()  # shouldn't really be necessary as context manager commits?
+                authorname = author['authorname']
                 if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] and newauthor_status != 'Paused':
                     self.get_author_books(AuthorID, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
                                           reason=reason)
@@ -1413,64 +1420,68 @@ class GoodReads:
 
         threadname = threading.currentThread().getName()
         reason = "[%s] %s" % (threadname, reason)
-        controlValueDict = {"BookID": bookid}
-        newValueDict = {
-            "AuthorID": AuthorID,
-            "BookName": bookname,
-            "BookSub": booksub,
-            "BookDesc": bookdesc,
-            "BookIsbn": bookisbn,
-            "BookPub": bookpub,
-            "BookGenre": bookgenre,
-            "BookImg": bookimg,
-            "BookLink": booklink,
-            "BookRate": bookrate,
-            "BookPages": bookpages,
-            "BookDate": bookdate,
-            "BookLang": bookLanguage,
-            "Status": bookstatus,
-            "AudioStatus": audiostatus,
-            "BookAdded": today(),
-            "WorkID": workid,
-            "ScanResult": reason,
-            "OriginalPubDate": originalpubdate
-        }
-
-        myDB.upsert("books", newValueDict, controlValueDict)
-        logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
-
-        if 'nocover' in bookimg or 'nophoto' in bookimg:
-            # try to get a cover from another source
-            workcover, source = getBookCover(bookid)
-            if workcover:
-                logger.debug('Updated cover for %s using %s' % (bookname, source))
-                controlValueDict = {"BookID": bookid}
-                newValueDict = {"BookImg": workcover}
-                myDB.upsert("books", newValueDict, controlValueDict)
-
-        elif bookimg and bookimg.startswith('http'):
-            link, success, _ = cache_img("book", bookid, bookimg)
-            if success:
-                controlValueDict = {"BookID": bookid}
-                newValueDict = {"BookImg": link}
-                myDB.upsert("books", newValueDict, controlValueDict)
-            else:
-                logger.debug('Failed to cache image for %s' % bookimg)
-
-        serieslist = []
-        if series:
-            serieslist = [('', seriesNum, cleanName(series, '&/'))]
-        if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
-            newserieslist = getWorkSeries(workid, reason=reason)
-            if newserieslist:
-                serieslist = newserieslist
-                logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-            setSeries(serieslist, bookid, reason=reason)
-
-        setGenres(getList(bookgenre, ','), bookid)
-
-        worklink = getWorkPage(bookid)
-        if worklink:
+        match = myDB.match("SELECT * from authors where AuthorID=?", (AuthorID,))
+        if not match:
+            logger.warn("Authorid %s not found in database, unable to add %s" % (AuthorID, bookname))
+        else:
             controlValueDict = {"BookID": bookid}
-            newValueDict = {"WorkPage": worklink}
+            newValueDict = {
+                "AuthorID": AuthorID,
+                "BookName": bookname,
+                "BookSub": booksub,
+                "BookDesc": bookdesc,
+                "BookIsbn": bookisbn,
+                "BookPub": bookpub,
+                "BookGenre": bookgenre,
+                "BookImg": bookimg,
+                "BookLink": booklink,
+                "BookRate": bookrate,
+                "BookPages": bookpages,
+                "BookDate": bookdate,
+                "BookLang": bookLanguage,
+                "Status": bookstatus,
+                "AudioStatus": audiostatus,
+                "BookAdded": today(),
+                "WorkID": workid,
+                "ScanResult": reason,
+                "OriginalPubDate": originalpubdate
+            }
+
             myDB.upsert("books", newValueDict, controlValueDict)
+            logger.info("%s by %s added to the books database, %s/%s" % (bookname, authorname, bookstatus, audiostatus))
+
+            if 'nocover' in bookimg or 'nophoto' in bookimg:
+                # try to get a cover from another source
+                workcover, source = getBookCover(bookid)
+                if workcover:
+                    logger.debug('Updated cover for %s using %s' % (bookname, source))
+                    controlValueDict = {"BookID": bookid}
+                    newValueDict = {"BookImg": workcover}
+                    myDB.upsert("books", newValueDict, controlValueDict)
+
+            elif bookimg and bookimg.startswith('http'):
+                link, success, _ = cache_img("book", bookid, bookimg)
+                if success:
+                    controlValueDict = {"BookID": bookid}
+                    newValueDict = {"BookImg": link}
+                    myDB.upsert("books", newValueDict, controlValueDict)
+                else:
+                    logger.debug('Failed to cache image for %s' % bookimg)
+
+            serieslist = []
+            if series:
+                serieslist = [('', seriesNum, cleanName(series, '&/'))]
+            if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
+                newserieslist = getWorkSeries(workid, reason=reason)
+                if newserieslist:
+                    serieslist = newserieslist
+                    logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
+                setSeries(serieslist, bookid, reason=reason)
+
+            setGenres(getList(bookgenre, ','), bookid)
+
+            worklink = getWorkPage(bookid)
+            if worklink:
+                controlValueDict = {"BookID": bookid}
+                newValueDict = {"WorkPage": worklink}
+                myDB.upsert("books", newValueDict, controlValueDict)

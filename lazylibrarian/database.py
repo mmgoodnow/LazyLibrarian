@@ -64,6 +64,22 @@ class DBConnection:
         with db_lock:
             self.connection.close()
 
+    def commit(self):
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+            # Get the frame data of the method that made the original database call
+            program = ""
+            method = ""
+            lineno = ""
+            if len(inspect.stack()) > 1:
+                frame = inspect.getframeinfo(inspect.stack()[1][0])
+                program = os.path.basename(frame.filename)
+                method = frame.function
+                lineno = frame.lineno
+            with open(self.dblog, 'a') as f:
+                f.write("%s commit %s %s %s\n" % (time.asctime(), program, lineno, method))
+        with db_lock:
+            self.connection.commit()
+
     # wrapper function with lock
     def action(self, query, args=None, suppress=None):
         if not query:
