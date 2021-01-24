@@ -1316,6 +1316,7 @@ def logHeader():
     popen_list = [sys.executable, lazylibrarian.FULL_PATH]
     popen_list += lazylibrarian.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
+    header += "config file: %s\n" % lazylibrarian.CONFIGFILE
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
