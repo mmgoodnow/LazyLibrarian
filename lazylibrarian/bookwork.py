@@ -963,8 +963,8 @@ def getSeriesMembers(seriesID=None, seriesname=None):
 
 
 def get_gb_info(isbn=None, author=None, title=None, expire=False):
-    """ GoodReads does not always have a book description in its api results
-        due to restrictive TOS from some of its providers, and goodreads may not have genre
+    """ GoodReads/OpenLibrary do not always have a book description in api results
+        due to restrictive TOS from some providers, and goodreads may not have genre
         Try to get missing info from googlebooks
         Return info dictionary, None if error"""
     if not author or not title:
@@ -975,56 +975,55 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
     if PY2:
         author = author.encode(lazylibrarian.SYS_ENCODING)
         title = title.encode(lazylibrarian.SYS_ENCODING)
-    if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
-        baseurl = 'https://www.googleapis.com/books/v1/volumes?q='
 
-        urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
-        if isbn:
-            urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
+    baseurl = 'https://www.googleapis.com/books/v1/volumes?q='
 
-        for url in urls:
-            if lazylibrarian.CONFIG['GB_API']:
-                url += '&key=' + lazylibrarian.CONFIG['GB_API']
-            if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY']) == 2:
-                url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
-            results, cached = json_request(url, expire=expire)
-            if results is None:  # there was an error
-                return None
-            if results and not cached:
-                time.sleep(1)
-            if results and 'items' in results:
-                high_fuzz = 0
-                high_parts = []
-                for item in results['items']:
-                    res = googleBookDict(item)
-                    book_fuzz = fuzz.token_set_ratio(res['name'], title)
-                    auth_fuzz = fuzz.token_set_ratio(res['author'], author)
-                    total_fuzz = int(book_fuzz + auth_fuzz) / 2
-                    if total_fuzz > high_fuzz:
-                        high_fuzz = total_fuzz
-                        high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
-                    if book_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                            logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
-                    elif auth_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                            logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
-                    else:
-                        return res
-                if 'isbn:' in url:
-                    stype = 'isbn result'
+    urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
+    if isbn:
+        urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
+
+    for url in urls:
+        if lazylibrarian.CONFIG['GB_API']:
+            url += '&key=' + lazylibrarian.CONFIG['GB_API']
+        if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY']) == 2:
+            url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
+        results, cached = json_request(url, expire=expire)
+        if results is None:  # there was an error
+            return None
+        if results and not cached:
+            time.sleep(1)
+        if results and 'items' in results:
+            high_fuzz = 0
+            high_parts = []
+            for item in results['items']:
+                res = googleBookDict(item)
+                book_fuzz = fuzz.token_set_ratio(res['name'], title)
+                auth_fuzz = fuzz.token_set_ratio(res['author'], author)
+                total_fuzz = int(book_fuzz + auth_fuzz) / 2
+                if total_fuzz > high_fuzz:
+                    high_fuzz = total_fuzz
+                    high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
+                if book_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                        logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
+                elif auth_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                        logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                 else:
-                    stype = 'inauthor:intitle result'
-                if high_parts:
-                    logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s [%s:%s]" %
-                                 (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
-                                  high_parts[1], cached, author, title))
-                else:
-                    logger.debug("No GoogleBooks match in %d %s%s cached=%s [%s:%s]" %
-                                 (len(results['items']), stype, plural(len(results['items'])), cached, author, title))
-
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
-                    logger.debug(high_parts)
+                    return res
+            if 'isbn:' in url:
+                stype = 'isbn result'
+            else:
+                stype = 'inauthor:intitle result'
+            if high_parts:
+                logger.debug("No GoogleBooks match in %d %s%s (%d%%/%d%%) cached=%s [%s:%s]" %
+                             (len(results['items']), stype, plural(len(results['items'])), high_parts[0],
+                              high_parts[1], cached, author, title))
+            else:
+                logger.debug("No GoogleBooks match in %d %s%s cached=%s [%s:%s]" %
+                             (len(results['items']), stype, plural(len(results['items'])), cached, author, title))
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                logger.debug(str(high_parts))
     return {}
 
 
