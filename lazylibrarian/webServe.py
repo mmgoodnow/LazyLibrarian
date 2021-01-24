@@ -413,7 +413,7 @@ class WebInterface(object):
                       'loading': lazylibrarian.AUTHORS_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @staticmethod
@@ -1067,7 +1067,7 @@ class WebInterface(object):
                       'aaData': rows,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -3914,7 +3914,7 @@ class WebInterface(object):
                       'loading': lazylibrarian.COMIC_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -4091,7 +4091,7 @@ class WebInterface(object):
                       'loading': lazylibrarian.COMIC_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -4405,7 +4405,7 @@ class WebInterface(object):
                       'loading': lazylibrarian.MAG_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -4539,7 +4539,7 @@ class WebInterface(object):
                       'loading': lazylibrarian.MAG_UPDATE,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -4684,7 +4684,7 @@ class WebInterface(object):
                       'aaData': rows,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
@@ -5578,7 +5578,7 @@ class WebInterface(object):
                       'aaData': rows,
                       }
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug(mydict)
+                logger.debug(str(mydict))
             return mydict
 
     @cherrypy.expose
