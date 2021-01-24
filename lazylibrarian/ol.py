@@ -448,13 +448,11 @@ class OpenLibrary:
                 first_publish_year = book.get('first_publish_year')
                 auth_key = book.get('author_key')[0]
                 languages = book.get('language')
-                publish_date = book.get('publish_date')
+                publish_date = book.get('publish_date', '')
                 publishers = book.get('publisher')
                 id_librarything = book.get('id_librarything')
                 if publish_date:
                     publish_date = dateFormat(publish_date[0])
-                else:
-                    publish_date = ''
                 if languages:
                     lang = ', '.join(languages)
                 else:
@@ -815,7 +813,8 @@ class OpenLibrary:
                                                                 bauth_key = match['AuthorID']
                                                             else:
                                                                 reason = "Series author %s" % series[0]
-                                                                lazylibrarian.importer.addAuthorNameToDB(author=member[2],
+                                                                aname = member[2]
+                                                                lazylibrarian.importer.addAuthorNameToDB(author=aname,
                                                                                                          refresh=False,
                                                                                                          addbooks=False,
                                                                                                          reason=reason)
