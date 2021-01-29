@@ -75,12 +75,7 @@ class Crawler(object):
 
     def set_logger(self, log_level=logging.INFO):
         """Configure the logger with log_level."""
-        logging.basicConfig(
-            format='%(asctime)s - %(levelname)s - %(name)s - %(message)s',
-            level=log_level,
-            stream=sys.stderr)
         self.logger = logging.getLogger(__name__)
-        logging.getLogger('requests').setLevel(logging.WARNING)
 
     def init_signal(self):
         """Init signal
