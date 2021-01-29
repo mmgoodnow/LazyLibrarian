@@ -1390,6 +1390,13 @@ def logHeader():
     else:
         header += "unrar: library missing\n"
 
+    try:
+        import PIL
+        vers = getattr(PIL, '__version__', None)
+        header += "python imaging: %s\n" % vers
+    except ImportError:
+        header += "python imaging: library missing\n"
+
     header += "openssl: %s\n" % getattr(ssl, 'OPENSSL_VERSION', None)
     X509 = None
     cryptography = None
