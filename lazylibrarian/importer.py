@@ -210,14 +210,9 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
                 authorname = 'unknown author'
-                logger.debug("Adding new author id %s to database %s, Addbooks=%s" %
-                             (authorid, reason, addbooks))
-                new_author = True
             else:
                 entry_status = dbauthor['Status']
                 authorname = dbauthor['authorname']
-                logger.debug("Updating author %s " % authorname)
-                new_author = False
 
             controlValueDict = {"AuthorID": authorid}
             newValueDict = {"Status": "Loading"}
@@ -235,6 +230,16 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 author = GR.get_author_info(authorid=authorid)
             if author:
                 authorname = author['authorname']
+                if not dbauthor:
+                    dbauthor = myDB.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+                if dbauthor:
+                    logger.debug("Updating author %s " % authorname)
+                    new_author = False
+                else:
+                    new_author = True
+                    logger.debug("Adding new author id %s (%s) to database %s, Addbooks=%s" %
+                                 (authorid, authorname, reason, addbooks))
+
                 authorimg = author['authorimg']
                 controlValueDict = {"AuthorID": authorid}
                 newValueDict = {
