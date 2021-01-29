@@ -8,6 +8,7 @@ from six.moves import queue
 from six.moves.urllib.parse import urlsplit
 
 from icrawler.utils import ThreadPool
+from lazylibrarian.common import getUserAgent
 
 
 class Parser(ThreadPool):
@@ -93,7 +94,7 @@ class Parser(ThreadPool):
                     base_url = '{0.scheme}://{0.netloc}'.format(urlsplit(url))
                     response = self.session.get(url,
                                                 timeout=req_timeout,
-                                                headers={'Referer': base_url})
+                                                headers={'Referer': base_url, 'User-Agent': getUserAgent()})
                 except Exception as e:
                     self.logger.error(
                         'Exception caught when fetching page %s, '
