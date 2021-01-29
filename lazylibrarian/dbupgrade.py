@@ -324,14 +324,14 @@ def check_db(upgradelog=None):
         cnt = 1
 
     try:
-        # correct any unpadded dates
+        # correct any invalid/unpadded dates
         lazylibrarian.UPDATE_MSG = 'Checking dates'
         cmd = 'SELECT BookID,BookDate from books WHERE  BookDate LIKE "%-_-%" or BookDate LIKE "%-_"'
         res = myDB.select(cmd)
         tot = len(res)
         if tot:
             cnt += tot
-            msg = 'Updating %s %s with unpadded bookdate' % (tot, plural(tot, "book"))
+            msg = 'Updating %s %s with invalid/unpadded bookdate' % (tot, plural(tot, "book"))
             logger.warn(msg)
             for item in res:
                 parts = item['BookDate'].split('-')
@@ -345,6 +345,7 @@ def check_db(upgradelog=None):
                         logger.warn("Invalid Month/Day (%s) for %s" % (item['BookDate'], item['BookID']))
                 else:
                     logger.warn("Invalid BookDate (%s) for %s" % (item['BookDate'], item['BookID']))
+                    myDB.action("UPDATE books SET BookDate=? WHERE BookID=?", ("0000", item['BookID']))
 
         # update any series "Skipped" to series "Paused"
         res = myDB.match('SELECT count(*) as counter from series WHERE Status="Skipped"')
@@ -571,9 +572,9 @@ def check_db(upgradelog=None):
             for orphan in snatches:
                 myDB.action('UPDATE books SET audiostatus="Skipped" WHERE bookid=?', (orphan[0],))
 
-        # all authors with no books in the library and no books marked wanted
-        cmd = 'select authorid from authors where havebooks=0 except select authorid from wanted,books '
-        cmd += 'where books.bookid=wanted.bookid and books.status=="Wanted";'
+        # all authors with no books in the library and no books marked wanted unless series contributor
+        cmd = 'select authorid from authors where havebooks=0 and Reason not like "%Series%" except '
+        cmd += 'select authorid from wanted,books where books.bookid=wanted.bookid and books.status=="Wanted";'
         authors = myDB.select(cmd)
         if authors:
             cnt += len(authors)

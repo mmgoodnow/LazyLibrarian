@@ -834,8 +834,8 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _listNoBooks(self):
-        q = 'select authorid,authorname,reason from authors where havebooks=0 except '
-        q += 'select authors.authorid,authorname,reason from books,authors where '
+        q = 'select authorid,authorname,reason from authors where havebooks=0 and reason not like "%Series%" '
+        q += 'except select authors.authorid,authorname,reason from books,authors where '
         q += 'books.authorid=authors.authorid and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
 
