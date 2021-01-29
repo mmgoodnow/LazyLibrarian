@@ -866,24 +866,30 @@ class GoodReads:
                                     genres, _ = get_gr_genres(bookid)
                                     if genres:
                                         bookgenre = ', '.join(genres)
-                                if not bookdesc:  # or not bookgenre:
-                                    infodict = get_gb_info(isbn=bookisbn, author=authorNameResult,
-                                                           title=bookname, expire=False)
-                                    if infodict is not None:  # None if api blocked
-                                        if not bookdesc:
-                                            if infodict and infodict['desc']:
-                                                bookdesc = infodict['desc']
-                                                logger.debug("Updated description from googlebooks")
-                                            else:
-                                                bookdesc = "No Description"
-                                                logger.debug("No description from googlebooks")
-                                        if not bookgenre:
-                                            if infodict and infodict['genre']:
-                                                bookgenre = genreFilter(infodict['genre'])
-                                                logger.debug("Updated genre from googlebooks")
-                                            else:
-                                                logger.debug("No genre from googlebooks")
-                                                bookgenre = "Unknown"
+                                infodict = get_gb_info(isbn=bookisbn, author=authorNameResult,
+                                                       title=bookname, expire=False)
+                                if infodict:  # None if api blocked
+                                    gbupdate = []
+                                    if not bookdesc and infodict['desc']:
+                                        bookdesc = infodict['desc']
+                                        gbupdate.append('Description')
+                                    if not bookdate or bookdate == '0000' or len(infodict['date']) > len(bookdate):
+                                        bookdate = infodict['date']
+                                        gbupdate.append('Publication Date')
+                                    if infodict['rate'] and not bookrate:
+                                        bookrate = infodict['rate']
+                                        gbupdate.append('Rating')
+                                    if infodict['pub'] and not bookpub:
+                                        bookpub = infodict['pub']
+                                        gbupdate.append('Publisher')
+                                    if infodict['pages'] and not bookpages:
+                                        bookpages = infodict['pages']
+                                        gbupdate.append('Pages')
+                                    if not bookgenre and infodict['genre']:
+                                        bookgenre = genreFilter(infodict['genre'])
+                                        gbupdate.append('Genres')
+                                    if gbupdate:
+                                        logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
 
                                 threadname = threading.currentThread().getName()
                                 reason = "[%s] %s" % (threadname, reason)

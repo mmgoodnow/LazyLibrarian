@@ -269,6 +269,10 @@ class OpenLibrary:
                 if words[0].strip().strip('.').lower in postfix:
                     author_name = words[1].strip() + ' ' + words[0].strip()
 
+        if not author_name:
+            logger.warn("Rejecting authorid %s, no authorname" % authorid)
+            return None
+
         logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))
         author_dict = {
             'authorid': authorid,
@@ -435,8 +439,8 @@ class OpenLibrary:
             if not authorbooks or not authorbooks["numFound"]:
                 logger.debug("No books found for key %s" % authorid)
                 next_page = False
-
-            for book in authorbooks['docs']:
+            docs = authorbooks.get('docs', [])
+            for book in docs:
                 book_status = bookstatus
                 audio_status = audiostatus
                 auth_name = book.get('author_name')[0]
@@ -444,6 +448,8 @@ class OpenLibrary:
                 cover = book.get('cover_i')
                 isbns = book.get('isbn')
                 link = book.get('key')
+                bookpages = 0
+                bookdesc = ''
                 key = book.get('key').split('/')[-1]
                 first_publish_year = book.get('first_publish_year')
                 auth_key = book.get('author_key')[0]
@@ -527,6 +533,8 @@ class OpenLibrary:
                         if bookpub.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
                             rejected = 'publisher', bookpub
                             break
+                if publishers and not rejected:
+                    publishers = ', '.join(publishers)
 
                 if not rejected and not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
                     # try lookup by name
@@ -631,14 +639,41 @@ class OpenLibrary:
                             genres = ', '.join(set(genrenames))
                             updateValueDict = {}
                             exists = myDB.match("SELECT * from books WHERE LT_Workid=?", (id_librarything,))
-                            if not exists:
+                            if exists:
+                                locked = exists['Manual']
+                                if locked is None:
+                                    locked = False
+                                elif locked.isdigit():
+                                    locked = bool(int(locked))
+                            else:
+                                locked = False
+                                bookdate = publish_date
+                                bookrate = rating
                                 infodict = get_gb_info(isbn=isbn, author=auth_name, title=title, expire=False)
-                                if infodict and infodict['desc']:
-                                    bookdesc = infodict['desc']
-                                else:
-                                    bookdesc = 'No Description'
-                                if not genres and infodict and infodict['genre']:
-                                    genres = genreFilter(infodict['genre'])
+                                if infodict:
+                                    gbupdate = []
+                                    if infodict['desc']:
+                                        bookdesc = infodict['desc']
+                                        gbupdate.append("Description")
+                                    else:
+                                        bookdesc = 'No Description'
+                                    if not genres and infodict['genre']:
+                                        genres = genreFilter(infodict['genre'])
+                                        gbupdate.append('Genres')
+                                    if not bookdate or bookdate == '0000' or len(infodict['date']) > len(bookdate):
+                                        bookdate = infodict['date']
+                                        gbupdate.append('Publication Date')
+                                    if infodict['pub'] and not publishers:
+                                        publishers = infodict['pub']
+                                        gbupdate.append('Publisher')
+                                    if infodict['rate'] and not bookrate:
+                                        bookrate = infodict['rate']
+                                        gbupdate.append('Rating')
+                                    if infodict['pages'] and not bookpages:
+                                        bookpages = infodict['pages']
+                                        gbupdate.append('Pages')
+                                    if gbupdate:
+                                        logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
 
                                 if 'authorUpdate' in entryreason:
                                     reason = 'Author: %s' % auth_name
@@ -649,15 +684,18 @@ class OpenLibrary:
                                 myDB.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                             'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
                                             'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
-                                            'ScanResult, OriginalPubDate) ' +
-                                            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                            (authorid, title, bookdesc, genres, isbn, '', rating, cover, link, key,
-                                             publish_date, lang, now(), book_status, '', audio_status,
-                                             id_librarything, reason, first_publish_year))
+                                            'ScanResult, OriginalPubDate, BookPages) ' +
+                                            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                            (authorid, title, bookdesc, genres, isbn, publishers, bookrate, cover,
+                                             link, key, bookdate, lang, now(), book_status, '', audio_status,
+                                             id_librarything, reason, first_publish_year, bookpages))
+
+                            # Leave alone if locked
+                            if locked:
+                                locked_count += 1
                             else:
-                                if exists['ScanResult'] and \
-                                        ' publication date' in exists['ScanResult'] and \
-                                        publish_date and publish_date != '0000' and \
+                                if exists and exists['ScanResult'] and ' publication date' in exists['ScanResult'] \
+                                        and publish_date and publish_date != '0000' and \
                                         publish_date <= today()[:len(publish_date)]:
                                     # was rejected on previous scan but bookdate has become valid
                                     logger.debug("valid bookdate [%s] previous scanresult [%s]" %
@@ -665,16 +703,16 @@ class OpenLibrary:
 
                                     updateValueDict["ScanResult"] = "bookdate %s is now valid" % publish_date
 
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
-                            book_status, audio_status = getStatus(key, serieslist, bookstatus,
-                                                                  audiostatus, entrystatus)
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                logger.debug("status is now %s,%s" % (book_status, audio_status))
-                            updateValueDict["Status"] = book_status
-                            updateValueDict["AudioStatus"] = audio_status
-                            controlValueDict = {"LT_WorkID": id_librarything}
-                            myDB.upsert("books", updateValueDict, controlValueDict)
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                    logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
+                                book_status, audio_status = getStatus(key, serieslist, bookstatus,
+                                                                      audiostatus, entrystatus)
+                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                    logger.debug("status is now %s,%s" % (book_status, audio_status))
+                                updateValueDict["Status"] = book_status
+                                updateValueDict["AudioStatus"] = audio_status
+                                controlValueDict = {"LT_WorkID": id_librarything}
+                                myDB.upsert("books", updateValueDict, controlValueDict)
 
                             if not exists:
                                 typ = 'Added'
@@ -1035,10 +1073,16 @@ class OpenLibrary:
             authorname = ''
             authors = workinfo.get('authors')
             if authors:
-                authorid = authors[0]['author']['key']
-                authorid = authorid.split('/')[-1]
+                try:
+                    authorid = authors[0]['author']['key']
+                    authorid = authorid.split('/')[-1]
+                except KeyError:
+                    authorid = ''
             else:
                 authorid = ''
+            if not authorid:
+                logger.warn("No AuthorID for %s, unable to add book" % title)
+                return
             bookdesc = ''
             bookpub = ''
             booklink = workinfo.get('key')

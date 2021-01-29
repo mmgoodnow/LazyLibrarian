@@ -244,15 +244,14 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 if new_author:
                     newValueDict['Reason'] = reason
                     newValueDict["DateAdded"] = today()
+                    newValueDict["AuthorName"] = authorname
+                    newValueDict["AuthorImg"] = authorimg
                 if not dbauthor or (dbauthor and not dbauthor['manual']):
                     newValueDict["AuthorBorn"] = author['authorborn']
                     newValueDict["AuthorDeath"] = author['authordeath']
                     if 'about' in author:
                         newValueDict['About'] = author['about']
-                    if not dbauthor:
-                        newValueDict["AuthorImg"] = author['authorimg']
-                        newValueDict["AuthorName"] = author['authorname']
-                    elif dbauthor['authorname'] != author['authorname']:
+                    if dbauthor and dbauthor['authorname'] != author['authorname']:
                         authorname = dbauthor['authorname']
                         logger.warn("Authorname mismatch for %s [%s][%s]" %
                                     (authorid, dbauthor['authorname'], author['authorname']))
@@ -283,7 +282,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
             if not dbauthor:
                 newValueDict = {
-                    "AuthorID": "0: %s" % authorname,
+                    "AuthorID": author['authorid'],
                     "Status": "Loading"
                 }
                 logger.debug("Now adding new author: %s to database %s" % (authorname, reason))
@@ -292,7 +291,9 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 entry_status = 'Active'
                 new_author = True
             else:
+                controlValueDict = {"AuthorID": dbauthor['AuthorID']}
                 newValueDict = {"Status": "Loading"}
+                authorname = dbauthor['AuthorName']
                 logger.debug("Now updating author: %s" % authorname)
                 entry_status = dbauthor['Status']
                 new_author = False
@@ -303,12 +304,17 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 authorimg = author['authorimg']
                 controlValueDict = {"AuthorName": authorname}
                 newValueDict = {
-                    "AuthorID": author['authorid'],
+                    "AuthorID": authorid,
                     "AuthorLink": author['authorlink'],
                     "Updated": int(time.time()),
                     "Status": "Loading"
                 }
                 if dbauthor:
+                    controlValueDict = {"AuthorID": authorid}
+                    newValueDict = {
+                        "Updated": int(time.time()),
+                        "Status": "Loading"
+                    }
                     if authorname != dbauthor['authorname']:
                         # name change might be users preference
                         logger.warn("Conflicting authorname for %s [%s][%s] Ignoring change" %
@@ -347,7 +353,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
         # if author is set to manual, should we allow replacing 'nophoto' ?
         new_img = False
         match = myDB.match("SELECT Manual from authors WHERE AuthorID=?", (authorid,))
-        if not match or not match['Manual']:
+        if match and not match['Manual']:
             if authorimg and 'nophoto' in authorimg:
                 newimg = getAuthorImage(authorid)
                 if newimg:
