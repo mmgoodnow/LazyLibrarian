@@ -26,9 +26,9 @@
             %endif
             <button class="button btn btn-sm btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Remove Author</button>
             %if ignored == 'True':
-                <a href="authorPage?AuthorID=${author['AuthorID']}&amp;Ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+                <a href="authorPage?AuthorID=${author['AuthorID']}&Ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
             %else:
-            <a href="authorPage?AuthorID=${author['AuthorID']}&amp;Ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+            <a href="authorPage?AuthorID=${author['AuthorID']}&Ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
             %endif
         %endif
         %if showseries >= 1:
@@ -72,11 +72,11 @@
            %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
              %if lazylibrarian.SHOW_EBOOK > 0:
              <a href="rssFeed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
-             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rssFeed?user=${user}&type=eBook&authorid=${author['AuthorID']}limit=10.xml">
+             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rssFeed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
              %if lazylibrarian.SHOW_AUDIO > 0:
              <a href="rssFeed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent audiobooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-headphones"></i></a>
-             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rssFeed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}limit=10.xml">
+             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rssFeed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
            %endif
          %endif
@@ -247,8 +247,8 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { $.get("removeAuthor", {'AuthorID': ${author['AuthorID']} },
-                        function (data) { window.location = 'home' }); }
+                  if (result) { $.get("removeAuthor", {'AuthorID': '${author['AuthorID']}' },
+                      function (data) { }); }
                 }
             });
         });
