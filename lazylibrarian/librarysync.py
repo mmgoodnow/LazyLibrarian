@@ -952,7 +952,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.warn("Metadata authorid [%s] does not match database [%s]" %
                                                             (authorid, match['AuthorID']))
                                         else:
-                                            logger.debug("Unable to add bookid %s to database" % bookid)
+                                            logger.debug("Unable to add bookid via metadata (%s)" % bookid)
                                             bookid = ""
 
                                 if not bookid and isbn:
@@ -1146,10 +1146,10 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                             check_status = myDB.match(cmd, (bookid,))
                                             if check_status:
                                                 logger.debug("%s [%s] matched on rescan for %s" %
-                                                                (bookid, bookauthor, booktitle))
+                                                             (bookid, bookauthor, booktitle))
                                             else:
                                                 logger.debug("Adding %s [%s] on rescan for %s" %
-                                                                (bookid, bookauthor, booktitle))
+                                                             (bookid, bookauthor, booktitle))
                                                 OL_ID = OpenLibrary(bookid)
                                                 OL_ID.find_book(bookid,
                                                                 reason="Librarysync rescan %s" %

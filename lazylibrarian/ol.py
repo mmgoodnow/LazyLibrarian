@@ -590,7 +590,7 @@ class OpenLibrary:
                 elif rejected and not (rejected[0] in ignorable and lazylibrarian.CONFIG['IMP_IGNORE']):
                     logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                 else:
-                    logger.debug("Found title: %s (%s)" % (title, id_librarything))
+                    logger.debug("Found title: %s %s" % (title, id_librarything))
                     if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
                         if publish_date > today()[:len(publish_date)]:
                             if ignorable is None:
@@ -749,30 +749,41 @@ class OpenLibrary:
                                                                                          series[0]))
                                         for member in seriesmembers:
                                             # member[order, bookname, authorname, authorlink, workid]
-                                            exists = myDB.match("SELECT * from authors WHERE " +
-                                                                "AuthorName=?", (member[2],))
+                                            auth_name, exists = lazylibrarian.importer.getPreferredAuthorName(member[2])
                                             if not exists:
                                                 lazylibrarian.importer.addAuthorNameToDB(author=member[2],
                                                                                          refresh=False, addbooks=False,
                                                                                          reason="Series author %s" %
                                                                                                 series[0])
-                                                exists = myDB.match("SELECT * from authors WHERE " +
-                                                                    "AuthorName=? COLLATE NOCASE", (member[2],))
-                                            if not exists:
-                                                logger.debug("Unable to add %s for %s, author not in database" %
-                                                             (member[2], member[1]))
+                                                auth_name, exists = \
+                                                    lazylibrarian.importer.getPreferredAuthorName(member[2])
+                                                if exists:
+                                                    auth_name = member[2]
+                                                else:
+                                                    logger.debug("Unable to add %s for %s, author not in database" %
+                                                                 (member[2], member[1]))
                                                 break
                                             else:
-                                                auth_key = exists['AuthorID']
-                                                match = myDB.match('SELECT * from seriesauthors WHERE ' +
-                                                                   'SeriesID=? and AuthorID=?',
-                                                                   (series[2], auth_key))
-                                                if not match:
-                                                    logger.debug("Adding %s as series author for %s" %
-                                                                 (member[2], series[0]))
-                                                    myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
-                                                                '"AuthorID") VALUES (?, ?)',
-                                                                (series[2], auth_key), suppress='UNIQUE')
+                                                cmd = "SELECT * from authors WHERE authorname=?"
+                                                exists = myDB.match(cmd, (auth_name,))
+                                                if exists:
+                                                    auth_key = exists['AuthorID']
+                                                    if fuzz.ratio(auth_name.lower().replace('.', ''),
+                                                                  member[2].lower().replace('.', '')) < 95:
+                                                        akas = getList(exists['AKA'], ',')
+                                                        if member[2] not in akas:
+                                                            akas.append(member[2])
+                                                            myDB.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                                                                        (', '.join(akas), auth_key))
+                                                    match = myDB.match('SELECT * from seriesauthors WHERE ' +
+                                                                       'SeriesID=? and AuthorID=?',
+                                                                       (series[2], auth_key))
+                                                    if not match:
+                                                        logger.debug("Adding %s as series author for %s" %
+                                                                     (auth_name, series[0]))
+                                                        myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
+                                                                    '"AuthorID") VALUES (?, ?)',
+                                                                    (series[2], auth_key), suppress='UNIQUE')
 
                                             # if book not in library, use librarything workid to get an isbn
                                             # use that to get openlibrary workid
@@ -829,7 +840,6 @@ class OpenLibrary:
                                                         api_hits += not in_cache
                                                         cache_hits = in_cache
                                                         if workinfo and 'title' in workinfo:
-                                                            auth_name = member[2]
                                                             title = workinfo.get('title')
                                                             covers = workinfo.get('covers')
                                                             if covers:
@@ -846,23 +856,21 @@ class OpenLibrary:
                                                             lang = ''
                                                             match = myDB.match('SELECT * from authors ' +
                                                                                'WHERE AuthorName=? COLLATE NOCASE',
-                                                                               (member[2],))
+                                                                               (auth_name,))
                                                             if match:
                                                                 bauth_key = match['AuthorID']
                                                             else:
                                                                 reason = "Series author %s" % series[0]
-                                                                aname = member[2]
-                                                                lazylibrarian.importer.addAuthorNameToDB(author=aname,
-                                                                                                         refresh=False,
-                                                                                                         addbooks=False,
-                                                                                                         reason=reason)
+                                                                lazylibrarian.importer.addAuthorNameToDB(
+                                                                    author=auth_name, refresh=False,
+                                                                    addbooks=False, reason=reason)
                                                                 match = myDB.match('SELECT * from authors ' +
                                                                                    'WHERE AuthorName=? COLLATE NOCASE',
-                                                                                   (member[2],))
+                                                                                   (auth_name,))
                                                                 if match:
                                                                     bauth_key = match['AuthorID']
                                                                 else:
-                                                                    msg = "Unable to add %s for %s" % (member[2], title)
+                                                                    msg = "Unable to add %s for %s" % (auth_name, title)
                                                                     msg += ", author not in database"
                                                                     logger.debug(msg)
                                                                     break
@@ -904,7 +912,7 @@ class OpenLibrary:
                                                                                (series[2], bauth_key))
                                                             if not match:
                                                                 logger.debug("Adding %s as series author for %s" %
-                                                                             (member[2], series[0]))
+                                                                             (auth_name, series[0]))
                                                                 myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
                                                                             '"AuthorID") VALUES (?, ?)',
                                                                             (series[2], bauth_key), suppress='UNIQUE')
@@ -1012,8 +1020,11 @@ class OpenLibrary:
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
 
         if workinfo:
-            title = workinfo.get('title')
-            covers = workinfo.get('covers')
+            title = workinfo.get('title', '')
+            if not title:
+                logger.warn("No title for %s, unable to add book" % bookid)
+                return
+            covers = workinfo.get('covers', '')
             if covers:
                 cover = 'http://covers.openlibrary.org/b/id/'
                 cover += '%s-M.jpg' % covers[0]
@@ -1177,7 +1188,7 @@ def cache_cover(bookid, cover):
         newValueDict = {"BookImg": link}
         myDB.upsert("books", newValueDict, controlValueDict)
     else:
-        logger.debug('Failed to cache image for %s' % cover)
+        logger.debug('Failed to cache image for %s (%s)' % (cover, link))
 
 
 
