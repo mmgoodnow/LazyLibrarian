@@ -1124,16 +1124,15 @@ class OpenLibrary:
                 bookisbn = res
 
             infodict = get_gb_info(isbn=bookisbn, author=authorname, title=title, expire=False)
-            if infodict is not None:  # None if api blocked
-                if infodict and infodict['desc']:
+            if infodict:
+                if infodict.get('desc'):
                     bookdesc = infodict['desc']
                 else:
                     bookdesc = 'No Description'
-                if not bookgenre:
-                    if infodict and infodict['genre']:
-                        bookgenre = genreFilter(infodict['genre'])
-                    else:
-                        bookgenre = 'Unknown'
+                if not bookgenre and infodict.get('genre'):
+                    bookgenre = genreFilter(infodict['genre'])
+                else:
+                    bookgenre = 'Unknown'
 
             threadname = threading.currentThread().getName()
             reason = "[%s] %s" % (threadname, reason)
