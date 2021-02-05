@@ -75,6 +75,8 @@ class grauth:
             return "Exception in client.request: see error log"
 
         if not response['status'].startswith('2'):
+            if content:
+                logger.debug(str(content))
             return 'Invalid response [%s] from: %s' % (response['status'], request_token_url)
 
         request_token = dict(parse_qsl(content))
