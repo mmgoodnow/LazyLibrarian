@@ -650,7 +650,7 @@ CONFIG_DEFINITIONS = {
     'RSS_PODCAST': ('bool', 'RSS', 1),
     'RSS_HOST': ('str', 'RSS', ''),
     'PREF_UNRARLIB': ('int', 'General', 1),
-    'USER_AGENT': ('str', 'General', ''),
+    'USER_AGENT': ('str', 'General', 'Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0'),
     'RATESTARS': ('bool', 'General', 1),
     'EBOOK_WANTED_FORMATS': ('str', 'Preprocess', ''),
     'DELETE_OTHER_FORMATS': ('bool', 'Preprocess', 0),
@@ -1154,14 +1154,6 @@ def config_read(reloaded=False):
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
         CONFIG['HTTP_LOOK'] = 'legacy'
-
-    myDB = database.DBConnection()
-    # check if we have an active database yet, not a fresh install
-    result = myDB.match('PRAGMA user_version')
-    if result:
-        version = result[0]
-    else:
-        version = 0
 
     ###################################################################
     # ensure all these are boolean 1 0, not True False for javascript #
