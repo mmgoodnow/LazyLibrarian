@@ -967,7 +967,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
         due to restrictive TOS from some providers, and goodreads may not have genre
         Try to get missing info from googlebooks
         Return info dictionary, None if error"""
-    if not author or not title:
+    if not author or not title or not lazylibrarian.CONFIG['GB_API']:
         return {}
 
     author = cleanName(author)
@@ -983,8 +983,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
         urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
 
     for url in urls:
-        if lazylibrarian.CONFIG['GB_API']:
-            url += '&key=' + lazylibrarian.CONFIG['GB_API']
+        url += '&key=' + lazylibrarian.CONFIG['GB_API']
         if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY']) == 2:
             url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
         results, cached = json_request(url, expire=expire)
