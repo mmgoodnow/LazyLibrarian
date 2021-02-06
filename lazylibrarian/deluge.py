@@ -23,6 +23,7 @@
 from __future__ import unicode_literals
 
 import re
+import time
 import traceback
 from base64 import b64encode, b64decode
 
@@ -38,6 +39,7 @@ from lazylibrarian.formatter import check_int, makeUnicode
 from lazylibrarian.common import make_dirs, path_isdir, syspath
 from six import PY2
 
+delugeweb_authtime = 0
 delugeweb_auth = {}
 delugeweb_url = ''
 deluge_verify_cert = False
@@ -175,19 +177,17 @@ def getTorrentProgress(torrentid):
 
 
 def getTorrentStatus(torrentid, data):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     try:
         tries = 2
         while tries:
-            if not any(delugeweb_auth):
-                _get_auth()
-
+            cookies = _get_auth()
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
 
             post_json = {"method": "web.get_torrent_status",
                          "params": [torrentid, data],
                          "id": 22}
-            response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+            response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                      verify=deluge_verify_cert, headers=headers, timeout=timeout)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
@@ -195,7 +195,7 @@ def getTorrentStatus(torrentid, data):
 
             res = response.json()
             if res and res['error'] and res['error']['code'] == 1:  # not authenticated
-                delugeweb_auth = {}  # force retry auth
+                delugeweb_authtime = 0  # force retry auth
                 tries -= 1
             else:
                 return res
@@ -205,10 +205,8 @@ def getTorrentStatus(torrentid, data):
 
 
 def removeTorrent(torrentid, remove_data=False):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
 
     try:
@@ -216,24 +214,36 @@ def removeTorrent(torrentid, remove_data=False):
             logger.debug('Deluge: Removing torrent %s' % str(torrentid))
         post_json = {"method": "core.remove_torrent", "params": [torrentid, remove_data], "id": 25}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
-        result = response.json()['result']
-        return result
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            delugeweb_authtime = 0  # force retry auth
+            return False
+        return response.json()['result']
     except Exception as err:
         logger.debug('Deluge: Could not delete torrent %s: %s' % (type(err).__name__, str(err)))
         return False
 
 
 def _get_auth():
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_auth, delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
+    if delugeweb_auth:
+        if lazylibrarian.CONFIG.get('DELUGE_TIMEOUT', 0):
+            timeout = check_int(lazylibrarian.CONFIG['DELUGE_TIMEOUT'], 0)
+        else:
+            timeout = 3600
+        if delugeweb_authtime > time.time() - timeout:
+            delugeweb_authtime = time.time()
+            return delugeweb_auth
+
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authenticating...')
-    delugeweb_auth = {}
+    delugeweb_authtime = 0
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
 
     delugeweb_cert = lazylibrarian.CONFIG['DELUGE_CERT']
@@ -267,7 +277,7 @@ def _get_auth():
     post_json = {"method": "auth.login", "params": [delugeweb_password], "id": 1}
 
     try:
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth, timeout=timeout,
+        response = requests.post(delugeweb_url, json=post_json, cookies={}, timeout=timeout,
                                  verify=deluge_verify_cert, headers=headers)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
@@ -286,7 +296,7 @@ def _get_auth():
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Deluge: Connection failed, let\'s try HTTPS just in case')
             response = requests.post(delugeweb_url.replace('http:', 'https:'), json=post_json, timeout=timeout,
-                                     cookies=delugeweb_auth, verify=deluge_verify_cert, headers=headers)
+                                     cookies={}, verify=deluge_verify_cert, headers=headers)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
                 logger.debug(response.text)
@@ -314,13 +324,13 @@ def _get_auth():
 
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authentication result: %s, Error: %s' % (auth, auth_error))
-    delugeweb_auth = response.cookies
+    cookies = response.cookies
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Deluge: Authentication cookies: %s' % str(delugeweb_auth.get_dict()))
+        logger.debug('Deluge: Authentication cookies: %s' % str(cookies.get_dict()))
     post_json = {"method": "web.connected", "params": [], "id": 10}
 
     try:
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
@@ -328,7 +338,6 @@ def _get_auth():
 
     except Exception as err:
         logger.debug('Deluge %s: web.connected returned %s' % (type(err).__name__, str(err)))
-        delugeweb_auth = {}
         return None
 
     connected = response.json()['result']
@@ -341,14 +350,13 @@ def _get_auth():
 
         try:
             response = requests.post(delugeweb_url, json=post_json, verify=deluge_verify_cert,
-                                     cookies=delugeweb_auth, headers=headers)
+                                     cookies=cookies, headers=headers)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
                 logger.debug(response.text)
 
         except Exception as err:
             logger.debug('Deluge %s: web.get_hosts returned %s' % (type(err).__name__, str(err)))
-            delugeweb_auth = {}
             return None
 
         delugeweb_hosts = response.json()['result']
@@ -356,13 +364,12 @@ def _get_auth():
         # Check if delugeweb_hosts is None before checking its length
         if not delugeweb_hosts or len(delugeweb_hosts) == 0:
             logger.error('Deluge: %s' % response.text)
-            delugeweb_auth = {}
             return None
 
         post_json = {"method": "web.connect", "params": [delugeweb_hosts[0][0]], "id": 11}
 
         try:
-            response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+            response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                      verify=deluge_verify_cert, headers=headers)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
@@ -370,50 +377,51 @@ def _get_auth():
 
         except Exception as err:
             logger.debug('Deluge %s: web.connect returned %s' % (type(err).__name__, str(err)))
-            delugeweb_auth = {}
             return None
 
         post_json = {"method": "web.connected", "params": [], "id": 10}
 
         try:
             response = requests.post(delugeweb_url, json=post_json, verify=deluge_verify_cert,
-                                     cookies=delugeweb_auth, headers=headers)
+                                     cookies=cookies, headers=headers)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
                 logger.debug(response.text)
 
         except Exception as err:
             logger.debug('Deluge %s: web.connected returned %s' % (type(err).__name__, str(err)))
-            delugeweb_auth = {}
             return None
 
         connected = response.json()['result']
 
         if not connected:
             logger.error('Deluge: WebUI could not connect to daemon')
-            delugeweb_auth = {}
             return None
 
-    return auth
+    delugeweb_authtime = time.time()
+    delugeweb_auth = cookies
+    return delugeweb_auth
 
 
 def _add_torrent_magnet(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding magnet')
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
     try:
         post_json = {"method": "core.add_torrent_magnet", "params": [result['url'], {}], "id": 2}
-
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error("Deluge: Not authenticated")
+            delugeweb_authtime = 0  # force retry auth
         result['hash'] = response.json()['result']
         msg = 'Deluge: Response was %s' % result['hash']
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -427,29 +435,32 @@ def _add_torrent_magnet(result):
 
 
 def _add_torrent_url(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding URL')
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
     try:
         post_json = {"method": "core.add_torrent_url", "params": [result['url'], {}], "id": 32}
-
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
+
         result['hash'] = response.json()['result']
         msg = 'Deluge: Response was %s' % result['hash']
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug(msg)
-        if 'was None' in msg:
-            logger.error('Deluge: Adding torrent URL failed: Is the WebUI running?')
+        if not result['hash']:
+            logger.error('Deluge: Adding torrent URL failed')
         return response.json()['result']
     except Exception as err:
         logger.error('Deluge %s: Adding torrent URL failed: %s' % (type(err).__name__, str(err)))
@@ -457,13 +468,12 @@ def _add_torrent_url(result):
 
 
 def _add_torrent_file(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding file')
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
     try:
         # content is torrent file contents (bytes) that needs to be encoded to base64
         # b64encode input/output is bytes, and python3 json serialiser doesnt like bytes
@@ -474,19 +484,24 @@ def _add_torrent_file(result):
                      "params": [result['name'] + '.torrent', content, {}],
                      "id": 2}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
+
         result['hash'] = response.json()['result']
         msg = 'Deluge: Response was %s' % result['hash']
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug(msg)
         if 'was None' in msg:
-            logger.error('Deluge: Adding torrent file failed: Is the WebUI running?')
+            logger.error('Deluge: Adding torrent file failed')
         return response.json()['result']
     except Exception as err:
         logger.error('Deluge %s: Adding torrent file failed: %s' % (type(err).__name__, str(err)))
@@ -497,18 +512,17 @@ def _add_torrent_file(result):
 
 
 def setTorrentLabel(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Deluge: Setting label')
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     label = lazylibrarian.CONFIG['DELUGE_LABEL']
-    if not any(delugeweb_auth):
-        _get_auth()
+    cookies = _get_auth()
 
     if not label:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Deluge: No Label set')
         return True
 
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug('Deluge: Setting label')
     if ' ' in label:
         logger.error('Deluge: Invalid label. Label can\'t contain spaces - replacing with underscores')
         label = label.replace(' ', '_')
@@ -518,11 +532,16 @@ def setTorrentLabel(result):
         # check if label already exists and create it if not
         post_json = {"method": 'label.get_labels', "params": [], "id": 3}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
+
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
 
         labels = response.json()['result']
 
@@ -536,7 +555,7 @@ def setTorrentLabel(result):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                         logger.debug('Deluge: %s label doesn\'t exist in Deluge, let\'s add it' % label)
                     post_json = {"method": 'label.add', "params": [label], "id": 4}
-                    response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+                    response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                              verify=deluge_verify_cert, headers=headers, timeout=timeout)
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                         logger.debug('Status code: %s' % response.status_code)
@@ -560,7 +579,7 @@ def setTorrentLabel(result):
             # add label to torrent
             post_json = {"method": 'label.set_torrent', "params": [result['hash'], label], "id": 5}
 
-            response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+            response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                      verify=deluge_verify_cert, headers=headers, timeout=timeout)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('Status code: %s' % response.status_code)
@@ -576,13 +595,12 @@ def setTorrentLabel(result):
 
 
 def setSeedRatio(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Setting seed ratio')
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
     try:
         ratio = None
         if result['ratio']:
@@ -593,15 +611,20 @@ def setSeedRatio(result):
 
         post_json = {"method": "core.set_torrent_stop_at_ratio", "params": [result['hash'], True], "id": 5}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
 
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
+
         post_json = {"method": "core.set_torrent_stop_ratio", "params": [result['hash'], float(ratio)], "id": 6}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
@@ -614,14 +637,12 @@ def setSeedRatio(result):
 
 
 def setTorrentPath(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Setting download path')
-    if not any(delugeweb_auth):
-        _get_auth()
+    cookies = _get_auth()
 
     dl_dir = lazylibrarian.CONFIG['DELUGE_DIR']
-
     if not dl_dir:
         return True
 
@@ -629,11 +650,16 @@ def setTorrentPath(result):
     try:
         post_json = {"method": "core.set_torrent_move_completed", "params": [result['hash'], True], "id": 7}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
+
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
 
         if not path_isdir(dl_dir):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -642,7 +668,7 @@ def setTorrentPath(result):
 
         post_json = {"method": "core.set_torrent_move_completed_path", "params": [result['hash'], dl_dir], "id": 8}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
@@ -655,21 +681,25 @@ def setTorrentPath(result):
 
 
 def setTorrentPause(result):
-    global delugeweb_auth, delugeweb_url, headers, deluge_verify_cert
+    global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Pausing torrent')
-    if not any(delugeweb_auth):
-        _get_auth()
-
+    cookies = _get_auth()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
     try:
         post_json = {"method": "core.pause_torrent", "params": [[result['hash']]], "id": 9}
 
-        response = requests.post(delugeweb_url, json=post_json, cookies=delugeweb_auth,
+        response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Status code: %s' % response.status_code)
             logger.debug(response.text)
+
+        res = response.json()
+        if res and res['error'] and res['error']['code'] == 1:  # not authenticated
+            logger.error('Deluge: Not authenticated')
+            delugeweb_authtime = 0  # force retry auth
 
         return not response.json()['error']
     except Exception as err:
@@ -681,13 +711,15 @@ def checkLink():
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Checking connection')
     msg = "Deluge: Connection successful"
-    auth = _get_auth()
-    if auth:
-        res = setTorrentLabel('')
-        if res:
-            msg += '\nLabel is ok'
+    if _get_auth():
+        if lazylibrarian.CONFIG['DELUGE_LABEL']:
+            res = setTorrentLabel('')
+            if res:
+                msg += '\nLabel is ok'
+            else:
+                msg += '\nUnable to set label'
         else:
-            msg += '\nUnable to set label'
+            msg += '\nNo label'
     else:
         msg = "Deluge: Connection FAILED\nCheck debug log"
     logger.debug(msg)
