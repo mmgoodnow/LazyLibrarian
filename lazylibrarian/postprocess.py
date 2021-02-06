@@ -1056,7 +1056,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     data['NZBmode'] = book['NZBmode']
                     success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
                     if success:
-                        logger.debug("Processed %s: %s, %s" % (book['NZBmode'], global_name, book['NZBurl']))
+                        logger.debug("Processed %s (%s): %s, %s" % (book['NZBmode'], pp_path, global_name,
+                                                                    book['NZBurl']))
                         dest_file = makeUnicode(dest_file)
                         # only update the snatched ones in case some already marked failed/processed in history
                         controlValueDict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
@@ -1196,9 +1197,10 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
                                     to_delete = False
 
-                        if to_delete or pp_path.endswith('.unpack'):
+                        if to_delete or '.unpack' in pp_path:
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
-                            if pp_path.endswith('.unpack'):  # always delete files we unpacked
+                            if '.unpack' in pp_path:  # always delete files we unpacked
+                                pp_path = pp_path.split('.unpack')[0] + '.unpack'
                                 to_delete = True
                             elif lazylibrarian.CONFIG['DESTINATION_COPY']:
                                 to_delete = False
@@ -1206,7 +1208,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 to_delete = False
                             if to_delete:
                                 # walk up any subdirectories
-                                if pp_path.startswith(download_dir):
+                                if pp_path.startswith(download_dir) and '.unpack' not in pp_path:
                                     logger.debug("[%s][%s]" % (pp_path, download_dir))
                                     while os.path.dirname(pp_path) != download_dir.rstrip(os.sep):
                                         pp_path = os.path.dirname(pp_path)
@@ -1220,9 +1222,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                                 (pp_path, type(why).__name__, str(why)))
                             else:
                                 if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                                    logger.debug("Not removing original files as Keep Files is set")
+                                    logger.debug("Not removing %s as Keep Files is set" % pp_path)
                                 else:
-                                    logger.debug("Not removing original files as in download root")
+                                    logger.debug("Not removing %s as in download root" % pp_path)
 
                         logger.info('Successfully processed: %s' % global_name)
 
@@ -1262,12 +1264,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                         # at this point, as it failed we should move it or it will get postprocessed
                         # again (and fail again)
-                        if path_isdir(pp_path + '.fail'):
-                            try:
-                                shutil.rmtree(pp_path + '.fail')
-                            except Exception as why:
-                                logger.warn("Unable to remove %s, %s %s" %
-                                            (pp_path + '.fail', type(why).__name__, str(why)))
+                        shutil.rmtree(pp_path + '.fail', ignore_errors=True)
                         try:
                             _ = safe_move(pp_path, pp_path + '.fail')
                             logger.warn('Residual files remain in %s.fail' % pp_path)
@@ -2102,18 +2099,19 @@ def process_book(pp_path=None, bookID=None, library=None):
                 if dest_file:  # do we know the location (not calibre already exists)
                     processExtras(dest_file, global_name, bookID, book_type)
 
-                if not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
+                if '.unpack' in pp_path:
+                    pp_path = pp_path.split('.unpack')[0] + '.unpack'
+
+                if '.unpack' in pp_path or not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
                     if path_isdir(pp_path):
                         # calibre might have already deleted it?
-                        try:
-                            shutil.rmtree(pp_path)
-                        except Exception as why:
-                            logger.warn("Unable to remove %s, %s %s" % (pp_path, type(why).__name__, str(why)))
+                        logger.debug("Removing %s" % pp_path)
+                        shutil.rmtree(pp_path, ignore_errors=True)
                 else:
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                        logger.debug("Not removing original files as Keep Files is set")
+                        logger.debug("Not removing %s as Keep Files is set" % pp_path)
                     else:
-                        logger.debug("Not removing original files as in download root")
+                        logger.debug("Not removing %s as in download root" % pp_path)
 
                 logger.info('Successfully processed: %s' % global_name)
                 custom_notify_download("%s %s" % (bookID, book_type))
@@ -2131,11 +2129,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 return True
             else:
                 logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
-                if path_isdir(pp_path + '.fail'):
-                    try:
-                        shutil.rmtree(pp_path + '.fail')
-                    except Exception as why:
-                        logger.warn("Unable to remove %s.fail, %s %s" % (pp_path, type(why).__name__, str(why)))
+                shutil.rmtree(pp_path + '.fail', ignore_errors=True)
                 try:
                     _ = safe_move(pp_path, pp_path + '.fail')
                     logger.warn('Residual files remain in %s.fail' % pp_path)
