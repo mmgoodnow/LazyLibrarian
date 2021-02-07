@@ -325,6 +325,8 @@ def _get_auth():
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authentication result: %s, Error: %s' % (auth, auth_error))
     cookies = response.cookies
+    if not cookies:
+        return None
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authentication cookies: %s' % str(cookies.get_dict()))
     post_json = {"method": "web.connected", "params": [], "id": 10}
