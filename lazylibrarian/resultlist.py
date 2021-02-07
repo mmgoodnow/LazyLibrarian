@@ -129,7 +129,12 @@ def findBestResult(resultlist, book, searchtype, source):
                 logger.debug("Rejecting %s, no URL found" % resultTitle)
 
             if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
-                blacklisted = myDB.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (url,))
+                cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
+                args = (url,)
+                if res['tor_type'] == 'irc':
+                    cmd += ' and NZBTitle=?'
+                    args += (res['tor_title'],)
+                blacklisted = myDB.match(cmd, args)
                 if blacklisted:
                     logger.debug("Rejecting %s, url blacklisted (Failed) at %s" %
                                  (res[prefix + 'title'], blacklisted['NZBprov']))
@@ -143,7 +148,12 @@ def findBestResult(resultlist, book, searchtype, source):
                         rejected = True
 
             if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
-                blacklisted = myDB.match('SELECT * from wanted WHERE NZBurl=?', (url,))
+                cmd = 'SELECT * from wanted WHERE NZBurl=?'
+                args = (url,)
+                if res['tor_type'] == 'irc':
+                    cmd += ' and NZBTitle=?'
+                    args += (res['tor_title'],)
+                blacklisted = myDB.match(cmd, args)
                 if blacklisted:
                     logger.debug("Rejecting %s, url blacklisted (%s) at %s" %
                                  (res[prefix + 'title'], blacklisted['Status'], blacklisted['NZBprov']))
