@@ -104,6 +104,9 @@
         %endif
       </select>
     </div>
+    %if authorid != None:
+    <input type="hidden" name="redirect" value="${authorid}">
+    %endif
     <input type="submit" class="markSeries btn btn-sm btn-default" value="Go">
     %endif
   </form>
