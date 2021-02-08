@@ -2271,7 +2271,8 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG['DESTINATION_COPY'] or
                                             (mode in ['torrent', 'magnet', 'torznab'] and
                                              lazylibrarian.CONFIG['KEEP_SEEDING'])):
-        pp_path = shutil.copytree(pp_path, pp_path + '.unpack')
+        shutil.copytree(pp_path, pp_path + '.unpack')
+        pp_path = pp_path + '.unpack'
 
     logger.debug("preprocess (%s)" % booktype)
     if booktype == 'ebook':
