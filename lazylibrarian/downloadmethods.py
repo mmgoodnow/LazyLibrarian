@@ -251,7 +251,12 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
     while redirects < 5:
         redirects += 1
         try:
-            logger.debug("%s: %s %s" % (redirects, provider, str(headers)))
+            logger.debug("%s: [%s] %s" % (redirects, provider, str(headers)))
+            if not dl_url.startswith('http'):
+                if headers.get('Referer', '').startswith('https://'):
+                    dl_url = 'https://' + dl_url
+                else:
+                    dl_url = 'http://' + dl_url
             if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                 r = requests.get(dl_url, headers=headers, timeout=90,
                                  proxies=proxies,
