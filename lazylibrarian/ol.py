@@ -476,7 +476,7 @@ class OpenLibrary:
                     isbnhead = ''
 
                 rejected = False
-                wantedlanguages = ['eng']
+                wantedlanguages = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
                 if wantedlanguages and 'All' not in wantedlanguages:
                     if languages:
                         valid_lang = all(item in languages for item in wantedlanguages)
