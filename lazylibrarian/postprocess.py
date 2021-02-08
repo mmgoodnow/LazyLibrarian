@@ -833,6 +833,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                                             targetdir = os.path.join(download_dir, aname + '.unpack')
                                             if make_dirs(targetdir, new=True):
+                                                logger.debug("%s into %s" % (move, targetdir))
                                                 cnt = move_into_subdir(download_dir, targetdir, aname, move=move)
                                                 if cnt:
                                                     pp_path = targetdir
