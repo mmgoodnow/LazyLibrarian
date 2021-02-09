@@ -86,24 +86,28 @@
                         value2 = value
                         destination2 = "#"
                         but_class2 = "btn-info hidden"
+                        value3 = value
+                        destination3 = "#"
+                        but_class3 = "btn-info hidden"
                     elif booklist:
                         if result['bookid'] in booklist:
                             for item in booksearch:
                                 if item['BookID'] == result['bookid']:
-                                    value2 = item['Status']
+                                    value2 = '<i class="fa fa-book"></i> ' + item['Status']
+                                    value3 = '<i class="fa fa-headphones"></i> ' + item['AudioStatus']
                                     valid_id = item['BookID']
 
                             if 'Open' in value2:
-                                destination2 = "openBook?bookid="+valid_id
+                                destination2 = "openBook?library=eBook&bookid="+valid_id
                                 but_class2 = "btn-warning"
                             elif 'Wanted' in value2:
-                                destination2 = "searchForBook?bookid="+valid_id
+                                destination2 = "searchForBook?library=eBook&bookid="+valid_id
                                 but_class2 = "btn-success"
                             elif 'Have' in value2 or 'Snatched' in value2:
                                 destination2 = "#"
                                 but_class2 = "btn-info"
                             elif 'Skipped' in value2:
-                                destination2 = "addBook?bookid="+result['bookid']
+                                destination2 = "addBook?library=eBook&bookid="+result['bookid']
                                 if result['authorid']:
                                     destination2 = destination2 + "&authorid="+result['authorid']
                                 value2 = "Add Book"
@@ -111,16 +115,46 @@
                             else:
                                 destination2 = "#"
                                 but_class2 = "btn-default"
+
+                            if 'Open' in value3:
+                                destination3 = "openBook?library=AudioBook&bookid="+valid_id
+                                but_class3 = "btn-warning"
+                            elif 'Wanted' in value3:
+                                destination3 = "searchForBook?library=AudioBook&bookid="+valid_id
+                                but_class3 = "btn-success"
+                            elif 'Have' in value3 or 'Snatched' in value3:
+                                destination3 = "#"
+                                but_class3 = "btn-info"
+                            elif 'Skipped' in value3:
+                                destination3 = "addBook?library=AudioBook&bookid="+result['bookid']
+                                if result['authorid']:
+                                    destination3 = destination3 + "&authorid="+result['authorid']
+                                value3 = "Add Audio"
+                                but_class3 = "btn-success"
+                            else:
+                                destination3 = "#"
+                                but_class3 = "btn-default"
                         else:
-                            destination2 = "addBook?bookid="+result['bookid']
+                            destination2 = "addBook?library=eBook&bookid="+result['bookid']
                             if result['authorid']:
                                 destination2 = destination2 + "&authorid="+result['authorid']
                             value2 = "Add Book"
                             but_class2 = "btn-success"
-                    else:
+
+                            destination3 = "addBook?library=AudioBook&bookid="+result['bookid']
+                            if result['authorid']:
+                                destination3 = destination3 + "&authorid="+result['authorid']
+                            value3 = "Add Audio"
+                            but_class3 = "btn-success"
+
+                    if not lazylibrarian.SHOW_EBOOK:
                         value2 = value
                         destination2 = "#"
                         but_class2 = "btn-info hidden"
+                    if not lazylibrarian.SHOW_AUDIO:
+                        value3 = value
+                        destination3 = "#"
+                        but_class3 = "btn-info hidden"
                     %>
 <tr>
   <td class="bookart text-center"><a href="${result['bookimg']}" target="_blank" rel="noreferrer"><img src="${result['bookimg']}" alt="Cover"></a></td>
@@ -133,6 +167,7 @@
     <p><a class="${but_class} btn btn-xs" href="${destination}">${value}</a>
     </p>
     <p><a class="${but_class2} btn btn-xs" href="${destination2}">${value2}</a></p>
+    <p><a class="${but_class3} btn btn-xs" href="${destination3}">${value3}</a></p>
   </td>
   <td class="fuzz text-right">${result['highest_fuzz']}%</td>
 </tr>

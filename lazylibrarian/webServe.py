@@ -1731,7 +1731,7 @@ class WebInterface(object):
             for item in authorids:
                 loadlist.append(item['AuthorID'])
 
-            booksearch = myDB.select("SELECT Status,BookID from books")
+            booksearch = myDB.select("SELECT Status,AudioStatus,BookID from books")
             booklist = []
             for item in booksearch:
                 booklist.append(item['BookID'])
@@ -2575,16 +2575,25 @@ class WebInterface(object):
         lst.sort(key=sort_key, reverse=reverse)
 
     @cherrypy.expose
-    def addBook(self, bookid=None, authorid=None):
-        if lazylibrarian.SHOW_AUDIO:
-            audio_status = "Wanted"
-        else:
+    def addBook(self, bookid=None, authorid=None, library=None):
+        if library == 'eBook':
+            ebook_status = "Wanted"
             audio_status = "Skipped"
-
-        if lazylibrarian.SHOW_EBOOK:
+        elif library == 'AudioBook':
+            audio_status = "Wanted"
+            ebook_status = "Skipped"
+        elif library == 'Both':
+            audio_status = "Wanted"
             ebook_status = "Wanted"
         else:
-            ebook_status = "Skipped"
+            if lazylibrarian.SHOW_AUDIO:
+                audio_status = "Wanted"
+            else:
+                audio_status = "Skipped"
+            if lazylibrarian.SHOW_EBOOK:
+                ebook_status = "Wanted"
+            else:
+                ebook_status = "Skipped"
 
         AuthorID = ''
         myDB = database.DBConnection()
@@ -3208,7 +3217,7 @@ class WebInterface(object):
 
         if bookid:
             scanresult = ''
-            if 'importfrom' in kwargs and kwargs['importfrom']:
+            if kwargs.get('importfrom'):
                 source = kwargs['importfrom']
                 folder = ''
                 library = ''
