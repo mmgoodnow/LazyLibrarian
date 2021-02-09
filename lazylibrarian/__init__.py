@@ -1533,10 +1533,6 @@ def config_write(part=None):
 
         add_apprise_slot()
     #
-    myDB = database.DBConnection()
-    res = myDB.match('SELECT count(*) as counter from series')
-    SHOW_SERIES = check_int(res['counter'], 0)
-
     if CONFIG['ADD_SERIES']:
         SHOW_SERIES = 1
     if not CONFIG['SERIES_TAB']:
@@ -1683,7 +1679,6 @@ def DIRECTORY(dirname):
         usedir = CONFIG['ALTERNATE_DIR']
     else:
         return usedir
-
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))
@@ -1691,7 +1686,6 @@ def DIRECTORY(dirname):
         except OSError as e:
             logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
             usedir = DATADIR
-
     if usedir and path_isdir(usedir):
         try:
             with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
@@ -2103,10 +2097,6 @@ def start():
                     SHOW_SERIES = 1
                 if not CONFIG['SERIES_TAB']:
                     SHOW_SERIES = 0
-                myDB = database.DBConnection()
-                res = myDB.match('SELECT count(*) as counter from series')
-                myDB.close()
-                SHOW_SERIES = check_int(res['counter'], 0)
 
         # Crons and scheduled jobs started here
         # noinspection PyUnresolvedReferences

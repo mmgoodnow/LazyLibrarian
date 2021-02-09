@@ -175,17 +175,17 @@
                     %endif
                   %endif
                 %endif
-                % if lazylibrarian.SHOW_EBOOK != 0:
+                % if lazylibrarian.SHOW_EBOOK:
                   % if perm&lazylibrarian.perm_ebook:
                   <li><a id="books" href="books" class="navbarele">eBooks</a></li>
                   % endif
                 % endif
-                % if lazylibrarian.SHOW_SERIES != 0:
+                % if lazylibrarian.SHOW_SERIES:
                   %if perm&lazylibrarian.perm_series:
                   <li><a id="series" href="series" class="navbarele">Series</a></li>
                   % endif
                 % endif
-                % if lazylibrarian.SHOW_AUDIO != 0:
+                % if lazylibrarian.SHOW_AUDIO:
                   %if perm&lazylibrarian.perm_audio:
                   <li><a id="audio" href="audio" class="navbarele">
                   <div class="shorten" data-abbr="Audio">
@@ -194,7 +194,7 @@
                   </a></li>
                   % endif
                 % endif
-                % if lazylibrarian.SHOW_MAGS != 0:
+                % if lazylibrarian.SHOW_MAGS:
                   %if perm&lazylibrarian.perm_magazines:
                   <li><a id="magazines" href="magazines" class="navbarele">
                   <div class="shorten" data-abbr="Mags">
@@ -203,15 +203,15 @@
                   </a></li>
                   % endif
                 % endif
-                % if lazylibrarian.SHOW_COMICS != 0:
+                % if lazylibrarian.SHOW_COMICS:
                   %if perm&lazylibrarian.perm_comics:
                   <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
                   % endif
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
-                  % if lazylibrarian.SHOW_AUDIO != 0:
+                  % if lazylibrarian.SHOW_AUDIO:
                     <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
-                  % elif lazylibrarian.SHOW_EBOOK != 0:
+                  % elif lazylibrarian.SHOW_EBOOK:
                     <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
                   % endif
                 % endif
