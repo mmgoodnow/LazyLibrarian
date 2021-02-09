@@ -131,7 +131,7 @@ def findBestResult(resultlist, book, searchtype, source):
             if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
                 cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
                 args = (url,)
-                if res['tor_type'] == 'irc':
+                if res.get('tor_type', '') == 'irc':
                     cmd += ' and NZBTitle=?'
                     args += (res['tor_title'],)
                 blacklisted = myDB.match(cmd, args)
@@ -150,7 +150,7 @@ def findBestResult(resultlist, book, searchtype, source):
             if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
                 cmd = 'SELECT * from wanted WHERE NZBurl=?'
                 args = (url,)
-                if res['tor_type'] == 'irc':
+                if res.get('tor_type', '') == 'irc':
                     cmd += ' and NZBTitle=?'
                     args += (res['tor_title'],)
                 blacklisted = myDB.match(cmd, args)
@@ -219,9 +219,9 @@ def findBestResult(resultlist, book, searchtype, source):
                 bookid = book['bookid']
 
                 if source == 'nzb':
-                    mode = res['nzbmode']  # nzb, torznab
+                    mode = res.get('nzbmode', '')  # nzb, torznab
                 else:
-                    mode = res['tor_type']  # torrent, magnet, nzb(from rss), direct, irc
+                    mode = res.get('tor_type', '')  # torrent, magnet, nzb(from rss), direct, irc
 
                 controlValueDict = {"NZBurl": url}
                 newValueDict = {
