@@ -479,7 +479,7 @@ class OpenLibrary:
                 wantedlanguages = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
                 if wantedlanguages and 'All' not in wantedlanguages:
                     if languages:
-                        valid_lang = all(item in languages for item in wantedlanguages)
+                        valid_lang = any(item in languages for item in wantedlanguages)
                         if not valid_lang:
                             rejected = 'lang', 'Invalid language: %s' % str(languages)
                     else:
