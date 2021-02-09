@@ -539,7 +539,6 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
     """ Scan a directory tree adding new books into database
         Return how many books you added """
-
     destdir = lazylibrarian.DIRECTORY(library)
     if not startdir:
         if not destdir:
@@ -900,14 +899,14 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # or books we moved to "merge" authors
                                 book = replace_with(book, quotes, '')
 
-                                # If we have a goodreads/googlebooks ID use that
+                                # If we have a valid ID, use that
                                 bookid = ''
                                 mtype = ''
-                                if gr_id:
+                                if gr_id and lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                                     bookid = gr_id
-                                elif gb_id:
+                                elif gb_id and lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
                                     bookid = gb_id
-                                elif ol_id:
+                                elif ol_id and lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
                                     bookid = ol_id
                                 if bookid:
                                     match = myDB.match('SELECT AuthorID,Status FROM books where BookID=?',
