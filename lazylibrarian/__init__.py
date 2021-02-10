@@ -1549,8 +1549,9 @@ def config_write(part=None):
         SHOW_EBOOK = 1
 
     if CONFIG['NO_SINGLE_BOOK_SERIES']:
+        myDB = database.DBConnection()
         myDB.action('DELETE from series where total=1')
-    myDB.close()
+        myDB.close()
     msg = None
     try:
         if PY2:
