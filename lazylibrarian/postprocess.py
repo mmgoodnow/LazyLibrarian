@@ -1337,6 +1337,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         to_delete = False
                     if pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
                         to_delete = False
+                    logger.debug("To Delete: %s %s" % (pp_path, to_delete))
                     if to_delete:
                         shutil.rmtree(pp_path, ignore_errors=True)
                         logger.debug('Deleted %s for %s, %s from %s' % (pp_path, book['NZBtitle'],
@@ -1735,6 +1736,48 @@ def getDownloadFolder(source, downloadid):
                     dlfolder = result['save_path']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
+
+        elif source == 'SABNZBD':
+            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            search = None
+            myDB = database.DBConnection()
+            data = myDB.match(cmd, (downloadid, source))
+            if data:
+                search = data['NZBtitle']
+            res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            if res and 'queue' in res:
+                for item in res['queue']['slots']:
+                    if item['nzo_id'] == downloadid:
+                        dlfolder = None  # still in queue, not unpacked
+                        break
+            if not dlfolder:  # not in queue, try history
+                res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                if res and 'history' in res:
+                    for item in res['history']['slots']:
+                        if item['nzo_id'] == downloadid:
+                            dlfolder = item.get('storage')
+                            break
+
+        elif source == 'NZBGET':
+            res = nzbget.sendNZB(cmd='listgroups')
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug(res)
+            if res:
+                for items in res:
+                    for item in items:
+                        if str(item['NZBID']) == str(downloadid):
+                            dlfolder = item.get('DestDir')
+                            break
+            if not dlfolder:  # not in queue, try history
+                res = nzbget.sendNZB(cmd='history')
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug(res)
+                if res:
+                    for items in res:
+                        for item in items:
+                            if str(item['NZBID']) == str(downloadid):
+                                dlfolder = item.get('DestDir')
+                                break
         return dlfolder
 
     except Exception as e:
