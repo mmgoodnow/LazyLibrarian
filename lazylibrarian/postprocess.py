@@ -507,6 +507,7 @@ def unpack_archive(archivename, download_dir, title):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
+            logger.debug("Created target %s" % targetdir)
             # Look for any wanted files (inc jpg for cbr/cbz)
             for item in z.namelist():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
@@ -536,6 +537,7 @@ def unpack_archive(archivename, download_dir, title):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
+            logger.debug("Created target %s" % targetdir)
             for item in z.getnames():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
@@ -564,6 +566,7 @@ def unpack_archive(archivename, download_dir, title):
                 logger.error("Failed to create target dir %s" % targetdir)
                 return ''
 
+            logger.debug("Created target %s" % targetdir)
             for item in z.namelist():
                 if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
@@ -595,6 +598,7 @@ def unpack_archive(archivename, download_dir, title):
                     logger.error("Failed to create target dir %s" % targetdir)
                     return ''
 
+                logger.debug("Created target %s" % targetdir)
                 wanted_files = []
                 for item in z.infoiter():
                     if not item.isdir and is_valid_type(item.filename):
@@ -833,7 +837,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                                             targetdir = os.path.join(download_dir, aname + '.unpack')
                                             if make_dirs(targetdir, new=True):
-                                                logger.debug("%s into %s" % (move, targetdir))
+                                                logger.debug("Created target %s" % targetdir)
                                                 cnt = move_into_subdir(download_dir, targetdir, aname, move=move)
                                                 if cnt:
                                                     pp_path = targetdir
@@ -1155,14 +1159,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 processAutoAdd(dest_path, booktype='mag')
 
                         # calibre or ll copied/moved the files we want, now delete source files
-
+                        logger.debug("Copied %s %s %s" % (pp_path, ignoreclient, book['NZBmode']))
                         to_delete = True
-                        if ignoreclient is False and book['NZBmode'] in ['torrent', 'magnet', 'torznab']:
-                            # Only delete torrents if we don't want to keep seeding
-                            if lazylibrarian.CONFIG['KEEP_SEEDING']:
-                                logger.warn('%s is seeding %s %s' % (book['Source'], book['NZBmode'], book['NZBtitle']))
-                                to_delete = False
-
                         # Only delete torrents if seeding is complete - examples from radarr
                         # DELUGE CanBeRemoved = (torrent.IsAutoManaged && torrent.StopAtRatio &&
                         # torrent.Ratio >= torrent.StopRatio && torrent.State == DelugeTorrentStatus.Paused);
@@ -1187,16 +1185,20 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
                                 if progress == 100 and finished:
                                     if lazylibrarian.CONFIG['DEL_COMPLETED']:
-                                        logger.debug('Removing %s from %s' % (book['NZBtitle'], book['Source']))
+                                        logger.debug('Deleting completed %s from %s' % (book['NZBtitle'],
+                                                                                        book['Source']))
                                         delete_task(book['Source'], book['DownloadID'], False)
                                 elif progress < 0:
                                     logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
                                 elif book['NZBmode'] in ['torrent', 'magnet', 'torznab']:
-                                    cmd = 'UPDATE wanted SET Status="Seeding", DLResult=?'
-                                    cmd += ' WHERE NZBurl=? and Status="Processed"'
-                                    myDB.action(cmd, (pp_path, book['NZBurl']))
-                                    logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
-                                    to_delete = False
+                                    if lazylibrarian.CONFIG['KEEP_SEEDING']:
+                                        cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
+                                        myDB.action(cmd, (book['NZBurl'],))
+                                        logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
+                                        to_delete = False
+                                    else:
+                                        logger.debug('Deleting %s from %s' % (book['NZBtitle'], book['Source']))
+                                        delete_task(book['Source'], book['DownloadID'], False)
 
                         if to_delete or '.unpack' in pp_path:
                             # only delete the files if not in download root dir and DESTINATION_COPY not set
@@ -1207,6 +1209,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 to_delete = False
                             if pp_path == download_dir.rstrip(os.sep):
                                 to_delete = False
+                            logger.debug("To Delete: %s %s" % (pp_path, to_delete))
                             if to_delete:
                                 # walk up any subdirectories
                                 if pp_path.startswith(download_dir) and '.unpack' not in pp_path:
@@ -1226,6 +1229,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                     logger.debug("Not removing %s as Keep Files is set" % pp_path)
                                 else:
                                     logger.debug("Not removing %s as in download root" % pp_path)
+                        else:
+                            logger.debug("Not deleting %s" % pp_path)
 
                         logger.info('Successfully processed: %s' % global_name)
 
@@ -1320,6 +1325,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         logger.debug('%s not seeding at %s' % (book['NZBtitle'], book['Source']))
                     pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     if lazylibrarian.CONFIG['DEL_COMPLETED']:
+                        logger.debug("Removing seeding completed %s from %s" % (book['NZBtitle'], book['Source']))
                         delete_task(book['Source'], book['DownloadID'], True)
                     if book['BookID'] != 'unknown':
                         cmd = 'UPDATE wanted SET status="Processed",NZBDate=? WHERE status="Seeding" and BookID=?'
@@ -1332,15 +1338,9 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                     if pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
                         to_delete = False
                     if to_delete:
-                        if path_isdir(pp_path):
-                            # calibre might have already deleted it?
-                            try:
-                                shutil.rmtree(pp_path)
-                                logger.debug('Deleted files for %s, %s from %s' %
-                                             (book['NZBtitle'], book['NZBmode'], book['Source']))
-                            except Exception as why:
-                                logger.warn("Unable to remove %s, %s %s" %
-                                            (pp_path, type(why).__name__, str(why)))
+                        shutil.rmtree(pp_path, ignore_errors=True)
+                        logger.debug('Deleted %s for %s, %s from %s' % (pp_path, book['NZBtitle'],
+                                                                        book['NZBmode'], book['Source']))
                     else:
                         if lazylibrarian.CONFIG['DESTINATION_COPY']:
                             logger.debug("Not removing original files as Keep Files is set")
@@ -2106,7 +2106,7 @@ def process_book(pp_path=None, bookID=None, library=None):
                 if '.unpack' in pp_path or not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
                     if path_isdir(pp_path):
                         # calibre might have already deleted it?
-                        logger.debug("Removing %s" % pp_path)
+                        logger.debug("Deleting %s" % pp_path)
                         shutil.rmtree(pp_path, ignore_errors=True)
                 else:
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
@@ -2271,10 +2271,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG['DESTINATION_COPY'] or
                                             (mode in ['torrent', 'magnet', 'torznab'] and
                                              lazylibrarian.CONFIG['KEEP_SEEDING'])):
+        logger.debug("Copying to target %s" % pp_path + '.unpack')
         shutil.copytree(pp_path, pp_path + '.unpack')
         pp_path = pp_path + '.unpack'
 
-    logger.debug("preprocess (%s)" % booktype)
+    logger.debug("preprocess (%s) %s" % (booktype, pp_path))
     if booktype == 'ebook':
         preprocess_ebook(pp_path)
     elif 'audio' in booktype:
@@ -2565,6 +2566,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
         # we are copying the files ourselves, either it's audiobook,mag,comic or we don't want to use calibre
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
+            logger.debug("Source Path: %s" % (repr(pp_path)))
             logger.debug("Dest Path: %s" % (repr(dest_path)))
         dest_path, encoding = makeUTF8bytes(dest_path)
         if encoding and lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
