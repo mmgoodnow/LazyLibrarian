@@ -407,7 +407,7 @@ class OpenLibrary:
         entryreason = reason
         removedResults = 0
         duplicates = 0
-        ignored = 0
+        bad_lang = 0
         added_count = 0
         updated_count = 0
         book_ignore_count = 0
@@ -482,6 +482,7 @@ class OpenLibrary:
                         valid_lang = any(item in languages for item in wantedlanguages)
                         if not valid_lang:
                             rejected = 'lang', 'Invalid language: %s' % str(languages)
+                            bad_lang += 1
                     else:
 
                         # Try to use shortcut of ISBN identifier codes described here...
@@ -517,9 +518,11 @@ class OpenLibrary:
 
                         if lang and lang not in wantedlanguages:
                             rejected = 'lang', 'Invalid language: %s' % lang
+                            bad_lang += 1
 
                         if not lang:
                             rejected = 'lang', 'No language'
+                            bad_lang += 1
 
                 if not rejected and not title:
                     rejected = 'name', 'No title'
@@ -674,6 +677,7 @@ class OpenLibrary:
                                         gbupdate.append('Pages')
                                     if gbupdate:
                                         logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
+                                        gb_lang_change += 1
 
                                 if 'authorUpdate' in entryreason:
                                     reason = 'Author: %s' % auth_name
@@ -739,14 +743,20 @@ class OpenLibrary:
                                         myDB.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
                                                     ' Reason) VALUES (?,?,?,?,?)',
                                                     (series[2], series[0], 'Paused', time.time(), id_librarything))
-                                    seriesmembers = self.get_series_members(series[2])
-                                    if not seriesmembers:
-                                        logger.warn("Series %s (%s) has no members at librarything" % (
-                                                    series[0], series[2]))
-                                        seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
+
+                                    seriesmembers = None
+                                    memberexists = myDB.match("SELECT * from member WHERE seriesid=? AND workid=?",
+                                                              (series[2], id_librarything))
+                                    if not memberexists:
+                                        seriesmembers = self.get_series_members(series[2])
+                                        if not seriesmembers:
+                                            logger.warn("Series %s (%s) has no members at librarything" % (
+                                                        series[0], series[2]))
+                                            seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
                                     if seriesmembers:
-                                        logger.debug("Found %s members for series %s" % (len(seriesmembers),
-                                                                                         series[0]))
+                                        logger.debug("Found %s %s for series %s" % (len(seriesmembers),
+                                                                                    plural(len(seriesmembers),
+                                                                                    "member"), series[0]))
                                         for member in seriesmembers:
                                             # member[order, bookname, authorname, authorlink, workid]
                                             auth_name, exists = lazylibrarian.importer.getPreferredAuthorName(member[2])
@@ -897,7 +907,7 @@ class OpenLibrary:
                                                                             '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                                                             (bauth_key, title, '', genres, '', '',
                                                                              rating, cover, worklink, workid,
-                                                                             bookstatus, '', publish_date, lang,
+                                                                             publish_date, lang, '', bookstatus,
                                                                              '', audiostatus, member[4],
                                                                              reason, publish_date))
 
@@ -967,10 +977,12 @@ class OpenLibrary:
 
             resultcount = added_count + updated_count
             loopCount -= 1
+            if loopCount < 1:
+                return
             logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
                                                    loopCount, plural(loopCount, "page")))
             logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
-            logger.debug("Removed %s unwanted language %s" % (ignored, plural(ignored, "result")))
+            logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
             logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
             logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
             logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
@@ -989,7 +1001,7 @@ class OpenLibrary:
                             "LT_lang_hits": lt_lang_hits,
                             "GB_lang_change": gb_lang_change,
                             "cache_hits": cache_hits,
-                            "bad_lang": ignored,
+                            "bad_lang": bad_lang,
                             "bad_char": removedResults,
                             "uncached": api_hits,
                             "duplicates": duplicates
