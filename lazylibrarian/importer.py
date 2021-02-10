@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.images import getAuthorImage
 from lazylibrarian.cache import cache_img
-from lazylibrarian.formatter import today, unaccented, formatAuthorName, makeUnicode, getList
+from lazylibrarian.formatter import today, unaccented, formatAuthorName, makeUnicode, getList, check_int
 from lazylibrarian.grsync import grfollow
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -475,9 +475,9 @@ def update_totals(AuthorID):
 
     controlValueDict = {"AuthorID": AuthorID}
     newValueDict = {
-        "TotalBooks": totals['total'],
-        "UnignoredBooks": totals['unignored'],
-        "HaveBooks": totals['have'],
+        "TotalBooks": check_int(totals['total'], 0),
+        "UnignoredBooks": check_int(totals['unignored'], 0),
+        "HaveBooks": check_int(totals['have'], 0),
         "LastBook": lastbook['BookName'] if lastbook else None,
         "LastLink": lastbook['BookLink'] if lastbook else None,
         "LastBookID": lastbook['BookID'] if lastbook else None,
