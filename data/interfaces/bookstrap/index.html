@@ -126,6 +126,7 @@
     $(document).ready(function()
     {
       var selected = [];
+      var intjob = 0;
 
         $('input.deletable').wrap('<span class="deleteicon" />').after($('<span/>').click(function() {
             $(this).prev('input').val('').trigger('change').focus();
@@ -240,11 +241,14 @@
             table.on( 'xhr', function () {
               var json = table.ajax.json();
               if (json.loading) {
-                setInterval( function () {
-              table.ajax.reload( null, false );
-            }, 10000 );
+                if (intjob === 0) {
+                  intjob = setInterval( function () {
+                    table.ajax.reload( null, false );
+                    }, 10000 );
+                }
               }
               else {
+                if (intjob != 0) { clearInterval( intjob )};
                 $('#myAlert').addClass('hidden');
               };
             });

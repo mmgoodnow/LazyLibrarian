@@ -94,7 +94,7 @@
 
     $(document).ready(function()
     {
-       var timer;
+       var timer = 0;
 
        $('#showdownloads').on('click', function(e) {
             $.get('showdownloads', function(data) {
@@ -197,13 +197,12 @@
                 column.visible( ! column.visible() );
             } );
 
-        if(timer)
+        if( timer === 0 )
         {
-            clearInterval(timer);
+            if ( ${lazylibrarian.HIST_REFRESH} > 0 ) {
+                timer = setInterval( function () { table.ajax.reload( null, false ); }, ${lazylibrarian.HIST_REFRESH} );
+            };
         }
-        if ( ${lazylibrarian.HIST_REFRESH} > 0 ) {
-            timer = setInterval( function () { table.ajax.reload( null, false ); }, ${lazylibrarian.HIST_REFRESH} );
-        };
 
         //enable datatables console logging
         //table.on(function ( e ) {

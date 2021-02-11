@@ -110,6 +110,7 @@
     $(document).ready(function() {
 
         var selected = [];
+        var intjob = 0;
 
         $('#chooselanguage').val(getUrlVars()['BookLang']);
 
@@ -251,11 +252,14 @@
             table.on( 'xhr', function () {
               var json = table.ajax.json();
               if (json.loading) {
-                setInterval( function () {
-              table.ajax.reload( null, false );
-            }, 10000 );
+                if (intjob === 0) {
+                  intjob = setInterval( function () {
+                    table.ajax.reload( null, false );
+                    }, 10000 );
+                }
               }
               else {
+                if (intjob != 0) { clearInterval( intjob )};
                 $('#myAlert').addClass('hidden');
               };
             });
