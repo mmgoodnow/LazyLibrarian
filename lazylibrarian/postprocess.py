@@ -1184,53 +1184,46 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                                 progress, finished = getDownloadProgress(book['Source'], book['DownloadID'])
                                 logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
                                 if progress == 100 and finished:
-                                    if lazylibrarian.CONFIG['DEL_COMPLETED']:
+                                    if book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and \
+                                            lazylibrarian.CONFIG['KEEP_SEEDING']:
+                                        cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
+                                        myDB.action(cmd, (book['NZBurl'],))
+                                        logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
+                                    elif lazylibrarian.CONFIG['DEL_COMPLETED']:
                                         logger.debug('Deleting completed %s from %s' % (book['NZBtitle'],
                                                                                         book['Source']))
                                         delete_task(book['Source'], book['DownloadID'], False)
                                 elif progress < 0:
                                     logger.debug('%s not found at %s' % (book['NZBtitle'], book['Source']))
-                                elif book['NZBmode'] in ['torrent', 'magnet', 'torznab']:
-                                    if lazylibrarian.CONFIG['KEEP_SEEDING']:
-                                        cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
-                                        myDB.action(cmd, (book['NZBurl'],))
-                                        logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
-                                        to_delete = False
-                                    else:
-                                        logger.debug('Deleting %s from %s' % (book['NZBtitle'], book['Source']))
-                                        delete_task(book['Source'], book['DownloadID'], False)
 
-                        if to_delete or '.unpack' in pp_path:
-                            # only delete the files if not in download root dir and DESTINATION_COPY not set
-                            if '.unpack' in pp_path:  # always delete files we unpacked
-                                pp_path = pp_path.split('.unpack')[0] + '.unpack'
-                                to_delete = True
-                            elif lazylibrarian.CONFIG['DESTINATION_COPY']:
-                                to_delete = False
-                            if pp_path == download_dir.rstrip(os.sep):
-                                to_delete = False
-                            logger.debug("To Delete: %s %s" % (pp_path, to_delete))
-                            if to_delete:
-                                # walk up any subdirectories
-                                if pp_path.startswith(download_dir) and '.unpack' not in pp_path:
-                                    logger.debug("[%s][%s]" % (pp_path, download_dir))
-                                    while os.path.dirname(pp_path) != download_dir.rstrip(os.sep):
-                                        pp_path = os.path.dirname(pp_path)
-                                try:
-                                    shutil.rmtree(pp_path)
-                                    logger.debug('Deleted %s for %s, %s from %s' %
-                                                 (pp_path, book['NZBtitle'], book['NZBmode'],
-                                                  book['Source']))
-                                except Exception as why:
-                                    logger.warn("Unable to remove %s, %s %s" %
-                                                (pp_path, type(why).__name__, str(why)))
-                            else:
-                                if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                                    logger.debug("Not removing %s as Keep Files is set" % pp_path)
-                                else:
-                                    logger.debug("Not removing %s as in download root" % pp_path)
+                        # only delete the files if not in download root dir and DESTINATION_COPY not set
+                        if '.unpack' in pp_path:  # always delete files we unpacked
+                            pp_path = pp_path.split('.unpack')[0] + '.unpack'
+                            to_delete = True
+                        elif lazylibrarian.CONFIG['DESTINATION_COPY']:
+                            to_delete = False
+                        if pp_path == download_dir.rstrip(os.sep):
+                            to_delete = False
+                        logger.debug("To Delete: %s %s" % (pp_path, to_delete))
+                        if to_delete:
+                            # walk up any subdirectories
+                            if pp_path.startswith(download_dir) and '.unpack' not in pp_path:
+                                logger.debug("[%s][%s]" % (pp_path, download_dir))
+                                while os.path.dirname(pp_path) != download_dir.rstrip(os.sep):
+                                    pp_path = os.path.dirname(pp_path)
+                            try:
+                                shutil.rmtree(pp_path)
+                                logger.debug('Deleted %s for %s, %s from %s' %
+                                             (pp_path, book['NZBtitle'], book['NZBmode'],
+                                              book['Source']))
+                            except Exception as why:
+                                logger.warn("Unable to remove %s, %s %s" %
+                                            (pp_path, type(why).__name__, str(why)))
                         else:
-                            logger.debug("Not deleting %s" % pp_path)
+                            if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                                logger.debug("Not removing %s as Keep Files is set" % pp_path)
+                            else:
+                                logger.debug("Not removing %s as in download root" % pp_path)
 
                         logger.info('Successfully processed: %s' % global_name)
 
@@ -1318,7 +1311,8 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
                                                                          lazylibrarian.CONFIG['SEED_WAIT']))
-                if finished or progress < 0 or not lazylibrarian.CONFIG['SEED_WAIT']:
+                if not lazylibrarian.CONFIG['KEEP_SEEDING'] and (finished or progress < 0 and
+                                                                 not lazylibrarian.CONFIG['SEED_WAIT']):
                     if finished:
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     else:
@@ -1332,21 +1326,14 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         myDB.action(cmd, (now(), book['BookID']))
                         abort = False
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
-                    to_delete = True
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                        to_delete = False
-                    if pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
-                        to_delete = False
-                    logger.debug("To Delete: %s %s" % (pp_path, to_delete))
-                    if to_delete:
+                        logger.debug("Not removing original files as Keep Files is set")
+                    elif pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
+                        logger.debug("Not removing original files as in download root")
+                    else:
                         shutil.rmtree(pp_path, ignore_errors=True)
                         logger.debug('Deleted %s for %s, %s from %s' % (pp_path, book['NZBtitle'],
                                                                         book['NZBmode'], book['Source']))
-                    else:
-                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
-                            logger.debug("Not removing original files as Keep Files is set")
-                        else:
-                            logger.debug("Not removing original files as in download root")
                 else:
                     logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
 
@@ -1923,6 +1910,7 @@ def getDownloadProgress(source, downloadid):
                 progress = 0
             if status == 'finished':
                 progress = 100
+                finished = True
             elif status == 'error':
                 cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? WHERE DownloadID=? and Source=?'
                 myDB.action(cmd, ("rTorrent returned error", downloadid, source))
