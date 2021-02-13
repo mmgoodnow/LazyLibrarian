@@ -386,7 +386,7 @@ def calibreTest():
                 words = entry.split(',')
                 if len(words) >= 2:  # Filter out header and footer
                     item_count = words[2]
-                    if item_count.isdigit():
+                    if item_count.strip('b').strip("'").isdigit():
                         cnt += int(item_count)
         if cnt:
             res = res + '\nDatabase READ ok'
