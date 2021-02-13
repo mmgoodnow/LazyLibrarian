@@ -86,7 +86,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
 
     new = False
     author_info = {}
-    if not author or len(author) < 2 or author.lower() == 'unknown':
+    if not author or len(author) < 2 or 'unknown' in author.lower():
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
 
@@ -141,7 +141,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if (author != "Unknown") and (match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
+            if not "unknown" in author.lower() and (match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
                 # use "intact" name for author that we stored in
                 # author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!
@@ -208,7 +208,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
         if authorid:
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
-                authorname = 'unknown author'
+                authorname = 'unknown author %s' % authorid
             else:
                 entry_status = dbauthor['Status']
                 authorname = dbauthor['authorname']
@@ -234,7 +234,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     dbauthor = myDB.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
-                        logger.warn("Conflicting authorid for %s (%s:%s) Using existing authorid" %
+                        logger.warn("Conflicting authorid for %s (new:%s old:%s) Using existing authorid" %
                                     (authorname, authorid, dbauthor['authorid']))
                         authorid = dbauthor['authorid']
                     logger.debug("Updating author %s (%s)" % (authorid, authorname))
@@ -260,7 +260,10 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     newValueDict["AuthorLink"] = author['authorlink']
                     if author.get('about', ''):
                         newValueDict['About'] = author['about']
-                    if dbauthor and dbauthor['authorname'] != author['authorname']:
+                if dbauthor and dbauthor['authorname'] != author['authorname']:
+                    if 'unknown' in dbauthor['authorname']:
+                        authorname = author['authorname']
+                    else:
                         authorname = dbauthor['authorname']
                         logger.warn("Authorname mismatch for %s [%s][%s]" %
                                     (authorid, dbauthor['authorname'], author['authorname']))

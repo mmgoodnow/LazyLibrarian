@@ -977,7 +977,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 (book, author))
 
                                 if not bookid:
-                                    # get author name from parent directory of this book directory
+                                    # get author name from (grand)parent directory of this book directory
                                     newauthor = os.path.basename(os.path.dirname(rootdir))
                                     newauthor = makeUnicode(newauthor)
                                     # calibre replaces trailing periods with _ eg Smith Jr. -> Smith Jr_
@@ -1140,6 +1140,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                 booktitle = item['bookname']
                                                 language = item['booklang']
                                                 break
+
                                         if bookid:
                                             cmd = 'SELECT * from books WHERE BookID=?'
                                             check_status = myDB.match(cmd, (bookid,))
@@ -1165,9 +1166,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 # see if it's there now...
                                 if bookid:
-                                    cmd = 'SELECT books.Status, AudioStatus, BookFile, AudioFile, AuthorName, BookName'
-                                    cmd += ' from books,authors where books.AuthorID = authors.AuthorID'
-                                    cmd += ' and BookID=?'
+                                    cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, '
+                                    cmd += ' AudioFile, AuthorName, BookName from books,authors where '
+                                    cmd += ' books.AuthorID = authors.AuthorID and BookID=?'
                                     check_status = myDB.match(cmd, (bookid,))
 
                                     if not check_status:
@@ -1212,6 +1213,16 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                               check_status['AuthorName'], check_status['BookName']))
                                                 myDB.action('UPDATE books set BookFile=? where BookID=?',
                                                             (book_filename, bookid))
+                                                if 'unknown' in check_status['AuthorName'].lower():
+                                                    oldauth = myDB.match("SELECT * from authors WHERE AuthorName=?",
+                                                        (author,))
+                                                    if oldauth:
+                                                        logger.debug("Moving %s from %s to %s" % (bookid,
+                                                                     check_status['AuthorName'], author))
+                                                        myDB.action('UPDATE books set AuthorID=? where BookID=?',
+                                                            (oldauth['AuthorID'], bookid))
+                                                        myDB.action("DELETE from authors WHERE AuthorID=?",
+                                                                    (check_status['AuthorID'],))
 
                                         elif library == 'AudioBook':
                                             if check_status['AudioStatus'] != 'Open':
