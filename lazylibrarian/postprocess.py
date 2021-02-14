@@ -2596,7 +2596,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
                 return True, newbookfile, pp_path
-            return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir) pp_path
+            return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir), pp_path
         except Exception as e:
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e)), pp_path
