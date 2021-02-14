@@ -138,7 +138,7 @@ def importMag(source_file=None, title=None, issuenum=None):
         tempdir = tempfile.mkdtemp()
         _ = safe_copy(source_file, tempdir)
         data = {"IssueDate": issuenum, "Title": title}
-        success, dest_file = processDestination(tempdir, dest_path, global_name, data, "magazine")
+        success, dest_file, pp_path = processDestination(tempdir, dest_path, global_name, data, "magazine")
         shutil.rmtree(tempdir, ignore_errors=True)
         if not success:
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
@@ -1059,7 +1059,7 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         continue
 
                     data['NZBmode'] = book['NZBmode']
-                    success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
+                    success, dest_file, pp_path = processDestination(pp_path, dest_path, global_name, data, book_type)
                     if success:
                         logger.debug("Processed %s (%s): %s, %s" % (book['NZBmode'], pp_path, global_name,
                                                                     book['NZBurl']))
@@ -1317,15 +1317,22 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     else:
                         logger.debug('%s not seeding at %s' % (book['NZBtitle'], book['Source']))
-                    pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     if lazylibrarian.CONFIG['DEL_COMPLETED']:
                         logger.debug("Removing seeding completed %s from %s" % (book['NZBtitle'], book['Source']))
-                        delete_task(book['Source'], book['DownloadID'], True)
+                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                            delfiles = False
+                        else:
+                            delfiles = True
+                        delete_task(book['Source'], book['DownloadID'], delfiles)
                     if book['BookID'] != 'unknown':
                         cmd = 'UPDATE wanted SET status="Processed",NZBDate=? WHERE status="Seeding" and BookID=?'
                         myDB.action(cmd, (now(), book['BookID']))
                         abort = False
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
+                    # This is for downloaders (rtorrent) that don't let us tell them to delete files
+                    # NOTE it will silently fail if the torrent client downloadfolder is not local
+                    # eg in a docker or on a remote machine
+                    pp_path = getDownloadFolder(book['Source'], book['DownloadID'])
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
                         logger.debug("Not removing original files as Keep Files is set")
                     elif pp_path in getList(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
@@ -2109,7 +2116,7 @@ def process_book(pp_path=None, bookID=None, library=None):
             dest_path = makeUTF8bytes(dest_path)[0]
 
             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': bookID}
-            success, dest_file = processDestination(pp_path, dest_path, global_name, data, book_type)
+            success, dest_file, pp_path = processDestination(pp_path, dest_path, global_name, data, book_type)
             if success:
                 # update nzbs
                 dest_file = makeUnicode(dest_file)
@@ -2260,7 +2267,7 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
 # noinspection PyBroadException
 def processDestination(pp_path=None, dest_path=None, global_name=None, data=None, booktype=None):
     """ Copy/move book/mag and associated files into target directory
-        Return True, full_path_to_book  or False, error_message"""
+        Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
     logger.debug("%s [%s] %s" % (booktype, global_name, str(data)))
     booktype = booktype.lower()
@@ -2297,7 +2304,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
     if not match:
         # no book/mag found in a format we wanted. Leave for the user to delete or convert manually
         return False, 'Unable to locate a valid filetype (%s) in %s, leaving for manual processing' % (
-            booktype, pp_path)
+            booktype, pp_path), pp_path
 
     if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG['DESTINATION_COPY'] or
                                             (mode in ['torrent', 'magnet', 'torznab'] and
@@ -2327,7 +2334,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
         rc, res, err = runScript(params)
         if rc:
             return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
-        logger.debug("PreProcessor: %s" % res)
+        logger.debug("PreProcessor: %s" % res), pp_path
 
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
@@ -2396,7 +2403,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 res, err, rc = calibredb('add', ['-1'], [pp_path])
 
             if rc:
-                return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB'])
+                return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB']), pp_path
             elif booktype == "ebook" and (' --duplicates' in res or ' --duplicates' in err):
                 logger.warn('Calibre failed to import %s %s, already exists, marking book as "Have"' %
                             (authorname, bookname))
@@ -2404,12 +2411,12 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 controlValueDict = {"BookID": bookid}
                 newValueDict = {"Status": "Have"}
                 myDB.upsert("books", newValueDict, controlValueDict)
-                return True, ''
+                return True, '', pp_path
             # Answer should look like "Added book ids : bookID" (string may be translated!)
             try:
                 calibre_id = res.rsplit(": ", 1)[1].split("\n", 1)[0].strip()
             except IndexError:
-                return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname)
+                return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname), pp_path
 
             if calibre_id.isdigit():
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -2513,7 +2520,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     logger.warn("calibredb unable to set identifier")
 
             if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
-                return True, data['IssueFile']
+                return True, data['IssueFile'], pp_path
 
             # Ask calibre for the author/title so we can construct the likely location
             target_dir = ''
@@ -2565,9 +2572,9 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                             break
 
                     if not target_dir or not path_isdir(target_dir):
-                        return False, 'Failed to locate folder with calibre_id %s in %s' % (our_id, author_dir)
+                        return False, 'Failed to locate folder with calibre_id %s in %s' % (our_id, author_dir), pp_path
                 else:
-                    return False, 'Failed to locate author folder %s' % author_dir
+                    return False, 'Failed to locate author folder %s' % author_dir, pp_path
 
             if booktype == 'ebook':
                 remv = bool(lazylibrarian.CONFIG['FULL_SCAN'])
@@ -2588,11 +2595,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
-                return True, newbookfile
-            return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir)
+                return True, newbookfile, pp_path
+            return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir) pp_path
         except Exception as e:
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
-            return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e))
+            return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e)), pp_path
     else:
         # we are copying the files ourselves, either it's audiobook,mag,comic or we don't want to use calibre
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
@@ -2609,11 +2616,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             try:
                 remove(dest_path)
             except OSError as why:
-                return False, 'Unable to delete %s: %s' % (dest_path, why.strerror)
+                return False, 'Unable to delete %s: %s' % (dest_path, why.strerror), pp_path
         if path_isdir(dest_path):
             setperm(dest_path)
         elif not make_dirs(dest_path):
-            return False, 'Unable to create directory %s' % dest_path
+            return False, 'Unable to create directory %s' % dest_path, pp_path
 
         udest_path = makeUnicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
         global_name, encoding = makeUTF8bytes(global_name)
@@ -2652,7 +2659,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
-                                                                               type(why).__name__, str(why))
+                                                                               type(why).__name__, str(why)), pp_path
                 else:
                     logger.debug('Ignoring unwanted file: %s' % fname)
 
@@ -2700,7 +2707,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
         if firstfile:
             newbookfile = firstfile
-    return True, newbookfile
+    return True, newbookfile, pp_path
 
 
 def processAutoAdd(src_path=None, booktype='book'):
