@@ -82,6 +82,13 @@
                         value = "Add Author"
                         but_class = "btn-success"
 
+                    but_class2 = "btn-info hidden"
+                    but_class3 = "btn-info hidden"
+                    value2 = value
+                    value3 = value
+                    destination2 = "#"
+                    destination3 = "#"
+
                     if value == "Loading":
                         value2 = value
                         destination2 = "#"
@@ -164,8 +171,7 @@
   <td class="stars text-center"><img src="images/${starimg}" alt="${result['bookrate']}"></td>
   <td class="bookrate_count">${result.get('bookrate_count', 0)}</td>
   <td class="addAuthor text-center">
-    <p><a class="${but_class} btn btn-xs" href="${destination}">${value}</a>
-    </p>
+    <p><a class="${but_class} btn btn-xs" href="${destination}">${value}</a></p>
     <p><a class="${but_class2} btn btn-xs" href="${destination2}">${value2}</a></p>
     <p><a class="${but_class3} btn btn-xs" href="${destination3}">${value3}</a></p>
   </td>
