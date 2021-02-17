@@ -324,9 +324,36 @@ def check_db(upgradelog=None):
         cnt = 1
 
     try:
+        # check information provider matches database
+        info = lazylibrarian.CONFIG.get('BOOK_API', '')
+        if info == 'OpenLibrary':
+            tot = myDB.select('SELECT * from authors')
+            res = myDB.select('SELECT * from authors WHERE AuthorID LIKE "OL%A"')
+            if len(tot) - len(res):
+                logger.error("Information source is OpenLibrary but %s author IDs are not" % len(tot) - len(res))
+
+        if info == 'GoodReads':
+            tot = myDB.select('SELECT authorid from authors')
+            cnt = 0
+            for item in tot:
+                if item[0].isdigit():
+                    cnt += 1
+            if len(tot) - cnt:
+                logger.error("Information source is GoodReads but %s author IDs are not" % (len(tot) - cnt))
+
+        if info == 'GoogleBooks':
+            tot = myDB.select('SELECT * from authors')
+            res = myDB.select('SELECT authorid from authors WHERE authorid NOT LIKE "OL%A"')
+            cnt = 0
+            for item in res:
+                if item[0].isdigit():
+                    cnt += 1
+            if len(tot) - cnt:
+                logger.error("Information source is GoodReads but %s author IDs are not" % (len(tot) - cnt))
+
         # correct any invalid/unpadded dates
         lazylibrarian.UPDATE_MSG = 'Checking dates'
-        cmd = 'SELECT BookID,BookDate from books WHERE  BookDate LIKE "%-_-%" or BookDate LIKE "%-_"'
+        cmd = 'SELECT BookID,BookDate from books WHERE BookDate LIKE "%-_-%" or BookDate LIKE "%-_"'
         res = myDB.select(cmd)
         tot = len(res)
         if tot:
