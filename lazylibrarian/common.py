@@ -631,7 +631,7 @@ def mimeType(filename):
     return "application/x-download"
 
 
-def is_overdue(which="Author"):
+def is_overdue(which="author"):
     overdue = 0
     total = 0
     name = ''
@@ -640,7 +640,7 @@ def is_overdue(which="Author"):
     maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
     if maxage:
         myDB = database.DBConnection()
-        if which == 'Author':
+        if which == 'author':
             cmd = 'SELECT AuthorName,AuthorID,Updated from authors WHERE Status="Active" or Status="Loading"'
             cmd += ' or Status="Wanted" order by Updated ASC'
             res = myDB.select(cmd)
@@ -656,7 +656,7 @@ def is_overdue(which="Author"):
                         overdue += 1
                     else:
                         break
-        if which == 'Series':
+        if which == 'series':
             cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Status="Active" or Status="Wanted"'
             cmd += ' order by Updated ASC'
             res = myDB.select(cmd)
@@ -873,19 +873,15 @@ def scheduleJob(action='Start', target=None):
             # Try to get all authors/series scanned evenly inside the cache age
             maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
             if maxage:
-                pl = ''
-                if 'authorUpdate' in target:
-                    typ = 'Author'
+                typ = newtarget.replace('Update', '')
+                if typ == 'author':
                     task = 'AUTHORUPDATE'
                 else:
-                    typ = 'Series'
                     task = 'SERIESUPDATE'
 
                 overdue, total, _, _, days = is_overdue(typ)
                 if not overdue:
-                    if typ == 'Author':
-                        pl = 's'
-                    logger.debug("There are no %s%s to update" % (typ, pl))
+                    logger.debug("There are no %s to update" % plural(0, typ))
                     delay = maxage - days
                     if delay > 1:
                         if delay > 7:
@@ -894,14 +890,12 @@ def scheduleJob(action='Start', target=None):
                     else:
                         interval = 60
                 else:
-                    if typ == 'Author' and overdue != 1:
-                        pl = 's'
                     if days == maxage:
                         due = "due"
                     else:
                         due = "overdue"
-                    logger.debug("Found %s %s%s from %s %s update" % (
-                                 overdue, typ, pl, total, due))
+                    logger.debug("Found %s %s from %s %s update" % (
+                                 overdue, plural(overdue, typ), total, due))
                     interval = maxage * 60 * 24
                     interval = interval / total
                     interval = int(interval * 0.9) # allow some update time
@@ -911,13 +905,13 @@ def scheduleJob(action='Start', target=None):
 
                 startdate = nextRun(task, interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
-                    if typ == 'Author':
+                    if typ == 'author':
                         lazylibrarian.SCHED.add_interval_job(authorUpdate, minutes=interval, start_date=startdate)
                     else:
                         lazylibrarian.SCHED.add_interval_job(seriesUpdate, minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
-                    if typ == 'Author':
+                    if typ == 'author':
                         lazylibrarian.SCHED.add_interval_job(authorUpdate, hours=hours, start_date=startdate)
                     else:
                         lazylibrarian.SCHED.add_interval_job(seriesUpdate, hours=hours, start_date=startdate)
@@ -937,7 +931,7 @@ def authorUpdate(restart=True):
     try:
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-            overdue, total, name, ident, days = is_overdue('Author')
+            overdue, total, name, ident, days = is_overdue('author')
             if not total:
                 msg = "There are no monitored authors"
             elif not overdue:
@@ -971,7 +965,7 @@ def seriesUpdate(restart=True):
     try:
         myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
-            overdue, total, name, ident, days = is_overdue('Series')
+            overdue, total, name, ident, days = is_overdue('series')
             if not total:
                 msg = "There are no monitored series"
             elif not overdue:
@@ -1114,7 +1108,7 @@ def showStats():
     series_stats.append(['Blank', res['counter']])
     res = myDB.match("SELECT count(*) as counter FROM series WHERE Updated>0")
     series_stats.append(['Monitor', res['counter']])
-    overdue = is_overdue('Series')[0]
+    overdue = is_overdue('series')[0]
     series_stats.append(['Overdue', overdue])
 
     mag_stats = []
@@ -1189,7 +1183,7 @@ def showStats():
     author_stats.append(['Empty', res['counter']])
     res = myDB.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
     author_stats.append(['Blank', res['counter']])
-    overdue = is_overdue('Author')[0]
+    overdue = is_overdue('author')[0]
     author_stats.append(['Overdue', overdue])
     for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
         if len(stats):
@@ -1266,7 +1260,7 @@ def showJobs():
         result.append(jobinfo)
 
     result.append(' ')
-    overdue, total, name, _, days = is_overdue('Author')
+    overdue, total, name, _, days = is_overdue('author')
     if name:
         result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
@@ -1276,7 +1270,7 @@ def showJobs():
     else:
         result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
 
-    overdue, total, name, _, days = is_overdue('Series')
+    overdue, total, name, _, days = is_overdue('series')
     if name:
         result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
