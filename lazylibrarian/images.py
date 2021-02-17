@@ -261,8 +261,8 @@ def getBookCover(bookID=None, src=None):
                 cmd = 'select BookISBN from books where bookID=?'
                 item = myDB.match(cmd, (bookID,))
                 if item and item['BookISBN']:
-                    img = 'https://www.librarything.com/devkey/%s/large/isbn/%s' % (
-                           lazylibrarian.CONFIG['LT_DEVKEY'], item['BookISBN'])
+                    img = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
+                           lazylibrarian.CONFIG['LT_DEVKEY'], item['BookISBN'])])
                     if src:
                         coverlink, success, _ = cache_img("book", bookID + '_lt', img)
                     else:
@@ -402,7 +402,8 @@ def getBookCover(bookID=None, src=None):
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
             if not ProviderIsBlocked("openlibrary") and item and item['BookISBN']:
-                baseurl = 'https://openlibrary.org/api/books?format=json&jscmd=data&bibkeys=ISBN:'
+                baseurl = '/'.join([lazylibrarian.CONFIG['OL_URL'],
+                                   'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetchURL(baseurl + item['BookISBN'])
                 if success:
                     try:

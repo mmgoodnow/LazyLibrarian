@@ -149,7 +149,7 @@ def cv_identify(fname, best=True):
             off = "&offset=%s" % offset
         else:
             off = ''
-        url = 'https://comicvine.gamespot.com/api/volumes/?api_key=%s' % apikey
+        url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
         url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(makeUTF8bytes(matchwords)[0]), off)
         cv_api_sleep()
         res, _ = json_request(url)
@@ -268,7 +268,7 @@ def cv_identify(fname, best=True):
         logger.debug('No api match for %s, trying websearch' % fname)
     # fortunately comicvine sorts the resuts and gives us "best match first"
     # so we only scrape the first page (could add &page=2)
-    url = 'https://comicvine.gamespot.com/search/?i=volume&q=%s' % matchwords
+    url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'search/?i=volume&q=%s' % matchwords])
     data, in_cache = html_request(url)
     if not data:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
@@ -366,7 +366,7 @@ def get_volumes_from_search(page_content):
                             "seriesid": "CV%s" % seriesid,
                             "description": description,
                             "searchterm": matchwords.replace('+', ' '),
-                            "link": 'https://comicvine.gamespot.com' + href
+                            "link": lazylibrarian.CONFIG['CV_URL'] + href
                             })
     return choices
 
@@ -430,7 +430,7 @@ def cx_identify(fname, best=True):
     if '+' in matchwords:
         minmatch = 2
 
-    url = 'https://www.comixology.com/search/series?search=%s' % matchwords
+    url = '/'.join([lazylibrarian.CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
     data, _ = html_request(url)
 
     if not data:
@@ -671,7 +671,7 @@ def meta_dict(data):
 def cv_issue(seriesid, issuenum):
     res = {'Description': '', 'Link': '', 'Contributors': ''}
     apikey = lazylibrarian.CONFIG['CV_APIKEY']
-    url = 'https://comicvine.gamespot.com/api/issues/?api_key=%s' % apikey
+    url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/issues/?api_key=%s' % apikey])
     url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
     cv_api_sleep()
     data, _ = json_request(url)

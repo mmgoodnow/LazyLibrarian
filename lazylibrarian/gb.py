@@ -50,7 +50,7 @@ class GoogleBooks:
         self.name = makeUnicode(name)
         if not lazylibrarian.CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
-        self.url = 'https://www.googleapis.com/books/v1/volumes?q='
+        self.url = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
         self.params = {
             'maxResults': 40,
             'printType': 'books',
@@ -651,8 +651,8 @@ class GoogleBooks:
         myDB = database.DBConnection()
         if not lazylibrarian.CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
-        URL = 'https://www.googleapis.com/books/v1/volumes/' + \
-              str(bookid) + "?key=" + lazylibrarian.CONFIG['GB_API']
+        URL = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes/' +
+                        str(bookid) + "?key=" + lazylibrarian.CONFIG['GB_API']])
         jsonresults, _ = json_request(URL)
 
         if not jsonresults:

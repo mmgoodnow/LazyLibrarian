@@ -2457,8 +2457,8 @@ class WebInterface(object):
                         bookrate = row[3]
 
                     if row[20]:  # is there a librarything workid
-                        worklink = '<a href="' + 'http://www.librarything.com/work/' + row[20] + \
-                            '" target="_new"><small><i>LibraryThing</i></small></a>'
+                        worklink = '<a href="' + lazylibrarian.CONFIG['LT_URL'] + '/' + 'work/' + \
+                             row[20] + '" target="_new"><small><i>LibraryThing</i></small></a>'
                     elif row[10]:  # is there a workpage link
                         worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
                     else:
@@ -2470,7 +2470,7 @@ class WebInterface(object):
                     if not row[9]:
                         row[9] = ''
                     elif row[9].startswith('/works/'):
-                        ref = 'https://openlibrary.org' + row[9]
+                        ref = lazylibrarian.CONFIG['OL_URL'] + row[9]
                         sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
 
                     elif 'goodreads' in row[9]:

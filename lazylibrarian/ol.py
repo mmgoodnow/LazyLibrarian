@@ -44,15 +44,14 @@ except ImportError:
 
 class OpenLibrary:
     # https://openlibrary.org/developers/api
-
     def __init__(self, name=None):
-        self.OL_SEARCH = "https://openlibrary.org/search.json?"
-        self.OL_AUTHOR = "https://openlibrary.org/authors/"
-        self.OL_ISBN = "https://openlibrary.org/isbn/"
-        self.OL_WORK = "https://openlibrary.org/works/"
-        self.OL_BOOK = "https://openlibrary.org/books/"
-        self.LT_SERIES = 'http://www.librarything.com/nseries/'
-        self.LT_WORK = "https://www.librarything.com/work/"
+        self.OL_SEARCH = '/'.join([lazylibrarian.CONFIG['OL_URL'], "search.json?"])
+        self.OL_AUTHOR = '/'.join([lazylibrarian.CONFIG['OL_URL'], "authors/"])
+        self.OL_ISBN = '/'.join([lazylibrarian.CONFIG['OL_URL'], "isbn/"])
+        self.OL_WORK = '/'.join([lazylibrarian.CONFIG['OL_URL'], "works/"])
+        self.OL_BOOK = '/'.join([lazylibrarian.CONFIG['OL_URL'], "books/"])
+        self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
+        self.LT_WORK = '/'.join([lazylibrarian.CONFIG['LT_URL'], "work/"])
         self.name = makeUnicode(name)
         self.lt_cache = False
 

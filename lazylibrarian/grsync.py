@@ -56,8 +56,8 @@ class grauth:
         if lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] and lazylibrarian.CONFIG['GR_OAUTH_SECRET']:
             return "Already authorised"
 
-        request_token_url = '%s/oauth/request_token' % 'https://www.goodreads.com'
-        authorize_url = '%s/oauth/authorize' % 'https://www.goodreads.com'
+        request_token_url = '%s/oauth/request_token' % lazylibrarian.CONFIG['GR_URL']
+        authorize_url = '%s/oauth/authorize' % lazylibrarian.CONFIG['GR_URL']
         # access_token_url = '%s/oauth/access_token' % 'https://www.goodreads.com'
 
         consumer = oauth.Consumer(key=str(lazylibrarian.CONFIG['GR_API']),
@@ -104,7 +104,7 @@ class grauth:
             logger.error("Exception in oAuth2: %s %s" % (type(e).__name__, traceback.format_exc()))
             return "Unable to run oAuth2 - Have you run oAuth1?"
 
-        access_token_url = '%s/oauth/access_token' % 'https://www.goodreads.com'
+        access_token_url = '%s/oauth/access_token' % lazylibrarian.CONFIG['GR_URL']
 
         client = oauth.Client(consumer, token)
 
@@ -179,7 +179,7 @@ class grauth:
                 shelf_template = Template('${base}/shelf/list.xml?user_id=${user_id}&key=${key}&page=${page}')
                 body = urlencode({})
                 headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-                request_url = shelf_template.substitute(base='https://www.goodreads.com', user_id=user_id,
+                request_url = shelf_template.substitute(base=lazylibrarian.CONFIG['GR_URL'], user_id=user_id,
                                                         page=current_page, key=lazylibrarian.CONFIG['GR_API'])
                 gr_api_sleep()
                 try:
@@ -240,8 +240,8 @@ class grauth:
             body = urlencode({'id': authorid, 'format': 'xml'})
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             try:
-                response, content = client.request('%s/author_followings' % 'https://www.goodreads.com', 'POST', body,
-                                                   headers)
+                response, content = client.request('%s/author_followings' % lazylibrarian.CONFIG['GR_URL'],
+                                                   'POST', body, headers)
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
                 if type(e).__name__ == 'SSLError':
@@ -251,8 +251,8 @@ class grauth:
             body = urlencode({'format': 'xml'})
             headers = {'Content-Type': 'application/x-www-form-urlencoded'}
             try:
-                response, content = client.request('%s/author_followings/%s' % ('https://www.goodreads.com', authorid),
-                                                   'DELETE', body, headers)
+                response, content = client.request('%s/author_followings/%s' % (lazylibrarian.CONFIG['GR_URL'],
+                                                                                authorid), 'DELETE', body, headers)
             except Exception as e:
                 logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
                 if type(e).__name__ == 'SSLError':
@@ -294,7 +294,7 @@ class grauth:
         gr_api_sleep()
 
         try:
-            response, _ = client.request('%s/user_shelves.xml' % 'https://www.goodreads.com', 'POST',
+            response, _ = client.request('%s/user_shelves.xml' % lazylibrarian.CONFIG['GR_URL'], 'POST',
                                          body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
@@ -374,7 +374,7 @@ class grauth:
 
         try:
             # noinspection PyUnresolvedReferences
-            response, content = client.request('%s/api/auth_user' % 'https://www.goodreads.com', 'GET')
+            response, content = client.request('%s/api/auth_user' % lazylibrarian.CONFIG['GR_URL'], 'GET')
         except Exception as e:
             logger.error("Error in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':
@@ -402,7 +402,7 @@ class grauth:
         owned_template = Template(data)
         body = urlencode({})
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
-        request_url = owned_template.substitute(base='https://www.goodreads.com', user_id=user_id, page=page,
+        request_url = owned_template.substitute(base=lazylibrarian.CONFIG['GR_URL'], user_id=user_id, page=page,
                                                 key=lazylibrarian.CONFIG['GR_API'], shelf_name=shelf_name)
         gr_api_sleep()
         try:
@@ -439,8 +439,8 @@ class grauth:
         headers = {'Content-Type': 'application/x-www-form-urlencoded'}
         gr_api_sleep()
         try:
-            response, content = client.request('%s/shelf/add_to_shelf.xml' % 'https://www.goodreads.com', 'POST',
-                                               body, headers)
+            response, content = client.request('%s/shelf/add_to_shelf.xml' % lazylibrarian.CONFIG['GR_URL'],
+                                               'POST', body, headers)
         except Exception as e:
             logger.error("Exception in client.request: %s %s" % (type(e).__name__, traceback.format_exc()))
             if type(e).__name__ == 'SSLError':

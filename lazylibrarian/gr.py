@@ -63,7 +63,8 @@ class GoodReads:
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
             url = quote_plus(makeUTF8bytes(searchterm)[0])
-            set_url = 'https://www.goodreads.com/search.xml?q=' + url + '&' + urlencode(self.params)
+            set_url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                                'search.xml?q=' + url + '&' + urlencode(self.params)])
             logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                 logger.debug(set_url)
@@ -136,7 +137,8 @@ class GoodReads:
                         workid = ''
 
                         try:
-                            booklink = 'https://www.goodreads.com/book/show/' + author.find('./best_book/id').text
+                            booklink = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                                                'book/show/' + author.find('./best_book/id').text])
                         except (KeyError, AttributeError):
                             booklink = ""
 
@@ -268,7 +270,7 @@ class GoodReads:
         author = makeUnicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
         logger.debug("Searching for author with name: %s" % author)
-        URL = 'https://www.goodreads.com/api/author_url/'
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'api/author_url/'])
         try:
             URL += quote(makeUTF8bytes(author)[0]) + '?' + urlencode(self.params)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
@@ -305,7 +307,8 @@ class GoodReads:
 
     def get_author_info(self, authorid=None):
 
-        URL = 'https://www.goodreads.com/author/show/' + authorid + '.xml?' + urlencode(self.params)
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                        'author/show/' + authorid + '.xml?' + urlencode(self.params)])
 
         try:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
@@ -390,7 +393,8 @@ class GoodReads:
             gb_lang_change = 0
             cache_hits = 0
             not_cached = 0
-            URL = 'https://www.goodreads.com/author/list/' + authorid + '.xml?' + urlencode(self.params)
+            URL = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                            'author/list/' + authorid + '.xml?' + urlencode(self.params)])
 
             # Artist is loading
             myDB = database.DBConnection()
@@ -550,9 +554,9 @@ class GoodReads:
                                 # still  no earlier match, we'll have to search the goodreads api
                                 try:
                                     if book.find(find_field).text:
-                                        BOOK_URL = 'https://www.goodreads.com/book/show?id=' + \
-                                                   book.find(find_field).text + \
-                                                   '&' + urlencode(self.params)
+                                        BOOK_URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show?id=' +
+                                                             book.find(find_field).text + '&' +
+                                                             urlencode(self.params)])
                                         logger.debug("Book URL: " + BOOK_URL)
                                         bookLanguage = ""
                                         try:
@@ -1004,8 +1008,8 @@ class GoodReads:
                     if 0 < lazylibrarian.CONFIG['MAX_BOOKPAGES'] < loopCount:
                         resultxml = None
                     else:
-                        URL = 'https://www.goodreads.com/author/list/' + authorid + '.xml?' + \
-                              urlencode(self.params) + '&page=' + str(loopCount)
+                        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'author/list/' + authorid + '.xml?' +
+                                        urlencode(self.params) + '&page=' + str(loopCount)])
                         resultxml = None
                         try:
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
@@ -1127,7 +1131,8 @@ class GoodReads:
         pagecount = 0
         for page in pages:
             pagecount += 1
-            URL = 'https://www.goodreads.com/book/id_to_work_id/' + page + '?' + urlencode(self.params)
+            URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
+                            urlencode(self.params)])
             try:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                     logger.debug(URL)
@@ -1221,7 +1226,7 @@ class GoodReads:
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         myDB = database.DBConnection()
-        URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(self.params)
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
         try:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                 logger.debug(URL)

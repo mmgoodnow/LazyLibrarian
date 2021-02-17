@@ -331,7 +331,7 @@ def setWorkID(books=None):
     counter = 0
     params = {"key": lazylibrarian.CONFIG['GR_API']}
     for page in pages:
-        URL = 'https://www.goodreads.com/book/id_to_work_id/' + page + '?' + urlencode(params)
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
         try:
             rootxml, _ = gr_xml_request(URL, useCache=False)
             if rootxml is None:
@@ -452,13 +452,13 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                 if PY2:
                     title = title.encode(lazylibrarian.SYS_ENCODING)
                     author = author.encode(lazylibrarian.SYS_ENCODING)
-                URL = 'http://www.librarything.com/api/whatwork.php?author=%s&title=%s' % \
-                      (quote_plus(author), quote_plus(title))
+                URL = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'api/whatwork.php?author=%s&title=%s' %
+                               (quote_plus(author), quote_plus(title))])
             else:
                 seriesname = safe_unicode(item['seriesName'])
                 if PY2:
                     seriesname = seriesname.encode(lazylibrarian.SYS_ENCODING)
-                URL = 'http://www.librarything.com/series/%s' % quote_plus(seriesname)
+                URL = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/%s' % quote_plus(seriesname)])
 
             librarything_wait()
             result, success = fetchURL(URL)
@@ -475,7 +475,8 @@ def getBookWork(bookID=None, reason='', seriesID=None):
                         errmsg = "Unknown Error"
                     # if no workpage link, try isbn instead
                     if item['BookISBN']:
-                        URL = 'http://www.librarything.com/api/whatwork.php?isbn=' + item['BookISBN']
+                        URL = '/'.join([lazylibrarian.CONFIG['LT_URL'],
+                                        'api/whatwork.php?isbn=' + item['BookISBN']])
                         librarything_wait()
                         result, success = fetchURL(URL)
                         if success:
@@ -598,7 +599,7 @@ def getBookAuthors(bookid):
     authorlist = []
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
         params = {"key": lazylibrarian.CONFIG['GR_API']}
-        URL = 'https://www.goodreads.com/book/show/' + bookid + '?' + urlencode(params)
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(params)])
         try:
             rootxml, _ = gr_xml_request(URL)
             if rootxml is None:
@@ -762,7 +763,7 @@ def getSeriesAuthors(seriesid):
             bookname = replace_all(bookname, quotes)
             if not authorid:
                 # goodreads gives us all the info we need, librarything/google doesn't
-                base_url = 'https://www.goodreads.com/search.xml?q='
+                base_url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'search.xml?q='])
                 params = {"key": lazylibrarian.CONFIG['GR_API']}
                 searchname = "%s %s" % (cleanName(bookname), cleanName(authorname))
                 searchterm = quote_plus(makeUTF8bytes(searchname)[0])
@@ -863,7 +864,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
 
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
         params = {"format": "xml", "key": lazylibrarian.CONFIG['GR_API']}
-        URL = 'https://www.goodreads.com/series/%s?%s' % (seriesID, urlencode(params))
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'series/%s?%s' % (seriesID, urlencode(params))])
         try:
             rootxml, in_cache = gr_xml_request(URL)
             if not in_cache:
@@ -976,7 +977,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
         author = author.encode(lazylibrarian.SYS_ENCODING)
         title = title.encode(lazylibrarian.SYS_ENCODING)
 
-    baseurl = 'https://www.googleapis.com/books/v1/volumes?q='
+    baseurl = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
 
     urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
     if isbn:
@@ -1121,7 +1122,7 @@ def getWorkSeries(bookID=None, reason=""):
         return serieslist
 
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
-        URL = "https://www.goodreads.com/work/"
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'], "work/"])
         seriesurl = URL + bookID + "/series?format=xml&key=" + lazylibrarian.CONFIG['GR_API']
 
         rootxml, _ = gr_xml_request(seriesurl)
@@ -1284,7 +1285,8 @@ def get_gr_genres(bookid, refresh=False):
         genreUsers = 10
         genreLimit = 3
 
-    URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
+    URL = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                    'book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']])
     genres = []
     try:
         rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
@@ -1329,7 +1331,8 @@ def get_gr_genres(bookid, refresh=False):
 def getBookPubdate(bookid, refresh=False):
     bookdate = "0000"
     if bookid.isdigit():  # goodreads bookid
-        URL = 'https://www.goodreads.com/book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']
+        URL = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                        'book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']])
         try:
             rootxml, in_cache = gr_xml_request(URL, useCache=not refresh)
         except Exception as e:
@@ -1366,7 +1369,8 @@ def getBookPubdate(bookid, refresh=False):
             logger.warn('No GoogleBooks API key, check config')
             return bookdate, False
 
-        URL = 'https://www.googleapis.com/books/v1/volumes/%s?key=%s' % (bookid, lazylibrarian.CONFIG['GB_API'])
+        URL = '/'.join([lazylibrarian.CONFIG['GB_URL'],
+                        'books/v1/volumes/%s?key=%s' % (bookid, lazylibrarian.CONFIG['GB_API'])])
         jsonresults, in_cache = json_request(URL)
         if not jsonresults:
             logger.debug('No results found for %s' % bookid)
@@ -1381,7 +1385,7 @@ def thingLang(isbn):
     # try searching librarything for a language code using the isbn
     # if no language found, librarything return value is "invalid" or "unknown"
     # librarything returns plain text, not xml
-    BOOK_URL = 'http://www.librarything.com/api/thingLang.php?isbn=' + isbn
+    BOOK_URL = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'api/thingLang.php?isbn=' + isbn])
     proxies = proxyList()
     booklang = ''
     try:

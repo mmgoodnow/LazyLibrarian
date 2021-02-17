@@ -903,8 +903,8 @@ def scheduleJob(action='Start', target=None):
                     logger.debug("Found %s %s%s from %s %s update" % (
                                  overdue, typ, pl, total, due))
                     interval = maxage * 60 * 24
-                    interval = int(interval / total)
-                    interval -= 5  # average update time
+                    interval = interval / total
+                    interval = int(interval * 0.9) # allow some update time
 
                 if interval < 10:  # set a minimum interval of 10 minutes so we don't upset goodreads/librarything api
                     interval = 10

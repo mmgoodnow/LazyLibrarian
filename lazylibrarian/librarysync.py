@@ -1002,7 +1002,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                         # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
                                         rescan_count += 1
-                                        base_url = 'https://www.goodreads.com/search.xml?q='
+                                        base_url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'search.xml?q='])
                                         params = {"key": lazylibrarian.CONFIG['GR_API']}
                                         author = formatAuthorName(author)
                                         searchname = "%s %s" % (cleanName(author), cleanName(book))
@@ -1215,12 +1215,12 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                             (book_filename, bookid))
                                                 if 'unknown' in check_status['AuthorName'].lower():
                                                     oldauth = myDB.match("SELECT * from authors WHERE AuthorName=?",
-                                                        (author,))
+                                                                         (author,))
                                                     if oldauth:
                                                         logger.debug("Moving %s from %s to %s" % (bookid,
                                                                      check_status['AuthorName'], author))
                                                         myDB.action('UPDATE books set AuthorID=? where BookID=?',
-                                                            (oldauth['AuthorID'], bookid))
+                                                                    (oldauth['AuthorID'], bookid))
                                                         myDB.action("DELETE from authors WHERE AuthorID=?",
                                                                     (check_status['AuthorID'],))
 

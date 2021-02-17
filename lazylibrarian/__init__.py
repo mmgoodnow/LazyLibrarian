@@ -212,7 +212,7 @@ CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMN
                  'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
                  'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'AUDIO_NARRATOR', 'AUDIO_AUTHOR',
-                 'DELUGE_TIMEOUT']
+                 'DELUGE_TIMEOUT', 'OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
                      'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
@@ -236,6 +236,12 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
+    'OL_URL': ('str', 'General', 'https://openlibrary.org'),
+    'GR_URL': ('str', 'General', 'https://goodreads.org'),
+    'GB_URL': ('str', 'General', 'https://www.googleapis.com'),
+    'LT_URL': ('str', 'General', 'https://www.librarything.com'),
+    'CV_URL': ('str', 'General', 'https://www.comicvine.gamespot.com'),
+    'CX_URL': ('str', 'General', 'https://www.comixology.com'),
     'USER_ACCOUNTS': ('bool', 'General', 0),
     'SINGLE_USER': ('bool', 'General', 0),
     'ADMIN_EMAIL': ('str', 'General', ''),
@@ -1156,6 +1162,12 @@ def config_read(reloaded=False):
     if CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
         CONFIG['HTTP_LOOK'] = 'legacy'
+
+    for item in ['OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']:
+        url = CONFIG[item].rstrip('/')
+        if not url.startswith('http'):
+            url = 'http://' + url
+        CONFIG[item] = url
 
     ###################################################################
     # ensure all these are boolean 1 0, not True False for javascript #
