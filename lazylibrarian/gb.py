@@ -34,7 +34,7 @@ from lazylibrarian.cache import json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
     getList, cleanName, makeUnicode, makeUTF8bytes, replace_with, check_year
 from lazylibrarian.common import quotes
-from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -712,8 +712,8 @@ class GoogleBooks:
                     return
 
         authorname = book['author']
-        GR = GoodReads(authorname)
-        author = GR.find_author_id()
+        OL = OpenLibrary(authorname)
+        author = OL.find_author_id()
         if author:
             AuthorID = author['authorid']
             match = myDB.match('SELECT AuthorID from authors WHERE AuthorID=?', (AuthorID,))

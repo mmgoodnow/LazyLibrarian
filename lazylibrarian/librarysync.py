@@ -1396,9 +1396,13 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                     # On single author/book import, just update bookcount for that author
                     update_totals(authid)
 
-        # logger.debug('Updating bookcounts for %i author%s' % (len(authors), plural(len(authors))))
-        # for author in authors:
-        #     update_totals(author['AuthorID'])
+        if remove:
+            # sometimes librarything tells us about a series contributor
+            # but openlibrary doesnt agree...
+            res = myDB.select('select * from authors where status="Paused" and totalbooks=0')
+            if len(res):
+                logger.debug("Removed %s empty series authors" % len(res))
+                myDB.action('delete from authors where status="Paused" and totalbooks=0')
 
         logger.info('Library scan complete')
         return new_book_count

@@ -100,7 +100,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
     if not exists and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
         logger.debug('Author %s not found in database, trying to add' % author)
         # no match for supplied author, but we're allowed to add new ones
-        if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+        if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
             if title:
                 OL = OpenLibrary(author + '<ll>' + title)
             else:
@@ -141,7 +141,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if not "unknown" in author.lower() and (match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
+            if "unknown" not in author.lower() and (match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
                 # use "intact" name for author that we stored in
                 # author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!
@@ -222,7 +222,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
             myDB.upsert("authors", newValueDict, controlValueDict)
 
-            if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                 OL = OpenLibrary(authorid)
                 author = OL.get_author_info(authorid=authorid)
             else:
@@ -279,7 +279,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
         if not match and authorname and 'unknown' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
-            if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                 OL = OpenLibrary(authorname)
                 author = OL.find_author_id(refresh=refresh)
             else:
@@ -513,28 +513,20 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
             threading.Thread(target=GB.find_book, name='GB-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             GB.find_book(bookid, ebook, audio, reason)
-    elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-        if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
-            OL = OpenLibrary(bookid)
-            logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
-            if not wait:
-                threading.Thread(target=OL.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
-            else:
-                OL.find_book(bookid, ebook, audio, reason)
-        else:
-            GR = GoodReads(bookid)
-            logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
-            if not wait:
-                threading.Thread(target=GR.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
-            else:
-                GR.find_book(bookid, ebook, audio, reason)
-    elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+    elif lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
         OL = OpenLibrary(bookid)
         logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
         if not wait:
             threading.Thread(target=OL.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             OL.find_book(bookid, ebook, audio, reason)
+    else:
+        GR = GoodReads(bookid)
+        logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
+        if not wait:
+            threading.Thread(target=GR.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
+        else:
+            GR.find_book(bookid, ebook, audio, reason)
 
 
 def search_for(searchterm):

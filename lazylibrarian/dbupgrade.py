@@ -326,30 +326,20 @@ def check_db(upgradelog=None):
     try:
         # check information provider matches database
         info = lazylibrarian.CONFIG.get('BOOK_API', '')
-        if info == 'OpenLibrary':
+        if info in ['OpenLibrary', 'GoogleBooks']:
             tot = myDB.select('SELECT * from authors')
             res = myDB.select('SELECT * from authors WHERE AuthorID LIKE "OL%A"')
             if len(tot) - len(res):
-                logger.error("Information source is OpenLibrary but %s author IDs are not" % len(tot) - len(res))
+                logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - len(res)))
 
-        if info == 'GoodReads':
+        elif info == 'GoodReads':
             tot = myDB.select('SELECT authorid from authors')
             cnt = 0
             for item in tot:
                 if item[0].isdigit():
                     cnt += 1
             if len(tot) - cnt:
-                logger.error("Information source is GoodReads but %s author IDs are not" % (len(tot) - cnt))
-
-        if info == 'GoogleBooks':
-            tot = myDB.select('SELECT * from authors')
-            res = myDB.select('SELECT authorid from authors WHERE authorid NOT LIKE "OL%A"')
-            cnt = 0
-            for item in res:
-                if item[0].isdigit():
-                    cnt += 1
-            if len(tot) - cnt:
-                logger.error("Information source is GoodReads but %s author IDs are not" % (len(tot) - cnt))
+                logger.error("Information source is %s but %s author IDs are not" % (info, len(tot) - cnt))
 
         # correct any invalid/unpadded dates
         lazylibrarian.UPDATE_MSG = 'Checking dates'
