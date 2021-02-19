@@ -287,19 +287,24 @@ def DirectDownloadMethod(bookid=None, dl_title=None, dl_url=None, library='eBook
             basename = ''
             if ' ' in dl_title:
                 basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
-            if extn and extn.lower() in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
-                basename = dl_title.rsplit(' ', 1)
-            elif magic:
+            if extn and extn.lower() not in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
+                basename = ''
                 extn = ''
+            if not basename and '.' in dl_title:
+                basename, extn = dl_title.rsplit('.', 1)
+            if extn and extn.lower() not in getList(lazylibrarian.CONFIG['EBOOK_TYPE']):
+                basename = ''
+                extn = ''
+            if not basename and magic:
                 try:
-                    mtype = magic.from_buffer(r.content)
+                    mtype = magic.from_buffer(r.content).upper()
                     logger.debug("magic reports %s" % mtype)
                 except Exception as e:
                     logger.debug("%s reading magic from %s, %s" % (type(e).__name__, dl_title, e))
                     mtype = ''
                 if 'EPUB' in mtype:
                     extn = 'epub'
-                elif 'Mobipocket' in mtype:  # also true for azw and azw3, does it matter?
+                elif 'MOBIPOCKET' in mtype:  # also true for azw and azw3, does it matter?
                     extn = 'mobi'
                 elif 'PDF' in mtype:
                     extn = 'pdf'
