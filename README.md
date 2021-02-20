@@ -1,7 +1,36 @@
 ## LazyLibrarian
 LazyLibrarian is a program to follow authors and grab metadata for all your digital reading needs.
-It uses a combination of [Goodreads](https://www.goodreads.com/) [Librarything](https://www.librarything.com/) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
+It uses a combination of [OpenLibrary] [Librarything](https://www.librarything.com/) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
 
+## IMPORTANT NOTE
+LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing lazylibrarian installation you will need to move provider. I suggest using OpenLibrary.
+
+You need to create a new clean library and start again
+You will lose reading lists
+You will lose some wanted books
+You will lose goodreads sync
+You will lose subscriptions to books/authors/series
+
+# To move provider
+1. On LazyLibrarian Manage page, select ebook in dropdown, export csv. select audiobook, export csv. This will keep a list of wanted ebook/audio which we will try to re-import under openlibrary later. Not all will succeed as openlibrary does not have the same range of books as goodreads
+
+
+2. Lazylibrarian homepage, select all rows per page, select all authors, mark as REMOVE (not delete). This will remove the authors and their books/series from the database but leave the book files etc. Will not affect users/comics/magazines/filters
+
+
+3. Lazylibrarian config select openlibrary instead of goodreads and save config
+
+
+4. Lazylibrarian ebook page select Libraryscan and wait for it to complete. Then audiobook page, libraryscan, wait. Audiobook should be much quicker as the authors will mostly already be loaded
+
+
+5. LazyLibrarian Manage page, ebook, import csv, same for audiobook. This will add back in your "wanted" books
+
+
+Expect to find many missing authors and books, even ones you own, as openlibrary is not as large a dataset as goodreads yet. I found about 15% of my authors were not on openlibrary, but half a dozen were found that goodreads didn't have
+
+
+## Description
 Right now it's capable of the following:
 * Import an existing calibre library (optional)
 * Find authors and add them to the database
