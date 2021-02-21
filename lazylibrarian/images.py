@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int, makeUTF8bytes
-from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath
+from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath, jpg_file
 from lazylibrarian.cache import cache_img, fetchURL
 from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
 from six import PY2, text_type
@@ -237,10 +237,10 @@ def getBookCover(bookID=None, src=None):
             item = myDB.match('select BookFile from books where bookID=?', (bookID,))
             if item:
                 bookfile = item['BookFile']
-                if bookfile:  # we may have a cover.jpg in the same folder
+                if bookfile and path_isfile(bookfile):  # we may have a cover.jpg in the same folder
                     bookdir = os.path.dirname(bookfile)
-                    coverimg = os.path.join(bookdir, "cover.jpg")
-                    if path_isfile(coverimg):
+                    coverimg = jpg_file(bookdir)
+                    if coverimg:
                         if src:
                             extn = '_cover.jpg'
                         else:

@@ -3338,6 +3338,8 @@ class WebInterface(object):
                     covertype = '_gi'
                 elif cover == 'googleimage':
                     covertype = '_gb'
+                elif cover == 'cover':
+                    covertype = '_cover'
 
                 if covertype:
                     cachedir = lazylibrarian.CACHEDIR
@@ -3423,14 +3425,12 @@ class WebInterface(object):
                 else:
                     logger.debug('Book [%s] has not been moved' % bookname)
                 if edited or moved:
-                    data = myDB.match("SELECT * from books WHERE BookID=?", (bookid,))
-                    if data['BookFile']:
+                    data = myDB.match("SELECT * from books,authors WHERE books.authorid = authors.authorid and BookID=?",
+                                      (bookid,))
+                    if data['BookFile'] and path_isfile(data['BookFile']):
                         dest_path = os.path.dirname(data['BookFile'])
                         global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
-                        if dest_path:
-                            data = dict(data)
-                            data['AuthorName'] = authorname
-                            createOPF(dest_path, data, global_name, overwrite=True)
+                        createOPF(dest_path, data, global_name, overwrite=True)
 
                 raise cherrypy.HTTPRedirect("editBook?bookid=%s" % bookid)
 
