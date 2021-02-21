@@ -624,7 +624,7 @@ CONFIG_DEFINITIONS = {
     'USE_EMAIL_CUSTOM_FORMAT': ('bool', 'Email', 0),
     'EMAIL_CONVERT_FROM': ('str', 'Email', ''),
     'EMAIL_SEND_TYPE': ('str', 'Email', ''),
-    'BOOK_API': ('str', 'API', 'GoodReads'),
+    'BOOK_API': ('str', 'API', 'OpenLibrary'),
     'LT_DEVKEY': ('str', 'API', ''),
     'CV_APIKEY': ('str', 'API', ''),
     'CV_WEBSEARCH': ('bool', 'API', 0),
@@ -917,6 +917,11 @@ def initialize():
         LT_SLEEP = 0.0
         CV_SLEEP = 0.0
         GB_CALLS = 0
+
+        if CONFIG['BOOK_API'] != 'GoodReads':
+            CONFIG['GR_SYNC'] = 0
+            CONFIG['GR_FOLLOW'] = 0
+            CONFIG['GR_FOLLOWNEW'] = 0
 
         UNRARLIB, RARFILE = get_unrarlib()
 
