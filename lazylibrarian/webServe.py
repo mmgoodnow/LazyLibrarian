@@ -3068,10 +3068,10 @@ class WebInterface(object):
                 if 'cover' in kwargs:
                     if kwargs['cover'] == "manual":
                         if authorimg and (authdata["AuthorImg"] != authorimg):
-                            edited += "Image "
+                            edited += "Image manual"
                     elif kwargs['cover'] != "current":
                         authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
-                        edited += "Image "
+                        edited += "Image " + kwargs['cover']
 
                 if not (authdata["About"] == editordata):
                     edited += "Description "
@@ -3130,18 +3130,23 @@ class WebInterface(object):
                         rejected = True
 
                         # Cache file image
-                        if path_isfile(authorimg):
+                        if not path_isfile(authorimg):
+                            logger.warn("Failed to find file %s" % authorimg)
+                        else:
                             extn = os.path.splitext(authorimg)[1].lower()
                             if extn and extn in ['.jpg', '.jpeg', '.png']:
                                 destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
                                 try:
                                     copyfile(authorimg, destfile)
+                                    logger.debug("%s->%s" % (authorimg, destfile))
                                     setperm(destfile)
                                     authorimg = 'cache/author/' + authorid + '.jpg'
                                     rejected = False
                                 except Exception as why:
                                     logger.warn("Failed to copy file %s, %s %s" %
                                                 (authorimg, type(why).__name__, str(why)))
+                            else:
+                                logger.warn("Invalid extension on [%s]" % authorimg)
 
                         if authorimg.startswith('http'):
                             # cache image from url

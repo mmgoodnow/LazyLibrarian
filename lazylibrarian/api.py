@@ -102,8 +102,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'resumeAuthor': '&id= resume author by AuthorID',
             'ignoreAuthor': '&id= ignore author by AuthorID',
             'refreshAuthor': '&name= [&refresh] reload author (and their books) by name, optionally refresh cache',
-            'authorUpdate': 'update the oldest author, if any are overdue',
-            'seriesUpdate': 'update the oldest series, if any are overdue',
+            'authorUpdate': 'update the oldest author',
+            'seriesUpdate': 'update the oldest series',
             'forceActiveAuthorsUpdate': '[&wait] [&refresh] reload all active authors and book data, refresh cache',
             'forceLibraryScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part book library',
             'forceComicScan': '[&wait] [&id=] rescan whole or part comic library',
@@ -1096,13 +1096,13 @@ class Api(object):
 
     def _authorUpdate(self):
         try:
-            self.data = authorUpdate(restart=False)
+            self.data = authorUpdate(restart=False, only_overdue=False)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _seriesUpdate(self):
         try:
-            self.data = seriesUpdate(restart=False)
+            self.data = seriesUpdate(restart=False, only_overdue=False)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 

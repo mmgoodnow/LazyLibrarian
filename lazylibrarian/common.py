@@ -898,7 +898,7 @@ def scheduleJob(action='Start', target=None):
                                  overdue, plural(overdue, typ), total, due))
                     interval = maxage * 60 * 24
                     interval = interval / total
-                    interval = int(interval * 0.9) # allow some update time
+                    interval = int(interval * 0.9)  # allow some update time
 
                 if interval < 10:  # set a minimum interval of 10 minutes so we don't upset goodreads/librarything api
                     interval = 10
@@ -919,7 +919,7 @@ def scheduleJob(action='Start', target=None):
             logger.debug("No %s scheduled" % target)
 
 
-def authorUpdate(restart=True):
+def authorUpdate(restart=True, only_overdue=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "AUTHORUPDATE"
@@ -934,7 +934,7 @@ def authorUpdate(restart=True):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
                 msg = "There are no monitored authors"
-            elif not overdue:
+            elif not overdue and only_overdue:
                 msg = 'Oldest author info (%s) is %s %s old, no update due' % (name,
                                                                                days, plural(days, "day"))
             else:
@@ -953,7 +953,7 @@ def authorUpdate(restart=True):
         return msg
 
 
-def seriesUpdate(restart=True):
+def seriesUpdate(restart=True, only_overdue=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "SERIESUPDATE"
@@ -968,7 +968,7 @@ def seriesUpdate(restart=True):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
                 msg = "There are no monitored series"
-            elif not overdue:
+            elif not overdue and only_overdue:
                 msg = 'Oldest series info (%s) is %s %s old, no update due' % (name,
                                                                                days, plural(days, "day"))
             else:
