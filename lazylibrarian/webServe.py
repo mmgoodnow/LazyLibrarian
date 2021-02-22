@@ -3084,7 +3084,7 @@ class WebInterface(object):
                             edited += "Image manual"
                     elif kwargs['cover'] != "current":
                         authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
-                        edited += "Image " + kwargs['cover']
+                        edited += "Image %s " % kwargs['cover']
 
                 if not (authdata["About"] == editordata):
                     edited += "Description "

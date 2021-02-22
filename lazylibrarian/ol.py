@@ -693,6 +693,11 @@ class OpenLibrary:
                                              link, key, bookdate, lang, now(), book_status, '', audio_status,
                                              id_librarything, reason, first_publish_year, bookpages))
 
+                                if 'nocover' in cover or 'nophoto' in cover:
+                                    cover = get_cover(key, title)
+                                    cover_count += 1
+                                if cover and cover.startswith('http'):
+                                    cache_cover(key, cover)
                             # Leave alone if locked
                             if locked:
                                 locked_count += 1
