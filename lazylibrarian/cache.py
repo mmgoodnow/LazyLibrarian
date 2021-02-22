@@ -169,13 +169,15 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
                 logger.error("Image url: %s" % img_url)
                 return str(e), False, False
         return result, False, False
-    else:
+    elif path_isfile(img_url):
         try:
             shutil.copyfile(img_url, cachefile)
             return link, True, True
         except Exception as e:
             logger.error("%s copying image to %s, %s" % (type(e).__name__, cachefile, str(e)))
             return str(e), False, False
+    else:
+        logger.debug("No file [%s]" % img_url)
 
 
 def gr_xml_request(my_url, useCache=True, expire=True):
