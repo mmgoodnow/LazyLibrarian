@@ -251,8 +251,16 @@ def getBookCover(bookID=None, src=None):
                         logger.debug("Caching %s for %s" % (extn, bookID))
                         _ = safe_copy(coverimg, coverfile)
                         return coverlink, src
+                    else:
+                        logger.debug('No cover found for %s in %s' % (bookID, bookdir))
+                else:
+                    if bookfile:
+                        logger.debug("File %s not found" % bookfile)
+                    else:
+                        logger.debug("No bookfile for %s" % bookID)
+            else:
+                logger.debug("BookID %s not found" % bookID)
             if src:
-                logger.debug('No cover.jpg found for %s' % bookID)
                 return None, src
 
         # see if librarything  has a cover
@@ -491,7 +499,7 @@ def getBookCover(bookID=None, src=None):
 
         if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
             if PIL and safeparams:
-                icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
+                icrawlerdir = os.path.join(cachedir, 'icrawler', bookID)
                 gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
                 logger.debug(safeparams)
                 gc.crawl(keyword=safeparams, max_num=1)
@@ -558,7 +566,7 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
     if PIL and author:
         authorname = safe_unicode(author['AuthorName'])
         safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
-        icrawlerdir = os.path.join(cachedir, 'icrawler', safeparams)
+        icrawlerdir = os.path.join(cachedir, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
         gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
         gc.crawl(keyword=safeparams, max_num=int(max_num))
