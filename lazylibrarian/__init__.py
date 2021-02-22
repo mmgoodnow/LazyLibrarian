@@ -236,8 +236,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
-    'OL_URL': ('str', 'General', 'https://openlibrary.org'),
-    'GR_URL': ('str', 'General', 'https://goodreads.com'),
+    'OL_URL': ('str', 'General', 'https://www.openlibrary.org'),
+    'GR_URL': ('str', 'General', 'https://www.goodreads.com'),
     'GB_URL': ('str', 'General', 'https://www.googleapis.com'),
     'LT_URL': ('str', 'General', 'https://www.librarything.com'),
     'CV_URL': ('str', 'General', 'https://www.comicvine.gamespot.com'),
