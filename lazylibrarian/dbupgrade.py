@@ -374,7 +374,7 @@ def check_db(upgradelog=None):
 
         # replace faulty/html language results with Unknown
         lazylibrarian.UPDATE_MSG = 'Checking languages'
-        filt = 'BookLang is NULL or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
+        filt = 'BookLang is NULL or BookLang="" or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
         cmd = 'SELECT count(*) as counter from books WHERE ' + filt
         res = myDB.match(cmd)
         tot = res['counter']
@@ -383,6 +383,23 @@ def check_db(upgradelog=None):
             msg = 'Updating %s %s with no language to "Unknown"' % (tot, plural(tot, "book"))
             logger.warn(msg)
             myDB.action('UPDATE books SET BookLang="Unknown" WHERE ' + filt)
+
+        cmd = 'SELECT BookID,BookLang from books WHERE BookLang LIKE "%,%"'
+        res = myDB.match(cmd)
+        tot = len(res)
+        if tot:
+            cnt += tot
+            msg = 'Updating %s %s with multiple language' % (tot, plural(tot, "book"))
+            logger.warn(msg)
+            wantedlanguages = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
+            for bk in res:
+                lang = 'Unknown'
+                languages = getList(bk[1])
+                for item in languages:
+                    if item in wantedlanguages:
+                        lang = item
+                        break
+                myDB.action("UPDATE books SET BookLang=? WHERE BookID=?", (lang, bk[0]))
 
         # delete html error pages
         filt = 'length(lang) > 30'

@@ -458,10 +458,7 @@ class OpenLibrary:
                 id_librarything = book.get('id_librarything')
                 if publish_date:
                     publish_date = dateFormat(publish_date[0])
-                if languages:
-                    lang = ', '.join(languages)
-                else:
-                    lang = ''
+                lang = ''
                 if isbns:
                     isbn = isbns[0]
                     if len(isbn) == 10:
@@ -478,8 +475,11 @@ class OpenLibrary:
                 wantedlanguages = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
                 if wantedlanguages and 'All' not in wantedlanguages:
                     if languages:
-                        valid_lang = any(item in languages for item in wantedlanguages)
-                        if not valid_lang:
+                        for item in languages:
+                            if item in wantedlanguages:
+                                lang = item
+                                break
+                        if not lang:
                             rejected = 'lang', 'Invalid language: %s' % str(languages)
                             bad_lang += 1
                     else:
@@ -684,6 +684,8 @@ class OpenLibrary:
                                     reason = entryreason
                                 threadname = threading.currentThread().getName()
                                 reason = "[%s] %s" % (threadname, reason)
+                                if not lang:
+                                    lang = 'Unknown'
                                 myDB.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                             'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
                                             'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
@@ -900,6 +902,8 @@ class OpenLibrary:
                                                                 threadname = threading.currentThread().getName()
                                                                 reason = "[%s] %s" % (threadname, reason)
                                                                 added_count += 1
+                                                                if not lang:
+                                                                    lang = 'Unknown'
                                                                 myDB.action('INSERT INTO books (AuthorID, ' +
                                                                             'BookName, BookDesc, BookGenre, ' +
                                                                             'BookIsbn, BookPub, BookRate, ' +
@@ -959,6 +963,8 @@ class OpenLibrary:
                             threadname = threading.currentThread().getName()
                             reason = "[%s] %s" % (threadname, reason)
                             added_count += 1
+                            if not lang:
+                                lang = 'Unknown'
                             myDB.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
                                         'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
                                         'WorkPage, AudioStatus, ScanResult, OriginalPubDate) ' +
