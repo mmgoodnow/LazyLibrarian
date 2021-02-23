@@ -303,7 +303,10 @@ def import_CSV(search_dir=None, library='eBook'):
             return msg
         else:
             logger.debug('Reading file %s' % csvFile)
-            csvreader = reader(open(csvFile, 'rU'))
+            if PY2:
+                csvreader = reader(open(csvFile, 'rU'))
+            else:
+                csvreader = reader(open(csvFile, 'r', encoding='utf-8', newline=None))
             for row in csvreader:
                 if csvreader.line_num == 1:
                     # If we are on the first line, create the headers list from the first row
@@ -312,7 +315,7 @@ def import_CSV(search_dir=None, library='eBook'):
                         msg = 'Invalid CSV file found %s' % csvFile
                         logger.warn(msg)
                         return msg
-                else:
+                elif row:
                     total += 1
                     item = dict(list(zip(headers, row)))
                     authorname = formatAuthorName(item['Author'])
@@ -355,6 +358,7 @@ def import_CSV(search_dir=None, library='eBook'):
                             existing += 1
                             logger.info('Found %s %s by %s, already marked as "%s"' %
                                         (library, bookname, authorname, bookstatus))
+                            imported = True
                         else:  # skipped/ignored
                             logger.info('Found %s %s by %s, marking as "Wanted"' % (library, bookname, authorname))
                             controlValueDict = {"BookID": bookid}
