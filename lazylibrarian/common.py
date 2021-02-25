@@ -642,7 +642,12 @@ def is_overdue(which="author"):
         myDB = database.DBConnection()
         if which == 'author':
             cmd = 'SELECT AuthorName,AuthorID,Updated from authors WHERE Status="Active" or Status="Loading"'
-            cmd += ' or Status="Wanted" order by Updated ASC'
+            cmd += ' or Status="Wanted" '
+            if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+                cmd += 'and AuthorID LIKE "OL%A" '
+            else:
+                cmd += 'and AuthorID NOT LIKE "OL%A" '
+            cmd += 'order by Updated ASC'
             res = myDB.select(cmd)
             total = len(res)
             if total:

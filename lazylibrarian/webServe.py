@@ -52,7 +52,8 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.images import getBookCover, createMagCover, coverswap, getAuthorImage
-from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, getPreferredAuthorName
+from lazylibrarian.importer import addAuthorToDB, addAuthorNameToDB, update_totals, search_for, \
+    getPreferredAuthorName, is_valid_authorid
 from lazylibrarian.librarysync import LibraryScan
 from lazylibrarian.manualbook import searchItem
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
@@ -3062,7 +3063,7 @@ class WebInterface(object):
     def authorUpdate(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                      editordata='', manual='0', **kwargs):
         myDB = database.DBConnection()
-        if authorid:
+        if is_valid_authorid(authorid):
             authdata = myDB.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
             if authdata:
                 edited = ""
@@ -3189,11 +3190,11 @@ class WebInterface(object):
                 else:
                     logger.debug('Author [%s] has not been changed' % authorname)
 
-            safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
-            icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', safeparams)
+            icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', authorid)
             rmtree(icrawlerdir, ignore_errors=True)
             raise cherrypy.HTTPRedirect("authorPage?AuthorID=%s" % authorid)
         else:
+            logger.warn("Invalid authorid [%s] for %s" % (authorid, authorname))
             raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose

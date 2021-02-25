@@ -87,7 +87,7 @@ class OpenLibrary:
                 if not in_cache:
                     api_hits += 1
                 if results and 'numFound' in results:
-                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], offset))
+                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], loopCount - 1))
                 else:
                     break
 
@@ -231,15 +231,15 @@ class OpenLibrary:
                     key = book.get('author_key')[0]
                     if key:
                         key = key.split('/')[-1]
-                    res = self.get_author_info(key)
+                    res = self.get_author_info(key, refresh=refresh)
                     if res and res['authorname'] != authorname:
                         res['aka'] = authorname
                     return res
         return {}
 
-    def get_author_info(self, authorid=None):
+    def get_author_info(self, authorid=None, refresh=False):
         logger.debug("Getting author info for %s" % authorid)
-        authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json')
+        authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', useCache=not refresh)
         if not authorinfo:
             logger.debug("No info found for %s" % authorid)
             return None
@@ -520,8 +520,11 @@ class OpenLibrary:
                             bad_lang += 1
 
                         if not lang:
-                            rejected = 'lang', 'No language'
-                            bad_lang += 1
+                            if "Unknown" not in wantedlanguages:
+                                rejected = 'lang', 'No language'
+                                bad_lang += 1
+                            else:
+                                lang = "Unknown"
 
                 if not rejected and not title:
                     rejected = 'name', 'No title'

@@ -34,6 +34,17 @@ except ImportError:
 from six.moves import queue
 
 
+def is_valid_authorid(authorid):
+    if not authorid:
+        return False
+    if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
+        return True
+    if authorid.startswith('OL') and authorid.endwith('A') and \
+        lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            return True
+    return False
+
+
 def getPreferredAuthorName(author):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and whether found in library
@@ -205,7 +216,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
         new_author = not refresh
         entry_status = 'Active'
 
-        if authorid:
+        if is_valid_authorid(authorid):
             dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
                 authorname = 'unknown author %s' % authorid
