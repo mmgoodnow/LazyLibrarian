@@ -3426,7 +3426,7 @@ class WebInterface(object):
                 else:
                     logger.debug('Book [%s] has not been moved' % bookname)
                 if edited or moved:
-                    data = myDB.match("SELECT * from books,authors WHERE books.authorid = authors.authorid and BookID=?",
+                    data = myDB.match("SELECT * from books,authors WHERE books.authorid=authors.authorid and BookID=?",
                                       (bookid,))
                     if data['BookFile'] and path_isfile(data['BookFile']):
                         dest_path = os.path.dirname(data['BookFile'])

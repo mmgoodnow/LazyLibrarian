@@ -40,8 +40,8 @@ def is_valid_authorid(authorid):
     if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True
     if authorid.startswith('OL') and authorid.endwith('A') and \
-        lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
-            return True
+            lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+        return True
     return False
 
 
