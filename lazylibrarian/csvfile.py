@@ -71,7 +71,7 @@ def dump_table(table, savedir=None, status=None):
                         csvwrite.writerow([makeBytestr(s) if s else '' for s in item])
                         count += 1
             else:
-                with open(syspath(csvFile), 'w', encoding='utf-8', newline=None) as csvfile:
+                with open(syspath(csvFile), 'w', encoding='utf-8', newline='') as csvfile:
                     # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
                     csvwrite.writerow(headers)
@@ -207,7 +207,7 @@ def export_CSV(search_dir=None, status="Wanted", library='eBook'):
                         count += 1
             else:
                 # noinspection PyArgumentList
-                with open(syspath(csvFile), 'w', encoding='utf-8', newline=None) as csvfile:
+                with open(syspath(csvFile), 'w', encoding='utf-8', newline='') as csvfile:
                     # noinspection PyTypeChecker
                     csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
