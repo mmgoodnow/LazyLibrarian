@@ -42,7 +42,7 @@ from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, sch
     zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, \
     syspath, remove
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
-from lazylibrarian.dbupgrade import check_db
+from lazylibrarian.dbupgrade import check_db, gr_to_ol
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod, \
     IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
@@ -231,6 +231,19 @@ def serve_template(templatename, **kwargs):
 class WebInterface(object):
 
     auth = AuthController()
+
+    @cherrypy.expose
+    def move_to_ol(self):
+        logger.debug("Moving to OpenLibrary")
+        if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+
+            threadname = 'GR_TO_OL'
+            if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
+                threading.Thread(target=gr_to_ol, name=threadname).start()
+            return 0
+        else:
+            logger.warn("Not converting, book api is %s" % lazylibrarian.CONFIG['BOOK_API'])
+        raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
     def index(self):

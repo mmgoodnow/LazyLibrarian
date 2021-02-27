@@ -2116,6 +2116,8 @@ def start():
                 if not CONFIG['SERIES_TAB']:
                     SHOW_SERIES = 0
 
+        if CONFIG['GR_URL'] == 'https://goodreads.org':
+            CONFIG['GR_URL'] = 'https://www.goodreads.com'
         # Crons and scheduled jobs started here
         # noinspection PyUnresolvedReferences
         SCHED.start()

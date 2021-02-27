@@ -75,9 +75,11 @@ class GoodReads:
                     rootxml, in_cache = gr_xml_request(set_url)
                 except Exception as e:
                     logger.error("%s finding gr results: %s" % (type(e).__name__, str(e)))
+                    queue.put(resultlist)
                     return
                 if rootxml is None:
                     logger.debug("Error requesting results")
+                    queue.put(resultlist)
                     return
 
                 totalresults = check_int(rootxml.find('search/total-results').text, 0)

@@ -205,6 +205,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'nicer': 'make a little nicer',
             'subscribe': '&user= &feed= subscribe a user to a feed',
             'unsubscribe': '&user= &feed= remove a user from a feed',
+            'listAlienAuthors': 'List authors not matching current book api',
+            'listAlienBooks': 'List books not matching current book api',
             }
 
 
@@ -463,6 +465,20 @@ class Api(object):
         for key in sorted(cmd_dict):
             res += "%s: %s<p>" % (key, cmd_dict[key])
         self.data = res
+
+    def _listAlienAuthors(self):
+        cmd = "SELECT AuthorID,AuthorName from authors WHERE AuthorID "
+        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+            cmd += 'NOT '
+        cmd += 'LIKE "OL%A"'
+        self.data = self._dic_from_query(cmd)
+
+    def _listAlienBooks(self):
+        cmd = "SELECT BookID,BookName from books WHERE BookID "
+        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+            cmd += 'NOT '
+        cmd += 'LIKE "OL%W"'
+        self.data = self._dic_from_query(cmd)
 
     def _getHistory(self):
         self.data = self._dic_from_query(

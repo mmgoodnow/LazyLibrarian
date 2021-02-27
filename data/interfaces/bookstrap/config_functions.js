@@ -510,6 +510,13 @@
             });
         });
 
+        $('#move_to_ol').on('click', function(e) {
+            $.get('move_to_ol', function(data) {});
+            alert("This could take some time...")
+            document.location.reload(true);
+        });
+
+
         $('#show_Stats').on('click', function(e) {
             $.get('show_Stats', function(data) {
                 bootbox.dialog({
