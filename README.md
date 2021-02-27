@@ -9,7 +9,7 @@ LazyLibrarian used GoodReads extensively for author and book info, but they have
 # To move provider
 If your api is currently set to GoodReads there will be a button on the top bar of lazylibrarian config page to start the conversion process. I suggest keeping a copy of your unmodified lazylibrarian database in case of problems.
 
-The process can take several hours to run. We need to look up each author and book in your library and try to find a match in the openlibrary api. You will find some authors and books will not be matched as the openlibrary dataset is not as large as goodreads. These will stay in your local library inder their goodreads IDs and will not be updated. Hopefully over time openlibrary will get more info. After conversion you can get a list of the authors/books that did not get matched using the lazylibrarian api.
+The process can take several hours to run. We need to look up each author and book in your library and try to find a match in the openlibrary api. You will find some authors and books will not be matched as the openlibrary dataset is not as large as goodreads. These will stay in your local library under their goodreads IDs and their information will not be urefreshed. This means new books by those authors will not be listed. Existing books can still be searched for. Hopefully openlibrary will get better over time. After conversion you can get a list of the authors/books that did not get matched using the lazylibrarian api.
 
 
 ## Description
