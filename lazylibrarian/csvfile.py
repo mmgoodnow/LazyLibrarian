@@ -111,7 +111,7 @@ def restore_table(table, savedir=None, status=None):
         if PY2:
             csvreader = reader(open(csvFile, 'rU'))
         else:
-            csvreader = reader(open(csvFile, 'r', encoding='utf-8', newline=None))
+            csvreader = reader(open(csvFile, 'r', encoding='utf-8', newline=''))
         count = 0
         for row in csvreader:
             if csvreader.line_num == 1:
@@ -309,7 +309,7 @@ def import_CSV(search_dir=None, library='eBook'):
             if PY2:
                 csvreader = reader(open(csvFile, 'rU'))
             else:
-                csvreader = reader(open(csvFile, 'r', encoding='utf-8', newline=None))
+                csvreader = reader(open(csvFile, 'r', encoding='utf-8', newline=''))
             for row in csvreader:
                 if csvreader.line_num == 1:
                     # If we are on the first line, create the headers list from the first row
