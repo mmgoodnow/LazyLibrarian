@@ -299,6 +299,8 @@ def dbupgrade(current_version):
 
 def gr_to_ol():
     lazylibrarian.UPDATE_MSG = "Converting GoodReads to OpenLibrary"
+    lazylibrarian.CONFIG['BOOK_API'] = "OpenLibrary"
+    lazylibrarian.config_write()
     myDB = database.DBConnection()
     if not has_column(myDB, 'authors', 'gr_id'):
         myDB.action('ALTER TABLE authors ADD COLUMN gr_id TEXT')
@@ -377,35 +379,40 @@ def gr_to_ol():
     logger.info("Checking %s books" % len(books))
     upd = 0
     miss = 0
+    dupe = 0
     tot = len(books)
+    start_time = time.time()
     for book in books:
-        lazylibrarian.UPDATE_MSG = "%s/%s %s" % (upd + miss, tot, book[3])
+        lazylibrarian.UPDATE_MSG = '%s: %s' % (book[3], calc_eta(start_time, tot, upd + miss + dupe))
         searchterm = book[3] + ' <ll> ' + book[1]
         try:
             res = search_for(searchterm)
         except Exception:
             res = None
-        if res and res[0]['author_fuzz'] > 95 and res[0]['book_fuzz'] > 95:
-            exists = myDB.match("SELECT * from books WHERE BookID=?", (res[0]['bookid'],))
-            if not exists:
-                upd += 1
-                myDB.action("UPDATE books SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                myDB.action("UPDATE wanted SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                myDB.action("UPDATE authors SET lastbookid=? WHERE lastbookid=?", (res[0]['bookid'], book[2]))
-                myDB.action("UPDATE member SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                myDB.action("UPDATE failedsearch SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                myDB.action("UPDATE genrebooks SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+        if res:
+            if res[0]['author_fuzz'] > 95 and res[0]['book_fuzz'] > 95:
+                exists = myDB.match("SELECT * from books WHERE BookID=?", (res[0]['bookid'],))
+                if not exists:
+                    upd += 1
+                    myDB.action("UPDATE books SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                    myDB.action("UPDATE wanted SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                    myDB.action("UPDATE authors SET lastbookid=? WHERE lastbookid=?", (res[0]['bookid'], book[2]))
+                    myDB.action("UPDATE member SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                    myDB.action("UPDATE failedsearch SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                    myDB.action("UPDATE genrebooks SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                else:
+                    dupe += 1
+            else:
+                miss += 1
         else:
             miss += 1
 
-    msg = "Updated %s books, no match for %s" % (upd, miss)
+    msg = "Updated %s books, no match for %s, %s duplicates" % (upd, miss, dupe)
     lazylibrarian.UPDATE_MSG = msg
     logger.info(msg)
     myDB.action('PRAGMA foreign_keys = ON')
     logging.captureWarnings(False)
     time.sleep(5)
-    lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary"
-    lazylibrarian.config_write()
     lazylibrarian.UPDATE_MSG = ""
 
 
