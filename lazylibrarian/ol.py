@@ -643,7 +643,9 @@ class OpenLibrary:
                                 genrenames.append(genreFilter(item[0]))
                             genres = ', '.join(set(genrenames))
                             updateValueDict = {}
-                            exists = myDB.match("SELECT * from books WHERE LT_Workid=?", (id_librarything,))
+                            exists = myDB.match("SELECT * from books WHERE BookID=?", (key,))
+                            if not exists:
+                                exists = myDB.match("SELECT * from books WHERE LT_Workid=?", (id_librarything,))
                             if exists:
                                 locked = exists['Manual']
                                 if locked is None:
