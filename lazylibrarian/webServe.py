@@ -47,7 +47,7 @@ from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, 
     IrcDownloadMethod
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
     safe_unicode, cleanName, surnameFirst, sortDefinite, getList, makeUnicode, makeUTF8bytes, md5_utf8, dateFormat, \
-    check_year, dispName, is_valid_booktype, replace_with, formatAuthorName
+    check_year, dispName, is_valid_booktype, replace_with, formatAuthorName, check_float
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
