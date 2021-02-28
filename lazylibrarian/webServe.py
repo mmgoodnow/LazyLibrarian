@@ -2477,7 +2477,7 @@ class WebInterface(object):
                     worklink = ''
                     sitelink = ''
                     if lazylibrarian.CONFIG['RATESTARS']:
-                        bookrate = int(round(float(row[3])))
+                        bookrate = int(round(check_float(row[3], 0.0)))
                         if bookrate > 5:
                             bookrate = 5
                     else:
