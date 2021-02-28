@@ -2333,7 +2333,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
         params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], booktype, pp_path, authorname, bookname]
         rc, res, err = runScript(params)
         if rc:
-            return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
+            return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err), pp_path
         logger.debug("PreProcessor: %s" % res), pp_path
 
     # If ebook, magazine or comic, do we want calibre to import it for us
