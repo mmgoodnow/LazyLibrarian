@@ -322,7 +322,7 @@ def gr_to_ol():
 
     upd = 0
     authors = myDB.select('SELECT AuthorID,AuthorName,AuthorLink,AKA from authors WHERE AuthorID NOT LIKE "OL%A"')
-    cache = os.path.join(lazylibrarian.CACHEDIR, 'authors')
+    # cache = os.path.join(lazylibrarian.CACHEDIR, 'authors')
     miss = 0
     misslist = []
     tot = len(authors)
@@ -1117,7 +1117,7 @@ def update_schema(myDB, upgradelog):
         cnt = 0
         for auth in res:
             gr_id = auth[0]
-            name = auth[1]
+            # name = auth[1]
             if gr_id.isdigit():
                 cnt += 1
                 myDB.action("UPDATE authors SET gr_id=? WHERE authorid=?", (gr_id, gr_id))
