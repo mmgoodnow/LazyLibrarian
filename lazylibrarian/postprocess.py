@@ -1753,7 +1753,7 @@ def getDownloadFolder(source, downloadid):
                             break
 
         elif source == 'NZBGET':
-            res = nzbget.sendNZB(cmd='listgroups')
+            res, _ = nzbget.sendNZB(cmd='listgroups')
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug(res)
             if res:
@@ -1763,7 +1763,7 @@ def getDownloadFolder(source, downloadid):
                             dlfolder = item.get('DestDir')
                             break
             if not dlfolder:  # not in queue, try history
-                res = nzbget.sendNZB(cmd='history')
+                res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(res)
                 if res:
@@ -1850,7 +1850,7 @@ def getDownloadProgress(source, downloadid):
                 progress = 0
 
         elif source == 'NZBGET':
-            res = nzbget.sendNZB(cmd='listgroups')
+            res, _ = nzbget.sendNZB(cmd='listgroups')
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug(res)
             found = False
@@ -1868,7 +1868,7 @@ def getDownloadProgress(source, downloadid):
                                     finished = True
                             break
             if not found:  # not in queue, try history in case completed or error
-                res = nzbget.sendNZB(cmd='history')
+                res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(res)
                 if res:
@@ -2439,17 +2439,18 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     cmd += 'comicissues.Cover,Publisher,Contributors from comics,comicissues WHERE '
                     cmd += 'comics.ComicID = comicissues.ComicID and IssueID=? and comicissues.ComicID=?'
                     data = myDB.match(cmd, (issueid, comicid))
+                    bookid = "%s_%s" % (comicid, issueid)
 
                 if not data:
                     logger.error('No data found for bookid %s' % bookid)
                 else:
                     opfpath = ''
                     if booktype == 'ebook':
-                        processIMG(pp_path, data['BookID'], data['BookImg'], global_name, 'book')
+                        processIMG(pp_path, bookid, data['BookImg'], global_name, 'book')
                         opfpath, our_opf = createOPF(pp_path, data, global_name, True)
                         # if we send an opf, does calibre update the book-meta as well?
                     elif booktype == 'comic':
-                        processIMG(pp_path, data['BookID'], data['Cover'], global_name, 'comic')
+                        processIMG(pp_path, bookid, data['Cover'], global_name, 'comic')
                         if not lazylibrarian.CONFIG['IMP_COMICOPF']:
                             logger.debug('createComicOPF is disabled')
                         else:
