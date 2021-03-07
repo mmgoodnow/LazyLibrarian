@@ -668,9 +668,8 @@ def addSeriesMembers(seriesid):
     try:
         lazylibrarian.SERIES_UPDATE = True
         seriesname = series['SeriesName']
-        logger.debug("Updating series members for %s" % seriesname)
+        logger.debug("Updating series members for %s:%s" % (seriesid, seriesname))
         members, _ = getSeriesMembers(seriesid, seriesname)
-
         for member in members:
             # order = member[0]
             # bookname = member[1]
@@ -681,8 +680,10 @@ def addSeriesMembers(seriesid):
             # pubmonth = member[6]
             # pubday = member[7]
             bookid = member[8]
-            book = myDB.match("select * from books where bookid=?", (bookid,))
-            if not book:
+            book = None
+            if bookid:
+                book = myDB.match("select * from books where bookid=?", (bookid,))
+            if bookid and not book:
                 # new addition to series, try to import with default newbook/newauthor statuses
                 lazylibrarian.importer.import_book(bookid, "", "", wait=True, reason="Series: %s" % seriesname)
                 newbook = myDB.match("select * from books where bookid=?", (bookid,))
@@ -851,8 +852,8 @@ def getSeriesAuthors(seriesid):
 
 def getSeriesMembers(seriesID=None, seriesname=None):
     """ Ask librarything or goodreads for details on all books in a series
-        order, bookname, authorname, workid, authorid, pubdate, bookid
-        (workid, authorid, pubdate, bookid are currently goodreads only)
+        order, bookname, authorname, workid, authorid, pubyear, pubmonth, pubday, bookid
+        (workid, authorid, pubdates, bookid are currently goodreads only)
         Return as a list of lists """
     results = []
     api_hits = 0
@@ -904,8 +905,16 @@ def getSeriesMembers(seriesID=None, seriesname=None):
 
     else:  # googlebooks and openlibrary
         api_hits = 0
+        results = []
         OL = lazylibrarian.ol.OpenLibrary(seriesID)
-        results = OL.get_series_members(seriesID)
+        res = OL.get_series_members(seriesID)
+        if res:
+            for item in res:
+                book = myDB.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))
+                if book:
+                    results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
+                else:
+                    results.append([item[0], item[1], item[2], '', '', '', '', '', ''])
         if not results:
             data = getBookWork(None, "SeriesPage", seriesID)
             if data:
@@ -921,7 +930,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                                 authorlink = row.split('href="')[2]
                                 authorname = authorlink.split('">')[1].split('<')[0]
                                 order = row.split('class="order">')[1].split('<')[0]
-                                results.append([order, bookname, authorname, '', '', '', ''])
+                                results.append([order, bookname, authorname, '', '', '', '', '', ''])
                             except IndexError:
                                 logger.debug('Incomplete data in series table for series %s' % seriesID)
                 except IndexError:
@@ -932,13 +941,12 @@ def getSeriesMembers(seriesID=None, seriesname=None):
     for item in results:
         rejected = False
         try:
-            bookname = unaccented(item[0][1], only_ascii=False)
-            order = item[0][0]
+            bookname = unaccented(item[1], only_ascii=False)
+            order = item[0]
         except (TypeError, IndexError):
             order = 0
             bookname = ''
             rejected = True
-
         if not rejected and lazylibrarian.CONFIG['NO_SETS']:
             if re.search(r'\d+ of \d+', order) or \
                     re.search(r'\d+/\d+', order):
@@ -954,10 +962,10 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                         rejected = 'Set or Part %s' % m.group(0)
                         logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
 
-        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0][0]:
-            rejected = 'Rejected non-integer %s' % item[0][0]
+        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0]:
+            rejected = 'Rejected non-integer %s' % item[0]
             logger.debug('Rejected %s, %s' % (bookname, rejected))
-        if not rejected and check_int(item[0][0], 0) == 1:
+        if not rejected and check_int(item[0], 0) == 1:
             valid = True
 
         if not rejected:

@@ -344,12 +344,14 @@ class OpenLibrary:
                         if 'href=' in row:
                             booklink = row.split('href="')[1]
                             bookname = booklink.split('">')[1].split('<')[0]
-                            # booklink = booklink.split('"')[0]
+                            booklink = booklink.split('"')[0]
+                            workid = booklink.split('/')[-1]
                             try:
                                 authorlink = row.split('href="')[2]
                                 authorname = authorlink.split('">')[1].split('<')[0]
+                                authorlink = authorlink.split('">')[0]
                                 order = row.split('class="order">')[1].split('<')[0]
-                                results.append([order, bookname, authorname, '', '', '', ''])
+                                results.append([order, bookname, authorname, authorlink, workid])
                             except IndexError:
                                 logger.debug('Incomplete data in series table for series %s' % seriesID)
                 except IndexError:
@@ -584,6 +586,8 @@ class OpenLibrary:
                     # which that is, keep the old one which is already linked to other db tables
                     logger.debug('Duplicate title (%s, already have %s)' % (key, exists['BookID']))
                     key = exists['BookID']
+                    if not id_librarything and exists['LT_WorkID']:
+                        id_librarything = exists['LT_WorkID']
 
                 if not rejected and publishers:
                     for bookpub in publishers:

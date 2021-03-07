@@ -493,6 +493,18 @@ def check_db(upgradelog=None):
             logger.warn("Found %s series marked Skipped, updating to Paused" % tot)
             myDB.action('UPDATE series SET Status="Paused" WHERE Status="Skipped"')
 
+        # Extract any librarything workids from workpage url
+        cmd = 'SELECT WorkPage,BookID from books WHERE WorkPage like "%librarything.com/work/%" and LT_WorkID is NULL'
+        res = myDB.select(cmd)
+        tot = len(res)
+        if tot:
+            cnt += tot
+            logger.warn("Found %s workpage links with no workid" % tot)
+            for bk in res:
+                workid = bk[0]
+                workid = workid.split('librarything.com/work/')[1]
+                myDB.action("UPDATE books SET LT_WorkID=? WHERE BookID=?", (workid, bk[1]))
+
         # replace faulty/html language results with Unknown
         lazylibrarian.UPDATE_MSG = 'Checking languages'
         filt = 'BookLang is NULL or BookLang="" or BookLang LIKE "%<%" or BookLang LIKE "%invalid%"'
