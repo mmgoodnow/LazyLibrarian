@@ -901,7 +901,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                             mydict['workid'], mydict['authorid'], mydict['pubyear'], mydict['pubmonth'],
                             mydict['pubday'], mydict['bookid']])
 
-    elif lazylibrarian.CONFIG['BOOK_API'] == 'GoogleBooks':
+    else:  # googlebooks and openlibrary
         api_hits = 0
         data = getBookWork(None, "SeriesPage", seriesID)
         if data:

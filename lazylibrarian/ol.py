@@ -439,6 +439,15 @@ class OpenLibrary:
                 logger.debug("No books found for key %s" % authorid)
                 next_page = False
             docs = authorbooks.get('docs', [])
+            hit = 0
+            miss = 0
+            for book in docs:
+                LT_ID = book.get('id_librarything')
+                if LT_ID and LT_ID[0]:
+                    hit += 1
+                else:
+                    miss += 1
+            logger.debug("%s books on page, %s with LT_ID, %s without" % (hit + miss, hit, miss))
             for book in docs:
                 book_status = bookstatus
                 audio_status = audiostatus
@@ -456,6 +465,8 @@ class OpenLibrary:
                 publish_date = book.get('publish_date', '')
                 publishers = book.get('publisher')
                 id_librarything = book.get('id_librarything')
+                if id_librarything:
+                    id_librarything = id_librarything[0]
                 if publish_date:
                     publish_date = dateFormat(publish_date[0])
                 lang = ''
@@ -529,9 +540,20 @@ class OpenLibrary:
                 if not rejected and not title:
                     rejected = 'name', 'No title'
 
-                exists = myDB.match("SELECT * from books WHERE BookName=? COLLATE NOCASE", (title,))
+                cmd = "SELECT * from books WHERE BookName=? COLLATE NOCASE and BookID !=?"
+                exists = myDB.match(cmd, (title, key))
+                if exists and id_librarything and not exists['LT_WorkID']:
+                    myDB.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
+                                (id_librarything, exists['BookID']))
                 if exists and not rejected:
-                    rejected = 'name', 'Duplicate title'
+                    # existing bookid might not still be listed so won't refresh.
+                    # should we keep new bookid or existing one?
+                    # existing one might have beed user edited, might be locked,
+                    # might have been merged from another authorid or inherited from goodreads?
+                    # Should probably use the one with the "best" info but since we don't know
+                    # which that is, keep the old one which is already linked to other db tables
+                    logger.debug('Duplicate title (%s, already have %s)' % (key, exists['BookID']))
+                    key = exists['BookID']
 
                 if not rejected and publishers:
                     for bookpub in publishers:
@@ -595,7 +617,7 @@ class OpenLibrary:
                 elif rejected and not (rejected[0] in ignorable and lazylibrarian.CONFIG['IMP_IGNORE']):
                     logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                 else:
-                    logger.debug("Found title: %s %s" % (title, id_librarything))
+                    logger.debug("Found title: %s LT:%s" % (title, id_librarything))
                     if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
                         if publish_date > today()[:len(publish_date)]:
                             if ignorable is None:
@@ -620,8 +642,9 @@ class OpenLibrary:
                             audio_status = 'Ignored'
                             book_ignore_count += 1
                             reason = "Ignored: %s" % rejected[1]
+                            rejected = False
                         else:
-                            reason = "Rejected: %s" % rejected[1]
+                            continue  # next book in docs
                     else:
                         if 'authorUpdate' in entryreason:
                             reason = 'Author: %s' % auth_name
@@ -634,8 +657,10 @@ class OpenLibrary:
                         cover = 'http://covers.openlibrary.org/b/id/%s-M.jpg' % cover
                     rating = 0
                     seriesdisplay = ''
+                    # If we have a librarything ID we can look up series info as openlibrary doesn't
+                    # include any. Sadly librarything have disabled whatwork and thingtitle apis
+                    # so we can't look up missing IDs and their web pages are not scrapable for the info
                     if id_librarything:
-                        id_librarything = id_librarything[0]
                         rating, genrelist, serieslist = self.lt_workinfo(id_librarything)
                         if rating >= 0:
                             genrenames = []
@@ -683,10 +708,6 @@ class OpenLibrary:
                                         logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
                                         gb_lang_change += 1
 
-                                if 'authorUpdate' in entryreason:
-                                    reason = 'Author: %s' % auth_name
-                                elif not reason:
-                                    reason = entryreason
                                 threadname = threading.currentThread().getName()
                                 reason = "[%s] %s" % (threadname, reason)
                                 if not lang:
@@ -748,21 +769,30 @@ class OpenLibrary:
                                     if seriesdisplay and newseries:
                                         seriesdisplay += '<br>'
                                     seriesdisplay += newseries
-                                    exists = myDB.match("SELECT * from series WHERE seriesid=?", (series[2],))
+                                    seriesid = series[2]
+                                    exists = myDB.match("SELECT * from series WHERE seriesid=?", (seriesid,))
+                                    if not exists:
+                                        exists = myDB.match("SELECT * from series WHERE seriesname=?", (series[0],))
+                                        if exists:
+                                            myDB.action('PRAGMA foreign_keys = OFF')
+                                            myDB.action("UPDATE series SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
+                                            myDB.action("UPDATE member SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
+                                            myDB.action("UPDATE seriesauthors SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
+                                            myDB.action('PRAGMA foreign_keys = ON')
                                     if not exists:
                                         logger.debug("New series: %s" % series[0])
                                         myDB.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
                                                     ' Reason) VALUES (?,?,?,?,?)',
-                                                    (series[2], series[0], 'Paused', time.time(), id_librarything))
-
+                                                    (seriesid, series[0], 'Paused', time.time(), id_librarything))
+                                        myDB.commit()
                                     seriesmembers = None
                                     memberexists = myDB.match("SELECT * from member WHERE seriesid=? AND workid=?",
-                                                              (series[2], id_librarything))
+                                                              (seriesid, id_librarything))
                                     if not memberexists:
-                                        seriesmembers = self.get_series_members(series[2])
+                                        seriesmembers = self.get_series_members(seriesid)
                                         if not seriesmembers:
                                             logger.warn("Series %s (%s) has no members at librarything" % (
-                                                        series[0], series[2]))
+                                                        series[0], seriesid))
                                             seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
                                     if seriesmembers:
                                         logger.debug("Found %s %s for series %s" % (len(seriesmembers),
@@ -798,13 +828,13 @@ class OpenLibrary:
                                                                         (', '.join(akas), auth_key))
                                                     match = myDB.match('SELECT * from seriesauthors WHERE ' +
                                                                        'SeriesID=? and AuthorID=?',
-                                                                       (series[2], auth_key))
+                                                                       (seriesid, auth_key))
                                                     if not match:
                                                         logger.debug("Adding %s as series author for %s" %
                                                                      (auth_name, series[0]))
                                                         myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
                                                                     '"AuthorID") VALUES (?, ?)',
-                                                                    (series[2], auth_key), suppress='UNIQUE')
+                                                                    (seriesid, auth_key), suppress='UNIQUE')
 
                                             # if book not in library, use librarything workid to get an isbn
                                             # use that to get openlibrary workid
@@ -814,19 +844,19 @@ class OpenLibrary:
                                             if exists:
                                                 match = myDB.match("SELECT * from member WHERE " +
                                                                    "SeriesID=? AND BookID=?",
-                                                                   (series[2], exists['BookID']))
+                                                                   (seriesid, exists['BookID']))
                                                 if not match:
                                                     logger.debug("Inserting new member [%s] for %s" %
                                                                  (member[0], series[0]))
                                                     myDB.action('INSERT INTO member (SeriesID, BookID, ' +
                                                                 'WorkID, SeriesNum) VALUES (?,?,?,?)',
-                                                                (series[2], exists['BookID'], member[4], member[0]))
+                                                                (seriesid, exists['BookID'], member[4], member[0]))
                                                 ser = myDB.match('select count(*) as counter from member ' +
-                                                                 'where seriesid=?', (series[2],))
+                                                                 'where seriesid=?', (seriesid,))
                                                 if ser:
                                                     counter = check_int(ser['counter'], 0)
                                                     myDB.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                                                (counter, series[2]))
+                                                                (counter, seriesid))
                                             else:
                                                 if not self.lt_cache:
                                                     librarything_wait()
@@ -932,30 +962,30 @@ class OpenLibrary:
 
                                                             match = myDB.match("SELECT * from seriesauthors WHERE " +
                                                                                "SeriesID=? AND AuthorID=?",
-                                                                               (series[2], bauth_key))
+                                                                               (seriesid, bauth_key))
                                                             if not match:
                                                                 logger.debug("Adding %s as series author for %s" %
                                                                              (auth_name, series[0]))
                                                                 myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
                                                                             '"AuthorID") VALUES (?, ?)',
-                                                                            (series[2], bauth_key), suppress='UNIQUE')
+                                                                            (seriesid, bauth_key), suppress='UNIQUE')
 
                                                             match = myDB.match("SELECT * from member WHERE " +
                                                                                "SeriesID=? AND BookID=?",
-                                                                               (series[2], workid))
+                                                                               (seriesid, workid))
                                                             if not match:
                                                                 myDB.action('INSERT INTO member ' +
                                                                             '(SeriesID, BookID, WorkID, SeriesNum)  ' +
                                                                             'VALUES (?,?,?,?)',
-                                                                            (series[2], workid, member[4], member[0]))
+                                                                            (seriesid, workid, member[4], member[0]))
                                                                 ser = myDB.match('select count(*) as counter ' +
                                                                                  'from member where seriesid=?',
-                                                                                 (series[2],))
+                                                                                 (seriesid,))
                                                                 if ser:
                                                                     counter = check_int(ser['counter'], 0)
                                                                     myDB.action("UPDATE series SET Total=? " +
                                                                                 "WHERE SeriesID=?",
-                                                                                (counter, series[2]))
+                                                                                (counter, seriesid))
                     if rating == 0:
                         logger.debug("No additional librarything info")
                         exists = myDB.match("SELECT * from books WHERE BookID=?", (key,))
