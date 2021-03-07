@@ -305,14 +305,13 @@ def gr_to_ol():
     if not has_column(myDB, 'authors', 'gr_id'):
         myDB.action('ALTER TABLE authors ADD COLUMN gr_id TEXT')
 
-    res = myDB.select('SELECT authorid,authorname from authors WHERE authorid NOT LIKE "OL%A"')
+    res = myDB.select('SELECT authorid from authors WHERE authorid NOT LIKE "OL%A"')
     tot = len(res)
     if tot:
         logger.info("Copying authorid for %s authors" % tot)
         cnt = 0
         for auth in res:
             gr_id = auth[0]
-            name = auth[1]
             if gr_id.isdigit():
                 cnt += 1
                 myDB.action("UPDATE authors SET gr_id=? WHERE authorid=?", (gr_id, gr_id))
