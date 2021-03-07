@@ -25,6 +25,7 @@ from lazylibrarian.cache import fetchURL, gr_xml_request, json_request
 from lazylibrarian.common import proxyList, quotes, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, cleanName, formatAuthorName, \
     check_int, replace_all, check_year, getList, makeUTF8bytes, unaccented
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -903,26 +904,29 @@ def getSeriesMembers(seriesID=None, seriesname=None):
 
     else:  # googlebooks and openlibrary
         api_hits = 0
-        data = getBookWork(None, "SeriesPage", seriesID)
-        if data:
-            try:
-                table = data.split('class="worksinseries"')[1].split('</table>')[0]
-                rows = table.split('<tr')
-                for row in rows:
-                    if 'href=' in row:
-                        booklink = row.split('href="')[1]
-                        bookname = booklink.split('">')[1].split('<')[0]
-                        # booklink = booklink.split('"')[0]
-                        try:
-                            authorlink = row.split('href="')[2]
-                            authorname = authorlink.split('">')[1].split('<')[0]
-                            order = row.split('class="order">')[1].split('<')[0]
-                            results.append([order, bookname, authorname, '', '', '', ''])
-                        except IndexError:
-                            logger.debug('Incomplete data in series table for series %s' % seriesID)
-            except IndexError:
-                if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                    logger.debug('Error in series table for series %s' % seriesID)
+        OL = lazylibrarian.ol.OpenLibrary(seriesID)
+        results = OL.get_series_members(seriesID)
+        if not results:
+            data = getBookWork(None, "SeriesPage", seriesID)
+            if data:
+                try:
+                    table = data.split('class="worksinseries"')[1].split('</table>')[0]
+                    rows = table.split('<tr')
+                    for row in rows:
+                        if 'href=' in row:
+                            booklink = row.split('href="')[1]
+                            bookname = booklink.split('">')[1].split('<')[0]
+                            # booklink = booklink.split('"')[0]
+                            try:
+                                authorlink = row.split('href="')[2]
+                                authorname = authorlink.split('">')[1].split('<')[0]
+                                order = row.split('class="order">')[1].split('<')[0]
+                                results.append([order, bookname, authorname, '', '', '', ''])
+                            except IndexError:
+                                logger.debug('Incomplete data in series table for series %s' % seriesID)
+                except IndexError:
+                    if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
+                        logger.debug('Error in series table for series %s' % seriesID)
     valid = False
     filtered = []
     for item in results:

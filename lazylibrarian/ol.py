@@ -50,7 +50,8 @@ class OpenLibrary:
         self.OL_ISBN = '/'.join([lazylibrarian.CONFIG['OL_URL'], "isbn/"])
         self.OL_WORK = '/'.join([lazylibrarian.CONFIG['OL_URL'], "works/"])
         self.OL_BOOK = '/'.join([lazylibrarian.CONFIG['OL_URL'], "books/"])
-        self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
+        self.LT_NSERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
+        self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/'])
         self.LT_WORK = '/'.join([lazylibrarian.CONFIG['LT_URL'], "work/"])
         self.name = makeUnicode(name)
         self.lt_cache = False
@@ -288,7 +289,7 @@ class OpenLibrary:
     def get_series_members(self, series_id):
         if not self.lt_cache:
             librarything_wait()
-        data, self.lt_cache = html_request(self.LT_SERIES + series_id)
+        data, self.lt_cache = html_request(self.LT_NSERIES + series_id)
         results = []
         if data:
             try:
@@ -326,7 +327,36 @@ class OpenLibrary:
                 if b'>Core<' in data:  # error parsing, or just no series data available?
                     logger.debug('Error parsing series table for %s' % series_id)
             finally:
-                return results
+                if results:
+                    return results
+
+        myDB = database.DBConnection()
+        res = myDB.match("SELECT SeriesName from series where SeriesID=?", (series_id,))
+        if res:
+            series_name = res['SeriesName']
+            data, self.lt_cache = html_request(self.LT_SERIES + series_name)
+            if data:
+                try:
+                    data = makeUnicode(data)
+                    table = data.split('class="worksinseries"')[1].split('</table>')[0]
+                    rows = table.split('<tr')
+                    for row in rows:
+                        if 'href=' in row:
+                            booklink = row.split('href="')[1]
+                            bookname = booklink.split('">')[1].split('<')[0]
+                            # booklink = booklink.split('"')[0]
+                            try:
+                                authorlink = row.split('href="')[2]
+                                authorname = authorlink.split('">')[1].split('<')[0]
+                                order = row.split('class="order">')[1].split('<')[0]
+                                results.append([order, bookname, authorname, '', '', '', ''])
+                            except IndexError:
+                                logger.debug('Incomplete data in series table for series %s' % seriesID)
+                except IndexError:
+                    if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
+                        logger.debug('Error in series table for series %s' % seriesID)
+        return results
+
 
     def lt_workinfo(self, lt_id):
         if not self.lt_cache:
