@@ -907,7 +907,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
         api_hits = 0
         results = []
         OL = lazylibrarian.ol.OpenLibrary(seriesID)
-        res = OL.get_series_members(seriesID)
+        res = OL.get_series_members(seriesID, seriesname)
         if res:
             for item in res:
                 book = myDB.match("SELECT authorid,bookid from books WHERE LT_WorkID=?", (item[4],))

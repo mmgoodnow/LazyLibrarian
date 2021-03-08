@@ -286,46 +286,63 @@ class OpenLibrary:
         }
         return author_dict
 
-    def get_series_members(self, series_id):
+    def get_series_members(self, series_id, series_name=''):
         if not self.lt_cache:
             librarything_wait()
+
         data, self.lt_cache = html_request(self.LT_NSERIES + series_id)
         results = []
         if data:
             try:
-                table = data.split(b'>Core<')[1].split(b'<table>')[1].split(b'</table>')[0]
-                rows = table.split(b'<tr>')
-                for row in rows:
-                    row = row.decode('utf-8')
-                    if 'href=' in row:
-                        try:
-                            workid = row.split('data-workid="')[1].split('"')[0].split('/')[-1]
-                        except IndexError:
-                            workid = ''
-                        try:
-                            bookname = row.split('data-title="')[1].split('>')[1].split('<')[0]
-                        except IndexError:
-                            bookname = ''
-                        try:
-                            authorlink = row.split('href="')[2].split('">')[0]
-                            authorname = row.split('href="')[2].split('">')[1].split('<')[0]
-                        except IndexError:
-                            authorlink = ''
-                            authorname = ''
-                        try:
-                            order = row.split('<td class="right">')[1].split('</label>')[1].split('<')[0]
-                        except IndexError:
-                            order = ''
-                        onum = check_float(order, 0)
-                        if onum == int(onum):  # drop the ".0"
-                            onum = int(onum)
-                        if onum:  # might not be numeric
-                            order = onum
-                        results.append([order, bookname, authorname, authorlink, workid])
+                try:
+                    seriesname = data.split(b'Series: ')[1].split(b'</')[0].decode('utf-8')
+                except IndexError:
+                    try:
+                        seriesname = data.split(b'<h1')[1].split(b'</h1>')[0].split(b'>')[-1].decode('utf-8')
+                    except IndexError:
+                        seriesname = ''
+                if seriesname:
+                    match = fuzz.partial_ratio(seriesname, series_name)
+                    if match < 95:
+                        logger.debug("Series name mismatch for %s, %s%% %s/%s" %
+                                     (series_id, match, seriesname, series_name))
+                    else:
+                        table = data.split(b'<table>')[1].split(b'</table>')[0]
+                        rows = table.split(b'<tr>')
+                        for row in rows:
+                            row = row.decode('utf-8')
+                            if 'href=' in row:
+                                try:
+                                    workid = row.split('data-workid="')[1].split('"')[0].split('/')[-1]
+                                except IndexError:
+                                    workid = ''
+                                try:
+                                    bookname = row.split('data-title="')[1].split('>')[1].split('<')[0]
+                                except IndexError:
+                                    bookname = ''
+                                try:
+                                    authorlink = row.split('href="')[2].split('">')[0]
+                                    authorname = row.split('href="')[2].split('">')[1].split('<')[0]
+                                except IndexError:
+                                    authorlink = ''
+                                    authorname = ''
+                                try:
+                                    order = row.split('<td class="right">')[1].split('</label>')[1].split('<')[0]
+                                except IndexError:
+                                    order = ''
+                                onum = check_float(order, 0)
+                                if onum == int(onum):  # drop the ".0"
+                                    onum = int(onum)
+                                if onum:  # might not be numeric
+                                    order = onum
+                                results.append([order, bookname, authorname, authorlink, workid])
+                        logger.debug("Found %s for nseries %s" % (len(results), series_id))
 
             except IndexError:
-                if b'>Core<' in data:  # error parsing, or just no series data available?
+                if b'<table>' in data:  # error parsing, or just no series data available?
                     logger.debug('Error parsing series table for %s' % series_id)
+                else:
+                    logger.debug("SeriesID %s not found at librarything" % series_id)
             finally:
                 if results:
                     return results
@@ -337,28 +354,42 @@ class OpenLibrary:
             data, self.lt_cache = html_request(self.LT_SERIES + series_name)
             if data:
                 try:
-                    data = makeUnicode(data)
-                    table = data.split('class="worksinseries"')[1].split('</table>')[0]
-                    rows = table.split('<tr')
-                    for row in rows:
-                        if 'href=' in row:
-                            booklink = row.split('href="')[1]
-                            bookname = booklink.split('">')[1].split('<')[0]
-                            booklink = booklink.split('"')[0]
-                            workid = booklink.split('/')[-1]
-                            try:
-                                authorlink = row.split('href="')[2]
-                                authorname = authorlink.split('">')[1].split('<')[0]
-                                authorlink = authorlink.split('">')[0]
-                                order = row.split('class="order">')[1].split('<')[0]
-                                results.append([order, bookname, authorname, authorlink, workid])
-                            except IndexError:
-                                logger.debug('Incomplete data in series table for series %s' % seriesID)
+                    try:
+                        res = data.split(b'Works (')[1].split(b')')[0]
+                        count = check_int(res, 0)
+                    except IndexError:
+                        count = 0
+                    logger.debug("Found %s for %s" % (count, series_name))
+                    if count:
+                        try:
+                            seriesid = data.split(b'/nseries/')[1].split(b'/')[0].decode('utf-8')
+                        except IndexError:
+                            seriesid = ''
+                        if seriesid and seriesid != series_id:
+                            logger.debug("SeriesID mismatch %s/%s for %s" % (seriesid, series_id, series_name))
+                        table = data.split(b'class="worksinseries"')[1].split(b'</table>')[0]
+                        rows = table.split(b'<tr')
+                        for row in rows:
+                            row = row.decode('utf-8')
+                            if 'href=' in row:
+                                booklink = row.split('href="')[1]
+                                bookname = booklink.split('">')[1].split('<')[0]
+                                booklink = booklink.split('"')[0]
+                                workid = booklink.split('/')[-1]
+                                try:
+                                    authorlink = row.split('href="')[2]
+                                    authorname = authorlink.split('">')[1].split('<')[0]
+                                    authorlink = authorlink.split('">')[0]
+                                    order = row.split('class="order">')[1].split('<')[0]
+                                    results.append([order, bookname, authorname, authorlink, workid])
+                                except IndexError:
+                                    logger.debug('Incomplete data in series table for series %s' % series_id)
                 except IndexError:
-                    if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
-                        logger.debug('Error in series table for series %s' % seriesID)
+                    if b'class="worksinseries"' in data:  # error parsing, or just no series data available?
+                        logger.debug('Error in series table for series %s' % series_id)
+        else:
+            logger.debug("SeriesID %s not found in database")
         return results
-
 
     def lt_workinfo(self, lt_id):
         if not self.lt_cache:
@@ -676,7 +707,6 @@ class OpenLibrary:
                             audio_status = 'Ignored'
                             book_ignore_count += 1
                             reason = "Ignored: %s" % rejected[1]
-                            rejected = False
                         else:
                             continue  # next book in docs
                     else:
@@ -809,9 +839,12 @@ class OpenLibrary:
                                         exists = myDB.match("SELECT * from series WHERE seriesname=?", (series[0],))
                                         if exists:
                                             myDB.action('PRAGMA foreign_keys = OFF')
-                                            myDB.action("UPDATE series SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
-                                            myDB.action("UPDATE member SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
-                                            myDB.action("UPDATE seriesauthors SET SeriesID=? WHERE SeriesID=?", (seriesid, exists['SeriesID']))
+                                            myDB.action("UPDATE series SET SeriesID=? WHERE SeriesID=?",
+                                                        (seriesid, exists['SeriesID']))
+                                            myDB.action("UPDATE member SET SeriesID=? WHERE SeriesID=?",
+                                                        (seriesid, exists['SeriesID']))
+                                            myDB.action("UPDATE seriesauthors SET SeriesID=? WHERE SeriesID=?",
+                                                        (seriesid, exists['SeriesID']))
                                             myDB.action('PRAGMA foreign_keys = ON')
                                     if not exists:
                                         logger.debug("New series: %s" % series[0])
@@ -823,7 +856,7 @@ class OpenLibrary:
                                     memberexists = myDB.match("SELECT * from member WHERE seriesid=? AND workid=?",
                                                               (seriesid, id_librarything))
                                     if not memberexists:
-                                        seriesmembers = self.get_series_members(seriesid)
+                                        seriesmembers = self.get_series_members(seriesid, series[0])
                                         if not seriesmembers:
                                             logger.warn("Series %s (%s) has no members at librarything" % (
                                                         series[0], seriesid))
