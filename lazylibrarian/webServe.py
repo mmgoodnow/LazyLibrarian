@@ -940,7 +940,7 @@ class WebInterface(object):
     def refreshSeries(self, SeriesID):
         threadname = 'SERIESMEMBERS_%s' % SeriesID
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
-            threading.Thread(target=addSeriesMembers, name=threadname, args=[SeriesID]).start()
+            threading.Thread(target=addSeriesMembers, name=threadname, args=[SeriesID, True]).start()
         raise cherrypy.HTTPRedirect("seriesMembers?seriesid=%s&ignored=False" % SeriesID)
 
     @cherrypy.expose

@@ -655,7 +655,7 @@ def getBookAuthors(bookid):
     return authorlist
 
 
-def addSeriesMembers(seriesid):
+def addSeriesMembers(seriesid, refresh=False):
     """ Add all members of a series to the database
         Return how many books you added
     """
@@ -669,7 +669,12 @@ def addSeriesMembers(seriesid):
         lazylibrarian.SERIES_UPDATE = True
         seriesname = series['SeriesName']
         logger.debug("Updating series members for %s:%s" % (seriesid, seriesname))
+        entrystatus = series['Status']
+        if refresh and entrystatus in ['Paused', 'Ignored']:
+            myDB.action('UPDATE series SET Status="Active" WHERE SeriesID=?', (seriesid,))
         members, _ = getSeriesMembers(seriesid, seriesname)
+        if refresh and entrystatus in ['Paused', 'Ignored']:
+            myDB.action('UPDATE series SET Status=? WHERE SeriesID=?', (entrystatus, seriesid))
         for member in members:
             # order = member[0]
             # bookname = member[1]
