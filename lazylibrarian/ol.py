@@ -356,11 +356,11 @@ class OpenLibrary:
                 try:
                     try:
                         res = data.split(b'Works (')[1].split(b')')[0]
-                        count = check_int(res, 0)
+                        works = check_int(res, 0)
                     except IndexError:
-                        count = 0
-                    logger.debug("Found %s for %s" % (count, series_name))
-                    if count:
+                        works = 0
+                    logger.debug("Found %s for %s" % (works, series_name))
+                    if works:
                         try:
                             seriesid = data.split(b'/nseries/')[1].split(b'/')[0].decode('utf-8')
                         except IndexError:

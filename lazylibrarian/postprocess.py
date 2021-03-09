@@ -1755,7 +1755,7 @@ def getDownloadFolder(source, downloadid):
         elif source == 'NZBGET':
             res, _ = nzbget.sendNZB(cmd='listgroups')
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug(res)
+                logger.debug(str(res))
             if res:
                 for items in res:
                     for item in items:
@@ -1765,7 +1765,7 @@ def getDownloadFolder(source, downloadid):
             if not dlfolder:  # not in queue, try history
                 res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug(res)
+                    logger.debug(str(res))
                 if res:
                     for items in res:
                         for item in items:
@@ -1852,7 +1852,7 @@ def getDownloadProgress(source, downloadid):
         elif source == 'NZBGET':
             res, _ = nzbget.sendNZB(cmd='listgroups')
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug(res)
+                logger.debug(str(res))
             found = False
             if res:
                 for items in res:
@@ -1870,7 +1870,7 @@ def getDownloadProgress(source, downloadid):
             if not found:  # not in queue, try history in case completed or error
                 res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug(res)
+                    logger.debug(str(res))
                 if res:
                     for items in res:
                         for item in items:
