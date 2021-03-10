@@ -1704,6 +1704,7 @@ def getDownloadFiles(source, downloadid):
 
 def getDownloadFolder(source, downloadid):
     dlfolder = None
+    # noinspection PyBroadException
     try:
         if source == 'TRANSMISSION':
             dlfolder = transmission.getTorrentFolder(downloadid)
@@ -1757,26 +1758,24 @@ def getDownloadFolder(source, downloadid):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug(str(res))
             if res:
-                for items in res:
-                    for item in items:
-                        if str(item['NZBID']) == str(downloadid):
-                            dlfolder = item.get('DestDir')
-                            break
+                for item in res:
+                    if item['NZBID'] == check_int(downloadid, 0):
+                        dlfolder = item.get('DestDir')
+                        break
             if not dlfolder:  # not in queue, try history
                 res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(str(res))
                 if res:
-                    for items in res:
-                        for item in items:
-                            if str(item['NZBID']) == str(downloadid):
-                                dlfolder = item.get('DestDir')
-                                break
+                    for item in res:
+                        if item['NZBID'] == check_int(downloadid, 0):
+                            dlfolder = item.get('DestDir')
+                            break
         return dlfolder
 
-    except Exception as e:
-        logger.error("Failed to get folder from %s for %s: %s %s" %
-                     (source, downloadid, type(e).__name__, str(e)))
+    except Exception:
+        logger.warn("Failed to get folder from %s for %s" % (source, downloadid))
+        logger.error('Unhandled exception in getDownloadFolder: %s' % traceback.format_exc())
         return None
 
 
@@ -1784,6 +1783,7 @@ def getDownloadProgress(source, downloadid):
     progress = 0
     finished = False
     myDB = database.DBConnection()
+    # noinspection PyBroadException
     try:
         if source == 'TRANSMISSION':
             progress, errorstring, finished = transmission.getTorrentProgress(downloadid)
@@ -1855,37 +1855,38 @@ def getDownloadProgress(source, downloadid):
                 logger.debug(str(res))
             found = False
             if res:
-                for items in res:
-                    for item in items:
-                        if str(item['NZBID']) == str(downloadid):
-                            found = True
-                            total = item['FileSizeHi'] << 32 + item['FileSizeLo']
-                            if total:
-                                remaining = item['RemainingSizeHi'] << 32 + item['RemainingSizeLo']
-                                done = total - remaining
-                                progress = int(done * 100 / total)
-                                if progress == 100:
-                                    finished = True
-                            break
+                for item in res:
+                    # nzbget NZBIDs are integers
+                    if item['NZBID'] == check_int(downloadid, 0):
+                        found = True
+                        logger.debug("NZBID %s status %s" % (item['NZBID'], item['Status']))
+                        total = item['FileSizeHi'] << 32 + item['FileSizeLo']
+                        if total:
+                            remaining = item['RemainingSizeHi'] << 32 + item['RemainingSizeLo']
+                            done = total - remaining
+                            progress = int(done * 100 / total)
+                            if progress == 100:
+                                finished = True
+                        break
             if not found:  # not in queue, try history in case completed or error
                 res, _ = nzbget.sendNZB(cmd='history')
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(str(res))
                 if res:
-                    for items in res:
-                        for item in items:
-                            if str(item['NZBID']) == str(downloadid):
-                                found = True
-                                # 100% if completed, -1 if not found or failed
-                                if 'SUCCESS' in item['Status']:
-                                    progress = 100
-                                    finished = True
-                                elif 'WARNING' in item['Status'] or 'FAILURE' in item['Status']:
-                                    cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? '
-                                    cmd += 'WHERE DownloadID=? and Source=?'
-                                    myDB.action(cmd, (item['Status'], downloadid, source))
-                                    progress = -1
-                                break
+                    for item in res:
+                        if item['NZBID'] == check_int(downloadid, 0):
+                            found = True
+                            logger.debug("NZBID %s status %s" % (item['NZBID'], item['Status']))
+                            # 100% if completed, -1 if not found or failed
+                            if 'SUCCESS' in item['Status']:
+                                progress = 100
+                                finished = True
+                            elif 'WARNING' in item['Status'] or 'FAILURE' in item['Status']:
+                                cmd = 'UPDATE wanted SET Status="Aborted",DLResult=? '
+                                cmd += 'WHERE DownloadID=? and Source=?'
+                                myDB.action(cmd, (item['Status'], downloadid, source))
+                                progress = -1
+                            break
             if not found:
                 logger.debug('%s not found at %s' % (downloadid, source))
                 progress = 0
@@ -1984,9 +1985,9 @@ def getDownloadProgress(source, downloadid):
                             (int(time.time()), downloadid, source))
         return progress, finished
 
-    except Exception as e:
-        logger.error("Failed to get download progress from %s for %s: %s %s" %
-                     (source, downloadid, type(e).__name__, str(e)))
+    except Exception:
+        logger.warn("Failed to get download progress from %s for %s" % (source, downloadid))
+        logger.error('Unhandled exception in getDownloadProgress: %s' % traceback.format_exc())
         return 0, False
 
 

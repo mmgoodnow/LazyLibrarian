@@ -52,7 +52,6 @@ def deleteNZB(nzbID, remove_data=False):
 def sendNZB(nzb=None, cmd=None, nzbID=None):
     # we can send a new nzb, or commands to act on an existing nzbID (or array of nzbIDs)
     # by setting nzbID and cmd (we currently only use test, history, listgroups and delete)
-
     host = lazylibrarian.CONFIG['NZBGET_HOST']
     port = check_int(lazylibrarian.CONFIG['NZBGET_PORT'], 0)
     if not host or not port:
