@@ -495,7 +495,7 @@ def cleanCache():
     logger.debug(msg)
 
     # verify the cover images referenced in the database are present
-    images = myDB.action('select BookImg,BookName,BookID from books')
+    images = myDB.select('select BookImg,BookName,BookID from books')
     cachedir = os.path.join(lazylibrarian.CACHEDIR, 'book')
     cleaned = 0
     kept = 0
