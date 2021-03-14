@@ -941,7 +941,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                 except IndexError:
                     if 'class="worksinseries"' in data:  # error parsing, or just no series data available?
                         logger.debug('Error in series table for series %s' % seriesID)
-    valid = False
+    first = False
     filtered = []
     for item in results:
         rejected = False
@@ -953,13 +953,13 @@ def getSeriesMembers(seriesID=None, seriesname=None):
             bookname = ''
             rejected = True
         if not rejected and lazylibrarian.CONFIG['NO_SETS']:
-            if re.search(r'\d+ of \d+', order) or \
-                    re.search(r'\d+/\d+', order):
+            if re.search(r'\d+ of \d+', str(order)) or \
+                    re.search(r'\d+/\d+', str(order)):
                 rejected = 'Set or Part'
                 logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
             if not rejected:
                 # allow date ranges eg 1981-95
-                m = re.search(r'(\d+)-(\d+)', order)
+                m = re.search(r'(\d+)-(\d+)', str(order))
                 if m:
                     if check_year(m.group(1), past=1800, future=0):
                         logger.debug("Allow %s, looks like a date range" % order)
@@ -967,15 +967,15 @@ def getSeriesMembers(seriesID=None, seriesname=None):
                         rejected = 'Set or Part %s' % m.group(0)
                         logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
 
-        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in item[0]:
+        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in str(item[0]):
             rejected = 'Rejected non-integer %s' % item[0]
             logger.debug('Rejected %s, %s' % (bookname, rejected))
         if not rejected and check_int(item[0], 0) == 1:
-            valid = True
+            first = True
 
         if not rejected:
             filtered.append(item)
-    if len(filtered) and not valid:
+    if len(filtered) and not first:
         logger.warn("Series %s (%s) has %s members but no book 1" % (seriesID, seriesname, len(filtered)))
     return filtered, api_hits
 
