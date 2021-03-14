@@ -485,6 +485,7 @@ class OpenLibrary:
         lt_lang_hits = 0
         gb_lang_change = 0
         auth_start = time.time()
+        series_updates = []
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
         ignorable = ['future', 'date', 'isbn', 'word', 'set']
@@ -619,7 +620,11 @@ class OpenLibrary:
                     key = exists['BookID']
                     if not id_librarything and exists['LT_WorkID']:
                         id_librarything = exists['LT_WorkID']
-
+                if not rejected:
+                    exists = myDB.match("SELECT * from books WHERE LT_WorkID=? and BookName !=? COLLATE NOCASE",
+                                        (id_librarything, title))
+                    if exists:
+                        rejected = 'name', 'Duplicate LT_ID (%s/%s)' % (title, exists['BookName'])
                 if not rejected and publishers:
                     for bookpub in publishers:
                         if bookpub.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
@@ -846,6 +851,7 @@ class OpenLibrary:
                                             myDB.action("UPDATE seriesauthors SET SeriesID=? WHERE SeriesID=?",
                                                         (seriesid, exists['SeriesID']))
                                             myDB.action('PRAGMA foreign_keys = ON')
+                                            myDB.commit()
                                     if not exists:
                                         logger.debug("New series: %s" % series[0])
                                         myDB.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
@@ -853,20 +859,28 @@ class OpenLibrary:
                                                     (seriesid, series[0], 'Paused', time.time(), id_librarything))
                                         myDB.commit()
                                     seriesmembers = None
-                                    memberexists = myDB.match("SELECT * from member WHERE seriesid=? AND workid=?",
-                                                              (seriesid, id_librarything))
-                                    if not memberexists:
-                                        seriesmembers = self.get_series_members(seriesid, series[0])
-                                        if not seriesmembers:
-                                            logger.warn("Series %s (%s) has no members at librarything" % (
-                                                        series[0], seriesid))
-                                            seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
+                                    cmd = "SELECT * from member WHERE seriesid=? AND WorkID=?"
+                                    if not myDB.match(cmd, (seriesid, id_librarything)):
+                                        seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
+                                        if seriesid in series_updates:
+                                            logger.debug("Series %s already updated" % seriesid)
+                                        else:
+                                            seriesmembers = self.get_series_members(seriesid, series[0])
+                                            series_updates.append(seriesid)
+                                            if not seriesmembers:
+                                                logger.warn("Series %s (%s) has no members at librarything" % (
+                                                            series[0], seriesid))
                                     if seriesmembers:
-                                        logger.debug("Found %s %s for series %s" % (len(seriesmembers),
-                                                                                    plural(len(seriesmembers),
-                                                                                    "member"), series[0]))
+                                        if len(seriesmembers) == 1:
+                                            logger.debug("Found member %s for series %s" % (series[1], series[0]))
+                                        else:
+                                            logger.debug("Found %s members for series %s" % (len(seriesmembers),
+                                                                                             series[0]))
                                         for member in seriesmembers:
                                             # member[order, bookname, authorname, authorlink, workid]
+                                            # remove any old entries for this series member
+                                            myDB.action("DELETE from member WHERE seriesid=? AND seriesnum=?",
+                                                        (seriesid, member[0]))
                                             auth_name, exists = lazylibrarian.importer.getPreferredAuthorName(member[2])
                                             if not exists:
                                                 lazylibrarian.importer.addAuthorNameToDB(author=member[2],
