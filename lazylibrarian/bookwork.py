@@ -911,6 +911,7 @@ def getSeriesMembers(seriesID=None, seriesname=None):
     else:  # googlebooks and openlibrary
         api_hits = 0
         results = []
+        # noinspection PyUnresolvedReferences
         OL = lazylibrarian.ol.OpenLibrary(seriesID)
         res = OL.get_series_members(seriesID, seriesname)
         if res:

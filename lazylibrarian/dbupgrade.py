@@ -342,7 +342,8 @@ def gr_to_ol():
                                 (key, info['authorlink'], entry['AuthorID']))
                     myDB.action("UPDATE books SET AuthorID=? WHERE AuthorID=?", (key, entry['AuthorID']))
                     myDB.action("UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?", (key, entry['AuthorID']))
-                    myDB.action('UPDATE subscribers SET WantID=? WHERE WantID=? and Type="author"', (key, entry['AuthorID']))
+                    myDB.action('UPDATE subscribers SET WantID=? WHERE WantID=? and Type="author"',
+                                (key, entry['AuthorID']))
                     # no need to move authorimg in cache, link remains valid
                 akas = getList(entry['AKA'], ',')
                 if info['authorname'] != authorname and info['authorname'] not in akas:
@@ -372,8 +373,8 @@ def gr_to_ol():
                 myDB.action("UPDATE books SET gr_id=? WHERE bookid=?", (gr_id, gr_id))
         logger.info("Copied bookid for %s books (from %s)" % (cnt, tot))
 
-    cmd = "SELECT authors.AuthorID,AuthorName,BookID,BookName from authors,books WHERE books.authorid = authors.authorid"
-    cmd += ' and BookID NOT LIKE "OL%W"'
+    cmd = "SELECT authors.AuthorID,AuthorName,BookID,BookName from authors,books WHERE "
+    cmd += 'books.authorid = authors.authorid and BookID NOT LIKE "OL%W"'
     books = myDB.select(cmd)
     logger.info("Checking %s books" % len(books))
     upd = 0
@@ -384,6 +385,7 @@ def gr_to_ol():
     for book in books:
         lazylibrarian.UPDATE_MSG = '%s: %s' % (book[3], calc_eta(start_time, tot, upd + miss + dupe))
         searchterm = book[3] + ' <ll> ' + book[1]
+        # noinspection PyBroadException
         try:
             res = search_for(searchterm)
         except Exception:

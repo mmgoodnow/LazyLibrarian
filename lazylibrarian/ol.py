@@ -208,7 +208,7 @@ class OpenLibrary:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname),
                                                  useCache=not refresh)
 
-        if authorbooks and authorbooks["numFound"]:
+        if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
                 author_name = formatAuthorName(book.get('author_name')[0])
                 if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
@@ -223,7 +223,7 @@ class OpenLibrary:
         if title:  # no results using author/title, try author only
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname),
                                                  useCache=not refresh)
-            if not authorbooks or not authorbooks["numFound"]:
+            if not authorbooks or not authorbooks["docs"]:
                 logger.debug("No books found for %s" % authorname)
                 return None
             for book in authorbooks['docs']:
@@ -499,7 +499,7 @@ class OpenLibrary:
             authorbooks, in_cache = json_request(url, useCache=not refresh)
             api_hits += not in_cache
             cache_hits = in_cache
-            if not authorbooks or not authorbooks["numFound"]:
+            if not authorbooks or not authorbooks["docs"]:
                 logger.debug("No books found for key %s" % authorid)
                 next_page = False
             docs = authorbooks.get('docs', [])
