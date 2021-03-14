@@ -2047,8 +2047,8 @@ def process_book(pp_path=None, bookID=None, library=None):
         is_audio = (book_file(pp_path, "audiobook") != '')
         is_ebook = (book_file(pp_path, "ebook") != '')
 
-        cmd = 'SELECT AuthorName,BookName,BookID from books,authors WHERE BookID=? '
-        cmd += 'and books.AuthorID = authors.AuthorID'
+        cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus from books,authors '
+        cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
         data = myDB.match(cmd, (bookID,))
         if data:
             authorname = data['AuthorName']
@@ -2059,14 +2059,14 @@ def process_book(pp_path=None, bookID=None, library=None):
             want_audio = False
             want_ebook = False
             book_type = None
-            if library == 'eBook':
+            if data['Status'] in ['Wanted', 'Snatched'] or library == 'eBook':
                 want_ebook = True
-            if library == 'Audio':
+            if data['AudioStatus'] in ['Wanted', 'Snatched'] or library == 'Audio':
                 want_audio = True
             for item in was_snatched:
                 if item['AuxInfo'] == 'AudioBook':
                     want_audio = True
-                elif item['AuxInfo'] == 'eBook' or item['AuxInfo'] == '':
+                elif item['AuxInfo'] == 'eBook' or not item['AuxInfo']:
                     want_ebook = True
             if not is_audio and not is_ebook:
                 logger.debug('Bookid %s, failed to find valid booktype' % bookID)
@@ -2209,10 +2209,10 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     # given bookid, handle author count, calibre autoadd, book image, opf
 
     if not bookid:
-        logger.error('processExtras: No bookid supplied')
+        logger.error('No bookid supplied')
         return
     if not dest_file:
-        logger.error('processExtras: No dest_file supplied')
+        logger.error('No dest_file supplied')
         return
 
     myDB = database.DBConnection()
@@ -2242,7 +2242,7 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     cmd += ' from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
     data = myDB.match(cmd, (bookid,))
     if not data:
-        logger.error('processExtras: No data found for bookid %s' % bookid)
+        logger.error('No data found for bookid %s' % bookid)
         return
 
     dest_path = os.path.dirname(dest_file)
