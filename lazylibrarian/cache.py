@@ -169,15 +169,20 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
                 logger.error("Image url: %s" % img_url)
                 return str(e), False, False
         return result, False, False
-    elif path_isfile(img_url):
+
+    if not path_isfile(img_url) and img_url.endswith('.jpg'):
+        # icrawler might give us jpg or png
+        img_url = img_url[:-4] + '.png'
+    if path_isfile(img_url):
         try:
             shutil.copyfile(img_url, cachefile)
             return link, True, True
         except Exception as e:
             logger.error("%s copying image to %s, %s" % (type(e).__name__, cachefile, str(e)))
             return str(e), False, False
-    else:
-        logger.debug("No file [%s]" % img_url)
+    msg = "No file [%s]" % img_url
+    logger.debug(msg)
+    return msg, False, False
 
 
 def gr_xml_request(my_url, useCache=True, expire=True):
