@@ -885,8 +885,8 @@ class OpenLibrary:
                                             if not exists:
                                                 lazylibrarian.importer.addAuthorNameToDB(author=member[2],
                                                                                          refresh=False, addbooks=False,
-                                                                                         reason="Series author %s" %
-                                                                                                series[0])
+                                                                                         reason="Series author %s:%s" %
+                                                                                                (series[0], member[1]))
                                                 auth_name, exists = \
                                                     lazylibrarian.importer.getPreferredAuthorName(member[2])
                                                 if exists:
@@ -894,7 +894,7 @@ class OpenLibrary:
                                                 else:
                                                     logger.debug("Unable to add %s for %s, author not in database" %
                                                                  (member[2], member[1]))
-                                                break
+                                                    continue
                                             else:
                                                 cmd = "SELECT * from authors WHERE authorname=?"
                                                 exists = myDB.match(cmd, (auth_name,))
@@ -992,7 +992,7 @@ class OpenLibrary:
                                                             if match:
                                                                 bauth_key = match['AuthorID']
                                                             else:
-                                                                reason = "Series author %s" % series[0]
+                                                                reason = "Series author %s:%s" % (series[0], member[1])
                                                                 lazylibrarian.importer.addAuthorNameToDB(
                                                                     author=auth_name, refresh=False,
                                                                     addbooks=False, reason=reason)
@@ -1005,7 +1005,7 @@ class OpenLibrary:
                                                                     msg = "Unable to add %s for %s" % (auth_name, title)
                                                                     msg += ", author not in database"
                                                                     logger.debug(msg)
-                                                                    break
+                                                                    continue
 
                                                             match = myDB.match('SELECT * from books ' +
                                                                                'WHERE BookID=?', (workid,))

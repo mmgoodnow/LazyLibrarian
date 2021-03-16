@@ -513,7 +513,8 @@ def update_totals(AuthorID):
                         (series['Have'], series['Total'], series['Series']))
 
     res = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (AuthorID,))
-    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], totals['have'], totals['total']))
+    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], newValueDict['HaveBooks'],
+                                                    newValueDict['TotalBooks']))
 
 
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
