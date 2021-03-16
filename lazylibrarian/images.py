@@ -509,7 +509,7 @@ def getBookCover(bookID=None, src=None):
                     res = 0
                 logger.debug("Found %d %s" % (res, plural(res, 'image')))
                 if res:
-                    img = os.path.join(icrawlerdir,os.listdir(icrawlerdir)[0])
+                    img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
                     if src:
                         coverlink, success, _ = cache_img("book", bookID + '_gb', img)
                     else:
@@ -577,7 +577,7 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
         logger.debug("Found %d %s" % (res, plural(res, 'image')))
         if max_num == 1:
             if res:
-                img = os.path.join(icrawlerdir,os.listdir(icrawlerdir)[0])
+                img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
                 coverlink, success, was_in_cache = cache_img("author", authorid, img, refresh=refresh)
                 if success:
                     if was_in_cache:
