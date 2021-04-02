@@ -25,7 +25,11 @@
   %if multi == "True":
   <h1>${title}</h1>
   %else:
-  <h1>${series['AuthorName']} : ${title}</h1>
+  <h1>${series['AuthorName']} : ${title}
+  %if perm&lazylibrarian.perm_edit:
+    <a href="editSeries?SeriesID=${series['SeriesID']}" target="_new"><small><i> Edit</i></small></a>
+  %endif
+  </h1>
   %endif
   %if lazylibrarian.SERIES_UPDATE == True:
     <p>

@@ -937,6 +937,77 @@ class WebInterface(object):
 
     # SERIES ############################################################
     @cherrypy.expose
+    def removeSeries(self, SeriesID):
+        myDB = database.DBConnection()
+        seriesdata = myDB.match("SELECT * from series WHERE seriesid=?", (SeriesID,))
+        if seriesdata:
+            myDB.action("DELETE from series WHERE SeriesID=?", (SeriesID,))
+        else:
+            logger.info('Missing series %s' % SeriesID)
+        raise cherrypy.HTTPRedirect("series")
+
+    @cherrypy.expose
+    def editSeries(self, SeriesID):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        self.label_thread('EDIT_SERIES')
+        myDB = database.DBConnection()
+        seriesdata = myDB.match("SELECT * from series WHERE seriesid=?", (SeriesID,))
+        if seriesdata:
+            # use bookid to update seriesdata['Reason']
+            seriesdata = dict(seriesdata)
+            cmd = "select BookName,BookID from books where (bookid=?) or (gr_id=?) or (lt_workid=?)"
+            reason = seriesdata['Reason']
+            bookinfo = myDB.match(cmd, (reason, reason, reason))
+            if bookinfo:
+                seriesdata['Reason'] = "%s: %s" % (bookinfo['BookID'], bookinfo['BookName'])
+
+            cmd = "SELECT SeriesNum,BookName from member,books WHERE books.BookID=member.BookID and seriesid=?"
+            memberdata = myDB.select(cmd, (SeriesID,))
+            # sort properly by seriesnum as sqlite doesn't (yet) have natural sort
+            members = []
+            for item in memberdata:
+                members.append(dict(item))
+            self.natural_sort(members, key=lambda y: y['SeriesNum'] if y['SeriesNum'] is not None else '')
+            return serve_template(templatename="editseries.html", title="Edit Series", config=seriesdata,
+                                  members=members)
+        else:
+            logger.info('Missing series %s' % SeriesID)
+        raise cherrypy.HTTPRedirect("series")
+
+    @cherrypy.expose
+    def seriesUpdate(self, seriesid='', **kwargs):
+        cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
+        myDB = database.DBConnection()
+        if seriesid:
+            old_data = myDB.match("SELECT * from series where seriesid=?", (seriesid,))
+            if old_data:
+                updated = False
+                seriesname = old_data['SeriesName']
+                seriesid = old_data['SeriesID']
+                new_id = kwargs.get('new_id')
+                if new_id and new_id != seriesid:
+                    seriesid = new_id
+                    updated = True
+                new_name = kwargs.get('new_name')
+                if new_name and new_name != seriesname:
+                    seriesname = new_name
+                    updated = True
+                if updated:
+                    myDB.action('PRAGMA foreign_keys = OFF')
+                    myDB.action("UPDATE series SET SeriesID=?, SeriesName=? WHERE SeriesID=?",
+                                (seriesid, seriesname, old_data['SeriesID']))
+                    if seriesid != old_data['SeriesID']:
+                        for table in ['member', 'seriesauthors']:
+                            cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
+                            myDB.action(cmd, (seriesid, old_data['SeriesID']))
+                    myDB.action('PRAGMA foreign_keys = ON')
+                    logger.debug("Updated series info for %s:%s" % (seriesid, seriesname))
+            else:
+                logger.debug("No match updating series %s" % seriesid)
+
+        raise cherrypy.HTTPRedirect("series")
+
+    @cherrypy.expose
     def refreshSeries(self, SeriesID):
         threadname = 'SERIESMEMBERS_%s' % SeriesID
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
