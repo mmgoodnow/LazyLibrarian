@@ -19,6 +19,7 @@ import subprocess
 import tarfile
 import threading
 import time
+from shutil import rmtree
 
 import lazylibrarian
 try:
@@ -581,6 +582,8 @@ def update():
                     lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
                     lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
             update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
+            rmtree(update_dir)
+            os.mkdir(update_dir)
 
             try:
                 msg = 'Downloading update from: ' + tar_download_url
