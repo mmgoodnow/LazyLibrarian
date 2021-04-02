@@ -1,0 +1,78 @@
+<%inherit file="base.html"/>
+<%!
+    import lazylibrarian
+%>
+<%def name="headerIncludes()">
+    <div id="subhead_container">
+        <div id="subhead_menu">
+        </div>
+    </div>
+</%def>
+<%def name="body()">
+<form accept-charset="UTF-8" action="seriesUpdate" method="post">
+    <div class="configtable">
+        <input name="utf8" type="hidden" value="&#x2713;" />
+        <fieldset>
+            <legend>${title}</legend>
+            <div class="form-group">
+                <input type="text" id="seriesid" name="seriesid" value="${config['SeriesID']}" class="hidden">
+            </div>
+            <div class="form-group">
+                <label for="new_name" class="control-label">Series Name:</label>
+                <input type="text" id="new_name" name="new_name" value="${config['SeriesName']}" class="form-control" placeholder="Series Name">
+            </div>
+            <div class="form-group">
+                <label for="new_id" class="control-label">Series ID:</label>
+                <input type="text" id="new_id" name="new_id" value="${config['SeriesID']}" class="form-control" placeholder="Series ID">
+            </div>
+
+            <div class="form-group">
+                <label for="reason" class="control-label">Added by:</label>
+                <input type="text" id="reason" name="reason" value="${config['Reason']}" readonly class="form-control" placeholder="Reason for inclusion">
+            </div>
+          %for result in members:
+            <div class="input-group">
+            <span class="input-group-addon">${result['SeriesNum']}</span>
+            <input type="text" id="${result['SeriesNum']}" name="${result['SeriesNum']}" class="form-control" value="${result['BookName']}" readonly>
+            </div>
+          %endfor
+</fieldset>
+<div class="table_wrapper_button">
+  <input type="submit" value="Save changes" id="add" class="btn btn-primary">
+<button class="pull-right button btn btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Delete Series</button>
+</div>
+<p>&nbsp;</p>
+</div>
+</form>
+</%def>
+<%def name="javascriptIncludes()">
+  <script type="text/javascript">
+    function initThisPage()
+
+    {
+        "use strict";
+    }
+    $(document).ready(function() {
+        initThisPage();
+        $('#removeme').click(function () {
+            bootbox.confirm({
+                message: "Are you sure you want to permanently delete the series?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                  if (result) { $.get("removeSeries", {'SeriesID': '${config['SeriesID']}' },
+                      function (data) { }); }
+                }
+            });
+        });    });
+  </script>
+</%def>
+<html><head></head><body></body></html>

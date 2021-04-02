@@ -885,28 +885,19 @@ def scheduleJob(action='Start', target=None):
                     task = 'SERIESUPDATE'
 
                 overdue, total, _, _, days = is_overdue(typ)
-                if not overdue:
-                    logger.debug("There are no %s to update" % plural(0, typ))
-                    delay = maxage - days
-                    if delay > 1:
-                        if delay > 7:
-                            delay = 8
-                        interval = 60 * 24 * (delay - 1)  # nothing today, check again in a few days
-                    else:
-                        interval = 60
-                else:
-                    if days == maxage:
-                        due = "due"
-                    else:
-                        due = "overdue"
-                    logger.debug("Found %s %s from %s %s update" % (
-                                 overdue, plural(overdue, typ), total, due))
-                    interval = maxage * 60 * 24
-                    interval = interval / total
-                    interval = int(interval * 0.9)  # allow some update time
 
-                if interval < 10:  # set a minimum interval of 10 minutes so we don't upset goodreads/librarything api
-                    interval = 10
+                if days == maxage:
+                    due = "due"
+                else:
+                    due = "overdue"
+                logger.debug("Found %s %s from %s %s update" % (
+                             overdue, plural(overdue, typ), total, due))
+                interval = maxage * 60 * 24
+                interval = interval / total
+                interval = int(interval * 0.9)  # allow some update time
+
+                if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
+                    interval = 5
 
                 startdate = nextRun(task, interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours

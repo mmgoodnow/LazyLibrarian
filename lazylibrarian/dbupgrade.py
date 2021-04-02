@@ -395,12 +395,10 @@ def gr_to_ol():
                 exists = myDB.match("SELECT * from books WHERE BookID=?", (res[0]['bookid'],))
                 if not exists:
                     upd += 1
-                    myDB.action("UPDATE books SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                    myDB.action("UPDATE wanted SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
+                    for table in ['books', 'wanted', 'member', 'failedsearch', 'genrebooks']:
+                        cmd = "UPDATE " + table + " SET bookid=? WHERE bookid=?"
+                        myDB.action(cmd, (res[0]['bookid'], book[2]))
                     myDB.action("UPDATE authors SET lastbookid=? WHERE lastbookid=?", (res[0]['bookid'], book[2]))
-                    myDB.action("UPDATE member SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                    myDB.action("UPDATE failedsearch SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
-                    myDB.action("UPDATE genrebooks SET bookid=? WHERE bookid=?", (res[0]['bookid'], book[2]))
                 else:
                     dupe += 1
             else:

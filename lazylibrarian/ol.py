@@ -844,12 +844,9 @@ class OpenLibrary:
                                         exists = myDB.match("SELECT * from series WHERE seriesname=?", (series[0],))
                                         if exists:
                                             myDB.action('PRAGMA foreign_keys = OFF')
-                                            myDB.action("UPDATE series SET SeriesID=? WHERE SeriesID=?",
-                                                        (seriesid, exists['SeriesID']))
-                                            myDB.action("UPDATE member SET SeriesID=? WHERE SeriesID=?",
-                                                        (seriesid, exists['SeriesID']))
-                                            myDB.action("UPDATE seriesauthors SET SeriesID=? WHERE SeriesID=?",
-                                                        (seriesid, exists['SeriesID']))
+                                            for table in ['series', 'member', 'seriesauthors']:
+                                                cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
+                                                myDB.action(cmd, (seriesid, exists['SeriesID']))
                                             myDB.action('PRAGMA foreign_keys = ON')
                                             myDB.commit()
                                     if not exists:
