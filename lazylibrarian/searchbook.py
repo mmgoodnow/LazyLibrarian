@@ -317,12 +317,12 @@ def search_book(books=None, library=None):
                     # general search is the same as booksearch for torrents, irc and rss, no need to check again
                     if not goodEnough(match):
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, 'general')
+                            resultlist, nprov = IterateOverNewzNabSites(book, 'general' + searchtype)
                             if not nprov:
                                 warnMode('nzb')
 
                             if resultlist:
-                                match = findBestResult(resultlist, book, 'general', mode)
+                                match = findBestResult(resultlist, book, 'general' + searchtype, mode)
                             else:
                                 match = None
 
