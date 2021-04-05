@@ -183,9 +183,9 @@ def test_provider(name, host=None, api=None):
                         success, errorMsg = NewzNabPlus(book, provider, 'book', 'torznab', True)
                         if not success:
                             if cancelSearchType('book', errorMsg, provider):
-                                success, _ = NewzNabPlus(book, provider, 'general', 'torznab', True)
+                                success, _ = NewzNabPlus(book, provider, 'generalbook', 'torznab', True)
                     else:
-                        success, _ = NewzNabPlus(book, provider, 'general', 'torznab', True)
+                        success, _ = NewzNabPlus(book, provider, 'generalbook', 'torznab', True)
 
                     return success, provider['DISPNAME']
         except IndexError:
@@ -210,9 +210,9 @@ def test_provider(name, host=None, api=None):
                         success, errorMsg = NewzNabPlus(book, provider, 'book', 'newznab', True)
                         if not success:
                             if cancelSearchType('book', errorMsg, provider):
-                                success, _ = NewzNabPlus(book, provider, 'general', 'newznab', True)
+                                success, _ = NewzNabPlus(book, provider, 'generalbook', 'newznab', True)
                     else:
-                        success, _ = NewzNabPlus(book, provider, 'general', 'newznab', True)
+                        success, _ = NewzNabPlus(book, provider, 'generalbook', 'newznab', True)
                     return success, provider['DISPNAME']
         except IndexError:
             pass
@@ -513,7 +513,7 @@ def IterateOverNewzNabSites(book=None, searchType=None):
             if ProviderIsBlocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
-            elif searchType in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
+            elif "book" in searchType and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
                 ignored = True
             elif "audio" in searchType and 'A' not in provider['DLTYPES']:
@@ -603,7 +603,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
     resultslist = []
     providers = 0
 
-    if searchType not in ['mag', 'general', 'comic']:
+    if searchType not in ['mag', 'comic'] and not searchType.startswith('general'):
         authorname, bookname = get_searchterm(book, searchType)
         if 'title' in searchType:
             book['searchterm'] = bookname
@@ -664,7 +664,7 @@ def IterateOverTorrentSites(book=None, searchType=None):
 def IterateOverDirectSites(book=None, searchType=None):
     resultslist = []
     providers = 0
-    if searchType not in ['mag', 'general', 'comic']:
+    if searchType not in ['mag', 'comic'] and not searchType.startswith('general'):
         authorname, bookname = get_searchterm(book, searchType)
         if 'title' in searchType:
             book['searchterm'] = bookname
@@ -1394,7 +1394,7 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                     BlockProvider(provider['HOST'], errormsg)
 
                 if test and searchType == 'book' and cancelled:
-                    return NewzNabPlus(book, provider, 'general', searchMode, test)
+                    return NewzNabPlus(book, provider, 'generalbook', searchMode, test)
             else:
                 resultxml = rootxml.iter('item')
                 nzbcount = 0
