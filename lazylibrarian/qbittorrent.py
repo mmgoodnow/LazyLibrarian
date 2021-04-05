@@ -64,6 +64,7 @@ class qbittorrentclient(object):
         self.cmdset = 0
         self._get_sid(self.base_url, self.username, self.password)
         self.api = self._api_version()
+        self.hashid = ''
 
     def _make_opener(self):
         # create opener with cookie handler to carry QBitTorrent SID cookie
@@ -170,8 +171,11 @@ class qbittorrentclient(object):
             logger.debug('QBitTorrent webUI raised the following error: %s' % err.reason)
             return False
 
-    def _get_list(self, **args):
-        # type: (dict) -> list
+    def _get_list(self):
+        if self.hashid:
+            args = {'hashes': self.hashid}
+        else:
+            args = None
         if self.cmdset == 2:
             value = self._command('torrents/info', args)
         else:
@@ -193,6 +197,7 @@ class qbittorrentclient(object):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('qb.get_savepath(%s)' % hashid)
         hashid = hashid.lower()
+        self.hashid = hashid
         torrentList = self._get_list()
         for torrent in list(torrentList):
             if torrent['hash'] and torrent['hash'].lower() == hashid:
@@ -268,6 +273,7 @@ def getProgress(hashid):
         if preferences['max_ratio_enabled']:
             # noinspection PyTypeChecker
             max_ratio = float(preferences['max_ratio'])
+    qbclient.hashid = hashid
     # noinspection PyProtectedMember
     torrentList = qbclient._get_list()
     if torrentList:
@@ -305,6 +311,7 @@ def removeTorrent(hashid, remove_data=False):
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return False
+    qbclient.hashid = hashid
     # noinspection PyProtectedMember
     torrentList = qbclient._get_list()
     if torrentList:
@@ -368,22 +375,24 @@ def addTorrent(link, hashid):
 
     if qbclient.cmdset == 2:
         # noinspection PyProtectedMember
-        if qbclient._command('torrents/add', args, 'multipart/form-data'):
-            return True, ''
+        res = qbclient._command('torrents/add', args, 'multipart/form-data')
     else:
         # noinspection PyProtectedMember
-        if qbclient._command('command/download', args, 'multipart/form-data'):
-            return True, ''
-    # sometimes returns "Fails." when it hasn't failed, so look if hashid was added correctly
-    logger.debug("qBittorrent: addTorrent thinks it failed")
-    time.sleep(2)
+        res = qbclient._command('command/download', args, 'multipart/form-data')
+    # sometimes returns "Fails." when it hasn't failed
+    # sometimes returns "True" when it hasn't added the torrent (empty request?)
+    # so look if hashid was added correctly
+    if not res:
+        logger.debug("addTorrent thinks it failed")
+        time.sleep(2)
+    qbclient.hashid = hashid
     # noinspection PyProtectedMember
     torrents = qbclient._get_list()
     if hashid in str(torrents).lower():
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug("qBittorrent: hashid found in torrent list, assume success")
+            logger.debug("hashid found in torrent list")
         return True, ''
-    res = "qBittorrent: hashid not found in torrent list, addTorrent failed"
+    res = "hashid not found in torrent list, addTorrent failed"
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug(res)
     return False, res
@@ -401,31 +410,27 @@ def addFile(data, hashid, title):
     files = {'torrents': {'filename': title, 'content': data}}
     if qbclient.cmdset == 2:
         # noinspection PyProtectedMember
-        if qbclient._command('torrents/add', files=files):
-            if lazylibrarian.CONFIG['QBITTORRENT_LABEL']:
-                args = {'hash': hashid, 'category': lazylibrarian.CONFIG['QBITTORRENT_LABEL']}
-                # noinspection PyProtectedMember
-                qbclient._command('torrents/setCategory', args, 'application/x-www-form-urlencoded')
-            return True, ''
+        res = qbclient._command('torrents/add', files=files)
     else:
         # noinspection PyProtectedMember
-        if qbclient._command('command/upload', files=files):
-            return True, ''
-    # sometimes returns "Fails." when it hasn't failed, so look if hashid was added correctly
-    logger.debug("qBittorrent: addFile thinks it failed")
-    time.sleep(2)
+        res = qbclient._command('command/upload', files=files)
+    if not res:
+        # sometimes returns "Fails." when it hasn't failed, so look if hashid was added correctly
+        logger.debug("addFile thinks it failed")
+        time.sleep(2)
+    qbclient.hashid = hashid
     # noinspection PyProtectedMember
     torrents = qbclient._get_list()
     if hashid in str(torrents).lower():
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug("qBittorrent: hashid found in torrent list, assume success")
+            logger.debug("hashid found in torrent list")
         if qbclient.cmdset == 2 and lazylibrarian.CONFIG['QBITTORRENT_LABEL']:
             args = {'hash': hashid, 'category': lazylibrarian.CONFIG['QBITTORRENT_LABEL']}
             # noinspection PyProtectedMember
             qbclient._command('torrents/setCategory', args, 'application/x-www-form-urlencoded')
         return True, ''
 
-    res = "qBittorrent: hashid not found in torrent list, addFile failed"
+    res = "hashid not found in torrent list, addFile failed"
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug(res)
     return False, res
@@ -441,6 +446,7 @@ def getName(hashid):
         return ''
     RETRIES = 5
     torrents = []
+    qbclient.hashid = hashid
     while RETRIES:
         # noinspection PyProtectedMember
         torrents = qbclient._get_list()
