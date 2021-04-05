@@ -1621,6 +1621,9 @@ def runScript(params):
         else:
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug(makeUnicode(res))
+            logger.debug(makeUnicode(err))
         return p.returncode, makeUnicode(res), makeUnicode(err)
     except Exception as e:
         err = "runScript exception: %s %s" % (type(e).__name__, str(e))

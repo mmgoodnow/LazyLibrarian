@@ -232,7 +232,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
-                     'AUTH_TYPE']
+                     'AUTH_TYPE', 'CREATE_LINK']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -536,6 +536,7 @@ CONFIG_DEFINITIONS = {
     'ISBN_LOOKUP': ('bool', 'LibraryScan', 1),
     'IMP_IGNORE': ('bool', 'LibraryScan', 0),
     'IMP_GOOGLEIMAGE': ('bool', 'LibraryScan', 0),
+    'CREATE_LINK': ('str', 'PostProcess', ''),
     'EBOOK_DEST_FOLDER': ('str', 'PostProcess', '$Author/$Title'),
     'EBOOK_DEST_FILE': ('str', 'PostProcess', '$Title - $Author'),
     'AUDIOBOOK_DEST_FILE': ('str', 'PostProcess', '$Author - $Title Part $Part of $Total'),

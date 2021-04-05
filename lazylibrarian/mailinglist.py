@@ -13,7 +13,7 @@
 import os
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import path_exists, syspath
+from lazylibrarian.common import path_exists, syspath, runScript
 from lazylibrarian.formatter import plural, getList, check_int
 from lazylibrarian.notifiers import email_notifier
 
@@ -124,10 +124,22 @@ def mailing_list(book_type, global_name, book_id):
     filename = data['filename']
     fsize = check_int(os.path.getsize(syspath(filename)), 0)
     limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+    link = None
     if limit and fsize > limit * 1024 * 1024:
         msg = '%s is too large (%s) to email' % (os.path.split(filename)[1], fsize)
         logger.debug(msg)
-        filename = ''
+        if lazylibrarian.CONFIG['CREATE_LINK']:
+            logger.debug("Creating link to %s" % filename)
+            params = [lazylibrarian.CONFIG['CREATE_LINK'], filename]
+            rc, res, err = runScript(params)
+            if res and res.startswith('http'):
+                msg = "%s is available to download, %s" % (
+                       os.path.basename(filename), res)
+                logger.debug(msg)
+                link = res
+                filename = ''
+        else:
+            filename = ''
 
     count = 0
     for user in userlist:
@@ -153,6 +165,8 @@ def mailing_list(book_type, global_name, book_id):
                 logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
                 if not msg:
                     msg = global_name + ' is available for download'
+                    if link:
+                        msg += '<br>%s<br>' % link
                 result = email_notifier.email_file(subject="Message from LazyLibrarian",
                                                    message=msg, to_addr=res['SendTo'], files=[])
 
