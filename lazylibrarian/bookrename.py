@@ -53,7 +53,10 @@ def id3read(filename):
         composer = id3r.composer
         album = id3r.album
         albumartist = id3r.albumartist
-        # comment = id3r.comment
+        title = id3r.title
+        track = id3r.track
+        track_total = id3r.track_total
+        comment = id3r.comment
 
         if artist:
             artist = artist.strip().rstrip('\x00')

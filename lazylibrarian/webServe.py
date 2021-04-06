@@ -6623,31 +6623,24 @@ class WebInterface(object):
         if lazylibrarian.CONFIG['USER_ACCOUNTS']:
             myDB = database.DBConnection()
             cookie = cherrypy.request.cookie
+            msg = ''
             if email and cookie and 'll_uid' in list(cookie.keys()):
                 res = myDB.match('SELECT SendTo from users where UserID=?', (cookie['ll_uid'].value,))
                 if res and res['SendTo']:
-                    fsize = check_int(os.path.getsize(syspath(myfile)), 0)
-                    limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
-                    if limit and fsize > limit * 1024 * 1024:
-                        msg = '%s is too large (%s) to email' % (os.path.basename(myfile), fsize)
+                    logger.debug("Emailing %s to %s" % (myfile, res['SendTo']))
+                    if name:
+                        msg = name
+                    result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
+                                                                 message=msg, to_addr=res['SendTo'],
+                                                                 files=[myfile])
+                    if result:
+                        msg = "Emailed file %s to %s" % (os.path.basename(myfile), res['SendTo'])
                         logger.debug(msg)
                     else:
-                        logger.debug("Emailing %s to %s" % (myfile, res['SendTo']))
-                        if name:
-                            msg = name + ' is attached'
-                        else:
-                            msg = ''
-                        result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
-                                                                     message=msg, to_addr=res['SendTo'],
-                                                                     files=[myfile])
-                        if result:
-                            msg = "Emailed file %s to %s" % (os.path.basename(myfile), res['SendTo'])
-                            logger.debug(msg)
-                        else:
-                            msg = "Failed to email file %s to %s" % (os.path.basename(myfile), res['SendTo'])
-                            logger.error(msg)
-                    return serve_template(templatename="choosetype.html", title='Send file',
-                                          pop_message=msg, pop_types='', bookid='', valid='', email=email)
+                        msg = "Failed to email file %s to %s" % (os.path.basename(myfile), res['SendTo'])
+                        logger.error(msg)
+                return serve_template(templatename="choosetype.html", title='Send file',
+                                      pop_message=msg, pop_types='', bookid='', valid='', email=email)
         if not name:
             name = os.path.basename(myfile)
         if path_isfile(myfile):

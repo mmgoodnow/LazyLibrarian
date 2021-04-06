@@ -26,7 +26,7 @@ import os
 import traceback
 from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
-    isValidEmail, path_isfile, syspath
+    isValidEmail, path_isfile, syspath, runScript
 from lazylibrarian.formatter import check_int, getList, makeUTF8bytes
 from six import PY2
 
@@ -81,10 +81,19 @@ class EmailNotifier:
         if files:
             for f in files:
                 fsize = check_int(os.path.getsize(syspath(f)), 0)
-                if fsize > 20000000:
+                limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+                if limit and fsize > limit * 1024 * 1024:
                     oversize = True
                     msg = '%s is too large (%s) to email' % (os.path.basename(f), fsize)
                     logger.debug(msg)
+                    if lazylibrarian.CONFIG['CREATE_LINK']:
+                        logger.debug("Creating link to %s" % f)
+                        params = [lazylibrarian.CONFIG['CREATE_LINK'], f]
+                        rc, res, err = runScript(params)
+                        if res and res.startswith('http'):
+                            msg = "%s is available to download, %s" % (
+                                   os.path.basename(f), res)
+                            logger.debug(msg)
                     message.attach(MIMEText(msg))
                 else:
                     logger.debug('Attaching %s' % os.path.basename(f))

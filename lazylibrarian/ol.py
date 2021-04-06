@@ -486,6 +486,7 @@ class OpenLibrary:
         gb_lang_change = 0
         auth_start = time.time()
         series_updates = []
+        cache_hits = 0
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
         ignorable = ['future', 'date', 'isbn', 'word', 'set']
@@ -498,11 +499,13 @@ class OpenLibrary:
                 url += "&offset=%s" % offset
             authorbooks, in_cache = json_request(url, useCache=not refresh)
             api_hits += not in_cache
-            cache_hits = in_cache
+            cache_hits += in_cache
             if not authorbooks or not authorbooks["docs"]:
                 logger.debug("No books found for key %s" % authorid)
                 next_page = False
-            docs = authorbooks.get('docs', [])
+                docs = []
+            else:
+                docs = authorbooks.get('docs', [])
             hit = 0
             miss = 0
             for book in docs:
@@ -953,7 +956,7 @@ class OpenLibrary:
                                                         bookinfo, in_cache = json_request(self.OL_ISBN + isbn +
                                                                                           '.json')
                                                         api_hits += not in_cache
-                                                        cache_hits = in_cache
+                                                        cache_hits += in_cache
                                                         if bookinfo and bookinfo.get('works'):
                                                             try:
                                                                 for work in bookinfo.get('works'):
@@ -967,7 +970,7 @@ class OpenLibrary:
                                                         workinfo, in_cache = json_request(self.OL_WORK +
                                                                                           workid + '.json')
                                                         api_hits += not in_cache
-                                                        cache_hits = in_cache
+                                                        cache_hits += in_cache
                                                         if workinfo and 'title' in workinfo:
                                                             title = workinfo.get('title')
                                                             covers = workinfo.get('covers')
@@ -1098,38 +1101,35 @@ class OpenLibrary:
             if offset >= check_int(authorbooks["numFound"], 0):
                 next_page = False
 
-            resultcount = added_count + updated_count
-            loopCount -= 1
-            if loopCount < 1:
-                return
-            logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
-                                                   loopCount, plural(loopCount, "page")))
-            logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
-            logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
-            logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
-            logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
-            logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
-            logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
-                         (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
-                          api_hits, plural(api_hits, "hit")))
-            if cover_count:
-                logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
-            if isbn_count:
-                logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
+        resultcount = added_count + updated_count
+        logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
+                                               loopCount, plural(loopCount, "page")))
+        logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
+        logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
+        logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
+        logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
+        logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
+        logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
+                     (resultcount, plural(resultcount, "book"), int(time.time() - auth_start),
+                      api_hits, plural(api_hits, "hit")))
+        if cover_count:
+            logger.debug("Fetched %s %s in %.2f sec" % (cover_count, plural(cover_count, "cover"), cover_time))
+        if isbn_count:
+            logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
 
-            controlValueDict = {"authorname": authorname.replace('"', '""')}
-            newValueDict = {
-                            "GR_book_hits": api_hits,
-                            "GR_lang_hits": gr_lang_hits,
-                            "LT_lang_hits": lt_lang_hits,
-                            "GB_lang_change": gb_lang_change,
-                            "cache_hits": cache_hits,
-                            "bad_lang": bad_lang,
-                            "bad_char": removedResults,
-                            "uncached": api_hits,
-                            "duplicates": duplicates
-                            }
-            myDB.upsert("stats", newValueDict, controlValueDict)
+        controlValueDict = {"authorname": authorname.replace('"', '""')}
+        newValueDict = {
+                        "GR_book_hits": api_hits,
+                        "GR_lang_hits": gr_lang_hits,
+                        "LT_lang_hits": lt_lang_hits,
+                        "GB_lang_change": gb_lang_change,
+                        "cache_hits": cache_hits,
+                        "bad_lang": bad_lang,
+                        "bad_char": removedResults,
+                        "uncached": api_hits,
+                        "duplicates": duplicates
+                        }
+        myDB.upsert("stats", newValueDict, controlValueDict)
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.find_book'):
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
