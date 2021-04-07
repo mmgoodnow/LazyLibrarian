@@ -376,109 +376,109 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
             logger.info("%d files merged into %s" % (len(parts), outfile))
 
-    if ff_ver and tag:
-        extn = os.path.splitext(outfile)[1]
-        params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
-                  '-y', '-c:a', 'copy',
-                  '-metadata', 'track="1/1"']
+        if tag:
+            extn = os.path.splitext(outfile)[1]
+            params = [ffmpeg, '-i', os.path.join(bookfolder, outfile),
+                      '-y', '-c:a', 'copy',
+                      '-metadata', 'track="1/1"']
 
-        myDB = database.DBConnection()
-        match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
-        audio_path = os.path.join(bookfolder, parts[0][3])
-        if match and TinyTag and TinyTag.is_supported(audio_path):
-            id3r = TinyTag.get(audio_path)
-            artist = id3r.artist
-            composer = id3r.composer
-            album_artist = id3r.albumartist
-            album = id3r.album
-            # title = id3r.title
-            # "unused" locals are used in eval() statement below
-            # noinspection PyUnusedLocal
-            comment = id3r.comment
-            # noinspection PyUnusedLocal
-            author = authorname
-            # noinspection PyUnusedLocal
-            media_type = "Audiobook"
-            # noinspection PyUnusedLocal
-            genre = match['BookGenre']
-            # noinspection PyUnusedLocal
-            description = match['BookDesc']
-            # noinspection PyUnusedLocal
-            date = match['BookDate']
-            if date == '0000':
+            myDB = database.DBConnection()
+            match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
+            audio_path = os.path.join(bookfolder, parts[0][3])
+            if match and TinyTag and TinyTag.is_supported(audio_path):
+                id3r = TinyTag.get(audio_path)
+                artist = id3r.artist
+                composer = id3r.composer
+                album_artist = id3r.albumartist
+                album = id3r.album
+                # title = id3r.title
+                # "unused" locals are used in eval() statement below
                 # noinspection PyUnusedLocal
-                date = ''
-            if artist:
+                comment = id3r.comment
                 # noinspection PyUnusedLocal
-                artist = artist.strip().rstrip('\x00')
-            if composer:
+                author = authorname
                 # noinspection PyUnusedLocal
-                composer = composer.strip().rstrip('\x00')
-            if album:
+                media_type = "Audiobook"
                 # noinspection PyUnusedLocal
-                album = album.strip().rstrip('\x00')
-            if album_artist:
+                genre = match['BookGenre']
                 # noinspection PyUnusedLocal
-                album_artist = album_artist.strip().rstrip('\x00')
+                description = match['BookDesc']
+                # noinspection PyUnusedLocal
+                date = match['BookDate']
+                if date == '0000':
+                    # noinspection PyUnusedLocal
+                    date = ''
+                if artist:
+                    # noinspection PyUnusedLocal
+                    artist = artist.strip().rstrip('\x00')
+                if composer:
+                    # noinspection PyUnusedLocal
+                    composer = composer.strip().rstrip('\x00')
+                if album:
+                    # noinspection PyUnusedLocal
+                    album = album.strip().rstrip('\x00')
+                if album_artist:
+                    # noinspection PyUnusedLocal
+                    album_artist = album_artist.strip().rstrip('\x00')
 
-            if bookfile:
-                title = bookfile
+                if bookfile:
+                    title = bookfile
+                else:
+                    title = "%s - %s" % (authorname, bookname)
+                    if match['SeriesDisplay']:
+                        series = match['SeriesDisplay'].split('<br>')[0].strip()
+                        if series and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+                            title = "%s (%s)" % (title, series)
+                            outfile, extn = os.path.splitext(outfile)
+                            outfile = "%s (%s)%s" % (outfile, series, extn)
+                params.extend(['-metadata', "title=%s" % title])
+                for item in ['artist', 'album_artist', 'composer', 'album', 'author',
+                             'date', 'comment', 'description', 'genre', 'media_type']:
+                    value = eval(item)
+                    if value:
+                        params.extend(['-metadata', "%s=%s" % (item, value)])
             else:
-                title = "%s - %s" % (authorname, bookname)
-                if match['SeriesDisplay']:
-                    series = match['SeriesDisplay'].split('<br>')[0].strip()
-                    if series and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                        title = "%s (%s)" % (title, series)
-                        outfile, extn = os.path.splitext(outfile)
-                        outfile = "%s (%s)%s" % (outfile, series, extn)
-            params.extend(['-metadata', "title=%s" % title])
-            for item in ['artist', 'album_artist', 'composer', 'album', 'author',
-                         'date', 'comment', 'description', 'genre', 'media_type']:
-                value = eval(item)
-                if value:
-                    params.extend(['-metadata', "%s=%s" % (item, value)])
-        else:
-            params.extend(['-metadata', "album=%s" % bookname,
-                           '-metadata', "artist=%s" % authorname,
-                           '-metadata', "title=%s" % bookfile])
+                params.extend(['-metadata', "album=%s" % bookname,
+                               '-metadata', "artist=%s" % authorname,
+                               '-metadata', "title=%s" % bookfile])
 
-        tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
-        if extn == '.m4b':
-            # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
-            b2a = True
-            tempfile = tempfile.replace('.m4b', '.m4a')
-        else:
-            b2a = False
-
-        params.append(tempfile)
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
-            params.append('-report')
-            logger.debug(str(params))
-            ffmpeg_env = os.environ.copy()
-            ffmpeg_env["FFREPORT"] = "file=" + \
-                                     lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
-                                                                  now().replace(':', '-').replace(' ', '-'))
-        else:
-            ffmpeg_env = None
-        try:
-            if os.name != 'nt':
-                _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
-                                            stderr=subprocess.STDOUT, env=ffmpeg_env)
+            tempfile = os.path.join(bookfolder, "tempaudio%s" % extn)
+            if extn == '.m4b':
+                # some versions of ffmpeg will not add tags to m4b files, but they will add them to m4a
+                b2a = True
+                tempfile = tempfile.replace('.m4b', '.m4a')
             else:
-                _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+                b2a = False
 
-            outfile = os.path.join(bookfolder, outfile)
-            remove(outfile)
-            if b2a:
-                tempfile.replace('.m4a', '.m4b')
-            os.rename(tempfile, outfile)
-            logger.debug("Metadata written to %s" % outfile)
-        except subprocess.CalledProcessError as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-            return
-        except Exception as e:
-            logger.error("%s: %s" % (type(e).__name__, str(e)))
-            return
+            params.append(tempfile)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                params.append('-report')
+                logger.debug(str(params))
+                ffmpeg_env = os.environ.copy()
+                ffmpeg_env["FFREPORT"] = "file=" + \
+                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
+                                                                    now().replace(':', '-').replace(' ', '-'))
+            else:
+                ffmpeg_env = None
+            try:
+                if os.name != 'nt':
+                    _ = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
+                                                stderr=subprocess.STDOUT, env=ffmpeg_env)
+                else:
+                    _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
+
+                outfile = os.path.join(bookfolder, outfile)
+                remove(outfile)
+                if b2a:
+                    tempfile.replace('.m4a', '.m4b')
+                os.rename(tempfile, outfile)
+                logger.debug("Metadata written to %s" % outfile)
+            except subprocess.CalledProcessError as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                return
+            except Exception as e:
+                logger.error("%s: %s" % (type(e).__name__, str(e)))
+                return
 
     remove(os.path.join(bookfolder, "partslist.ll"))
     remove(os.path.join(bookfolder, "metadata.ll"))
