@@ -208,11 +208,15 @@ def path_islink(name):
 def remove(name):
     try:
         os.remove(syspath(name))
-    except Exception as e:
+    except OSError as e:
         if e.errno == 2:  # does not exist is ok
             pass
         else:
             logger.warn("Failed to remove %s : %s" % (name, e.strerror))
+            pass
+    except Exception as e:
+        logger.warn("Failed to remove %s : %s" % (name, str(e)))
+        pass
 
 
 def listdir(name):
