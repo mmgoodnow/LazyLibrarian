@@ -246,8 +246,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
                         logger.warn("Conflicting authorid for %s (new:%s old:%s) Using existing authorid" %
-                                    (authorname, authorid, dbauthor['authorid']))
-                        authorid = dbauthor['authorid']
+                                    (authorname, authorid, dbauthor['AuthorID']))
+                        authorid = dbauthor['AuthorID']
                     logger.debug("Updating author %s (%s)" % (authorid, authorname))
                     new_author = False
                 else:
@@ -271,10 +271,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     newValueDict["AuthorLink"] = author['authorlink']
                     if author.get('about', ''):
                         newValueDict['About'] = author['about']
-                if dbauthor and dbauthor['authorname'] != author['authorname']:
-                    if 'unknown' in dbauthor['authorname']:
-                        authorname = author['authorname']
-                    else:
+                if dbauthor and dbauthor['authorname'] != authorname:
+                    if 'unknown' not in dbauthor['authorname']:
                         authorname = dbauthor['authorname']
                         logger.warn("Authorname mismatch for %s [%s][%s]" %
                                     (authorid, dbauthor['authorname'], author['authorname']))
