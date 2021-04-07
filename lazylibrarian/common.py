@@ -227,10 +227,15 @@ def listdir(name):
     All returns are unicode
     """
     if os.path.__name__ == 'ntpath':
-        name = syspath(name)
-        if not name.endswith('\\'):
-            name = name + '\\'
-        return os.listdir(name)
+        dname = syspath(name)
+        if not dname.endswith('\\'):
+            dname = dname + '\\'
+        try:
+            return os.listdir(dname)
+        except Exception as e:
+            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(e)))
+            return []
+
     return [makeUnicode(item) for item in os.listdir(makeBytestr(name))]
 
 
