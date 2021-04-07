@@ -232,7 +232,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
-                     'AUTH_TYPE', 'CREATE_LINK']
+                     'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -250,6 +250,8 @@ CONFIG_DEFINITIONS = {
     'LOGLIMIT': ('int', 'General', 500),
     'LOGFILES': ('int', 'General', 10),
     'LOGSIZE': ('int', 'General', 204800),
+    'LOGREDACT':('bool', 'General', 0),
+    'HOSTREDACT':('bool', 'General', 0),
     'AUTH_TYPE': ('str', 'General', "BASIC"),
     'LOGLEVEL': ('int', 'General', 1),
     'WALL_COLUMNS': ('int', 'General', 6),

@@ -40,7 +40,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, listdir, pwd_generator, pwd_check, isValidEmail, mimeType, \
     zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove
+    syspath, remove, get_redactlist
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db, gr_to_ol
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod, \
@@ -5555,6 +5555,16 @@ class WebInterface(object):
                 filtered = [x for x in lazylibrarian.LOGLIST[::] if sSearch.lower() in str(x).lower()]
             else:
                 filtered = lazylibrarian.LOGLIST[::]
+
+            if lazylibrarian.CONFIG['LOGREDACT']:
+                redactlist = get_redactlist()
+                redacted = []
+                for line in filtered:
+                    line = list(line)
+                    for item in redactlist:
+                        line[6] = line[6].replace(item, '**********')
+                    redacted.append(line)
+                filtered = redacted
 
             sortcolumn = int(iSortCol_0)
 

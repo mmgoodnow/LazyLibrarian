@@ -208,12 +208,11 @@ def path_islink(name):
 def remove(name):
     try:
         os.remove(syspath(name))
-    except OSError as e:
+    except Exception as e:
         if e.errno == 2:  # does not exist is ok
             pass
         else:
             logger.warn("Failed to remove %s : %s" % (name, e.strerror))
-            raise
 
 
 def listdir(name):
@@ -893,7 +892,7 @@ def scheduleJob(action='Start', target=None):
                 logger.debug("Found %s %s from %s %s update" % (
                              overdue, plural(overdue, typ), total, due))
                 interval = maxage * 60 * 24
-                interval = interval / total
+                interval = interval / max(total, 1)
                 interval = int(interval * 0.9)  # allow some update time
 
                 if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
@@ -1482,28 +1481,39 @@ def logHeader():
     return header
 
 
-def saveLog():
-    if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
-        return 'LOGDIR does not exist'
-
-    basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
-    outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
+def get_redactlist():
     redactlist = []
+    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']
+    if lazylibrarian.CONFIG['HOSTREDACT']:
+        wordlist.append('_HOST')
     for key in lazylibrarian.CONFIG.keys():
-        if key not in ['BOOK_API', 'GIT_USER']:
-            for word in ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']:
+        if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
+            for word in wordlist:
                 if word in key and lazylibrarian.CONFIG[key]:
-                    if key != 'SINGLE_USER':
-                        redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
+                    redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
     for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
         if lazylibrarian.CONFIG[key]:
             redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['API']:
             redactlist.append(u"%s" % item['API'])
+        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
+            redactlist.append(u"%s" % item['HOST'])
     for item in lazylibrarian.TORZNAB_PROV:
-        if item['API']:
-            redactlist.append(u"%s" % item['API'])
+        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
+            redactlist.append(u"%s" % item['HOST'])
+
+    logger.debug("Redact list has %s" % len(redactlist))
+    return redactlist
+
+
+def saveLog():
+    if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
+        return 'LOGDIR does not exist'
+
+    basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
+    outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
+    redactlist = get_redactlist()
 
     if PY2:
         out = codecs.open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
