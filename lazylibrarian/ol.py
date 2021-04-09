@@ -810,15 +810,20 @@ class OpenLibrary:
                                                  (publish_date, exists['ScanResult']))
 
                                     updateValueDict["ScanResult"] = "bookdate %s is now valid" % publish_date
+                                elif not exists:
+                                    updateValueDict["ScanResult"] = reason
 
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
-                                book_status, audio_status = getStatus(key, serieslist, bookstatus,
-                                                                      audiostatus, entrystatus)
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                                    logger.debug("status is now %s,%s" % (book_status, audio_status))
-                                updateValueDict["Status"] = book_status
-                                updateValueDict["AudioStatus"] = audio_status
+                                if "ScanResult" in updateValueDict:
+                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                        logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
+                                    book_status, audio_status = getStatus(key, serieslist, bookstatus,
+                                                                          audiostatus, entrystatus)
+                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                        logger.debug("status is now %s,%s" % (book_status, audio_status))
+                                    updateValueDict["Status"] = book_status
+                                    updateValueDict["AudioStatus"] = audio_status
+
+                            if updateValueDict:
                                 controlValueDict = {"LT_WorkID": id_librarything}
                                 myDB.upsert("books", updateValueDict, controlValueDict)
 
