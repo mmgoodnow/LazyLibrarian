@@ -21,6 +21,9 @@ import threading
 import time
 import traceback
 import inspect
+from six import PY2
+if PY2:
+    import codecs
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -59,8 +62,12 @@ class DBConnection:
                 program = os.path.basename(frame.filename)
                 method = frame.function
                 lineno = frame.lineno
-            with open(self.dblog, 'a') as f:
-                f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
+            if PY2:
+                f = codecs.open(self.dblog, 'a', encoding='utf-8')
+            else:
+                f = open(self.dblog, 'a', encoding='utf-8')
+            f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
+            f.close()
         with db_lock:
             self.connection.close()
 
@@ -75,8 +82,12 @@ class DBConnection:
                 program = os.path.basename(frame.filename)
                 method = frame.function
                 lineno = frame.lineno
-            with open(self.dblog, 'a') as f:
-                f.write("%s commit %s %s %s\n" % (time.asctime(), program, lineno, method))
+            if PY2:
+                f = codecs.open(self.dblog, 'a', encoding='utf-8')
+            else:
+                f = open(self.dblog, 'a', encoding='utf-8')
+            f.write("%s commit %s %s %s\n" % (time.asctime(), program, lineno, method))
+            f.close()
         with db_lock:
             self.connection.commit()
 
@@ -115,29 +126,41 @@ class DBConnection:
 
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                     elapsed = time.time() - start
-                    with open(self.dblog, 'a') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
+                    if PY2:
+                        f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                    else:
+                        f = open(self.dblog, 'a', encoding='utf-8')
+                    f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                               program, lineno, method, query, args))
+                    f.close()
                 break
 
             except sqlite3.OperationalError as e:
                 if "unable to open database file" in str(e) or "database is locked" in str(e):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
-                        with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                       program, lineno, method, query, args))
-                            f.write("%s Database Error: %s\n" % (time.asctime(), e))
+                        if PY2:
+                            f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                        else:
+                            f = open(self.dblog, 'a', encoding='utf-8')
+                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                   program, lineno, method, query, args))
+                        f.write("%s Database Error: %s\n" % (time.asctime(), e))
+                        f.close()
                     logger.warn('Database Error: %s' % e)
                     logger.error("Failed db query: [%s]" % query)
                     time.sleep(1)
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
-                        with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                       program, lineno, method, query, args))
-                            f.write("%s Database OperationalError: %s\n" % (time.asctime(), e))
+                        if PY2:
+                            f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                        else:
+                            f = open(self.dblog, 'a', encoding='utf-8')
+                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                   program, lineno, method, query, args))
+                        f.write("%s Database OperationalError: %s\n" % (time.asctime(), e))
+                        f.close()
                     logger.error('Database OperationalError: %s' % e)
                     logger.error("Failed query: [%s]" % query)
                     raise
@@ -150,21 +173,29 @@ class DBConnection:
                 if suppress and 'UNIQUE' in suppress and ('not unique' in msg or 'unique constraint failed' in msg):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
-                        with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method,
-                                                                          query, args))
-                            f.write("%s Suppressed: %s\n" % (time.asctime(), msg))
+                        if PY2:
+                            f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                        else:
+                            f = open(self.dblog, 'a', encoding='utf-8')
+                        f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                      suppress, program, lineno, method,
+                                                                      query, args))
+                        f.write("%s Suppressed: %s\n" % (time.asctime(), msg))
+                        f.close()
                     self.connection.commit()
                     break
                 else:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                         elapsed = time.time() - start
-                        with open(self.dblog, 'a') as f:
-                            f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                          suppress, program, lineno, method,
-                                                                          query, args))
-                            f.write("%s IntegrityError: %s\n" % (time.asctime(), msg))
+                        if PY2:
+                            f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                        else:
+                            f = open(self.dblog, 'a', encoding='utf-8')
+                        f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                                      suppress, program, lineno, method,
+                                                                      query, args))
+                        f.write("%s IntegrityError: %s\n" % (time.asctime(), msg))
+                        f.close()
                     logger.error('Database IntegrityError: %s' % e)
                     logger.error("Failed query: [%s]" % query)
                     logger.error("Failed args: [%s]" % str(args))
@@ -173,10 +204,14 @@ class DBConnection:
             except sqlite3.DatabaseError as e:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                     elapsed = time.time() - start
-                    with open(self.dblog, 'a') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
-                        f.write("%s DatabaseError: %s\n" % (time.asctime(), e))
+                    if PY2:
+                        f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                    else:
+                        f = open(self.dblog, 'a', encoding='utf-8')
+                    f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                               program, lineno, method, query, args))
+                    f.write("%s DatabaseError: %s\n" % (time.asctime(), e))
+                    f.close()
                 logger.error('Fatal error executing %s :%s: %s' % (query, args, e))
                 logger.error("%s" % traceback.format_exc())
                 raise
@@ -184,10 +219,14 @@ class DBConnection:
             except Exception as e:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                     elapsed = time.time() - start
-                    with open(self.dblog, 'a') as f:
-                        f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
-                                                                   program, lineno, method, query, args))
-                        f.write("%s CatchallError: %s\n" % (time.asctime(), e))
+                    if PY2:
+                        f = codecs.open(self.dblog, 'a', encoding='utf-8')
+                    else:
+                        f = open(self.dblog, 'a', encoding='utf-8')
+                    f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
+                                                               program, lineno, method, query, args))
+                    f.write("%s CatchallError: %s\n" % (time.asctime(), e))
+                    f.close()
                 logger.error('Exception executing %s :: %s' % (query, e))
                 raise
 
