@@ -11,7 +11,6 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
-import datetime
 from xml.etree import ElementTree
 
 import lazylibrarian
@@ -19,7 +18,7 @@ from lazylibrarian import logger
 from lazylibrarian.cache import fetchURL
 from lazylibrarian.directparser import GEN, BOK, BFI
 from lazylibrarian.formatter import age, today, plural, cleanName, unaccented, getList, check_int, \
-    makeUnicode, seconds_to_midnight, makeUTF8bytes, makeBytestr, no_umlauts
+    makeUnicode, seconds_to_midnight, makeUTF8bytes, makeBytestr, no_umlauts, month2num
 from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import KAT, TPB, WWT, ZOO, TDL, TRF, LIME
 from lazylibrarian.ircbot import ircConnect, ircSearch, ircResults
@@ -1429,9 +1428,8 @@ def NewzNabPlus(book=None, provider=None, searchType=None, searchMode=None, test
                                 nzbdate = thisnzb['nzbdate']
                                 try:
                                     parts = nzbdate.split(' ')
-                                    nzbdate = ' '.join(parts[:5])  # strip the +0200
-                                    dt = datetime.datetime.strptime(nzbdate, "%a, %d %b %Y %H:%M:%S").timetuple()
-                                    nzbage = age('%04d-%02d-%02d' % (dt.tm_year, dt.tm_mon, dt.tm_mday))
+                                    nzbage = age('%04d-%02d-%02d' % (int(parts[3]), month2num(parts[2]),
+                                                                     int(parts[1])))
                                 except Exception as e:
                                     logger.warn('Unable to get age from [%s] %s %s' %
                                                 (thisnzb['nzbdate'], type(e).__name__, str(e)))
