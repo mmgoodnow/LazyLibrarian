@@ -902,7 +902,7 @@ def scheduleJob(action='Start', target=None):
                              overdue, plural(overdue, typ), total, due))
 
                 interval = maxage * 60 * 24
-                interval = interval / max(total,1)
+                interval = interval / max(total, 1)
                 interval = int(interval * 0.9)  # allow some update time
 
                 if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
@@ -1510,10 +1510,21 @@ def get_redactlist():
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
             redactlist.append(u"%s" % item['HOST'])
     for item in lazylibrarian.TORZNAB_PROV:
+        if item['API']:
+            redactlist.append(u"%s" % item['API'])
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
             redactlist.append(u"%s" % item['HOST'])
+    for item in lazylibrarian.RSS_PROV:
+        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
+            redactlist.append(u"%s" % item['HOST'])
+    for item in lazylibrarian.GEN_PROV:
+        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
+            redactlist.append(u"%s" % item['HOST'])
+    for item in lazylibrarian.APPRISE_PROV:
+        if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
+            redactlist.append(u"%s" % item['URL'])
 
-    logger.debug("Redact list has %s" % len(redactlist))
+    # logger.debug("Redact list has %s" % len(redactlist))
     return redactlist
 
 
