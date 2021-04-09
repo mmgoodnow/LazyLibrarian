@@ -40,7 +40,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import showJobs, showStats, restartJobs, clearLog, scheduleJob, checkRunningJobs, \
     setperm, aaUpdate, csv_file, saveLog, logHeader, listdir, pwd_generator, pwd_check, isValidEmail, mimeType, \
     zipAudio, runScript, walk, quotes, ensureRunning, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove, get_redactlist
+    syspath, remove, set_redactlist
 from lazylibrarian.csvfile import import_CSV, export_CSV, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db, gr_to_ol
 from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod, \
@@ -5557,11 +5557,11 @@ class WebInterface(object):
                 filtered = lazylibrarian.LOGLIST[::]
 
             if lazylibrarian.CONFIG['LOGREDACT']:
-                redactlist = get_redactlist()
+                set_redactlist()
                 redacted = []
                 for line in filtered:
                     line = list(line)
-                    for item in redactlist:
+                    for item in lazylibrarian.REDACTLIST:
                         line[6] = line[6].replace(item, '**********')
                     redacted.append(line)
                 filtered = redacted
@@ -6578,8 +6578,10 @@ class WebInterface(object):
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
             ff_ver = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
+            lazylibrarian.FFMPEGVER = ff_ver
             return "Found ffmpeg version %s" % ff_ver
         except Exception as e:
+            lazylibrarian.FFMPEGVER = None
             return "ffmpeg -version failed: %s %s" % (type(e).__name__, str(e))
 
     @cherrypy.expose

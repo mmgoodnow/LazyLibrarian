@@ -1491,7 +1491,10 @@ def logHeader():
     return header
 
 
-def get_redactlist():
+def set_redactlist():
+    if lazylibrarian.REDACTLIST:
+        return
+
     redactlist = []
     wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']
     if lazylibrarian.CONFIG['HOSTREDACT']:
@@ -1524,8 +1527,8 @@ def get_redactlist():
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
             redactlist.append(u"%s" % item['URL'])
 
-    # logger.debug("Redact list has %s" % len(redactlist))
-    return redactlist
+    logger.debug("Redact list has %s" % len(redactlist))
+    lazylibrarian.REDACTLIST = redactlist
 
 
 def saveLog():
@@ -1534,7 +1537,7 @@ def saveLog():
 
     basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
     outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
-    redactlist = get_redactlist()
+    set_redactlist()
 
     if PY2:
         out = codecs.open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
@@ -1560,7 +1563,7 @@ def saveLog():
             else:
                 lines = reversed(list(open(fname)))
             for line in lines:
-                for item in redactlist:
+                for item in lazylibrarian.REDACTLIST:
                     if item in line:
                         line = line.replace(item, '<redacted>')
                         redacts += 1
@@ -1589,7 +1592,7 @@ def saveLog():
         else:
             lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
         for line in lines:
-            for item in redactlist:
+            for item in lazylibrarian.REDACTLIST:
                 if item in line:
                     line = line.replace(item, '<redacted>')
                     redacts += 1

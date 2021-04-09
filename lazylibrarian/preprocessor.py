@@ -122,18 +122,22 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if not ffmpeg:
         logger.error("Check config setting for ffmpeg")
         return
-    try:
-        params = [ffmpeg, "-version"]
-        res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-        res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
-        logger.debug("Found ffmpeg version %s" % res)
-        ff_ver = res
-    except Exception as e:
-        logger.debug("ffmpeg -version failed: %s %s" % (type(e).__name__, str(e)))
-        ff_ver = ''
+    ff_ver = lazylibrarian.FFMPEGVER
+    if not ff_ver:
+        try:
+            params = [ffmpeg, "-version"]
+            res = subprocess.check_output(params, stderr=subprocess.STDOUT)
+            res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
+            logger.debug("Found ffmpeg version %s" % res)
+            ff_ver = res
+        except Exception as e:
+            logger.debug("ffmpeg -version failed: %s %s" % (type(e).__name__, str(e)))
+            ff_ver = ''
+        finally:
+            lazylibrarian.FFMPEGVER = ff_ver
 
-    ff_aac = ''
-    if ff_ver:
+    ff_aac = lazylibrarian.FFMPEGAAC
+    if ff_ver and not ff_aac:
         try:
             params = [ffmpeg, "-codecs"]
             if os.name != 'nt':
@@ -148,6 +152,9 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     break
         except Exception as e:
             logger.debug("ffmpeg -codecs failed: %s %s" % (type(e).__name__, str(e)))
+            ff_aac = ''
+        finally:
+            lazylibrarian.FFMPEGAAC = ff_aac
 
     logger.debug("Preprocess audio %s %s %s" % (bookfolder, authorname, bookname))
     partslist = os.path.join(bookfolder, "partslist.ll")
@@ -457,7 +464,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
                                          lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
-                                                                    now().replace(':', '-').replace(' ', '-'))
+                                                                      now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             try:

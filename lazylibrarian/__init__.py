@@ -132,6 +132,9 @@ GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
 STOPTHREADS = False
+REDACTLIST = []
+FFMPEGVER = None
+FFMPEGAAC = None
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -250,8 +253,8 @@ CONFIG_DEFINITIONS = {
     'LOGLIMIT': ('int', 'General', 500),
     'LOGFILES': ('int', 'General', 10),
     'LOGSIZE': ('int', 'General', 204800),
-    'LOGREDACT':('bool', 'General', 0),
-    'HOSTREDACT':('bool', 'General', 0),
+    'LOGREDACT': ('bool', 'General', 0),
+    'HOSTREDACT': ('bool', 'General', 0),
     'AUTH_TYPE': ('str', 'General', "BASIC"),
     'LOGLEVEL': ('int', 'General', 1),
     'WALL_COLUMNS': ('int', 'General', 6),
@@ -1213,7 +1216,9 @@ def config_read(reloaded=False):
 # noinspection PyUnresolvedReferences
 def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
-        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV, GEN_PROV
+        TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV, GEN_PROV, REDACTLIST
+
+    REDACTLIST = []  # invalidate redact list as config has changed
 
     if part:
         logger.info("Writing config for section [%s]" % part)
