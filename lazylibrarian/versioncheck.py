@@ -582,7 +582,8 @@ def update():
                     lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
                     lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
             update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
-            rmtree(update_dir)
+
+            rmtree(update_dir, ignore_errors=True)
             os.mkdir(update_dir)
 
             try:
