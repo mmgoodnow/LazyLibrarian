@@ -225,7 +225,7 @@ class OpenLibrary:
                                                  useCache=not refresh)
             if not authorbooks or not authorbooks["docs"]:
                 logger.debug("No books found for %s" % authorname)
-                return None
+                return {}
             for book in authorbooks['docs']:
                 author_name = formatAuthorName(book.get('author_name')[0])
                 if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
@@ -243,7 +243,7 @@ class OpenLibrary:
         authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', useCache=not refresh)
         if not authorinfo:
             logger.debug("No info found for %s" % authorid)
-            return None
+            return {}
 
         bio = authorinfo.get('bio', '')
         if bio and isinstance(bio, dict):
@@ -271,7 +271,7 @@ class OpenLibrary:
 
         if not author_name:
             logger.warn("Rejecting authorid %s, no authorname" % authorid)
-            return None
+            return {}
 
         logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))
         author_dict = {
