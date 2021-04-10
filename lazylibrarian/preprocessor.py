@@ -213,7 +213,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     else:
         ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS']
 
-    with open(os.path.join(bookfolder, "partslist.ll"), 'w') as f:
+    with open(partslist, 'w') as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
 
@@ -263,7 +263,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         else:
             # read metadata from first file
             params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
-                      '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "metadata.ll")]
+                      '-f', 'ffmetadata', '-y', metadata]
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                 params.append('-report')
                 logger.debug(str(params))
@@ -328,18 +328,17 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             if part_durations:
                 part_durations.sort(key=lambda x: x[0])
                 start = 0
-                with open(os.path.join(bookfolder, "metadata.ll"), 'r') as f:
+                with open(metadata, 'r') as f:
                     with open(os.path.join(bookfolder, "newmetadata.ll"), 'w') as o:
                         for lyne in f.readlines():
                             if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
                                 if not lyne.startswith('START=') and not lyne.startswith('END='):
                                     if not lyne.startswith('title='):
                                         o.write(lyne)
-                    remove(os.path.join(bookfolder, "metadata.ll"))
-                    os.rename(os.path.join(bookfolder, "newmetadata.ll"),
-                              os.path.join(bookfolder, "metadata.ll"))
+                    remove(metadata)
+                    os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
 
-                with open(os.path.join(bookfolder, "metadata.ll"), 'a') as f:
+                with open(metadata, 'a') as f:
                     for item in part_durations:
                         if item[0]:
                             f.write("[CHAPTER]\nTIMEBASE=1/1000\n")
@@ -487,12 +486,13 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.error("%s: %s" % (type(e).__name__, str(e)))
                 return
 
-    remove(os.path.join(bookfolder, "partslist.ll"))
-    remove(os.path.join(bookfolder, "metadata.ll"))
-    if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and len(parts) > 1:
-        logger.debug("Removing %d part files" % len(parts))
-        for part in parts:
-            remove(os.path.join(bookfolder, part[3]))
+        if not lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] and len(parts) > 1:
+            logger.debug("Removing %d part files" % len(parts))
+            for part in parts:
+                remove(os.path.join(bookfolder, part[3]))
+
+    remove(partslist)
+    remove(metadata)
 
 
 def preprocess_magazine(bookfolder, cover=0):
