@@ -44,7 +44,7 @@ except ImportError:
 
 class OpenLibrary:
     # https://openlibrary.org/developers/api
-    def __init__(self, name=None):
+    def __init__(self, name=''):
         self.OL_SEARCH = '/'.join([lazylibrarian.CONFIG['OL_URL'], "search.json?"])
         self.OL_AUTHOR = '/'.join([lazylibrarian.CONFIG['OL_URL'], "authors/"])
         self.OL_ISBN = '/'.join([lazylibrarian.CONFIG['OL_URL'], "isbn/"])
@@ -53,7 +53,7 @@ class OpenLibrary:
         self.LT_NSERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
         self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/'])
         self.LT_WORK = '/'.join([lazylibrarian.CONFIG['LT_URL'], "work/"])
-        self.name = makeUnicode(name)
+        self.name = makeUnicode(str(name))
         self.lt_cache = False
 
     def find_results(self, searchterm=None, queue=None):
