@@ -1263,27 +1263,31 @@ def processDir(reset=False, startdir=None, ignoreclient=False, downloadid=None):
 
                         # at this point, as it failed we should move it or it will get postprocessed
                         # again (and fail again)
-                        shutil.rmtree(pp_path + '.fail', ignore_errors=True)
-                        try:
-                            _ = safe_move(pp_path, pp_path + '.fail')
-                            logger.warn('Residual files remain in %s.fail' % pp_path)
-                        except Exception as why:
-                            logger.error("Unable to rename %s, %s %s" %
-                                         (repr(pp_path), type(why).__name__, str(why)))
-                            if not os.access(syspath(pp_path), os.R_OK):
-                                logger.error("%s is not readable" % repr(pp_path))
-                            if not os.access(syspath(pp_path), os.W_OK):
-                                logger.error("%s is not writeable" % repr(pp_path))
-                            if not os.access(syspath(pp_path), os.X_OK):
-                                logger.error("%s is not executable" % repr(pp_path))
-                            parent = os.path.dirname(pp_path)
+                        if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED']:
+                            logger.debug('Deleting %s' % pp_path)
+                            shutil.rmtree(pp_path, ignore_errors=True)
+                        else:
+                            shutil.rmtree(pp_path + '.fail', ignore_errors=True)
                             try:
-                                with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
-                                    f.write('test')
-                                remove(os.path.join(parent, 'll_temp'))
+                                _ = safe_move(pp_path, pp_path + '.fail')
+                                logger.warn('Residual files remain in %s.fail' % pp_path)
                             except Exception as why:
-                                logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
-                            logger.warn('Residual files remain in %s' % pp_path)
+                                logger.error("Unable to rename %s, %s %s" %
+                                             (repr(pp_path), type(why).__name__, str(why)))
+                                if not os.access(syspath(pp_path), os.R_OK):
+                                    logger.error("%s is not readable" % repr(pp_path))
+                                if not os.access(syspath(pp_path), os.W_OK):
+                                    logger.error("%s is not writeable" % repr(pp_path))
+                                if not os.access(syspath(pp_path), os.X_OK):
+                                    logger.error("%s is not executable" % repr(pp_path))
+                                parent = os.path.dirname(pp_path)
+                                try:
+                                    with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
+                                        f.write('test')
+                                    remove(os.path.join(parent, 'll_temp'))
+                                except Exception as why:
+                                    logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
+                                logger.warn('Residual files remain in %s' % pp_path)
 
             ppcount += check_residual(download_dir)
 
