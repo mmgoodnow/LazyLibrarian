@@ -71,6 +71,8 @@ def main():
                  dest='daemon', help="Run the server as a daemon")
     p.add_option('-q', '--quiet', action="store_true",
                  dest='quiet', help="Don't log to console")
+    p.add_option('-j', '--nojobs', action="store_true",
+                 dest='nojobs', help="Don't start background tasks")
     p.add_option('--debug', action="store_true",
                  dest='debug', help="Show debuglog messages")
     p.add_option('--nolaunch', action="store_true",
@@ -116,6 +118,9 @@ def main():
 
     if options.nolaunch:
         lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
+
+    if options.nojobs:
+        lazylibrarian.STOPTHREADS = True
 
     if options.datadir:
         lazylibrarian.DATADIR = str(options.datadir)

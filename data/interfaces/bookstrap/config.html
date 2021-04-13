@@ -1690,6 +1690,17 @@
                       <input type="checkbox" id="del_failed" name="del_failed" value="1" ${checked} />
                       Delete failed tasks from downloader</label>
                     </div>
+                    <div class="checkbox">
+                      <%
+                        if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="del_downloadfailed" class="control-label">
+                      <input type="checkbox" id="del_downloadfailed" name="del_downloadfailed" value="1" ${checked} />
+                      Delete files if download fails</label>
+                    </div>
                   </fieldset>
                 </fieldset>
               </div>

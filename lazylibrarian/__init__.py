@@ -63,6 +63,8 @@ COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
 DOCKER = False
+STOPTHREADS = False
+
 # APPRISE not declared here, done in notifier
 
 # These are only used in startup
@@ -131,7 +133,6 @@ GC_BEFORE = {}
 GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
-STOPTHREADS = False
 REDACTLIST = []
 FFMPEGVER = None
 FFMPEGAAC = None
@@ -235,7 +236,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
-                     'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT']
+                     'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT', 'DEL_DOWNLOADFAILED']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -558,6 +559,7 @@ CONFIG_DEFINITIONS = {
     'MAG_DEST_FILE': ('str', 'PostProcess', '$IssueDate - $Title'),
     'MAG_RELATIVE': ('bool', 'PostProcess', 1),
     'MAG_DELFOLDER': ('bool', 'PostProcess', 1),
+    'DEL_DOWNLOADFAILED': ('bool', 'Postprocess', 0),
     'PP_DELAY': ('int', 'PostProcess', 0),
     'DEL_FAILED': ('bool', 'PostProcess', 1),
     'DEL_COMPLETED': ('bool', 'PostProcess', 1),
@@ -1218,7 +1220,7 @@ def config_write(part=None):
     global SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, LOGLEVEL, NEWZNAB_PROV, \
         TORZNAB_PROV, RSS_PROV, SHOW_COMICS, APPRISE_PROV, SHOW_EBOOK, IRC_PROV, GEN_PROV, REDACTLIST
 
-    REDACTLIST = []  # invalidate redact list as config has changed
+    REDACTLIST = []  # invalidate redactlist as config has changed
 
     if part:
         logger.info("Writing config for section [%s]" % part)
@@ -2129,7 +2131,8 @@ def start():
         # Crons and scheduled jobs started here
         # noinspection PyUnresolvedReferences
         SCHED.start()
-        restartJobs(start='Start')
+        if not STOPTHREADS:
+            restartJobs(start='Start')
         started = True
 
 
