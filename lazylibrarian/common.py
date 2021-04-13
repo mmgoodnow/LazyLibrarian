@@ -339,7 +339,9 @@ def syspath(path, prefix=True):
     *really* know what you're doing.
     """
     if os.path.__name__ != 'ntpath':
-        return makeBytestr(path)
+        if PY2:
+            return makeBytestr(path)
+        return path
 
     if not isinstance(path, text_type):
         # Beets currently represents Windows paths internally with UTF-8
@@ -1492,10 +1494,10 @@ def logHeader():
 
 
 def set_redactlist():
-    if lazylibrarian.REDACTLIST:
+    if len(lazylibrarian.REDACTLIST):
         return
 
-    redactlist = []
+    lazylibrarian.REDACTLIST = []
     wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']
     if lazylibrarian.CONFIG['HOSTREDACT']:
         wordlist.append('_HOST')
@@ -1503,32 +1505,31 @@ def set_redactlist():
         if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
             for word in wordlist:
                 if word in key and lazylibrarian.CONFIG[key]:
-                    redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
+                    lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
     for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
         if lazylibrarian.CONFIG[key]:
-            redactlist.append(u"%s" % lazylibrarian.CONFIG[key])
+            lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['API']:
-            redactlist.append(u"%s" % item['API'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            redactlist.append(u"%s" % item['HOST'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
     for item in lazylibrarian.TORZNAB_PROV:
         if item['API']:
-            redactlist.append(u"%s" % item['API'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            redactlist.append(u"%s" % item['HOST'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
     for item in lazylibrarian.RSS_PROV:
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            redactlist.append(u"%s" % item['HOST'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
     for item in lazylibrarian.GEN_PROV:
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            redactlist.append(u"%s" % item['HOST'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
     for item in lazylibrarian.APPRISE_PROV:
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
-            redactlist.append(u"%s" % item['URL'])
+            lazylibrarian.REDACTLIST.append(u"%s" % item['URL'])
 
-    logger.debug("Redact list has %s" % len(redactlist))
-    lazylibrarian.REDACTLIST = redactlist
+    logger.debug("Redact list has %s" % len(lazylibrarian.REDACTLIST))
 
 
 def saveLog():
