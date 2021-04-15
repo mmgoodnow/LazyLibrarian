@@ -168,9 +168,21 @@
                         <label for="logsize" class="input-group-addon">File Size</label>
                         <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
+                      <%
+                        if lazylibrarian.CONFIG['LOGREDACT'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
                       <label for="logredact" class="control-label">
                       <input type="checkbox" id="logredact" name="logredact" value="1" ${checked} />
                       Redact information in screen log</label>
+                      <%
+                        if lazylibrarian.CONFIG['HOSTREDACT'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
                       <label for="hostredact" class="control-label">
                       <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
                       Also redact hostnames</label>
