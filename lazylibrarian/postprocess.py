@@ -2372,9 +2372,11 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                         shutil.rmtree(srcfile)
 
             identifier = ''
-            if booktype == 'ebook':
+            if booktype in ['ebook', 'audiobook']:
                 if bookid.isdigit():
                     identifier = "goodreads:%s" % bookid
+                elif bookid.startswith('OL'):
+                    identifier = "OpenLibrary:%s" % bookid
                 else:
                     identifier = "google:%s" % bookid
             elif booktype == 'comic':
@@ -2607,7 +2609,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e)), pp_path
     else:
-        # we are copying the files ourselves, either it's audiobook,mag,comic or we don't want to use calibre
+        # we are copying the files ourselves
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
             logger.debug("Source Path: %s" % (repr(pp_path)))
@@ -2669,6 +2671,15 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                 else:
                     logger.debug('Ignoring unwanted file: %s' % fname)
 
+        if booktype in ['ebook', 'audiobook']:
+            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
+            cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
+            cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+            myDB = database.DBConnection()
+            data = myDB.match(cmd, (bookid,))
+            processIMG(pp_path, bookid, data['BookImg'], global_name, 'book')
+            _, _ = createOPF(pp_path, data, global_name, True)
+
         # for ebooks, prefer the first book_type found in ebook_type list
         if booktype == 'ebook':
             book_basename = os.path.join(dest_path, global_name)
@@ -2710,6 +2721,22 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     f.write("%s" % booktype)
             except IOError as e:
                 logger.warn("Unable to create/write to ignorefile: %s" % str(e))
+
+            if booktype == 'comic':
+                processIMG(pp_path, bookid, data['Cover'], global_name, 'comic')
+                if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                    logger.debug('createComicOPF is disabled')
+                else:
+                    _, _ = createComicOPF(pp_path, data, global_name, True)
+            else:
+                if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                    logger.debug('createMAGOPF is disabled')
+                else:
+                    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                        authors = title
+                    else:
+                        authors = 'magazines'
+                    _, _ = createMAGOPF(pp_path, authors, title, issuedate, issueid)
 
         if firstfile:
             newbookfile = firstfile
@@ -2917,6 +2944,8 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
         scheme = data['Scheme']
     elif bookid.isdigit():
         scheme = 'GOODREADS'
+    elif bookid.startswith('OL'):
+        scheme = 'OpenLibrary'
     else:
         scheme = 'GoogleBooks'
 
@@ -2925,10 +2954,14 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     if 'Series_index' not in data:
         # no series details passed in data dictionary, look them up in db
         myDB = database.DBConnection()
-        if scheme == 'GOODREADS' and 'WorkID' in data and data['WorkID']:
+        res = {}
+        if 'LT_WorkID' in data and data['LT_WorkID']:
+            cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
+            res = myDB.match(cmd, (data['LT_WorkID'],))
+        if not res and 'WorkID' in data and data['WorkID']:
             cmd = 'SELECT SeriesID,SeriesNum from member WHERE workid=?'
             res = myDB.match(cmd, (data['WorkID'],))
-        else:
+        if not res:
             cmd = 'SELECT SeriesID,SeriesNum from member WHERE bookid=?'
             res = myDB.match(cmd, (bookid,))
         if res:
@@ -2961,9 +2994,9 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 <package version="2.0" xmlns="http://www.idpf.org/2007/opf" >\n\
     <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">\n\
         <dc:title>%s</dc:title>\n\
-        <dc:language>%s</dc:language>\n\
-        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (data['BookName'],
-                                                            data['BookLang'], scheme, bookid)
+        <dc:language>%s</dc:language>\n' % (data.get('BookName', ''), data.get('BookLang', ''))
+
+    opfinfo += '        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (scheme, bookid)
 
     if "Contributors" in data:  # split into individuals and add each eg
         # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
@@ -2999,6 +3032,10 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 
     if 'BookDesc' in data:
         opfinfo += '        <dc:description>%s</dc:description>\n' % data['BookDesc']
+
+    if "BookGenre" in data:
+        for genre in getList(data['BookGenre'], ','):
+            opfinfo += '        <dc:subject>%s</dc:subject>\n' % genre
 
     if 'BookRate' in data:
         rate = check_int(data['BookRate'], 0)
