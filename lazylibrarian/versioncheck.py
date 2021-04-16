@@ -461,23 +461,26 @@ def getCommitDifferenceFromGit():
 
 
 def updateVersionFile(new_version_id):
-    # Update version.txt located in LL home dir.
+    # Update version.txt located in LL cache dir.
     version_path = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
 
     try:
-        logmsg('debug', "Updating [%s] with value [%s]" % (version_path, new_version_id))
-        if os.path.exists(version_path):
+        # noinspection PyBroadException
+        try:
             with open(syspath(version_path), 'r') as ver_file:
                 current_version = ver_file.read().strip(' \n\r')
             if current_version == new_version_id:
                 return False
+        except Exception:
+            pass
 
+        logmsg('debug', "Updating [%s] with value [%s]" % (version_path, new_version_id))
         with open(syspath(version_path), 'w') as ver_file:
             ver_file.write(new_version_id)
-
         lazylibrarian.CONFIG['CURRENT_VERSION'] = new_version_id
         return True
-    except IOError as e:
+
+    except Exception as e:
         logmsg('error',
                "Unable to write current version to version.txt: %s" % str(e))
         return False
