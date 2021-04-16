@@ -25,8 +25,7 @@ from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes, \
     path_isdir, path_isfile, path_exists
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, getList, unaccented, \
-    cleanName, replace_all, replace_with, split_title, now, makeUnicode, makeBytestr, \
-    formatAuthorName, makeUTF8bytes
+    cleanName, replace_all, replace_with, split_title, now, makeUnicode, formatAuthorName, makeUTF8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -716,7 +715,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
-                elif not path_isdir(makeBytestr(rootdir)):
+                elif not path_isdir(rootdir):
                     logger.debug("Directory %s missing (renamed?)" % repr(rootdir))
                 else:
                     # If this is a book, try to get author/title/isbn/language
@@ -1260,8 +1259,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # location may have changed since last scan
                                             if book_filename and book_filename != check_status['AudioFile']:
-                                                if check_status['AudioFile'] and \
-                                                        str(check_status['AudioFile']) != 'None':
+                                                if check_status['AudioFile'] and check_status['AudioFile'] != 'None':
                                                     modified_count += 1
                                                     logger.warn("Updating audiobook location for %s %s from %s to %s" %
                                                                 (author, book, check_status['AudioFile'],
