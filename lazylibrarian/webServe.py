@@ -2567,7 +2567,7 @@ class WebInterface(object):
 
                     if not row[9]:
                         row[9] = ''
-                    elif row[9].startswith('/works/'):
+                    elif row[9].startswith('/works/OL'):
                         ref = lazylibrarian.CONFIG['OL_URL'] + row[9]
                         sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
 
@@ -3289,7 +3289,7 @@ class WebInterface(object):
         authors = myDB.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID from books,authors '
+        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID, LT_WorkID from books,authors '
         cmd += 'WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = myDB.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '
@@ -3840,8 +3840,16 @@ class WebInterface(object):
         if maxcount and len(results) > maxcount:
             results = results[:maxcount]
             title = "%s (Top %i)" % (title, len(results))
+        ret = []
+        for result in results:
+            item = dict(result)
+            if not item['BookLink']:
+                item['BookLink'] = ''
+            elif item['BookLink'].startswith('/works/OL'):
+                item['BookLink'] = lazylibrarian.CONFIG['OL_URL'] + item['BookLink']
+            ret.append(item)
         return serve_template(
-            templatename="coverwall.html", title=title, results=results, redirect="books", have=have,
+            templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
             columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
