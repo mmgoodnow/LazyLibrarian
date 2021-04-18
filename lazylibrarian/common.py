@@ -36,7 +36,7 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 if PY2:
-    import codecs
+    from io import open
 import re
 import ssl
 import sqlite3
@@ -1540,10 +1540,7 @@ def saveLog():
     outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
     set_redactlist()
 
-    if PY2:
-        out = codecs.open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
-    else:
-        out = open(syspath(outfile + '.tmp'), 'w')
+    out = open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
 
     nextfile = True
     extn = 0
@@ -1559,10 +1556,10 @@ def saveLog():
             logger.debug('Processing logfile [%s]' % fname)
             linecount = 0
             if PY2:
-                lines = reversed(open(fname).readlines())
+                lines = reversed(open(syspath(fname), 'r', encoding="utf-8").readlines())
                 lines = [makeUnicode(lyne) for lyne in lines]
             else:
-                lines = reversed(list(open(fname)))
+                lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
                 for item in lazylibrarian.REDACTLIST:
                     if item in line:
@@ -1586,31 +1583,28 @@ def saveLog():
             extn += 1
 
     if path_exists(lazylibrarian.CONFIGFILE):
-        out.write('---END-CONFIG---------------------------------\n')
+        out.write(u'---END-CONFIG---------------------------------\n')
         if PY2:
-            lines = reversed(open(lazylibrarian.CONFIGFILE).readlines())
+            lines = reversed(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8").readlines())
             lines = [makeUnicode(lyne) for lyne in lines]
         else:
-            lines = reversed(list(open(lazylibrarian.CONFIGFILE)))
+            lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
         for line in lines:
             for item in lazylibrarian.REDACTLIST:
                 if item in line:
                     line = line.replace(item, '<redacted>')
                     redacts += 1
             out.write(line)
-        out.write('---CONFIG-------------------------------------\n')
+        out.write(u'---CONFIG-------------------------------------\n')
     out.close()
-    if PY2:
-        logfile = codecs.open(syspath(outfile + '.log'), 'w', encoding='utf-8')
-    else:
-        logfile = open(syspath(outfile + '.log'), 'w')
+    logfile = open(syspath(outfile + '.log'), 'w', encoding='utf-8')
     logfile.write(logHeader())
     linecount = 0
     if PY2:
-        lines = reversed(open(outfile + '.tmp').readlines())
+        lines = reversed(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8").readlines())
         lines = [makeUnicode(lyne) for lyne in lines]
     else:
-        lines = reversed(list(open(outfile + '.tmp')))
+        lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
     for line in lines:
         logfile.write(line)
         linecount += 1

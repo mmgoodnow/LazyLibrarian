@@ -39,6 +39,10 @@ try:
 except ImportError:
     TinyTag = None
 
+from six import PY2
+if PY2:
+    from io import open
+
 
 def preprocess_ebook(bookfolder):
     logger.debug("Preprocess ebook %s" % bookfolder)
@@ -213,7 +217,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     else:
         ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS']
 
-    with open(partslist, 'w') as f:
+    with open(partslist, 'w', encoding="utf-8") as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
 
@@ -328,8 +332,8 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             if part_durations:
                 part_durations.sort(key=lambda x: x[0])
                 start = 0
-                with open(metadata, 'r') as f:
-                    with open(os.path.join(bookfolder, "newmetadata.ll"), 'w') as o:
+                with open(metadata, 'r', encoding="utf-8") as f:
+                    with open(os.path.join(bookfolder, "newmetadata.ll"), 'w', encoding="utf-8") as o:
                         for lyne in f.readlines():
                             if not lyne.startswith('[CHAPTER]') and not lyne.startswith('TIMEBASE='):
                                 if not lyne.startswith('START=') and not lyne.startswith('END='):
@@ -338,7 +342,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     remove(metadata)
                     os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
 
-                with open(metadata, 'a') as f:
+                with open(metadata, 'a', encoding="utf-8") as f:
                     for item in part_durations:
                         if item[0]:
                             f.write("[CHAPTER]\nTIMEBASE=1/1000\n")

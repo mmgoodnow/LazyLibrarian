@@ -31,6 +31,7 @@ from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import update_totals, addAuthorNameToDB, search_for
 from lazylibrarian.preprocessor import preprocess_audio
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -1165,9 +1166,9 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                 # see if it's there now...
                                 if bookid:
-                                    cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, '
-                                    cmd += ' AudioFile, AuthorName, BookName from books,authors where '
-                                    cmd += ' books.AuthorID = authors.AuthorID and BookID=?'
+                                    cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, AudioFile, '
+                                    cmd += 'AuthorName, BookName, BookID, BookDesc, BookGenre from books,authors '
+                                    cmd += 'where books.AuthorID = authors.AuthorID and BookID=?'
                                     check_status = myDB.match(cmd, (bookid,))
 
                                     if not check_status:
@@ -1182,9 +1183,15 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                     'UPDATE books set Status=?, BookLibrary=? where BookID=?',
                                                     (lazylibrarian.CONFIG['FOUND_STATUS'], now(), bookid))
 
-                                            # check and store book location so we can check if it gets (re)moved
+                                            # create an opf file if there isn't one
                                             book_filename = os.path.join(rootdir, files)
+                                            _ = lazylibrarian.postprocess.createOPF(os.path.dirname(book_filename),
+                                                                                    check_status,
+                                                                                    os.path.splitext(os.path.basename(
+                                                                                        book_filename))[0],
+                                                                                    overwrite=False)
 
+                                            # check and store book location so we can check if it gets (re)moved
                                             book_basename = os.path.splitext(book_filename)[0]
                                             booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
                                             for book_type in booktype_list:

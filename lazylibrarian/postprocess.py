@@ -28,6 +28,8 @@ import uuid
 
 import lazylibrarian
 from six import PY2
+if PY2:
+    from io import open
 
 try:
     import zipfile
@@ -2482,7 +2484,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                             logger.warn("calibredb unable to set opf")
 
                     tags = ''
-                    if booktype == 'ebook':
+                    if booktype == 'ebook' and lazylibrarian.CONFIG['OPF_TAGS']:
                         if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
                             tags = data['BookGenre']
                         if lazylibrarian.CONFIG['WISHLIST_TAGS']:
@@ -2677,8 +2679,8 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
             myDB = database.DBConnection()
             data = myDB.match(cmd, (bookid,))
-            processIMG(pp_path, bookid, data['BookImg'], global_name, 'book')
-            _, _ = createOPF(pp_path, data, global_name, True)
+            processIMG(pp_path, bookid, data['BookImg'], makeUnicode(global_name), 'book')
+            _ = createOPF(pp_path, data, makeUnicode(global_name), True)
 
         # for ebooks, prefer the first book_type found in ebook_type list
         if booktype == 'ebook':
@@ -2825,10 +2827,9 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
     #     logger.debug('Not creating coverfile, bookonly is set')
     #     return
 
-    jpgfile = jpg_file(dest_path)
-    if not overwrite and jpgfile:
-        logger.debug('Cover %s already exists' % jpgfile)
-        setperm(jpgfile)
+    coverfile = jpg_file(dest_path)
+    if not overwrite and coverfile:
+        logger.debug('Cover %s already exists' % coverfile)
         return
 
     if bookimg.startswith('cache/'):
@@ -2843,8 +2844,8 @@ def processIMG(dest_path=None, bookid=None, bookimg=None, global_name=None, cach
             return
         cachefile = os.path.join(lazylibrarian.CACHEDIR, cache, bookid + '.jpg')
 
-    coverfile = os.path.join(dest_path, global_name + '.jpg')
     try:
+        coverfile = os.path.join(dest_path, global_name + '.jpg')
         coverfile = safe_copy(cachefile, coverfile)
         setperm(coverfile)
     except Exception as e:
@@ -2927,11 +2928,10 @@ def createMAGOPF(issuefile, authors, title, issue, issueID, overwrite=False):
 
 def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     opfpath = os.path.join(dest_path, global_name + '.opf')
-    if lazylibrarian.CONFIG['OPF_TAGS']:
-        if not overwrite and path_exists(opfpath):
-            logger.debug('%s already exists. Did not create one.' % opfpath)
-            setperm(opfpath)
-            return opfpath, False
+    if not overwrite and path_exists(opfpath):
+        logger.debug('%s already exists. Did not create one.' % opfpath)
+        setperm(opfpath)
+        return opfpath, False
 
     data = dict(data)
 
@@ -3060,14 +3060,8 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
 
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
     opfinfo = makeUnicode(replace_all(opfinfo, dic))
-    if PY2:
-        import codecs
-        with codecs.open(syspath(opfpath), 'w', encoding='utf-8') as opf:
-            opf.write(opfinfo)
-    else:
-        # noinspection PyArgumentList
-        with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
-            opf.write(opfinfo)
+    with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
+        opf.write(opfinfo)
     logger.debug('Saved metadata to: ' + opfpath)
     setperm(opfpath)
     return opfpath, True
