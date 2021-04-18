@@ -17,7 +17,7 @@
       <a class="button btn btn-sm btn-primary" href="userAdmin"><i class="fa fa-user"></i> User Admin</a>
       %endif
       %if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-      <button class="button btn btn-sm btn-primary" type="button" value="move_to_ol" id="move_to_ol"></i>Move to OpenLibrary</button>
+      <button class="button btn btn-sm btn-primary" type="button" value="move_to_ol" id="move_to_ol">Move to OpenLibrary</button>
       %endif
      <button class="hidden" onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Checking, please wait...</button>
     </div>
@@ -2590,7 +2590,7 @@
                     %>
                     <label for="opf_tags">
                       <input type="checkbox" id="opf_tags" name="opf_tags" value="1" ${checked} />
-                      Add tags included with download to Calibre</label>
+                      Add genre and wishlist tags to Calibre</label>
                   </div>
                   <div class="checkbox">
                     <%
