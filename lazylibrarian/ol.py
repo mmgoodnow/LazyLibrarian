@@ -290,7 +290,7 @@ class OpenLibrary:
         if not self.lt_cache:
             librarything_wait()
 
-        data, self.lt_cache = html_request(self.LT_NSERIES + series_id)
+        data, self.lt_cache = html_request(self.LT_NSERIES + str(series_id))
         results = []
         if data:
             try:
