@@ -47,7 +47,7 @@ def checkLink():
     return "SABnzbd connection successful, version %s" % vers['version']
 
 
-def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
+def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None):
 
     if nzburl in ['delete', 'delhistory'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
@@ -85,6 +85,8 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         params['output'] = 'json'
         if search:
             params['search'] = search
+        if nzo_ids:
+            params['nzo_ids'] = nzo_ids
         if lazylibrarian.CONFIG['SAB_CAT']:
             params['category'] = lazylibrarian.CONFIG['SAB_CAT']
         if lazylibrarian.CONFIG['SAB_USER']:
@@ -100,6 +102,8 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None):
         params['output'] = 'json'
         if search:
             params['search'] = search
+        if nzo_ids:
+            params['nzo_ids'] = nzo_ids
         if lazylibrarian.CONFIG['SAB_CAT']:
             params['category'] = lazylibrarian.CONFIG['SAB_CAT']
         if lazylibrarian.CONFIG['SAB_USER']:
