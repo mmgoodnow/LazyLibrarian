@@ -338,6 +338,9 @@ def syspath(path, prefix=True):
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, text_type)))
+
     if os.path.__name__ != 'ntpath':
         if PY2:
             return makeBytestr(path)
