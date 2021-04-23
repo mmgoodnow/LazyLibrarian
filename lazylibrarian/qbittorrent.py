@@ -33,7 +33,7 @@ from lazylibrarian.common import getUserAgent
 from lazylibrarian.formatter import check_int, getList, makeBytestr, makeUnicode
 
 
-class qbittorrentclient(object):
+class QbittorrentClient(object):
     # TOKEN_REGEX = "<div id='token' style='display:none;'>([^<>]+)</div>"
     # UTSetting = namedtuple("UTSetting", ["name", "int", "str", "access"])
 
@@ -172,6 +172,9 @@ class qbittorrentclient(object):
             return False
 
     def _get_list(self):
+        """
+        :rtype: dict
+        """
         if self.hashid:
             args = {'hashes': self.hashid}
         else:
@@ -258,7 +261,7 @@ def getProgress(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('getProgress(%s)' % hashid)
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug("Failed to login to qBittorrent")
@@ -307,7 +310,7 @@ def removeTorrent(hashid, remove_data=False):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('removeTorrent(%s,%s)' % (hashid, remove_data))
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return False
@@ -337,7 +340,7 @@ def removeTorrent(hashid, remove_data=False):
 def checkLink():
     """ Check we can talk to qbittorrent"""
     try:
-        qbclient = qbittorrentclient()
+        qbclient = QbittorrentClient()
         if qbclient.cmdset:
             # qbittorrent creates a new label if needed
             # can't see how to get a list of known labels to check against
@@ -352,11 +355,12 @@ def addTorrent(link, hashid):
         logger.debug('addTorrent(%s)' % link)
     args = {}
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
+    args['paused'] = 'false'
     dl_dir = lazylibrarian.CONFIG['QBITTORRENT_DIR']
     if dl_dir:
         args['savepath'] = dl_dir
@@ -402,7 +406,7 @@ def addFile(data, hashid, title):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('addFile(data)')
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         res = "Failed to login to qBittorrent"
         logger.debug(res)
@@ -440,7 +444,7 @@ def getName(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('getName(%s)' % hashid)
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return ''
@@ -466,7 +470,7 @@ def getFiles(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('getFiles(%s)' % hashid)
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return ''
@@ -486,7 +490,7 @@ def getFolder(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('getFolder(%s)' % hashid)
     hashid = hashid.lower()
-    qbclient = qbittorrentclient()
+    qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return None
