@@ -213,6 +213,8 @@ def get_book_info(fname):
                 res['language'] = txt
             elif 'publisher' in tag:
                 res['publisher'] = txt
+            elif 'narrator' in tag:
+                res['narrator'] = txt
             elif 'creator' in tag and 'creator' not in res:
                 # take the first author name if multiple authors
                 res['creator'] = txt
@@ -739,6 +741,7 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                         gb_id = ""
                         ol_id = ""
                         publisher = ""
+                        narrator = ""
                         extn = os.path.splitext(files)[1]
 
                         # if it's an epub or a mobi we can try to read metadata from it
@@ -791,6 +794,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 isbn = res['identifier']
                             if 'publisher' in res:
                                 publisher = res['publisher']
+                            if 'narrator' in res:
+                                narrator = res['narrator']
                             ident = ''
                             if 'gr_id' in res:
                                 gr_id = res['gr_id']
@@ -802,8 +807,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 ol_id = res['ol_id']
                                 ident = "OL: " + ol_id
                             logger.debug(
-                                "file meta [%s] [%s] [%s] [%s] [%s] [%s]" % (
-                                    isbn, language, author, book, ident, publisher))
+                                "file meta [%s] [%s] [%s] [%s] [%s] [%s] [%s]" % (
+                                    isbn, language, author, book, ident, publisher, narrator))
                             if not author or not book:
                                 logger.debug("File meta incomplete in %s" % metafile)
 
@@ -812,7 +817,11 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                             # or audiobook which may have id3 tags
                             if is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
-                                author, book = id3read(filename)
+                                id3tags = id3read(filename)
+                                author = id3tags['author']
+                                book = id3tags['title']
+                                if not narrator:
+                                    narrator = id3tags['narrator']
 
                         if not author or not book:
                             # try for details from a special file
@@ -1167,8 +1176,8 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                 # see if it's there now...
                                 if bookid:
                                     cmd = 'SELECT books.Status, books.AuthorID, AudioStatus, BookFile, AudioFile, '
-                                    cmd += 'AuthorName, BookName, BookID, BookDesc, BookGenre from books,authors '
-                                    cmd += 'where books.AuthorID = authors.AuthorID and BookID=?'
+                                    cmd += 'AuthorName, BookName, BookID, BookDesc, BookGenre,Narrator '
+                                    cmd += 'from books,authors where books.AuthorID = authors.AuthorID and BookID=?'
                                     check_status = myDB.match(cmd, (bookid,))
 
                                     if not check_status:
@@ -1231,6 +1240,11 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
                                                                     (check_status['AuthorID'],))
 
                                         elif library == 'AudioBook':
+                                            if 'narrator' and not check_status['Narrator']:
+                                                myDB.action("update books set narrator=? where bookid=?", (narrator,
+                                                                                                           bookid))
+                                                check_status = myDB.match(cmd, (bookid,))
+
                                             if check_status['AudioStatus'] != 'Open':
                                                 # we found a new audiobook
                                                 new_book_count += 1
@@ -1240,6 +1254,11 @@ def LibraryScan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # store audiobook location so we can check if it gets (re)moved
                                             book_filename = os.path.join(rootdir, files)
+                                            # create an opf if there isn't one
+                                            _ = lazylibrarian.postprocess.createOPF(os.path.dirname(book_filename),
+                                                                                    check_status,
+                                                                                    check_status['BookName'],
+                                                                                    overwrite=False)
                                             # link to the first part of multi-part audiobooks
                                             tokmatch = ''
                                             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '01']:

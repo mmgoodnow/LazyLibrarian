@@ -18,7 +18,7 @@ import subprocess
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookrename import audio_parts, nameVars
+from lazylibrarian.bookrename import audio_parts, nameVars, id3read
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm
 from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrinkMag
@@ -33,11 +33,6 @@ except ImportError:
     except ImportError:
         PdfFileWriter = None
         PdfFileReader = None
-
-try:
-    from lib.tinytag import TinyTag
-except ImportError:
-    TinyTag = None
 
 from six import PY2
 if PY2:
@@ -395,16 +390,22 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             myDB = database.DBConnection()
             match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
             audio_path = os.path.join(bookfolder, parts[0][3])
-            if match and TinyTag and TinyTag.is_supported(audio_path):
-                id3r = TinyTag.get(audio_path)
-                artist = id3r.artist
-                composer = id3r.composer
-                album_artist = id3r.albumartist
-                album = id3r.album
+            if match:
+                id3r = id3read(audio_path)
+                if not match['Narrator'] and id3r['narrator']:
+                    myDB.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
+                # noinspection PyUnusedLocal
+                artist = id3r['artist']
+                # noinspection PyUnusedLocal
+                composer = id3r['composer']
+                # noinspection PyUnusedLocal
+                album_artist = id3r['albumartist']
+                # noinspection PyUnusedLocal
+                album = id3r['album']
                 # title = id3r.title
                 # "unused" locals are used in eval() statement below
                 # noinspection PyUnusedLocal
-                comment = id3r.comment
+                comment = id3r['comment']
                 # noinspection PyUnusedLocal
                 author = authorname
                 # noinspection PyUnusedLocal
@@ -418,18 +419,6 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 if date == '0000':
                     # noinspection PyUnusedLocal
                     date = ''
-                if artist:
-                    # noinspection PyUnusedLocal
-                    artist = artist.strip().rstrip('\x00')
-                if composer:
-                    # noinspection PyUnusedLocal
-                    composer = composer.strip().rstrip('\x00')
-                if album:
-                    # noinspection PyUnusedLocal
-                    album = album.strip().rstrip('\x00')
-                if album_artist:
-                    # noinspection PyUnusedLocal
-                    album_artist = album_artist.strip().rstrip('\x00')
 
                 if bookfile:
                     title = bookfile

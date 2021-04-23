@@ -326,10 +326,14 @@ def processAlternate(source_dir=None, library='eBook'):
             if not new_book:
                 logger.warn("No audiobook file found in %s" % source_dir)
                 return False
-            author, book = id3read(new_book)
+            id3r = id3read(new_book)
+            author = id3r['author']
+            book = id3r['title']
+
             if author and book:
                 metadata['creator'] = author
                 metadata['title'] = book
+                metadata['narrator'] = id3r['narrator']
 
         if 'title' not in metadata or 'creator' not in metadata:
             author, book = get_book_meta(source_dir, "postprocess")
@@ -423,7 +427,9 @@ def processAlternate(source_dir=None, library='eBook'):
                         logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
                 else:
-                    res = myDB.match("SELECT AudioStatus from books WHERE BookID=?", (bookid,))
+                    res = myDB.match("SELECT AudioStatus,Narrator from books WHERE BookID=?", (bookid,))
+                    if metadata.get('narrator', '') and res and not res['Narrator']:
+                        myDB.action("update books set narrator=? where bookid=?", (metadata['narrator'], bookid))
                     if res and res['AudioStatus'] == 'Ignored':
                         logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
@@ -1646,19 +1652,41 @@ def getDownloadName(title, source, downloadid):
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         elif source == 'SABNZBD':
-            res, _ = sabnzbd.SABnzbd(nzburl='queue')
+            cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
+            myDB = database.DBConnection()
+            data = myDB.match(cmd, (downloadid, source))
+            search = None
+            if data:
+                search = data['NZBtitle']
+            if search:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            else:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', nzo_ids=downloadid)
             found = False
             if res and 'queue' in res:
+                if search:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), search))
+                else:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), downloadid))
                 for item in res['queue']['slots']:
                     if item['nzo_id'] == downloadid:
                         found = True
                         dlname = item['filename']
                         break
             if not found:  # not in queue, try history in case completed or error
-                res, _ = sabnzbd.SABnzbd(nzburl='history')
+                if search:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                else:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', nzo_ids=downloadid)
+
                 if res and 'history' in res:
+                    if search:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), search))
+                    else:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), downloadid))
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
+                            # logger.debug(str(item))
                             dlname = item['name']
                             break
         return dlname
@@ -1740,22 +1768,37 @@ def getDownloadFolder(source, downloadid):
 
         elif source == 'SABNZBD':
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
-            search = None
             myDB = database.DBConnection()
             data = myDB.match(cmd, (downloadid, source))
+            search = None
             if data:
                 search = data['NZBtitle']
-            res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            if search:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            else:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', nzo_ids=downloadid)
             if res and 'queue' in res:
+                if search:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), search))
+                else:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), downloadid))
                 for item in res['queue']['slots']:
                     if item['nzo_id'] == downloadid:
                         dlfolder = None  # still in queue, not unpacked
                         break
             if not dlfolder:  # not in queue, try history
-                res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                if search:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                else:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', nzo_ids=downloadid)
                 if res and 'history' in res:
+                    if search:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), search))
+                    else:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), downloadid))
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
+                            # logger.debug(str(item))
                             dlfolder = item.get('storage')
                             break
 
@@ -1822,24 +1865,40 @@ def getDownloadProgress(source, downloadid):
             data = myDB.match(cmd, (downloadid, source))
             if data:
                 search = data['NZBtitle']
-            res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            if search:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', search=search)
+            else:
+                res, _ = sabnzbd.SABnzbd(nzburl='queue', nzo_ids=downloadid)
             found = False
             if not res:
                 progress = 0
             elif 'queue' in res:
+                if search:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), search))
+                else:
+                    logger.debug("SAB queue returned %s for %s" % (len(res['queue']['slots']), downloadid))
                 for item in res['queue']['slots']:
                     if item['nzo_id'] == downloadid:
                         found = True
+                        # logger.debug(str(item))
                         progress = item['percentage']
                         break
             if not found:  # not in queue, try history in case completed or error
-                res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                if search:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', search=search)
+                else:
+                    res, _ = sabnzbd.SABnzbd(nzburl='history', nzo_ids=downloadid)
                 if not res:
                     progress = 0
                 elif 'history' in res:
+                    if search:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), search))
+                    else:
+                        logger.debug("SAB history returned %s for %s" % (len(res['history']['slots']), downloadid))
                     for item in res['history']['slots']:
                         if item['nzo_id'] == downloadid:
                             found = True
+                            # logger.debug(str(item))
                             # 100% if completed, 99% if still extracting or repairing, -1 if not found or failed
                             if item['status'] == 'Completed' and not item['fail_message']:
                                 progress = 100
@@ -2244,8 +2303,8 @@ def processExtras(dest_file=None, global_name=None, bookid=None, book_type="eBoo
     elif book_type != 'eBook':  # only do autoadd/img/opf for ebooks
         return
 
-    cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate'
-    cmd += ' from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+    cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,BookRate,'
+    cmd += 'Narrator from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
     data = myDB.match(cmd, (bookid,))
     if not data:
         logger.error('No data found for bookid %s' % bookid)
@@ -2438,9 +2497,9 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
             if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
                 # we can pass an opf with all the info, and a cover image
                 myDB = database.DBConnection()
-                if booktype == 'ebook':
+                if booktype in ['ebook', 'audiobook']:
                     cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
-                    cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
+                    cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
                     cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
                     data = myDB.match(cmd, (bookid,))
                 elif booktype == 'comic':
@@ -2454,7 +2513,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
                     logger.error('No data found for bookid %s' % bookid)
                 else:
                     opfpath = ''
-                    if booktype == 'ebook':
+                    if booktype in ['ebook', 'audiobook']:
                         processIMG(pp_path, bookid, data['BookImg'], global_name, 'book')
                         opfpath, our_opf = createOPF(pp_path, data, global_name, True)
                         # if we send an opf, does calibre update the book-meta as well?
@@ -2675,7 +2734,7 @@ def processDestination(pp_path=None, dest_path=None, global_name=None, data=None
 
         if booktype in ['ebook', 'audiobook']:
             cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,'
-            cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre from books,authors '
+            cmd += 'BookPub,BookRate,Requester,AudioRequester,BookGenre,Narrator from books,authors '
             cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
             myDB = database.DBConnection()
             data = myDB.match(cmd, (bookid,))
@@ -3020,7 +3079,9 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
                    (surnameFirst(data['AuthorName']), data['AuthorName'])
-
+    if data['Narrator']:
+        opfinfo += '        <dc:creator opf:file-as="%s" opf:role="narrator">%s</dc:creator>\n' % \
+                       (surnameFirst(data['Narrator']), data['Narrator'])
     if 'BookIsbn' in data and data['BookIsbn']:
         opfinfo += '        <dc:identifier scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 
@@ -3052,19 +3113,29 @@ def createOPF(dest_path=None, data=None, global_name=None, overwrite=False):
     elif 'Series_index' in data:
         opfinfo += '        <meta content="%s" name="calibre:series_index"/>\n' % data['Series_index']
 
+    coverfile = jpg_file(dest_path)
+    if coverfile:
+        coverfile = os.path.basename(coverfile)
+    else:
+        coverfile = 'cover.jpg'
+
     opfinfo += '        <guide>\n\
-            <reference href="%s.jpg" type="cover" title="Cover"/>\n\
+            <reference href="%s" type="cover" title="Cover"/>\n\
         </guide>\n\
     </metadata>\n\
-</package>' % global_name  # file in current directory, not full path
+</package>' % coverfile  # file in current directory, not full path
 
     dic = {'...': '', ' & ': ' ', ' = ': ' ', '$': 's', ' + ': ' ', '*': ''}
     opfinfo = makeUnicode(replace_all(opfinfo, dic))
-    with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
-        opf.write(opfinfo)
-    logger.debug('Saved metadata to: ' + opfpath)
-    setperm(opfpath)
-    return opfpath, True
+    try:
+        with open(syspath(opfpath), 'w', encoding='utf-8') as opf:
+            opf.write(opfinfo)
+        logger.debug('Saved metadata to: ' + opfpath)
+        setperm(opfpath)
+        return opfpath, True
+    except Exception as e:
+        logger.error("Error creating opf %s, %s %s" % (opfpath, type(e).__name__, str(e)))
+        return '', False
 
 
 def write_meta(book_folder, opf):

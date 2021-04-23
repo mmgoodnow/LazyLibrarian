@@ -134,8 +134,8 @@ GC_AFTER = {}
 UNRARLIB = 0
 RARFILE = None
 REDACTLIST = []
-FFMPEGVER = None
-FFMPEGAAC = None
+FFMPEGVER = ''
+FFMPEGAAC = ''
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -215,7 +215,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMNS', 'HTTP_TIMEOUT',
                  'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'AUDIO_NARRATOR', 'AUDIO_AUTHOR',
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT',
                  'DELUGE_TIMEOUT', 'OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',

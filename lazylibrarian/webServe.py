@@ -2563,7 +2563,8 @@ class WebInterface(object):
                         row[10] = ''
                         row[20] = ''
 
-                    editpage = '<a href="editBook?bookid=' + row[6] + '" target="_new"><small><i>Manual</i></a>'
+                    editpage = '<a href="editBook?bookid=' + row[6] + '&library=' + library + \
+                        '" target="_new"><small><i>Manual</i></a>'
 
                     if not row[9]:
                         row[9] = ''
@@ -3282,20 +3283,23 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
-    def editBook(self, bookid=None):
+    def editBook(self, bookid=None, library='eBook'):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('EDIT_BOOK')
         myDB = database.DBConnection()
         authors = myDB.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID, LT_WorkID from books,authors '
-        cmd += 'WHERE books.AuthorID = authors.AuthorID and BookID=?'
+        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator '
+        cmd += 'from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = myDB.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '
         cmd += 'where series.SeriesID=member.SeriesID and BookID=?'
         seriesdict = myDB.select(cmd, (bookid,))
         if bookdata:
+            bookdata = dict(bookdata)
+            if library != "AudioBook":
+                bookdata.pop('Narrator', None)
             covers = []
             sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
                        'googleisbn', 'googleimage']

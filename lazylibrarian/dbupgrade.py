@@ -104,8 +104,9 @@ from lazylibrarian.ol import OpenLibrary
 # 68 Add completed time to wanted table
 # 69 Add LT_WorkID to books table and AKA to authors
 # 70 Add gr_id to books and authors tables
+# 71 Add narrator to books table
 
-db_current_version = 70
+db_current_version = 71
 
 
 def upgrade_needed():
@@ -222,7 +223,7 @@ def dbupgrade(current_version):
                                 'WorkPage TEXT, Manual TEXT, SeriesDisplay TEXT, BookLibrary TEXT, ' +
                                 'AudioFile TEXT, AudioLibrary TEXT, AudioStatus TEXT, WorkID TEXT, ' +
                                 'ScanResult TEXT, OriginalPubDate TEXT, Requester TEXT, AudioRequester TEXT, ' +
-                                'LT_WorkID TEXT)')
+                                'LT_WorkID TEXT, Narrator TEXT)')
                     myDB.action('CREATE TABLE issues (Title TEXT REFERENCES magazines (Title) ' +
                                 'ON DELETE CASCADE, IssueID TEXT UNIQUE, IssueAcquired TEXT, IssueDate TEXT, ' +
                                 'IssueFile TEXT, Cover TEXT)')
@@ -1151,6 +1152,11 @@ def update_schema(myDB, upgradelog):
         lazylibrarian.UPDATE_MSG = "Copied bookid for %s books (from %s)" % (cnt, tot)
         logger.debug(lazylibrarian.UPDATE_MSG)
         upgradelog.write("%s v70: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+    if not has_column(myDB, "books", "Narrator"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Narrator to books table'
+        upgradelog.write("%s v71: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        myDB.action('ALTER TABLE books ADD COLUMN Narrator TEXT')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

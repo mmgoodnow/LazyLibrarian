@@ -30,9 +30,10 @@ except ImportError:
 
 
 def id3read(filename):
+    mydict = {}
     if not TinyTag:
         logger.warn("TinyTag library not available")
-        return None, None
+        return mydict
 
     filename = syspath(filename)
     # noinspection PyBroadException
@@ -42,7 +43,7 @@ def id3read(filename):
         res = False
     if not res:
         logger.warn("TinyTag:unsupported [%s]" % filename)
-        return None, None
+        return mydict
 
     # noinspection PyBroadException
     try:
@@ -92,10 +93,16 @@ def id3read(filename):
         # ALBUMARTIST     Author
         # COMPOSER    Narrator
         author = ''
+        narrator = ''
         if albumartist:
             author = albumartist
+            if composer:
+                narrator = composer
+        elif len(artist.split(',')) == 2:
+            author, narrator = artist.split(',')
         elif artist and composer and artist != composer:
-            author = artist.split(',', 1)[0]
+            author = artist
+            narrator = composer
 
         if not author:
             # if artist exists in library, should be author. Unlikely to get one author narrating anothers books?
@@ -116,11 +123,27 @@ def id3read(filename):
             lst = ', '.join(author)
             logger.debug("id3reader author list [%s]" % lst)
             author = author[0]  # if multiple authors, just use the first one
-        if author and album:
-            return makeUnicode(author), makeUnicode(album)
+
+        mydict['artist'] = artist
+        mydict['composer'] = composer
+        mydict['album'] = album
+        mydict['albumartist'] = albumartist
+        mydict['title'] = title
+        mydict['track'] = track
+        mydict['track_total'] = track_total
+        mydict['comment'] = comment
+
+        mydict['author'] = author
+        mydict['narrator'] = narrator
+        if not title:
+            mydict['title'] = album
+
+        for item in mydict:
+            mydict[item] = makeUnicode(mydict[item])
+
     except Exception:
         logger.error("tinytag error %s" % traceback.format_exc())
-    return None, None
+    return mydict
 
 
 def audio_parts(folder, bookname, authorname):
@@ -141,43 +164,23 @@ def audio_parts(folder, bookname, authorname):
                 audio_file = f
                 try:
                     audio_path = os.path.join(folder, f)
-                    artist = ''
-                    composer = ''
-                    albumartist = ''
-                    comment = ''
-                    book = ''
-                    title = ''
-                    track = 0
-                    if TinyTag.is_supported(audio_path):
-                        id3r = TinyTag.get(audio_path)
-                        artist = id3r.artist
-                        composer = id3r.composer
-                        albumartist = id3r.albumartist
-                        book = id3r.album
-                        title = id3r.title
-                        comment = id3r.comment
-                        track = id3r.track
-                        total = id3r.track_total
+                    id3r = id3read(audio_path)
+                    artist = id3r['artist']
+                    composer = id3r['composer']
+                    albumartist = id3r['albumartist']
+                    book = id3r['album']
+                    title = id3r['title']
+                    comment = id3r['comment']
+                    track = id3r['track']
+                    total = id3r['track_total']
 
-                        track = check_int(track, 0)
-                        total = check_int(total, 0)
+                    track = check_int(track, 0)
+                    total = check_int(total, 0)
 
-                        if artist:
-                            artist = artist.strip().rstrip('\x00')
-                        if composer:
-                            composer = composer.strip().rstrip('\x00')
-                        if book:
-                            book = book.strip().rstrip('\x00')
-                        if albumartist:
-                            albumartist = albumartist.strip().rstrip('\x00')
+                    author = id3r['author']
+                    if not book:
+                        book = id3r['title']
 
-                    author = ''
-                    if composer:  # if present, should be author
-                        author = composer
-                    elif albumartist:  # author, or narrator if composer == author
-                        author = albumartist
-                    elif artist:
-                        author = artist
                     if author and book:
                         parts.append([track, book, author, f])
                     if not abridged:
@@ -193,7 +196,7 @@ def audio_parts(folder, bookname, authorname):
                                 break
 
                 except Exception as e:
-                    logger.error("tinytag %s %s" % (type(e).__name__, str(e)))
+                    logger.error("id3tag %s %s" % (type(e).__name__, str(e)))
                     pass
                 finally:
                     if not abridged:
@@ -243,6 +246,10 @@ def audio_parts(folder, bookname, authorname):
                 logger.debug("No usable track info from id3")
             else:
                 logger.debug("No track info from id3")
+
+            if len(parts) == 1:
+                return parts, failed, '', abridged
+
             failed = False
             # try to extract part information from filename. Search for token style of part 1 in this order...
             for token in [' 001.', ' 01.', ' 1.', ' 001 ', ' 01 ', ' 1 ', '001', '01']:

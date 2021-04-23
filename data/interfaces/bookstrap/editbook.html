@@ -65,6 +65,12 @@
             <label for="bookgenre" class="control-label">Genre:</label>
             <input type="text" id="bookgenre" name="bookgenre" value="${config['BookGenre']}" class="form-control" placeholder="Comma separated list of genres">
         </div>
+        %if 'narrator' in config:
+        <div class="form-group">
+            <label for="narrator" class="control-label">Narrator:</label>
+            <input type="text" id="narrator" name="narrator" value="${config['narrator']}" class="form-control" placeholder="Audiobook narrator">
+        </div>
+        %endif
         <div class="form-group">
             <label for="scanresult">Added by</label>
             <input id="scanresult" name="scanresult" class="form-control" placeholder="Reason for adding/rejecting"
