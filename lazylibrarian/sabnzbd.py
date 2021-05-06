@@ -19,35 +19,38 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import proxyList
-from lazylibrarian.formatter import check_int, makeUTF8bytes
+from lazylibrarian.common import proxy_list
+from lazylibrarian.formatter import check_int, make_utf8bytes, versiontuple
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import urlencode
 
 
-def checkLink():
+def check_link():
     # connection test, check host/port
-    auth, _ = SABnzbd(nzburl='auth')
+    auth, _ = sab_nzbd(nzburl='auth')
     if not auth:
-        return "Unable to talk to SABnzbd, check HOST/PORT/SUBDIR"
-    vers, _ = SABnzbd(nzburl='version')
+        return "Unable to talk to sab_nzbd, check HOST/PORT/SUBDIR"
+    vers, _ = sab_nzbd(nzburl='version')
     if not vers or 'version' not in vers:
+        lazylibrarian.SAB_VER = (0, 0, 0)
         vers = {'version': 'unknown'}
+    else:
+        lazylibrarian.SAB_VER = versiontuple(vers['version'])
     # check apikey is valid
-    cats, _ = SABnzbd(nzburl='get_cats')  # type: dict
+    cats, _ = sab_nzbd(nzburl='get_cats')  # type: dict
     if not cats:
-        return "Unable to talk to SABnzbd, check APIKEY"
+        return "Unable to talk to sab_nzbd, check APIKEY"
     # check category exists
     if lazylibrarian.CONFIG['SAB_CAT']:
         if 'categories' not in cats or not len(cats['categories']):
-            return "Failed to get SABnzbd categories: %s" % str(cats)
+            return "Failed to get sab_nzbd categories: %s" % str(cats)
         if lazylibrarian.CONFIG['SAB_CAT'] not in cats['categories']:
-            return "SABnzbd: Unknown category [%s]\nValid categories:\n%s" % (
+            return "sab_nzbd: Unknown category [%s]\nValid categories:\n%s" % (
                     lazylibrarian.CONFIG['SAB_CAT'], str(cats['categories']))
-    return "SABnzbd connection successful, version %s" % vers['version']
+    return "sab_nzbd connection successful, version %s" % vers['version']
 
 
-def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None):
+def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None):
 
     if nzburl in ['delete', 'delhistory'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
@@ -65,10 +68,10 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=Non
     if not hostname.startswith("http://") and not hostname.startswith("https://"):
         hostname = 'http://' + hostname
 
-    HOST = "%s:%s" % (hostname, port)
+    host = "%s:%s" % (hostname, port)
 
     if lazylibrarian.CONFIG['SAB_SUBDIR']:
-        HOST = HOST + "/" + lazylibrarian.CONFIG['SAB_SUBDIR'].strip('/')
+        host = host + "/" + lazylibrarian.CONFIG['SAB_SUBDIR'].strip('/')
 
     params = {}
 
@@ -118,7 +121,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=Non
         params['mode'] = 'queue'
         params['output'] = 'json'
         params['name'] = nzburl
-        params['value'] = makeUTF8bytes(title)[0]
+        params['value'] = make_utf8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -132,7 +135,7 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=Non
         params['mode'] = 'history'
         params['output'] = 'json'
         params['name'] = 'delete'
-        params['value'] = makeUTF8bytes(title)[0]
+        params['value'] = make_utf8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -146,9 +149,9 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=Non
         params['mode'] = 'addurl'
         params['output'] = 'json'
         if nzburl:
-            params['name'] = makeUTF8bytes(nzburl)[0]
+            params['name'] = make_utf8bytes(nzburl)[0]
         if title:
-            params['nzbname'] = makeUTF8bytes(title)[0]
+            params['nzbname'] = make_utf8bytes(title)[0]
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -169,25 +172,25 @@ def SABnzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=Non
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('sab params: %s' % repr(params))
 
-    URL = HOST + "/api?" + urlencode(params)
+    url = host + "/api?" + urlencode(params)
 
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('Request url for <a href="%s">SABnzbd</a>' % URL)
-    proxies = proxyList()
+        logger.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
+    proxies = proxy_list()
     try:
         timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        if URL.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-            r = requests.get(URL, timeout=timeout, proxies=proxies,
+        if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            r = requests.get(url, timeout=timeout, proxies=proxies,
                              verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
         else:
-            r = requests.get(URL, timeout=timeout, proxies=proxies, verify=False)
+            r = requests.get(url, timeout=timeout, proxies=proxies, verify=False)
         result = r.json()
     except requests.exceptions.Timeout:
-        res = "Timeout connecting to SAB with URL: %s" % URL
+        res = "Timeout connecting to SAB with URL: %s" % url
         logger.error(res)
         return False, res
     except Exception as e:
-        res = "Unable to connect to SAB with URL: %s, %s:%s" % (URL, type(e).__name__, str(e))
+        res = "Unable to connect to SAB with URL: %s, %s:%s" % (url, type(e).__name__, str(e))
         logger.error(res)
         return False, res
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
