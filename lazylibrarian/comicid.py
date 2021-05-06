@@ -19,7 +19,7 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
-from lazylibrarian.formatter import check_int, check_year, makeUnicode, makeUTF8bytes, plural
+from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural
 from lazylibrarian.common import quotes, path_isfile
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
@@ -48,7 +48,7 @@ except ImportError:
         import lib3.zipfile as zipfile
 
 
-def getIssueNum(words, skipped):
+def get_issue_num(words, skipped):
     # try to extract issue number from a list of words if not in skipped list
     # this is so we can tell 007 in "james bond 007" is not an issue number
     # Allow floats as issue could be #0.5
@@ -75,7 +75,7 @@ def getIssueNum(words, skipped):
     return ''
 
 
-def nameWords(name):
+def name_words(name):
     # sanitize for better matching
     # allow #num and word! or word? but strip other punctuation
     punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').replace('?', '')))
@@ -106,7 +106,7 @@ def nameWords(name):
     return namewords
 
 
-def titleWords(words):
+def title_words(words):
     titlewords = []
     skipwords = ['volume', 'vol', 'issue']
     # Extract title from filename
@@ -130,9 +130,9 @@ def cv_identify(fname, best=True):
             lazylibrarian.NO_CV_MSG = timenow
         return []
 
-    fname = makeUnicode(fname)
-    words = nameWords(fname)
-    titlewords = titleWords(words)
+    fname = make_unicode(fname)
+    words = name_words(fname)
+    titlewords = title_words(words)
     minmatch = 1
     # comicvine sometimes misses matches if we include too many words??
     # we can either use less words, or scrape the html...
@@ -150,7 +150,7 @@ def cv_identify(fname, best=True):
         else:
             off = ''
         url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(makeUTF8bytes(matchwords)[0]), off)
+        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(make_utf8bytes(matchwords)[0]), off)
         cv_api_sleep()
         res, _ = json_request(url)
 
@@ -223,7 +223,7 @@ def cv_identify(fname, best=True):
             noise = 0
             missing = 0
             rejected = False
-            namewords = nameWords(item['title'])
+            namewords = name_words(item['title'])
 
             for w in namewords:
                 if w not in words:
@@ -234,7 +234,7 @@ def cv_identify(fname, best=True):
                     logger.debug("Year %s out of range (start=%s) %s" % (year, item["start"], item['title']))
                 rejected = True
 
-            issue = getIssueNum(words, namewords)
+            issue = get_issue_num(words, namewords)
             if issue and (issue < check_int(item["first"], 0) or issue > check_int(item["last"], 0)):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                     logger.debug("Issue %s out of range (%s to %s) %s" % (issue, item["first"],
@@ -242,7 +242,7 @@ def cv_identify(fname, best=True):
                 rejected = True
 
             for w in titlewords:
-                if w not in nameWords(item['title']):
+                if w not in name_words(item['title']):
                     missing += 1
                 else:
                     present += 1
@@ -291,7 +291,7 @@ def cv_identify(fname, best=True):
             wordcount = 0
             noise = 0
             rejected = False
-            namewords = nameWords(item['title'])
+            namewords = name_words(item['title'])
 
             for w in namewords:
                 if w in words:
@@ -302,11 +302,11 @@ def cv_identify(fname, best=True):
             if year and item["start"] > year:  # series not started yet
                 rejected = True
 
-            issue = getIssueNum(words, namewords)
+            issue = get_issue_num(words, namewords)
 
             missing = 0
             for w in titlewords:
-                if w not in nameWords(item['title']):
+                if w not in name_words(item['title']):
                     missing += 1
 
             if not rejected and wordcount >= minmatch:
@@ -422,9 +422,9 @@ def get_series_detail_from_search(page_content):
 
 def cx_identify(fname, best=True):
     res = []
-    fname = makeUnicode(fname)
-    words = nameWords(fname)
-    titlewords = titleWords(words)
+    fname = make_unicode(fname)
+    words = name_words(fname)
+    titlewords = title_words(words)
     minmatch = 1
     matchwords = '+'.join(titlewords)
     if '+' in matchwords:
@@ -519,7 +519,7 @@ def cx_identify(fname, best=True):
             y2 = 0
             rejected = False
             if year:  # get year or range from title
-                for y in nameWords(item['title']):
+                for y in name_words(item['title']):
                     if check_year(y):
                         if not y1:
                             y1 = y
@@ -531,7 +531,7 @@ def cx_identify(fname, best=True):
                                 y1 = y0
                             break
 
-            for w in nameWords(item['title']):
+            for w in name_words(item['title']):
                 if w in words:
                     if check_year(w):
                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
@@ -560,10 +560,10 @@ def cx_identify(fname, best=True):
                         noise += 1
 
             for w in titlewords:
-                if w not in nameWords(item['title']):
+                if w not in name_words(item['title']):
                     missing += 1
 
-            issue = getIssueNum(words, nameWords(item['title'].split('(')[0]))
+            issue = get_issue_num(words, name_words(item['title'].split('(')[0]))
             if year and item["start"] > year:  # series not started yet
                 rejected = True
 
@@ -585,7 +585,7 @@ def cx_identify(fname, best=True):
 
 def comic_metadata(archivename, xml=False):
 
-    archivename = makeUnicode(archivename)
+    archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
         logger.debug("%s is not a file" % archivename)
         return {}
@@ -664,7 +664,7 @@ def meta_dict(data):
             notes = res.text
             if 'Comic Vine' in notes and 'Issue ID ' in notes:
                 datadict['ComicID'] = 'CV' + notes.split('Issue ID ')[1].split(']')[0].strip()
-    logger.debug(str(datadict.keys()))
+    logger.debug(str(datadict))
     return datadict
 
 
