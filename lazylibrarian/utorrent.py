@@ -23,12 +23,12 @@ from six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, 
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import getUserAgent
-from lazylibrarian.formatter import check_int, getList
+from lazylibrarian.common import get_user_agent
+from lazylibrarian.formatter import check_int, get_list
 from six import PY2
 
 
-class utorrentclient(object):
+class UtorrentClient(object):
     TOKEN_REGEX = b"<div id='token' style='display:none;'>([^<>]+)</div>"
 
     # noinspection PyUnusedLocal
@@ -87,7 +87,7 @@ class utorrentclient(object):
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                 logger.debug('URL: %s' % url)
             return None
-        match = re.search(utorrentclient.TOKEN_REGEX, response.read())
+        match = re.search(UtorrentClient.TOKEN_REGEX, response.read())
         return match.group(1)
 
     def list(self, **kwargs):
@@ -191,9 +191,9 @@ class utorrentclient(object):
             logger.debug("uTorrent params %s" % str(params))
         request = Request(url)
         if lazylibrarian.CONFIG['PROXY_HOST']:
-            for item in getList(lazylibrarian.CONFIG['PROXY_TYPE']):
+            for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
                 request.set_proxy(lazylibrarian.CONFIG['PROXY_HOST'], item)
-        request.add_header('User-Agent', getUserAgent())
+        request.add_header('User-Agent', get_user_agent())
 
         if body:
             if PY2:
@@ -218,10 +218,10 @@ class utorrentclient(object):
             return 0, str(err)
 
 
-def checkLink():
+def check_link():
     """ Check we can talk to utorrent"""
     try:
-        client = utorrentclient()
+        client = UtorrentClient()
         if client.token is not None:
             try:
                 _ = client.list()
@@ -240,93 +240,89 @@ def checkLink():
 
 
 # noinspection PyUnresolvedReferences
-def labelTorrent(hashid):
+def label_torrent(hashid, label):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug("set label for %s" % hashid)
-    label = lazylibrarian.CONFIG['UTORRENT_LABEL']
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
-    for torrent in torrentList[1].get('torrents'):
+        logger.debug("set label %s for %s" % (label, hashid))
+    uclient = UtorrentClient()
+    torrent_list = uclient.list()
+    for torrent in torrent_list[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            uTorrentClient.setprops(torrent[0], 'label', label)
+            uclient.setprops(torrent[0], 'label', label)
             return True
     return False
 
 
-def dirTorrent(hashid):
+def dir_torrent(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("get directory for %s" % hashid)
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
+    uclient = UtorrentClient()
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return torrent[26]
     return False
 
 
-def nameTorrent(hashid):
+def name_torrent(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("get name for %s" % hashid)
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
+    uclient = UtorrentClient()
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return torrent[2]
     return ""
 
 
-def progressTorrent(hashid):
+def progress_torrent(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("get progress for %s" % hashid)
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
+    uclient = UtorrentClient()
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
             return check_int(torrent[4], 0) // 10, torrent[1], \
                              (torrent[1] & 65 == 0)  # status not started or queued
     return -1, '', False
 
 
-def listTorrent(hashid):
+def list_torrent(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("get file list for %s" % hashid)
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
+    uclient = UtorrentClient()
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            return uTorrentClient.getfiles(torrent[0])
+            return uclient.getfiles(torrent[0])
     return []
 
 
-def removeTorrent(hashid, remove_data=False):
+def remove_torrent(hashid, remove_data=False):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("remove torrent %s remove_data=%s" % (hashid, remove_data))
-    uTorrentClient = utorrentclient()
-    torrentList = uTorrentClient.list()
+    uclient = UtorrentClient()
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
             if remove_data:
-                uTorrentClient.removedata(torrent[0])
+                uclient.removedata(torrent[0])
             else:
-                uTorrentClient.remove(torrent[0])
+                uclient.remove(torrent[0])
             return True
     return False
 
 
-def addTorrent(link, hashid):
-    uTorrentClient = utorrentclient()
-    uTorrentClient.add_url(link)
-    label = lazylibrarian.CONFIG['UTORRENT_LABEL']
-    torrentList = uTorrentClient.list()
+def add_torrent(link, hashid):
+    uclient = UtorrentClient()
+    uclient.add_url(link)
+    torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
-    for torrent in torrentList[1].get('torrents'):
+    for torrent in torrentlist[1].get('torrents'):
         if torrent[0].lower() == hashid:
-            if label:
-                uTorrentClient.setprops(torrent[0], 'label', label)
             return hashid, ''
     return False, 'uTorrent failed to locate hashid'

@@ -21,7 +21,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int
-from lazylibrarian.common import proxyList
+from lazylibrarian.common import proxy_list
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import urlparse, urlunparse
 
@@ -35,7 +35,7 @@ rpc_version = 0
 tr_version = 0
 
 
-def addTorrent(link, directory=None, metainfo=None):
+def add_torrent(link, directory=None, metainfo=None):
     method = 'torrent-add'
     if metainfo:
         arguments = {'metainfo': metainfo}
@@ -46,8 +46,8 @@ def addTorrent(link, directory=None, metainfo=None):
     if directory:
         arguments['download-dir'] = directory
 
-    logger.debug('addTorrent args(%s)' % arguments)
-    response, res = torrentAction(method, arguments)  # type: dict
+    logger.debug('add_torrent args(%s)' % arguments)
+    response, res = torrent_action(method, arguments)  # type: dict
 
     if not response:
         return False, res
@@ -68,18 +68,18 @@ def addTorrent(link, directory=None, metainfo=None):
     return False, res
 
 
-def getTorrentName(torrentid):  # uses hashid
+def get_torrent_name(torrentid):  # uses hashid
     method = 'torrent-get'
-    arguments = {'ids': [torrentid], 'fields': ['name', 'percentDone']}
+    arguments = {'ids': [torrentid], 'fields': ['name', 'percentDone', 'labels']}
     retries = 3
     while retries:
-        response, _ = torrentAction(method, arguments)  # type: dict
+        response, _ = torrent_action(method, arguments)  # type: dict
         if response and len(response['arguments']['torrents']):
             percentdone = response['arguments']['torrents'][0]['percentDone']
             if percentdone:
                 return response['arguments']['torrents'][0]['name']
         else:
-            logger.debug('getTorrentFolder: No response from transmission')
+            logger.debug('get_torrent_name: No response from transmission')
             return ''
 
         retries -= 1
@@ -89,18 +89,18 @@ def getTorrentName(torrentid):  # uses hashid
     return ''
 
 
-def getTorrentFolder(torrentid):  # uses hashid
+def get_torrent_folder(torrentid):  # uses hashid
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['downloadDir', 'percentDone']}
     retries = 3
     while retries:
-        response, _ = torrentAction(method, arguments)  # type: dict
+        response, _ = torrent_action(method, arguments)  # type: dict
         if response and len(response['arguments']['torrents']):
             percentdone = response['arguments']['torrents'][0]['percentDone']
             if percentdone:
                 return response['arguments']['torrents'][0]['downloadDir']
         else:
-            logger.debug('getTorrentFolder: No response from transmission')
+            logger.debug('get_torrent_folder: No response from transmission')
             return ''
 
         retries -= 1
@@ -110,12 +110,12 @@ def getTorrentFolder(torrentid):  # uses hashid
     return ''
 
 
-def getTorrentFolderbyID(torrentid):  # uses transmission id
+def get_torrent_folder_by_id(torrentid):  # uses transmission id
     method = 'torrent-get'
     arguments = {'fields': ['name', 'percentDone', 'id']}
     retries = 3
     while retries:
-        response, _ = torrentAction(method, arguments)  # type: dict
+        response, _ = torrent_action(method, arguments)  # type: dict
         if response and len(response['arguments']['torrents']):
             tor = 0
             while tor < len(response['arguments']['torrents']):
@@ -126,7 +126,7 @@ def getTorrentFolderbyID(torrentid):  # uses transmission id
                         return response['arguments']['torrents'][tor]['name']
                 tor += 1
         else:
-            logger.debug('getTorrentFolder: No response from transmission')
+            logger.debug('get_torrent_folder: No response from transmission')
             return ''
 
         retries -= 1
@@ -136,19 +136,19 @@ def getTorrentFolderbyID(torrentid):  # uses transmission id
     return ''
 
 
-def getTorrentFiles(torrentid):  # uses hashid
+def get_torrent_files(torrentid):  # uses hashid
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'files']}
     retries = 3
     while retries:
-        response, _ = torrentAction(method, arguments)  # type: dict
+        response, _ = torrent_action(method, arguments)  # type: dict
         if response:
             if len(response['arguments']['torrents'][0]['files']):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug("getTorrentFiles: %s" % str(response['arguments']['torrents'][0]['files']))
+                    logger.debug("get_torrent_files: %s" % str(response['arguments']['torrents'][0]['files']))
                 return response['arguments']['torrents'][0]['files']
         else:
-            logger.debug('getTorrentFiles: No response from transmission')
+            logger.debug('get_torrent_files: No response from transmission')
             return ''
 
         retries -= 1
@@ -158,12 +158,12 @@ def getTorrentFiles(torrentid):  # uses hashid
     return ''
 
 
-def getTorrentProgress(torrentid):  # uses hashid
+def get_torrent_progress(torrentid):  # uses hashid
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['id', 'percentDone', 'errorString', 'status']}
     retries = 3
     while retries:
-        response, _ = torrentAction(method, arguments)  # type: dict
+        response, _ = torrent_action(method, arguments)  # type: dict
         if response:
             try:
                 if len(response['arguments']['torrents'][0]):
@@ -171,7 +171,7 @@ def getTorrentProgress(torrentid):  # uses hashid
                     res = response['arguments']['torrents'][0]['percentDone']
                     fin = (response['arguments']['torrents'][0]['status'] == 0)  # TR_STATUS_STOPPED == 0
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                        logger.debug("getTorrentProgress: %s,%s,%s" % (err, res, fin))
+                        logger.debug("get_torrent_progress: %s,%s,%s" % (err, res, fin))
                     try:
                         res = int(float(res) * 100)
                         return res, err, fin
@@ -195,16 +195,26 @@ def getTorrentProgress(torrentid):  # uses hashid
     return -1, msg, False
 
 
-def setSeedRatio(torrentid, ratio):
+def set_seed_ratio(torrentid, ratio):
     method = 'torrent-set'
     if ratio != 0:
         arguments = {'seedRatioLimit': ratio, 'seedRatioMode': 1, 'ids': [torrentid]}
     else:
         arguments = {'seedRatioMode': 2, 'ids': [torrentid]}
 
-    response, _ = torrentAction(method, arguments)  # type: dict
+    response, _ = torrent_action(method, arguments)  # type: dict
     if not response:
         return False
+    return True
+
+
+def set_label(torrentid, label):
+    method = 'torrent-set'
+    arguments = {'labels': [label], 'ids': [torrentid]}
+    response, _ = torrent_action(method, arguments)  # type: dict
+    if not response:
+        return False
+    return True
 
 # Pre RPC v14 status codes
 #   {
@@ -227,13 +237,13 @@ def setSeedRatio(torrentid, ratio):
 #    }
 
 
-def removeTorrent(torrentid, remove_data=False):
+def remove_torrent(torrentid, remove_data=False):
     global rpc_version
 
     method = 'torrent-get'
     arguments = {'ids': [torrentid], 'fields': ['isFinished', 'name', 'status']}
 
-    response, _ = torrentAction(method, arguments)  # type: dict
+    response, _ = torrent_action(method, arguments)  # type: dict
     if not response:
         return False
 
@@ -255,7 +265,7 @@ def removeTorrent(torrentid, remove_data=False):
                 arguments = {'delete-local-data': True, 'ids': [torrentid]}
             else:
                 arguments = {'ids': [torrentid]}
-            _, _ = torrentAction(method, arguments)
+            _, _ = torrent_action(method, arguments)
             return True
         else:
             logger.debug('%s has not finished seeding, torrent will not be removed' % name)
@@ -269,7 +279,7 @@ def removeTorrent(torrentid, remove_data=False):
     return False
 
 
-def checkLink():
+def check_link():
     global session_id, host_url, rpc_version, tr_version
     method = 'session-get'
     arguments = {'fields': ['version', 'rpc-version']}
@@ -277,13 +287,13 @@ def checkLink():
     host_url = None
     rpc_version = 0
     tr_version = 0
-    response, _ = torrentAction(method, arguments)  # type: dict
+    response, _ = torrent_action(method, arguments)  # type: dict
     if response:
         return "Transmission login successful, v%s, rpc v%s" % (tr_version, rpc_version)
     return "Transmission login FAILED\nCheck debug log"
 
 
-def torrentAction(method, arguments):
+def torrent_action(method, arguments):
     global session_id, host_url, rpc_version, tr_version
 
     username = lazylibrarian.CONFIG['TRANSMISSION_USER']
@@ -325,7 +335,7 @@ def torrentAction(method, arguments):
         host_url = urlunparse(parts)
 
     auth = (username, password) if username and password else None
-    proxies = proxyList()
+    proxies = proxy_list()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
     # Retrieve session id
     if session_id:

@@ -29,8 +29,8 @@ from six.moves.urllib_request import HTTPCookieProcessor, build_opener, Request
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import getUserAgent
-from lazylibrarian.formatter import check_int, getList, makeBytestr, makeUnicode
+from lazylibrarian.common import get_user_agent
+from lazylibrarian.formatter import check_int, get_list, make_bytestr, make_unicode
 
 
 class QbittorrentClient(object):
@@ -86,7 +86,7 @@ class QbittorrentClient(object):
 
     def _get_sid(self, base_url, username, password):
         # login so we can capture SID cookie
-        login_data = makeBytestr(urlencode({'username': username, 'password': password}))
+        login_data = make_bytestr(urlencode({'username': username, 'password': password}))
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Trying ' + base_url + '/login')
         try:
@@ -126,33 +126,33 @@ class QbittorrentClient(object):
             data, headers = encode_multipart(args, files, '-------------------------acebdf13572468')
         else:
             if args:
-                data = makeBytestr(urlencode(args))
+                data = make_bytestr(urlencode(args))
             if content_type:
                 headers['Content-Type'] = content_type
 
         request = Request(url, data, headers)
 
         if lazylibrarian.CONFIG['PROXY_HOST']:
-            for item in getList(lazylibrarian.CONFIG['PROXY_TYPE']):
+            for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
                 request.set_proxy(lazylibrarian.CONFIG['PROXY_HOST'], item)
-        request.add_header('User-Agent', getUserAgent())
+        request.add_header('User-Agent', get_user_agent())
 
         try:
             response = self.opener.open(request)
             try:
-                contentType = response.headers['content-type']
+                content_type = response.headers['content-type']
             except KeyError:
-                contentType = ''
+                content_type = ''
 
             resp = response.read()
             # some commands return json
-            if contentType == 'application/json':
+            if content_type == 'application/json':
                 if resp:
                     return json.loads(resp)
                 return ''
             else:
                 # some commands return plain text
-                resp = makeUnicode(resp)
+                resp = make_unicode(resp)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("QBitTorrent returned %s" % resp)
                 if command in ['version/api', 'app/webapiVersion']:
@@ -201,8 +201,8 @@ class QbittorrentClient(object):
             logger.debug('qb.get_savepath(%s)' % hashid)
         hashid = hashid.lower()
         self.hashid = hashid
-        torrentList = self._get_list()
-        for torrent in list(torrentList):
+        torrent_list = self._get_list()
+        for torrent in list(torrent_list):
             if torrent['hash'] and torrent['hash'].lower() == hashid:
                 return torrent['save_path']
         return None
@@ -257,9 +257,9 @@ class QbittorrentClient(object):
         return self._command(command, args, 'application/x-www-form-urlencoded')
 
 
-def getProgress(hashid):
+def get_progress(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('getProgress(%s)' % hashid)
+        logger.debug('get_progress(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -278,9 +278,9 @@ def getProgress(hashid):
             max_ratio = float(preferences['max_ratio'])
     qbclient.hashid = hashid
     # noinspection PyProtectedMember
-    torrentList = qbclient._get_list()
-    if torrentList:
-        for torrent in torrentList:
+    torrent_list = qbclient._get_list()
+    if torrent_list:
+        for torrent in torrent_list:
             if torrent['hash'].lower() == hashid:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(str(torrent))
@@ -306,9 +306,9 @@ def getProgress(hashid):
     return -1, '', False
 
 
-def removeTorrent(hashid, remove_data=False):
+def remove_torrent(hashid, remove_data=False):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('removeTorrent(%s,%s)' % (hashid, remove_data))
+        logger.debug('remove_torrent(%s,%s)' % (hashid, remove_data))
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -316,9 +316,9 @@ def removeTorrent(hashid, remove_data=False):
         return False
     qbclient.hashid = hashid
     # noinspection PyProtectedMember
-    torrentList = qbclient._get_list()
-    if torrentList:
-        for torrent in torrentList:
+    torrent_list = qbclient._get_list()
+    if torrent_list:
+        for torrent in torrent_list:
             if torrent['hash'].lower() == hashid:
                 remove = True
                 if torrent['state'] == 'uploading' or torrent['state'] == 'stalledUP':
@@ -337,7 +337,7 @@ def removeTorrent(hashid, remove_data=False):
     return False
 
 
-def checkLink():
+def check_link():
     """ Check we can talk to qbittorrent"""
     try:
         qbclient = QbittorrentClient()
@@ -350,9 +350,9 @@ def checkLink():
         return "qBittorrent login FAILED: %s %s" % (type(err).__name__, str(err))
 
 
-def addTorrent(link, hashid):
+def add_torrent(link, hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('addTorrent(%s)' % link)
+        logger.debug('add_torrent(%s)' % link)
     args = {}
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
@@ -374,7 +374,7 @@ def addTorrent(link, hashid):
             elif qbclient.api >= 10:
                 args['category'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('addTorrent args(%s)' % args)
+        logger.debug('add_torrent args(%s)' % args)
     args['urls'] = link
 
     if qbclient.cmdset == 2:
@@ -387,7 +387,7 @@ def addTorrent(link, hashid):
     # sometimes returns "True" when it hasn't added the torrent (empty request?)
     # so look if hashid was added correctly
     if not res:
-        logger.debug("addTorrent thinks it failed")
+        logger.debug("add_torrent thinks it failed")
         time.sleep(2)
     qbclient.hashid = hashid
     # noinspection PyProtectedMember
@@ -396,15 +396,15 @@ def addTorrent(link, hashid):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug("hashid found in torrent list")
         return True, ''
-    res = "hashid not found in torrent list, addTorrent failed"
+    res = "hashid not found in torrent list, add_torrent failed"
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug(res)
     return False, res
 
 
-def addFile(data, hashid, title):
+def add_file(data, hashid, title):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('addFile(data)')
+        logger.debug('add_file(data)')
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -420,7 +420,7 @@ def addFile(data, hashid, title):
         res = qbclient._command('command/upload', files=files)
     if not res:
         # sometimes returns "Fails." when it hasn't failed, so look if hashid was added correctly
-        logger.debug("addFile thinks it failed")
+        logger.debug("add_file thinks it failed")
         time.sleep(2)
     qbclient.hashid = hashid
     # noinspection PyProtectedMember
@@ -434,31 +434,31 @@ def addFile(data, hashid, title):
             qbclient._command('torrents/setCategory', args, 'application/x-www-form-urlencoded')
         return True, ''
 
-    res = "hashid not found in torrent list, addFile failed"
+    res = "hashid not found in torrent list, add_file failed"
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug(res)
     return False, res
 
 
-def getName(hashid):
+def get_name(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('getName(%s)' % hashid)
+        logger.debug('get_name(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return ''
-    RETRIES = 5
+    retries = 5
     torrents = []
     qbclient.hashid = hashid
-    while RETRIES:
+    while retries:
         # noinspection PyProtectedMember
         torrents = qbclient._get_list()
         if torrents:
             if hashid in str(torrents).lower():
                 break
         time.sleep(2)
-        RETRIES -= 1
+        retries -= 1
 
     for tor in torrents:
         if tor['hash'].lower() == hashid:
@@ -466,29 +466,29 @@ def getName(hashid):
     return ''
 
 
-def getFiles(hashid):
+def get_files(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('getFiles(%s)' % hashid)
+        logger.debug('get_files(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
         logger.debug("Failed to login to qBittorrent")
         return ''
-    RETRIES = 5
+    retries = 5
 
-    while RETRIES:
+    while retries:
         # noinspection PyProtectedMember
         files = qbclient.getfiles(hashid)
         if files:
             return files
         time.sleep(2)
-        RETRIES -= 1
+        retries -= 1
     return ''
 
 
-def getFolder(hashid):
+def get_folder(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-        logger.debug('getFolder(%s)' % hashid)
+        logger.debug('get_folder(%s)' % hashid)
     hashid = hashid.lower()
     qbclient = QbittorrentClient()
     if not qbclient.cmdset:
@@ -538,7 +538,7 @@ def encode_multipart(fields, files, boundary=None):
     """
 
     def escape_quote(s):
-        s = makeUnicode(s)
+        s = make_unicode(s)
         return s.replace('"', '\\"')
 
     if boundary is None:
@@ -546,13 +546,13 @@ def encode_multipart(fields, files, boundary=None):
     lines = []
 
     if fields:
-        fields = dict((makeBytestr(k), makeBytestr(v)) for k, v in fields.items())
+        fields = dict((make_bytestr(k), make_bytestr(v)) for k, v in fields.items())
         for name, value in list(fields.items()):
             lines.extend((
                 '--{0}'.format(boundary),
                 'Content-Disposition: form-data; name="{0}"'.format(escape_quote(name)),
                 '',
-                makeUnicode(value),
+                make_unicode(value),
             ))
 
     if files:
@@ -575,7 +575,7 @@ def encode_multipart(fields, files, boundary=None):
         '--{0}--'.format(boundary),
         '',
     ))
-    body = makeBytestr('\r\n'.join(lines))
+    body = make_bytestr('\r\n'.join(lines))
 
     headers = {
         'Content-Type': 'multipart/form-data; boundary={0}'.format(boundary),
