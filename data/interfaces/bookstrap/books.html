@@ -7,21 +7,21 @@
     <form id="subhead_menu" class="form-inline">
       <div class="col-xs-10">
         %if perm&lazylibrarian.perm_force:
-        <a id="forcesearch" class="btn btn-sm btn-primary" href="forceSearch?source=books"><i class="fa fa-search"></i> Search</a>
-        <a id="forcepostprocess" class="btn btn-sm btn-primary" href="forceProcess?source=books"><i class="fa fa-cogs"></i> Run Post-Processor</a>
-        <a href="libraryScan?library=eBook" class="btn btn-sm btn-primary" id="scan"><i class="fa fa-bolt"></i> Library Scan</a>
+        <a id="forcesearch" class="btn btn-sm btn-primary" href="force_search?source=books"><i class="fa fa-search"></i> Search</a>
+        <a id="forcepostprocess" class="btn btn-sm btn-primary" href="force_process?source=books"><i class="fa fa-cogs"></i> Run Post-Processor</a>
+        <a href="library_scan?library=eBook" class="btn btn-sm btn-primary" id="scan"><i class="fa fa-bolt"></i> Library Scan</a>
         %endif
-        <a href="bookWall?have=0" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-plus"></i> Additions</a>
-        <a href="bookWall?have=1" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Downloads</a>
+        <a href="book_wall?have=0" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-plus"></i> Additions</a>
+        <a href="book_wall?have=1" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Downloads</a>
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
           %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
-            <a href="rssFeed?user=${user}&type=eBook&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
-            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rssFeed?user=${user}&type=eBook&limit=10.xml">
+            <a href="rss_feed?user=${user}&type=eBook&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
+            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&limit=10.xml">
           %endif
           %if pref&lazylibrarian.pref_myfeeds:
-            <a href="toggleMyFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+            <a href="toggle_my_feeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
           %else:
-            <a href="toggleMyFeeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+            <a href="toggle_my_feeds" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
           %endif
         %endif
       </div>
@@ -46,15 +46,15 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Libraryscan in progress ...</button>
     </p>
   %endif
-  <form name="markBooks" id="markBooks" action="markBooks" method="get" class="form-inline" onsubmit="return false;">
+  <form name="mark_books" id="mark_books" action="mark_books" method="get" class="form-inline" onsubmit="return false;">
     <div class="row">
       <input type="hidden" name="booklang" value=${booklang}>
       <input type="hidden" name="redirect" value='books'>
       %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
         <div class="form-group">
-          <label for="markBooks" class="control-label">Mark selected as</label>
-          <select class="markBooks form-control input-sm" id="action" name="action">
+          <label for="mark_books" class="control-label">Mark selected as</label>
+          <select class="mark_books form-control input-sm" id="action" name="action">
           %if perm&lazylibrarian.perm_status:
             <option value="Wanted">Wanted</option>
             <option value="Have">Have</option>
@@ -149,7 +149,7 @@
                     return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                 { targets: [2], 'render': function(data, type, row) {
                   %if perm&lazylibrarian.perm_authorbooks:
-                    btn = '<a href=\'authorPage?AuthorID=' + row[8] + '\'">' + data + '</a>'
+                    btn = '<a href=\'author_page?authorid=' + row[8] + '\'">' + data + '</a>'
                   %else:
                     btn = '<a>' + data + '</a>'
                   %endif
@@ -172,7 +172,7 @@
                     var output = [];
                     for (var index=0; index < series.length; ++index) {
                         var link_data = series[index].split("~");
-                        output.push('<a href=seriesMembers?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
+                        output.push('<a href=series_members?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
                     }
                     return output.join('<br>');
                 }},
@@ -199,18 +199,18 @@
                     var flag = row[13]
                     btn = btn + flag
                     if ( btn.indexOf('Open') >= 0 ) {
-                        btn = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
+                        btn = '<a class="button green btn btn-xs btn-warning" href="open_book?bookid=' + row[9] +
                             '&library=eBook" target="_self"><i class="fa fa-book"></i> ' + btn + '</a>'
                         %if len(email):
-                            btn += '<a class="button green btn btn-xs btn-info" href="sendBook?bookid=' + row[9] +
+                            btn += '<a class="button green btn btn-xs btn-info" href="send_book?bookid=' + row[9] +
                                 '&library=eBook" target="_self">Send</a>'
                         %endif
                     }
                     else if ( btn.indexOf('Wanted') >= 0 ) {
                         %if perm&lazylibrarian.perm_force:
-                            btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'
+                            btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="search_for_book?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'
                         %else:
-                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
+                            btn = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
                         %endif
                     }
                     else if ( btn.indexOf('Snatched') >= 0 ) {
@@ -219,14 +219,14 @@
                         %if perm&lazylibrarian.perm_status:
                             btn = '<a class="button btn btn-xs btn-info">' + btn + '</a>'
                         %else:
-                          btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
+                          btn = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
                         %endif
                         }
                     else {
                         %if perm&lazylibrarian.perm_status:
                         btn = '<a class="button btn btn-xs btn-default grey">' + btn + '</a>'
                         %else:
-                        btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
+                        btn = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=eBook" target="_self">Request</a></p>'
                         %endif
                         }
                     return btn;} }
@@ -244,7 +244,7 @@
             "sPaginationType": "full_numbers",
             "aaSorting": [[0, 'asc']],
             "bServerSide": true,
-            "sAjaxSource": 'getBooks?source=Books&booklang=${booklang}',
+            "sAjaxSource": 'get_books?source=Books&booklang=${booklang}',
             "bFilter": true,
             "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                 %if perm&lazylibrarian.perm_status == 0:
@@ -299,7 +299,7 @@
     });
 
     function validateForm() {
-        var x = document.forms["markBooks"]["action"].value;
+        var x = document.forms["mark_books"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
         if (c > 0 && x == "Delete") {
             if (c == 1) {msg = "Are you sure you want to permanently delete the selected book?"}
@@ -317,12 +317,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("markBooks").submit(); }
+                    if (result) { document.getElementById("mark_books").submit(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("markBooks").submit(); }
+        else { document.getElementById("mark_books").submit(); }
     }
 
   </script>

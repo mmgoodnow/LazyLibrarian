@@ -15,7 +15,7 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, runScript
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, run_script
 
 
 class CustomNotifier:
@@ -31,11 +31,11 @@ class CustomNotifier:
 
         logger.debug('Custom Event: %s' % event)
         logger.debug('Custom Message: %s' % message)
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         if event == "Test":
             # grab the first entry in the book table and wanted table
-            book = myDB.match('SELECT * from books')
-            wanted = myDB.match('SELECT * from wanted')
+            book = db.match('SELECT * from books')
+            wanted = db.match('SELECT * from wanted')
             ident = 'eBook'
         else:
             # message is a bookid followed by type (eBook/AudioBook)
@@ -43,9 +43,9 @@ class CustomNotifier:
             words = message.split()
             ident = words[-1]
             bookid = " ".join(words[:-1])
-            book = myDB.match('SELECT * from books where BookID=?', (bookid,))
+            book = db.match('SELECT * from books where BookID=?', (bookid,))
             if not book:
-                book = myDB.match('SELECT * from magazines where Title=?', (bookid,))
+                book = db.match('SELECT * from magazines where Title=?', (bookid,))
 
             if event == 'Added to Library':
                 wanted_status = 'Processed'
@@ -53,11 +53,11 @@ class CustomNotifier:
                 wanted_status = 'Snatched'
 
             if ident in ['eBook', 'AudioBook']:
-                wanted = myDB.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
-                                    (bookid, ident, wanted_status))
+                wanted = db.match('SELECT * from wanted where BookID=? AND AuxInfo=? AND Status=?',
+                                  (bookid, ident, wanted_status))
             else:
-                wanted = myDB.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
-                                    (bookid, ident, wanted_status))
+                wanted = db.match('SELECT * from wanted where BookID=? AND NZBUrl=? AND Status=?',
+                                  (bookid, ident, wanted_status))
 
         if book:
             # noinspection PyTypeChecker
@@ -93,7 +93,7 @@ class CustomNotifier:
                     else:
                         params.append(str(dictionary[item]))
 
-                rc, res, err = runScript(params)
+                rc, res, err = run_script(params)
                 if rc:
                     logger.error("Custom notifier returned %s: res[%s] err[%s]" % (rc, res, err))
                     return False

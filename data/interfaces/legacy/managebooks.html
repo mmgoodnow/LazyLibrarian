@@ -5,9 +5,9 @@
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <ul id="subhead_menu">
-      <li><a href="importAlternate" id="button"> Import Book </a></li>
-      <li><a href="importCSV&amp;library=eBook" id="button"> Import CSV Wishlist </a></li>
-      <li><a href="exportCSV&amp;library=eBook" id="button"> Export CSV Wishlist </a></li>
+      <li><a href="import_alternate" id="bbutton"> Import Book </a></li>
+      <li><a href="import_csv&amp;library=eBook" id="ibutton"> Import CSV Wishlist </a></li>
+      <li><a href="export_csv&amp;library=eBook" id="ebutton"> Export CSV Wishlist </a></li>
     </ul>
   </div>
 </%def>
@@ -29,7 +29,7 @@
     <input  class="btn" type="submit" value="Manage" />
   </form>
   <br>
-  <form action="markBooks" method="get"><input type="hidden" name="redirect" value="manage">
+  <form action="mark_books" method="get"><input type="hidden" name="redirect" value="manage">
     <table class="display" id="book_table" style="width:100%;">
       <thead>
         <tr>
@@ -45,12 +45,12 @@
     </table>
     <p>
       &nbsp;&nbsp;Change selected books to:
-      <select class="markBooks" name="action" style="margin-left:30px;margin-top:15px;margin-bottom:15px;">
+      <select class="mark_books" name="action" style="margin-left:30px;margin-top:15px;margin-bottom:15px;">
         %for item in ['Skipped', 'Wanted', 'Have', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
       </select>
-      <input type="submit" class="markBooks" value="Go">
+      <input type="submit" class="mark_books" value="Go">
     </p>
   </form>
 </%def>
@@ -83,7 +83,7 @@
                       }
                     },
                     { "fnRender": function ( oObj ) {
-                        return '<a href="authorPage?AuthorID=' + oObj.aData[8] + '">' + oObj.aData[2] + '</a>'
+                        return '<a href="author_page?authorid=' + oObj.aData[8] + '">' + oObj.aData[2] + '</a>'
                       }
                     },
                     null,
@@ -106,7 +106,7 @@
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,
                 "bFilter": true,
-                "sAjaxSource": 'getBooks?whichStatus=${whichStatus}&source=Manage',
+                "sAjaxSource": 'get_books?whichStatus=${whichStatus}&source=Manage',
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     $(nRow).addClass("gradeZ");
                     $('td', nRow).eq(0).addClass('center');

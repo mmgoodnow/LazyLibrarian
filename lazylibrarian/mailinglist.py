@@ -13,16 +13,16 @@
 import os
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import path_exists, syspath, runScript
-from lazylibrarian.formatter import plural, getList, check_int
+from lazylibrarian.common import path_exists, syspath, run_script
+from lazylibrarian.formatter import plural, get_list, check_int
 from lazylibrarian.notifiers import email_notifier
 
 
 def mailing_list(book_type, global_name, book_id):
     if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
         return
-    myDB = database.DBConnection()
-    columns = myDB.select('PRAGMA table_info(subscribers)')
+    db = database.DBConnection()
+    columns = db.select('PRAGMA table_info(subscribers)')
     if not columns:  # no such table
         return
 
@@ -32,54 +32,54 @@ def mailing_list(book_type, global_name, book_id):
     booktype = book_type.lower()
     if booktype in ['ebook', 'audiobook']:
         if booktype == 'ebook':
-            data = myDB.match("SELECT Requester,AuthorID,BookFile as filename from books where bookid=?", (book_id,))
-            feeds = getList(data['Requester'])
+            data = db.match("SELECT Requester,AuthorID,BookFile as filename from books where bookid=?", (book_id,))
+            feeds = get_list(data['Requester'])
         else:
-            data = myDB.match("SELECT AudioRequester,AuthorID,AudioFile as filename from books where bookid=?",
-                              (book_id,))
-            feeds = getList(data['AudioRequester'])
+            data = db.match("SELECT AudioRequester,AuthorID,AudioFile as filename from books where bookid=?",
+                            (book_id,))
+            feeds = get_list(data['AudioRequester'])
 
-        users = myDB.select('SELECT UserID from subscribers WHERE Type="author" and WantID=?', (data['AuthorID'],))
+        users = db.select('SELECT UserID from subscribers WHERE Type="author" and WantID=?', (data['AuthorID'],))
         cnt = 0
         for user in users:
-            myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                        (user['UserID'], booktype, book_id))
+            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                      (user['UserID'], booktype, book_id))
             cnt += 1
         if cnt:
             logger.debug("%s wanted by %s %s to author %s" % (book_id, cnt, plural(cnt, 'subscriber'), data['Author']))
 
-        series = myDB.select('SELECT SeriesID from member WHERE BookID=?', (book_id,))
+        series = db.select('SELECT SeriesID from member WHERE BookID=?', (book_id,))
         for item in series:
-            users = myDB.select('SELECT UserID  from subscribers WHERE Type="series" and WantID=?', (item['SeriesID'],))
+            users = db.select('SELECT UserID  from subscribers WHERE Type="series" and WantID=?', (item['SeriesID'],))
             cnt = 0
             for user in users:
-                myDB.action('INSERT into subscribers (UserID , Type, WantID) VALUES (?, ?, ?)',
-                            (user['UserID'], booktype, book_id))
+                db.action('INSERT into subscribers (UserID , Type, WantID) VALUES (?, ?, ?)',
+                          (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
                 logger.debug("%s wanted by %s %s to series %s" % (book_id, cnt, plural(cnt, 'subscriber'),
                                                                   item['SeriesID']))
 
         for item in feeds:
-            users = myDB.select('SELECT UserID from subscribers WHERE Type="feed" and WantID=?', (item,))
+            users = db.select('SELECT UserID from subscribers WHERE Type="feed" and WantID=?', (item,))
             cnt = 0
             for user in users:
-                myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                            (user['UserID'], booktype, book_id))
+                db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                          (user['UserID'], booktype, book_id))
                 cnt += 1
             if cnt:
                 logger.debug("%s wanted by %s %s to feed %s" % (book_id, cnt, plural(cnt, 'subscriber'), item))
 
     elif booktype == 'magazine':
-        data = myDB.match("SELECT Title,IssueFile as filename from issues where IssueID=?", (book_id,))
+        data = db.match("SELECT Title,IssueFile as filename from issues where IssueID=?", (book_id,))
         if not data:
             logger.error('Invalid issueid [%s]' % book_id)
             return
-        users = myDB.select('SELECT UserID from subscribers WHERE Type="magazine" and WantID=?', (data['Title'],))
+        users = db.select('SELECT UserID from subscribers WHERE Type="magazine" and WantID=?', (data['Title'],))
         cnt = 0
         for user in users:
-            myDB.action('INSERT into subscribers (UserID, type, WantID) VALUES (?, ?, ?)',
-                        (user['UserID'], booktype, book_id))
+            db.action('INSERT into subscribers (UserID, type, WantID) VALUES (?, ?, ?)',
+                      (user['UserID'], booktype, book_id))
             cnt += 1
         if cnt:
             logger.debug("%s wanted by %s %s to magazine %s" % (book_id, cnt, plural(cnt, 'subscriber'), data['Title']))
@@ -89,22 +89,22 @@ def mailing_list(book_type, global_name, book_id):
         except ValueError:
             logger.error("Invalid comicid/issueid [%s]" % book_id)
             return
-        data = myDB.match("SELECT IssueFile as filename from comicissues where comicid=? and issueid=?",
-                          (comicid, issueid))
-        users = myDB.select('SELECT UserID from subscribers WHERE Type="comic" and WantID=?', (comicid,))
+        data = db.match("SELECT IssueFile as filename from comicissues where comicid=? and issueid=?",
+                        (comicid, issueid))
+        users = db.select('SELECT UserID from subscribers WHERE Type="comic" and WantID=?', (comicid,))
         cnt = 0
         for user in users:
-            myDB.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
-                        (user['UserID'], booktype, book_id))
+            db.action('INSERT into subscribers (UserID, Type, WantID) VALUES (?, ?, ?)',
+                      (user['UserID'], booktype, book_id))
             cnt += 1
         if cnt:
             logger.debug("%s wanted by %s %s to comic %s" % (book_id, cnt, plural(cnt, 'subscriber'), comicid))
     else:
-        logger.error("Invalid book_type [%s]" % book_type)
+        logger.error("Invalid booktype [%s]" % book_type)
         return
 
     # now send to all users requesting it
-    users = myDB.select('SELECT UserID from subscribers WHERE Type=? and WantID=?', (booktype, book_id))
+    users = db.select('SELECT UserID from subscribers WHERE Type=? and WantID=?', (booktype, book_id))
     userlist = []
     for user in users:
         userlist.append(user['UserID'])
@@ -131,7 +131,7 @@ def mailing_list(book_type, global_name, book_id):
         if lazylibrarian.CONFIG['CREATE_LINK']:
             logger.debug("Creating link to %s" % filename)
             params = [lazylibrarian.CONFIG['CREATE_LINK'], filename]
-            rc, res, err = runScript(params)
+            rc, res, err = run_script(params)
             if res and res.startswith('http'):
                 msg = "%s is available to download, %s" % (
                        os.path.basename(filename), res)
@@ -144,7 +144,7 @@ def mailing_list(book_type, global_name, book_id):
     count = 0
     for user in userlist:
         msg = ''
-        res = myDB.match('SELECT SendTo,BookType from users where UserID=?', (user,))
+        res = db.match('SELECT SendTo,BookType from users where UserID=?', (user,))
         if res and res['SendTo']:
             if booktype == 'ebook':
                 pref = res['BookType']
@@ -166,14 +166,14 @@ def mailing_list(book_type, global_name, book_id):
                 if not msg:
                     msg = global_name + ' is available for download'
                     if link:
-                        msg += '<br>%s<br>' % link
+                        msg += ' %s ' % link
                 result = email_notifier.email_file(subject="Message from LazyLibrarian",
                                                    message=msg, to_addr=res['SendTo'], files=[])
 
             if result:
                 count += 1
-                myDB.action("DELETE from subscribers WHERE UserID=? and Type=? and WantID=?",
-                            (user, booktype, book_id))
+                db.action("DELETE from subscribers WHERE UserID=? and Type=? and WantID=?",
+                          (user, booktype, book_id))
             else:
                 # should we also delete from mailing list if email failed?
                 msg = "Failed to email file %s to %s" % (os.path.split(filename)[1], res['SendTo'])

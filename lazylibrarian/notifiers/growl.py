@@ -10,12 +10,12 @@ except ImportError:
     import lib.gntp.notifier as gntp_notifier
 
 
-class Growl_Notifier:
+class GrowlNotifier:
     def __init__(self):
         pass
 
     @staticmethod
-    def _sendGrowl(growl_host=None, growl_password=None, event=None, message=None, force=False):
+    def _send_growl(growl_host=None, growl_password=None, event=None, message=None, force=False):
 
         title = "LazyLibrarian"
 
@@ -102,18 +102,18 @@ class Growl_Notifier:
     def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['GROWL_ONSNATCH']:
             if fail:
-                self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+                self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
-                self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+                self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD']:
-            self._sendGrowl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
+            self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal
     def test_notify(self, title="Test"):
-        return self._sendGrowl(growl_host='', growl_password=None, event="Test",
-                               message="Testing Growl settings from LazyLibrarian", force=True)
+        return self._send_growl(growl_host='', growl_password=None, event="Test",
+                                message="Testing Growl settings from LazyLibrarian", force=True)
 
 
-notifier = Growl_Notifier
+notifier = GrowlNotifier

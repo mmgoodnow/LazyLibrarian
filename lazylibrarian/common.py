@@ -59,8 +59,8 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger, database, version
-from lazylibrarian.formatter import plural, next_run, is_valid_booktype, check_int, \
-    getList, makeUnicode, unaccented, replace_all, makeBytestr
+from lazylibrarian.formatter import plural, next_run_time, is_valid_booktype, check_int, \
+    get_list, make_unicode, unaccented, replace_all, make_bytestr
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -153,7 +153,7 @@ def cpu_use():
         return "Unknown - install psutil"
 
 
-def getUserAgent():
+def get_user_agent():
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
     if lazylibrarian.CONFIG['USER_AGENT']:
         return lazylibrarian.CONFIG['USER_AGENT']
@@ -165,7 +165,7 @@ def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
     # Return which type we found multiples of, or empty string if no multiples
-    filetypes = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
+    filetypes = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
     if recurse:
         for _, _, f in walk(foldername):
@@ -236,7 +236,7 @@ def listdir(name):
             logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(e)))
             return []
 
-    return [makeUnicode(item) for item in os.listdir(makeBytestr(name))]
+    return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
 
 
 def walk(top, topdown=True, onerror=None, followlinks=False):
@@ -247,10 +247,10 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
     islink, join, isdir = path_islink, os.path.join, path_isdir
 
     try:
-        top = makeUnicode(top)
+        top = make_unicode(top)
         if os.path.__name__ != 'ntpath':
-            names = os.listdir(makeBytestr(top))
-            names = [makeUnicode(name) for name in names]
+            names = os.listdir(make_bytestr(top))
+            names = [make_unicode(name) for name in names]
         else:
             names = os.listdir(top)
     except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
@@ -343,7 +343,7 @@ def syspath(path, prefix=True):
 
     if os.path.__name__ != 'ntpath':
         if PY2:
-            return makeBytestr(path)
+            return make_bytestr(path)
         return path
 
     if not isinstance(path, text_type):
@@ -430,21 +430,21 @@ def safe_copy(src, dst):
     return safe_move(src, dst, action='copy')
 
 
-def proxyList():
+def proxy_list():
     proxies = None
     if lazylibrarian.CONFIG['PROXY_HOST']:
         proxies = {}
-        for item in getList(lazylibrarian.CONFIG['PROXY_TYPE']):
+        for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
             if item in ['http', 'https']:
                 proxies.update({item: lazylibrarian.CONFIG['PROXY_HOST']})
     return proxies
 
 
-def isValidEmail(emails):
+def is_valid_email(emails):
     if not emails:
         return False
     elif ',' in emails:
-        emails = getList(emails)
+        emails = get_list(emails)
     else:
         emails = [emails]
 
@@ -564,7 +564,7 @@ def opf_file(search_dir=None):
 
 
 def bts_file(search_dir=None):
-    if 'bts' not in getList(lazylibrarian.CONFIG['SKIPPED_EXT']):
+    if 'bts' not in get_list(lazylibrarian.CONFIG['SKIPPED_EXT']):
         return ''
     return any_file(search_dir, '.bts')
 
@@ -607,14 +607,14 @@ def book_file(search_dir=None, booktype=None, recurse=False):
             try:
                 for fname in listdir(search_dir):
                     if is_valid_booktype(fname, booktype=booktype):
-                        return os.path.join(makeUnicode(search_dir), fname)
+                        return os.path.join(make_unicode(search_dir), fname)
             except Exception:
                 logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return ""
 
 
-def mimeType(filename):
-    name = makeUnicode(filename).lower()
+def mime_type(filename):
+    name = make_unicode(filename).lower()
     if name.endswith('.epub'):
         return 'application/epub+zip'
     elif name.endswith('.mobi') or name.endswith('.azw'):
@@ -652,7 +652,7 @@ def is_overdue(which="author"):
     days = 0
     maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
     if maxage:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         if which == 'author':
             cmd = 'SELECT AuthorName,AuthorID,Updated from authors WHERE Status="Active" or Status="Loading"'
             cmd += ' or Status="Wanted" '
@@ -661,7 +661,7 @@ def is_overdue(which="author"):
             else:
                 cmd += 'and AuthorID NOT LIKE "OL%A" '
             cmd += 'order by Updated ASC'
-            res = myDB.select(cmd)
+            res = db.select(cmd)
             total = len(res)
             if total:
                 name = res[0]['AuthorName']
@@ -677,7 +677,7 @@ def is_overdue(which="author"):
         if which == 'series':
             cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Status="Active" or Status="Wanted"'
             cmd += ' order by Updated ASC'
-            res = myDB.select(cmd)
+            res = db.select(cmd)
             total = len(res)
             if total:
                 name = res[0]['SeriesName']
@@ -716,7 +716,7 @@ def ago(when):
         return "just now"
 
 
-def nextRun(target=None, interval=0, action='', hours=False):
+def nextrun(target=None, interval=0, action='', hours=False):
     """ Check when a job is next due to run and log it
         Return startdate for the job """
     if target is None:
@@ -726,18 +726,18 @@ def nextRun(target=None, interval=0, action='', hours=False):
         hours = False
         interval = 0
 
-    myDB = database.DBConnection()
-    columns = myDB.select('PRAGMA table_info(jobs)')
+    db = database.DBConnection()
+    columns = db.select('PRAGMA table_info(jobs)')
     if not columns:  # no such table
         lastrun = 0
     else:
-        res = myDB.match('SELECT Finish from jobs WHERE Name=?', (target,))
+        res = db.match('SELECT Finish from jobs WHERE Name=?', (target,))
         if res and res['Finish']:
             lastrun = res['Finish']
         else:
             lastrun = 0
 
-    if target == 'syncToGoodreads':
+    if target == 'sync_to_goodreads':
         newtarget = 'sync_to_gr'
     else:
         newtarget = target
@@ -750,25 +750,25 @@ def nextRun(target=None, interval=0, action='', hours=False):
 
     if nextruntime:
         startdate = datetime.datetime.strptime(nextruntime, '%Y-%m-%d %H:%M:%S')
-        msg = "%s %s job in %s" % (action, target, next_run(startdate))
+        msg = "%s %s job in %s" % (action, target, next_run_time(startdate))
     else:
         if hours:
             interval *= 60
 
-        nextrun = lastrun + (interval * 60) - time.time()
-        if nextrun < 60:
-            nextrun = 60  # overdue, start in 1 minute
+        next_run_in = lastrun + (interval * 60) - time.time()
+        if next_run_in < 60:
+            next_run_in = 60  # overdue, start in 1 minute
 
-        startdate = datetime.datetime.fromtimestamp(time.time() + nextrun)
+        startdate = datetime.datetime.fromtimestamp(time.time() + next_run_in)
 
-        nextrun = int(nextrun / 60)
-        if nextrun < 1:
-            nextrun = 1
+        next_run_in = int(next_run_in / 60)
+        if next_run_in < 1:
+            next_run_in = 1
 
-        if nextrun <= 120:
-            msg = "%s %s job in %s %s" % (action, target, nextrun, plural(nextrun, "minute"))
+        if next_run_in <= 120:
+            msg = "%s %s job in %s %s" % (action, target, next_run_in, plural(next_run_in, "minute"))
         else:
-            hours = int(nextrun / 60)
+            hours = int(next_run_in / 60)
             if hours <= 48:
                 msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
             else:
@@ -781,15 +781,15 @@ def nextRun(target=None, interval=0, action='', hours=False):
     return startdate
 
 
-def scheduleJob(action='Start', target=None):
+def schedule_job(action='Start', target=None):
     """ Start or stop or restart a cron job by name eg
-        target=search_magazines, target=processDir, target=search_book """
+        target=search_magazines, target=process_dir, target=search_book """
     if target is None:
         return
 
     if target == 'PostProcessor':  # more readable
-        newtarget = 'processDir'
-    elif target == 'syncToGoodreads':
+        newtarget = 'process_dir'
+    elif target == 'sync_to_goodreads':
         newtarget = 'sync_to_gr'
     else:
         newtarget = target
@@ -807,19 +807,19 @@ def scheduleJob(action='Start', target=None):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
 
-        if 'processDir' in newtarget:
+        if 'process_dir' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0)
             if interval:
-                startdate = nextRun("POSTPROCESS", interval, action)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_processDir,
+                startdate = nextrun("POSTPROCESS", interval, action)
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_process_dir,
                                                      minutes=interval, start_date=startdate)
 
         elif 'search_magazines' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
-            if interval and (lazylibrarian.USE_TOR() or lazylibrarian.USE_NZB()
-                             or lazylibrarian.USE_RSS() or lazylibrarian.USE_DIRECT()
-                             or lazylibrarian.USE_IRC()):
-                startdate = nextRun("SEARCHALLMAG", interval, action)
+            if interval and (lazylibrarian.use_tor() or lazylibrarian.use_nzb()
+                             or lazylibrarian.use_rss() or lazylibrarian.use_direct()
+                             or lazylibrarian.use_irc()):
+                startdate = nextrun("SEARCHALLMAG", interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
                     lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
                                                          minutes=interval, start_date=startdate)
@@ -829,9 +829,9 @@ def scheduleJob(action='Start', target=None):
                                                          hours=hours, start_date=startdate)
         elif 'search_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
-            if interval and (lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR()
-                             or lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC()):
-                startdate = nextRun("SEARCHALLBOOKS", interval, action)
+            if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
+                             or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
+                startdate = nextrun("SEARCHALLBOOKS", interval, action)
                 if interval <= 600:
                     lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
                                                          minutes=interval, start_date=startdate)
@@ -841,8 +841,8 @@ def scheduleJob(action='Start', target=None):
                                                          hours=hours, start_date=startdate)
         elif 'search_rss_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
-            if interval and lazylibrarian.USE_RSS():
-                startdate = nextRun("SEARCHALLRSS", interval, action)
+            if interval and lazylibrarian.use_rss():
+                startdate = nextrun("SEARCHALLRSS", interval, action)
                 if interval <= 600:
                     lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
                                                          minutes=interval, start_date=startdate)
@@ -852,46 +852,46 @@ def scheduleJob(action='Start', target=None):
                                                          hours=hours, start_date=startdate)
         elif 'search_wishlist' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
-            if interval and lazylibrarian.USE_WISHLIST():
-                startdate = nextRun("SEARCHWISHLIST", interval, action, True)
+            if interval and lazylibrarian.use_wishlist():
+                startdate = nextrun("SEARCHWISHLIST", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
                                                      hours=interval, start_date=startdate)
 
         elif 'search_comics' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
-            if interval and (lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR()
-                             or lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC()):
-                startdate = nextRun("SEARCHALLCOMICS", interval, action, True)
+            if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
+                             or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
+                startdate = nextrun("SEARCHALLCOMICS", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
                                                      hours=interval, start_date=startdate)
 
-        elif 'checkForUpdates' in newtarget:
+        elif 'check_for_updates' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
             if interval:
-                startdate = nextRun("VERSIONCHECK", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.versioncheck.checkForUpdates,
+                startdate = nextrun("VERSIONCHECK", interval, action, True)
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.versioncheck.check_for_updates,
                                                      hours=interval, start_date=startdate)
 
         elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG['GR_SYNC']:
             interval = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
             if interval:
-                startdate = nextRun("GRSYNC", interval, action, True)
+                startdate = nextrun("GRSYNC", interval, action, True)
                 lazylibrarian.SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr,
                                                      hours=interval, start_date=startdate)
 
-        elif 'cleanCache' in newtarget:
+        elif 'clean_cache' in newtarget:
             days = lazylibrarian.CONFIG['CACHE_AGE']
             if days:
                 interval = 8
-                startdate = nextRun("CLEANCACHE", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.cleanCache,
+                startdate = nextrun("CLEANCACHE", interval, action, True)
+                lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.clean_cache,
                                                      hours=interval, start_date=startdate)
 
-        elif 'authorUpdate' in newtarget or 'seriesUpdate' in newtarget:
+        elif 'author_update' in newtarget or 'series_update' in newtarget:
             # Try to get all authors/series scanned evenly inside the cache age
             maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
             if maxage:
-                typ = newtarget.replace('Update', '')
+                typ = newtarget.replace('_update', '')
                 if typ == 'author':
                     task = 'AUTHORUPDATE'
                 else:
@@ -913,33 +913,33 @@ def scheduleJob(action='Start', target=None):
                 if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
                     interval = 5
 
-                startdate = nextRun(task, interval, action)
+                startdate = nextrun(task, interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
                     if typ == 'author':
-                        lazylibrarian.SCHED.add_interval_job(authorUpdate, minutes=interval, start_date=startdate)
+                        lazylibrarian.SCHED.add_interval_job(author_update, minutes=interval, start_date=startdate)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, minutes=interval, start_date=startdate)
+                        lazylibrarian.SCHED.add_interval_job(series_update, minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
                     if typ == 'author':
-                        lazylibrarian.SCHED.add_interval_job(authorUpdate, hours=hours, start_date=startdate)
+                        lazylibrarian.SCHED.add_interval_job(author_update, hours=hours, start_date=startdate)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(seriesUpdate, hours=hours, start_date=startdate)
+                        lazylibrarian.SCHED.add_interval_job(series_update, hours=hours, start_date=startdate)
         else:
             logger.debug("No %s scheduled" % target)
 
 
-def authorUpdate(restart=True, only_overdue=True):
+def author_update(restart=True, only_overdue=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "AUTHORUPDATE"
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     msg = ''
 
     # noinspection PyBroadException
     try:
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
@@ -949,13 +949,13 @@ def authorUpdate(restart=True, only_overdue=True):
                                                                                days, plural(days, "day"))
             else:
                 logger.info('Starting update for %s' % name)
-                lazylibrarian.importer.addAuthorToDB(refresh=True, authorid=ident, reason="authorUpdate %s" % name)
+                lazylibrarian.importer.add_author_to_db(refresh=True, authorid=ident, reason="author_update %s" % name)
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = 'Updated author %s' % name
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
-                scheduleJob("Restart", "authorUpdate")
+                schedule_job("Restart", "author_update")
     except Exception:
         logger.error('Unhandled exception in AuthorUpdate: %s' % traceback.format_exc())
         msg = "Unhandled exception in AuthorUpdate"
@@ -963,17 +963,17 @@ def authorUpdate(restart=True, only_overdue=True):
         return msg
 
 
-def seriesUpdate(restart=True, only_overdue=True):
+def series_update(restart=True, only_overdue=True):
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "SERIESUPDATE"
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     msg = ''
 
     # noinspection PyBroadException
     try:
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
@@ -983,54 +983,55 @@ def seriesUpdate(restart=True, only_overdue=True):
                                                                                days, plural(days, "day"))
             else:
                 logger.info('Starting series update for %s' % name)
-                lazylibrarian.bookwork.addSeriesMembers(ident)
+                lazylibrarian.bookwork.add_series_members(ident)
                 msg = 'Updated series %s' % name
             logger.debug(msg)
 
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             if total and restart and not lazylibrarian.STOPTHREADS:
-                scheduleJob("Restart", "seriesUpdate")
+                schedule_job("Restart", "series_update")
     except Exception:
-        logger.error('Unhandled exception in seriesUpdate: %s' % traceback.format_exc())
-        msg = "Unhandled exception in seriesUpdate"
+        logger.error('Unhandled exception in series_update: %s' % traceback.format_exc())
+        msg = "Unhandled exception in series_update"
     finally:
         return msg
 
 
-def aaUpdate(refresh=False):
-    myDB = database.DBConnection()
+def all_author_update(refresh=False):
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
         cmd = 'SELECT AuthorID from authors WHERE Status="Active" or Status="Loading" or Status="Wanted"'
         cmd += ' order by Updated ASC'
-        activeauthors = myDB.select(cmd)
+        activeauthors = db.select(cmd)
         lazylibrarian.AUTHORS_UPDATE = 1
         logger.info('Starting update for %i active %s' % (len(activeauthors), plural(len(activeauthors), "author")))
         for author in activeauthors:
             if lazylibrarian.STOPTHREADS:
                 logger.debug("Aborting ActiveAuthorUpdate")
                 break
-            lazylibrarian.importer.addAuthorToDB(refresh=refresh, authorid=author['AuthorID'], reason="aaUpdate")
+            lazylibrarian.importer.add_author_to_db(refresh=refresh, authorid=author['AuthorID'],
+                                                    reason="all_author_update")
         logger.info('Active author update complete')
         msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))
         logger.debug(msg)
     except Exception:
-        msg = 'Unhandled exception in aaUpdate: %s' % traceback.format_exc()
+        msg = 'Unhandled exception in all_author_update: %s' % traceback.format_exc()
         logger.error(msg)
     finally:
         lazylibrarian.AUTHORS_UPDATE = 0
     return msg
 
 
-def restartJobs(start='Restart'):
+def restart_jobs(start='Restart'):
     lazylibrarian.STOPTHREADS = start == 'Stop'
-    for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'seriesUpdate',
-                 'search_magazines', 'search_comics', 'checkForUpdates', 'authorUpdate', 'syncToGoodreads',
-                 'cleanCache']:
-        scheduleJob(start, item)
+    for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'series_update',
+                 'search_magazines', 'search_comics', 'check_for_updates', 'author_update', 'sync_to_goodreads',
+                 'clean_cache']:
+        schedule_job(start, item)
 
 
-def ensureRunning(jobname):
+def ensure_running(jobname):
     lazylibrarian.STOPTHREADS = False
     found = False
     for job in lazylibrarian.SCHED.get_jobs():
@@ -1038,10 +1039,10 @@ def ensureRunning(jobname):
             found = True
             break
     if not found:
-        scheduleJob('Start', jobname)
+        schedule_job('Start', jobname)
 
 
-def checkRunningJobs():
+def check_running_jobs():
     # make sure the relevant jobs are running
     # search jobs start when something gets marked "wanted" but are
     # not aware of any config changes that happen later, ie enable or disable providers,
@@ -1051,39 +1052,39 @@ def checkRunningJobs():
     # but check anyway for completeness...
 
     lazylibrarian.STOPTHREADS = False
-    myDB = database.DBConnection()
-    snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
-    seeding = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Seeding'")
-    wanted = myDB.match("SELECT count(*) as counter FROM books WHERE Status = 'Wanted'")
+    db = database.DBConnection()
+    snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
+    seeding = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Seeding'")
+    wanted = db.match("SELECT count(*) as counter FROM books WHERE Status = 'Wanted'")
     if snatched or seeding:
-        ensureRunning('PostProcessor')
+        ensure_running('PostProcessor')
     if wanted:
-        if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_DIRECT() or \
-                lazylibrarian.USE_IRC():
-            ensureRunning('search_book')
-        if lazylibrarian.USE_RSS():
-            ensureRunning('search_rss_book')
+        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_direct() or \
+                lazylibrarian.use_irc():
+            ensure_running('search_book')
+        if lazylibrarian.use_rss():
+            ensure_running('search_rss_book')
     else:
-        scheduleJob('Stop', 'search_book')
-        scheduleJob('Stop', 'search_rss_book')
-    if lazylibrarian.USE_WISHLIST():
-        ensureRunning('search_wishlist')
+        schedule_job('Stop', 'search_book')
+        schedule_job('Stop', 'search_rss_book')
+    if lazylibrarian.use_wishlist():
+        ensure_running('search_wishlist')
     else:
-        scheduleJob('Stop', 'search_wishlist')
+        schedule_job('Stop', 'search_wishlist')
 
-    if lazylibrarian.USE_NZB() or lazylibrarian.USE_TOR() or lazylibrarian.USE_RSS() or \
-            lazylibrarian.USE_DIRECT() or lazylibrarian.USE_IRC():
-        ensureRunning('search_magazines')
-        ensureRunning('search_comics')
+    if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
+            lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        ensure_running('search_magazines')
+        ensure_running('search_comics')
     else:
-        scheduleJob('Stop', 'search_magazines')
-        scheduleJob('Stop', 'search_comics')
+        schedule_job('Stop', 'search_magazines')
+        schedule_job('Stop', 'search_comics')
 
-    ensureRunning('authorUpdate')
-    ensureRunning('seriesUpdate')
+    ensure_running('author_update')
+    ensure_running('series_update')
 
 
-def showStats():
+def show_stats():
     gb_status = "Active"
     for entry in lazylibrarian.PROVIDER_BLOCKLIST:
         if entry["name"] == 'googleapis':
@@ -1098,63 +1099,63 @@ def showStats():
                   lazylibrarian.GR_SLEEP, lazylibrarian.LT_SLEEP, lazylibrarian.CV_SLEEP),
               "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
 
-    myDB = database.DBConnection()
-    snatched = myDB.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
+    db = database.DBConnection()
+    snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
     if snatched['counter']:
         result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
     else:
         result.append("No Snatched items")
 
     series_stats = []
-    res = myDB.match("SELECT count(*) as counter FROM series")
+    res = db.match("SELECT count(*) as counter FROM series")
     series_stats.append(['Series', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM series WHERE Total>0 and Have=0")
+    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 and Have=0")
     series_stats.append(['Empty', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM series WHERE Total>0 AND Have=Total")
+    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 AND Have=Total")
     series_stats.append(['Full', res['counter']])
-    res = myDB.match('SELECT count(*) as counter FROM series WHERE Status="Ignored"')
+    res = db.match('SELECT count(*) as counter FROM series WHERE Status="Ignored"')
     series_stats.append(['Ignored', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM series WHERE Total=0")
+    res = db.match("SELECT count(*) as counter FROM series WHERE Total=0")
     series_stats.append(['Blank', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM series WHERE Updated>0")
+    res = db.match("SELECT count(*) as counter FROM series WHERE Updated>0")
     series_stats.append(['Monitor', res['counter']])
     overdue = is_overdue('series')[0]
     series_stats.append(['Overdue', overdue])
 
     mag_stats = []
     if lazylibrarian.SHOW_MAGS:
-        res = myDB.match("SELECT count(*) as counter FROM magazines")
+        res = db.match("SELECT count(*) as counter FROM magazines")
         mag_stats.append(['Magazine', res['counter']])
-        res = myDB.match("SELECT count(*) as counter FROM issues")
+        res = db.match("SELECT count(*) as counter FROM issues")
         mag_stats.append(['Issues', res['counter']])
         cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
         cmd += 'as counter from magazines where counter=0'
-        res = myDB.match(cmd)
+        res = db.match(cmd)
         mag_stats.append(['Empty', len(res)])
 
     if lazylibrarian.SHOW_COMICS:
-        res = myDB.match("SELECT count(*) as counter FROM comics")
+        res = db.match("SELECT count(*) as counter FROM comics")
         mag_stats.append(['Comics', res['counter']])
-        res = myDB.match("SELECT count(*) as counter FROM comicissues")
+        res = db.match("SELECT count(*) as counter FROM comicissues")
         mag_stats.append(['Issues', res['counter']])
         cmd = 'select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) '
         cmd += 'as counter from comics where counter=0'
-        res = myDB.match(cmd)
+        res = db.match(cmd)
         mag_stats.append(['Empty', len(res)])
 
     book_stats = []
     audio_stats = []
     missing_stats = []
-    res = myDB.match("SELECT count(*) as counter FROM books")
+    res = db.match("SELECT count(*) as counter FROM books")
     book_stats.append(['eBooks', res['counter']])
     audio_stats.append(['Audio', res['counter']])
-    res = myDB.select("SELECT Status,count(*) as counter from books group by Status")
+    res = db.select("SELECT Status,count(*) as counter from books group by Status")
     statusdict = {}
     for item in res:
         statusdict[item['Status']] = item['counter']
     for item in ['Have', 'Open', 'Wanted', 'Ignored']:
         book_stats.append([item, statusdict.get(item, 0)])
-    res = myDB.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
+    res = db.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
     statusdict = {}
     for item in res:
         statusdict[item['AudioStatus']] = item['counter']
@@ -1163,35 +1164,35 @@ def showStats():
     for column in ['BookGenre', 'BookDesc']:
         cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
         cmd += "(%s is null or %s = '')"
-        res = myDB.match(cmd % (column, column))
+        res = db.match(cmd % (column, column))
         missing_stats.append([column.replace('Book', 'No'), res['counter']])
     cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookGenre='Unknown'"
-    res = myDB.match(cmd)
+    res = db.match(cmd)
     missing_stats.append(['X_Genre', res['counter']])
     cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookDesc='No Description'"
-    res = myDB.match(cmd)
+    res = db.match(cmd)
     missing_stats.append(['X_Desc', res['counter']])
     for column in ['BookISBN', 'BookLang']:
         cmd = "SELECT count(*) as counter FROM books WHERE "
         cmd += "(%s is null or %s = '' or %s = 'Unknown')"
-        res = myDB.match(cmd % (column, column, column))
+        res = db.match(cmd % (column, column, column))
         missing_stats.append([column.replace('Book', 'No'), res['counter']])
     cmd = "SELECT count(*) as counter FROM genres"
-    res = myDB.match(cmd)
+    res = db.match(cmd)
     missing_stats.append(['Genres', res['counter']])
 
     if not lazylibrarian.SHOW_AUDIO:
         audio_stats = []
 
     author_stats = []
-    res = myDB.match("SELECT count(*) as counter FROM authors")
+    res = db.match("SELECT count(*) as counter FROM authors")
     author_stats.append(['Authors', res['counter']])
     for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
-        res = myDB.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
+        res = db.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
         author_stats.append([status, res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM authors WHERE HaveBooks=0")
+    res = db.match("SELECT count(*) as counter FROM authors WHERE HaveBooks=0")
     author_stats.append(['Empty', res['counter']])
-    res = myDB.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
+    res = db.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
     author_stats.append(['Blank', res['counter']])
     overdue = is_overdue('author')[0]
     author_stats.append(['Overdue', overdue])
@@ -1208,9 +1209,9 @@ def showStats():
     return result
 
 
-def showJobs():
+def show_jobs():
     result = []
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     for job in lazylibrarian.SCHED.get_jobs():
         job = str(job)
         if "search_magazines" in job:
@@ -1219,14 +1220,14 @@ def showJobs():
         elif "search_comics" in job:
             jobname = "Comic search"
             threadname = "SEARCHALLCOMICS"
-        elif "checkForUpdates" in job:
+        elif "check_for_updates" in job:
             jobname = "Check for Update"
             threadname = "VERSIONCHECK"
         elif "search_book" in job:
             jobname = "Book search"
             threadname = "SEARCHALLBOOKS"
         elif "search_rss_book" in job:
-            jobname = "RSS book search"
+            jobname = "rss book search"
             threadname = "SEARCHALLRSS"
         elif "search_wishlist" in job:
             jobname = "Wishlist search"
@@ -1234,19 +1235,19 @@ def showJobs():
         elif "PostProcessor" in job:
             jobname = "PostProcessor"
             threadname = "POSTPROCESS"
-        elif "cron_processDir" in job:
+        elif "cron_process_dir" in job:
             jobname = "PostProcessor"
             threadname = "POSTPROCESS"
-        elif "authorUpdate" in job:
+        elif "author_update" in job:
             jobname = "Update authors"
             threadname = "AUTHORUPDATE"
-        elif "seriesUpdate" in job:
+        elif "series_update" in job:
             jobname = "Update series"
             threadname = "SERIESUPDATE"
         elif "sync_to_gr" in job:
             jobname = "Goodreads Sync"
             threadname = "GRSYNC"
-        elif "cleanCache" in job:
+        elif "clean_cache" in job:
             jobname = "Clean cache"
             threadname = "CLEANCACHE"
         else:
@@ -1255,12 +1256,12 @@ def showJobs():
 
         # jobinterval = job.split('[')[1].split(']')[0]
         jobtime = job.split('at: ')[1].split('.')[0].strip(')')
-        jobtime = next_run(jobtime)
+        jobtime = next_run_time(jobtime)
         timeparts = jobtime.split(' ')
         if timeparts[0] == '1' and timeparts[1].endswith('s'):
             timeparts[1] = timeparts[1][:-1]
         jobinfo = "%s: Next run in %s %s" % (jobname, timeparts[0], timeparts[1])
-        res = myDB.match('SELECT Start,Finish from jobs WHERE Name="%s"' % threadname)
+        res = db.match('SELECT Start,Finish from jobs WHERE Name="%s"' % threadname)
 
         if res:
             if res['Start'] > res['Finish']:
@@ -1292,13 +1293,13 @@ def showJobs():
     return result
 
 
-def clearLog():
+def clear_log():
     lazylibrarian.LOGLIST = []
     error = False
     if os.name == 'nt':
         return "Screen log cleared"
 
-    logger.lazylibrarian_log.stopLogger()
+    logger.lazylibrarian_log.stop_logger()
     for f in glob.glob(lazylibrarian.CONFIG['LOGDIR'] + "/*.log*"):
         try:
             os.remove(syspath(f))
@@ -1306,7 +1307,7 @@ def clearLog():
             error = e.strerror
             logger.debug("Failed to remove %s : %s" % (f, error))
 
-    logger.lazylibrarian_log.initLogger(loglevel=lazylibrarian.LOGLEVEL)
+    logger.lazylibrarian_log.init_logger(loglevel=lazylibrarian.LOGLEVEL)
 
     if error:
         return 'Failed to clear logfiles: %s' % error
@@ -1315,8 +1316,8 @@ def clearLog():
             lazylibrarian.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
 
 
-# noinspection PyUnresolvedReferences
-def logHeader():
+# noinspection PyUnresolvedReferences,PyPep8Naming
+def log_header():
     popen_list = [sys.executable, lazylibrarian.FULL_PATH]
     popen_list += lazylibrarian.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
@@ -1340,8 +1341,8 @@ def logHeader():
         pass
 
     db_version = 0
-    myDB = database.DBConnection()
-    result = myDB.match('PRAGMA user_version')
+    db = database.DBConnection()
+    result = db.match('PRAGMA user_version')
     if result and result[0]:
         value = str(result[0])
         if value.isdigit():
@@ -1535,7 +1536,7 @@ def set_redactlist():
     logger.debug("Redact list has %s" % len(lazylibrarian.REDACTLIST))
 
 
-def saveLog():
+def save_log():
     if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 
@@ -1560,7 +1561,7 @@ def saveLog():
             linecount = 0
             if PY2:
                 lines = reversed(open(syspath(fname), 'r', encoding="utf-8").readlines())
-                lines = [makeUnicode(lyne) for lyne in lines]
+                lines = [make_unicode(lyne) for lyne in lines]
             else:
                 lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
@@ -1589,7 +1590,7 @@ def saveLog():
         out.write(u'---END-CONFIG---------------------------------\n')
         if PY2:
             lines = reversed(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8").readlines())
-            lines = [makeUnicode(lyne) for lyne in lines]
+            lines = [make_unicode(lyne) for lyne in lines]
         else:
             lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
         for line in lines:
@@ -1601,11 +1602,11 @@ def saveLog():
         out.write(u'---CONFIG-------------------------------------\n')
     out.close()
     logfile = open(syspath(outfile + '.log'), 'w', encoding='utf-8')
-    logfile.write(logHeader())
+    logfile.write(log_header())
     linecount = 0
     if PY2:
         lines = reversed(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8").readlines())
-        lines = [makeUnicode(lyne) for lyne in lines]
+        lines = [make_unicode(lyne) for lyne in lines]
     else:
         lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
     for line in lines:
@@ -1620,7 +1621,7 @@ def saveLog():
     return "Debug log saved as %s" % (outfile + '.zip')
 
 
-def zipAudio(source, zipname):
+def zip_audio(source, zipname):
     """ Zip up all the audiobook parts in source folder to zipname
         Check if zipfile already exists, if not create a new one
         Doesn't actually check for audiobook parts, just zips everything
@@ -1642,7 +1643,7 @@ def zipAudio(source, zipname):
     return zip_file
 
 
-def runScript(params):
+def run_script(params):
     if os.name == 'nt' and params[0].endswith('.py'):
         params.insert(0, sys.executable)
     logger.debug(str(params))
@@ -1654,11 +1655,11 @@ def runScript(params):
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-            logger.debug(makeUnicode(res))
-            logger.debug(makeUnicode(err))
-        return p.returncode, makeUnicode(res), makeUnicode(err)
+            logger.debug(make_unicode(res))
+            logger.debug(make_unicode(err))
+        return p.returncode, make_unicode(res), make_unicode(err)
     except Exception as e:
-        err = "runScript exception: %s %s" % (type(e).__name__, str(e))
+        err = "run_script exception: %s %s" % (type(e).__name__, str(e))
         logger.error(err)
         return 1, '', err
 
@@ -1685,7 +1686,7 @@ def calibre_prg(prgname):
                 try:
                     params = ["where", prgname]
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    target = makeUnicode(res).strip()
+                    target = make_unicode(res).strip()
                 except Exception as e:
                     logger.debug("where %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
                     target = ''
@@ -1693,7 +1694,7 @@ def calibre_prg(prgname):
                 try:
                     params = ["which", prgname]
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    target = makeUnicode(res).strip()
+                    target = make_unicode(res).strip()
                 except Exception as e:
                     logger.debug("which %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
                     target = ''
@@ -1702,7 +1703,7 @@ def calibre_prg(prgname):
         try:
             params = [target, "--version"]
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            res = makeUnicode(res).strip().split("(")[1].split(")")[0]
+            res = make_unicode(res).strip().split("(")[1].split(")")[0]
             logger.debug("Found %s version %s" % (prgname, res))
         except Exception as e:
             logger.debug("%s --version failed: %s %s" % (prgname, type(e).__name__, str(e)))

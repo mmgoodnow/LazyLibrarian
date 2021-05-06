@@ -30,8 +30,8 @@ class SlackNotifier:
         pass
 
     @staticmethod
-    def _sendSlack(message=None, event=None, slack_token=None,
-                   method=None, force=False):
+    def _send_slack(message=None, event=None, slack_token=None,
+                    method=None, force=False):
         if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
             return False
 
@@ -88,7 +88,7 @@ class SlackNotifier:
         if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
             return False
 
-        return self._sendSlack(message, event, slack_token, method, force)
+        return self._send_slack(message, event, slack_token, method, force)
 
     #
     # Public functions

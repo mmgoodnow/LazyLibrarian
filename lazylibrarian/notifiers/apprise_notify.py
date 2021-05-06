@@ -15,13 +15,13 @@ except ImportError as e:
 
 
 # noinspection PyUnresolvedReferences
-class Apprise_Notifier:
+class AppriseNotifier:
 
     def __init__(self):
         pass
 
     @staticmethod
-    def _sendApprise(event=None, message=None, url=None):
+    def _send_apprise(event=None, message=None, url=None):
         try:
             asset = AppriseAsset()
             asset.default_extension = ".png"
@@ -79,7 +79,7 @@ class Apprise_Notifier:
         message: The message string to send
         url: to send to one notifier. If None send to all enabled notifiers
         """
-        return self._sendApprise(event, message, url)
+        return self._send_apprise(event, message, url)
 
     #
     # Public functions
@@ -128,4 +128,4 @@ class Apprise_Notifier:
             return ''
 
 
-notifier = Apprise_Notifier
+notifier = AppriseNotifier

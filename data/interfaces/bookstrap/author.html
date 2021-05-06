@@ -7,44 +7,44 @@
         <form id="subhead_menu" class="form-inline">
         %if perm&lazylibrarian.perm_force:
             %if author['Status'] == 'Paused':
-                <a href="resumeAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-pause"></i> Paused</a>
+                <a href="resume_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-pause"></i> Paused</a>
             %else:
               %if author['Status'] == 'Active':
-                <a href="wantAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-play"></i> Active</a>
+                <a href="want_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-play"></i> Active</a>
               %else:
                 %if author['Status'] == 'Wanted':
-                  <a href="ignoreAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-plus"></i> Wanted</a>
+                  <a href="ignore_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-plus"></i> Wanted</a>
                 %else:
-                  <a href="pauseAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Ignored</a>
+                  <a href="pause_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Ignored</a>
                 %endif
               %endif
             %endif
-            <a href="refreshAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> Refresh Author</a>
-            <a href="libraryScanAuthor?AuthorID=${author['AuthorID']}&library=eBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> eBook Scan</a>
+            <a href="refresh_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> Refresh Author</a>
+            <a href="library_scan_author?authorid=${author['AuthorID']}&library=eBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> eBook Scan</a>
             %if lazylibrarian.SHOW_AUDIO > 0:
-                <a href="libraryScanAuthor?AuthorID=${author['AuthorID']}&library=AudioBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> AudioBook Scan</a>
+                <a href="library_scan_author?authorid=${author['AuthorID']}&library=AudioBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> AudioBook Scan</a>
             %endif
             <button class="button btn btn-sm btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Remove Author</button>
             %if ignored == 'True':
-                <a href="authorPage?AuthorID=${author['AuthorID']}&Ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+                <a href="author_page?authorid=${author['AuthorID']}&Ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
             %else:
-            <a href="authorPage?AuthorID=${author['AuthorID']}&Ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+            <a href="author_page?authorid=${author['AuthorID']}&Ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
             %endif
         %endif
         %if showseries >= 1:
             %if perm&lazylibrarian.perm_series:
-              <a href="series?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Series</a>
+              <a href="series?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Series</a>
               %endif
         %endif
         %if lazylibrarian.CONFIG['GR_FOLLOW'] == True:
             %if author['GRfollow']:
               %if author['GRfollow'] != '0':
-                <a href="unfollowAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-check"></i> Following</a>
+                <a href="unfollow_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-check"></i> Following</a>
               %else:
-                <a href="followAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-times"></i> Not Following</a>
+                <a href="follow_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-times"></i> Not Following</a>
               %endif
             %else:
-              <a href="followAuthor?AuthorID=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-times"></i> Not Following</a>
+              <a href="follow_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-times"></i> Not Following</a>
             %endif
         %endif
          <div class="form-group pull-right">
@@ -71,12 +71,12 @@
          %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
            %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
              %if lazylibrarian.SHOW_EBOOK > 0:
-             <a href="rssFeed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
-             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rssFeed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
+             <a href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
+             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
              %if lazylibrarian.SHOW_AUDIO > 0:
-             <a href="rssFeed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent audiobooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-headphones"></i></a>
-             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rssFeed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml">
+             <a href="rss_feed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent audiobooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-headphones"></i></a>
+             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rss_feed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
            %endif
          %endif
@@ -99,7 +99,7 @@
         <div id="authorhead_menu">
             <h1><a href="${author['AuthorLink']}" target="_blank" rel="noreferrer">${author['AuthorName']}</a>
             %if perm&lazylibrarian.perm_edit:
-            <a href="editAuthor?authorid=${author['AuthorID']}" target="_new"><small><i>Edit</i></small></a>
+            <a href="edit_author?authorid=${author['AuthorID']}" target="_new"><small><i>Edit</i></small></a>
             %endif
             </h1>
             %if author['AuthorDeath']:
@@ -154,7 +154,7 @@
 </div>
 </div>
 </div>
-<form action="markBooks" method="get" class="form-inline">
+<form action="mark_books" method="get" class="form-inline">
   <div class="row">
     <input type="hidden" name="AuthorID" value="${author['AuthorID']}">
     <input type="hidden" name="redirect" value="author">
@@ -165,7 +165,7 @@
     <div class="col-xs-12 col-sm-5">
       <div class="form-group">
         <label for="action" class="">Mark selected ${library}s as</label>
-        <select class="markBooks form-control input-sm" id="action" name="action">
+        <select class="mark_books form-control input-sm" id="action" name="action">
           %if perm&lazylibrarian.perm_status:
             %if lazylibrarian.SHOW_EBOOK > 0:
               <option value="WantEbook">eBook Wanted</option>
@@ -192,7 +192,7 @@
           %endif
         </select>
       </div>
-      <input type="submit" class="markBooks btn btn-sm btn-primary" value="Go">
+      <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
     </div>
     %endif
     %if lazylibrarian.CONFIG['TOGGLES'] == True:
@@ -248,20 +248,20 @@
                     }
                 },
                 callback: function (result) {
-                  if (result) { $.get("removeAuthor", {'AuthorID': '${author['AuthorID']}' },
+                  if (result) { $.get("remove_author", {'AuthorID': '${author['AuthorID']}' },
                       function (data) { }); }
                 }
             });
         });
 
         $('#chooselanguage').change(function(){
-            new_settings = 'authorPage?AuthorID=${author['AuthorID']}&BookLang=' + $(this).val()
+            new_settings = 'author_page?authorid=${author['AuthorID']}&BookLang=' + $(this).val()
             if (typeof $("#chooselib").val() != 'undefined') {
             new_settings += '&library=' + $("#chooselib").val() }
             window.location = new_settings
         })
         $('#chooselib').change(function(){
-            new_settings = 'authorPage?AuthorID=${author['AuthorID']}&library=' + $(this).val()
+            new_settings = 'author_page?authorid=${author['AuthorID']}&library=' + $(this).val()
             if (typeof $("#chooselanguage").val() != 'undefined') {
             new_settings += '&BookLang=' + $("#chooselanguage").val() }
             window.location = new_settings
@@ -313,7 +313,7 @@
                         var output = [];
                         for (var index=0; index < series.length; ++index) {
                             var link_data = series[index].split("~");
-                            output.push('<a href=seriesMembers?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
+                            output.push('<a href=series_members?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
                         }
                         return output.join('<br>');
                     }},
@@ -352,15 +352,15 @@
                         var btn2 = row[14]
                         btn = btn + flag
                         if ( btn.indexOf('Open') >= 0 ) {
-                                btn = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
+                                btn = '<a class="button green btn btn-xs btn-warning" href="open_book?bookid=' + row[9] +
                                     '&library=eBook" target="_self"><i class="fa fa-book"></i> ' + btn + '</a>'
                             %if len(email):
-                                btn += '<a class="button green btn btn-xs btn-info" href="sendBook?bookid=' + row[9] +
+                                btn += '<a class="button green btn btn-xs btn-info" href="send_book?bookid=' + row[9] +
                                     '&library=eBook" target="_self">Send</a>'
                             %endif
                         }
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-book"></i> ' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                            btn = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-book"></i> ' + btn + '</a></p><p><a class="b btn btn-xs btn-success" href="search_for_book?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
                         else if ( btn.indexOf('Snatched') >= 0 ) {
                             btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-book"></i> ' + btn + '</a>'}
                         else if ( btn.indexOf('Ignored') >= 0 ) {
@@ -370,22 +370,22 @@
                             %if perm&lazylibrarian.perm_status:
                             btn = '<a class="button btn btn-xs btn-info"><i class="fa fa-book"></i> ' + btn + '</a>'
                             %else:
-                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
+                            btn = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
                             %endif
                             }
                         else {
                             %if perm&lazylibrarian.perm_status:
                             btn = '<a class="button btn btn-xs btn-default grey"><i class="fa fa-book"></i> ' + btn + '</a>'
                             %else:
-                            btn = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
+                            btn = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=eBook" target="_self"><i class="fa fa-book"></i> Request</a></p>'
                             %endif
                             }
                         if ( btn2.indexOf('Open') >= 0 ) {
-                                btn2 = '<a class="button green btn btn-xs btn-warning" href="openBook?bookid=' + row[9] +
+                                btn2 = '<a class="button green btn btn-xs btn-warning" href="open_book?bookid=' + row[9] +
                                     '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
                         }
                         else if ( btn2.indexOf('Wanted') >= 0 ) {
-                            btn2 = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-headphones"></i> ' + btn2 + '</a></p><p><a class="b btn btn-xs btn-success" href="searchForBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
+                            btn2 = '<p><a class="a btn btn-xs btn-danger"><i class="fa fa-headphones"></i> ' + btn2 + '</a></p><p><a class="b btn btn-xs btn-success" href="search_for_book?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-search"></i> Search</a></p>'}
                         else if ( btn2.indexOf('Snatched') >= 0 ) {
                             btn2 = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'}
                         else if ( btn.indexOf('Ignored') >= 0 ) {
@@ -395,14 +395,14 @@
                             %if perm&lazylibrarian.perm_status:
                             btn2 = '<a class="button btn btn-xs btn-info"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
                             %else:
-                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
+                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
                             %endif
                             }
                         else {
                             %if perm&lazylibrarian.perm_status:
                             btn2 = '<a class="button btn btn-xs btn-default grey"><i class="fa fa-headphones"></i> ' + btn2 + '</a>'
                             %else:
-                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="requestBook?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
+                            btn2 = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
                             %endif
                             }
                         %if lazylibrarian.SHOW_EBOOK == 0:
@@ -426,7 +426,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[6, 'desc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getBooks?source=Author&AuthorID=${author['AuthorID']}&booklang=${booklang}&library=${library}&ignored=${ignored}',
+                "sAjaxSource": 'get_books?source=Author&AuthorID=${author['AuthorID']}&booklang=${booklang}&library=${library}&ignored=${ignored}',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},

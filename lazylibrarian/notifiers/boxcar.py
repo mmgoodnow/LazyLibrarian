@@ -25,7 +25,7 @@ from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxyList
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxy_list
 from lazylibrarian.formatter import check_int
 
 # from lazylibrarian.exceptions import ex
@@ -39,7 +39,7 @@ class BoxcarNotifier:
     def __init__(self):
         pass
 
-    def _sendBoxcar(self, msg, title, token, subscribe=False):
+    def _send_boxcar(self, msg, title, token, subscribe=False):
         """
         Sends a boxcar notification to the address provided
 
@@ -61,12 +61,12 @@ class BoxcarNotifier:
         if PY2:
             msg = msg.encode(lazylibrarian.SYS_ENCODING)
             title = title.encode(lazylibrarian.SYS_ENCODING)
-        curUrl = API_URL
+        cur_url = API_URL
 
         # if this is a subscription notification then act accordingly
         if subscribe:
             data = {'email': token}
-            curUrl += "/subscribe"
+            cur_url += "/subscribe"
 
         # for normal requests we need all these parameters
         else:
@@ -76,11 +76,11 @@ class BoxcarNotifier:
                 'notification[long_message]': msg,
                 'notification[sound]': "done"
             }
-        proxies = proxyList()
+        proxies = proxy_list()
         # send the request to boxcar
         try:
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-            r = requests.get(curUrl, params=data, timeout=timeout, proxies=proxies)
+            r = requests.get(cur_url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
                 logger.debug("BOXCAR: Notification successful.")
@@ -97,8 +97,8 @@ class BoxcarNotifier:
                     logger.error("BOXCAR: Already subscribed to service")
                 # HTTP status 401 if the user doesn't have the service added
                 else:
-                    subscribeNote = self._sendBoxcar(msg, title, token, True)
-                    if subscribeNote:
+                    subscribe_note = self._send_boxcar(msg, title, token, True)
+                    if subscribe_note:
                         logger.debug("BOXCAR: Subscription sent.")
                         return True
                     else:
@@ -138,7 +138,7 @@ class BoxcarNotifier:
         if not username:
             username = lazylibrarian.CONFIG['BOXCAR_TOKEN']
 
-        return self._sendBoxcar(message, title, username)
+        return self._send_boxcar(message, title, username)
 
     #
     # Public functions
@@ -158,7 +158,7 @@ class BoxcarNotifier:
     def test_notify(self, title="Test"):
         return self._notify("This is a test notification from LazyLibrarian", title, force=True)
 
-    def update_library(self, showName=None):
+    def update_library(self, show_name=None):
         pass
 
 

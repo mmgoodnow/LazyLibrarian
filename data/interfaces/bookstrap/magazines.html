@@ -4,24 +4,24 @@
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
-    <form action="addMagazine" method="get">
+    <form action="add_magazine" method="get">
       <div id="subhead_menu" class="col-xs-12 col-md-8">
         %if perm&lazylibrarian.perm_force:
-        <a href="forceSearch?source=magazines" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
-        <a href="forceProcess?source=magazines" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
-        <a href="magazineScan" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
-        <a href="pastIssues?whichStatus=Skipped" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
+        <a href="force_search?source=magazines" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
+        <a href="force_process?source=magazines" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
+        <a href="magazine_scan" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
+        <a href="past_issues?whichStatus=Skipped" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
         %endif
-        <a href="magWall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
+        <a href="mag_wall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
           %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
-            <a href="rssFeed?user=${user}&type=Magazine&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
-            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest magazines" href="rssFeed?user=${user}&type=Magazine&limit=10.xml">
+            <a href="rss_feed?user=${user}&type=Magazine&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
+            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest magazines" href="rss_feed?user=${user}&type=Magazine&limit=10.xml">
           %endif
           %if pref&lazylibrarian.pref_mymags:
-            <a href="toggleMyMags" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+            <a href="toggle_my_mags" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
           %else:
-            <a href="toggleMyMags" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+            <a href="toggle_my_mags" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
           %endif
         %endif
       </div>
@@ -47,13 +47,13 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Libraryscan in progress ...</button>
     </p>
   %endif
-  <form name="markMagazines" id="markMagazines" action="markMagazines" method="get" class="form-inline" onsubmit="return false;">
+  <form name="mark_magazines" id="mark_magazines" action="mark_magazines" method="get" class="form-inline" onsubmit="return false;">
     <div class="row">
       % if perm%lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
         <div class="form-group">
           <label for="action" class="">Mark selected as</label>
-          <select class="markMagazines form-control input-sm" id="action" name="action">
+          <select class="mark_magazines form-control input-sm" id="action" name="action">
             %if perm&lazylibrarian.perm_status:
             <option value="Active">Active</option>
             <option value="Paused">Paused</option>
@@ -143,7 +143,7 @@
                     { targets: [2],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return '<a href=\'openMag?bookid=' + row[0] + '\'">' + row[2] + '</a>'
+                            return '<a href=\'open_mag?bookid=' + row[0] + '\'">' + row[2] + '</a>'
                         ;} },
                     { targets: [3, 4, 5, 6],
                         'class': 'text-center'},
@@ -152,13 +152,13 @@
                         'render': function(data, type, row) {
                         var btn = data
                         if ( btn.indexOf('Open') >= 0 ) {
-                                btn = '<a class="button green btn btn-xs btn-warning" href="openMag?bookid=' +
+                                btn = '<a class="button green btn btn-xs btn-warning" href="open_mag?bookid=' +
                                         row[0] + '" target="_self"><i class="fa fa-book"></i>'
                                 %if lazylibrarian.CONFIG['MAG_SINGLE']:
                                     if ( row[3] == 1) {
                                         btn = btn + ' Open</a>'
                                         %if len(email):
-                                            btn += '<a class="button green btn btn-xs btn-info" href="sendMag?bookid=' +
+                                            btn += '<a class="button green btn btn-xs btn-info" href="send_mag?bookid=' +
                                                     row[0] + '" target="_self">Send</a>'
                                         %endif
                                         }
@@ -170,7 +170,7 @@
                         else if ( btn.indexOf('Wanted') >= 0 ) {
                             btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p>'
                             %if perm&lazylibrarian.perm_force:
-                               btn += '<p><a class="b btn btn-xs btn-success" href="searchForMag?bookid=' + row[0] +
+                               btn += '<p><a class="b btn btn-xs btn-success" href="search_for_mag?bookid=' + row[0] +
                                       '" target="_self"><i class="fa fa-search"></i> Search</a></p>'
                             %endif
                             }
@@ -191,7 +191,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getMags',
+                "sAjaxSource": 'get_mags',
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
                 "bFilter": true,
@@ -239,7 +239,7 @@
     });
 
     function validateForm() {
-        var x = document.forms["markMagazines"]["action"].value;
+        var x = document.forms["mark_magazines"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
         if (c > 0 && x == "Delete") {
             if (c == 1) {msg = "Are you sure you want to permanently delete the selected magazine?"}
@@ -257,12 +257,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("markMagazines").submit(); }
+                    if (result) { document.getElementById("mark_magazines").submit(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("markMagazines").submit(); }
+        else { document.getElementById("mark_magazines").submit(); }
     }
   </script>
 </%def>

@@ -36,8 +36,8 @@ class PushoverNotifier:
         pass
 
     @staticmethod
-    def _sendPushover(message=None, event=None, pushover_apitoken=None, pushover_keys=None,
-                      pushover_device=None, notificationType=None, method=None, force=False):
+    def _send_pushover(message=None, event=None, pushover_apitoken=None, pushover_keys=None,
+                       pushover_device=None, notification_type=None, method=None, force=False):
 
         if not lazylibrarian.CONFIG['USE_PUSHOVER'] and not force:
             return False
@@ -50,19 +50,19 @@ class PushoverNotifier:
             pushover_device = lazylibrarian.CONFIG['PUSHOVER_DEVICE']
         if method is None:
             method = 'POST'
-        if notificationType is None:
-            testMessage = True
+        if notification_type is None:
+            test_message = True
             uri = "/1/users/validate.json"
             logger.debug("Testing Pushover authentication and retrieving the device list.")
         else:
-            testMessage = False
+            test_message = False
             uri = "/1/messages.json"
         logger.debug("Pushover event: " + str(event))
         logger.debug("Pushover message: " + str(message))
         logger.debug("Pushover api: " + str(pushover_apitoken))
         logger.debug("Pushover keys: " + str(pushover_keys))
         logger.debug("Pushover device: " + str(pushover_device))
-        logger.debug("Pushover notification type: " + str(notificationType))
+        logger.debug("Pushover notification type: " + str(notification_type))
 
         http_handler = HTTPSConnection('api.pushover.net')
 
@@ -92,7 +92,7 @@ class PushoverNotifier:
         logger.debug("Pushover Reason: %s" % response.reason)
 
         if request_status == 200:
-            if testMessage:
+            if test_message:
                 logger.debug(request_body)
                 if not PY2:
                     request_body = request_body.decode()
@@ -110,7 +110,7 @@ class PushoverNotifier:
             return False
 
     def _notify(self, message=None, event=None, pushover_apitoken=None, pushover_keys=None,
-                pushover_device=None, notificationType=None, method=None, force=False):
+                pushover_device=None, notification_type=None, method=None, force=False):
         """
         Sends a pushover notification based on the provided info or LL config
 
@@ -129,8 +129,8 @@ class PushoverNotifier:
 
         logger.debug("Pushover: Sending notification " + str(message))
 
-        return self._sendPushover(message, event, pushover_apitoken, pushover_keys,
-                                  pushover_device, notificationType, method, force)
+        return self._send_pushover(message, event, pushover_apitoken, pushover_keys,
+                                   pushover_device, notification_type, method, force)
 
     #
     # Public functions
@@ -139,23 +139,23 @@ class PushoverNotifier:
     def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
             if fail:
-                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notificationType='note')
+                self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notification_type='note')
             else:
-                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notificationType='note')
+                self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notification_type='note')
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD']:
-            self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD], notificationType='note')
+            self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD], notification_type='note')
 
     def test_notify(self, title="Test"):
         res = self._notify(message="This notification asks for the device list",
-                           event=title, notificationType=None, force=True)
+                           event=title, notification_type=None, force=True)
         if res:
             _ = self._notify(message="This is a test notification from LazyLibrarian",
-                             event=title, notificationType='note', force=True)
+                             event=title, notification_type='note', force=True)
         return res
 
-    def update_library(self, showName=None):
+    def update_library(self, show_name=None):
         pass
 
 

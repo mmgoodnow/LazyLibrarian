@@ -10,11 +10,11 @@
       %endif
       <a class="button btn btn-sm btn-warning" onclick="self.restartQA(this, '', '')"><i class="fa fa-sync"></i> Restart</a>
       <button class="button btn btn-sm btn-primary" type="button" value="System Info" id="sysinfo"><i class="fa fa-cogs"></i> System Info</button>
-      <button class="button btn btn-sm btn-primary" type="button" value="Show Jobs" id="show_Jobs"><i class="fa fa-list-ul"></i> Job Status</button>
-      <button class="button btn btn-sm btn-primary" type="button" value="Show Stats" id="show_Stats"><i class="fa fa-list-ul"></i> DB Stats</button>
+      <button class="button btn btn-sm btn-primary" type="button" value="Show Jobs" id="show_jobs"><i class="fa fa-list-ul"></i> Job Status</button>
+      <button class="button btn btn-sm btn-primary" type="button" value="Show Stats" id="show_stats"><i class="fa fa-list-ul"></i> DB Stats</button>
       <button class="button btn btn-sm btn-primary" type="button" value="checkforupdates" id="checkforupdates"><i class="fa fa-list-alt"></i> Check Version</button>
       %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-      <a class="button btn btn-sm btn-primary" href="userAdmin"><i class="fa fa-user"></i> User Admin</a>
+      <a class="button btn btn-sm btn-primary" href="user_admin"><i class="fa fa-user"></i> User Admin</a>
       %endif
       %if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
       <button class="button btn btn-sm btn-primary" type="button" value="move_to_ol" id="move_to_ol">Move to OpenLibrary</button>
@@ -26,7 +26,7 @@
 <%def name="body()">
   <!-- ensure the browser sends form-submission data in the UTF-8 encoding,
        even if the user fiddles with the page encoding -->
-  <form accept-charset="UTF-8" action="configUpdate" method="post">
+  <form accept-charset="UTF-8" action="config_update" method="post">
 <h1>${title}
     <div class="pull-right table_wrapper_button">
       <input type="submit" value="Save changes" id="add" class="btn btn-primary">
@@ -364,7 +364,7 @@
                     </div>
                   </fieldset>
                     <fieldset id=rss_options>
-                    <legend>RSS Server</legend>
+                    <legend>rss Server</legend>
                         <div class="checkbox">
                           <%
                             if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
@@ -372,13 +372,13 @@
                             else:
                                 checked = ''
                           %>
-                          <label for="rss_enabled" title="Provide RSS feeds">
+                          <label for="rss_enabled" title="Provide rss feeds">
                           <input type="checkbox" id="rss_enabled" name="rss_enabled" value="1" ${checked} />
-                          Enable RSS</label>
+                          Enable rss</label>
                         </div>
                         <fieldset id="rssoptions">
                             <div class="input-group col-md-6">
-                            <span class="input-group-addon">RSS Host/Port</span>
+                            <span class="input-group-addon">rss Host/Port</span>
                             <input type="text" id="rss_host" name="rss_host" value="${lazylibrarian.CONFIG['RSS_HOST']}" class="form-control" placeholder="mywebsite.org:port">
                             </div>
                             <span class="help-block">Use if you need to override rss link address</span>
@@ -390,9 +390,9 @@
                             else:
                                 checked = ''
                           %>
-                          <label for="rss_podcast" title="Send audiobook RSS feeds as podcasts">
+                          <label for="rss_podcast" title="Send audiobook rss feeds as podcasts">
                           <input type="checkbox" id="rss_podcast" name="rss_podcast" value="1" ${checked} />
-                          Send AudioBook RSS as Podcasts</label>
+                          Send AudioBook rss as Podcasts</label>
                         </div>
                         %endif
                         </fieldset>
@@ -550,7 +550,7 @@
                       <div class="form-group">
                         <label for="api_key">API key</label>
                         <input type="text" name="api_key" id="api_key" value="${lazylibrarian.CONFIG['API_KEY']}" size="36">
-                        <input class="button btn btn-sm btn-primary" type="button" value="Generate" id="generateAPI" onClick="document.location.reload(true)">
+                        <input class="button btn btn-sm btn-primary" type="button" value="Generate" id="generate_api" onClick="document.location.reload(true)">
                         <br>
                         <small>Current API key: <strong>${lazylibrarian.CONFIG['API_KEY']}</strong></small>
                       </div>
@@ -899,7 +899,7 @@
                         <label for="gr_awanted">Sync Wanted AudioBooks to Goodreads shelf:</label>
                         <input type="text" id="gr_awanted" name="gr_awanted" value="${lazylibrarian.CONFIG['GR_AWANTED']}" class="form-control" placeholder="eg: audio_wanted">
                         <label for="gr_owned">Sync Owned AudioBooks to Goodreads shelf:</label>
-                        <input type="text" id="gr_aowned" name="gr_aowned" value="${lazylibrarian.CONFIG['GR_AOWNED']} "class="form-control" placeholder="eg: audio_owned">
+                        <input type="text" id="gr_aowned" name="gr_aowned" value="${lazylibrarian.CONFIG['GR_AOWNED']} " class="form-control" placeholder="eg: audio_owned">
                       </fieldset>
                       %endif
                         <div class="checkbox">
@@ -922,8 +922,8 @@
                         </div>
                       </div>
                       <div class="form-group">
-                        <input type="button" value="Request oAuth1" id="grauthStep1" class="btn btn-default" />
-                        <input type="button" value="Request oAuth2" id="grauthStep2" class="btn btn-default" />
+                        <input type="button" value="Request oAuth1" id="grauth_step1" class="btn btn-default" />
+                        <input type="button" value="Request oAuth2" id="grauth_step2" class="btn btn-default" />
                       </div>
                       <div class="form-group">
                         <input type="button" value="Test Authorization" id="testgrauth" class="btn btn-default" />
@@ -1209,7 +1209,7 @@
                         <span class="help-block">Use if you need to get sab to download the nzb file from lazylibrarian</span>
                         </div>
                         <div class="col-md-6">
-                          <button class="button btn btn-sm btn-primary" type="button" value="Test SABnzbd" id="testSABnzbd"><i class="fa fa-list-ul"></i> Test SABnzbd</button>
+                          <button class="button btn btn-sm btn-primary" type="button" value="Test SABnzbd" id="test_sabnzbd"><i class="fa fa-list-ul"></i> Test SABnzbd</button>
                           <br>
                         </div>
                       </div>
@@ -1270,7 +1270,7 @@
                       </div>
                       <div class="row">
                       <div class="col-md-6">
-                        <button class="button btn btn-sm btn-primary" type="button" value="Test NZBget" id="testNZBget"><i class="fa fa-list-ul"></i> Test NZBget</button>
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test NZBget" id="test_nzbget"><i class="fa fa-list-ul"></i> Test NZBget</button>
                         <br>
                         <br>
                       </div>
@@ -1337,7 +1337,7 @@
                       </div>
                       <div class="row">
                       <div class="col-md-6">
-                        <button class="button btn btn-sm btn-primary" type="button" value="Test Synology" id="testSynology"><i class="fa fa-list-ul"></i> Test Synology</button>
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test Synology" id="test_synology"><i class="fa fa-list-ul"></i> Test Synology</button>
                         <br>
                         <br>
                       </div>
@@ -1424,7 +1424,7 @@
                         <input type="text" id="deluge_dir" name="deluge_dir" value="${lazylibrarian.CONFIG['DELUGE_DIR']}" class="form-control" placeholder="use deluge default">
                       </div>
                       <div class="col-md-6">
-                        <button class="button btn btn-sm btn-primary" type="button" value="Test Deluge" id="testDeluge"><i class="fa fa-list-ul"></i> Test Deluge</button>
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test Deluge" id="test_deluge"><i class="fa fa-list-ul"></i> Test Deluge</button>
                         <br>
                         <br>
                       </div>
@@ -1468,10 +1468,14 @@
                         <label for="transmission_base" class="control-label">Transmission URL Base:</label>
                         <input type="text" id="transmission_base" name="transmission_base" value="${lazylibrarian.CONFIG['TRANSMISSION_BASE']}" class="form-control" placeholder="/transmission">
                       </div>
+                      <div class="form-group col-md-6">
+                        <label for="transmission_label" class="control-label">Transmission label:</label>
+                        <input type="text" id="transmission_label" name="transmission_label" value="${lazylibrarian.CONFIG['TRANSMISSION_LABEL']}" class="form-control" placeholder="">
+                      </div>
                     </div>
                     <div class="row">
                       <div class="col-md-6">
-                        <button class="button btn btn-sm btn-primary" type="button" value="Test Transmission" id="testTransmission"><i class="fa fa-list-ul"></i> Test Transmission</button>
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test Transmission" id="test_transmission"><i class="fa fa-list-ul"></i> Test Transmission</button>
                         <br>
                         <br>
                       </div>
@@ -1513,7 +1517,7 @@
                       </div>
                       <div>
                         <div class="col-md-6">
-                          <button class="button btn btn-sm btn-primary" type="button" value="Test rTorrent" id="testrTorrent"><i class="fa fa-list-ul"></i> Test rTorrent</button>
+                          <button class="button btn btn-sm btn-primary" type="button" value="Test rTorrent" id="test_rtorrent"><i class="fa fa-list-ul"></i> Test rTorrent</button>
                           <br>
                           <br>
                         </div>
@@ -1561,7 +1565,7 @@
                     </div>
                     <div class="row">
                       <div class="col-md-6">
-                        <button class="button btn btn-sm btn-primary" type="button" value="Test uTorrent" id="testuTorrent"><i class="fa fa-list-ul"></i> Test uTorrent</button>
+                        <button class="button btn btn-sm btn-primary" type="button" value="Test uTorrent" id="test_utorrent"><i class="fa fa-list-ul"></i> Test uTorrent</button>
                         <br>
                         <br>
                       </div>
@@ -1612,7 +1616,7 @@
                       </div>
                       <div class="row">
                         <div class="col-md-6">
-                          <button class="button btn btn-sm btn-primary" type="button" value="Test qBittorrent" id="testqBittorrent"><i class="fa fa-list-ul"></i> Test qBittorrent</button>
+                          <button class="button btn btn-sm btn-primary" type="button" value="Test qBittorrent" id="test_qbittorrent"><i class="fa fa-list-ul"></i> Test qBittorrent</button>
                           <br>
                           <br>
                         </div>
@@ -1819,7 +1823,7 @@
               <div class="rss_providers">
                 <fieldset>
                   <div class="col-md-12">
-                  <legend>RSS/Wishlist Providers</legend>
+                  <legend>rss/Wishlist Providers</legend>
                   </div>
                   %for provider in lazylibrarian.RSS_PROV:
                   <%
@@ -1830,7 +1834,7 @@
                   <div class="col-md-4 form-group">
                     <div class="input-group">
                       <span class="input-group-addon">Name</span>
-                      <label for="rss_${loop.index}_host" class="sr-only">RSS Name</label>
+                      <label for="rss_${loop.index}_host" class="sr-only">rss Name</label>
                       <input type="text" id="rss_${loop.index}_dispname" name="rss_${loop.index}_dispname" value="${provider['DISPNAME']}" class="form-control" placeholder="display name">
                       <span class="input-group-addon" data-toggle="tooltip" data-placement="bottom" title="Enable provider">
                         &nbsp;<input type="checkbox" id="rss_${loop.index}_enabled" name="rss_${loop.index}_enabled" value="1" ${checked} />&nbsp;
@@ -1838,8 +1842,8 @@
                     </div>
                     <div class="input-group">
                       <span class="input-group-addon"></span>
-                      <label for="rss_${loop.index}_host" class="sr-only">RSS URL</label>
-                      <input type="text" placeholder="RSS URL #${loop.index}" id="rss_${loop.index}_host" name="rss_${loop.index}_host" value="${provider['HOST']}" class="form-control" />
+                      <label for="rss_${loop.index}_host" class="sr-only">rss URL</label>
+                      <input type="text" placeholder="rss URL #${loop.index}" id="rss_${loop.index}_host" name="rss_${loop.index}_host" value="${provider['HOST']}" class="form-control" />
                       <span class="input-group-addon"></span>
                     </div>
                       <%
@@ -2261,7 +2265,7 @@
                   </div>
                   %endif
                   <div class="form-group">
-                    <label for="searchrss_interval" class="control-label">RSS Search Interval:</label>
+                    <label for="searchrss_interval" class="control-label">rss Search Interval:</label>
                     <div class="input-group">
                       <input type="number" id="searchrss_interval" name="searchrss_interval" value="${lazylibrarian.CONFIG['SEARCHRSS_INTERVAL']}" class="form-control" placeholder="0 to disable">
                       <span class="input-group-addon">Minutes</span>
@@ -2469,7 +2473,7 @@
                     <label for="imp_calibredb">Calibredb import program:</label>
                     <input type="text" id="imp_calibredb" name="imp_calibredb" value="${lazylibrarian.CONFIG['IMP_CALIBREDB']}" class="form-control" placeholder="calibredb program">
                     <span class="help-block">Path to "calibredb" to import books into a calibre library</span>
-                    <input type="button" value="Test calibredb" id="testCalibredb" class="btn btn-default" />
+                    <input type="button" value="Test calibredb" id="test_calibredb" class="btn btn-default" />
                   </div>
                   <div class="checkbox">
                       <%
@@ -3224,7 +3228,7 @@
                     </div>
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Request Authorization" id="twitterStep1" class="btn btn-default" />
+                      <input type="button" value="Request Authorization" id="twitter_step1" class="btn btn-default" />
                     </div>
                     <div class="form-group">
                       <label for="twitter_key" class="control-label">Twitter Key</label>
@@ -3232,10 +3236,10 @@
                       <span class="help-block">Enter the key from the twitter authorization page here, DO NOT press Enter or save the config. The key is single-use and will not be saved. Press [Verify Key] to complete authorization.</span>
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Verify Key" id="twitterStep2" class="btn btn-default" />
+                      <input type="button" value="Verify Key" id="twitter_step2" class="btn btn-default" />
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Twitter" id="testTwitter" class="btn btn-default" />
+                      <input type="button" value="Test Twitter" id="test_twitter" class="btn btn-default" />
                     </div>
                   </fieldset>
                 </div>
@@ -3282,7 +3286,7 @@
                       <input type="text" id="boxcar_token" name="boxcar_token" value="${lazylibrarian.CONFIG['BOXCAR_TOKEN']}" placeholder="Boxcar token" class="form-control">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Boxcar" id="testBoxcar" class="btn btn-default">
+                      <input type="button" value="Test Boxcar" id="test_boxcar" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>
@@ -3333,7 +3337,7 @@
                       <input type="text" id="pushbullet_deviceid" name="pushbullet_deviceid" value="${lazylibrarian.CONFIG['PUSHBULLET_DEVICEID']}" class="form-control" placeholder="Pushbullet DeviceID">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Pushbullet" id="testPushbullet" class="btn btn-default">
+                      <input type="button" value="Test Pushbullet" id="test_pushbullet" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>
@@ -3392,7 +3396,7 @@
                       <input type="number" id="pushover_priority" name="pushover_priority" min=-2 max=1 value="${lazylibrarian.CONFIG['PUSHOVER_PRIORITY']}" class="form-control" placeholder="Pushover Priority">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Pushover" id="testPushover" class="btn btn-default">
+                      <input type="button" value="Test Pushover" id="test_pushover" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>
@@ -3456,7 +3460,7 @@
                       <input type="text" id="androidpn_username" name="androidpn_username"  value="${lazylibrarian.CONFIG['ANDROIDPN_USERNAME']}" class="form-control" placeholder="AndroidPN Username" />
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test AndroidPN" id="testAndroidPN" class="btn btn-default" />
+                      <input type="button" value="Test AndroidPN" id="test_android_pn" class="btn btn-default" />
                     </div>
                   </fieldset>
                 </div>
@@ -3598,7 +3602,7 @@
                       </fieldset>
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Email" id="testEmail" class="btn btn-default">
+                      <input type="button" value="Test Email" id="test_email" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>
@@ -3674,7 +3678,7 @@
                       </select>
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Prowl" id="testProwl" class="btn btn-default" />
+                      <input type="button" value="Test Prowl" id="test_prowl" class="btn btn-default" />
                     </div>
                   </fieldset>
                 </div>
@@ -3723,7 +3727,7 @@
                       <input type="number" id="growl_password" name="growl_password" value="${lazylibrarian.CONFIG['GROWL_PASSWORD']}" class="form-control" placeholder="none">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Growl" id="testGrowl" class="btn btn-default" />
+                      <input type="button" value="Test Growl" id="test_growl" class="btn btn-default" />
                     </div>
                   </fieldset>
                 </div>
@@ -3775,7 +3779,7 @@
                       <input type="text" id="telegram_userid" name="telegram_userid" value="${lazylibrarian.CONFIG['TELEGRAM_USERID']}" class="form-control" placeholder="Telegram UserID"><small>Contact <a href="http://telegram.me/myidbot">@myidbot</a> to get your user ID</small>
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Telegram" id="testTelegram" class="btn btn-default" />
+                      <input type="button" value="Test Telegram" id="test_telegram" class="btn btn-default" />
                     </div>
                   </fieldset>
                 </div>
@@ -3826,7 +3830,7 @@
                       <input type="text" id="slack_token" name="slack_token" value="${lazylibrarian.CONFIG['SLACK_TOKEN']}" class="form-control" placeholder="Slack Webhook Token">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Slack" id="testSlack" class="btn btn-default">
+                      <input type="button" value="Test Slack" id="test_slack" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>
@@ -3874,7 +3878,7 @@
                       <input type="text" id="custom_script" name="custom_script" value="${lazylibrarian.CONFIG['CUSTOM_SCRIPT']}" class="form-control" placeholder="Custom Script">
                     </div>
                     <div class="form-group">
-                      <input type="button" value="Test Custom" id="testCustom" class="btn btn-default">
+                      <input type="button" value="Test Custom" id="test_custom" class="btn btn-default">
                     </div>
                   </fieldset>
                 </div>

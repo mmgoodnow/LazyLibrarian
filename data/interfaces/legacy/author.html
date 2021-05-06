@@ -6,27 +6,27 @@
     <div id="subhead_container">
         <ul id="subhead_menu">
 
-            <li><a href="refreshAuthor?AuthorID=${author['AuthorID']}" id="button"> Refresh Author </a></li>
-            <li><a href="libraryScanAuthor?AuthorID=${author['AuthorID']}" id="button"> Library Scan </a></li>
-            <li><a href="removeAuthor?AuthorID=${author['AuthorID']}" id="button"> Remove Author </a></li>
+            <li><a href="refresh_author?authorid=${author['AuthorID']}" id="abutton"> Refresh Author </a></li>
+            <li><a href="library_scan_author?authorid=${author['AuthorID']}" id="lbutton"> Library Scan </a></li>
+            <li><a href="remove_author?authorid=${author['AuthorID']}" id="rbutton"> Remove Author </a></li>
             %if author['Status'] == 'Paused':
-                <li><a href="resumeAuthor?AuthorID=${author['AuthorID']}" id="button"> Resume Author</a></li>
+                <li><a href="resume_author?authorid=${author['AuthorID']}" id="mbutton"> Resume Author</a></li>
             %else:
-                <li><a href="pauseAuthor?AuthorID=${author['AuthorID']}" id="button"> Pause Author</a></li>
+                <li><a href="pause_author?authorid=${author['AuthorID']}" id="pbutton"> Pause Author</a></li>
             %endif
             %if author['Status'] != 'Ignored':
-                <li><a href="ignoreAuthor?AuthorID=${author['AuthorID']}" id="button"> Ignore Author</a></li>
+                <li><a href="ignore_author?authorid=${author['AuthorID']}" id="ibutton"> Ignore Author</a></li>
             %else:
-                <li><a href="resumeAuthor?AuthorID=${author['AuthorID']}" id="button"> Unignore Author</a></li>
+                <li><a href="resume_author?authorid=${author['AuthorID']}" id="ubutton"> Unignore Author</a></li>
             %endif
-            <li><a href="authorPage?AuthorID=${author['AuthorID']}&Ignored=True" id="button"> Ignored Books </a></li>
+            <li><a href="author_page?authorid=${author['AuthorID']}&Ignored=True" id="bbutton"> Ignored Books </a></li>
             %if showseries >= 1:
-            <li><a name="seriesbutton" href="series?AuthorID=${author['AuthorID']}" id="button"> Series </a></li>
+            <li><a name="seriesbutton" href="series?authorid=${author['AuthorID']}" id="sbutton"> Series </a></li>
             %endif
             %if len(languages) >= 1:
                 <li>Language:&nbsp;</li>
 
-                <li><select onchange="window.location = 'authorPage?AuthorID=${author['AuthorID']}&BookLang=' + this.options[this.selectedIndex].value">
+                <li><select onchange="window.location = 'author_page?authorid=${author['AuthorID']}&BookLang=' + this.options[this.selectedIndex].value">
                     <option>Select</option>
                 %for language in languages:
                     <option value="${language['BookLang']}">${language['BookLang']}</option>
@@ -48,7 +48,7 @@
     <div id="authorhead_container">
         <ul id="authorhead_menu">
             <li><a href="${author['AuthorLink']}" target="_new">${author['AuthorName']}</a></li>
-            <li><p align="right"><a href="editAuthor?authorid=${author['AuthorID']}"&amp;target="_new">
+            <li><p align="right"><a href="edit_author?authorid=${author['AuthorID']}" target="_new">
                 <i class="smalltext">Edit</i></a></li></br>
             %if author['AuthorDeath']:
                 <li><b>Born:</b> ${author['AuthorBorn']}, <b>Died:</b>  ${author['AuthorDeath']}</li><br>
@@ -89,12 +89,12 @@
 </ul>
 </div>
 <p class="indented">
-  <form action="markBooks" method="get"><input type="hidden" name="AuthorID" value="${author['AuthorID']}">
+  <form action="mark_books" method="get"><input type="hidden" name="AuthorID" value="${author['AuthorID']}">
     <input type="hidden" name="redirect" value="author">
     <input type="hidden" name="booklang" value="booklang">
     <input type="hidden" name="ignored" value="ignored">
     <label>&nbsp;&nbsp;Mark selected books as: </label>
-    <select class="markBooks" name="action" style="margin-top:15px;margin-bottom:15px;">
+    <select class="mark_books" name="action" style="margin-top:15px;margin-bottom:15px;">
       <option value="Wanted">Wanted</option>
       <option value="Have">Have</option>
       <option value="Ignored">Ignored</option>
@@ -103,20 +103,20 @@
       <option value="Delete">Delete</option>
       <option value="Leave" class="hidden">Leave</option>
     </select>
-    <input type="submit" class="markBooks" value="Go">
+    <input type="submit" class="mark_books" value="Go">
   </p>
   <table class="display" id="book_table">
     <thead>
       <tr>
-        <th id="select"><input type="checkbox" onClick="toggleAll(this)" /></th>
+        <th id="allselect"><input type="checkbox" onClick="toggleAll(this)" /></th>
         <th id="bookart">Cover</th>
         <th id="authorname" class="hidden">Title</th>
         <th id="bookname">Title</th>
         <th id="series">Series</th>
         <th id="stars">Rating</th>
-        <th id="date">Released</th>
-        <th id="date">Added</th>
-        <th id="select">Status</th>
+        <th id="rdate">Released</th>
+        <th id="adate">Added</th>
+        <th id="status">Status</th>
       </tr>
     </thead>
   </table>
@@ -182,9 +182,9 @@
                     { "fnRender": function ( oObj ) {
                         var btn = oObj.aData[11]
                         if ( btn.indexOf('Open') >= 0 ) {
-                            btn = '<a class="button green" href="openBook?bookid=' + oObj.aData[9] + '&library=eBook" target="_self">' + btn + '</a>'}
+                            btn = '<a class="button green" href="open_book?bookid=' + oObj.aData[9] + '&library=eBook" target="_self">' + btn + '</a>'}
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<a class="button red" href="searchForBook?bookid=' + oObj.aData[9] +
+                            btn = '<a class="button red" href="search_for_book?bookid=' + oObj.aData[9] +
                                     '&library=eBook" target="_self"><span class="a">' + btn + '</span><span class="b">Search</span></a>'}
                         else if ( btn.indexOf('Snatched') >= 0 ) {
                             btn = '<a class="button">' + btn + '</a>'}
@@ -206,7 +206,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[6, 'desc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getBooks?source=Author&AuthorID=${author['AuthorID']}&booklang=${booklang}&ignored=${ignored}',
+                "sAjaxSource": 'get_books?source=Author&AuthorID=${author['AuthorID']}&booklang=${booklang}&ignored=${ignored}',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},

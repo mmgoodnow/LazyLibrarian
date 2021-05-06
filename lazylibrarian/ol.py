@@ -17,10 +17,10 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import json_request, html_request, cache_img
-from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, makeUnicode, formatAuthorName, \
-    getList, makeUTF8bytes, plural, unaccented, replace_all, check_year, today, dateFormat
-from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genreFilter, getStatus, \
-    thingLang
+from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
+    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format
+from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
+    thinglang
 from six import PY2
 try:
     import html5lib
@@ -34,7 +34,7 @@ except ImportError:
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
 
-from lazylibrarian.images import getBookCover
+from lazylibrarian.images import get_book_cover
 
 try:
     from fuzzywuzzy import fuzz
@@ -53,7 +53,7 @@ class OpenLibrary:
         self.LT_NSERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
         self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/'])
         self.LT_WORK = '/'.join([lazylibrarian.CONFIG['LT_URL'], "work/"])
-        self.name = makeUnicode(str(name))
+        self.name = make_unicode(str(name))
         self.lt_cache = False
 
     def find_results(self, searchterm=None, queue=None):
@@ -66,7 +66,7 @@ class OpenLibrary:
             searchauthorname = ''
             offset = 0
             next_page = True
-            loopCount = 1
+            loop_count = 1
 
             if ' <ll> ' in searchterm:  # special token separates title from author
                 searchtitle, searchauthorname = searchterm.split(' <ll> ')
@@ -74,7 +74,7 @@ class OpenLibrary:
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
             logger.debug('Now searching OpenLibrary API with searchterm: %s' % searchterm)
-            searchbytes, _ = makeUTF8bytes(searchterm)
+            searchbytes, _ = make_utf8bytes(searchterm)
             searchbytes = searchbytes.replace(b'#', b'').replace(b'/', b'_')
             baseurl = self.OL_SEARCH + 'q=' + quote_plus(searchbytes)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
@@ -88,14 +88,14 @@ class OpenLibrary:
                 if not in_cache:
                     api_hits += 1
                 if results and 'numFound' in results:
-                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], loopCount - 1))
+                    logger.debug("Found %s results for searchterm, page %s" % (results['numFound'], loop_count - 1))
                 else:
                     break
 
                 for book in results['docs']:
-                    authorName = book.get('author_name')
-                    if authorName:
-                        authorName = authorName[0]
+                    author_name = book.get('author_name')
+                    if author_name:
+                        author_name = author_name[0]
                     booklink = book.get('key')
                     bookid = ''
                     if booklink:
@@ -103,7 +103,7 @@ class OpenLibrary:
                     authorid = book.get('author_key')
                     if authorid:
                         authorid = authorid[0]
-                    bookTitle = book.get('title')
+                    book_title = book.get('title')
                     booksub = ''
                     bookisbn = book.get('isbn')
                     if bookisbn:
@@ -128,21 +128,21 @@ class OpenLibrary:
                         workid = workid[0]
 
                     if searchauthorname:
-                        author_fuzz = fuzz.token_set_ratio(authorName, searchauthorname)
+                        author_fuzz = fuzz.token_set_ratio(author_name, searchauthorname)
                     else:
-                        author_fuzz = fuzz.token_set_ratio(authorName, searchterm)
+                        author_fuzz = fuzz.token_set_ratio(author_name, searchterm)
                     if searchtitle:
-                        if bookTitle.endswith(')'):
-                            bookTitle = bookTitle.rsplit(' (', 1)[0]
-                        book_fuzz = fuzz.token_set_ratio(bookTitle, searchtitle)
+                        if book_title.endswith(')'):
+                            book_title = book_title.rsplit(' (', 1)[0]
+                        book_fuzz = fuzz.token_set_ratio(book_title, searchtitle)
                         # lose a point for each extra word in the fuzzy matches so we get the closest match
-                        words = len(getList(bookTitle))
-                        words -= len(getList(searchtitle))
+                        words = len(get_list(book_title))
+                        words -= len(get_list(searchtitle))
                         book_fuzz -= abs(words)
                     else:
-                        book_fuzz = fuzz.token_set_ratio(bookTitle, searchterm)
-                        words = len(getList(bookTitle))
-                        words -= len(getList(searchterm))
+                        book_fuzz = fuzz.token_set_ratio(book_title, searchterm)
+                        words = len(get_list(book_title))
+                        words -= len(get_list(searchterm))
                         book_fuzz -= abs(words)
                     isbn_fuzz = 0
                     if is_valid_isbn(searchterm):
@@ -153,10 +153,10 @@ class OpenLibrary:
 
                     if bookid and authorid:
                         resultlist.append({
-                            'authorname': authorName,
+                            'authorname': author_name,
                             'bookid': bookid,
                             'authorid': authorid,
-                            'bookname': bookTitle,
+                            'bookname': book_title,
                             'booksub': booksub,
                             'bookisbn': bookisbn,
                             'bookpub': bookpub,
@@ -177,8 +177,8 @@ class OpenLibrary:
                         })
                         resultcount += 1
 
-                loopCount += 1
-                if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < loopCount:
+                loop_count += 1
+                if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < loop_count:
                     logger.warn('Maximum results page search reached, still more results available')
                     next_page = False
 
@@ -200,17 +200,17 @@ class OpenLibrary:
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
-        authorname = formatAuthorName(authorname)
+        authorname = format_author_name(authorname)
         if title:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname) +
-                                                 "&title=" + quote_plus(title), useCache=not refresh)
+                                                 "&title=" + quote_plus(title), use_cache=not refresh)
         else:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname),
-                                                 useCache=not refresh)
+                                                 use_cache=not refresh)
 
         if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
-                author_name = formatAuthorName(book.get('author_name')[0])
+                author_name = format_author_name(book.get('author_name')[0])
                 if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
                     key = book.get('author_key')[0]
                     if key:
@@ -222,12 +222,12 @@ class OpenLibrary:
 
         if title:  # no results using author/title, try author only
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname),
-                                                 useCache=not refresh)
+                                                 use_cache=not refresh)
             if not authorbooks or not authorbooks["docs"]:
                 logger.debug("No books found for %s" % authorname)
                 return {}
             for book in authorbooks['docs']:
-                author_name = formatAuthorName(book.get('author_name')[0])
+                author_name = format_author_name(book.get('author_name')[0])
                 if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
                     key = book.get('author_key')[0]
                     if key:
@@ -240,7 +240,7 @@ class OpenLibrary:
 
     def get_author_info(self, authorid=None, refresh=False):
         logger.debug("Getting author info for %s" % authorid)
-        authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', useCache=not refresh)
+        authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
         if not authorinfo:
             logger.debug("No info found for %s" % authorid)
             return {}
@@ -263,7 +263,7 @@ class OpenLibrary:
         author_died = authorinfo.get('death_date', '')
 
         if "," in author_name:
-            postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
+            postfix = get_list(lazylibrarian.CONFIG['NAME_POSTFIX'])
             words = author_name.split(',')
             if len(words) == 2:
                 if words[0].strip().strip('.').lower in postfix:
@@ -282,7 +282,7 @@ class OpenLibrary:
             'authordeath': author_died,
             'about': about,
             'totalbooks': '0',
-            'authorname': formatAuthorName(author_name)
+            'authorname': format_author_name(author_name)
         }
         return author_dict
 
@@ -347,8 +347,8 @@ class OpenLibrary:
                 if results:
                     return results
 
-        myDB = database.DBConnection()
-        res = myDB.match("SELECT SeriesName from series where SeriesID=?", (series_id,))
+        db = database.DBConnection()
+        res = db.match("SELECT SeriesName from series where SeriesID=?", (series_id,))
         if res:
             series_name = res['SeriesName']
             data, self.lt_cache = html_request(self.LT_SERIES + series_name)
@@ -463,11 +463,11 @@ class OpenLibrary:
 
     def get_author_books(self, authorid=None, authorname=None, bookstatus="Skipped", audiostatus='Skipped',
                          entrystatus='Active', refresh=False, reason='ol.get_author_books'):
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         offset = 0
         next_page = True
         entryreason = reason
-        removedResults = 0
+        removed_results = 0
         duplicates = 0
         bad_lang = 0
         added_count = 0
@@ -475,7 +475,7 @@ class OpenLibrary:
         book_ignore_count = 0
         total_count = 0
         locked_count = 0
-        loopCount = 0
+        loop_count = 0
         cover_count = 0
         isbn_count = 0
         cover_time = 0
@@ -497,7 +497,7 @@ class OpenLibrary:
             url = self.OL_SEARCH + "author=" + authorid
             if offset:
                 url += "&offset=%s" % offset
-            authorbooks, in_cache = json_request(url, useCache=not refresh)
+            authorbooks, in_cache = json_request(url, use_cache=not refresh)
             api_hits += not in_cache
             cache_hits += in_cache
             if not authorbooks or not authorbooks["docs"]:
@@ -509,8 +509,8 @@ class OpenLibrary:
             hit = 0
             miss = 0
             for book in docs:
-                LT_ID = book.get('id_librarything')
-                if LT_ID and LT_ID[0]:
+                lt_id = book.get('id_librarything')
+                if lt_id and lt_id[0]:
                     hit += 1
                 else:
                     miss += 1
@@ -535,7 +535,7 @@ class OpenLibrary:
                 if id_librarything:
                     id_librarything = id_librarything[0]
                 if publish_date:
-                    publish_date = dateFormat(publish_date[0])
+                    publish_date = date_format(publish_date[0])
                 lang = ''
                 if isbns:
                     isbn = isbns[0]
@@ -550,7 +550,7 @@ class OpenLibrary:
                     isbnhead = ''
 
                 rejected = False
-                wantedlanguages = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
+                wantedlanguages = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
                 if wantedlanguages and 'All' not in wantedlanguages:
                     if languages:
                         for item in languages:
@@ -581,17 +581,17 @@ class OpenLibrary:
 
                         if lang == "Unknown" and isbnhead:
                             # Nothing in the isbn dictionary, try any cached results
-                            match = myDB.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
+                            match = db.match('SELECT lang FROM languages where isbn=?', (isbnhead,))
                             if match:
                                 lang = match['lang']
                                 cache_hits += 1
                                 logger.debug("Found cached language [%s] for %s [%s]" %
                                              (lang, title, isbnhead))
                             else:
-                                lang = thingLang(isbn)
+                                lang = thinglang(isbn)
                                 lt_lang_hits += 1
                                 if lang:
-                                    myDB.action('insert into languages values (?, ?)', (isbnhead, lang))
+                                    db.action('insert into languages values (?, ?)', (isbnhead, lang))
 
                         if lang and lang not in wantedlanguages:
                             rejected = 'lang', 'Invalid language: %s' % lang
@@ -608,10 +608,10 @@ class OpenLibrary:
                     rejected = 'name', 'No title'
 
                 cmd = "SELECT * from books WHERE BookName=? COLLATE NOCASE and BookID !=?"
-                exists = myDB.match(cmd, (title, key))
+                exists = db.match(cmd, (title, key))
                 if exists and id_librarything and not exists['LT_WorkID']:
-                    myDB.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
-                                (id_librarything, exists['BookID']))
+                    db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
+                              (id_librarything, exists['BookID']))
                 if exists and not rejected:
                     # existing bookid might not still be listed so won't refresh.
                     # should we keep new bookid or existing one?
@@ -624,13 +624,13 @@ class OpenLibrary:
                     if not id_librarything and exists['LT_WorkID']:
                         id_librarything = exists['LT_WorkID']
                 if not rejected:
-                    exists = myDB.match("SELECT * from books WHERE LT_WorkID=? and BookName !=? COLLATE NOCASE",
-                                        (id_librarything, title))
+                    exists = db.match("SELECT * from books WHERE LT_WorkID=? and BookName !=? COLLATE NOCASE",
+                                      (id_librarything, title))
                     if exists:
                         rejected = 'name', 'Duplicate LT_ID (%s/%s)' % (title, exists['BookName'])
                 if not rejected and publishers:
                     for bookpub in publishers:
-                        if bookpub.lower() in getList(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
+                        if bookpub.lower() in get_list(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
                             rejected = 'publisher', bookpub
                             break
                 if publishers and not rejected:
@@ -665,7 +665,7 @@ class OpenLibrary:
                     # remove extra spaces if they're in a row
                     name = " ".join(name.split())
                     namewords = name.split(' ')
-                    badwords = getList(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
+                    badwords = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
                     for word in badwords:
                         if (' ' in word and word in name) or word in namewords:
                             rejected = 'word', 'Contains [%s]' % word
@@ -718,7 +718,7 @@ class OpenLibrary:
                         else:
                             continue  # next book in docs
                     else:
-                        if 'authorUpdate' in entryreason:
+                        if 'author_update' in entryreason:
                             reason = 'Author: %s' % auth_name
                         else:
                             reason = entryreason
@@ -737,12 +737,12 @@ class OpenLibrary:
                         if rating >= 0:
                             genrenames = []
                             for item in genrelist:
-                                genrenames.append(genreFilter(item[0]))
+                                genrenames.append(genre_filter(item[0]))
                             genres = ', '.join(set(genrenames))
-                            updateValueDict = {}
-                            exists = myDB.match("SELECT * from books WHERE BookID=?", (key,))
+                            update_value_dict = {}
+                            exists = db.match("SELECT * from books WHERE BookID=?", (key,))
                             if not exists:
-                                exists = myDB.match("SELECT * from books WHERE LT_Workid=?", (id_librarything,))
+                                exists = db.match("SELECT * from books WHERE LT_Workid=?", (id_librarything,))
                             if exists:
                                 locked = exists['Manual']
                                 if locked is None:
@@ -762,7 +762,7 @@ class OpenLibrary:
                                     else:
                                         bookdesc = 'No Description'
                                     if not genres and infodict['genre']:
-                                        genres = genreFilter(infodict['genre'])
+                                        genres = genre_filter(infodict['genre'])
                                         gbupdate.append('Genres')
                                     if not bookdate or bookdate == '0000' or len(infodict['date']) > len(bookdate):
                                         bookdate = infodict['date']
@@ -784,14 +784,14 @@ class OpenLibrary:
                                 reason = "[%s] %s" % (threadname, reason)
                                 if not lang:
                                     lang = 'Unknown'
-                                myDB.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
-                                            'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
-                                            'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
-                                            'ScanResult, OriginalPubDate, BookPages) ' +
-                                            'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                            (authorid, title, bookdesc, genres, isbn, publishers, bookrate, cover,
-                                             link, key, bookdate, lang, now(), book_status, '', audio_status,
-                                             id_librarything, reason, first_publish_year, bookpages))
+                                db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
+                                          'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
+                                          'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
+                                          'ScanResult, OriginalPubDate, BookPages) ' +
+                                          'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                          (authorid, title, bookdesc, genres, isbn, publishers, bookrate, cover,
+                                           link, key, bookdate, lang, now(), book_status, '', audio_status,
+                                           id_librarything, reason, first_publish_year, bookpages))
 
                                 if 'nocover' in cover or 'nophoto' in cover:
                                     cover = get_cover(key, title)
@@ -809,23 +809,23 @@ class OpenLibrary:
                                     logger.debug("valid bookdate [%s] previous scanresult [%s]" %
                                                  (publish_date, exists['ScanResult']))
 
-                                    updateValueDict["ScanResult"] = "bookdate %s is now valid" % publish_date
+                                    update_value_dict["ScanResult"] = "bookdate %s is now valid" % publish_date
                                 elif not exists:
-                                    updateValueDict["ScanResult"] = reason
+                                    update_value_dict["ScanResult"] = reason
 
-                                if "ScanResult" in updateValueDict:
+                                if "ScanResult" in update_value_dict:
                                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                         logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
-                                    book_status, audio_status = getStatus(key, serieslist, bookstatus,
-                                                                          audiostatus, entrystatus)
+                                    book_status, audio_status = get_status(key, serieslist, bookstatus,
+                                                                           audiostatus, entrystatus)
                                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                         logger.debug("status is now %s,%s" % (book_status, audio_status))
-                                    updateValueDict["Status"] = book_status
-                                    updateValueDict["AudioStatus"] = audio_status
+                                    update_value_dict["Status"] = book_status
+                                    update_value_dict["AudioStatus"] = audio_status
 
-                            if updateValueDict:
-                                controlValueDict = {"LT_WorkID": id_librarything}
-                                myDB.upsert("books", updateValueDict, controlValueDict)
+                            if update_value_dict:
+                                control_value_dict = {"LT_WorkID": id_librarything}
+                                db.upsert("books", update_value_dict, control_value_dict)
 
                             if not exists:
                                 typ = 'Added'
@@ -847,25 +847,25 @@ class OpenLibrary:
                                         seriesdisplay += '<br>'
                                     seriesdisplay += newseries
                                     seriesid = series[2]
-                                    exists = myDB.match("SELECT * from series WHERE seriesid=?", (seriesid,))
+                                    exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
                                     if not exists:
-                                        exists = myDB.match("SELECT * from series WHERE seriesname=?", (series[0],))
+                                        exists = db.match("SELECT * from series WHERE seriesname=?", (series[0],))
                                         if exists:
-                                            myDB.action('PRAGMA foreign_keys = OFF')
+                                            db.action('PRAGMA foreign_keys = OFF')
                                             for table in ['series', 'member', 'seriesauthors']:
                                                 cmd = "UPDATE " + table + " SET SeriesID=? WHERE SeriesID=?"
-                                                myDB.action(cmd, (seriesid, exists['SeriesID']))
-                                            myDB.action('PRAGMA foreign_keys = ON')
-                                            myDB.commit()
+                                                db.action(cmd, (seriesid, exists['SeriesID']))
+                                            db.action('PRAGMA foreign_keys = ON')
+                                            db.commit()
                                     if not exists:
                                         logger.debug("New series: %s" % series[0])
-                                        myDB.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
-                                                    ' Reason) VALUES (?,?,?,?,?)',
-                                                    (seriesid, series[0], 'Paused', time.time(), id_librarything))
-                                        myDB.commit()
+                                        db.action('INSERT INTO series (SeriesID, SeriesName, Status, Updated,' +
+                                                  ' Reason) VALUES (?,?,?,?,?)',
+                                                  (seriesid, series[0], 'Paused', time.time(), id_librarything))
+                                        db.commit()
                                     seriesmembers = None
                                     cmd = "SELECT * from member WHERE seriesid=? AND WorkID=?"
-                                    if not myDB.match(cmd, (seriesid, id_librarything)):
+                                    if not db.match(cmd, (seriesid, id_librarything)):
                                         seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
                                         if seriesid in series_updates:
                                             logger.debug("Series %s already updated" % seriesid)
@@ -884,16 +884,19 @@ class OpenLibrary:
                                         for member in seriesmembers:
                                             # member[order, bookname, authorname, authorlink, workid]
                                             # remove any old entries for this series member
-                                            myDB.action("DELETE from member WHERE seriesid=? AND seriesnum=?",
-                                                        (seriesid, member[0]))
-                                            auth_name, exists = lazylibrarian.importer.getPreferredAuthorName(member[2])
+                                            db.action("DELETE from member WHERE seriesid=? AND seriesnum=?",
+                                                      (seriesid, member[0]))
+                                            auth_name, exists = lazylibrarian.importer.get_preferred_author_name(
+                                                member[2])
                                             if not exists:
-                                                lazylibrarian.importer.addAuthorNameToDB(author=member[2],
-                                                                                         refresh=False, addbooks=False,
-                                                                                         reason="Series author %s:%s" %
-                                                                                                (series[0], member[1]))
+                                                reason = "Series author %s:%s" % (series[0], member[1])
+                                                lazylibrarian.importer.add_author_name_to_db(author=member[2],
+                                                                                             refresh=False,
+                                                                                             addbooks=False,
+                                                                                             reason=reason
+                                                                                             )
                                                 auth_name, exists = \
-                                                    lazylibrarian.importer.getPreferredAuthorName(member[2])
+                                                    lazylibrarian.importer.get_preferred_author_name(member[2])
                                                 if exists:
                                                     auth_name = member[2]
                                                 else:
@@ -902,47 +905,47 @@ class OpenLibrary:
                                                     continue
                                             else:
                                                 cmd = "SELECT * from authors WHERE authorname=?"
-                                                exists = myDB.match(cmd, (auth_name,))
+                                                exists = db.match(cmd, (auth_name,))
                                                 if exists:
                                                     auth_key = exists['AuthorID']
                                                     if fuzz.ratio(auth_name.lower().replace('.', ''),
                                                                   member[2].lower().replace('.', '')) < 95:
-                                                        akas = getList(exists['AKA'], ',')
+                                                        akas = get_list(exists['AKA'], ',')
                                                         if member[2] not in akas:
                                                             akas.append(member[2])
-                                                            myDB.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                                                                        (', '.join(akas), auth_key))
-                                                    match = myDB.match('SELECT * from seriesauthors WHERE ' +
-                                                                       'SeriesID=? and AuthorID=?',
-                                                                       (seriesid, auth_key))
+                                                            db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                                                                      (', '.join(akas), auth_key))
+                                                    match = db.match('SELECT * from seriesauthors WHERE ' +
+                                                                     'SeriesID=? and AuthorID=?',
+                                                                     (seriesid, auth_key))
                                                     if not match:
                                                         logger.debug("Adding %s as series author for %s" %
                                                                      (auth_name, series[0]))
-                                                        myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
-                                                                    '"AuthorID") VALUES (?, ?)',
-                                                                    (seriesid, auth_key), suppress='UNIQUE')
+                                                        db.action('INSERT INTO seriesauthors ("SeriesID", ' +
+                                                                  '"AuthorID") VALUES (?, ?)',
+                                                                  (seriesid, auth_key), suppress='UNIQUE')
 
                                             # if book not in library, use librarything workid to get an isbn
                                             # use that to get openlibrary workid
                                             # add book to library, then add seriesmember
-                                            exists = myDB.match("SELECT * from books WHERE LT_Workid=?",
-                                                                (member[4],))
+                                            exists = db.match("SELECT * from books WHERE LT_Workid=?",
+                                                              (member[4],))
                                             if exists:
-                                                match = myDB.match("SELECT * from member WHERE " +
-                                                                   "SeriesID=? AND BookID=?",
-                                                                   (seriesid, exists['BookID']))
+                                                match = db.match("SELECT * from member WHERE " +
+                                                                 "SeriesID=? AND BookID=?",
+                                                                 (seriesid, exists['BookID']))
                                                 if not match:
                                                     logger.debug("Inserting new member [%s] for %s" %
                                                                  (member[0], series[0]))
-                                                    myDB.action('INSERT INTO member (SeriesID, BookID, ' +
-                                                                'WorkID, SeriesNum) VALUES (?,?,?,?)',
-                                                                (seriesid, exists['BookID'], member[4], member[0]))
-                                                ser = myDB.match('select count(*) as counter from member ' +
-                                                                 'where seriesid=?', (seriesid,))
+                                                    db.action('INSERT INTO member (SeriesID, BookID, ' +
+                                                              'WorkID, SeriesNum) VALUES (?,?,?,?)',
+                                                              (seriesid, exists['BookID'], member[4], member[0]))
+                                                ser = db.match('select count(*) as counter from member ' +
+                                                               'where seriesid=?', (seriesid,))
                                                 if ser:
                                                     counter = check_int(ser['counter'], 0)
-                                                    myDB.action("UPDATE series SET Total=? WHERE SeriesID=?",
-                                                                (counter, seriesid))
+                                                    db.action("UPDATE series SET Total=? WHERE SeriesID=?",
+                                                              (counter, seriesid))
                                             else:
                                                 if not self.lt_cache:
                                                     librarything_wait()
@@ -984,26 +987,26 @@ class OpenLibrary:
                                                                 cover += '%s-M.jpg' % covers[0]
                                                             else:
                                                                 cover = 'images/nocover.png'
-                                                            publish_date = dateFormat(workinfo.get('publish_date', ''))
+                                                            publish_date = date_format(workinfo.get('publish_date', ''))
                                                             rating, genrelist, _ = self.lt_workinfo(member[4])
                                                             genrenames = []
                                                             for item in genrelist:
                                                                 genrenames.append(item[0])
                                                             genres = ', '.join(genrenames)
                                                             lang = ''
-                                                            match = myDB.match('SELECT * from authors ' +
-                                                                               'WHERE AuthorName=? COLLATE NOCASE',
-                                                                               (auth_name,))
+                                                            match = db.match('SELECT * from authors ' +
+                                                                             'WHERE AuthorName=? COLLATE NOCASE',
+                                                                             (auth_name,))
                                                             if match:
                                                                 bauth_key = match['AuthorID']
                                                             else:
                                                                 reason = "Series author %s:%s" % (series[0], member[1])
-                                                                lazylibrarian.importer.addAuthorNameToDB(
+                                                                lazylibrarian.importer.add_author_name_to_db(
                                                                     author=auth_name, refresh=False,
                                                                     addbooks=False, reason=reason)
-                                                                match = myDB.match('SELECT * from authors ' +
-                                                                                   'WHERE AuthorName=? COLLATE NOCASE',
-                                                                                   (auth_name,))
+                                                                match = db.match('SELECT * from authors ' +
+                                                                                 'WHERE AuthorName=? COLLATE NOCASE',
+                                                                                 (auth_name,))
                                                                 if match:
                                                                     bauth_key = match['AuthorID']
                                                                 else:
@@ -1012,8 +1015,8 @@ class OpenLibrary:
                                                                     logger.debug(msg)
                                                                     continue
 
-                                                            match = myDB.match('SELECT * from books ' +
-                                                                               'WHERE BookID=?', (workid,))
+                                                            match = db.match('SELECT * from books ' +
+                                                                             'WHERE BookID=?', (workid,))
                                                             if not match:
                                                                 logger.debug("Inserting new member [%s] for %s" %
                                                                              (member[0], series[0]))
@@ -1025,20 +1028,20 @@ class OpenLibrary:
                                                                 added_count += 1
                                                                 if not lang:
                                                                     lang = 'Unknown'
-                                                                myDB.action('INSERT INTO books (AuthorID, ' +
-                                                                            'BookName, BookDesc, BookGenre, ' +
-                                                                            'BookIsbn, BookPub, BookRate, ' +
-                                                                            'BookImg, BookLink, BookID, ' +
-                                                                            'BookDate, BookLang, BookAdded, ' +
-                                                                            'Status, WorkPage, AudioStatus, ' +
-                                                                            'LT_WorkID, ScanResult, OriginalPubDate)' +
-                                                                            ' VALUES ' +
-                                                                            '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                                                            (bauth_key, title, '', genres, '', '',
-                                                                             rating, cover, worklink, workid,
-                                                                             publish_date, lang, '', bookstatus,
-                                                                             '', audiostatus, member[4],
-                                                                             reason, publish_date))
+                                                                db.action('INSERT INTO books (AuthorID, ' +
+                                                                          'BookName, BookDesc, BookGenre, ' +
+                                                                          'BookIsbn, BookPub, BookRate, ' +
+                                                                          'BookImg, BookLink, BookID, ' +
+                                                                          'BookDate, BookLang, BookAdded, ' +
+                                                                          'Status, WorkPage, AudioStatus, ' +
+                                                                          'LT_WorkID, ScanResult, OriginalPubDate)' +
+                                                                          ' VALUES ' +
+                                                                          '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                                                          (bauth_key, title, '', genres, '', '',
+                                                                           rating, cover, worklink, workid,
+                                                                           publish_date, lang, '', bookstatus,
+                                                                           '', audiostatus, member[4],
+                                                                           reason, publish_date))
 
                                                                 if 'nocover' in cover or 'nophoto' in cover:
                                                                     cover = get_cover(workid, title)
@@ -1046,38 +1049,38 @@ class OpenLibrary:
                                                                 if cover and cover.startswith('http'):
                                                                     cache_cover(workid, cover)
 
-                                                            match = myDB.match("SELECT * from seriesauthors WHERE " +
-                                                                               "SeriesID=? AND AuthorID=?",
-                                                                               (seriesid, bauth_key))
+                                                            match = db.match("SELECT * from seriesauthors WHERE " +
+                                                                             "SeriesID=? AND AuthorID=?",
+                                                                             (seriesid, bauth_key))
                                                             if not match:
                                                                 logger.debug("Adding %s as series author for %s" %
                                                                              (auth_name, series[0]))
-                                                                myDB.action('INSERT INTO seriesauthors ("SeriesID", ' +
-                                                                            '"AuthorID") VALUES (?, ?)',
-                                                                            (seriesid, bauth_key), suppress='UNIQUE')
+                                                                db.action('INSERT INTO seriesauthors ("SeriesID", ' +
+                                                                          '"AuthorID") VALUES (?, ?)',
+                                                                          (seriesid, bauth_key), suppress='UNIQUE')
 
-                                                            match = myDB.match("SELECT * from member WHERE " +
-                                                                               "SeriesID=? AND BookID=?",
-                                                                               (seriesid, workid))
+                                                            match = db.match("SELECT * from member WHERE " +
+                                                                             "SeriesID=? AND BookID=?",
+                                                                             (seriesid, workid))
                                                             if not match:
-                                                                myDB.action('INSERT INTO member ' +
-                                                                            '(SeriesID, BookID, WorkID, SeriesNum)  ' +
-                                                                            'VALUES (?,?,?,?)',
-                                                                            (seriesid, workid, member[4], member[0]))
-                                                                ser = myDB.match('select count(*) as counter ' +
-                                                                                 'from member where seriesid=?',
-                                                                                 (seriesid,))
+                                                                db.action('INSERT INTO member ' +
+                                                                          '(SeriesID, BookID, WorkID, SeriesNum)  ' +
+                                                                          'VALUES (?,?,?,?)',
+                                                                          (seriesid, workid, member[4], member[0]))
+                                                                ser = db.match('select count(*) as counter ' +
+                                                                               'from member where seriesid=?',
+                                                                               (seriesid,))
                                                                 if ser:
                                                                     counter = check_int(ser['counter'], 0)
-                                                                    myDB.action("UPDATE series SET Total=? " +
-                                                                                "WHERE SeriesID=?",
-                                                                                (counter, seriesid))
+                                                                    db.action("UPDATE series SET Total=? " +
+                                                                              "WHERE SeriesID=?",
+                                                                              (counter, seriesid))
                     if rating == 0:
                         logger.debug("No additional librarything info")
-                        exists = myDB.match("SELECT * from books WHERE BookID=?", (key,))
+                        exists = db.match("SELECT * from books WHERE BookID=?", (key,))
                         if not exists:
                             logger.debug("Inserting new book for %s" % authorid)
-                            if 'authorUpdate' in entryreason:
+                            if 'author_update' in entryreason:
                                 reason = 'Author: %s' % auth_name
                             else:
                                 reason = entryreason
@@ -1086,12 +1089,12 @@ class OpenLibrary:
                             added_count += 1
                             if not lang:
                                 lang = 'Unknown'
-                            myDB.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
-                                        'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
-                                        'WorkPage, AudioStatus, ScanResult, OriginalPubDate) ' +
-                                        'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                        (authorid, title, cover, link, key, publish_date,
-                                         lang, now(), bookstatus, '', audiostatus, reason, first_publish_year))
+                            db.action('INSERT INTO books (AuthorID, BookName, BookImg, ' +
+                                      'BookLink, BookID, BookDate, BookLang, BookAdded, Status, ' +
+                                      'WorkPage, AudioStatus, ScanResult, OriginalPubDate) ' +
+                                      'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                      (authorid, title, cover, link, key, publish_date,
+                                       lang, now(), bookstatus, '', audiostatus, reason, first_publish_year))
                             if 'nocover' in cover or 'nophoto' in cover:
                                 cover = get_cover(key, title)
                                 cover_count += 1
@@ -1099,7 +1102,7 @@ class OpenLibrary:
                                 cache_cover(key, cover)
 
                     if seriesdisplay:
-                        myDB.action("UPDATE books SET SeriesDisplay=? WHERE BookID=?", (seriesdisplay, key))
+                        db.action("UPDATE books SET SeriesDisplay=? WHERE BookID=?", (seriesdisplay, key))
                     added_count += 1
 
             offset += len(authorbooks['docs'])
@@ -1108,10 +1111,10 @@ class OpenLibrary:
 
         resultcount = added_count + updated_count
         logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),
-                                               loopCount, plural(loopCount, "page")))
+                                               loop_count, plural(loop_count, "page")))
         logger.debug("Found %s locked %s" % (locked_count, plural(locked_count, "book")))
         logger.debug("Removed %s unwanted language %s" % (bad_lang, plural(bad_lang, "result")))
-        logger.debug("Removed %s incorrect/incomplete %s" % (removedResults, plural(removedResults, "result")))
+        logger.debug("Removed %s incorrect/incomplete %s" % (removed_results, plural(removed_results, "result")))
         logger.debug("Removed %s duplicate %s" % (duplicates, plural(duplicates, "result")))
         logger.debug("Ignored %s %s" % (book_ignore_count, plural(book_ignore_count, "book")))
         logger.debug("Imported/Updated %s %s in %d secs using %s api %s" %
@@ -1122,28 +1125,28 @@ class OpenLibrary:
         if isbn_count:
             logger.debug("Fetched %s ISBN in %.2f sec" % (isbn_count, isbn_time))
 
-        controlValueDict = {"authorname": authorname.replace('"', '""')}
-        newValueDict = {
-                        "GR_book_hits": api_hits,
-                        "GR_lang_hits": gr_lang_hits,
-                        "LT_lang_hits": lt_lang_hits,
-                        "GB_lang_change": gb_lang_change,
-                        "cache_hits": cache_hits,
-                        "bad_lang": bad_lang,
-                        "bad_char": removedResults,
-                        "uncached": api_hits,
-                        "duplicates": duplicates
-                        }
-        myDB.upsert("stats", newValueDict, controlValueDict)
+        control_value_dict = {"authorname": authorname.replace('"', '""')}
+        new_value_dict = {
+                          "GR_book_hits": api_hits,
+                          "GR_lang_hits": gr_lang_hits,
+                          "LT_lang_hits": lt_lang_hits,
+                          "GB_lang_change": gb_lang_change,
+                          "cache_hits": cache_hits,
+                          "bad_lang": bad_lang,
+                          "bad_char": removed_results,
+                          "uncached": api_hits,
+                          "duplicates": duplicates
+                          }
+        db.upsert("stats", new_value_dict, control_value_dict)
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='ol.find_book'):
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
-        myDB = database.DBConnection()
-        URL = self.OL_WORK + bookid + '.json'
+        db = database.DBConnection()
+        url = self.OL_WORK + bookid + '.json'
         try:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
-                logger.debug(URL)
-            workinfo, in_cache = json_request(URL)
+                logger.debug(url)
+            workinfo, in_cache = json_request(url)
             if not workinfo:
                 logger.debug("Error requesting book")
                 return
@@ -1170,13 +1173,13 @@ class OpenLibrary:
                 cover += '%s-M.jpg' % covers[0]
             else:
                 cover = 'images/nocover.png'
-            publish_date = dateFormat(workinfo.get('publish_date', ''))
+            publish_date = date_format(workinfo.get('publish_date', ''))
             lang = "Unknown"
             #
             # user has said they want this book, don't block for unwanted language etc
             # Ignore book if adding as part of a series, else just warn and include it
             #
-            valid_langs = getList(lazylibrarian.CONFIG['IMP_PREFLANG'])
+            valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
             if lang not in valid_langs and 'All' not in valid_langs:
                 msg = 'Book %s Language [%s] does not match preference' % (title, lang)
                 logger.warn(msg)
@@ -1242,13 +1245,13 @@ class OpenLibrary:
             workid = ''
             bookisbn = ''
             bookgenre = ''
-            match = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+            match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
             if match:
                 authorname = match['AuthorName']
             else:
-                lazylibrarian.importer.addAuthorToDB(authorid=authorid, refresh=False, addbooks=False,
-                                                     reason="ol.find_book %s" % bookid)
-                match = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+                lazylibrarian.importer.add_author_to_db(authorid=authorid, refresh=False, addbooks=False,
+                                                        reason="ol.find_book %s" % bookid)
+                match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
                 if match:
                     authorname = match['AuthorName']
             if not authorname:
@@ -1270,14 +1273,14 @@ class OpenLibrary:
                 else:
                     bookdesc = 'No Description'
                 if not bookgenre and infodict.get('genre'):
-                    bookgenre = genreFilter(infodict['genre'])
+                    bookgenre = genre_filter(infodict['genre'])
                 else:
                     bookgenre = 'Unknown'
 
             threadname = threading.currentThread().getName()
             reason = "[%s] %s" % (threadname, reason)
-            controlValueDict = {"BookID": bookid}
-            newValueDict = {
+            control_value_dict = {"BookID": bookid}
+            new_value_dict = {
                 "AuthorID": authorid,
                 "BookName": title,
                 "BookSub": '',
@@ -1299,7 +1302,7 @@ class OpenLibrary:
                 "OriginalPubDate": originalpubdate
             }
 
-            myDB.upsert("books", newValueDict, controlValueDict)
+            db.upsert("books", new_value_dict, control_value_dict)
             logger.info("%s by %s added to the books database, %s/%s" % (title, authorname, bookstatus, audiostatus))
 
             if 'nocover' in cover or 'nophoto' in cover:
@@ -1309,23 +1312,23 @@ class OpenLibrary:
 
 
 def get_cover(bookid, title):
-    workcover, source = getBookCover(bookid)
+    workcover, source = get_book_cover(bookid)
     if workcover:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         logger.debug('Updated cover for %s using %s' % (title, source))
-        controlValueDict = {"BookID": bookid}
-        newValueDict = {"BookImg": workcover}
-        myDB.upsert("books", newValueDict, controlValueDict)
+        control_value_dict = {"BookID": bookid}
+        new_value_dict = {"BookImg": workcover}
+        db.upsert("books", new_value_dict, control_value_dict)
     return workcover
 
 
 def cache_cover(bookid, cover):
     link, success, _ = cache_img("book", bookid, cover)
     if success:
-        myDB = database.DBConnection()
-        controlValueDict = {"BookID": bookid}
-        newValueDict = {"BookImg": link}
-        myDB.upsert("books", newValueDict, controlValueDict)
+        db = database.DBConnection()
+        control_value_dict = {"BookID": bookid}
+        new_value_dict = {"BookImg": link}
+        db.upsert("books", new_value_dict, control_value_dict)
     else:
         logger.debug('Failed to cache image for %s (%s)' % (cover, link))
 

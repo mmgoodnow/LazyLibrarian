@@ -25,7 +25,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxyList
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, proxy_list
 from lazylibrarian.formatter import check_int
 from six import PY2
 
@@ -34,7 +34,7 @@ class AndroidPNNotifier:
     def __init__(self):
         pass
 
-    def _sendAndroidPN(self, title, msg, url, username, broadcast):
+    def _send_android_pn(self, title, msg, url, username, broadcast):
 
         # build up the URL and parameters
         msg = msg.strip()
@@ -49,7 +49,7 @@ class AndroidPNNotifier:
             'username': username,
             'message': msg,
         }
-        proxies = proxyList()
+        proxies = proxy_list()
         # send the request
         try:
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
@@ -65,8 +65,8 @@ class AndroidPNNotifier:
             # For HTTP status code 401's, it is because you are passing in either an
             # invalid token, or the user has not added your service.
             elif status == '401':
-                subscribeNote = self._sendAndroidPN(title, msg, url, username, broadcast)
-                if subscribeNote:
+                subscribe_note = self._send_android_pn(title, msg, url, username, broadcast)
+                if subscribe_note:
                     logger.debug("ANDROIDPN: Subscription sent")
                     return True
                 else:
@@ -122,7 +122,7 @@ class AndroidPNNotifier:
         if not username or not url:
             return False
 
-        return self._sendAndroidPN(title, message, url, username, broadcast)
+        return self._send_android_pn(title, message, url, username, broadcast)
 
     #
     # Public functions

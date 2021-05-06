@@ -9,17 +9,17 @@
         <div class="col-xs-10">
           %if perm&lazylibrarian.perm_force:
             %if library != 'AudioBook':
-              <a href="importAlternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Import eBooks</a>
-              <a href="includeAlternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Include eBooks</a>
+              <a href="import_alternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Import eBooks</a>
+              <a href="include_alternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Include eBooks</a>
               %if lazylibrarian.CONFIG['USER_ACCOUNTS'] and lazylibrarian.CONFIG['IMP_CALIBREDB']:
                 <button class="button btn btn-sm btn-primary" type="button" value="synctocalibre" id="synctocalibre">
                 <i class="fa fa-link"></i> Calibre Sync</button>
               %endif
             %else:
-              <a href="importAlternate?library=AudioBook" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Import AudioBooks</a>
-              <a href="includeAlternate?library=AudioBook" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Include AudioBooks</a>
+              <a href="import_alternate?library=AudioBook" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Import AudioBooks</a>
+              <a href="include_alternate?library=AudioBook" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Include AudioBooks</a>
             %endif
-            <a href="forceWish?source=books" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> WishLists</a>
+            <a href="force_wish?source=books" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> WishLists</a>
             <button class="button btn btn-sm btn-primary" type="button" value="importcsv" id="importcsv">
             <i class="fa fa-download"></i> Import CSV</button>
             <button class="button btn btn-sm btn-primary" type="button" value="exportcsv" id="exportcsv">
@@ -109,7 +109,7 @@
     </div>
   </form>
   <br/>
-  <form action="markBooks" method="get" class="form-inline">
+  <form action="mark_books" method="get" class="form-inline">
     <input type="hidden" name="redirect" value="manage">
     <input type="hidden" name="library" value="${library}">
     <div class="table-responsive">
@@ -136,8 +136,8 @@
     </div>
     %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
-      <label for="markBooks" class="control-label">Mark selected ${library}s as</label>
-      <select id="markBooks" class="markBooks form-control input-sm" name="action">
+      <label for="mark_books" class="control-label">Mark selected ${library}s as</label>
+      <select id="mark_books" class="mark_books form-control input-sm" name="action">
         %if whichStatus != 'Wanted':
           %if lazylibrarian.SHOW_EBOOK > 0 and library == 'AudioBook':
             <option value="WantEbook">eBook Wanted</option>
@@ -168,7 +168,7 @@
         %endif
       </select>
     </div>
-    <input type="submit" class="markBooks btn btn-sm btn-default" value="Go">
+    <input type="submit" class="mark_books btn btn-sm btn-default" value="Go">
     %endif
   </form>
   <p>&nbsp;</p>
@@ -196,7 +196,7 @@
         })
 
         $('#exportcsv').on('click', function(e) {
-            $.get('exportCSV', {'library': $('#chooselib').val()}, function(data) {
+            $.get('export_csv', {'library': $('#chooselib').val()}, function(data) {
                 bootbox.dialog({
                     title: 'CSV Export Result',
                     message: '<pre>'+data+'</pre>',
@@ -212,7 +212,7 @@
 
         $('#synctogoodreads').on('click', function(e) {
             $("#myAlert").removeClass('hidden');
-            $.get('syncToGoodreads', function(data) {
+            $.get('sync_to_goodreads', function(data) {
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Goodreads Sync Result',
@@ -229,7 +229,7 @@
 
         $('#synctocalibre').on('click', function(e) {
             $("#myAlert").removeClass('hidden');
-            $.get('syncToCalibre', function(data) {
+            $.get('sync_to_calibre', function(data) {
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Calibre Sync Result',
@@ -245,7 +245,7 @@
         });
 
         $('#importcsv').on('click', function(e) {
-            $.get('importCSV', {'library': $('#chooselib').val()}, function(data) {
+            $.get('import_csv', {'library': $('#chooselib').val()}, function(data) {
                 var myModal = bootbox.dialog({
                     title: 'CSV Import Info',
                     message: '<pre>'+data+'</pre>',
@@ -282,7 +282,7 @@
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2], 'render': function(data, type, row) {
-                        return '<a href=\'authorPage?AuthorID=' + row[8] + '\'">' + data + '</a>';}
+                        return '<a href=\'author_page?AuthorID=' + row[8] + '\'">' + data + '</a>';}
                     },
                     { targets: [3], 'render': function(data, type, row) {
                         var pre = data.split('<');
@@ -301,7 +301,7 @@
                         var output = [];
                         for (var index=0; index < series.length; ++index) {
                             var link_data = series[index].split("~");
-                            output.push('<a href=seriesMembers?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
+                            output.push('<a href=series_members?seriesid=' + link_data[0] + '>' + link_data[1] + '</a>')
                         }
                         return output.join('<br>');
                     }},
@@ -342,7 +342,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getBooks?whichStatus=${whichStatus}&library=${library}&source=Manage',
+                "sAjaxSource": 'get_books?whichStatus=${whichStatus}&library=${library}&source=Manage',
                 "bFilter": true,
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     %if perm&lazylibrarian.perm_status == 0:

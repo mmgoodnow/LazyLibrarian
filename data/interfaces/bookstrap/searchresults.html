@@ -13,7 +13,7 @@
         <div class="form-group">
           <label class="sr-only">Search</label>
           <div class="input-group">
-            <input type="text" class="form-control deletable input-sm col-xs-12" value="" onfocus="if(this.value==this.defaultValue) this.value='';" name="name" placeholder="Title / Author / ISBN" id="searchbox" name="searchbox">
+            <input type="text" class="form-control deletable input-sm col-xs-12" value="" onfocus="if(this.value==this.defaultValue) this.value='';" placeholder="Title / Author / ISBN" id="searchbox" name="searchbox">
             <span class="input-group-btn">
               <button type="submit" value="Book" class="btn btn-sm btn-primary" data-toggle="tooltip" data-placement="bottom" title="Search for book"><i class="fa fa-search"></i></button>
             </span>
@@ -41,7 +41,7 @@
                 <th class="date text-center">Released</th>
                 <th class="stars text-center hidden-sm hidden-xs">Rating</th>
                 <th class="stars text-center hidden-sm hidden-xs">Rating count</th>
-                <th class="addAuthor text-center no-sort">Add</th>
+                <th class="add_author text-center no-sort">Add</th>
                 <th class="fuzz text-right">Match</th>
              </tr>
         </thead>
@@ -66,7 +66,7 @@
                         starimg = '0-stars.png'
 
                     if authorlist and result['authorid'] in authorlist:
-                        destination = "authorPage?AuthorID="+result['authorid']
+                        destination = "author_page?authorid="+result['authorid']
                         value = "Have Author"
                         but_class = "btn-info"
                     elif loadlist and result['authorid'] in loadlist:
@@ -74,11 +74,11 @@
                         value = "Loading"
                         but_class = "btn-warning"
                     elif result['authorid']:
-                        destination = "addAuthorID?AuthorID="+result['authorid']
+                        destination = "add_author_id?authorid="+result['authorid']
                         value = "Add Author"
                         but_class = "btn-success"
                     else:
-                        destination = "addAuthor?AuthorName="+result['authorname']
+                        destination = "add_author?AuthorName="+result['authorname']
                         value = "Add Author"
                         but_class = "btn-success"
 
@@ -105,16 +105,16 @@
                                     valid_id = item['BookID']
 
                             if 'Open' in value2:
-                                destination2 = "openBook?library=eBook&bookid="+valid_id
+                                destination2 = "open_book?library=eBook&bookid="+valid_id
                                 but_class2 = "btn-warning"
                             elif 'Wanted' in value2:
-                                destination2 = "searchForBook?library=eBook&bookid="+valid_id
+                                destination2 = "search_for_book?library=eBook&bookid="+valid_id
                                 but_class2 = "btn-success"
                             elif 'Have' in value2 or 'Snatched' in value2:
                                 destination2 = "#"
                                 but_class2 = "btn-info"
                             elif 'Skipped' in value2:
-                                destination2 = "addBook?library=eBook&bookid="+result['bookid']
+                                destination2 = "add_book?library=eBook&bookid="+result['bookid']
                                 if result['authorid']:
                                     destination2 = destination2 + "&authorid="+result['authorid']
                                 value2 = "Add Book"
@@ -124,16 +124,16 @@
                                 but_class2 = "btn-default"
 
                             if 'Open' in value3:
-                                destination3 = "openBook?library=AudioBook&bookid="+valid_id
+                                destination3 = "open_book?library=AudioBook&bookid="+valid_id
                                 but_class3 = "btn-warning"
                             elif 'Wanted' in value3:
-                                destination3 = "searchForBook?library=AudioBook&bookid="+valid_id
+                                destination3 = "search_for_book?library=AudioBook&bookid="+valid_id
                                 but_class3 = "btn-success"
                             elif 'Have' in value3 or 'Snatched' in value3:
                                 destination3 = "#"
                                 but_class3 = "btn-info"
                             elif 'Skipped' in value3:
-                                destination3 = "addBook?library=AudioBook&bookid="+result['bookid']
+                                destination3 = "add_book?library=AudioBook&bookid="+result['bookid']
                                 if result['authorid']:
                                     destination3 = destination3 + "&authorid="+result['authorid']
                                 value3 = "Add Audio"
@@ -142,13 +142,13 @@
                                 destination3 = "#"
                                 but_class3 = "btn-default"
                         else:
-                            destination2 = "addBook?library=eBook&bookid="+result['bookid']
+                            destination2 = "add_book?library=eBook&bookid="+result['bookid']
                             if result['authorid']:
                                 destination2 = destination2 + "&authorid="+result['authorid']
                             value2 = "Add Book"
                             but_class2 = "btn-success"
 
-                            destination3 = "addBook?library=AudioBook&bookid="+result['bookid']
+                            destination3 = "add_book?library=AudioBook&bookid="+result['bookid']
                             if result['authorid']:
                                 destination3 = destination3 + "&authorid="+result['authorid']
                             value3 = "Add Audio"
@@ -170,7 +170,7 @@
   <td class="date text-center">${result['bookdate']}</td>
   <td class="stars text-center"><img src="images/${starimg}" alt="${result['bookrate']}"></td>
   <td class="bookrate_count">${result.get('bookrate_count', 0)}</td>
-  <td class="addAuthor text-center">
+  <td class="add_author text-center">
     <p><a class="${but_class} btn btn-xs" href="${destination}">${value}</a></p>
     <p><a class="${but_class2} btn btn-xs" href="${destination2}">${value2}</a></p>
     <p><a class="${but_class3} btn btn-xs" href="${destination3}">${value3}</a></p>

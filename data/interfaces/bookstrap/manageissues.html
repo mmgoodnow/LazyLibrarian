@@ -5,13 +5,13 @@
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <div id="subhead_menu">
-        <label for="wallColumns" class="">&nbsp;&nbsp;</label>
+        <label class="">&nbsp;&nbsp;</label>
     </div>
   </div>
 </%def>
 <%def name="body()">
   <h1>${title}</h1>
-  <form action="pastIssues" method="get" class="form-inline">
+  <form action="past_issues" method="get" class="form-inline">
     <div class="form-group">
       <label for="whichStatus" class="control-label">Status: </label>
       <select name="whichStatus" id="whichStatus" class="form-control input-sm">
@@ -33,7 +33,7 @@
     %endif
   </form>
   <br>
-  <form action="markPastIssues" method="get" class="form-inline">
+  <form action="mark_past_issues" method="get" class="form-inline">
     <input type="hidden" name="redirect" value="manageissues">
     <table class="display table table-striped table hover table-bordered" id="book_table">
       <thead>
@@ -58,7 +58,7 @@
           %endfor
         </select>
       </div>
-      <button type="submit" class="btn btn-sm btn-default" id="markPastIssues" value="Go">Go</button>
+      <button type="submit" class="btn btn-sm btn-default" id="mark_past_issues" value="Go">Go</button>
     </p>
     %endif
   </form>
@@ -72,7 +72,7 @@
         var selected = [];
 
         $('#whichStatus').change(function(){
-            window.location = 'pastIssues?mag=${mag | u}&whichStatus=' + $(this).val()
+            window.location = 'past_issues?mag=${mag | u}&whichStatus=' + $(this).val()
         })
         var table = $('#book_table').DataTable(
             {
@@ -105,7 +105,7 @@
                 "aaSorting": [[1, 'asc']],
                 "bServerSide": true,
                 // need to pass requested status filter
-                "sAjaxSource": 'getPastIssues?whichStatus=${whichStatus}&mag=${mag | u}',
+                "sAjaxSource": 'get_past_issues?whichStatus=${whichStatus}&mag=${mag | u}',
                 "bFilter": true,
             });
 

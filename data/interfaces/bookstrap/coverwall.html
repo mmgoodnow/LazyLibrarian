@@ -5,13 +5,13 @@
 <%def name="headerIncludes()">
     <div id="subhead_container">
         <div id="subhead_menu">
-            <label for="wallColumns" class="">&nbsp;&nbsp;Columns&nbsp;</label>
+            <label class="">&nbsp;&nbsp;Columns&nbsp;</label>
             %if redirect == 'books':
-            <a href="wallColumns?count=up&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
-            <a href="wallColumns?count=down&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+            <a href="wall_columns?count=up&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+            <a href="wall_columns?count=down&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
             %else:
-            <a href="wallColumns?count=up&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
-            <a href="wallColumns?count=down&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+            <a href="wall_columns?count=up&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+            <a href="wall_columns?count=down&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
             %endif
         </div>
     </div>
@@ -32,18 +32,18 @@
               <% count = count + 1 %>
               %if redirect == 'books':
                 %if have == '1':
-                  <td class="bookart text-center"><a href="openBook?bookid=${result['BookID']}&library=eBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
+                  <td class="bookart text-center"><a href="open_book?bookid=${result['BookID']}&library=eBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
                 %else:
                   <td class="bookart text-center"><a href="${result['BookLink']}" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
                 %endif
               %else:
                 %if redirect == 'audio':
-                  <td class="bookart text-center"><a href="openBook?bookid=${result['BookID']}&library=AudioBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
+                  <td class="bookart text-center"><a href="open_book?bookid=${result['BookID']}&library=AudioBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
                 %else:
                   %if redirect == 'comic':
-                    <td class="bookart text-center"><a href="openComic?comicid=${result['ComicID']}&issueid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueID']}</td>
+                    <td class="bookart text-center"><a href="open_comic?comicid=${result['ComicID']}&issueid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueID']}</td>
                   %else:
-                    <td class="bookart text-center"><a href="openMag?bookid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueDate']}</td>
+                    <td class="bookart text-center"><a href="open_mag?bookid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueDate']}</td>
                   %endif
                 %endif
               %endif

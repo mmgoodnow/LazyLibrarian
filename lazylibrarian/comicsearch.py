@@ -16,14 +16,14 @@ import traceback
 import time
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, plural, dateFormat, unaccented, replace_all, check_int, \
-    now, dispName
-from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
-    IterateOverDirectSites, IterateOverIRCSites
-from lazylibrarian.common import scheduleJob
+from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
+    now, disp_name
+from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
+    iterate_over_direct_sites, iterate_over_irc_sites
+from lazylibrarian.common import schedule_job
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
+from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 
 try:
     from fuzzywuzzy import fuzz
@@ -37,7 +37,7 @@ dictrepl = {'...': '', '.': ' ', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + 
             ':': '', '!': '', '-': ' ', r'\s\s': ' '}
 
 
-def searchItem(comicid=None):
+def search_item(comicid=None):
     """
     Call all active search providers to search for comic by id
     return a list of results, each entry in list containing percentage_match, title, provider, size, url
@@ -47,9 +47,9 @@ def searchItem(comicid=None):
     if not comicid:
         return results
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     cmd = 'SELECT Title,SearchTerm from comics WHERE Status="Active" and ComicID=?'
-    match = myDB.match(cmd, (comicid,))
+    match = db.match(cmd, (comicid,))
     if not match:
         logger.debug("No comic match for %s" % comicid)
         return results
@@ -61,28 +61,28 @@ def searchItem(comicid=None):
         searchterm = match['Title']
     book['searchterm'] = searchterm.replace('+', ' ')
 
-    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
-    nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
+    nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
+    nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.USE_NZB():
-        resultlist, nprov = IterateOverNewzNabSites(book, cat)
+    if lazylibrarian.use_nzb():
+        resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_TOR():
-        resultlist, nprov = IterateOverTorrentSites(book, cat)
+    if lazylibrarian.use_tor():
+        resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_DIRECT():
-        resultlist, nprov = IterateOverDirectSites(book, cat)
+    if lazylibrarian.use_direct():
+        resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_IRC():
-        resultlist, nprov = IterateOverIRCSites(book, cat)
+    if lazylibrarian.use_irc():
+        resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_RSS():
-        resultlist, nprov, dltypes = IterateOverRSSSites()
+    if lazylibrarian.use_rss():
+        resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'C':
             results += resultlist
 
@@ -129,7 +129,7 @@ def searchItem(comicid=None):
             if not size:
                 size = '1000'
             if date:
-                date = dateFormat(date)
+                date = date_format(date)
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker
@@ -145,16 +145,16 @@ def searchItem(comicid=None):
             score = fuzz.token_set_ratio(searchmatch, part_title)
 
             # lose a point for each extra word in the title so we get the closest match
-            words = len(getList(searchterm))
-            words -= len(getList(title))
+            words = len(get_list(searchterm))
+            words -= len(get_list(title))
             score -= abs(words)
             rejected = False
             if score >= 40:  # ignore wildly wrong results?
 
                 maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXCOMIC'], 0)
                 minsize = check_int(lazylibrarian.CONFIG['REJECT_MINCOMIC'], 0)
-                filetypes = getList(lazylibrarian.CONFIG['COMIC_TYPE'])
-                banwords = getList(lazylibrarian.CONFIG['REJECT_COMIC'], ',')
+                filetypes = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
+                banwords = get_list(lazylibrarian.CONFIG['REJECT_COMIC'], ',')
                 size_mb = check_int(size, 1000)
                 size_mb = round(float(size_mb) / 1048576, 2)
 
@@ -167,8 +167,8 @@ def searchItem(comicid=None):
                     logger.debug("Rejecting %s, too small (%sMb)" % (title, size_mb))
 
                 if not rejected:
-                    resultTitle = unaccented(replace_all(title, dictrepl), only_ascii=False).strip()
-                    words = getList(resultTitle.lower())
+                    result_title = unaccented(replace_all(title, dictrepl), only_ascii=False).strip()
+                    words = get_list(result_title.lower())
                     for word in words:
                         if word in banwords:
                             logger.debug("Rejecting %s, contains %s" % (title, word))
@@ -204,17 +204,17 @@ def search_comics(comicid=None):
             else:
                 threading.currentThread().name = "SEARCHCOMIC"
 
-        myDB = database.DBConnection()
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db = database.DBConnection()
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         count = 0
         if comicid:
             # single comic search
             cmd += ' AND ComicID=?'
-            comics = myDB.select(cmd, (comicid,))
+            comics = db.select(cmd, (comicid,))
         else:
             # search for all active comics
-            comics = myDB.select(cmd)
+            comics = db.select(cmd)
             logger.debug("Found %s active comics" % len(comics))
 
         for comic in comics:
@@ -222,14 +222,14 @@ def search_comics(comicid=None):
                 logger.debug("Aborting %s" % threadname)
                 break
             comicid = comic['ComicID']
-            aka = getList(comic['aka'])
+            aka = get_list(comic['aka'])
             id_list = comicid
             if len(aka):
                 id_list = id_list + ', ' + ', '.join(aka)
             found = 0
             notfound = 0
             foundissues = {}
-            res = searchItem(comicid)
+            res = search_item(comicid)
             for item in res:
                 match = None
                 if item['score'] >= 85:
@@ -256,7 +256,7 @@ def search_comics(comicid=None):
                     notfound += 1
 
             total = len(foundissues)
-            haveissues = myDB.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
+            haveissues = db.select("SELECT IssueID from comicissues WHERE ComicID=?", (comicid,))
             have = []
             located = []
             for item in haveissues:
@@ -273,18 +273,18 @@ def search_comics(comicid=None):
 
             for issue in foundissues:
                 item = foundissues[issue]
-                match = myDB.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
-                                   (item['title'], item['provider']))
+                match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
+                                 (item['title'], item['provider']))
                 if match:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                         logger.debug('%s is already marked %s' % (item['title'], match['Status']))
                 else:
                     bookid = "%s_%s" % (item['bookid'], issue)
-                    controlValueDict = {
+                    control_value_dict = {
                         "NZBtitle": item['title'],
                         "NZBprov": item['provider']
                     }
-                    newValueDict = {
+                    new_value_dict = {
                         "NZBurl": item['url'],
                         "BookID": bookid,
                         "NZBdate": item['date'],
@@ -293,23 +293,23 @@ def search_comics(comicid=None):
                         "NZBsize": item['size'],
                         "NZBmode": item['mode']
                     }
-                    myDB.upsert("wanted", newValueDict, controlValueDict)
+                    db.upsert("wanted", new_value_dict, control_value_dict)
 
                     if item['mode'] in ["torznab", "torrent", "magnet"]:
-                        snatch, res = TORDownloadMethod(
+                        snatch, res = tor_dl_method(
                             bookid,
                             item['title'],
                             item['url'],
                             'comic')
                     elif item['mode'] == 'direct':
-                        snatch, res = DirectDownloadMethod(
+                        snatch, res = direct_dl_method(
                             bookid,
                             item['title'],
                             item['url'],
                             'comic',
                             item['provider'])
                     elif item['mode'] == 'nzb':
-                        snatch, res = NZBDownloadMethod(
+                        snatch, res = nzb_dl_method(
                             bookid,
                             item['title'],
                             item['url'],
@@ -322,19 +322,19 @@ def search_comics(comicid=None):
                     if snatch:
                         count += 1
                         logger.info('Downloading %s from %s' % (item['title'], item["provider"]))
-                        myDB.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
+                        db.action('UPDATE wanted SET nzbdate=? WHERE NZBurl=?', (now(), item["url"]))
                         custom_notify_snatch("%s %s" % (bookid, item['url']))
                         notify_snatch("Comic %s from %s at %s" %
                                       (unaccented(item['title'], only_ascii=False),
-                                       dispName(item["provider"]), now()))
-                        scheduleJob(action='Start', target='PostProcessor')
+                                       disp_name(item["provider"]), now()))
+                        schedule_job(action='Start', target='PostProcessor')
                     else:
-                        myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                                    (res, item["url"]))
+                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                  (res, item["url"]))
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
         logger.info("ComicSearch for Wanted items complete, found %s %s" % (count, plural(count, "comic")))
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
     finally:

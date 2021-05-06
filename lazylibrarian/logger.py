@@ -29,14 +29,14 @@ class RotatingLogger(object):
         self.filehandler = None
         self.consolehandler = None
 
-    def stopLogger(self):
+    def stop_logger(self):
         lg = logging.getLogger(__name__)
         lg.removeHandler(self.filehandler)
         lg.removeHandler(self.consolehandler)
         self.filehandler = None
         self.consolehandler = None
 
-    def initLogger(self, loglevel=1):
+    def init_logger(self, loglevel=1):
 
         lg = logging.getLogger(__name__)
         lg.setLevel(logging.DEBUG)

@@ -5,8 +5,8 @@
 <%def name="headerIncludes()">
     <div id="subhead_container">
         <ul id="subhead_menu">
-            <li><a href="forceUpdate" id="button"> Refresh Active Authors </a></li>
-         <li><a href="libraryScan" id="button"> Library Scan </a></li>
+            <li><a href="force_update" id="abutton"> Refresh Active Authors </a></li>
+         <li><a href="library_scan" id="lbutton"> Library Scan </a></li>
         </ul>
     </div>
 </%def>
@@ -23,7 +23,7 @@
             %>
 <thead>
   <tr>
-    <th id="status" ${hidden}>Image</th>
+    <th id="image" ${hidden}>Image</th>
     <th id="authorname">Author</th>
     <th id="bookname">Latest Book</th>
     <th id="date">Released</th>
@@ -59,7 +59,7 @@
                       }
                     },
                     { "fnRender": function ( oObj ) {
-                        return '<a href="authorPage?AuthorID=' + oObj.aData[10] + '">' + oObj.aData[1] + '</a>'
+                        return '<a href="author_page?authorid=' + oObj.aData[10] + '">' + oObj.aData[1] + '</a>'
                       }
                     },
                     { "fnRender": function ( oObj ) {
@@ -83,7 +83,7 @@
                     "sInfoEmpty":"Showing 0 to 0 of 0 authors",
                     "sInfoFiltered":"(filtered from _MAX_ total authors)"},
                 "bServerSide": true,
-                "sAjaxSource": 'getIndex',
+                "sAjaxSource": 'get_index',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},

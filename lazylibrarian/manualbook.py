@@ -13,9 +13,9 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import getList, unaccented_bytes, unaccented, plural, dateFormat
-from lazylibrarian.providers import IterateOverRSSSites, IterateOverTorrentSites, IterateOverNewzNabSites, \
-    IterateOverDirectSites, IterateOverIRCSites
+from lazylibrarian.formatter import get_list, unaccented_bytes, unaccented, plural, date_format
+from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
+    iterate_over_direct_sites, iterate_over_irc_sites
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -26,7 +26,7 @@ from six import PY2
 from six.moves.urllib_parse import quote_plus
 
 
-def searchItem(item=None, bookid=None, cat=None):
+def search_item(item=None, bookid=None, cat=None):
     """
     Call all active search providers to search for item
     return a list of results, each entry in list containing percentage_match, title, provider, size, url
@@ -52,10 +52,10 @@ def searchItem(item=None, bookid=None, cat=None):
         book['bookid'] = searchterm
 
     if cat in ['book', 'audio']:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         cmd = 'SELECT authorName,bookName,bookSub from books,authors WHERE books.AuthorID=authors.AuthorID'
         cmd += ' and bookID=?'
-        match = myDB.match(cmd, (bookid,))
+        match = db.match(cmd, (bookid,))
         if match:
             book['authorName'] = match['authorName']
             book['bookName'] = match['bookName']
@@ -64,28 +64,28 @@ def searchItem(item=None, bookid=None, cat=None):
             logger.debug('Forcing general search')
             cat = 'general'
 
-    nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
-    nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
+    nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
+    nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.USE_NZB():
-        resultlist, nprov = IterateOverNewzNabSites(book, cat)
+    if lazylibrarian.use_nzb():
+        resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_TOR():
-        resultlist, nprov = IterateOverTorrentSites(book, cat)
+    if lazylibrarian.use_tor():
+        resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_DIRECT():
-        resultlist, nprov = IterateOverDirectSites(book, cat)
+    if lazylibrarian.use_direct():
+        resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_IRC():
-        resultlist, nprov = IterateOverIRCSites(book, cat)
+    if lazylibrarian.use_irc():
+        resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.USE_RSS():
-        resultlist, nprov, dltypes = IterateOverRSSSites()
+    if lazylibrarian.use_rss():
+        resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'M':
             results += resultlist
 
@@ -132,7 +132,7 @@ def searchItem(item=None, bookid=None, cat=None):
             if not size:
                 size = '1000'
             if date:
-                date = dateFormat(date)
+                date = date_format(date)
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker
@@ -142,8 +142,8 @@ def searchItem(item=None, bookid=None, cat=None):
             # calculate match percentage - torrents might have words_with_underscore_separator
             score = fuzz.token_set_ratio(searchterm, title.replace('_', ' '))
             # lose a point for each extra word in the title so we get the closest match
-            words = len(getList(searchterm))
-            words -= len(getList(title))
+            words = len(get_list(searchterm))
+            words -= len(get_list(title))
             score -= abs(words)
             if score >= 40:  # ignore wildly wrong results?
                 result = {'score': score, 'title': title, 'provider': provider, 'size': size, 'date': date,

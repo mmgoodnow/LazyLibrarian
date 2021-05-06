@@ -87,7 +87,7 @@
                 <input id="userid" name="userid" class="form-control" value="" readonly>
               </div>
               <div class="form-group col-md-12">
-                <label for="subs">Subscriptions (for information only)</label>
+                <label for="summernote">Subscriptions (for information only)</label>
                 <textarea id="summernote" name="summernote" class="form-control" rows="10" placeholder="Nothing to see here..." readonly></textarea>
               </div>
               <fieldset class="form-group col-md-12">
@@ -146,7 +146,7 @@
 
         $('#userfeeds').on('click', function(e) {
           var user = $.trim($("#userid").val());
-            $.get('userFeeds', {'user': user}, function(data) {
+            $.get('user_feeds', {'user': user}, function(data) {
               var obj = JSON.parse(data);
               var feeds = obj['feeds']
               if (feeds.length === 0) {
@@ -158,7 +158,7 @@
                   inputType: 'checkbox',
                   inputOptions: feeds,
                   callback: function (result) {
-                      $.get("updateFeeds", {'user': user, 'value': result, 'feeds': obj['feeds']},
+                      $.get("update_feeds", {'user': user, 'value': result, 'feeds': obj['feeds']},
                             function (data) {
                             bootbox.dialog({
                                 title: 'Updated User',
@@ -178,7 +178,7 @@
         });
 
         $('#saveusers').on('click', function(e) {
-            $.get('saveUsers', function(data) {
+            $.get('save_users', function(data) {
                 bootbox.dialog({
                     title: 'Export Users',
                     message: '<pre>'+data+'</pre>',
@@ -193,7 +193,7 @@
         });
 
         $('#loadusers').on('click', function(e) {
-            $.get('loadUsers', function(data) {
+            $.get('load_users', function(data) {
                 bootbox.dialog({
                     title: 'Import Users',
                     message: '<pre>'+data+'</pre>',

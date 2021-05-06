@@ -15,9 +15,9 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, unaccented, makeUnicode, size_in_bytes, url_fix, \
-    replace_all, getList, month2num, check_year, makeUTF8bytes
+from lazylibrarian.cache import fetch_url
+from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
+    replace_all, get_list, month2num, check_year, make_utf8bytes
 from six import PY2
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote, urlencode, quote_plus
@@ -42,7 +42,7 @@ else:
     import lib3.feedparser as feedparser
 
 
-def TRF(book=None, test=False):
+def torrent_trf(book=None, test=False):
     errmsg = ''
     provider = "Torrof"
     host = lazylibrarian.CONFIG['TRF_HOST']
@@ -65,14 +65,14 @@ def TRF(book=None, test=False):
         elif book['library'] == 'comic':
             cat = 'Comic'
 
-    sterm = makeUnicode("%s %s" % (book['searchterm'], cat))
+    sterm = make_unicode("%s %s" % (book['searchterm'], cat))
 
     results = []
     minimumseeders = int(lazylibrarian.CONFIG['TRF_SEEDERS']) - 1
 
-    searchURL = "%s/%s" % (host, quote_plus(makeUTF8bytes(sterm)[0]))
+    search_url = "%s/%s" % (host, quote_plus(make_utf8bytes(sterm)[0]))
 
-    result, success = fetchURL(searchURL)
+    result, success = fetch_url(search_url)
 
     if not success:
         # may return 404 if no results, not really an error
@@ -81,13 +81,13 @@ def TRF(book=None, test=False):
             if test:
                 return 0
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
         result = False
 
     if result:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         soup = BeautifulSoup(result, 'html5lib')
 
         try:
@@ -117,9 +117,9 @@ def TRF(book=None, test=False):
                     rejected = 'audio'
 
                 if not rejected:
-                    resultTitle = unaccented(replace_all(td[1].text, dictrepl),
-                                             only_ascii=False, umlauts=False).strip()
-                    match = fuzz.token_set_ratio(book['searchterm'], resultTitle)
+                    result_title = unaccented(replace_all(td[1].text, dictrepl),
+                                              only_ascii=False, umlauts=False).strip()
+                    match = fuzz.token_set_ratio(book['searchterm'], result_title)
 
                     if match > 90:
                         try:
@@ -129,7 +129,7 @@ def TRF(book=None, test=False):
                             size = 0
                             age = ''
                             new_url = "%s%s" % (host, str(td[1]).split('href="')[1].split('"')[0])
-                            result, success = fetchURL(new_url)
+                            result, success = fetch_url(new_url)
                             if not success:
                                 logger.debug('Error fetching url %s, %s' % (new_url, result))
                             else:
@@ -176,7 +176,7 @@ def TRF(book=None, test=False):
                                     if age:
                                         m = 0
                                         y = 0
-                                        words = getList(age)
+                                        words = get_list(age)
                                         for word in words:
                                             val = month2num(word)
                                             if val:
@@ -205,9 +205,9 @@ def TRF(book=None, test=False):
     return results, errmsg
 
 
-def TPB(book=None, test=False):
+def torrent_tpb(book=None, test=False):
     errmsg = ''
-    provider = "TPB"
+    provider = "torrent_tpb"
     host = lazylibrarian.CONFIG['TPB_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
@@ -225,7 +225,7 @@ def TPB(book=None, test=False):
         elif book['library'] == 'magazine':
             cat = 600
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
     page = 0
     results = []
@@ -234,10 +234,9 @@ def TPB(book=None, test=False):
 
     while next_page:
 
-        searchURL = providerurl + "%s/%s/99/%s" % (quote(makeUTF8bytes(book['searchterm'])[0]),
-                                                   page, cat)
+        search_url = providerurl + "%s/%s/99/%s" % (quote(make_utf8bytes(book['searchterm'])[0]), page, cat)
         next_page = False
-        result, success = fetchURL(searchURL)
+        result, success = fetch_url(search_url)
 
         if not success:
             # may return 404 if no results, not really an error
@@ -246,13 +245,13 @@ def TPB(book=None, test=False):
                 if test:
                     return 0
             else:
-                logger.debug(searchURL)
+                logger.debug(search_url)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
             result = False
 
         if result:
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             soup = BeautifulSoup(result, 'html5lib')
             # tpb uses a named table
             table = soup.find('table', id='searchResult')
@@ -283,7 +282,7 @@ def TPB(book=None, test=False):
                                 magurl = magnet
                             else:
                                 magurl = '%s/%s' % (host, magnet)
-                            result, success = fetchURL(magurl)
+                            result, success = fetch_url(magurl)
                             if not success:
                                 logger.debug('Error fetching url %s, %s' % (magurl, result))
                             else:
@@ -348,33 +347,33 @@ def TPB(book=None, test=False):
     return results, errmsg
 
 
-def KAT(book=None, test=False):
+def torrent_kat(book=None, test=False):
     errmsg = ''
-    provider = "KAT"
+    provider = "torrent_kat"
     host = lazylibrarian.CONFIG['KAT_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
-    providerurl = url_fix(host + "/usearch/" + quote(makeUTF8bytes(book['searchterm'])[0]))
+    providerurl = url_fix(host + "/usearch/" + quote(make_utf8bytes(book['searchterm'])[0]))
 
     params = {
         "category": "books",
         "field": "seeders",
         "sorder": "desc"
     }
-    searchURL = providerurl + "/?%s" % urlencode(params)
+    search_url = providerurl + "/?%s" % urlencode(params)
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
-    result, success = fetchURL(searchURL)
+    result, success = fetch_url(search_url)
     if not success:
-        # seems KAT returns 404 if no results, not really an error
+        # seems torrent_kat returns 404 if no results, not really an error
         if '404' in result:
             logger.debug("No results found from %s for %s" % (provider, sterm))
             if test:
                 return 0
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
         result = False
@@ -382,7 +381,7 @@ def KAT(book=None, test=False):
     results = []
 
     if result:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         minimumseeders = int(lazylibrarian.CONFIG['KAT_SEEDERS']) - 1
         soup = BeautifulSoup(result, 'html5lib')
         rows = []
@@ -461,7 +460,7 @@ def KAT(book=None, test=False):
     return results, errmsg
 
 
-def WWT(book=None, test=False):
+def torrent_wwt(book=None, test=False):
     errmsg = ''
     provider = "WorldWideTorrents"
     host = lazylibrarian.CONFIG['WWT_HOST']
@@ -470,7 +469,7 @@ def WWT(book=None, test=False):
 
     providerurl = url_fix(host + "/torrents-search.php")
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
     cat = 0  # 0=all, 36=ebooks, 50=comics, 52=mags, 56=audiobooks
     if 'library' in book:
@@ -490,14 +489,14 @@ def WWT(book=None, test=False):
 
     while next_page:
         params = {
-            "search": makeUTF8bytes(book['searchterm'])[0],
+            "search": make_utf8bytes(book['searchterm'])[0],
             "page": page,
             "cat": cat
         }
-        searchURL = providerurl + "/?%s" % urlencode(params)
+        search_url = providerurl + "/?%s" % urlencode(params)
 
         next_page = False
-        result, success = fetchURL(searchURL)
+        result, success = fetch_url(search_url)
         if not success:
             # might return 404 if no results, not really an error
             if '404' in result:
@@ -510,13 +509,13 @@ def WWT(book=None, test=False):
                 if test:
                     return 0
             else:
-                logger.debug(searchURL)
+                logger.debug(search_url)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
             result = False
 
         if result:
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             soup = BeautifulSoup(result, 'html5lib')
             rows = []
             try:
@@ -599,7 +598,7 @@ def WWT(book=None, test=False):
     return results, errmsg
 
 
-def ZOO(book=None, test=False):
+def torrent_zoo(book=None, test=False):
     errmsg = ''
     provider = "zooqle"
     host = lazylibrarian.CONFIG['ZOO_HOST']
@@ -609,15 +608,15 @@ def ZOO(book=None, test=False):
     providerurl = url_fix(host + "/search")
 
     params = {
-        "q": makeUTF8bytes(book['searchterm'])[0],
+        "q": make_utf8bytes(book['searchterm'])[0],
         "category": "books",
         "fmt": "rss"
     }
-    searchURL = providerurl + "?%s" % urlencode(params)
+    search_url = providerurl + "?%s" % urlencode(params)
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
-    data, success = fetchURL(searchURL)
+    data, success = fetch_url(search_url)
     if not success:
         # may return 404 if no results, not really an error
         if '404' in data:
@@ -625,7 +624,7 @@ def ZOO(book=None, test=False):
             if test:
                 return 0
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
@@ -634,7 +633,7 @@ def ZOO(book=None, test=False):
 
     minimumseeders = int(lazylibrarian.CONFIG['ZOO_SEEDERS']) - 1
     if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
         if len(d.entries):
             for item in d.entries:
@@ -685,7 +684,7 @@ def ZOO(book=None, test=False):
     return results, errmsg
 
 
-def LIME(book=None, test=False):
+def torrent_lime(book=None, test=False):
     errmsg = ''
     provider = "Limetorrent"
     host = lazylibrarian.CONFIG['LIME_HOST']
@@ -693,14 +692,14 @@ def LIME(book=None, test=False):
         host = 'http://' + host
 
     params = {
-        "q": makeUTF8bytes(book['searchterm'])[0]
+        "q": make_utf8bytes(book['searchterm'])[0]
     }
     providerurl = url_fix(host + "/searchrss/other")
-    searchURL = providerurl + "?%s" % urlencode(params)
+    search_url = providerurl + "?%s" % urlencode(params)
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
-    data, success = fetchURL(searchURL)
+    data, success = fetch_url(search_url)
     if not success:
         # may return 404 if no results, not really an error
         if '404' in data:
@@ -708,7 +707,7 @@ def LIME(book=None, test=False):
             if test:
                 return 0
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
@@ -717,7 +716,7 @@ def LIME(book=None, test=False):
 
     minimumseeders = int(lazylibrarian.CONFIG['LIME_SEEDERS']) - 1
     if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
         if len(d.entries):
             for item in d.entries:
@@ -778,7 +777,7 @@ def LIME(book=None, test=False):
     return results, errmsg
 
 
-def TDL(book=None, test=False):
+def torrent_tdl(book=None, test=False):
     errmsg = ''
     provider = "torrentdownloads"
     host = lazylibrarian.CONFIG['TDL_HOST']
@@ -790,13 +789,13 @@ def TDL(book=None, test=False):
     params = {
         "type": "search",
         "cid": "2",
-        "search": makeUTF8bytes(book['searchterm'])[0]
+        "search": make_utf8bytes(book['searchterm'])[0]
     }
-    searchURL = providerurl + "/rss.xml?%s" % urlencode(params)
+    search_url = providerurl + "/rss.xml?%s" % urlencode(params)
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
-    data, success = fetchURL(searchURL)
+    data, success = fetch_url(search_url)
     if not success:
         # may return 404 if no results, not really an error
         if '404' in data:
@@ -804,7 +803,7 @@ def TDL(book=None, test=False):
             if test:
                 return 0
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, data))
             errmsg = data
         data = False
@@ -813,7 +812,7 @@ def TDL(book=None, test=False):
 
     minimumseeders = int(lazylibrarian.CONFIG['TDL_SEEDERS']) - 1
     if data:
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
         if len(d.entries):
             for item in d.entries:
@@ -831,8 +830,8 @@ def TDL(book=None, test=False):
 
                     if link and minimumseeders < seeders:
                         # no point requesting the magnet link if not enough seeders
-                        # TDL gives us a relative link
-                        result, success = fetchURL(providerurl+link)
+                        # torrent_tdl gives us a relative link
+                        result, success = fetch_url(providerurl + link)
                         if success:
                             new_soup = BeautifulSoup(result, 'html5lib')
                             for link in new_soup.find_all('a'):

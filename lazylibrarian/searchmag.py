@@ -19,13 +19,13 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import scheduleJob
-from lazylibrarian.downloadmethods import NZBDownloadMethod, TORDownloadMethod, DirectDownloadMethod
+from lazylibrarian.common import schedule_job
+from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, getList, month2num, datecompare, check_int, check_year, age, dispName
+    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
-from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
-    IterateOverDirectSites, IterateOverIRCSites
+from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
+    iterate_over_direct_sites, iterate_over_irc_sites
 from six import PY2
 
 
@@ -36,7 +36,7 @@ def cron_search_magazines():
 
 def search_magazines(mags=None, reset=False):
     # produce a list of magazines to search for, tor, nzb, torznab, rss
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
         threadname = threading.currentThread().name
@@ -47,23 +47,23 @@ def search_magazines(mags=None, reset=False):
             else:
                 threading.currentThread().name = "SEARCHMAG"
 
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
 
         if not mags:  # backlog search
-            searchmags = myDB.select('SELECT Title, Regex, DateType, LastAcquired, \
+            searchmags = db.select('SELECT Title, Regex, DateType, LastAcquired, \
                                  IssueDate from magazines WHERE Status="Active"')
         else:
             searchmags = []
             for magazine in mags:
-                searchmags_temp = myDB.select('SELECT Title,Regex,DateType,LastAcquired,IssueDate from magazines \
+                searchmags_temp = db.select('SELECT Title,Regex,DateType,LastAcquired,IssueDate from magazines \
                                           WHERE Title=? AND Status="Active"', (magazine['bookid'],))
                 for terms in searchmags_temp:
                     searchmags.append(terms)
 
         if len(searchmags) == 0:
             logger.debug("No magazines to search for")
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             threading.currentThread().name = "WEBSERVER"
             return
 
@@ -98,8 +98,8 @@ def search_magazines(mags=None, reset=False):
 
             resultlist = []
 
-            if lazylibrarian.USE_NZB():
-                resultlist, nproviders = IterateOverNewzNabSites(book, 'mag')
+            if lazylibrarian.use_nzb():
+                resultlist, nproviders = iterate_over_newznab_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
@@ -107,8 +107,8 @@ def search_magazines(mags=None, reset=False):
                         logger.warn('No nzb providers are available. Check config and blocklist')
                         lazylibrarian.NO_NZB_MSG = timenow
 
-            if lazylibrarian.USE_DIRECT():
-                dir_resultlist, nproviders = IterateOverDirectSites(book, 'mag')
+            if lazylibrarian.use_direct():
+                dir_resultlist, nproviders = iterate_over_direct_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
@@ -128,8 +128,8 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'direct'
                         })
 
-            if lazylibrarian.USE_IRC():
-                irc_resultlist, nproviders = IterateOverIRCSites(book, 'mag')
+            if lazylibrarian.use_irc():
+                irc_resultlist, nproviders = iterate_over_irc_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
@@ -149,8 +149,8 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'irc'
                         })
 
-            if lazylibrarian.USE_TOR():
-                tor_resultlist, nproviders = IterateOverTorrentSites(book, 'mag')
+            if lazylibrarian.use_tor():
+                tor_resultlist, nproviders = iterate_over_torrent_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
@@ -170,8 +170,8 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'torrent'
                         })
 
-            if lazylibrarian.USE_RSS():
-                rss_resultlist, nproviders, dltypes = IterateOverRSSSites()
+            if lazylibrarian.use_rss():
+                rss_resultlist, nproviders, dltypes = iterate_over_rss_sites()
                 if not nproviders or 'M' not in dltypes:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
@@ -228,7 +228,7 @@ def search_magazines(mags=None, reset=False):
                     nzbtitle_formatted = " ".join(nzbtitle_formatted.split())
                     nzbtitle_exploded = nzbtitle_formatted.split()
 
-                    results = myDB.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
+                    results = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (bookid,))
                     if not results:
                         logger.debug('Magazine [%s] does not match search term [%s].' % (nzbtitle, bookid))
                         bad_name += 1
@@ -282,22 +282,22 @@ def search_magazines(mags=None, reset=False):
                                 rejected = True
 
                         if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
-                            blocked = myDB.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
+                            blocked = db.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
                                 rejected = True
 
                         if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
-                            blocked = myDB.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
+                            blocked = db.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
                                 rejected = True
 
                         if not rejected:
-                            reject_list = getList(results['Reject'])
-                            reject_list += getList(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
+                            reject_list = get_list(results['Reject'])
+                            reject_list += get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower()
                             if reject_list:
@@ -447,18 +447,18 @@ def search_magazines(mags=None, reset=False):
                             #  and status has been user-set ( we only delete the "Skipped" ones )
                             #  In "wanted" table it might be already snatched/downloading/processing
 
-                            mag_entry = myDB.match('SELECT Status from %s WHERE NZBtitle=? and NZBprov=?' %
-                                                   insert_table, (nzbtitle, nzbprov))
+                            mag_entry = db.match('SELECT Status from %s WHERE NZBtitle=? and NZBprov=?' %
+                                                 insert_table, (nzbtitle, nzbprov))
                             if mag_entry and insert_table != 'wanted':
                                 logger.info('%s is already in %s marked %s; skipping' %
                                             (nzbtitle, insert_table, mag_entry['Status']))
                                 continue
                             else:
-                                controlValueDict = {
+                                control_value_dict = {
                                     "NZBtitle": nzbtitle,
                                     "NZBprov": nzbprov
                                 }
-                                newValueDict = {
+                                new_value_dict = {
                                     "NZBurl": nzburl,
                                     "BookID": bookid,
                                     "NZBdate": nzbdate,
@@ -469,16 +469,16 @@ def search_magazines(mags=None, reset=False):
                                 }
                                 if insert_table == 'pastissues':
                                     # try to mark ones we've already got
-                                    match = myDB.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
-                                                       (bookid, issuedate))
+                                    match = db.match("SELECT * from issues WHERE Title=? AND IssueDate=?",
+                                                     (bookid, issuedate))
                                     if match:
-                                        newValueDict["Status"] = "Have"
+                                        new_value_dict["Status"] = "Have"
                                     else:
-                                        newValueDict["Status"] = "Skipped"
-                                    newValueDict["Added"] = int(time.time())
-                                myDB.upsert(insert_table, newValueDict, controlValueDict)
+                                        new_value_dict["Status"] = "Skipped"
+                                    new_value_dict["Added"] = int(time.time())
+                                db.upsert(insert_table, new_value_dict, control_value_dict)
                                 logger.info('Added %s to %s marked %s' % (nzbtitle, insert_table,
-                                                                          newValueDict["Status"]))
+                                                                          new_value_dict["Status"]))
 
                 msg = 'Found %i %s for %s. %i new,' % (total_nzbs, plural(total_nzbs, "result"), bookid, new_date)
                 msg += ' %i old, %i fail date, %i fail name,' % (old_date, bad_date, bad_name)
@@ -487,20 +487,20 @@ def search_magazines(mags=None, reset=False):
 
                 for magazine in maglist:
                     if magazine['nzbmode'] in ["torznab", "torrent", "magnet"]:
-                        snatch, res = TORDownloadMethod(
+                        snatch, res = tor_dl_method(
                             magazine['bookid'],
                             magazine['nzbtitle'],
                             magazine['nzburl'],
                             'magazine')
                     elif magazine['nzbmode'] == 'direct':
-                        snatch, res = DirectDownloadMethod(
+                        snatch, res = direct_dl_method(
                             magazine['bookid'],
                             magazine['nzbtitle'],
                             magazine['nzburl'],
                             'magazine',
                             magazine['nzbprov'])
                     elif magazine['nzbmode'] == 'nzb':
-                        snatch, res = NZBDownloadMethod(
+                        snatch, res = nzb_dl_method(
                             magazine['bookid'],
                             magazine['nzbtitle'],
                             magazine['nzburl'],
@@ -515,22 +515,22 @@ def search_magazines(mags=None, reset=False):
                         custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                         notify_snatch("Magazine %s from %s at %s" %
                                       (unaccented(magazine['nzbtitle'], only_ascii=False),
-                                       dispName(magazine["nzbprov"]), now()))
-                        scheduleJob(action='Start', target='PostProcessor')
+                                       disp_name(magazine["nzbprov"]), now()))
+                        schedule_job(action='Start', target='PostProcessor')
                     else:
-                        myDB.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                                    (res, magazine["nzburl"]))
+                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
+                                  (res, magazine["nzburl"]))
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
         logger.info("Search for magazines complete")
         if reset:
-            scheduleJob(action='Restart', target='search_magazines')
+            schedule_job(action='Restart', target='search_magazines')
 
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
     finally:
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
         threading.currentThread().name = "WEBSERVER"
 
 

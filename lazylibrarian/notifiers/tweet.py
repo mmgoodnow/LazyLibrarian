@@ -44,16 +44,16 @@ class TwitterNotifier:
     def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONSNATCH']:
             if fail:
-                self._notifyTwitter(common.notifyStrings[common.NOTIFY_FAIL] + ': ' + title)
+                self._notify_twitter(common.notifyStrings[common.NOTIFY_FAIL] + ': ' + title)
             else:
-                self._notifyTwitter(common.notifyStrings[common.NOTIFY_SNATCH] + ': ' + title)
+                self._notify_twitter(common.notifyStrings[common.NOTIFY_SNATCH] + ': ' + title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONDOWNLOAD']:
-            self._notifyTwitter(common.notifyStrings[common.NOTIFY_DOWNLOAD] + ': ' + title)
+            self._notify_twitter(common.notifyStrings[common.NOTIFY_DOWNLOAD] + ': ' + title)
 
     def test_notify(self):
-        return self._notifyTwitter("This is a test notification from LazyLibrarian / " + formatter.now(), force=True)
+        return self._notify_twitter("This is a test notification from LazyLibrarian / " + formatter.now(), force=True)
 
     def _get_authorization(self):
         _ = oauth.SignatureMethod_HMAC_SHA1()
@@ -116,7 +116,7 @@ class TwitterNotifier:
         logger.info("Sending tweet: " + message)
 
         api = twitter.Api(username, password, access_token_key, access_token_secret)
-        message = formatter.makeBytestr(message)
+        message = formatter.make_bytestr(message)
 
         try:
             api.PostUpdate(message)
@@ -125,7 +125,7 @@ class TwitterNotifier:
             return False
         return True
 
-    def _notifyTwitter(self, message='', force=False):
+    def _notify_twitter(self, message='', force=False):
         prefix = lazylibrarian.CONFIG['TWITTER_PREFIX']
 
         if not lazylibrarian.CONFIG['USE_TWITTER'] and not force:

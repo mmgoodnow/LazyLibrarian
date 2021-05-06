@@ -8,12 +8,12 @@ from six.moves.urllib_parse import urlencode
 from six.moves.http_client import HTTPSConnection
 
 
-class Prowl_Notifier:
+class ProwlNotifier:
     def __init__(self):
         pass
 
     @staticmethod
-    def _sendProwl(prowl_api=None, prowl_priority=None, event=None, message=None, force=False):
+    def _send_prowl(prowl_api=None, prowl_priority=None, event=None, message=None, force=False):
 
         title = "LazyLibrarian"
 
@@ -73,21 +73,21 @@ class Prowl_Notifier:
     def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['PROWL_ONSNATCH']:
             if fail:
-                self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
+                self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
-                self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
+                self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['PROWL_ONDOWNLOAD']:
-            self._sendProwl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
+            self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal
     def test_notify(self, title="Test"):
-        return self._sendProwl(prowl_api=None, prowl_priority=None, event="Test",
-                               message="Testing Prowl settings from LazyLibrarian", force=True)
+        return self._send_prowl(prowl_api=None, prowl_priority=None, event="Test",
+                                message="Testing Prowl settings from LazyLibrarian", force=True)
 
-    def update_library(self, showName=None):
+    def update_library(self, show_name=None):
         pass
 
 
-notifier = Prowl_Notifier
+notifier = ProwlNotifier

@@ -31,7 +31,7 @@ class PushbulletNotifier:
         pass
 
     @staticmethod
-    def _sendPushbullet(message=None, event=None, pushbullet_token=None, pushbullet_deviceid=None, force=False):
+    def _send_pushbullet(message=None, event=None, pushbullet_token=None, pushbullet_deviceid=None, force=False):
 
         if not lazylibrarian.CONFIG['USE_PUSHBULLET'] and not force:
             return False
@@ -50,16 +50,16 @@ class PushbulletNotifier:
         pb = PushBullet(str(pushbullet_token))
 
         if event == 'DeviceList':  # special case, return device list
-            devices = pb.getDevices()
+            devices = pb.get_devices()
             ret = ""
             for device in devices:
                 if device["active"]:
                     logger.info("Pushbullet: %s [%s]" % (device["nickname"], device["iden"]))
                     ret += "\nPushbullet: %s [%s]" % (device["nickname"], device["iden"])
-            _ = pb.pushNote(pushbullet_deviceid, str(event), str(message))
+            _ = pb.push_note(pushbullet_deviceid, str(event), str(message))
             return ret
         else:
-            push = pb.pushNote(pushbullet_deviceid, str(event), str(message))
+            push = pb.push_note(pushbullet_deviceid, str(event), str(message))
             return push
 
     def _notify(self, message=None, event=None, pushbullet_token=None, pushbullet_deviceid=None, force=False):
@@ -81,7 +81,7 @@ class PushbulletNotifier:
             return False
         logger.debug("Pushbullet: Sending notification " + str(message))
 
-        return self._sendPushbullet(message, event, pushbullet_token, pushbullet_deviceid, force=force)
+        return self._send_pushbullet(message, event, pushbullet_token, pushbullet_deviceid, force=force)
 
     #
     # Public functions
@@ -104,7 +104,7 @@ class PushbulletNotifier:
             _ = self._notify("This is a test notification from LazyLibrarian", event=title, force=True)
         return res
 
-    def update_library(self, showName=None):
+    def update_library(self, show_name=None):
         pass
 
 

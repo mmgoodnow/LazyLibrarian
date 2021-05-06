@@ -4,12 +4,12 @@
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
-    <form action="addMagazine" method="get">
+    <form action="add_magazine" method="get">
       <ul id="subhead_menu">
-        <li><a href="forceSearch?source=magazines" id="button"> Force Search </a></li>
-        <li><a href="forceProcess?source=magazines" id="button"> Force Post-Processing </a></li>
-        <li><a href="magazineScan" id="button"> Library Scan </a></li>
-        <li><a href="pastIssues?whichStatus=Skipped" id="button"> Past Issues </a></li>
+        <li><a href="force_search?source=magazines" id="button"> Force Search </a></li>
+        <li><a href="force_process?source=magazines" id="button"> Force Post-Processing </a></li>
+        <li><a href="magazine_scan" id="button"> Library Scan </a></li>
+        <li><a href="past_issues?whichStatus=Skipped" id="button"> Past Issues </a></li>
         <div style="float:right; margin-right:15px; margin-top:2px;">
           <li><input type="text" placeholder="Magazine Title" name="title"></li>
           <li><input type="submit" value="Search"></li>
@@ -22,7 +22,7 @@
   <BR><BR>
   <h1>&nbsp;&nbsp;${title}</h1>
   <p class="indented">
-    <form action="markMagazines" method="get">
+    <form action="mark_magazines" method="get">
       <label>&nbsp;&nbsp;Mark selected magazines as: </label>
       <select name="action" id="action" style="margin-left:30px;margin-top:15px;margin-bottom:15px;">
         <option value="Active">Active</option>
@@ -67,13 +67,13 @@
           <td id="status">${result['Status']}</td>
           %if result['IssueStatus'] == 'Open':
           %if result['Iss_Cnt'] == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:
-          <td id="issue"><a class="button green" href="openMag?bookid=${result['safetitle']}" target="_self">Open</a></td>
+          <td id="issue"><a class="button green" href="open_mag?bookid=${result['safetitle']}" target="_self">Open</a></td>
           %else:
-          <td id="issue"><a class="button orange" href="openMag?bookid=${result['safetitle']}" target="_self">Show</a></td>
+          <td id="issue"><a class="button orange" href="open_mag?bookid=${result['safetitle']}" target="_self">Show</a></td>
           %endif
           %else:
           %if result['IssueStatus'] == 'Wanted':
-          <td id="issue"><a class="button red" href="searchForMag?bookid=${result['safetitle']}" target="_self"><span class="a">${result['IssueStatus']}</span><span class="b">Search</span></a></td>
+          <td id="issue"><a class="button red" href="search_for_mag?bookid=${result['safetitle']}" target="_self"><span class="a">${result['IssueStatus']}</span><span class="b">Search</span></a></td>
           %else:
           %if result['IssueStatus'] == 'Snatched':
           <td id="issue"><a class="button">${result['IssueStatus']}</a></td>

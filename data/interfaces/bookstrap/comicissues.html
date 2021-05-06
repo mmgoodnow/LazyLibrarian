@@ -6,15 +6,15 @@
   <div id="subhead_container">
     <div id="subhead_menu">
       %if perm&lazylibrarian.perm_force:
-        <a href="forceSearch?source=comics&title=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
-        <a href="forceProcess?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
-        <a href="comicScan?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
+        <a href="force_search?source=comics&title=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
+        <a href="force_process?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
+        <a href="comic_scan?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
       %endif
-      <a href="comicWall?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
+      <a href="comic_wall?comicid=${comicid}" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
           %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
-            <a href="rssFeed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
-            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest comics" href="rssFeed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml">
+            <a href="rss_feed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
+            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest comics" href="rss_feed?user=${user}&type=Comic&onetitle=${comicid}&limit=10.xml">
           %endif
         %endif
     </div>
@@ -28,7 +28,7 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Libraryscan in progress ...</button>
     </p>
     %endif
-    <form name="markComicIssues" id="markComicIssues" action="markComicIssues" method="get" class="form-inline" onsubmit="return false;">
+    <form name="mark_comic_issues" id="mark_comic_issues" action="mark_comic_issues" method="get" class="form-inline" onsubmit="return false;">
       <div class="form-group">
         <label for="action" class="control-label">Selected issues:</label>
         <select name="action" id="action" class="form-control input-sm">
@@ -108,7 +108,7 @@
                     { targets: [4],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                        btn = '<a class="button green btn btn-xs btn-warning" href="openComic?comicid=' + data +
+                        btn = '<a class="button green btn btn-xs btn-warning" href="open_comic?comicid=' + data +
                                 '&issueid=' + row[2] + '" target="_self"><i class="fa fa-book"></i> Open</a>'
                         return btn;} },
                 ],
@@ -122,7 +122,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'desc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getComicIssues?comicid=${comicid}',
+                "sAjaxSource": 'get_comic_issues?comicid=${comicid}',
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
                 "bFilter": true,
@@ -174,7 +174,7 @@
     });
 
     function validateForm() {
-        var x = document.forms["markComicIssues"]["action"].value;
+        var x = document.forms["mark_comic_issues"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
         if (c > 0 && x == "Delete") {
             if (c == 1) {msg = "Are you sure you want to permanently delete the selected issue?"}
@@ -192,12 +192,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("markComicIssues").submit(); }
+                    if (result) { document.getElementById("mark_comic_issues").submit(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("markComicIssues").submit(); }
+        else { document.getElementById("mark_comic_issues").submit(); }
     }
   </script>
 </%def>

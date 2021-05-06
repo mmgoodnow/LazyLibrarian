@@ -19,8 +19,8 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir, \
     only_punctuation, syspath
-from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, getList, \
-    makeUnicode, makeUTF8bytes, sortDefinite, surnameFirst
+from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, get_list, \
+    make_unicode, make_utf8bytes, sort_definite, surname_first
 from six import PY2
 
 try:
@@ -86,7 +86,7 @@ def id3read(filename):
         if composer == 'None':
             composer = ''
 
-        myDB = database.DBConnection()
+        db = database.DBConnection()
 
         # Commonly used tags, eg plex:
         # ARTIST  Author or Author, Narrator
@@ -106,11 +106,11 @@ def id3read(filename):
 
         if not author:
             # if artist exists in library, should be author. Unlikely to get one author narrating anothers books?
-            if artist and myDB.match("select * from authors where authorname=?", (artist,)):
+            if artist and db.match("select * from authors where authorname=?", (artist,)):
                 author = artist
-            elif albumartist and myDB.match("select * from authors where authorname=?", (albumartist,)):
+            elif albumartist and db.match("select * from authors where authorname=?", (albumartist,)):
                 author = albumartist
-            elif composer and myDB.match("select * from authors where authorname=?", (composer,)):
+            elif composer and db.match("select * from authors where authorname=?", (composer,)):
                 author = composer
             elif artist:
                 author = artist
@@ -139,7 +139,7 @@ def id3read(filename):
             mydict['title'] = album
 
         for item in mydict:
-            mydict[item] = makeUnicode(mydict[item])
+            mydict[item] = make_unicode(mydict[item])
 
     except Exception:
         logger.error("tinytag error %s" % traceback.format_exc())
@@ -305,7 +305,7 @@ def audio_parts(folder, bookname, authorname):
     return parts, failed, tokmatch, abridged
 
 
-def audioRename(bookid, rename=False, playlist=False):
+def audio_rename(bookid, rename=False, playlist=False):
     """
     :param bookid: book to process
     :param rename: rename to match audiobook filename pattern
@@ -321,18 +321,18 @@ def audioRename(bookid, rename=False, playlist=False):
             logger.error("Unable to rename, no $Title or $SortTitle in AUDIOBOOK_DEST_FILE")
             return ''
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     cmd = 'select AuthorName,BookName,AudioFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-    exists = myDB.match(cmd, (bookid,))
+    exists = db.match(cmd, (bookid,))
     if exists:
         book_filename = exists['AudioFile']
         if book_filename:
             r = os.path.dirname(book_filename)
         else:
-            logger.debug("No filename for %s in audioRename" % bookid)
+            logger.debug("No filename for %s in audio_rename" % bookid)
             return ''
     else:
-        logger.debug("Invalid bookid in audioRename %s" % bookid)
+        logger.debug("Invalid bookid in audio_rename %s" % bookid)
         return ''
 
     if not TinyTag:
@@ -347,10 +347,10 @@ def audioRename(bookid, rename=False, playlist=False):
     if abridged:
         abridged = ' (%s)' % abridged
     # if we get here, looks like we have all the parts needed to rename properly
-    seriesinfo = nameVars(bookid, abridged)
+    seriesinfo = name_vars(bookid, abridged)
     logger.debug(str(seriesinfo))
     dest_path = seriesinfo['AudioFolderName']
-    dest_dir = lazylibrarian.DIRECTORY('Audio')
+    dest_dir = lazylibrarian.directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
     # check for windows case insensitive
     if os.name == 'nt' and r.lower() == dest_path.lower():
@@ -388,17 +388,17 @@ def audioRename(bookid, rename=False, playlist=False):
         if playlist:
             if PY2:
                 if rename:
-                    playlist.write("%s\n" % makeUTF8bytes(pattern)[0])
+                    playlist.write("%s\n" % make_utf8bytes(pattern)[0])
                 else:
-                    playlist.write("%s\n" % makeUTF8bytes(part[3])[0])
+                    playlist.write("%s\n" % make_utf8bytes(part[3])[0])
             else:
                 if rename:
-                    playlist.write("%s\n" % makeUnicode(pattern))
+                    playlist.write("%s\n" % make_unicode(pattern))
                 else:
-                    playlist.write("%s\n" % makeUnicode(part[3]))
+                    playlist.write("%s\n" % make_unicode(part[3]))
         if rename:
-            n = os.path.join(makeUnicode(r), makeUnicode(pattern))
-            o = os.path.join(makeUnicode(r), makeUnicode(part[3]))
+            n = os.path.join(make_unicode(r), make_unicode(pattern))
+            o = os.path.join(make_unicode(r), make_unicode(part[3]))
             # check for windows case insensitive
             if os.name == 'nt' and n.lower() == o.lower():
                 n = o
@@ -407,7 +407,7 @@ def audioRename(bookid, rename=False, playlist=False):
                     n = safe_move(o, n)
                     if part[0] == 1:
                         book_filename = n  # return part 1 of set
-                    logger.debug('%s: audioRename [%s] to [%s]' % (exists['BookName'], o, n))
+                    logger.debug('%s: audio_rename [%s] to [%s]' % (exists['BookName'], o, n))
                 except Exception as e:
                     logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
     if playlist:
@@ -429,12 +429,12 @@ def stripspaces(pathname):
     return pathname
 
 
-def bookRename(bookid):
-    myDB = database.DBConnection()
+def book_rename(bookid):
+    db = database.DBConnection()
     cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-    exists = myDB.match(cmd, (bookid,))
+    exists = db.match(cmd, (bookid,))
     if not exists:
-        logger.debug("Invalid bookid in bookRename %s" % bookid)
+        logger.debug("Invalid bookid in book_rename %s" % bookid)
         return ''
 
     f = exists['BookFile']
@@ -462,22 +462,22 @@ def bookRename(bookid):
         logger.debug("Not renaming %s, found multiple %s" % (f, reject))
         return f
 
-    seriesinfo = nameVars(bookid)
+    seriesinfo = name_vars(bookid)
     dest_path = seriesinfo['FolderName']
-    dest_dir = lazylibrarian.DIRECTORY('eBook')
+    dest_dir = lazylibrarian.directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
     dest_path = stripspaces(dest_path)
     oldpath = r
 
     new_basename = seriesinfo['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
-        logger.warn("bookRename [%s] looks like an omnibus? Not renaming" % new_basename)
+        logger.warn("book_rename [%s] looks like an omnibus? Not renaming" % new_basename)
         return f
 
     if oldpath != dest_path:
         try:
             dest_path = safe_move(oldpath, dest_path)
-            logger.debug("bookRename folder %s to %s" % (oldpath, dest_path))
+            logger.debug("book_rename folder %s to %s" % (oldpath, dest_path))
         except Exception as why:
             if not path_isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
@@ -504,7 +504,7 @@ def bookRename(bookid):
                 if ofname != nfname:
                     try:
                         nfname = safe_move(ofname, nfname)
-                        logger.debug("bookRename file %s to %s" % (ofname, nfname))
+                        logger.debug("book_rename file %s to %s" % (ofname, nfname))
                         oldname = os.path.join(oldpath, fname)
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
                             f = nfname
@@ -514,7 +514,7 @@ def bookRename(bookid):
     return f
 
 
-def nameVars(bookid, abridged=''):
+def name_vars(bookid, abridged=''):
     """ Return name variables for a bookid as a dict of formatted strings
         The strings are configurable, but by default...
         Series returns ( Lord of the Rings 2 )
@@ -530,7 +530,7 @@ def nameVars(bookid, abridged=''):
     seriesnum = ''
     seriesname = ''
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
 
     if bookid == 'test':
         seriesid = '66175'
@@ -540,22 +540,22 @@ def nameVars(bookid, abridged=''):
         seriesname = 'The Lord of the Rings'
         mydict['Author'] = 'J.R.R. Tolkien'
         mydict['Title'] = 'The Fellowship of the Ring'
-        mydict['SortAuthor'] = surnameFirst(mydict['Author'])
-        mydict['SortTitle'] = sortDefinite(mydict['Title'])
+        mydict['SortAuthor'] = surname_first(mydict['Author'])
+        mydict['SortTitle'] = sort_definite(mydict['Title'])
         mydict['Part'] = '1'
         mydict['Total'] = '3'
         res = {}
     else:
         cmd = 'SELECT SeriesID,SeriesNum from member,books WHERE books.bookid = member.bookid and books.bookid=?'
-        res = myDB.match(cmd, (bookid,))
+        res = db.match(cmd, (bookid,))
         if res:
             seriesid = res['SeriesID']
-            serieslist = getList(res['SeriesNum'])
+            serieslist = get_list(res['SeriesNum'])
 
             cmd = 'SELECT BookDate from member,books WHERE books.bookid = member.bookid and SeriesNum=1 and SeriesID=?'
-            resDate = myDB.match(cmd, (seriesid,))
-            if resDate:
-                seryear = resDate['BookDate']
+            res_date = db.match(cmd, (seriesid,))
+            if res_date:
+                seryear = res_date['BookDate']
                 if not seryear or seryear == '0000':
                     seryear = ''
                 seryear = seryear[:4]
@@ -567,9 +567,9 @@ def nameVars(bookid, abridged=''):
             seryear = ''
 
         cmd = 'SELECT BookDate from books WHERE bookid=?'
-        resDate = myDB.match(cmd, (bookid,))
-        if resDate:
-            pubyear = resDate['BookDate']
+        res_date = db.match(cmd, (bookid,))
+        if res_date:
+            pubyear = res_date['BookDate']
             if not pubyear or pubyear == '0000':
                 pubyear = ''
             pubyear = pubyear[:4]  # googlebooks sometimes has month or full date
@@ -603,7 +603,7 @@ def nameVars(bookid, abridged=''):
 
     if seriesid and bookid != 'test':
         cmd = 'SELECT SeriesName from series WHERE seriesid=?'
-        res = myDB.match(cmd, (seriesid,))
+        res = db.match(cmd, (seriesid,))
         if res:
             seriesname = res['SeriesName']
             if seriesnum == '':
@@ -663,12 +663,12 @@ def nameVars(bookid, abridged=''):
 
     if bookid != 'test':
         cmd = 'select AuthorName,BookName from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
-        exists = myDB.match(cmd, (bookid,))
+        exists = db.match(cmd, (bookid,))
         if exists:
             mydict['Author'] = exists['AuthorName']
             mydict['Title'] = exists['BookName']
-            mydict['SortAuthor'] = surnameFirst(mydict['Author'])
-            mydict['SortTitle'] = sortDefinite(mydict['Title'])
+            mydict['SortAuthor'] = surname_first(mydict['Author'])
+            mydict['SortTitle'] = sort_definite(mydict['Title'])
         else:
             mydict['Author'] = ''
             mydict['Title'] = ''

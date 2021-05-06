@@ -20,7 +20,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import mimeType, path_exists
+from lazylibrarian.common import mime_type, path_exists
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import unquote_plus
 
@@ -34,7 +34,7 @@ except ImportError:
     TinyTag = None
 
 
-def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
+def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
     if not lazylibrarian.CONFIG['RSS_ENABLED']:
         return res
@@ -46,7 +46,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             if authorid:
                 cmd += 'books.AuthorID = ? and '
             cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
-            baselink = baseurl + '/bookWall&have=1'
+            baselink = baseurl + '/book_wall&have=1'
         elif ftype == 'AudioBook':
             podcast = lazylibrarian.CONFIG['RSS_PODCAST']
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
@@ -55,30 +55,30 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 cmd += 'books.AuthorID = ? and '
             cmd += "AudioLibrary != '' and books.AuthorID = authors.AuthorID "
             cmd += "order by AudioLibrary desc limit ?"
-            baselink = baseurl + '/audioWall'
+            baselink = baseurl + '/audio_wall'
         elif ftype == 'Magazine':
             cmd = "select Title,IssueDate,IssueAcquired,IssueFile,IssueID from issues "
             if onetitle:
                 cmd += 'where Title = ? '
             cmd += "order by IssueAcquired desc limit ?"
-            baselink = baseurl + '/magWall'
+            baselink = baseurl + '/mag_wall'
         elif ftype == 'Comic':
             cmd = "select Title,Publisher,comics.ComicID,IssueAcquired,IssueFile,IssueID from comics,comicissues where"
             if onetitle:
                 cmd += ' Title = ? and'
             cmd += " comics.comicid=comicissues.comicid order by IssueAcquired desc limit ?"
-            baselink = baseurl + '/comicWall'
+            baselink = baseurl + '/comic_wall'
         else:
             logger.debug("Invalid feed type")
             return res
 
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         if authorid:
-            results = myDB.select(cmd, (authorid, limit))
+            results = db.select(cmd, (authorid, limit))
         elif onetitle:
-            results = myDB.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
+            results = db.select(cmd, (unquote_plus(onetitle).replace('&amp;', '&'), limit))
         else:
-            results = myDB.select(cmd, (limit,))
+            results = db.select(cmd, (limit,))
         items = []
         logger.debug("Found %s %s results" % (len(results), ftype))
 
@@ -96,7 +96,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 bookid = result['BookID']
                 extn = os.path.splitext(result['BookFile'])[1]
                 if user:
-                    link = '%s/serveBook/%s%s%s' % (baseurl, user, result['BookID'], extn)
+                    link = '%s/serve_book/%s%s%s' % (baseurl, user, result['BookID'], extn)
 
             elif ftype == 'AudioBook':
                 pubdate = datetime.datetime.strptime(result['AudioLibrary'], '%Y-%m-%d %H:%M:%S')
@@ -106,7 +106,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 bookid = result['BookID']
                 extn = os.path.splitext(result['AudioFile'])[1]
                 if user:
-                    link = '%s/serveAudio/%s%s%s' % (baseurl, user, result['BookID'], extn)
+                    link = '%s/serve_audio/%s%s%s' % (baseurl, user, result['BookID'], extn)
 
                 if TinyTag and TinyTag.is_supported(result['AudioFile']) and path_exists(result['AudioFile']):
                     id3r = TinyTag.get(result['AudioFile'])
@@ -117,7 +117,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
 
                 itunes_item = iTunesItem(
                     author=result['AuthorName'],
-                    image='%s/serveImg/%s%s.jpg' % (baseurl, user, result['BookID']),
+                    image='%s/serve_img/%s%s.jpg' % (baseurl, user, result['BookID']),
                     duration=duration,
                     explicit="clean",
                     subtitle=result['BookSub'],
@@ -131,7 +131,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 bookid = result['IssueID']
                 extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
-                    link = '%s/serveIssue/%s%s%s' % (baseurl, user, result['IssueID'], extn)
+                    link = '%s/serve_issue/%s%s%s' % (baseurl, user, result['IssueID'], extn)
 
             else:  # if ftype == 'Comic':
                 pubdate = datetime.datetime.strptime(result['IssueAcquired'], '%Y-%m-%d')
@@ -141,7 +141,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 bookid = result['IssueID']
                 extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
-                    link = '%s/serveComic/%s%s_%s%s' % (baseurl, user, result['ComicID'], result['IssueID'], extn)
+                    link = '%s/serve_comic/%s%s_%s%s' % (baseurl, user, result['ComicID'], result['IssueID'], extn)
 
             if podcast:
                 item = Item(
@@ -151,7 +151,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                     author=author,
                     guid=Guid(bookid),
                     pubDate=pubdate,
-                    enclosure=Enclosure(url=link, length=0, type=mimeType(result['AudioFile'])),
+                    enclosure=Enclosure(url=link, length=0, type=mime_type(result['AudioFile'])),
                     extensions=[itunes_item]
                 )
             else:
@@ -169,7 +169,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             author="LazyLibrarian",
             subtitle="Podcast of recent audiobooks",
             summary="Audiobooks in the library",
-            image='%s/serveImg/%s%s.png' % (baseurl, user, ''),
+            image='%s/serve_img/%s%s.png' % (baseurl, user, ''),
             explicit="clean",
             categories=iTunesCategory(name='AudioBooks', subcategory='Recent AudioBooks'),
             owner=iTunesOwner(name='LazyLibrarian', email=lazylibrarian.CONFIG['ADMIN_EMAIL']))
@@ -182,7 +182,7 @@ def genFeed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
 
         if podcast:
             feed = Feed(
-                title="Podcast RSS Feed",
+                title="Podcast rss Feed",
                 link=baselink,
                 description="LazyLibrarian %s" % title,
                 language="en-US",

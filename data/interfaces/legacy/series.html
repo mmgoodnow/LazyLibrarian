@@ -5,8 +5,8 @@
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <ul id="subhead_menu">
-      <li><a href="authorPage?AuthorID=${authorid}" id="button"> Return to Author</a></li>
-      <li><a href="refreshAuthor?AuthorID=${authorid}" id="button"> Refresh Author</a></li>
+      <li><a href="author_page?authorid=${authorid}" id="button"> Return to Author</a></li>
+      <li><a href="refresh_author?authorid=${authorid}" id="button"> Refresh Author</a></li>
     </ul>
   </div>
 </%def>
@@ -30,7 +30,7 @@
     <br>
     <br>
   </p>
-  <form action="markSeries" method="get">
+  <form action="mark_series" method="get">
     <table class="display" id="book_table" style="width:100%;">
       <thead>
         <tr>
@@ -44,12 +44,12 @@
     </table>
     <p>
       &nbsp;&nbsp;Change selected series to:
-      <select class="markSeries" name="action" style="margin-left:30px;margin-top:15px;margin-bottom:15px;">
+      <select class="mark_series" name="action" style="margin-left:30px;margin-top:15px;margin-bottom:15px;">
         %for item in ['Skipped', 'Wanted', 'Active', 'Ignored']:
         <option value="${item}">${item}</option>
         %endfor
       </select>
-      <input type="submit" class="markSeries" value="Go">
+      <input type="submit" class="mark_series" value="Go">
     </p>
   </form>
   <p>&nbsp;</p>
@@ -77,7 +77,7 @@
                     null,
                     {"bSortable": false,
                       "fnRender": function ( oObj ) {
-                        return '<a class="button orange" href="seriesMembers?seriesid=' + oObj.aData[5] + '" title="Select">Show</a>'
+                        return '<a class="button orange" href="series_members?seriesid=' + oObj.aData[5] + '" title="Select">Show</a>'
                       }
                     }
                     ],
@@ -90,7 +90,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[1, 'asc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getSeries?whichStatus=${whichStatus}&AuthorID=${authorid}',
+                "sAjaxSource": 'get_series?whichStatus=${whichStatus}&AuthorID=${authorid}',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},

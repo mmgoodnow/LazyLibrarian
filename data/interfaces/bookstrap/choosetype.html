@@ -24,22 +24,22 @@
         var item;
         %if email:
           if ( prefix.indexOf('AudioBook') >= 0 ) {
-            var loc = 'sendBook?bookid=' + bookid + '&library=AudioBook&booktype=';
+            var loc = 'send_book?bookid=' + bookid + '&library=AudioBook&booktype=';
             var ret = 'audio'; }
           else {
-            var loc = 'sendBook?bookid=' + bookid + '&library=eBook&booktype=';
+            var loc = 'send_book?bookid=' + bookid + '&library=eBook&booktype=';
             var ret = 'books'; }
         %else:
           if ( prefix.indexOf('AudioBook') >= 0 ) {
-            var loc = 'openBook?bookid=' + bookid + '&library=AudioBook&booktype=';
+            var loc = 'open_book?bookid=' + bookid + '&library=AudioBook&booktype=';
             var ret = 'audio'; }
           else {
-            var loc = 'openBook?bookid=' + bookid + '&library=eBook&booktype=';
+            var loc = 'open_book?bookid=' + bookid + '&library=eBook&booktype=';
             var ret = 'books'; }
         %endif
 
         var oldURL = document.referrer;
-        if  ( oldURL.indexOf('authorPage') >= 0 ) {
+        if  ( oldURL.indexOf('author_page') >= 0 ) {
                 var ret = oldURL;
                 window.history.pushState({ prevUrl: window.location.href }, null, ret) }
 

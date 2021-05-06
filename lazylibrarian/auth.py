@@ -45,6 +45,7 @@ def check_credentials(username, password):
         return u"Incorrect username or password."
 
 
+# noinspection PyUnusedLocal
 def check_auth(*args, **kwargs):
     """A tool that looks in config for 'auth.require'. If found and it
     is not None, a login is required and the entry is evaluated as a list of
@@ -136,6 +137,7 @@ class AuthController(object):
         """Called on logout"""
         # not needed or used for Mylar currently
 
+    # noinspection PyUnusedLocal
     @staticmethod
     def get_loginform(username, msg="Enter login information", from_page="/"):
         from lazylibrarian.webServe import serve_template
@@ -145,6 +147,7 @@ class AuthController(object):
         return serve_template(templatename="formlogin.html", username=escape(username, True),
                               title='Login', img=img, from_page=from_page)
 
+    # noinspection PyUnusedLocal
     @cherrypy.expose
     def login(self, current_username=None, current_password=None, remember_me='0', from_page="/"):
         if current_username is None or current_password is None:

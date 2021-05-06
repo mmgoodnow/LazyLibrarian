@@ -15,18 +15,18 @@ import json
 import re
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import check_int, makeUnicode
+from lazylibrarian.cache import fetch_url
+from lazylibrarian.formatter import check_int, make_unicode
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import urlencode
 
 
-def _getJSON(URL, params):
+def _get_json(url, params):
     # Get JSON response from URL
     # Return json,True or error_msg,False
 
-    URL += "/?%s" % urlencode(params)
-    result, success = fetchURL(URL, retry=False)
+    url += "/?%s" % urlencode(params)
+    result, success = fetch_url(url, retry=False)
     if success:
         try:
             result_json = json.loads(result)
@@ -37,7 +37,7 @@ def _getJSON(URL, params):
     return "getJSON returned %s" % result, False
 
 
-def _errorMsg(errnum, api):
+def _error_msg(errnum, api):
     # Convert DownloadStation errnum to an error message depending on which api call
     generic_errors = {
         100: 'Unknown error',
@@ -79,7 +79,7 @@ def _errorMsg(errnum, api):
 def _login(hosturl):
     # Query the DownloadStation for api info and then log user in
     # return auth_cgi,task_cgi,sid or "","",""
-    URL = hosturl + 'query.cgi'
+    url = hosturl + 'query.cgi'
     params = {
         "api": "SYNO.API.Info",
         "version": "1",
@@ -87,11 +87,11 @@ def _login(hosturl):
         "query": "SYNO.API.Auth,SYNO.DownloadStation.Task"
     }
 
-    result, success = _getJSON(URL, params)
+    result, success = _get_json(url, params)
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology API Error: %s" % _errorMsg(errnum, "query"))
+            logger.debug("Synology API Error: %s" % _error_msg(errnum, "query"))
             return "", "", ""
         else:
             auth_cgi = result['data']['SYNO.API.Auth']['path']
@@ -100,7 +100,7 @@ def _login(hosturl):
         logger.debug("Synology Failed to get API info: %s" % result)
         return "", "", ""
 
-    URL = hosturl + auth_cgi
+    url = hosturl + auth_cgi
     params = {
         "api": "SYNO.API.Auth",
         "version": "2",
@@ -111,11 +111,11 @@ def _login(hosturl):
         "format": "sid"
     }
 
-    result, success = _getJSON(URL, params)
+    result, success = _get_json(url, params)
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Login Error: %s" % _errorMsg(errnum, "login"))
+            logger.debug("Synology Login Error: %s" % _error_msg(errnum, "login"))
             return "", "", ""
         else:
             return hosturl + auth_cgi, hosturl + task_cgi, result['data']['sid']
@@ -135,11 +135,11 @@ def _logout(auth_cgi, sid):
         "_sid": sid
     }
 
-    _, success = _getJSON(auth_cgi, params)
+    _, success = _get_json(auth_cgi, params)
     return success
 
 
-def _listTasks(task_cgi, sid):
+def _list_tasks(task_cgi, sid):
     # Get a list of running downloads and return as json, or "" if fail
 
     params = {
@@ -150,12 +150,12 @@ def _listTasks(task_cgi, sid):
         "_sid": sid
     }
 
-    result, success = _getJSON(task_cgi, params)
+    result, success = _get_json(task_cgi, params)
 
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Task Error: %s" % _errorMsg(errnum, "list"))
+            logger.debug("Synology Task Error: %s" % _error_msg(errnum, "list"))
         else:
             items = result['data']
             logger.debug("Synology Nr. Tasks = %s" % items['total'])
@@ -165,7 +165,7 @@ def _listTasks(task_cgi, sid):
     return ""
 
 
-def _getInfo(task_cgi, sid, download_id):
+def _get_info(task_cgi, sid, download_id):
     # Get additional info on a download_id, return json or "" if fail
 
     params = {
@@ -178,12 +178,12 @@ def _getInfo(task_cgi, sid, download_id):
         "_sid": sid
     }
 
-    result, success = _getJSON(task_cgi, params)
+    result, success = _get_json(task_cgi, params)
     logger.debug("Result from getInfo = %s" % repr(result))
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology GetInfo Error: %s" % _errorMsg(errnum, "getinfo"))
+            logger.debug("Synology GetInfo Error: %s" % _error_msg(errnum, "getinfo"))
         else:
             if result and 'data' in result:
                 try:
@@ -194,7 +194,7 @@ def _getInfo(task_cgi, sid, download_id):
     return ""
 
 
-def _deleteTask(task_cgi, sid, download_id, remove_data):
+def _delete_task(task_cgi, sid, download_id, remove_data):
     # Delete a download task, return True or False
 
     params = {
@@ -207,25 +207,25 @@ def _deleteTask(task_cgi, sid, download_id, remove_data):
         "_sid": sid
     }
 
-    result, success = _getJSON(task_cgi, params)
+    result, success = _get_json(task_cgi, params)
     logger.debug("Result from delete: %s" % repr(result))
     if success:
         if not result['success']:
             errnum = result['error']['code']
-            logger.debug("Synology Delete Error: %s" % _errorMsg(errnum, "delete"))
+            logger.debug("Synology Delete Error: %s" % _error_msg(errnum, "delete"))
         else:
             try:
                 errnum = result['data'][0]['error']
             except (KeyError, TypeError):
                 errnum = 0
             if errnum:
-                logger.debug("Synology Delete exited: %s" % _errorMsg(errnum, "delete"))
+                logger.debug("Synology Delete exited: %s" % _error_msg(errnum, "delete"))
                 return False
             return True
     return False
 
 
-def _addTorrentURI(task_cgi, sid, torurl):
+def _add_torrent_uri(task_cgi, sid, torurl):
     # Sends a magnet, Torrent url or NZB url to DownloadStation
     # Return task ID, or False if failed
     params = {
@@ -238,14 +238,14 @@ def _addTorrentURI(task_cgi, sid, torurl):
         "_sid": sid
     }
 
-    result, success = _getJSON(task_cgi, params)
+    result, success = _get_json(task_cgi, params)
     logger.debug("Result from create = %s" % repr(result))
     res = ''
     if success:
         errnum = 0
         if not result['success']:
             errnum = result['error']['code']
-            res = "Synology Create Error: %s" % _errorMsg(errnum, "create")
+            res = "Synology Create Error: %s" % _error_msg(errnum, "create")
             logger.debug(res)
         if not errnum or errnum == 100:
             # DownloadStation doesn't return the download_id for the newly added uri
@@ -256,12 +256,12 @@ def _addTorrentURI(task_cgi, sid, torurl):
                 matchstr = re.findall(r"urn:btih:([\w]{32,40})", torurl)[0]
             except (re.error, IndexError, TypeError):
                 matchstr = torurl.replace(' ', '+')
-            matchstr = makeUnicode(matchstr)
+            matchstr = make_unicode(matchstr)
             logger.warn(matchstr)  # REMOVE ME
-            for task in _listTasks(task_cgi, sid):  # type: dict
+            for task in _list_tasks(task_cgi, sid):  # type: dict
                 logger.warn(str(task))  # REMOVE ME
                 if task['id']:
-                    info = _getInfo(task_cgi, sid, task['id'])  # type: dict
+                    info = _get_info(task_cgi, sid, task['id'])  # type: dict
                     logger.warn(str(info))  # REMOVE ME
                     try:
                         uri = info['additional']['detail']['uri']
@@ -275,7 +275,7 @@ def _addTorrentURI(task_cgi, sid, torurl):
                                 if errmsg == 'torrent_duplicate':
                                     # should we delete the duplicate here, or just return the id?
                                     # if the original is still active we might find it further down the list
-                                    _ = _deleteTask(task_cgi, sid, task['id'], False)
+                                    _ = _delete_task(task_cgi, sid, task['id'], False)
                                 else:
                                     res = "Synology task [%s] failed: %s" % (task['title'], errmsg)
                                     logger.warn(res)
@@ -295,7 +295,7 @@ def _addTorrentURI(task_cgi, sid, torurl):
     return False, res
 
 
-def _hostURL():
+def _host_url():
     # Build webapi_url from config settings
     host = lazylibrarian.CONFIG['SYNOLOGY_HOST']
     port = check_int(lazylibrarian.CONFIG['SYNOLOGY_PORT'], 0)
@@ -311,12 +311,12 @@ def _hostURL():
 #
 # Public functions
 #
-def checkLink():
+def check_link():
     # Make sure we can login to the synology drivestation
     # This function is used by the "test synology" button
     # to return a message giving success or fail
     msg = "Synology login FAILED\nCheck debug log"
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, _, sid = _login(hosturl)
         if sid:
@@ -325,41 +325,41 @@ def checkLink():
     return msg
 
 
-def removeTorrent(hashID, remove_data=False):
+def remove_torrent(hash_id, remove_data=False):
     # remove a torrent using hashID, and optionally delete the data
     # return True/False
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result = _deleteTask(task_cgi, sid, hashID, remove_data)
+            result = _delete_task(task_cgi, sid, hash_id, remove_data)
             _logout(auth_cgi, sid)
             return result
     return False
 
 
-def getName(download_id):
+def get_name(download_id):
     # get the name of a download from it's download_id
     # return "" if not found
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result = _getInfo(task_cgi, sid, download_id)  # type: dict
+            result = _get_info(task_cgi, sid, download_id)  # type: dict
             _logout(auth_cgi, sid)
             if result and 'title' in result:
                 return result['title']
     return ""
 
 
-def getFolder(download_id):
+def get_folder(download_id):
     # get the name of a download from it's download_id
     # return "" if not found
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result = _getInfo(task_cgi, sid, download_id)  # type: dict
+            result = _get_info(task_cgi, sid, download_id)  # type: dict
             _logout(auth_cgi, sid)
             if result:
                 try:
@@ -369,14 +369,14 @@ def getFolder(download_id):
     return ""
 
 
-def getProgress(download_id):
+def get_progress(download_id):
     # get the progress/status of a download from it's download_id
     # return "" if not found
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result = _getInfo(task_cgi, sid, download_id)  # type: dict
+            result = _get_info(task_cgi, sid, download_id)  # type: dict
             _logout(auth_cgi, sid)
             if result:
                 if 'status' in result:
@@ -405,14 +405,14 @@ def getProgress(download_id):
     return -1, '', False
 
 
-def getFiles(download_id):
+def get_files(download_id):
     # get the files in a download from it's download_id
     # return "" if not found
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result = _getInfo(task_cgi, sid, download_id)  # type: dict
+            result = _get_info(task_cgi, sid, download_id)  # type: dict
             _logout(auth_cgi, sid)
             if result and 'additional' in result:
                 try:
@@ -422,14 +422,14 @@ def getFiles(download_id):
     return ""
 
 
-def addTorrent(tor_url):
+def add_torrent(tor_url):
     # add a torrent/magnet/nzb to synology downloadstation
     # return it's id, or return False if error
-    hosturl = _hostURL()
+    hosturl = _host_url()
     if hosturl:
         auth_cgi, task_cgi, sid = _login(hosturl)
         if sid:
-            result, res = _addTorrentURI(task_cgi, sid, tor_url)
+            result, res = _add_torrent_uri(task_cgi, sid, tor_url)
             _logout(auth_cgi, sid)
             return result, res
     return False, "Invalid synology host"

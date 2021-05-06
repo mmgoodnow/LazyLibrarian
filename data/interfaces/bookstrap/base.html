@@ -210,9 +210,9 @@
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
                   % if lazylibrarian.SHOW_AUDIO:
-                    <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
+                    <li><a id="amanage" href="manage" class="navbarele">Manage</a></li>
                   % elif lazylibrarian.SHOW_EBOOK:
-                    <li><a id="manage" href="manage" class="navbarele">Manage</a></li>
+                    <li><a id="emanage" href="manage" class="navbarele">Manage</a></li>
                   % endif
                 % endif
                 %if perm&lazylibrarian.perm_history:
@@ -286,7 +286,7 @@
             createCookie("ignoreUpdate", true, 0.01);  // suppress popup while updating
         });
        $('#getChangelog').on('click', function(e) {
-            $.get('checkForUpdates', function(data) {
+            $.get('check_for_updates', function(data) {
                 bootbox.dialog({
                     title: 'Check Version',
                     message: '<pre>'+data+'</pre>',

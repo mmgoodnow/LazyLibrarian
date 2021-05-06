@@ -24,6 +24,33 @@ from six import PY2, text_type
 from six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
 
 
+def versiontuple(versionstring):
+    # convert a version string into 3 part tuple without using packaging.version.parse
+    # as we can't be sure that's installed
+    # NOTE this assumes bugfix component starts with a digit eg 1.2.3-beta4
+    # and drops any extension part, eg 1.2.3-beta4 becomes (1, 2, 3)
+    # which is not strictly correct so we need to check for version > too_low
+    # rather than >= lowest acceptable
+    major = 0
+    minor = 0
+    bugfix = 0
+    parts = versionstring.split('.', 2)
+    nparts = len(parts)
+    if nparts:
+        major = check_int(parts[0], 0)
+    if nparts > 1:
+        minor = check_int(parts[1], 0)
+    if nparts > 2:
+        part = ''
+        for i in parts[2]:
+            if i.isdigit():
+                part += i
+            else:
+                break
+        bugfix = check_int(part, 0)
+    return major, minor, bugfix
+
+
 def url_fix(s, charset='utf-8'):
     if PY2 and isinstance(s, text_type):
         s = s.encode(charset, 'ignore')
@@ -35,9 +62,9 @@ def url_fix(s, charset='utf-8'):
     return urlunsplit((scheme, netloc, path, qs, anchor))
 
 
-def bookSeries(bookname):
+def book_series(bookname):
     """
-    Try to get a book series/seriesNum from a bookname, or return empty string
+    Try to get a book series/seriesnum from a bookname, or return empty string
     See if book is in multiple series first, if so return first one
     eg "The Shepherds Crown (Discworld, #41; Tiffany Aching, #5)"
     if no match, try single series, eg Mrs Bradshaws Handbook (Discworld, #40.5)
@@ -54,7 +81,7 @@ def bookSeries(bookname):
     # [;,]          a semicolon or comma if multiple series
     # )             end group
     series = ""
-    seriesNum = ""
+    seriesnum = ""
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
                         'the first', 'includes', 'paperback', 'first', 'books', 'large print', 'of',
@@ -65,16 +92,16 @@ def bookSeries(bookname):
         series = result.group(1)
         while series[-1] in ',)':
             series = series[:-1]
-        seriesNum = result.group(2)
-        while seriesNum[-1] in ';,':
-            seriesNum = seriesNum[:-1]
+        seriesnum = result.group(2)
+        while seriesnum[-1] in ';,':
+            seriesnum = seriesnum[:-1]
     else:
         result = re.search(r"\(([\S\s]+[^)]),? #?(\d+\.?-?\d*)", bookname)
         if result:
             series = result.group(1)
             while series[-1] in ',)':
                 series = series[:-1]
-            seriesNum = result.group(2)
+            seriesnum = result.group(2)
 
     for word in [' novel', ' book', ' part', ' -']:
         if series and series.lower().endswith(word):
@@ -85,17 +112,17 @@ def bookSeries(bookname):
         if series.lower().startswith(word):
             return "", ""
 
-    series = cleanName(unaccented(series, only_ascii=False)).strip()
-    seriesNum = seriesNum.strip()
+    series = clean_name(unaccented(series, only_ascii=False)).strip()
+    seriesnum = seriesnum.strip()
     if series.lower().strip('.') == 'vol':
         series = ''
     if series.lower().strip('.').endswith('vol'):
         series = series.strip('.')
         series = series[:-3].strip()
-    return series, seriesNum
+    return series, seriesnum
 
 
-def next_run(when_run):
+def next_run_time(when_run):
     """
     Give a readable approximation of how long until a job will be run
     """
@@ -189,7 +216,7 @@ def nzbdate2format(nzbdate):
         return "1970-01-01"
 
 
-def dateFormat(datestr, formatstr="$Y-$m-$d"):
+def date_format(datestr, formatstr="$Y-$m-$d"):
     # return date formatted in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
@@ -202,7 +229,7 @@ def dateFormat(datestr, formatstr="$Y-$m-$d"):
     # Dates from providers are in various formats, need to consolidate them so we can sort...
     # Newznab/Torznab Tue, 23 Aug 2016 17:33:26 +0100
     # LimeTorrent 13 Nov 2014 05:01:18 +0200
-    # TPB 04-25 23:46 or 2018-04-25
+    # torrent_tpb 04-25 23:46 or 2018-04-25
     # openlibrary May 1995 or June 20, 2008
     # We could use dateutil module but it's not standard library and we only have a few formats
     # so we can roll our own. To make it simple we'll ignore timezone and seconds
@@ -404,8 +431,8 @@ def md5_utf8(txt):
 # ISO-8859-15: 0xA6-0xFF
 # The function will detect if string contains a special character
 # If there is special character, detects if it is a UTF-8, CP850 or ISO-8859-15 encoding
-def makeUTF8bytes(txt):
-    name = makeBytestr(txt)
+def make_utf8bytes(txt):
+    name = make_bytestr(txt)
     # parse to detect if CP850/ISO-8859-15 is used
     # and return tuple of bytestring encoded in utf-8, detected encoding
     for idx in range(len(name)):
@@ -436,7 +463,7 @@ def makeUTF8bytes(txt):
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
 
-def makeUnicode(txt):
+def make_unicode(txt):
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     if not txt:
@@ -454,7 +481,7 @@ def makeUnicode(txt):
     return txt
 
 
-def makeBytestr(txt):
+def make_bytestr(txt):
     if not txt:
         return b''
     elif not isinstance(txt, text_type):  # nothing to do if already bytestring
@@ -488,11 +515,11 @@ def is_valid_isbn(isbn):
 
 
 def is_valid_type(filename, extras='jpg, opf'):
-    type_list = list(set(getList(lazylibrarian.CONFIG['MAG_TYPE']) +
-                         getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
-                         getList(lazylibrarian.CONFIG['EBOOK_TYPE']) +
-                         getList(lazylibrarian.CONFIG['COMIC_TYPE']) +
-                         getList(extras)))
+    type_list = list(set(get_list(lazylibrarian.CONFIG['MAG_TYPE']) +
+                         get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
+                         get_list(lazylibrarian.CONFIG['EBOOK_TYPE']) +
+                         get_list(lazylibrarian.CONFIG['COMIC_TYPE']) +
+                         get_list(extras)))
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in type_list:
         return True
@@ -504,20 +531,20 @@ def is_valid_booktype(filename, booktype=None):
     Check if filename extension is one we want
     """
     if booktype.startswith('mag'):  # default is book
-        booktype_list = getList(lazylibrarian.CONFIG['MAG_TYPE'])
+        booktype_list = get_list(lazylibrarian.CONFIG['MAG_TYPE'])
     elif booktype.startswith('audio'):
-        booktype_list = getList(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+        booktype_list = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
     elif booktype == 'comic':
-        booktype_list = getList(lazylibrarian.CONFIG['COMIC_TYPE'])
+        booktype_list = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
     else:
-        booktype_list = getList(lazylibrarian.CONFIG['EBOOK_TYPE'])
+        booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in booktype_list:
         return True
     return False
 
 
-def getList(st, c=None):
+def get_list(st, c=None):
     # split a string/unicode into a list on whitespace or plus or comma
     # or single character split eg filenames with spaces split on comma only
     # Returns list of same type as st
@@ -581,7 +608,7 @@ def split_title(author, book):
                 brace = 0
     if colon:
         # check for any we don't want to split...
-        splitlist = getList(lazylibrarian.CONFIG['IMP_NOSPLIT'])
+        splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'])
         for item in splitlist:
             if item and book.startswith(item):
                 colon = 0
@@ -603,14 +630,14 @@ def split_title(author, book):
     return bookname, booksub
 
 
-def formatAuthorName(author):
+def format_author_name(author):
     """ get authorname in a consistent format """
-    author = makeUnicode(author)
+    author = make_unicode(author)
     # if multiple authors assume the first one is primary
     if '& ' in author:
         author = author.split('& ')[0].strip()
     if "," in author:
-        postfix = getList(lazylibrarian.CONFIG['NAME_POSTFIX'])
+        postfix = get_list(lazylibrarian.CONFIG['NAME_POSTFIX'])
         words = author.split(',')
         if len(words) == 2:
             # Need to handle names like "L. E. Modesitt, Jr." or "J. Springmann, Phd"
@@ -646,33 +673,33 @@ def formatAuthorName(author):
     return res
 
 
-def sortDefinite(title):
-    words = getList(title)
+def sort_definite(title):
+    words = get_list(title)
     if len(words) < 2:
         return title
     word = words.pop(0)
-    if word.lower() in getList(lazylibrarian.CONFIG['NAME_DEFINITE']):
+    if word.lower() in get_list(lazylibrarian.CONFIG['NAME_DEFINITE']):
         return ' '.join(words) + ', ' + word
     return title
 
 
-def surnameFirst(authorname):
+def surname_first(authorname):
     """ swap authorname round into surname, forenames for display and sorting"""
-    words = getList(authorname)
+    words = get_list(authorname)
     if len(words) < 2:
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower in getList(lazylibrarian.CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
 
-def cleanName(name, extras=None):
+def clean_name(name, extras=None):
     if not name:
         return u''
-    validNameChars = u"-_.() %s" % extras
-    cleaned = u''.join(c for c in name if c in validNameChars or c.isalnum())
+    valid_name_chars = u"-_.() %s" % extras
+    cleaned = u''.join(c for c in name if c in valid_name_chars or c.isalnum())
     cleaned = cleaned.strip()
     if cleaned:
         return cleaned
@@ -684,7 +711,7 @@ umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd
 
 
 def no_umlauts(s):
-    if 'de' not in getList(lazylibrarian.CONFIG['IMP_PREFLANG']):
+    if 'de' not in get_list(lazylibrarian.CONFIG['IMP_PREFLANG']):
         return s
     # replace any diacritic 0x308 (umlaut) with 'e' so 'ü': 'ue', 'Ä': 'Ae'
     res = ''
@@ -701,7 +728,7 @@ def no_umlauts(s):
 def unaccented(str_or_unicode, only_ascii=True, umlauts=True):
     if not str_or_unicode:
         return u''
-    return makeUnicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii, umlauts=umlauts))
+    return make_unicode(unaccented_bytes(str_or_unicode, only_ascii=only_ascii, umlauts=umlauts))
 
 
 def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
@@ -731,7 +758,7 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
             stripped = stripped.encode('ASCII', 'ignore')
         else:  # replace with specified char (use '_' for goodreads author names)
             stripped = stripped.encode('ASCII', 'replace')  # replaces with '?'
-            stripped = stripped.replace(b'?', makeBytestr(str(only_ascii)[0]))
+            stripped = stripped.replace(b'?', make_bytestr(str(only_ascii)[0]))
 
     stripped = stripped.strip()
     if not stripped:
@@ -754,7 +781,7 @@ def replace_with(text, lst, char):
     return replaces.sub(char, text)
 
 
-def dispName(provider):
+def disp_name(provider):
     provname = ''
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['HOST'].strip('/') == provider:

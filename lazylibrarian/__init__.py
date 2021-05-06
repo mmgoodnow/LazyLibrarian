@@ -30,13 +30,13 @@ from shutil import rmtree
 
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
     importer, grsync, comicscan
-from lazylibrarian.cache import fetchURL
-from lazylibrarian.common import restartJobs, logHeader, scheduleJob, listdir, \
+from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import restart_jobs, log_header, schedule_job, listdir, \
     path_isdir, path_isfile, path_exists, syspath
-from lazylibrarian.formatter import getList, bookSeries, unaccented, check_int, unaccented_bytes, \
-    makeUnicode, makeBytestr
+from lazylibrarian.formatter import get_list, book_series, unaccented, check_int, unaccented_bytes, \
+    make_unicode, make_bytestr
 from lazylibrarian.dbupgrade import check_db, db_current_version
-from lazylibrarian.providers import ProviderIsBlocked
+from lazylibrarian.providers import provider_is_blocked
 
 from lib.apscheduler.scheduler import Scheduler
 from six import PY2, text_type
@@ -136,6 +136,7 @@ RARFILE = None
 REDACTLIST = []
 FFMPEGVER = ''
 FFMPEGAAC = ''
+SAB_VER = (0, 0, 0)
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -432,6 +433,7 @@ CONFIG_DEFINITIONS = {
     'TRANSMISSION_USER': ('str', 'TRANSMISSION', ''),
     'TRANSMISSION_PASS': ('str', 'TRANSMISSION', ''),
     'TRANSMISSION_DIR': ('str', 'TRANSMISSION', ''),
+    'TRANSMISSION_LABEL': ('str', 'TRANSMISSION', ''),
     'DELUGE_CERT': ('str', 'DELUGE', ''),
     'DELUGE_HOST': ('str', 'DELUGE', ''),
     'DELUGE_BASE': ('str', 'DELUGE', ''),
@@ -662,9 +664,9 @@ CONFIG_DEFINITIONS = {
     'OPDS_PASSWORD': ('str', 'OPDS', ''),
     'OPDS_METAINFO': ('bool', 'OPDS', 0),
     'OPDS_PAGE': ('int', 'OPDS', 30),
-    'RSS_ENABLED': ('bool', 'RSS', 1),
-    'RSS_PODCAST': ('bool', 'RSS', 1),
-    'RSS_HOST': ('str', 'RSS', ''),
+    'RSS_ENABLED': ('bool', 'rss', 1),
+    'RSS_PODCAST': ('bool', 'rss', 1),
+    'RSS_HOST': ('str', 'rss', ''),
     'PREF_UNRARLIB': ('int', 'General', 1),
     'USER_AGENT': ('str', 'General', 'Mozilla/5.0 (X11; Linux x86_64; rv:85.0) Gecko/20100101 Firefox/85.0'),
     'RATESTARS': ('bool', 'General', 1),
@@ -745,7 +747,7 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
                 logger.debug(str(e))
             my_val = str(def_val)
         finally:
-            my_val = makeUnicode(my_val)
+            my_val = make_unicode(my_val)
 
     check_section(cfg_name)
     # noinspection PyUnresolvedReferences
@@ -821,17 +823,17 @@ def initialize():
                 print('%s : Unable to create folder for logs: %s' % (CONFIG['LOGDIR'], str(e)))
 
         # Start the logger, silence console logging if we need to
-        CFGLOGLEVEL = check_int(check_setting('int', 'General', 'loglevel', 1, log=False), 9)
+        cfgloglevel = check_int(check_setting('int', 'General', 'loglevel', 1, log=False), 9)
         if LOGLEVEL == 1:  # default if no debug or quiet on cmdline
-            if CFGLOGLEVEL == 9:  # default value if none in config
+            if cfgloglevel == 9:  # default value if none in config
                 LOGLEVEL = 1  # If not set in Config or cmdline, then lets set to NORMAL
             else:
-                LOGLEVEL = CFGLOGLEVEL  # Config setting picked up
+                LOGLEVEL = cfgloglevel  # Config setting picked up
 
         CONFIG['LOGLEVEL'] = LOGLEVEL
-        logger.lazylibrarian_log.initLogger(loglevel=CONFIG['LOGLEVEL'])
+        logger.lazylibrarian_log.init_logger(loglevel=CONFIG['LOGLEVEL'])
         logger.info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
-            LOGTYPE, CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], CFGLOGLEVEL))
+            LOGTYPE, CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], cfgloglevel))
         if CONFIG['LOGLEVEL'] > 2:
             logger.info("Screen Log set to EXTENDED DEBUG")
         elif CONFIG['LOGLEVEL'] == 2:
@@ -935,9 +937,9 @@ def initialize():
 
         # Initialize the database
         try:
-            myDB = database.DBConnection()
-            result = myDB.match('PRAGMA user_version')
-            check = myDB.match('PRAGMA integrity_check')
+            db = database.DBConnection()
+            result = db.match('PRAGMA user_version')
+            check = db.match('PRAGMA integrity_check')
             if result:
                 version = result[0]
             else:
@@ -950,11 +952,11 @@ def initialize():
         if version:
             db_changes = check_db()
             if db_changes:
-                myDB.action('PRAGMA user_version=%s' % db_current_version)
-                myDB.action('vacuum')
+                db.action('PRAGMA user_version=%s' % db_current_version)
+                db.action('vacuum')
                 logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
 
-        myDB.close()
+        db.close()
         # group_concat needs sqlite3 >= 3.5.4
         # foreign_key needs sqlite3 >= 3.6.19 (Oct 2009)
         try:
@@ -967,7 +969,7 @@ def initialize():
         except Exception as e:
             logger.warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
 
-        debuginfo = logHeader()
+        debuginfo = log_header()
         for item in debuginfo.splitlines():
             if 'missing' in item:
                 logger.warn(item)
@@ -1302,21 +1304,21 @@ def config_write(part=None):
             oldvalue = CFG.get(section, key.lower())
             if value != oldvalue:
                 if key == 'SEARCH_BOOKINTERVAL':
-                    scheduleJob('Restart', 'search_book')
+                    schedule_job('Restart', 'search_book')
                 elif key == 'SEARCH_MAGINTERVAL':
-                    scheduleJob('Restart', 'search_magazines')
+                    schedule_job('Restart', 'search_magazines')
                 elif key == 'SEARCHRSS_INTERVAL':
-                    scheduleJob('Restart', 'search_rss_book')
+                    schedule_job('Restart', 'search_rss_book')
                 elif key == 'WISHLIST_INTERVAL':
-                    scheduleJob('Restart', 'search_wishlist')
+                    schedule_job('Restart', 'search_wishlist')
                 elif key == 'SEARCH_COMICINTERVAL':
-                    scheduleJob('Restart', 'search_comics')
+                    schedule_job('Restart', 'search_comics')
                 elif key == 'SCAN_INTERVAL':
-                    scheduleJob('Restart', 'PostProcessor')
+                    schedule_job('Restart', 'PostProcessor')
                 elif key == 'VERSIONCHECK_INTERVAL':
-                    scheduleJob('Restart', 'checkForUpdates')
+                    schedule_job('Restart', 'check_for_updates')
                 elif key == 'GOODREADS_INTERVAL' and CONFIG['GR_SYNC']:
-                    scheduleJob('Restart', 'sync_to_gr')
+                    schedule_job('Restart', 'sync_to_gr')
 
         CFG.set(section, key.lower(), value)
 
@@ -1326,7 +1328,7 @@ def config_write(part=None):
             logger.warn('Unsaved/invalid config key: %s' % key)
 
     if not part or part.lower().startswith('newznab') or part.lower().startswith('torznab'):
-        NAB_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'API', 'GENERALSEARCH', 'BOOKSEARCH', 'MAGSEARCH',
+        nab_items = ['ENABLED', 'DISPNAME', 'HOST', 'API', 'GENERALSEARCH', 'BOOKSEARCH', 'MAGSEARCH',
                      'AUDIOSEARCH', 'BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'EXTENDED', 'DLPRIORITY', 'DLTYPES',
                      'UPDATED', 'MANUAL', 'APILIMIT', 'RATELIMIT', 'COMICSEARCH', 'COMICCAT']
         for entry in [[NEWZNAB_PROV, 'Newznab', []], [TORZNAB_PROV, 'Torznab', ['SEEDERS']]]:
@@ -1342,7 +1344,7 @@ def config_write(part=None):
                     if provider['NAME'].lower() != part.lower():  # keep old values
                         if CONFIG['LOGLEVEL'] > 2:
                             logger.debug("Keep %s" % provider['NAME'])
-                        for item in NAB_ITEMS + entry[2]:
+                        for item in nab_items + entry[2]:
                             try:
                                 provider[item] = CFG.get(provider['NAME'], item.lower())
                             except configparser.NoOptionError:
@@ -1361,7 +1363,7 @@ def config_write(part=None):
 
             for provider in new_list:
                 check_section(provider['NAME'])
-                for item in NAB_ITEMS + entry[2]:
+                for item in nab_items + entry[2]:
                     value = provider[item]
                     if isinstance(value, text_type):
                         value = value.strip()
@@ -1381,7 +1383,7 @@ def config_write(part=None):
                 add_torz_slot()
 
     if not part or part.startswith('rss_'):
-        RSS_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'DLPRIORITY', 'DLTYPES']
+        rss_items = ['ENABLED', 'DISPNAME', 'HOST', 'DLPRIORITY', 'DLTYPES']
         new_list = []
         # strip out any empty slots
         for provider in RSS_PROV:
@@ -1393,7 +1395,7 @@ def config_write(part=None):
                 if provider['NAME'].lower() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
-                    for item in RSS_ITEMS:
+                    for item in rss_items:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
                         except configparser.NoOptionError:
@@ -1412,7 +1414,7 @@ def config_write(part=None):
 
         for provider in new_list:
             check_section(provider['NAME'])
-            for item in RSS_ITEMS:
+            for item in rss_items:
                 value = provider[item]
                 if isinstance(value, text_type):
                     value = value.strip()
@@ -1427,7 +1429,7 @@ def config_write(part=None):
         add_rss_slot()
 
     if not part or part.startswith('GEN_'):
-        GEN_ITEMS = ['ENABLED', 'DISPNAME', 'HOST', 'SEARCH', 'DLPRIORITY', 'DLTYPES']
+        gen_items = ['ENABLED', 'DISPNAME', 'HOST', 'SEARCH', 'DLPRIORITY', 'DLTYPES']
         new_list = []
         # strip out any empty slots
         for provider in GEN_PROV:
@@ -1439,7 +1441,7 @@ def config_write(part=None):
                 if provider['NAME'].lower() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
-                    for item in GEN_ITEMS:
+                    for item in gen_items:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
                         except configparser.NoOptionError:
@@ -1458,7 +1460,7 @@ def config_write(part=None):
 
         for provider in new_list:
             check_section(provider['NAME'])
-            for item in GEN_ITEMS:
+            for item in gen_items:
                 value = provider[item]
                 if isinstance(value, text_type):
                     value = value.strip()
@@ -1473,7 +1475,7 @@ def config_write(part=None):
         add_gen_slot()
 
     if not part or part.startswith('IRC_'):
-        IRC_ITEMS = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS',
+        irc_items = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS',
                      'DLPRIORITY', 'DLTYPES']
         new_list = []
         # strip out any empty slots
@@ -1486,7 +1488,7 @@ def config_write(part=None):
                 if provider['NAME'].lower() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
-                    for item in IRC_ITEMS:
+                    for item in irc_items:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
                         except configparser.NoOptionError:
@@ -1505,7 +1507,7 @@ def config_write(part=None):
 
         for provider in new_list:
             check_section(provider['NAME'])
-            for item in IRC_ITEMS:
+            for item in irc_items:
                 value = provider[item]
                 if isinstance(value, text_type):
                     value = value.strip()
@@ -1520,7 +1522,7 @@ def config_write(part=None):
         add_irc_slot()
 
     if not part or part.startswith('apprise_'):
-        APPRISE_ITEMS = ['NAME', 'DISPNAME', 'SNATCH', 'DOWNLOAD', 'URL']
+        apprise_items = ['NAME', 'DISPNAME', 'SNATCH', 'DOWNLOAD', 'URL']
         new_list = []
         # strip out any empty slots
         for provider in APPRISE_PROV:
@@ -1532,7 +1534,7 @@ def config_write(part=None):
                 if provider['NAME'].lower() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
-                    for item in APPRISE_ITEMS:
+                    for item in apprise_items:
                         try:
                             provider[item] = CFG.get(provider['NAME'], item.lower())
                         except configparser.NoOptionError:
@@ -1551,7 +1553,7 @@ def config_write(part=None):
 
         for provider in new_list:
             check_section(provider['NAME'])
-            for item in APPRISE_ITEMS:
+            for item in apprise_items:
                 value = provider[item]
                 if isinstance(value, text_type):
                     value = value.strip()
@@ -1576,9 +1578,9 @@ def config_write(part=None):
         SHOW_EBOOK = 1
 
     if CONFIG['NO_SINGLE_BOOK_SERIES']:
-        myDB = database.DBConnection()
-        myDB.action('DELETE from series where total=1')
-        myDB.close()
+        db = database.DBConnection()
+        db.action('DELETE from series where total=1')
+        db.close()
     msg = None
     try:
         if PY2:
@@ -1692,7 +1694,7 @@ def add_torz_slot():
                 CFG.set(prov_name, item, empty[item])
 
 
-def DIRECTORY(dirname):
+def directory(dirname):
     usedir = ''
     if dirname == "eBook":
         usedir = CONFIG['EBOOK_DIR']
@@ -1700,7 +1702,7 @@ def DIRECTORY(dirname):
         usedir = CONFIG['AUDIO_DIR']
     elif dirname == "Download":
         try:
-            usedir = getList(CONFIG['DOWNLOAD_DIR'], ',')[0]
+            usedir = get_list(CONFIG['DOWNLOAD_DIR'], ',')[0]
         except IndexError:
             usedir = ''
     elif dirname == "Alternate":
@@ -1733,7 +1735,7 @@ def DIRECTORY(dirname):
         logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
         usedir = DATADIR
 
-    return makeUnicode(usedir)
+    return make_unicode(usedir)
 
 
 # noinspection PyUnresolvedReferences
@@ -1815,78 +1817,80 @@ def add_apprise_slot():
         APPRISE_PROV.append({"NAME": apprise_name, "DISPNAME": apprise_name, "SNATCH": 0, "DOWNLOAD": 0, "URL": ''})
 
 
-def WishListType(host):
+def wishlist_type(host):
     """ Return type of wishlist or empty string if not a wishlist """
     # GoodReads rss feeds
     if 'goodreads' in host and 'list_rss' in host:
-        return 'GOODREADS'
+        return 'goodreads'
     # GoodReads Listopia html pages
     if 'goodreads' in host and '/list/show/' in host:
-        return 'LISTOPIA'
+        return 'listopia'
     # GoodReads most_read html pages (Listopia format)
     if 'goodreads' in host and '/book/' in host:
-        return 'LISTOPIA'
+        return 'listopia'
     # Amazon charts html pages
     if 'amazon' in host and '/charts' in host:
-        return 'AMAZON'
+        return 'amazon'
     # NYTimes best-sellers html pages
     if 'nytimes' in host and 'best-sellers' in host:
-        return 'NYTIMES'
+        return 'ny_times'
     return ''
 
 
-def USE_RSS():
+def use_rss():
     count = 0
     for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and not WishListType(provider['HOST']) and not ProviderIsBlocked(provider['HOST']):
+        if bool(provider['ENABLED']) and not wishlist_type(provider['HOST']) and not \
+                provider_is_blocked(provider['HOST']):
             count += 1
     return count
 
 
-def USE_IRC():
+def use_irc():
     count = 0
     for provider in IRC_PROV:
-        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['SERVER']):
+        if bool(provider['ENABLED']) and not provider_is_blocked(provider['SERVER']):
             count += 1
     return count
 
 
-def USE_WISHLIST():
+def use_wishlist():
     count = 0
     for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and WishListType(provider['HOST']) and not ProviderIsBlocked(provider['HOST']):
+        if bool(provider['ENABLED']) and wishlist_type(provider['HOST']) and not provider_is_blocked(provider['HOST']):
             count += 1
     return count
 
 
-def USE_NZB():
+def use_nzb():
     # Count how many nzb providers are active and not blocked
     count = 0
     for provider in NEWZNAB_PROV:
-        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
+        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
             count += 1
     for provider in TORZNAB_PROV:
-        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
+        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
             count += 1
     return count
 
 
-def USE_TOR():
+def use_tor():
     count = 0
-    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-        if bool(CONFIG[provider]) and not ProviderIsBlocked(provider):
+    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME',
+                     'TDL', 'TRF']:
+        if bool(CONFIG[provider]) and not provider_is_blocked(provider):
             count += 1
     return count
 
 
-def USE_DIRECT():
+def use_direct():
     count = 0
     for provider in GEN_PROV:
-        if bool(provider['ENABLED']) and not ProviderIsBlocked(provider['HOST']):
+        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
             count += 1
-    if bool(CONFIG['BOK']) and not ProviderIsBlocked('BOK'):
+    if bool(CONFIG['BOK']) and not provider_is_blocked('BOK'):
         count += 1
-    if bool(CONFIG['BFI']) and not ProviderIsBlocked('BFI'):
+    if bool(CONFIG['BFI']) and not provider_is_blocked('BFI'):
         count += 1
     return count
 
@@ -1896,8 +1900,8 @@ def build_bookstrap_themes(prog_dir):
     if not path_isdir(os.path.join(prog_dir, 'data', 'interfaces', 'bookstrap')):
         return themelist  # return empty if bookstrap interface not installed
 
-    URL = 'http://bootswatch.com/api/3.json'
-    result, success = fetchURL(URL, headers=None, retry=False)
+    url = 'http://bootswatch.com/api/3.json'
+    result, success = fetch_url(url, headers=None, retry=False)
     if not success:
         logger.debug("Error getting bookstrap themes : %s" % result)
         return themelist
@@ -1967,7 +1971,7 @@ def build_monthtable():
             ['december', 'dec']
         ]
 
-    if len(getList(CONFIG['IMP_MONTHLANG'])) == 0:  # any extra languages wanted?
+    if len(get_list(CONFIG['IMP_MONTHLANG'])) == 0:  # any extra languages wanted?
         return table
     try:
         current_locale = locale.setlocale(locale.LC_ALL, '')  # read current state.
@@ -1994,7 +1998,7 @@ def build_monthtable():
         logger.info("Added month names for locale [%s], %s, %s ..." % (
             lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
 
-    for lang in getList(CONFIG['IMP_MONTHLANG']):
+    for lang in get_list(CONFIG['IMP_MONTHLANG']):
         try:
             if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
                 logger.debug('Month names for %s already loaded' % lang)
@@ -2017,7 +2021,7 @@ def build_monthtable():
                 wanted_lang = lang.split('_')[0]
                 params = ['locale', '-a']
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                all_locales = makeUnicode(res).split()
+                all_locales = make_unicode(res).split()
                 locale_list = []
                 for a_locale in all_locales:
                     if a_locale.startswith(wanted_lang):
@@ -2132,7 +2136,7 @@ def start():
         # noinspection PyUnresolvedReferences
         SCHED.start()
         if not STOPTHREADS:
-            restartJobs(start='Start')
+            restart_jobs(start='Start')
         started = True
 
 
@@ -2200,14 +2204,14 @@ def shutdown(restart=False, update=False):
                     params = ["where", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        executable = makeUnicode(executable).strip()
+                        executable = make_unicode(executable).strip()
                     except Exception as e:
                         logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
                 else:
                     params = ["which", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                        executable = makeUnicode(executable).strip()
+                        executable = make_unicode(executable).strip()
                     except Exception as e:
                         logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
 
@@ -2257,9 +2261,9 @@ def shutdown(restart=False, update=False):
                     success = False
                     res = ''
                     while pawse:
-                        result, success = fetchURL(server1, retry=False)
+                        result, success = fetch_url(server1, retry=False)
                         if not success and server2:
-                            result, success = fetchURL(server2, retry=False)
+                            result, success = fetch_url(server2, retry=False)
                         if success:
                             try:
                                 res = result.split('<title>')[1].split('</title>')[0]

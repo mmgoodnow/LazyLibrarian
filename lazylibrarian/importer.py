@@ -19,9 +19,9 @@ from operator import itemgetter
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.images import getAuthorImage
+from lazylibrarian.images import get_author_image
 from lazylibrarian.cache import cache_img
-from lazylibrarian.formatter import today, unaccented, formatAuthorName, makeUnicode, getList, check_int
+from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, get_list, check_int
 from lazylibrarian.grsync import grfollow
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -45,18 +45,18 @@ def is_valid_authorid(authorid):
     return False
 
 
-def getPreferredAuthorName(author):
+def get_preferred_author_name(author):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and whether found in library
-    author = formatAuthorName(author)
+    author = format_author_name(author)
     match = False
-    myDB = database.DBConnection()
-    check_exist_author = myDB.match('SELECT * FROM authors where AuthorName=?', (author,))
+    db = database.DBConnection()
+    check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
     if check_exist_author:
         match = True
     else:  # If no exact match, look for a close fuzzy match to handle misspellings, accents or AKA
         match_name = author.lower().replace('.', '')
-        res = myDB.action('select AuthorID,AuthorName,AKA from authors')
+        res = db.action('select AuthorID,AuthorName,AKA from authors')
         for item in res:
             aname = item['AuthorName']
             if aname:
@@ -77,7 +77,7 @@ def getPreferredAuthorName(author):
     return author, match
 
 
-def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, title=None):
+def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None, title=None):
     # get authors name in a consistent format, look them up in the database
     # if not in database, try to import them.
     # return authorname,authorid,new where new=False if author already in db, new=True if added
@@ -90,7 +90,7 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
             lineno = frame.lineno
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
-            reason = 'Unknown reason in addAuthorNameToDB'
+            reason = 'Unknown reason in add_author_name_to_db'
 
     if addbooks is None:  # we get passed True/False or None
         addbooks = lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']
@@ -101,11 +101,11 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     # Check if the author exists, and import the author if not,
-    author, exists = getPreferredAuthorName(author)
+    author, exists = get_preferred_author_name(author)
     if exists:
-        check_exist_author = myDB.match('SELECT * FROM authors where AuthorName=?', (author,))
+        check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
     else:
         check_exist_author = None
     if not exists and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
@@ -113,18 +113,18 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
         # no match for supplied author, but we're allowed to add new ones
         if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
             if title:
-                OL = OpenLibrary(author + '<ll>' + title)
+                ol = OpenLibrary(author + '<ll>' + title)
             else:
-                OL = OpenLibrary(author)
+                ol = OpenLibrary(author)
             try:
-                author_info = OL.find_author_id()
+                author_info = ol.find_author_id()
             except Exception as e:
                 logger.warn("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
                 return "", "", False
         else:
-            GR = GoodReads(author)
+            gr = GoodReads(author)
             try:
-                author_info = GR.find_author_id()
+                author_info = gr.find_author_id()
             except Exception as e:
                 logger.warn("%s finding author id for [%s] %s" % (type(e).__name__, author, str(e)))
                 return "", "", False
@@ -160,16 +160,16 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
                 authorid = author_info['authorid']
                 # this new authorname may already be in the
                 # database, so check again
-                check_exist_author = myDB.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
                 if check_exist_author:
                     logger.debug('Found authorname %s in database' % author)
                     new = False
                 else:
                     logger.info("Adding new author [%s] %s addbooks=%s" % (author, reason, addbooks))
                     try:
-                        addAuthorToDB(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
-                                      reason=reason)
-                        check_exist_author = myDB.match('SELECT * FROM authors where AuthorID=?', (authorid,))
+                        add_author_to_db(authorname=author, refresh=refresh, authorid=authorid, addbooks=addbooks,
+                                         reason=reason)
+                        check_exist_author = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
                         if check_exist_author:
                             new = True
                     except Exception as e:
@@ -178,19 +178,19 @@ def addAuthorNameToDB(author=None, refresh=False, addbooks=None, reason=None, ti
     # check author exists in db, either newly loaded or already there
     if check_exist_author:
         aka = author_info.get('aka', '')
-        akas = getList(check_exist_author['AKA'], ',')
+        akas = get_list(check_exist_author['AKA'], ',')
         if aka and aka not in akas:
             akas.append(aka)
-            myDB.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                        (', '.join(akas), check_exist_author['AuthorID']))
+            db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
+                      (', '.join(akas), check_exist_author['AuthorID']))
     else:
         logger.debug("Failed to match author [%s] in database" % author)
         return "", "", False
-    author = makeUnicode(author)
+    author = make_unicode(author)
     return author, check_exist_author['AuthorID'], new
 
 
-def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, reason=None):
+def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=True, reason=None):
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
@@ -203,46 +203,46 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
             lineno = frame.lineno
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
-            reason = "Unknown reason in addAuthorToDB"
+            reason = "Unknown reason in add_author_to_db"
 
     threadname = threading.currentThread().name
     if "Thread-" in threadname:
         threading.currentThread().name = "AddAuthorToDB"
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         match = False
         authorimg = ''
         new_author = not refresh
         entry_status = 'Active'
 
         if is_valid_authorid(authorid):
-            dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+            dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
             if not dbauthor:
                 authorname = 'unknown author %s' % authorid
             else:
                 entry_status = dbauthor['Status']
                 authorname = dbauthor['authorname']
 
-            controlValueDict = {"AuthorID": authorid}
-            newValueDict = {"Status": "Loading"}
+            control_value_dict = {"AuthorID": authorid}
+            new_value_dict = {"Status": "Loading"}
             if new_author and not dbauthor:
-                newValueDict["AuthorName"] = authorname
-                newValueDict["AuthorImg"] = "images/nophoto.png"
-                newValueDict['Reason'] = reason
+                new_value_dict["AuthorName"] = authorname
+                new_value_dict["AuthorImg"] = "images/nophoto.png"
+                new_value_dict['Reason'] = reason
 
-            myDB.upsert("authors", newValueDict, controlValueDict)
+            db.upsert("authors", new_value_dict, control_value_dict)
 
             if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                OL = OpenLibrary(authorid)
-                author = OL.get_author_info(authorid=authorid)
+                ol = OpenLibrary(authorid)
+                author = ol.get_author_info(authorid=authorid)
             else:
-                GR = GoodReads(authorid)
-                author = GR.get_author_info(authorid=authorid)
+                gr = GoodReads(authorid)
+                author = gr.get_author_info(authorid=authorid)
             if author:
                 authorname = author['authorname']
                 if not dbauthor:
-                    dbauthor = myDB.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+                    dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
                         logger.warn("Conflicting authorid for %s (new:%s old:%s) Using existing authorid" %
@@ -256,57 +256,57 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                                  (authorid, authorname, reason, addbooks))
 
                 authorimg = author['authorimg']
-                controlValueDict = {"AuthorID": authorid}
-                newValueDict = {
+                control_value_dict = {"AuthorID": authorid}
+                new_value_dict = {
                     "Updated": int(time.time())
                 }
                 if new_author:
-                    newValueDict['Reason'] = reason
-                    newValueDict["DateAdded"] = today()
-                    newValueDict["AuthorImg"] = authorimg
-                    newValueDict["AuthorLink"] = author['authorlink']
+                    new_value_dict['Reason'] = reason
+                    new_value_dict["DateAdded"] = today()
+                    new_value_dict["AuthorImg"] = authorimg
+                    new_value_dict["AuthorLink"] = author['authorlink']
                 elif dbauthor and not dbauthor['manual']:
-                    newValueDict["AuthorBorn"] = author['authorborn']
-                    newValueDict["AuthorDeath"] = author['authordeath']
-                    newValueDict["AuthorLink"] = author['authorlink']
+                    new_value_dict["AuthorBorn"] = author['authorborn']
+                    new_value_dict["AuthorDeath"] = author['authordeath']
+                    new_value_dict["AuthorLink"] = author['authorlink']
                     if author.get('about', ''):
-                        newValueDict['About'] = author['about']
+                        new_value_dict['About'] = author['about']
                 if dbauthor and dbauthor['authorname'] != authorname:
                     if 'unknown' not in dbauthor['authorname']:
                         authorname = dbauthor['authorname']
                         logger.warn("Authorname mismatch for %s [%s][%s]" %
                                     (authorid, dbauthor['authorname'], author['authorname']))
 
-                newValueDict["AuthorName"] = authorname
+                new_value_dict["AuthorName"] = authorname
 
-                myDB.upsert("authors", newValueDict, controlValueDict)
+                db.upsert("authors", new_value_dict, control_value_dict)
                 match = True
             else:
                 logger.warn("Nothing found for %s:%s" % (authorid, authorname))
                 if not dbauthor:  # goodreads may have changed authorid?
-                    myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                    db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
 
         if not match and authorname and 'unknown' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                OL = OpenLibrary(authorname)
-                author = OL.find_author_id(refresh=refresh)
+                ol = OpenLibrary(authorname)
+                author = ol.find_author_id(refresh=refresh)
             else:
-                GR = GoodReads(authorname)
-                author = GR.find_author_id(refresh=refresh)
+                gr = GoodReads(authorname)
+                author = gr.find_author_id(refresh=refresh)
             dbauthor = None
             if author:
                 authorid = author['authorid']
-                dbauthor = myDB.match("SELECT * from authors WHERE AuthorID=?", (author['authorid'],))
+                dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (author['authorid'],))
                 if not dbauthor:
-                    dbauthor = myDB.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+                    dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                     if dbauthor:
                         authorid = dbauthor['AuthorID']
 
                 if not dbauthor:
                     authorimg = author['authorimg']
-                    controlValueDict = {"AuthorID": authorid}
-                    newValueDict = {
+                    control_value_dict = {"AuthorID": authorid}
+                    new_value_dict = {
                         "AuthorName": authorname,
                         "AuthorLink": author['authorlink'],
                         "Updated": int(time.time()),
@@ -321,8 +321,8 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     authorimg = dbauthor['authorimg']
                     authorid = dbauthor['authorid']
                     authorname = dbauthor['AuthorName']
-                    controlValueDict = {"AuthorID": authorid}
-                    newValueDict = {
+                    control_value_dict = {"AuthorID": authorid}
+                    new_value_dict = {
                         "Updated": int(time.time()),
                         "Status": "Loading"
                     }
@@ -331,52 +331,52 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     new_author = False
 
                     if author['authorname'] != dbauthor['authorname']:
-                        akas = getList(dbauthor['AKA'], ',')
+                        akas = get_list(dbauthor['AKA'], ',')
                         if author['authorname'] not in akas:
                             logger.warn("Conflicting authorname for %s [%s][%s] setting AKA" %
                                         (authorid, author['authorname'], dbauthor['authorname']))
                             akas.append(author['authorname'])
-                            myDB.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), authorid))
+                            db.action("UPDATE authors SET AKA=? WHERE AuthorID=?", (', '.join(akas), authorid))
                         authorname = dbauthor['authorname']
                     if author['authorid'] != authorid:
                         # GoodReads may have altered authorid?
                         logger.warn("Conflicting authorid for %s (%s:%s) Moving to new authorid" %
                                     (authorname, author['authorid'], authorid))
-                        myDB.action("PRAGMA foreign_keys = OFF")
-                        myDB.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
-                                    (author['authorid'], authorid))
-                        myDB.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
-                                    (author['authorid'], authorid), suppress='UNIQUE')
-                        myDB.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                        db.action("PRAGMA foreign_keys = OFF")
+                        db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                                  (author['authorid'], authorid))
+                        db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                                  (author['authorid'], authorid), suppress='UNIQUE')
+                        db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
                         authorid = author['authorid']
                         dbauthor = None
 
                 if not dbauthor or (dbauthor and not dbauthor['manual']):
-                    newValueDict["AuthorImg"] = author['authorimg']
-                    newValueDict["AuthorBorn"] = author['authorborn']
-                    newValueDict["AuthorDeath"] = author['authordeath']
+                    new_value_dict["AuthorImg"] = author['authorimg']
+                    new_value_dict["AuthorBorn"] = author['authorborn']
+                    new_value_dict["AuthorDeath"] = author['authordeath']
 
-                myDB.upsert("authors", newValueDict, controlValueDict)
+                db.upsert("authors", new_value_dict, control_value_dict)
 
                 if dbauthor is None:
-                    myDB.action("PRAGMA foreign_keys = ON")
+                    db.action("PRAGMA foreign_keys = ON")
                 match = True
             else:
                 logger.warn("Nothing found for %s" % authorname)
                 if not dbauthor:
-                    myDB.action('DELETE from authors WHERE AuthorName=?', (authorname,))
+                    db.action('DELETE from authors WHERE AuthorName=?', (authorname,))
                 return
         if not match:
             logger.error("No matching result for %s:%s" % (authorid, authorname))
-            myDB.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
+            db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
             return
 
         # if author is set to manual, should we allow replacing 'nophoto' ?
         new_img = False
-        match = myDB.match("SELECT Manual from authors WHERE AuthorID=?", (authorid,))
+        match = db.match("SELECT Manual from authors WHERE AuthorID=?", (authorid,))
         if match and not match['Manual']:
             if authorimg and 'nophoto' in authorimg:
-                newimg = getAuthorImage(authorid)
+                newimg = get_author_image(authorid)
                 if newimg:
                     authorimg = newimg
                     new_img = True
@@ -391,7 +391,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     logger.debug('Failed to cache image for %s (%s)' % (authorimg, newimg))
 
             if new_img:
-                myDB.action("UPDATE authors SET AuthorIMG=? WHERE AuthorID=?", (authorimg, authorid))
+                db.action("UPDATE authors SET AuthorIMG=? WHERE AuthorID=?", (authorimg, authorid))
 
         if match and addbooks:
             if new_author:
@@ -446,7 +446,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
                     logger.debug('%s marked followed' % authorname)
                 except IndexError:
                     followid = ''
-                myDB.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, authorid))
+                db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, authorid))
         else:
             # if we're not loading any books, mark author as paused in case it's
             # a new author in a wishlist or a series contributor
@@ -454,7 +454,7 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
 
         if match:
             update_totals(authorid)
-            myDB.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entry_status, authorid))
+            db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entry_status, authorid))
             msg = "%s [%s] Author update complete, status %s" % (authorid, authorname, entry_status)
             logger.info(msg)
         else:
@@ -463,31 +463,31 @@ def addAuthorToDB(authorname=None, refresh=False, authorid=None, addbooks=True, 
         return msg
 
     except Exception:
-        msg = 'Unhandled exception in addAuthorToDB: %s' % traceback.format_exc()
+        msg = 'Unhandled exception in add_author_to_db: %s' % traceback.format_exc()
         logger.error(msg)
         return msg
 
 
-def update_totals(AuthorID):
-    myDB = database.DBConnection()
+def update_totals(authorid):
+    db = database.DBConnection()
     # author totals needs to be updated every time a book is marked differently
-    match = myDB.select('SELECT AuthorID from authors WHERE AuthorID=?', (AuthorID,))
+    match = db.select('SELECT AuthorID from authors WHERE AuthorID=?', (authorid,))
     if not match:
-        logger.debug('Update_totals - authorid [%s] not found' % AuthorID)
+        logger.debug('Update_totals - authorid [%s] not found' % authorid)
         return
 
     cmd = 'SELECT BookName, BookLink, BookDate, BookID from books WHERE AuthorID=?'
     cmd += ' AND Status != "Ignored" order by BookDate DESC'
-    lastbook = myDB.match(cmd, (AuthorID,))
+    lastbook = db.match(cmd, (authorid,))
 
     cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
     cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
     cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
     cmd += "else 0 end) as have, count(*) as total from books where authorid=?"
-    totals = myDB.match(cmd, (AuthorID,))
+    totals = db.match(cmd, (authorid,))
 
-    controlValueDict = {"AuthorID": AuthorID}
-    newValueDict = {
+    control_value_dict = {"AuthorID": authorid}
+    new_value_dict = {
         "TotalBooks": check_int(totals['total'], 0),
         "UnignoredBooks": check_int(totals['unignored'], 0),
         "HaveBooks": check_int(totals['have'], 0),
@@ -496,7 +496,7 @@ def update_totals(AuthorID):
         "LastBookID": lastbook['BookID'] if lastbook else None,
         "LastDate": lastbook['BookDate'] if lastbook else None
     }
-    myDB.upsert("authors", newValueDict, controlValueDict)
+    db.upsert("authors", new_value_dict, control_value_dict)
 
     cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
     cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1"
@@ -504,59 +504,59 @@ def update_totals(AuthorID):
     cmd += " else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid"
     cmd += " and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid"
     cmd += " and seriesauthors.authorid=? group by series.seriesid"
-    res = myDB.select(cmd, (AuthorID,))
+    res = db.select(cmd, (authorid,))
     if len(res):
         for series in res:
-            myDB.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
-                        (series['Have'], series['Total'], series['Series']))
+            db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
+                      (series['Have'], series['Total'], series['Series']))
 
-    res = myDB.match('SELECT AuthorName from authors WHERE AuthorID=?', (AuthorID,))
-    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], newValueDict['HaveBooks'],
-                                                    newValueDict['TotalBooks']))
+    res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
+    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveBooks'],
+                                                    new_value_dict['TotalBooks']))
 
 
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes find_book use configured default """
     if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
-        GB = GoogleBooks(bookid)
+        gb = GoogleBooks(bookid)
         if not wait:
-            threading.Thread(target=GB.find_book, name='GB-IMPORT', args=[bookid, ebook, audio, reason]).start()
+            threading.Thread(target=gb.find_book, name='GB-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
-            GB.find_book(bookid, ebook, audio, reason)
+            gb.find_book(bookid, ebook, audio, reason)
     elif lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
-        OL = OpenLibrary(bookid)
+        ol = OpenLibrary(bookid)
         logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
         if not wait:
-            threading.Thread(target=OL.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
+            threading.Thread(target=ol.find_book, name='OL-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
-            OL.find_book(bookid, ebook, audio, reason)
+            ol.find_book(bookid, ebook, audio, reason)
     else:
-        GR = GoodReads(bookid)
+        gr = GoodReads(bookid)
         logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
         if not wait:
-            threading.Thread(target=GR.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
+            threading.Thread(target=gr.find_book, name='GR-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
-            GR.find_book(bookid, ebook, audio, reason)
+            gr.find_book(bookid, ebook, audio, reason)
 
 
 def search_for(searchterm):
     """ search goodreads or googlebooks for a searchterm, return a list of results
     """
     if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
-        GB = GoogleBooks(searchterm)
+        gb = GoogleBooks(searchterm)
         myqueue = queue.Queue()
-        search_api = threading.Thread(target=GB.find_results, name='GB-RESULTS', args=[searchterm, myqueue])
+        search_api = threading.Thread(target=gb.find_results, name='GB-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
         myqueue = queue.Queue()
-        GR = GoodReads(searchterm)
-        search_api = threading.Thread(target=GR.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
+        gr = GoodReads(searchterm)
+        search_api = threading.Thread(target=gr.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
         myqueue = queue.Queue()
-        OL = OpenLibrary(searchterm)
-        search_api = threading.Thread(target=OL.find_results, name='OL-RESULTS', args=[searchterm, myqueue])
+        ol = OpenLibrary(searchterm)
+        search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     else:
         search_api = None

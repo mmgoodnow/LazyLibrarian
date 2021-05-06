@@ -9,7 +9,7 @@ from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 
-class Telegram_Notifier:
+class TelegramNotifier:
     def __init__(self):
         pass
 
@@ -20,7 +20,7 @@ class Telegram_Notifier:
         if not lazylibrarian.CONFIG['USE_TELEGRAM'] and not force:
             return False
 
-        TELEGRAM_API = "https://api.telegram.org/bot%s/%s"
+        telegram_api = "https://api.telegram.org/bot%s/%s"
 
         if telegram_token is None:
             telegram_token = lazylibrarian.CONFIG['TELEGRAM_TOKEN']
@@ -36,7 +36,7 @@ class Telegram_Notifier:
 
         # Send message to user using Telegram's Bot API
         try:
-            url = TELEGRAM_API % (telegram_token, "sendMessage")
+            url = telegram_api % (telegram_token, "sendMessage")
             logger.debug(url)
             logger.debug(str(payload))
             response = requests.request('POST', url, data=payload)
@@ -72,4 +72,4 @@ class Telegram_Notifier:
                             message="Testing Telegram settings from LazyLibrarian", force=True)
 
 
-notifier = Telegram_Notifier
+notifier = TelegramNotifier

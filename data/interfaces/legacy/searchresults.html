@@ -14,7 +14,7 @@
                 <th id="bookname">Title</th>
                 <th id="date">Released</th>
                 <th id="stars">Rating</th>
-                <th id="addAuthor">Add</th>
+                <th id="add_author">Add</th>
                 <th id="stars">Match</th>
              </tr>
         </thead>
@@ -39,15 +39,15 @@
                         starimg = '0-stars.png'
 
                     if authorlist and result['authorid'] in authorlist:
-                        destination = "authorPage?AuthorID="+result['authorid']
+                        destination = "author_page?authorid="+result['authorid']
                         value = "Have Author"
                         but_class = "button green"
                     elif result['authorid']:
-                        destination = "addAuthorID?AuthorID="+result['authorid']
+                        destination = "add_author_id?authorid="+result['authorid']
                         value = "Add Author"
                         but_class = "button"
                     else:
-                        destination = "addAuthor?AuthorName="+result['authorname']
+                        destination = "add_author?AuthorName="+result['authorname']
                         value = "Add Author"
                         but_class = "button"
 
@@ -59,13 +59,13 @@
                                     valid_id = item['BookID']
 
                             if 'Open' in value2:
-                                destination2 = "openBook?bookid="+valid_id
+                                destination2 = "open_book?bookid="+valid_id
                                 but_class2 = "button green"
                             elif 'Wanted' in value2:
-                                destination2 = "searchForBook?bookid="+valid_id
+                                destination2 = "search_for_book?bookid="+valid_id
                                 but_class2 = "button red"
                             elif 'Skipped' in value2:
-                                destination2 = "addBook?bookid="+result['bookid']
+                                destination2 = "add_book?bookid="+result['bookid']
                                 value2 = "Add Book"
                                 but_class2 = "button"
                             else:
@@ -73,12 +73,12 @@
                                 but_class2 = "button grey"
 
                         else:
-                            destination2 = "addBook?bookid="+result['bookid']
+                            destination2 = "add_book?bookid="+result['bookid']
                             value2 = "Add Book"
                             but_class2 = "button"
 
                     else:
-                        destination2 = "addBook?bookid="+result['bookid']
+                        destination2 = "add_book?bookid="+result['bookid']
                         value2 = "Add Book"
                         but_class2 = "button"
                     %>
@@ -88,7 +88,7 @@
   <td id="bookname"><a href="${result['booklink']}" target="_new">${result['bookname']}</a></td>
   <td id="date">${result['bookdate']}</td>
   <td id="stars"><img src="images/${starimg}" height="10"></td>
-  <td id="addAuthor"><a class="${but_class}" href="${destination}">${value}</a>
+  <td id="add_author"><a class="${but_class}" href="${destination}">${value}</a>
     <BR><BR><a class="${but_class2}" href="${destination2}">${value2}</a>
   </td>
   <td id="fuzz">${result['highest_fuzz']}%</td>

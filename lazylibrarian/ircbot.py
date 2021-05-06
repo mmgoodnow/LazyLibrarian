@@ -20,7 +20,7 @@ import os
 from six import PY2
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import today, size_in_bytes, makeBytestr, md5_utf8, check_int
+from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import path_isfile, syspath, remove
 try:
     import zipfile
@@ -73,30 +73,30 @@ class IRC:
     def send(self, server, channel, msg):
         # Transfer data
         try:
-            self.irc.send(makeBytestr("PRIVMSG " + channel + " " + msg + "\n"))
+            self.irc.send(make_bytestr("PRIVMSG " + channel + " " + msg + "\n"))
         except Exception as e:
             logger.debug("Exception sending %s" % msg)
             logger.debug(str(e))
-            lazylibrarian.providers.BlockProvider(server, msg, 600)
+            lazylibrarian.providers.block_provider(server, msg, 600)
 
     def ison(self, msg):
-        self.irc.send(makeBytestr("ISON " + msg + "\n"))
+        self.irc.send(make_bytestr("ISON " + msg + "\n"))
 
     def pong(self, msg):
         reply = msg.replace('PING', 'PONG')
         logger.debug(reply)
-        self.irc.send(makeBytestr(reply + "\n"))
+        self.irc.send(make_bytestr(reply + "\n"))
 
     def version(self):
         reply = "VERSION " + self.ver
         logger.debug(reply)
-        self.irc.send(makeBytestr(reply + "\n"))
+        self.irc.send(make_bytestr(reply + "\n"))
 
     def join(self, channel):
-        self.irc.send(makeBytestr("JOIN " + channel + "\n"))
+        self.irc.send(make_bytestr("JOIN " + channel + "\n"))
 
     def part(self, channel):
-        self.irc.send(makeBytestr("PART " + channel + " :Bye\n"))
+        self.irc.send(make_bytestr("PART " + channel + " :Bye\n"))
 
     def connect(self, server, port, botnick="", botpass=""):
         # Connect to the server
@@ -110,13 +110,13 @@ class IRC:
             if botnick:
                 logger.debug("Sending auth for %s" % botnick)
                 # Perform user authentication
-                self.irc.send(makeBytestr("USER " + botnick + " " + botnick + " " + botnick + " :LazyLibrarian\n"))
-                self.irc.send(makeBytestr("NICK " + botnick + "\n"))
+                self.irc.send(make_bytestr("USER " + botnick + " " + botnick + " " + botnick + " :LazyLibrarian\n"))
+                self.irc.send(make_bytestr("NICK " + botnick + "\n"))
                 if botpass and email:
                     logger.debug("Sending nickserv")
-                    self.irc.send(makeBytestr("NICKSERV REGISTER " + botpass + " " + email + "\n"))
+                    self.irc.send(make_bytestr("NICKSERV REGISTER " + botpass + " " + email + "\n"))
                     time.sleep(2)
-                    self.irc.send(makeBytestr("NICKSERV IDENTIFY " + botpass + "\n"))
+                    self.irc.send(make_bytestr("NICKSERV IDENTIFY " + botpass + "\n"))
                     time.sleep(2)
         except Exception:
             raise
@@ -153,8 +153,8 @@ class IRC:
         return lynes
 
 
-def ircConnect(provider):
-    if lazylibrarian.providers.ProviderIsBlocked(provider['SERVER']):
+def irc_connect(provider):
+    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         logger.warn("%s is blocked" % provider['SERVER'])
         return None
 
@@ -219,20 +219,20 @@ def ircConnect(provider):
     return None
 
 
-def ircSearch(provider, searchstring, cmd=":@search", cache=True):
-    if lazylibrarian.providers.ProviderIsBlocked(provider['SERVER']):
+def irc_search(provider, searchstring, cmd=":@search", cache=True):
+    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
         return '', msg
 
     if cache:
-        cacheLocation = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
+        cache_location = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
         if searchstring:
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + searchstring)
         else:
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + cmd)
         valid_cache = False
-        hashfilename = os.path.join(cacheLocation, myhash + ".irc")
+        hashfilename = os.path.join(cache_location, myhash + ".irc")
         expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 2 * 24 * 3600)
 
         if path_isfile(hashfilename):
@@ -274,7 +274,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
 
     irc = provider['IRC']
     if not irc:
-        ircConnect(provider)
+        irc_connect(provider)
 
     while status != "finished":
         try:
@@ -331,7 +331,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
 
             elif 'KICK' in lyne:
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
-                lazylibrarian.providers.BlockProvider(provider['SERVER'], "Kick", 600)
+                lazylibrarian.providers.block_provider(provider['SERVER'], "Kick", 600)
                 return '', "Kick"
 
             elif ' 404 ' in lyne:  # cannot send to channel
@@ -483,7 +483,7 @@ def ircSearch(provider, searchstring, cmd=":@search", cache=True):
     return filename, received_data
 
 
-def ircResults(provider, fname):
+def irc_results(provider, fname):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word

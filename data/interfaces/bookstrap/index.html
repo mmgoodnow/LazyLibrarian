@@ -7,18 +7,18 @@
       <form action="search" method="get">
         <div id="subhead_menu"  class="col-xs-12 col-md-8">
             %if perm&lazylibrarian.perm_force:
-            <a href="forceUpdate" class="btn btn-sm btn-primary" id="refresh"><i class="fa fa-sync"></i> Refresh Active Authors</a>
+            <a href="force_update" class="btn btn-sm btn-primary" id="refresh"><i class="fa fa-sync"></i> Refresh Active Authors</a>
             %endif
             %if lazylibrarian.IGNORED_AUTHORS == True:
-              <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user"></i> Show Active Authors</a>
+              <a href="toggle_auth" class="button btn btn-sm btn-primary"><i class="fa fa-user"></i> Show Active Authors</a>
             %else:
-              <a href="toggleAuth" class="button btn btn-sm btn-primary"><i class="fa fa-user-secret"></i> Show Inactive Authors</a>
+              <a href="toggle_auth" class="button btn btn-sm btn-primary"><i class="fa fa-user-secret"></i> Show Inactive Authors</a>
             %endif
             %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
               %if pref&lazylibrarian.pref_myauthors:
-                <a href="toggleMyAuth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+                <a href="toggle_my_auth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
               %else:
-                <a href="toggleMyAuth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+                <a href="toggle_my_auth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
               %endif
             %endif
         </div>
@@ -48,13 +48,13 @@
     </p>
   %endif
 
-<form name="markAuthors" id="markAuthors" action="markAuthors" method="get" class="form-inline" onsubmit="return false;">
+<form name="mark_authors" id="mark_authors" action="mark_authors" method="get" class="form-inline" onsubmit="return false;">
   <div class="row">
     %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
           <div class="form-group">
-            <label for="markAuthors" class="control-label">Mark selected as</label>
-            <select class="markAuthors form-control input-sm" id="action" name="action">
+            <label for="mark_authors" class="control-label">Mark selected as</label>
+            <select class="mark_authors form-control input-sm" id="action" name="action">
               %if perm&lazylibrarian.perm_status:
               <option value="Active">Active</option>
               <option value="Wanted">Wanted</option>
@@ -158,7 +158,7 @@
                             return '<a href="' + row[0] + '" target="_blank" rel="noreferrer"><img src="' + row[0] + '" alt="Cover" class="bookcover-sm"></a>';} },
                      { targets: [2], 'render': function(data, type, row) {
                      %if perm&lazylibrarian.perm_authorbooks:
-                        btn = '<a href=\'authorPage?AuthorID=' + row[10] + '\'">' + row[1] + '</a>'
+                        btn = '<a href=\'author_page?authorid=' + row[10] + '\'">' + row[1] + '</a>'
                      %else:
                         btn = '<a>' + row[1] + '</a>'
                      %endif
@@ -213,7 +213,7 @@
                     "sInfoEmpty":"Showing 0 to 0 of 0 rows",
                     "sInfoFiltered":"(filtered from _MAX_ total rows)"},
                 "bServerSide": true,
-                "sAjaxSource": 'getIndex',
+                "sAjaxSource": 'get_index',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
@@ -262,7 +262,7 @@
     });
 
     function validateForm() {
-        var x = document.forms["markAuthors"]["action"].value;
+        var x = document.forms["mark_authors"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
         if (c > 0 && (x == "Delete" || x == "Remove")) {
             if (x == "Delete") {
@@ -287,12 +287,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("markAuthors").submit(); }
+                    if (result) { document.getElementById("mark_authors").submit(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("markAuthors").submit(); }
+        else { document.getElementById("mark_authors").submit(); }
     }
 
     function bookinfo(bookid) {

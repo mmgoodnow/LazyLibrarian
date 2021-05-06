@@ -9,7 +9,7 @@
     </div>
 </%def>
 <%def name="body()">
-<form accept-charset="UTF-8" action="seriesUpdate" method="post">
+<form accept-charset="UTF-8" action="series_update" method="post">
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
         <fieldset>
@@ -68,7 +68,7 @@
                     }
                 },
                 callback: function (result) {
-                  if (result) { $.get("removeSeries", {'SeriesID': '${config['SeriesID']}' },
+                  if (result) { $.get("remove_series", {'SeriesID': '${config['SeriesID']}' },
                       function (data) { }); }
                 }
             });

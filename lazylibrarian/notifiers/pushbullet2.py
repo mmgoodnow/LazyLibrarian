@@ -28,8 +28,8 @@ HOST = "https://api.pushbullet.com/v2"
 
 class PushBullet:
 
-    def __init__(self, apiKey):
-        self.apiKey = apiKey
+    def __init__(self, api_key):
+        self.apiKey = api_key
 
     def _request(self, method, url, postdata=None, params=None, files=None):
         headers = {"Accept": "application/json",
@@ -50,7 +50,7 @@ class PushBullet:
         r.raise_for_status()
         return r.json()
 
-    def addDevice(self, device_name):
+    def add_device(self, device_name):
         """ Push a note
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -63,7 +63,7 @@ class PushBullet:
                 }
         return self._request("POST", HOST + "/devices", data)
 
-    def getDevices(self):
+    def get_devices(self):
         """ Get devices
             https://docs.pushbullet.com/v2/devices
             Get a list of devices, and data about them.
@@ -71,7 +71,7 @@ class PushBullet:
 
         return self._request("GET", HOST + "/devices")["devices"]
 
-    def deleteDevice(self, device_iden):
+    def delete_device(self, device_iden):
         """ Delete a device
             https://docs.pushbullet.com/v2/devices
             Arguments:
@@ -80,7 +80,7 @@ class PushBullet:
 
         return self._request("DELETE", HOST + "/devices/" + device_iden)
 
-    def pushNote(self, recipient, title, body, recipient_type="device_iden"):
+    def push_note(self, recipient, title, body, recipient_type="device_iden"):
         """ Push a note
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -94,7 +94,7 @@ class PushBullet:
 
         return self._request("POST", HOST + "/pushes", data)
 
-    def pushAddress(self, recipient, name, address, recipient_type="device_iden"):
+    def push_address(self, recipient, name, address, recipient_type="device_iden"):
         """ Push an address
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -108,7 +108,7 @@ class PushBullet:
 
         return self._request("POST", HOST + "/pushes", data)
 
-    def pushList(self, recipient, title, items, recipient_type="device_iden"):
+    def push_list(self, recipient, title, items, recipient_type="device_iden"):
         """ Push a list
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -122,7 +122,7 @@ class PushBullet:
 
         return self._request("POST", HOST + "/pushes", data)
 
-    def pushLink(self, recipient, title, url, recipient_type="device_iden"):
+    def push_link(self, recipient, title, url, recipient_type="device_iden"):
         """ Push a link
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -136,7 +136,7 @@ class PushBullet:
 
         return self._request("POST", HOST + "/pushes", data)
 
-    def pushFile(self, recipient, file_name, body, fobj, file_type=None, recipient_type="device_iden"):
+    def push_file(self, recipient, file_name, body, fobj, file_type=None, recipient_type="device_iden"):
         """ Push a file
             https://docs.pushbullet.com/v2/pushes
             https://docs.pushbullet.com/v2/upload-request
@@ -178,7 +178,7 @@ class PushBullet:
 
         return self._request("POST", HOST + "/pushes", data)
 
-    def getPushHistory(self, modified_after=0, cursor=None):
+    def get_push_history(self, modified_after=0, cursor=None):
         """ Get Push History
             https://docs.pushbullet.com/v2/pushes
             Returns a list of pushes
@@ -191,7 +191,7 @@ class PushBullet:
             data["cursor"] = cursor
         return self._request("GET", HOST + "/pushes", None, data)["pushes"]
 
-    def deletePush(self, push_iden):
+    def delete_push(self, push_iden):
         """ Delete push
             https://docs.pushbullet.com/v2/pushes
             Arguments:
@@ -199,14 +199,14 @@ class PushBullet:
         """
         return self._request("DELETE", HOST + "/pushes/" + push_iden)
 
-    def getContacts(self):
+    def get_contacts(self):
         """ Gets your contacts
             https://docs.pushbullet.com/v2/contacts
             returns a list of contacts
         """
         return self._request("GET", HOST + "/contacts")["contacts"]
 
-    def deleteContact(self, contact_iden):
+    def delete_contact(self, contact_iden):
         """ Delete a contact
             https://docs.pushbullet.com/v2/contacts
             Arguments:
@@ -214,7 +214,7 @@ class PushBullet:
         """
         return self._request("DELETE", HOST + "/contacts/" + contact_iden)
 
-    def getUser(self):
+    def get_user(self):
         """ Get this users information
             https://docs.pushbullet.com/v2/users
         """

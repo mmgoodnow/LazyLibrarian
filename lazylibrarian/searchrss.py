@@ -16,12 +16,12 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import scheduleJob
+from lazylibrarian.common import schedule_job
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, formatAuthorName, check_int, split_title
-from lazylibrarian.importer import import_book, search_for, addAuthorNameToDB
-from lazylibrarian.providers import IterateOverRSSSites, IterateOverWishLists
-from lazylibrarian.resultlist import processResultList
+from lazylibrarian.formatter import plural, unaccented, format_author_name, check_int, split_title
+from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
+from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
+from lazylibrarian.resultlist import process_result_list
 
 
 def cron_search_rss_book():
@@ -41,20 +41,20 @@ def cron_search_wishlist():
 def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
     want_book = False
     want_audio = False
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     bookid = bookmatch['BookID']
     authorname = bookmatch['AuthorName']
     bookname = bookmatch['BookName']
     cmd = 'SELECT authors.Status,Updated from authors,books '
     cmd += 'WHERE authors.authorid=books.authorid and bookid=?'
-    auth_res = myDB.match(cmd, (bookid,))
+    auth_res = db.match(cmd, (bookid,))
     if auth_res:
         auth_status = auth_res['Status']
     else:
         auth_status = 'Unknown'
     cmd = 'SELECT SeriesName,Status from series,member '
     cmd += 'where series.SeriesID=member.SeriesID and member.BookID=?'
-    series = myDB.select(cmd, (bookid,))
+    series = db.select(cmd, (bookid,))
     reject_series = None
     for ser in series:
         if ser['Status'] in ['Paused', 'Ignored']:
@@ -65,13 +65,13 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
             'Found book %s by %s, already marked as "%s"' % (bookname, authorname, bookmatch['Status']))
         if bookmatch["Requester"]:  # Already on a wishlist
             if book["dispname"] not in bookmatch["Requester"]:
-                newValueDict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
-                controlValueDict = {"BookID": bookid}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                new_value_dict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
+                control_value_dict = {"BookID": bookid}
+                db.upsert("books", new_value_dict, control_value_dict)
         else:
-            newValueDict = {"Requester": book["dispname"] + ' '}
-            controlValueDict = {"BookID": bookid}
-            myDB.upsert("books", newValueDict, controlValueDict)
+            new_value_dict = {"Requester": book["dispname"] + ' '}
+            control_value_dict = {"BookID": bookid}
+            db.upsert("books", new_value_dict, control_value_dict)
     elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
         logger.info('Found book %s, but author is "%s"' % (bookname, auth_status))
     elif reject_series and auth_res['Updated'] < search_start:
@@ -79,30 +79,30 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                     (bookname, reject_series['Name'], reject_series['Status']))
     elif ebook_status == 'Wanted':
         logger.info('Found book %s by %s, marking as "Wanted"' % (bookname, authorname))
-        controlValueDict = {"BookID": bookid}
-        newValueDict = {"Status": "Wanted"}
-        myDB.upsert("books", newValueDict, controlValueDict)
+        control_value_dict = {"BookID": bookid}
+        new_value_dict = {"Status": "Wanted"}
+        db.upsert("books", new_value_dict, control_value_dict)
         if bookmatch["Requester"]:  # Already on a wishlist
             if book["dispname"] not in bookmatch["Requester"]:
-                newValueDict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
-                controlValueDict = {"BookID": bookid}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                new_value_dict = {"Requester": bookmatch["Requester"] + book["dispname"] + ' '}
+                control_value_dict = {"BookID": bookid}
+                db.upsert("books", new_value_dict, control_value_dict)
         else:
-            newValueDict = {"Requester": book["dispname"] + ' '}
-            controlValueDict = {"BookID": bookid}
-            myDB.upsert("books", newValueDict, controlValueDict)
+            new_value_dict = {"Requester": book["dispname"] + ' '}
+            control_value_dict = {"BookID": bookid}
+            db.upsert("books", new_value_dict, control_value_dict)
     if bookmatch['AudioStatus'] in ['Open', 'Wanted', 'Have']:
         logger.info('Found audiobook %s by %s, already marked as "%s"' %
                     (bookname, authorname, bookmatch['AudioStatus']))
         if bookmatch["AudioRequester"]:  # Already on a wishlist
             if book["dispname"] not in bookmatch["AudioRequester"]:
-                newValueDict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
-                controlValueDict = {"BookID": bookid}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                new_value_dict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
+                control_value_dict = {"BookID": bookid}
+                db.upsert("books", new_value_dict, control_value_dict)
         else:
-            newValueDict = {"AudioRequester": book["dispname"] + ' '}
-            controlValueDict = {"BookID": bookid}
-            myDB.upsert("books", newValueDict, controlValueDict)
+            new_value_dict = {"AudioRequester": book["dispname"] + ' '}
+            control_value_dict = {"BookID": bookid}
+            db.upsert("books", new_value_dict, control_value_dict)
     elif auth_status in ['Ignored'] and auth_res['Updated'] < search_start:
         logger.info('Found book %s, but author is "%s"' % (bookname, auth_status))
     elif reject_series and auth_res['Updated'] < search_start:
@@ -110,18 +110,18 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
                     (bookname, reject_series['Name'], reject_series['Status']))
     elif audio_status == 'Wanted':  # skipped/ignored
         logger.info('Found audiobook %s by %s, marking as "Wanted"' % (bookname, authorname))
-        controlValueDict = {"BookID": bookid}
-        newValueDict = {"AudioStatus": "Wanted"}
-        myDB.upsert("books", newValueDict, controlValueDict)
+        control_value_dict = {"BookID": bookid}
+        new_value_dict = {"AudioStatus": "Wanted"}
+        db.upsert("books", new_value_dict, control_value_dict)
         if bookmatch["AudioRequester"]:  # Already on a wishlist
             if book["dispname"] not in bookmatch["AudioRequester"]:
-                newValueDict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
-                controlValueDict = {"BookID": bookid}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                new_value_dict = {"AudioRequester": bookmatch["AudioRequester"] + book["dispname"] + ' '}
+                control_value_dict = {"BookID": bookid}
+                db.upsert("books", new_value_dict, control_value_dict)
         else:
-            newValueDict = {"AudioRequester": book["dispname"] + ' '}
-            controlValueDict = {"BookID": bookid}
-            myDB.upsert("books", newValueDict, controlValueDict)
+            new_value_dict = {"AudioRequester": book["dispname"] + ' '}
+            control_value_dict = {"BookID": bookid}
+            db.upsert("books", new_value_dict, control_value_dict)
 
     return want_book, want_audio
 
@@ -133,12 +133,12 @@ def search_wishlist():
     new_audio = []
     search_start = time.time()
     try:
-        myDB = database.DBConnection()
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
-        resultlist, wishproviders = IterateOverWishLists()
+        db = database.DBConnection()
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        resultlist, wishproviders = iterate_over_wishlists()
         if not wishproviders:
             logger.debug('No wishlists are set')
-            scheduleJob(action='Stop', target='search_wishlist')
+            schedule_job(action='Stop', target='search_wishlist')
             return  # No point in continuing
 
         # for each item in resultlist, add to database if necessary, and mark as wanted
@@ -175,17 +175,17 @@ def search_wishlist():
                     new_audio.append({"bookid": bookmatch['BookID']})
             else:  # not in database yet
                 results = []
-                authorname = formatAuthorName(book['rss_author'])
-                authmatch = myDB.match('SELECT * FROM authors where AuthorName=?', (authorname,))
+                authorname = format_author_name(book['rss_author'])
+                authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                 if authmatch:
                     logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))
                     if authmatch['Status'] == 'Ignored':
                         authorname = ''
                 else:
                     logger.debug("Author %s not found" % authorname)
-                    newauthor, _, _ = addAuthorNameToDB(author=authorname, addbooks=False,
-                                                        reason="wishlist: %s" % book['rss_title'],
-                                                        title=book['rss_title'])
+                    newauthor, _, _ = add_author_name_to_db(author=authorname, addbooks=False,
+                                                            reason="wishlist: %s" % book['rss_title'],
+                                                            title=book['rss_title'])
                     if newauthor and newauthor != authorname:
                         logger.debug("Preferred authorname changed from [%s] to [%s]" % (authorname, newauthor))
                         authorname = newauthor
@@ -252,9 +252,9 @@ def search_wishlist():
                         new_books.append({"bookid": bookmatch['bookid']})
                     if audio_status == 'Wanted':
                         new_audio.append({"bookid": bookmatch['bookid']})
-                    newValueDict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
-                    controlValueDict = {"BookID": bookmatch['bookid']}
-                    myDB.upsert("books", newValueDict, controlValueDict)
+                    new_value_dict = {"Requester": book["dispname"] + ' ', "AudioRequester": book["dispname"] + ' '}
+                    control_value_dict = {"BookID": bookmatch['bookid']}
+                    db.upsert("books", new_value_dict, control_value_dict)
 
                 elif authorname is not None:
                     msg = "Skipping book %s by %s" % (book['rss_title'], book['rss_author'])
@@ -273,15 +273,15 @@ def search_wishlist():
             logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
         else:
             logger.debug("Wishlist marked no new items as Wanted")
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())
     finally:
-        # scheduleJob("Stop", "search_book")
-        # scheduleJob("StartNow", "search_book")
-        # scheduleJob("Stop", "search_rss_book")
-        # scheduleJob("StartNow", "search_rss_book")
+        # schedule_job("Stop", "search_book")
+        # schedule_job("StartNow", "search_book")
+        # schedule_job("Stop", "search_rss_book")
+        # schedule_job("StartNow", "search_rss_book")
         if new_books:
             threading.Thread(target=search_rss_book, name='WISHLISTRSSBOOKS',
                              args=[new_books, 'eBook']).start()
@@ -301,9 +301,9 @@ def search_rss_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
-    if not (lazylibrarian.USE_RSS()):
-        logger.warn('RSS search is disabled')
-        scheduleJob(action='Stop', target='search_rss_book')
+    if not (lazylibrarian.use_rss()):
+        logger.warn('rss search is disabled')
+        schedule_job(action='Stop', target='search_rss_book')
         return
     try:
         threadname = threading.currentThread().name
@@ -313,7 +313,7 @@ def search_rss_book(books=None, library=None):
             else:
                 threading.currentThread().name = "SEARCHRSS"
 
-        myDB = database.DBConnection()
+        db = database.DBConnection()
 
         searchbooks = []
         if not books:
@@ -321,7 +321,7 @@ def search_rss_book(books=None, library=None):
             cmd = 'SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus '
             cmd += 'from books,authors WHERE (books.Status="Wanted" OR AudioStatus="Wanted") '
             cmd += 'and books.AuthorID = authors.AuthorID order by BookAdded desc'
-            results = myDB.select(cmd)
+            results = db.select(cmd)
             for terms in results:
                 searchbooks.append(terms)
         else:
@@ -329,7 +329,7 @@ def search_rss_book(books=None, library=None):
             for book in books:
                 cmd = 'SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus '
                 cmd += 'from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID'
-                results = myDB.select(cmd, (book['bookid'],))
+                results = db.select(cmd, (book['bookid'],))
                 for terms in results:
                     searchbooks.append(terms)
 
@@ -337,13 +337,13 @@ def search_rss_book(books=None, library=None):
             logger.debug("SearchRSS - No books to search for")
             return
 
-        resultlist, nproviders, _ = IterateOverRSSSites()
+        resultlist, nproviders, _ = iterate_over_rss_sites()
         if not nproviders:
             logger.warn('No rss providers are available')
-            scheduleJob(action='Stop', target='search_rss_book')
+            schedule_job(action='Stop', target='search_rss_book')
             return  # No point in continuing
 
-        logger.info('RSS Searching for %i %s' % (len(searchbooks), plural(len(searchbooks), "book")))
+        logger.info('rss Searching for %i %s' % (len(searchbooks), plural(len(searchbooks), "book")))
 
         searchlist = []
         for searchbook in searchbooks:
@@ -359,7 +359,7 @@ def search_rss_book(books=None, library=None):
             if library is None or library == 'eBook':
                 if searchbook['Status'] == "Wanted":
                     cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
-                    snatched = myDB.match(cmd, (searchbook["BookID"],))
+                    snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
                         logger.warn('eBook %s %s already marked snatched in wanted table' %
                                     (searchbook['AuthorName'], searchbook['BookName']))
@@ -375,7 +375,7 @@ def search_rss_book(books=None, library=None):
             if library is None or library == 'AudioBook':
                 if searchbook['AudioStatus'] == "Wanted":
                     cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
-                    snatched = myDB.match(cmd, (searchbook["BookID"],))
+                    snatched = db.match(cmd, (searchbook["BookID"],))
                     if snatched:
                         logger.warn('AudioBook %s %s already marked snatched in wanted table' %
                                     (searchbook['AuthorName'], searchbook['BookName']))
@@ -397,20 +397,20 @@ def search_rss_book(books=None, library=None):
                 searchtype = 'audio'
             else:
                 searchtype = 'book'
-            found = processResultList(resultlist, book, searchtype, 'rss')
+            found = process_result_list(resultlist, book, searchtype, 'rss')
 
             # if you can't find the book, try title without any "(extended details, series etc)"
             if not found and '(' in book['bookName']:  # anything to shorten?
                 searchtype = 'short' + searchtype
-                found = processResultList(resultlist, book, searchtype, 'rss')
+                found = process_result_list(resultlist, book, searchtype, 'rss')
 
             if not found:
-                logger.info("RSS Searches for %s %s returned no results." % (book['library'], book['searchterm']))
+                logger.info("rss Searches for %s %s returned no results." % (book['library'], book['searchterm']))
             if found > 1:
                 rss_count += 1
 
-        logger.info("RSS Search for Wanted items complete, found %s %s" % (rss_count, plural(rss_count, "book")))
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        logger.info("rss Search for Wanted items complete, found %s %s" % (rss_count, plural(rss_count, "book")))
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
 
     except Exception:
         logger.error('Unhandled exception in search_rss_book: %s' % traceback.format_exc())

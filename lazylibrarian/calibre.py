@@ -17,14 +17,14 @@ import time
 import cherrypy
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import unaccented, getList
-from lazylibrarian.importer import addAuthorNameToDB, search_for, import_book
+from lazylibrarian.formatter import unaccented, get_list
+from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
     from lib.fuzzywuzzy import fuzz
-from lazylibrarian.common import runScript
+from lazylibrarian.common import run_script
 
 # calibredb custom_columns
 # calibredb add_custom_column label name bool
@@ -33,7 +33,7 @@ from lazylibrarian.common import runScript
 # calibredb search "#label":"false"  # returns list of ids (slow)
 
 
-def calibreList(col_read, col_toread):
+def calibre_list(col_read, col_toread):
     """ Get a list from calibre of all books in its library, including optional 'read' and 'toread' columns
         If success, return list of dicts {"title": "", "id": 0, "authors": ""}
         The "read" and "toread" columns are passed as column names so they can be per-user and may not be present.
@@ -54,12 +54,12 @@ def calibreList(col_read, col_toread):
         return json.loads(res)
 
 
-def syncCalibreList(col_read=None, col_toread=None, userid=None):
+def sync_calibre_list(col_read=None, col_toread=None, userid=None):
     """ Get the lazylibrarian bookid for each read/toread calibre book so we can map our id to theirs,
         and sync current/supplied user's read/toread or supplied read/toread columns to calibre database.
         Return message giving totals """
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     username = ''
     readlist = []
     toreadlist = []
@@ -68,16 +68,16 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
     if userid:
-        res = myDB.match('SELECT UserName,ToRead,HaveRead,CalibreRead,CalibreToRead,Perms from users where UserID=?',
-                         (userid,))
+        res = db.match('SELECT UserName,ToRead,HaveRead,CalibreRead,CalibreToRead,Perms from users where UserID=?',
+                       (userid,))
         if res:
             username = res['UserName']
             if not col_read:
                 col_read = res['CalibreRead']
             if not col_toread:
                 col_toread = res['CalibreToRead']
-            toreadlist = getList(res['ToRead'])
-            readlist = getList(res['HaveRead'])
+            toreadlist = get_list(res['ToRead'])
+            readlist = get_list(res['HaveRead'])
             # suppress duplicates (just in case)
             toreadlist = list(set(toreadlist))
             readlist = list(set(readlist))
@@ -117,23 +117,23 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
     if col_toread:
         toreadcol = '*' + col_toread
 
-    calibre_list = calibreList(col_read, col_toread)
-    if not isinstance(calibre_list, list):
+    calibrelist = calibre_list(col_read, col_toread)
+    if not isinstance(calibrelist, list):
         # got an error message from calibredb
-        return '"%s"' % calibre_list
+        return '"%s"' % calibrelist
 
-    for item in calibre_list:
+    for item in calibrelist:
         if toreadcol and toreadcol in item or readcol and readcol in item:
-            authorname, _, added = addAuthorNameToDB(item['authors'], refresh=False, addbooks=False,
-                                                     reason="syncCalibreList: %s" % item['title'],
-                                                     title=item['title'])
+            authorname, _, added = add_author_name_to_db(item['authors'], refresh=False, addbooks=False,
+                                                         reason="sync_calibre_list: %s" % item['title'],
+                                                         title=item['title'])
             if authorname:
                 if authorname != item['authors']:
                     logger.debug("Changed authorname for [%s] from [%s] to [%s]" %
                                  (item['title'], item['authors'], authorname))
                     item['authors'] = authorname
                 bookid, mtype = find_book_in_db(authorname, item['title'], ignored=False, library='eBook',
-                                                reason='syncCalibreList: %s' % item['title'])
+                                                reason='sync_calibre_list: %s' % item['title'])
                 if bookid and mtype == "Ignored":
                     logger.warn("Book %s by %s is marked Ignored in database, importing anyway" %
                                 (item['title'], authorname))
@@ -169,19 +169,19 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
         booklist = idlist[1]
         for bookid in booklist:
             cmd = "SELECT AuthorID,BookName from books where BookID=?"
-            book = myDB.match(cmd, (bookid,))
+            book = db.match(cmd, (bookid,))
             if not book:
                 logger.error('Error finding bookid %s' % bookid)
             else:
                 cmd = "SELECT AuthorName from authors where AuthorID=?"
-                author = myDB.match(cmd, (book['AuthorID'],))
+                author = db.match(cmd, (book['AuthorID'],))
                 if not author:
                     logger.error('Error finding authorid %s' % book['AuthorID'])
                 else:
                     match = False
                     high = 0
                     highname = ''
-                    for item in calibre_list:
+                    for item in calibrelist:
                         if item['authors'] == author['AuthorName'] and item['title'] == book['BookName']:
                             logger.debug("Exact match for %s [%s]" % (idlist[0], book['BookName']))
                             map_ctol[str(item['id'])] = str(bookid)
@@ -190,7 +190,7 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
                             break
                     if not match:
                         highid = ''
-                        for item in calibre_list:
+                        for item in calibrelist:
                             if item['authors'] == author['AuthorName']:
                                 n = fuzz.token_sort_ratio(item['title'], book['BookName'])
                                 if n > high:
@@ -222,14 +222,14 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
         calibre_toread = []
 
         cmd = 'select SyncList from sync where UserID=? and Label=?'
-        res = myDB.match(cmd, (userid, col_read))
+        res = db.match(cmd, (userid, col_read))
         if res:
-            last_read = getList(res['SyncList'])
-        res = myDB.match(cmd, (userid, col_toread))
+            last_read = get_list(res['SyncList'])
+        res = db.match(cmd, (userid, col_toread))
         if res:
-            last_toread = getList(res['SyncList'])
+            last_toread = get_list(res['SyncList'])
 
-        for item in calibre_list:
+        for item in calibrelist:
             if toreadcol and toreadcol in item and item[toreadcol]:  # only if True
                 if str(item['id']) in map_ctol:
                     calibre_toread.append(map_ctol[str(item['id'])])
@@ -282,8 +282,8 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
                 logger.debug("Lazylibrarian removed %s from to_read" % item)
                 calibre_changes += 1
         if calibre_changes:
-            myDB.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
-                        (', '.join(toreadlist), ', '.join(readlist), userid))
+            db.action('UPDATE users SET ToRead=?,HaveRead=? WHERE UserID=?',
+                      (', '.join(toreadlist), ', '.join(readlist), userid))
         ll_changes = 0
         for item in added_to_ll_toread:
             if item in map_ltoc:
@@ -349,18 +349,18 @@ def syncCalibreList(col_read=None, col_toread=None, userid=None):
                 logger.warn("Unable to clear calibre %s for %s" % (col_read, item))
 
         # store current sync list as comparison for next sync
-        controlValueDict = {"UserID": userid, "Label": col_read}
-        newValueDict = {"Date": str(time.time()), "Synclist": ', '.join(readlist)}
-        myDB.upsert("sync", newValueDict, controlValueDict)
-        controlValueDict = {"UserID": userid, "Label": col_toread}
-        newValueDict = {"Date": str(time.time()), "Synclist": ', '.join(toreadlist)}
-        myDB.upsert("sync", newValueDict, controlValueDict)
+        control_value_dict = {"UserID": userid, "Label": col_read}
+        new_value_dict = {"Date": str(time.time()), "Synclist": ', '.join(readlist)}
+        db.upsert("sync", new_value_dict, control_value_dict)
+        control_value_dict = {"UserID": userid, "Label": col_toread}
+        new_value_dict = {"Date": str(time.time()), "Synclist": ', '.join(toreadlist)}
+        db.upsert("sync", new_value_dict, control_value_dict)
 
         msg = "%s sync updated: %s calibre, %s lazylibrarian" % (username, ll_changes, calibre_changes)
     return msg
 
 
-def calibreTest():
+def calibre_test():
     res, err, rc = calibredb('--version')
     if rc:
         msg = "calibredb communication failed: "
@@ -435,7 +435,7 @@ def calibredb(cmd=None, prelib=None, postlib=None):
             params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],
                            '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])
     else:
-        dest_url = lazylibrarian.DIRECTORY('eBook')
+        dest_url = lazylibrarian.directory('eBook')
     if prelib:
         params.extend(prelib)
 
@@ -444,7 +444,7 @@ def calibredb(cmd=None, prelib=None, postlib=None):
     if postlib:
         params.extend(postlib)
 
-    rc, res, err = runScript(params)
+    rc, res, err = run_script(params)
     logger.debug("calibredb rc %s" % rc)
     wsp = re.escape(string.whitespace)
     nres = re.sub(r'['+wsp+']', ' ', res)

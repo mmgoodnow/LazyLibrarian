@@ -24,7 +24,7 @@ from six.moves.urllib_parse import urlencode, parse_qsl
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
-from lazylibrarian.formatter import plural, getList, check_int
+from lazylibrarian.formatter import plural, get_list, check_int
 from lazylibrarian.gr import GoodReads
 from six import PY2
 
@@ -40,7 +40,7 @@ token = ''
 user_id = ''
 
 
-class grauth:
+class GrAuth:
     def __init__(self):
         return
 
@@ -141,7 +141,7 @@ class grauth:
                                           secret=str(lazylibrarian.CONFIG['GR_SECRET']))
                 token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
                 client = oauth.Client(consumer, token)
-                user_id = self.getUserId()
+                user_id = self.get_userid()
                 if not user_id:
                     logger.warn("Goodreads userid error")
                     return ""
@@ -166,7 +166,7 @@ class grauth:
                                       secret=str(lazylibrarian.CONFIG['GR_SECRET']))
             token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
             client = oauth.Client(consumer, token)
-            user_id = self.getUserId()
+            user_id = self.get_userid()
             if not user_id:
                 logger.warn("Goodreads userid error")
                 return []
@@ -228,7 +228,7 @@ class grauth:
                                   secret=str(lazylibrarian.CONFIG['GR_SECRET']))
         token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
         client = oauth.Client(consumer, token)
-        user_id = self.getUserId()
+        user_id = self.get_userid()
         if not user_id:
             return False, "Goodreads userid error"
 
@@ -279,7 +279,7 @@ class grauth:
                                   secret=str(lazylibrarian.CONFIG['GR_SECRET']))
         token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
         client = oauth.Client(consumer, token)
-        user_id = self.getUserId()
+        user_id = self.get_userid()
         if not user_id:
             return False, "Goodreads userid error"
 
@@ -323,7 +323,7 @@ class grauth:
                                       secret=str(lazylibrarian.CONFIG['GR_SECRET']))
             token = oauth.Token(lazylibrarian.CONFIG['GR_OAUTH_TOKEN'], lazylibrarian.CONFIG['GR_OAUTH_SECRET'])
             client = oauth.Client(consumer, token)
-            user_id = self.getUserId()
+            user_id = self.get_userid()
             if not user_id:
                 logger.warn("Goodreads userid error")
                 return []
@@ -336,13 +336,13 @@ class grauth:
 
             while True:
                 current_page = current_page + 1
-                content = self.getShelfBooks(current_page, shelf)
+                content = self.get_shelf_books(current_page, shelf)
                 # noinspection PyUnresolvedReferences
                 xmldoc = xml.dom.minidom.parseString(content)
 
                 page_books = 0
                 for book in xmldoc.getElementsByTagName('book'):
-                    book_id, book_title = self.getBookInfo(book)
+                    book_id, book_title = self.get_book_info(book)
 
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                         try:
@@ -368,7 +368,7 @@ class grauth:
     # who are we?
     #
     @staticmethod
-    def getUserId():
+    def get_userid():
         global client, user_id
         gr_api_sleep()
 
@@ -395,7 +395,7 @@ class grauth:
     #
     # noinspection PyUnresolvedReferences
     @staticmethod
-    def getShelfBooks(page, shelf_name):
+    def get_shelf_books(page, shelf_name):
         global client, user_id
         data = '${base}/review/list?format=xml&v=2&id=${user_id}&sort=author&order=a'
         data += '&key=${key}&page=${page}&per_page=100&shelf=${shelf_name}'
@@ -423,14 +423,14 @@ class grauth:
     # grab id and title from a <book> node
     #
     @staticmethod
-    def getBookInfo(book):
+    def get_book_info(book):
         book_id = book.getElementsByTagName('id')[0].firstChild.nodeValue
         book_title = book.getElementsByTagName('title')[0].firstChild.nodeValue
         return book_id, book_title
 
     # noinspection PyUnresolvedReferences
     @staticmethod
-    def BookToList(book_id, shelf_name, action='add'):
+    def book_to_list(book_id, shelf_name, action='add'):
         global client
         if action == 'remove':
             body = urlencode({'name': shelf_name, 'book_id': book_id, 'a': 'remove'})
@@ -457,9 +457,9 @@ class grauth:
 
 def test_auth():
     global user_id
-    GA = grauth()
+    ga = GrAuth()
     try:
-        user_id = GA.get_user_id()
+        user_id = ga.get_user_id()
     except Exception as e:
         return "GR Auth %s: %s" % (type(e).__name__, str(e))
     if user_id:
@@ -483,10 +483,10 @@ def sync_to_gr():
     # noinspection PyBroadException
     try:
         threading.currentThread().name = 'GRSync'
-        myDB = database.DBConnection()
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
+        db = database.DBConnection()
+        db.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
         if lazylibrarian.CONFIG['GR_SYNCUSER']:
-            user = myDB.match("SELECT * from users WHERE UserID=?", (lazylibrarian.CONFIG['GR_USER'],))
+            user = db.match("SELECT * from users WHERE UserID=?", (lazylibrarian.CONFIG['GR_USER'],))
 
             if not user:
                 msg = 'Unable to sync user to goodreads, invalid userid'
@@ -576,15 +576,15 @@ def sync_to_gr():
                         msg += "%s %s to Audio Owned from GoodReads\n" % (len(ll_have), plural(len(ll_have), "change"))
 
         logger.info(msg.strip('\n').replace('\n', ', '))
-        myDB = database.DBConnection()
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
+        db = database.DBConnection()
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": "GRSYNC"})
     except Exception:
         logger.error("Exception in sync_to_gr: %s" % traceback.format_exc())
     finally:
-        # scheduleJob("Stop", "search_book")
-        # scheduleJob("StartNow", "search_book")
-        # scheduleJob("Stop", "search_rss_book")
-        # scheduleJob("StartNow", "search_rss_book")
+        # schedule_job("Stop", "search_book")
+        # schedule_job("StartNow", "search_book")
+        # schedule_job("Stop", "search_rss_book")
+        # schedule_job("StartNow", "search_rss_book")
         if new_books:
             threading.Thread(target=lazylibrarian.searchrss.search_rss_book, name='GRSYNCRSSBOOKS',
                              args=[new_books, 'eBook']).start()
@@ -601,8 +601,8 @@ def sync_to_gr():
 
 
 def grfollow(authorid, follow=True):
-    myDB = database.DBConnection()
-    match = myDB.match('SELECT AuthorName,GRfollow from authors WHERE authorid=?', (authorid,))
+    db = database.DBConnection()
+    match = db.match('SELECT AuthorName,GRfollow from authors WHERE authorid=?', (authorid,))
     if match:
         if follow:
             action = 'Follow'
@@ -613,8 +613,8 @@ def grfollow(authorid, follow=True):
             aname = authorid
             actionid = match['GRfollow']
 
-        GA = grauth()
-        res, msg = GA.follow_author(actionid, follow)
+        ga = GrAuth()
+        res, msg = ga.follow_author(actionid, follow)
         if res:
             if follow:
                 return "%s author %s, followid=%s" % (action, aname, msg)
@@ -628,7 +628,7 @@ def grfollow(authorid, follow=True):
 
 def grsync(status, shelf, library='eBook', reset=False, user=None):
     # noinspection PyBroadException
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     dstatus = status
     # noinspection PyBroadException
     try:
@@ -637,22 +637,22 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             usershelf = shelf + '_' + user['UserID']
             logger.info('Syncing %s %ss to %s shelf' % (status, library, shelf))
             if shelf == 'read':
-                ll_list = getList(user['HaveRead'])
+                ll_list = get_list(user['HaveRead'])
             elif shelf == 'currently-reading':
-                ll_list = getList(user['Reading'])
+                ll_list = get_list(user['Reading'])
             elif shelf == 'abandoned':
-                ll_list = getList(user['Abandoned'])
+                ll_list = get_list(user['Abandoned'])
             elif shelf == 'to-read':
-                ll_list = getList(user['ToRead'])
+                ll_list = get_list(user['ToRead'])
             else:  # if shelf == 'unread':
                 unread = set()
-                res = myDB.select("SELECT BookID from books where status in ('Open', 'Have')")
+                res = db.select("SELECT BookID from books where status in ('Open', 'Have')")
                 for item in res:
                     unread.add(item['BookID'])
                 read = set()
                 for item in ['HaveRead', 'To-Read', 'Reading', 'Abandoned']:
                     try:
-                        contents = set(getList(user[item]))
+                        contents = set(get_list(user[item]))
                     except IndexError:
                         contents = set()
                     read = read.union(contents)
@@ -671,7 +671,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     cmd = "select bookid from books where status in ('Wanted', 'Snatched', 'Matched')"
                 else:
                     cmd = "select bookid from books where status=?", (status,)
-                results = myDB.select(cmd)
+                results = db.select(cmd)
             elif library == 'AudioBook':
                 if status == 'Open':
                     cmd = "select bookid from books where audiostatus in ('Open', 'Have')"
@@ -679,7 +679,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     cmd = "select bookid from books where audiostatus in ('Wanted', 'Snatched', 'Matched')"
                 else:
                     cmd = "select bookid from books where audiostatus=%s" % status
-                results = myDB.select(cmd)
+                results = db.select(cmd)
             else:  # 'Audio/eBook'
                 if status == 'Open':
                     cmd = "select bookid from books where status in ('Open', 'Have')"
@@ -690,15 +690,15 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 else:
                     cmd = "select bookid from books where status=%s" % status
                     cmd += " or audiostatus=%s" % status
-                results = myDB.select(cmd)
+                results = db.select(cmd)
 
             ll_list = []
             for terms in results:
                 ll_list.append(terms['bookid'])
 
-        GA = grauth()
-        GR = None
-        shelves = GA.get_shelf_list()
+        ga = GrAuth()
+        gr = None
+        shelves = ga.get_shelf_list()
         found = False
         for item in shelves:  # type: dict
             if item['name'].lower() == shelf.lower():
@@ -706,21 +706,21 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 break
         if not found:
             if user:
-                res, msg = GA.create_shelf(shelf=shelf, exclusive=True)
+                res, msg = ga.create_shelf(shelf=shelf, exclusive=True)
             else:
-                res, msg = GA.create_shelf(shelf=shelf)
+                res, msg = ga.create_shelf(shelf=shelf)
             if not res:
                 logger.debug("Unable to create shelf %s: %s" % (shelf, msg))
                 return 0, []
             else:
                 # make sure no old info lying around
                 if user:
-                    myDB.match('DELETE from sync where UserID="goodreads" and Label=?', (usershelf,))
+                    db.match('DELETE from sync where UserID="goodreads" and Label=?', (usershelf,))
                 else:
-                    myDB.match('DELETE from sync where UserID="goodreads" and Label=?', (shelf,))
+                    db.match('DELETE from sync where UserID="goodreads" and Label=?', (shelf,))
                 logger.debug("Created new goodreads shelf: %s" % shelf)
 
-        gr_shelf = GA.get_gr_shelf_contents(shelf=shelf)
+        gr_shelf = ga.get_gr_shelf_contents(shelf=shelf)
 
         logger.info("There are %s %s %ss, %s on goodreads %s shelf" %
                     (len(ll_list), dstatus, library, len(gr_shelf), shelf))
@@ -729,7 +729,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             logger.info("Removing old goodreads shelf contents")
             for book in gr_shelf:
                 try:
-                    r, content = GA.BookToList(book, shelf, action='remove')
+                    r, content = ga.book_to_list(book, shelf, action='remove')
                 except Exception as e:
                     logger.error("Error removing %s from %s: %s %s" % (
                                     book, shelf, type(e).__name__, str(e)))
@@ -756,14 +756,14 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
         # For HAVE/OPEN method is the same, but only change status if HAVE, not OPEN
         if user:
-            res = myDB.match('select SyncList from sync where UserID="goodreads" and Label=?', (usershelf,))
+            res = db.match('select SyncList from sync where UserID="goodreads" and Label=?', (usershelf,))
         else:
-            res = myDB.match('select SyncList from sync where UserID="goodreads" and Label=?', (shelf,))
+            res = db.match('select SyncList from sync where UserID="goodreads" and Label=?', (shelf,))
         last_sync = []
         shelf_changed = 0
         ll_changed = []
         if res and not reset:
-            last_sync = getList(res['SyncList'])
+            last_sync = get_list(res['SyncList'])
 
         added_to_shelf = list(set(gr_shelf) - set(last_sync) - set(ll_list))
         removed_from_shelf = list(set(last_sync) - set(gr_shelf))
@@ -777,7 +777,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             for book in removed_from_ll:
                 # first the deletions since last sync...
                 try:
-                    res, content = GA.BookToList(book, shelf, action='remove')
+                    res, content = ga.book_to_list(book, shelf, action='remove')
                 except Exception as e:
                     logger.error("Error removing %s from %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
                     res = None
@@ -796,13 +796,13 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         for book in removed_from_shelf:
             # deleted from goodreads
             cmd = 'select Status,AudioStatus,BookName from books where BookID=?'
-            res = myDB.match(cmd, (book,))
+            res = db.match(cmd, (book,))
             if not res:
                 logger.debug('Adding new %s %s to database' % (library, book))
-                if not GR:
-                    GR = GoodReads(book)
-                GR.find_book(book, None, None, "Added by grsync")
-                res = myDB.match(cmd, (book,))
+                if not gr:
+                    gr = GoodReads(book)
+                gr.find_book(book, None, None, "Added by grsync")
+                res = db.match(cmd, (book,))
             if not res:
                 logger.warn('%s %s not found in database' % (library, book))
             elif user:
@@ -814,7 +814,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             else:
                 if 'eBook' in library:
                     if res['Status'] in ['Have', 'Wanted']:
-                        myDB.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (book,))
+                        db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
@@ -822,7 +822,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.warn("Adding book %s [%s] back to %s shelf" % (
                                         res['BookName'], book, lazylibrarian.CONFIG['GR_OWNED']))
                             try:
-                                _, _ = GA.BookToList(book, shelf, action='add')
+                                _, _ = ga.book_to_list(book, shelf, action='add')
                             except Exception as e:
                                 logger.error("Error adding %s back to %s: %s %s" % (
                                                 book, lazylibrarian.CONFIG['GR_OWNED'], type(e).__name__, str(e)))
@@ -832,7 +832,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
                 if 'Audio' in library:
                     if res['AudioStatus'] in ['Have', 'Wanted']:
-                        myDB.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (book,))
+                        db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Skipped" % book)
                     else:
@@ -840,7 +840,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             logger.warn("Adding audiobook %s [%s] back to %s shelf" % (
                                         res['BookName'], book, lazylibrarian.CONFIG['GR_AOWNED']))
                             try:
-                                _, _ = GA.BookToList(book, shelf, action='add')
+                                _, _ = ga.book_to_list(book, shelf, action='add')
                             except Exception as e:
                                 logger.error("Error adding %s back to %s: %s %s" % (
                                                 book, lazylibrarian.CONFIG['GR_AOWNED'], type(e).__name__, str(e)))
@@ -855,7 +855,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         if not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
             for book in added_to_ll:
                 try:
-                    res, content = GA.BookToList(book, shelf, action='add')
+                    res, content = ga.book_to_list(book, shelf, action='add')
                 except Exception as e:
                     logger.error("Error adding %s to %s: %s %s" % (book, shelf, type(e).__name__, str(e)))
                     res = None
@@ -865,7 +865,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     shelf_changed += 1
                 else:
                     if '404' in content:
-                        bookinfo = myDB.match("SELECT BookName from books where BookID=?", (book,))
+                        bookinfo = db.match("SELECT BookName from books where BookID=?", (book,))
                         if bookinfo:
                             content = "Not Found:%s: %s", (content, book, bookinfo['BookName'])
                     logger.warn("Failed to add %s to %s shelf: %s" % (book, shelf, content))
@@ -876,13 +876,13 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
             logger.debug(', '.join(added_to_shelf))
         for book in added_to_shelf:
             cmd = 'select Status,AudioStatus,BookName from books where BookID=?'
-            res = myDB.match(cmd, (book,))
+            res = db.match(cmd, (book,))
             if not res:
                 logger.debug('Adding new book %s to database' % book)
-                if not GR:
-                    GR = GoodReads(book)
-                GR.find_book(book, None, None, "Added by grsync")
-                res = myDB.match(cmd, (book,))
+                if not gr:
+                    gr = GoodReads(book)
+                gr.find_book(book, None, None, "Added by grsync")
+                res = db.match(cmd, (book,))
             if not res:
                 logger.warn('Book %s not found in database' % book)
             elif user:
@@ -892,11 +892,11 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 perm = check_int(user['Perms'], 0)
                 if status == 'Wanted' and perm & lazylibrarian.perm_status:
                     if lazylibrarian.SHOW_EBOOK and res['Status'] not in ['Open', 'Have']:
-                        myDB.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
+                        db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
                     if lazylibrarian.SHOW_AUDIO and res['AudioStatus'] not in ['Open', 'Have']:
-                        myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
+                        db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
             else:
@@ -906,7 +906,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
-                            myDB.action("UPDATE books SET Status='Have' WHERE BookID=?", (book,))
+                            db.action("UPDATE books SET Status='Have' WHERE BookID=?", (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Have" % book)
                     elif status == 'Wanted':
@@ -915,7 +915,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         if lazylibrarian.CONFIG['GR_UNIQUE'] and res['Status'] in ['Open', 'Have'] \
                                 and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
                             try:
-                                r, content = GA.BookToList(book, shelf, action='remove')
+                                r, content = ga.book_to_list(book, shelf, action='remove')
                             except Exception as e:
                                 logger.error("Error removing %s [%s] from %s: %s %s" % (
                                              res['BookName'], book, shelf, type(e).__name__, str(e)))
@@ -927,7 +927,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             else:
                                 logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['Status'] not in ['Open', 'Have']:
-                            myDB.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
+                            db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
@@ -939,7 +939,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
-                            myDB.action("UPDATE books SET AudioStatus='Have' WHERE BookID=?", (book,))
+                            db.action("UPDATE books SET AudioStatus='Have' WHERE BookID=?", (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Have" % book)
                     elif status == 'Wanted':
@@ -948,7 +948,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         if lazylibrarian.CONFIG['GR_UNIQUE'] and res['AudioStatus'] in ['Open', 'Have'] \
                                 and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
                             try:
-                                r, content = GA.BookToList(book, shelf, action='remove')
+                                r, content = ga.book_to_list(book, shelf, action='remove')
                             except Exception as e:
                                 logger.error("Error removing %s [%s] from %s: %s %s" % (
                                              res['BookName'], book, shelf, type(e).__name__, str(e)))
@@ -960,7 +960,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                             else:
                                 logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
                         elif res['AudioStatus'] not in ['Open', 'Have']:
-                            myDB.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
+                            db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                             ll_changed.append(book)
                             logger.debug("%10s set to Wanted" % book)
                         else:
@@ -969,31 +969,31 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
 
         # set new definitive list for ll
         if user:
-            newValueDict = {}
-            controlValueDict = {"UserID": user['UserID']}
+            new_value_dict = {}
+            control_value_dict = {"UserID": user['UserID']}
             ll_set = set(ll_list)
             count = len(ll_set)
             books = ', '.join(str(x) for x in ll_set)
 
             if shelf == 'read':
-                newValueDict = {'HaveRead': books}
+                new_value_dict = {'HaveRead': books}
             elif shelf == 'currently-reading':
-                newValueDict = {'Reading': books}
+                new_value_dict = {'Reading': books}
             elif shelf == 'to-read':
-                newValueDict = {'ToRead': books}
+                new_value_dict = {'ToRead': books}
             elif shelf == 'abandoned':
-                newValueDict = {'Abandoned': books}
-            if newValueDict:
-                myDB.upsert("users", newValueDict, controlValueDict)
+                new_value_dict = {'Abandoned': books}
+            if new_value_dict:
+                db.upsert("users", new_value_dict, control_value_dict)
 
                 if shelf_changed:
                     for exclusive_shelf in ['HaveRead', 'ToRead', 'Reading' 'Abandoned']:
-                        if exclusive_shelf not in newValueDict:
-                            old_set = set(getList(user[exclusive_shelf]))
+                        if exclusive_shelf not in new_value_dict:
+                            old_set = set(get_list(user[exclusive_shelf]))
                             new_set = old_set - ll_set
                             if len(old_set) != len(new_set):
                                 new_list = ', '.join(str(x) for x in new_set)
-                                myDB.upsert("users", {exclusive_shelf: new_list}, controlValueDict)
+                                db.upsert("users", {exclusive_shelf: new_list}, control_value_dict)
                                 logger.debug("Removed duplicates from %s shelf" % exclusive_shelf)
         else:
             # get new definitive list from ll
@@ -1005,14 +1005,14 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     cmd += ' or audiostatus=?'
                     if status == 'Open':
                         cmd += " or audiostatus='Have'"
-                    results = myDB.select(cmd, (status, status))
+                    results = db.select(cmd, (status, status))
                 else:
-                    results = myDB.select(cmd, (status,))
+                    results = db.select(cmd, (status,))
             else:
                 cmd = 'select bookid from books where audiostatus=?'
                 if status == 'Open':
                     cmd += " or audiostatus='Have'"
-                results = myDB.select(cmd, (status,))
+                results = db.select(cmd, (status,))
 
             ll_list = []
             for terms in results:
@@ -1024,14 +1024,14 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         # store as comparison for next sync
         if shelf != 'unread':
             if user:
-                controlValueDict = {"UserID": "goodreads", "Label": usershelf}
+                control_value_dict = {"UserID": "goodreads", "Label": usershelf}
             else:
-                controlValueDict = {"UserID": "goodreads", "Label": shelf}
-            newValueDict = {"Date": str(time.time()), "Synclist": books}
+                control_value_dict = {"UserID": "goodreads", "Label": shelf}
+            new_value_dict = {"Date": str(time.time()), "Synclist": books}
             # goodreads user does not exist in user table
-            myDB.action('PRAGMA foreign_keys = OFF')
-            myDB.upsert("sync", newValueDict, controlValueDict)
-            myDB.action('PRAGMA foreign_keys = ON')
+            db.action('PRAGMA foreign_keys = OFF')
+            db.upsert("sync", new_value_dict, control_value_dict)
+            db.action('PRAGMA foreign_keys = ON')
         logger.debug('Sync %s to %s shelf complete, contains %s' % (status, shelf, count))
         return shelf_changed, ll_changed
 

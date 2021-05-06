@@ -25,8 +25,8 @@ from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import getUserAgent, proxyList, listdir, path_isfile, path_isdir, syspath, remove
-from lazylibrarian.formatter import check_int, md5_utf8, makeBytestr, seconds_to_midnight, plural, makeUnicode
+from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, remove
+from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode
 
 
 def gr_api_sleep():
@@ -53,14 +53,14 @@ def cv_api_sleep():
     lazylibrarian.LAST_COMICVINE = time_now
 
 
-def fetchURL(URL, headers=None, retry=True, raw=None):
+def fetch_url(url, headers=None, retry=True, raw=None):
     """ Return the result of fetching a URL and True if success
         Otherwise return error message and False
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
-    URL = makeUnicode(URL)
-    if 'googleapis' in URL:
+    url = make_unicode(url)
+    if 'googleapis' in url:
         lazylibrarian.GB_CALLS += 1
         for entry in lazylibrarian.PROVIDER_BLOCKLIST:
             if entry["name"] == 'googleapis':
@@ -79,26 +79,26 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
     if headers is None:
         # some sites insist on having a user-agent, default is to add one
         # if you don't want any headers, send headers=[]
-        headers = {'User-Agent': getUserAgent()}
-    proxies = proxyList()
+        headers = {'User-Agent': get_user_agent()}
+    proxies = proxy_list()
     try:
         # jackett query all indexers needs a longer timeout
         # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
-        if '/torznab/' in URL and ('/all/' in URL or '/aggregate/' in URL):
+        if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
             timeout = check_int(lazylibrarian.CONFIG['HTTP_EXT_TIMEOUT'], 90)
         else:
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        if URL.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-            r = requests.get(URL, headers=headers, timeout=timeout, proxies=proxies,
+        if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            r = requests.get(url, headers=headers, timeout=timeout, proxies=proxies,
                              verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
         else:
-            r = requests.get(URL, headers=headers, timeout=timeout, proxies=proxies, verify=False)
+            r = requests.get(url, headers=headers, timeout=timeout, proxies=proxies, verify=False)
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             if raw:
                 return r.content, True
             return r.text, True
-        elif r.status_code == 403 and 'googleapis' in URL:
+        elif r.status_code == 403 and 'googleapis' in url:
             logger.debug(r.text)
             # noinspection PyBroadException
             try:
@@ -132,16 +132,16 @@ def fetchURL(URL, headers=None, retry=True, raw=None):
         return "Response status %s: %s" % (r.status_code, msg), False
     except requests.exceptions.Timeout as e:
         if not retry:
-            logger.error("fetchURL: Timeout getting response from %s" % URL)
+            logger.error("fetch_url: Timeout getting response from %s" % url)
             return "Timeout %s" % str(e), False
-        logger.debug("fetchURL: retrying - got timeout on %s" % URL)
-        result, success = fetchURL(URL, headers=headers, retry=False, raw=raw)
+        logger.debug("fetch_url: retrying - got timeout on %s" % url)
+        result, success = fetch_url(url, headers=headers, retry=False, raw=raw)
         return result, success
     except Exception as e:
         return "Exception %s: %s" % (type(e).__name__, str(e)), False
 
 
-def cache_img(img_type, img_ID, img_url, refresh=False):
+def cache_img(img_type, img_id, img_url, refresh=False):
     """ Cache the image from the given filename or URL in the local images cache
         linked to the id, return the link to the cached file, success, was_in_cache
         or error message, False, False if failed to cache """
@@ -150,15 +150,15 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
         logger.error('Internal error in cache_img, img_type = [%s]' % img_type)
         img_type = 'book'
 
-    cachefile = os.path.join(lazylibrarian.CACHEDIR, img_type, img_ID + '.jpg')
-    link = 'cache/%s/%s.jpg' % (img_type, img_ID)
+    cachefile = os.path.join(lazylibrarian.CACHEDIR, img_type, img_id + '.jpg')
+    link = 'cache/%s/%s.jpg' % (img_type, img_id)
     if path_isfile(cachefile) and not refresh:  # overwrite any cached image
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
             logger.debug("Cached %s image exists %s" % (img_type, cachefile))
         return link, True, True
 
     if img_url.startswith('http'):
-        result, success = fetchURL(img_url, raw=True)
+        result, success = fetch_url(img_url, raw=True)
         if success:
             try:
                 with open(syspath(cachefile), 'wb') as img:
@@ -185,37 +185,37 @@ def cache_img(img_type, img_ID, img_url, refresh=False):
     return msg, False, False
 
 
-def gr_xml_request(my_url, useCache=True, expire=True):
+def gr_xml_request(my_url, use_cache=True, expire=True):
     # respect goodreads api limit
-    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="XML", expire=expire)
+    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="XML", expire=expire)
     return result, in_cache
 
 
-def json_request(my_url, useCache=True, expire=True):
-    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="JSON", expire=expire)
+def json_request(my_url, use_cache=True, expire=True):
+    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="JSON", expire=expire)
     return result, in_cache
 
 
-def html_request(my_url, useCache=True, expire=True):
-    result, in_cache = get_cached_request(url=my_url, useCache=useCache, cache="HTML", expire=expire)
+def html_request(my_url, use_cache=True, expire=True):
+    result, in_cache = get_cached_request(url=my_url, use_cache=use_cache, cache="HTML", expire=expire)
     return result, in_cache
 
 
-def get_cached_request(url, useCache=True, cache="XML", expire=True):
+def get_cached_request(url, use_cache=True, cache="XML", expire=True):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
     # if not, read url and store the result in the cache
     # return the result, and boolean True if source was cache
     #
-    cacheLocation = cache + "Cache"
-    cacheLocation = os.path.join(lazylibrarian.CACHEDIR, cacheLocation)
+    cache_location = cache + "Cache"
+    cache_location = os.path.join(lazylibrarian.CACHEDIR, cache_location)
     myhash = md5_utf8(url)
     valid_cache = False
     source = None
-    hashfilename = os.path.join(cacheLocation, myhash[0], myhash[1], myhash + "." + cache.lower())
+    hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + cache.lower())
     expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
 
-    if useCache and path_isfile(hashfilename):
+    if use_cache and path_isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
         time_now = time.time()
         if expire and cache_modified_time < time_now - expiry:
@@ -269,9 +269,9 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
         if cache == 'XML':
             gr_api_sleep()
-            result, success = fetchURL(url, raw=True)
+            result, success = fetch_url(url, raw=True)
         else:
-            result, success = fetchURL(url)
+            result, success = fetch_url(url)
 
         if success:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
@@ -287,11 +287,11 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
                     return None, False
                 json.dump(source, open(hashfilename, "w"))
             elif cache == "HTML":
-                source = makeBytestr(result)
+                source = make_bytestr(result)
                 with open(syspath(hashfilename), "wb") as cachefile:
                     cachefile.write(source)
             elif cache == "XML":
-                result = makeBytestr(result)
+                result = make_bytestr(result)
                 if result and result.startswith(b'<?xml'):
                     try:
                         source = ElementTree.fromstring(result)
@@ -325,7 +325,7 @@ def get_cached_request(url, useCache=True, cache="XML", expire=True):
     return source, valid_cache
 
 
-def cleanCache():
+def clean_cache():
     """ Remove unused files from the cache - delete if expired or unused.
         Check JSONCache  WorkCache  XMLCache  SeriesCache Author  Book  Magazine  Comic  IRC
         Check covers and authorimages etc referenced in the database exist
@@ -335,8 +335,8 @@ def cleanCache():
     if "Thread-" in threadname:
         threading.currentThread().name = "CLEANCACHE"
 
-    myDB = database.DBConnection()
-    myDB.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
+    db = database.DBConnection()
+    db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
     result = []
     expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)
     cache = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
@@ -392,7 +392,7 @@ def cleanCache():
                     except IndexError:
                         logger.error('Clean Cache: Error splitting %s' % cached_file)
                         continue
-                    item = myDB.match('select BookID from books where BookID=?', (bookid,))
+                    item = db.match('select BookID from books where BookID=?', (bookid,))
                     if not item:
                         # WorkPage no longer referenced in database, delete cached_file
                         remove(os.path.join(cache, i, j, cached_file))
@@ -413,7 +413,7 @@ def cleanCache():
             except IndexError:
                 logger.error('Clean Cache: Error splitting %s' % cached_file)
                 continue
-            item = myDB.match('select SeriesID from series where SeriesID=?', (seriesid,))
+            item = db.match('select SeriesID from series where SeriesID=?', (seriesid,))
             if not item:
                 # SeriesPage no longer referenced in database, delete cached_file
                 remove(os.path.join(cache, cached_file))
@@ -429,7 +429,7 @@ def cleanCache():
     kept = 0
     if path_isdir(cache):
         for cached_file in listdir(cache):
-            item = myDB.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
+            item = db.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
             if not item:
                 remove(os.path.join(cache, cached_file))
                 cleaned += 1
@@ -445,7 +445,7 @@ def cleanCache():
     cachedir = os.path.join(cache, 'author')
     try:
         if path_isdir(cachedir):
-            res = myDB.select('SELECT AuthorImg from authors where AuthorImg like "cache/author/%"')
+            res = db.select('SELECT AuthorImg from authors where AuthorImg like "cache/author/%"')
             images = []
             for item in res:
                 images.append(item['AuthorImg'][13:])
@@ -468,7 +468,7 @@ def cleanCache():
     kept = 0
     try:
         if path_isdir(cachedir):
-            res = myDB.select('SELECT BookImg from books where BookImg like "cache/book/%"')
+            res = db.select('SELECT BookImg from books where BookImg like "cache/book/%"')
             images = []
             for item in res:
                 images.append(item['BookImg'][11:])
@@ -500,7 +500,7 @@ def cleanCache():
     logger.debug(msg)
 
     # verify the cover images referenced in the database are present
-    images = myDB.select('select BookImg,BookName,BookID from books')
+    images = db.select('select BookImg,BookName,BookID from books')
     cachedir = os.path.join(lazylibrarian.CACHEDIR, 'book')
     cleaned = 0
     kept = 0
@@ -520,14 +520,14 @@ def cleanCache():
         else:
             cleaned += 1
             logger.debug('Cover missing for %s %s' % (item['BookName'], imgfile))
-            myDB.action('update books set BookImg="images/nocover.png" where Bookid=?', (item['BookID'],))
+            db.action('update books set BookImg="images/nocover.png" where Bookid=?', (item['BookID'],))
 
     msg = "Cleaned %i missing %s, kept %i" % (cleaned, plural(cleaned, "cover"), kept)
     result.append(msg)
     logger.debug(msg)
 
     # verify the author images referenced in the database are present
-    images = myDB.action('select AuthorImg,AuthorName,AuthorID from authors')
+    images = db.action('select AuthorImg,AuthorName,AuthorID from authors')
     cachedir = os.path.join(lazylibrarian.CACHEDIR, 'author')
     cleaned = 0
     kept = 0
@@ -547,7 +547,7 @@ def cleanCache():
         else:
             cleaned += 1
             logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
-            myDB.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
+            db.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
 
     msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)
@@ -558,22 +558,22 @@ def cleanCache():
         time_now = time.time()
         too_old = time_now - (expiry * 24 * 60 * 60)
         # delete any pastissues table entries that are too old
-        count = myDB.match('SELECT COUNT(*) as counter from pastissues')
+        count = db.match('SELECT COUNT(*) as counter from pastissues')
         if count:
             total = count['counter']
         else:
             total = 0
 
-        count = myDB.match("SELECT COUNT(*) as counter from pastissues WHERE Added>0 and Added<?", (too_old,))
+        count = db.match("SELECT COUNT(*) as counter from pastissues WHERE Added>0 and Added<?", (too_old,))
         if count:
             old = count['counter']
         else:
             old = 0
-        myDB.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
+        db.action("DELETE from pastissues WHERE Added>0 and Added<?", (too_old,))
         msg = "Cleaned %i old pastissues, kept %i" % (old, total - old)
         result.append(msg)
         logger.debug(msg)
-    myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
+    db.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
 
     threading.currentThread().name = threadname
     return result

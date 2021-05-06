@@ -21,27 +21,27 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.common import safe_move, walk, make_dirs, setperm, path_exists, path_isdir, path_isfile, syspath
-from lazylibrarian.formatter import getList, is_valid_booktype, plural, makeBytestr, \
+from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
-from lazylibrarian.images import createMagCover
+from lazylibrarian.images import create_mag_cover
 from six import PY2
 
 
 def create_id(issuename=None):
-    hashID = sha1(makeBytestr(issuename)).hexdigest()
+    hash_id = sha1(make_bytestr(issuename)).hexdigest()
     # logger.debug('Issue %s Hash: %s' % (issuename, hashID))
-    return hashID
+    return hash_id
 
 
-def magazineScan(title=None):
+def magazine_scan(title=None):
     lazylibrarian.MAG_UPDATE = 1
 
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
         if lazylibrarian.CONFIG['MAG_RELATIVE']:
-            mag_path = os.path.join(lazylibrarian.DIRECTORY('eBook'), mag_path)
+            mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
         if PY2:
             mag_path = mag_path.encode(lazylibrarian.SYS_ENCODING)
 
@@ -58,7 +58,7 @@ def magazineScan(title=None):
             return
 
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
-            mags = myDB.select('select * from Issues')
+            mags = db.select('select * from Issues')
             # check all the issues are still there, delete entry if not
             for mag in mags:
                 title = mag['Title']
@@ -66,33 +66,33 @@ def magazineScan(title=None):
                 issuefile = mag['IssueFile']
 
                 if issuefile and not path_isfile(issuefile):
-                    myDB.action('DELETE from Issues where issuefile=?', (issuefile,))
+                    db.action('DELETE from Issues where issuefile=?', (issuefile,))
                     logger.info('Issue %s - %s deleted as not found on disk' % (title, issuedate))
-                    controlValueDict = {"Title": title}
-                    newValueDict = {
+                    control_value_dict = {"Title": title}
+                    new_value_dict = {
                         "LastAcquired": None,  # clear magazine dates
                         "IssueDate": None,  # we will fill them in again later
                         "LatestCover": None,
                         "IssueStatus": "Skipped"  # assume there are no issues now
                     }
-                    myDB.upsert("magazines", newValueDict, controlValueDict)
+                    db.upsert("magazines", new_value_dict, control_value_dict)
                     logger.debug('Magazine %s details reset' % title)
 
             # now check the magazine titles and delete any with no issues
             if lazylibrarian.CONFIG['MAG_DELFOLDER']:
-                mags = myDB.select('SELECT Title,count(Title) as counter from issues group by Title')
+                mags = db.select('SELECT Title,count(Title) as counter from issues group by Title')
                 for mag in mags:
                     title = mag['Title']
                     issues = mag['counter']
                     if not issues:
                         logger.debug('Magazine %s deleted as no issues found' % title)
-                        myDB.action('DELETE from magazines WHERE Title=?', (title,))
+                        db.action('DELETE from magazines WHERE Title=?', (title,))
 
         logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['MAG_TYPE']))
 
         booktypes = ''
         count = -1
-        booktype_list = getList(lazylibrarian.CONFIG['MAG_TYPE'])
+        booktype_list = get_list(lazylibrarian.CONFIG['MAG_TYPE'])
         for book_type in booktype_list:
             count += 1
             if count == 0:
@@ -103,14 +103,14 @@ def magazineScan(title=None):
         # massage the MAG_DEST_FILE config parameter into something we can use
         # with regular expression matching
         # only escape the non-alpha characters as python 3.7 reserves escaped alpha
-        matchString = ''
+        match_string = ''
         matchto = lazylibrarian.CONFIG['MAG_DEST_FILE']
         for char in matchto:
             if not char.isalpha():
-                matchString = matchString + '\\'
-            matchString = matchString + char
+                match_string = match_string + '\\'
+            match_string = match_string + char
 
-        match = matchString.replace(
+        match = match_string.replace(
             "\\$IssueDate", "(?P<issuedate>.*?)").replace(
             "\\$Title", "(?P<title>.*?)") + r'\.[' + booktypes + ']'
 
@@ -184,12 +184,12 @@ def magazineScan(title=None):
                         # is this magazine already in the database?
                         cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage from magazines '
                         cmd += 'WHERE Title=? COLLATE NOCASE'
-                        mag_entry = myDB.match(cmd, (title,))
+                        mag_entry = db.match(cmd, (title,))
                         if not mag_entry:
                             # need to add a new magazine to the database
                             # title = title.title()
-                            controlValueDict = {"Title": title}
-                            newValueDict = {
+                            control_value_dict = {"Title": title}
+                            new_value_dict = {
                                 "Reject": None,
                                 "Status": "Active",
                                 "MagazineAdded": None,
@@ -201,7 +201,7 @@ def magazineScan(title=None):
                                 "CoverPage": 1
                             }
                             logger.debug("Adding magazine %s" % title)
-                            myDB.upsert("magazines", newValueDict, controlValueDict)
+                            db.upsert("magazines", new_value_dict, control_value_dict)
                             magissuedate = None
                             magazineadded = None
                             maglastacquired = None
@@ -240,7 +240,7 @@ def magazineScan(title=None):
                             new_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
                                                                                        '$IssueDate', filedate)
                             if lazylibrarian.CONFIG['MAG_RELATIVE']:
-                                new_path = os.path.join(lazylibrarian.DIRECTORY('eBook'), new_path)
+                                new_path = os.path.join(lazylibrarian.directory('eBook'), new_path)
                             if PY2:
                                 new_path = new_path.encode(lazylibrarian.SYS_ENCODING)
 
@@ -268,13 +268,13 @@ def magazineScan(title=None):
 
                         # is this issue already in the database?
                         issue_id = create_id("%s %s" % (title, issuedate))
-                        iss_entry = myDB.match('SELECT Title,IssueFile from issues WHERE Title=? and IssueDate=?',
-                                               (title, issuedate))
+                        iss_entry = db.match('SELECT Title,IssueFile from issues WHERE Title=? and IssueDate=?',
+                                             (title, issuedate))
 
                         new_entry = False
                         myhash = uuid.uuid4().hex
                         if not iss_entry or iss_entry['IssueFile'] != issuefile:
-                            coverfile = createMagCover(issuefile,  pagenum=magcoverpage, refresh=new_entry)
+                            coverfile = create_mag_cover(issuefile, pagenum=magcoverpage, refresh=new_entry)
                             if coverfile:
                                 hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                                 copyfile(coverfile, hashname)
@@ -287,14 +287,14 @@ def magazineScan(title=None):
                                 logger.debug("Adding issue %s %s" % (title, issuedate))
                             else:
                                 logger.debug("Updating issue %s %s" % (title, issuedate))
-                            controlValueDict = {"Title": title, "IssueDate": issuedate}
-                            newValueDict = {
+                            control_value_dict = {"Title": title, "IssueDate": issuedate}
+                            new_value_dict = {
                                 "IssueAcquired": iss_acquired,
                                 "IssueID": issue_id,
                                 "IssueFile": issuefile,
                                 "Cover": cover
                             }
-                            myDB.upsert("Issues", newValueDict, controlValueDict)
+                            db.upsert("Issues", new_value_dict, control_value_dict)
                         else:
                             logger.debug("Issue %s %s already exists" % (title, issuedate))
 
@@ -306,46 +306,46 @@ def magazineScan(title=None):
                             logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
                         if not lazylibrarian.CONFIG['IMP_MAGOPF']:
-                            logger.debug('createMAGOPF is disabled')
+                            logger.debug('create_mag_opf is disabled')
                         else:
                             if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                                 authors = title
                             else:
                                 authors = 'magazines'
-                            lazylibrarian.postprocess.createMAGOPF(issuefile, authors, title, issuedate,
-                                                                   issue_id, overwrite=new_entry)
+                            lazylibrarian.postprocess.create_mag_opf(issuefile, authors, title, issuedate,
+                                                                     issue_id, overwrite=new_entry)
 
                         # see if this issues date values are useful
-                        controlValueDict = {"Title": title}
+                        control_value_dict = {"Title": title}
                         if not mag_entry:  # new magazine, this is the only issue
                             # controlValueDict = {"Title": title.title()}
-                            newValueDict = {
+                            new_value_dict = {
                                 "MagazineAdded": iss_acquired,
                                 "LastAcquired": iss_acquired,
                                 "LatestCover": 'cache/magazine/%s.jpg' % myhash,
                                 "IssueDate": issuedate,
                                 "IssueStatus": "Open"
                             }
-                            myDB.upsert("magazines", newValueDict, controlValueDict)
+                            db.upsert("magazines", new_value_dict, control_value_dict)
                         else:
                             # Set magazine_issuedate to issuedate of most recent issue we have
                             # Set latestcover to most recent issue cover
                             # Set magazine_added to acquired date of earliest issue we have
                             # Set magazine_lastacquired to acquired date of most recent issue we have
                             # acquired dates are read from magazine file timestamps
-                            newValueDict = {"IssueStatus": "Open"}
+                            new_value_dict = {"IssueStatus": "Open"}
                             if not magazineadded or iss_acquired < magazineadded:
-                                newValueDict["MagazineAdded"] = iss_acquired
+                                new_value_dict["MagazineAdded"] = iss_acquired
                             if not maglastacquired or iss_acquired > maglastacquired:
-                                newValueDict["LastAcquired"] = iss_acquired
+                                new_value_dict["LastAcquired"] = iss_acquired
                             if not magissuedate or magissuedate == 'None' or issuedate >= magissuedate:
-                                newValueDict["IssueDate"] = issuedate
-                                newValueDict["LatestCover"] = 'cache/magazine/%s.jpg' % myhash
-                            myDB.upsert("magazines", newValueDict, controlValueDict)
+                                new_value_dict["IssueDate"] = issuedate
+                                new_value_dict["LatestCover"] = 'cache/magazine/%s.jpg' % myhash
+                            db.upsert("magazines", new_value_dict, control_value_dict)
 
             if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
-                magcount = myDB.match("select count(*) from magazines")
-                isscount = myDB.match("select count(*) from issues")
+                magcount = db.match("select count(*) from magazines")
+                isscount = db.match("select count(*) from issues")
                 logger.info("Magazine scan complete, found %s %s, %s %s" %
                             (magcount['count(*)'], plural(magcount['count(*)'], "magazine"),
                              isscount['count(*)'], plural(isscount['count(*)'], "issue")))
@@ -355,4 +355,4 @@ def magazineScan(title=None):
 
     except Exception:
         lazylibrarian.MAG_UPDATE = 0
-        logger.error('Unhandled exception in magazineScan: %s' % traceback.format_exc())
+        logger.error('Unhandled exception in magazine_scan: %s' % traceback.format_exc())

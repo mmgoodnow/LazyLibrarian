@@ -5,9 +5,9 @@
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <ul id="subhead_menu">
-      <li><a href="authorPage?AuthorID=${series['AuthorID']}" id="button"> Return to Author</a></li>
-      <li><a href="series?AuthorID=${series['AuthorID']}" id="button"> Series List</a></li>
-      <li><a href="refreshAuthor?AuthorID=${series['AuthorID']}" id="button"> Refresh Author</a></li>
+      <li><a href="author_page?authorid=${series['AuthorID']}" id="button"> Return to Author</a></li>
+      <li><a href="series?authorid=${series['AuthorID']}" id="button"> Series List</a></li>
+      <li><a href="refresh_author?authorid=${series['AuthorID']}" id="button"> Refresh Author</a></li>
     </ul>
   </div>
 </%def>
@@ -18,11 +18,11 @@
   %else:
   <h1>&nbsp;&nbsp;${series['AuthorName']} : ${title}</h1>
   %endif
-  <form action="markBooks" method="get">
+  <form action="mark_books" method="get">
     <input type="hidden" name="redirect" value="members">
     <input type="hidden" name="seriesid" value="${series['SeriesID']}">
     <label>&nbsp;&nbsp;Mark selected as: </label>
-    <select class="markBooks" name="action" id="action">
+    <select class="mark_books" name="action" id="action">
       %for item in ["Wanted", "Have", "Ignored", "Skipped", "Remove", "Delete"]:
       <option value="${item}"
             %if whichStatus == item:
@@ -31,7 +31,7 @@
             >${item}</option>
       %endfor
     </select>
-    <input type="submit" class="markBooks" id="go" value="Go">
+    <input type="submit" class="mark_books" id="go" value="Go">
     <br>
     <br>
     <table class="display" id="book_table" style="width:100%;">
@@ -63,7 +63,7 @@
           %endif
           <td id="seriesNum">${result['SeriesNum']}</td>
           <td id="status">${result['Status']}</td>
-          <td id="select"><a class="button orange" href="editBook?bookid=${result['BookID']}" title="Select">Edit</a></p>
+          <td id="select"><a class="button orange" href="edit_book?bookid=${result['BookID']}" title="Select">Edit</a></p>
         </td>
       </tr>
       %endfor

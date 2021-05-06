@@ -29,8 +29,8 @@ except ImportError:
     import lib.requests as requests
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import getUserAgent, proxyList, walk, listdir, path_isdir, syspath
-from lazylibrarian.formatter import check_int, makeUnicode
+from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
+from lazylibrarian.formatter import check_int, make_unicode
 
 
 def logmsg(level, msg):
@@ -50,7 +50,7 @@ def logmsg(level, msg):
         print(level.upper(), msg)
 
 
-def runGit(args):
+def run_git(args):
     # Function to execute GIT commands taking care of error logging etc
     if lazylibrarian.CONFIG['GIT_PROGRAM']:
         git_locations = ['"' + lazylibrarian.CONFIG['GIT_PROGRAM'] + '"']
@@ -67,15 +67,15 @@ def runGit(args):
 
         cmd = cur_git + ' ' + args
 
-        cmd = makeUnicode(cmd)
+        cmd = make_unicode(cmd)
         try:
             logmsg('debug', 'Execute: "%s" with shell in %s' % (cmd, lazylibrarian.PROG_DIR))
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  shell=True, cwd=lazylibrarian.PROG_DIR)
             output, err = p.communicate()
 
-            output = makeUnicode(output).strip('\n')
-            err = makeUnicode(err)
+            output = make_unicode(output).strip('\n')
+            err = make_unicode(err)
 
             logmsg('debug', 'Git output: [%s]' % output)
             if err:
@@ -105,7 +105,7 @@ def runGit(args):
 # - deployed source code
 
 
-def getInstallType():
+def get_install_type():
     # need a way of detecting if we are running a windows .exe file
     # (which we can't upgrade)  rather than just running git or source on windows
     # We use a string in the version.py file for this
@@ -125,7 +125,7 @@ def getInstallType():
 
     elif path_isdir(os.path.join(lazylibrarian.PROG_DIR, '.git')):
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'git'
-        lazylibrarian.CONFIG['GIT_BRANCH'] = getCurrentGitBranch()
+        lazylibrarian.CONFIG['GIT_BRANCH'] = get_current_git_branch()
     else:
         lazylibrarian.CONFIG['INSTALL_TYPE'] = 'source'
         lazylibrarian.CONFIG['GIT_BRANCH'] = 'master'
@@ -134,17 +134,17 @@ def getInstallType():
            (lazylibrarian.CONFIG['INSTALL_TYPE'], lazylibrarian.CONFIG['GIT_BRANCH']))
 
 
-def getCurrentVersion():
+def get_current_version():
     # Establish the version of the installed app for Source or GIT only
     # Global variable set in LazyLibrarian.py on startup as it should be
     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
         logmsg('debug', 'Windows install - no update available')
 
         # Don't have a way to update exe yet, but don't want to set VERSION to None
-        VERSION = 'Windows Install'
+        version_string = 'Windows Install'
 
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-        output, _ = runGit('rev-parse HEAD')
+        output, _ = run_git('rev-parse HEAD')
 
         if not output:
             logmsg('error', 'Couldn\'t find latest git installed version.')
@@ -157,58 +157,58 @@ def getCurrentVersion():
                 logmsg('error', 'Output doesn\'t look like a hash, not using it')
                 cur_commit_hash = 'GIT invalid hash return'
 
-        VERSION = cur_commit_hash
+        version_string = cur_commit_hash
 
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['source']:
 
         version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
 
         if not os.path.isfile(version_file):
-            VERSION = 'No Version File'
+            version_string = 'No Version File'
             logmsg('debug', 'Version file [%s] missing.' % version_file)
-            return VERSION
+            return version_string
         else:
             fp = open(version_file, 'r')
             current_version = fp.read().strip(' \n\r')
             fp.close()
 
             if current_version:
-                VERSION = current_version
+                version_string = current_version
             else:
-                VERSION = 'No Version set in file'
-                return VERSION
+                version_string = 'No Version set in file'
+                return version_string
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['package']:
         try:
             v = version.LAZYLIBRARIAN_HASH
         except AttributeError:
             v = "Unknown Version"
-        VERSION = v
+        version_string = v
     else:
         logmsg('error', 'Install Type not set - cannot get version value')
-        VERSION = 'Install type not set'
-        return VERSION
+        version_string = 'Install type not set'
+        return version_string
 
-    updated = updateVersionFile(VERSION)
+    updated = update_version_file(version_string)
     if updated:
         logmsg('debug', 'Install type [%s] Local Version is set to [%s] ' % (
-            lazylibrarian.CONFIG['INSTALL_TYPE'], VERSION))
+            lazylibrarian.CONFIG['INSTALL_TYPE'], version_string))
     else:
         logmsg('debug', 'Install type [%s] Local Version is unchanged [%s] ' % (
-            lazylibrarian.CONFIG['INSTALL_TYPE'], VERSION))
+            lazylibrarian.CONFIG['INSTALL_TYPE'], version_string))
 
-    return VERSION
+    return version_string
 
 
-def getCurrentGitBranch():
+def get_current_git_branch():
     # Returns current branch name of installed version from GIT
     # return "NON GIT INSTALL" if INSTALL TYPE is not GIT
     # Can only work for GIT driven installs, so check install type
     if lazylibrarian.CONFIG['INSTALL_TYPE'] != 'git':
-        logmsg('debug', 'Non GIT Install doing getCurrentGitBranch')
+        logmsg('debug', 'Non GIT Install doing get_current_git_branch')
         return 'NON GIT INSTALL'
 
     # use git rev-parse --abbrev-ref HEAD which returns the name of the current branch
-    current_branch, _ = runGit('rev-parse --abbrev-ref HEAD')
+    current_branch, _ = run_git('rev-parse --abbrev-ref HEAD')
     current_branch = str(current_branch)
     current_branch = current_branch.strip(' \n\r')
 
@@ -221,7 +221,7 @@ def getCurrentGitBranch():
     return current_branch
 
 
-def checkForUpdates():
+def check_for_updates():
     """ Called at startup, from webserver with thread name WEBSERVER, or as a cron job """
     auto_update = False
     suppress = False
@@ -230,27 +230,27 @@ def checkForUpdates():
         auto_update = lazylibrarian.CONFIG['AUTO_UPDATE']
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
-        columns = myDB.match('PRAGMA table_info(jobs)')
+        db = database.DBConnection()
+        columns = db.match('PRAGMA table_info(jobs)')
         if columns:
-            myDB.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
+            db.upsert("jobs", {"Start": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass
 
     logmsg('debug', 'Setting Install Type, Current & Latest Version and Commit status')
-    getInstallType()
-    lazylibrarian.CONFIG['CURRENT_VERSION'] = getCurrentVersion()
+    get_install_type()
+    lazylibrarian.CONFIG['CURRENT_VERSION'] = get_current_version()
     # if last dobytang version, force first gitlab version hash
     if lazylibrarian.CONFIG['CURRENT_VERSION'].startswith('45d4f24'):
         lazylibrarian.CONFIG['CURRENT_VERSION'] = 'd9002e449db276e0416a8d19423143cc677b2e84'
         lazylibrarian.CONFIG['GIT_UPDATED'] = 0  # and ignore timestamp to force upgrade
-    lazylibrarian.CONFIG['LATEST_VERSION'] = getLatestVersion()
+    lazylibrarian.CONFIG['LATEST_VERSION'] = get_latest_version()
     if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
         lazylibrarian.COMMIT_LIST = ""
     else:
-        commits, lazylibrarian.COMMIT_LIST = getCommitDifferenceFromGit()
+        commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = commits
 
         if auto_update and commits > 0:
@@ -269,22 +269,22 @@ def checkForUpdates():
     logmsg('debug', 'Update check complete')
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
-        columns = myDB.match('PRAGMA table_info(jobs)')
+        db = database.DBConnection()
+        columns = db.match('PRAGMA table_info(jobs)')
         if columns:
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": "VERSIONCHECK"})
     except Exception:
         # jobs table might not exist yet
         pass
 
 
-def getLatestVersion():
+def get_latest_version():
     # Return latest version from git
     # if GIT install return latest on current branch
     # if nonGIT install return latest from master
 
     if lazylibrarian.CONFIG['INSTALL_TYPE'] in ['git', 'source', 'package']:
-        latest_version = getLatestVersion_FromGit()
+        latest_version = get_latest_version_from_git()
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['win']:
         latest_version = 'WINDOWS INSTALL'
     else:
@@ -294,8 +294,8 @@ def getLatestVersion():
     return latest_version
 
 
-def getLatestVersion_FromGit():
-    # Don't call directly, use getLatestVersion as wrapper.
+def get_latest_version_from_git():
+    # Don't call directly, use get_latest_version as wrapper.
     latest_version = 'Unknown'
 
     # Can only work for non Windows driven installs, so check install type
@@ -328,18 +328,18 @@ def getLatestVersion_FromGit():
                 # timestring for 'If-Modified-Since' needs to be english short day/month names and in gmt
                 # we already have english month names stored in MONTHNAMES[] but need capitalising
                 # so use hard coded versions here instead
-                DAYNAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-                MONNAMES = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+                daynames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+                monnames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
                 tm = time.gmtime(timestamp)
-                age = "%s, %02d %s %04d %02d:%02d:%02d GMT" % (DAYNAMES[tm.tm_wday], tm.tm_mday,
-                                                               MONNAMES[tm.tm_mon], tm.tm_year, tm.tm_hour,
+                age = "%s, %02d %s %04d %02d:%02d:%02d GMT" % (daynames[tm.tm_wday], tm.tm_mday,
+                                                               monnames[tm.tm_mon], tm.tm_year, tm.tm_hour,
                                                                tm.tm_min, tm.tm_sec)
             try:
-                headers = {'User-Agent': getUserAgent()}
+                headers = {'User-Agent': get_user_agent()}
                 if age:
                     logmsg('debug', 'Checking if modified since %s' % age)
                     headers.update({'If-Modified-Since': age})
-                proxies = proxyList()
+                proxies = proxy_list()
                 timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
                 if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                     r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
@@ -371,7 +371,7 @@ def getLatestVersion_FromGit():
     return latest_version
 
 
-def getCommitDifferenceFromGit():
+def get_commit_difference_from_git():
     # See how many commits behind we are
     # Takes current latest version value and tries to diff it with the latest version in the current branch.
     commit_list = ''
@@ -394,8 +394,8 @@ def getCommitDifferenceFromGit():
         logmsg('debug', 'Check for differences between local & repo by [%s]' % url)
 
         try:
-            headers = {'User-Agent': getUserAgent()}
-            proxies = proxyList()
+            headers = {'User-Agent': get_user_agent()}
+            proxies = proxy_list()
             timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
             if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                 r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies,
@@ -412,7 +412,7 @@ def getCommitDifferenceFromGit():
                     ahead = 0
                     behind = 0
                     if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-                        output, _ = runGit('rev-list --left-right --count master...origin/master')
+                        output, _ = run_git('rev-list --left-right --count master...origin/master')
                         if output:
                             a, b = output.split(None, 1)
                             ahead = check_int(a, 0)
@@ -460,7 +460,7 @@ def getCommitDifferenceFromGit():
     return commits, commit_list
 
 
-def updateVersionFile(new_version_id):
+def update_version_file(new_version_id):
     # Update version.txt located in LL cache dir.
     version_path = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
 
@@ -533,10 +533,10 @@ def update():
             logmsg("error", msg)
 
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-            branch = getCurrentGitBranch()
+            branch = get_current_git_branch()
 
-            _, _ = runGit('stash clear')
-            output, _ = runGit('pull origin ' + branch)  # type: str
+            _, _ = run_git('stash clear')
+            output, _ = run_git('pull origin ' + branch)  # type: str
 
             if not output:
                 msg = 'Couldn\'t download latest version'
@@ -567,7 +567,7 @@ def update():
                 if str(r.status_code).startswith('2'):
                     lazylibrarian.CONFIG['LATEST_VERSION'] = r.json()
 
-            updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
+            update_version_file(lazylibrarian.CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                              lazylibrarian.CONFIG['LATEST_VERSION']))
             lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
@@ -593,8 +593,8 @@ def update():
                 msg = 'Downloading update from: ' + tar_download_url
                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('info', msg)
-                headers = {'User-Agent': getUserAgent()}
-                proxies = proxyList()
+                headers = {'User-Agent': get_user_agent()}
+                proxies = proxy_list()
                 timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
                 if tar_download_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
                     r = requests.get(tar_download_url, timeout=timeout, headers=headers, proxies=proxies,
@@ -642,7 +642,7 @@ def update():
             os.remove(syspath(tar_download_path))
 
             # Find update dir name
-            update_dir = makeUnicode(update_dir)
+            update_dir = make_unicode(update_dir)
             logmsg('debug', "update_dir [%s]" % update_dir)
             update_dir_contents = [x for x in listdir(update_dir) if path_isdir(os.path.join(update_dir, x))]
             if len(update_dir_contents) != 1:
@@ -669,7 +669,7 @@ def update():
                     os.renames(syspath(old_path), syspath(new_path))
 
             # Update version.txt and timestamp
-            updateVersionFile(lazylibrarian.CONFIG['LATEST_VERSION'])
+            update_version_file(lazylibrarian.CONFIG['LATEST_VERSION'])
             upgradelog.write("%s %s\n" % (time.ctime(), "Updated version file to %s" %
                              lazylibrarian.CONFIG['LATEST_VERSION']))
             lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))

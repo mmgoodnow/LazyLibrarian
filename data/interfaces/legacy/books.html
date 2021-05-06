@@ -5,8 +5,8 @@
 <%def name="headerIncludes()">
   <div id="subhead_container">
     <ul id="subhead_menu">
-      <li ><a id="button" href="forceSearch?source=books">Force Search</a></li>
-      <li ><a id="button" href="forceProcess?source=books">Force Post-Processing</a></li>
+      <li ><a id="sbutton" href="force_search?source=books">Force Search</a></li>
+      <li ><a id="pbutton" href="force_process?source=books">Force Post-Processing</a></li>
       %if len(languages) >= 1:
       <li>Language:&nbsp;</li>
       <li><select onchange="window.location = 'books?BookLang=' + this.options[this.selectedIndex].value">
@@ -24,9 +24,9 @@
   <h1>&nbsp;&nbsp;${title}</h1>
   <p class="indented">
     <input type="hidden" name="booklang" value="booklang">
-    <form action="markBooks" method="get">
+    <form action="mark_books" method="get">
       <label>&nbsp;&nbsp;Mark selected books as: </label>
-      <select class="markBooks" name="action" id="action">
+      <select class="mark_books" name="action" id="action">
         <option value="Wanted">Wanted</option>
         <option value="Have">Have</option>
         <option value="Ignored">Ignored</option>
@@ -35,21 +35,21 @@
         <option value="Delete">Delete</option>
         <option value="Leave" class="hidden">Leave</option>
       </select>
-      <input type="submit" class="markBooks" id="go" value="Go">
+      <input type="submit" class="mark_books" id="go" value="Go">
       <br>
       <br>
     </p>
     <table class="display" id="book_table" style="width:100%;">
       <thead>
         <tr>
-          <th id="select"><input type="checkbox" onClick="toggleAll(this)" /></th>
+          <th id="selectall"><input type="checkbox" onClick="toggleAll(this)" /></th>
           <th id="bookart">Cover</th>
           <th id="authorname">Author</th>
           <th id="bookname">Title</th>
           <th id="series">Series</th>
           <th id="stars" class="center">Rating</th>
-          <th id="date" class="center">Released</th>
-          <th id="date" class="center">Added</th>
+          <th id="rdate" class="center">Released</th>
+          <th id="adate" class="center">Added</th>
           <th id="select" class="center">Status</th>
         </tr>
       </thead>
@@ -101,7 +101,7 @@
                       }
                     },
                     { "fnRender": function ( oObj ) {
-                        return '<a href="authorPage?AuthorID=' + oObj.aData[8] + '">' + oObj.aData[2] + '</a>'
+                        return '<a href="author_page?authorid=' + oObj.aData[8] + '">' + oObj.aData[2] + '</a>'
                       }
                     },
                     null,
@@ -121,9 +121,9 @@
                     { "fnRender": function ( oObj ) {
                         var btn = oObj.aData[11]
                         if ( btn.indexOf('Open') >= 0 ) {
-                            btn = '<a class="button green" href="openBook?bookid=' + oObj.aData[9] + '&library=eBook" target="_self">' + btn + '</a>'}
+                            btn = '<a class="button green" href="open_book?bookid=' + oObj.aData[9] + '&library=eBook" target="_self">' + btn + '</a>'}
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<a class="button red" href="searchForBook?bookid=' + oObj.aData[9] +
+                            btn = '<a class="button red" href="search_for_book?bookid=' + oObj.aData[9] +
                                     '&library=eBook" target="_self"><span class="a">' + btn + '</span><span class="b">Search</span></a>'}
                         else if ( btn.indexOf('Snatched') >= 0 ) {
                             btn = '<a class="button">' + btn + '</a>'}
@@ -146,7 +146,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getBooks?source=Books&booklang=${booklang}',
+                "sAjaxSource": 'get_books?source=Books&booklang=${booklang}',
                 "bFilter": true,
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     $(nRow).addClass("gradeZ");

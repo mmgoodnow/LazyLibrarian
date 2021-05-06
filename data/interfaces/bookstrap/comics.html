@@ -4,23 +4,23 @@
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
-    <form action="findComic" method="get">
+    <form action="find_comic" method="get">
       <div id="subhead_menu" class="col-xs-12 col-md-8">
         %if perm&lazylibrarian.perm_force:
-        <a href="forceSearch?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
-        <a href="forceProcess?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
-        <a href="comicScan" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
+        <a href="force_search?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
+        <a href="force_process?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-cogs"></i> Run Post-Processor</a>
+        <a href="comic_scan" class="button btn btn-sm btn-primary"><i class="fa fa-bolt"></i> Library Scan</a>
         %endif
-        <a href="comicWall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
+        <a href="comic_wall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
           %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
-            <a href="rssFeed?user=${user}&type=Comic&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="RSS feed of recent downloads"><i class="fa fa-rss"></i></a>
-            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest comics" href="rssFeed?user=${user}&type=Comic&limit=10.xml">
+            <a href="rss_feed?user=${user}&type=Comic&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
+            <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest comics" href="rss_feed?user=${user}&type=Comic&limit=10.xml">
           %endif
           %if pref&lazylibrarian.pref_mycomics:
-            <a href="toggleMyComics" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
+            <a href="toggle_my_comics" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
           %else:
-            <a href="toggleMyComics" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
+            <a href="toggle_my_comics" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
           %endif
         %endif
       </div>
@@ -46,13 +46,13 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Libraryscan in progress ...</button>
     </p>
   %endif
-  <form name="markComics" id="markComics" action="markComics" method="get" class="form-inline" onsubmit="return false;">
+  <form name="mark_comics" id="mark_comics" action="mark_comics" method="get" class="form-inline" onsubmit="return false;">
     <div class="row">
       % if perm%lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
         <div class="form-group">
           <label for="action" class="">Mark selected as</label>
-          <select class="markComics form-control input-sm" id="action" name="action">
+          <select class="mark_comics form-control input-sm" id="action" name="action">
             %if perm&lazylibrarian.perm_status:
             <option value="Active">Active</option>
             <option value="Paused">Paused</option>
@@ -157,7 +157,7 @@
                         'render': function(data, type, row) {
                         var btn = data
                         if ( btn.indexOf('Open') >= 0 ) {
-                                btn = '<a class="button green btn btn-xs btn-warning" href="openComic?comicid=' +
+                                btn = '<a class="button green btn btn-xs btn-warning" href="open_comic?comicid=' +
                                         row[0] + '" target="_self"><i class="fa fa-book"></i>'
                                 %if lazylibrarian.CONFIG['COMIC_SINGLE']:
                                     if ( row[3] == 1) { btn = btn + ' Open</a>' }
@@ -169,7 +169,7 @@
                         else if ( btn.indexOf('Wanted') >= 0 ) {
                             btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p>'
                             %if perm&lazylibrarian.perm_force:
-                               btn += '<p><a class="b btn btn-xs btn-success" href="searchForComic?comicid=' + row[0] +
+                               btn += '<p><a class="b btn btn-xs btn-success" href="search_for_comic?comicid=' + row[0] +
                                       '" target="_self"><i class="fa fa-search"></i> Search</a></p>'
                             %endif
                             }
@@ -190,7 +190,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,
-                "sAjaxSource": 'getComics',
+                "sAjaxSource": 'get_comics',
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
                 "bFilter": true,
@@ -238,7 +238,7 @@
     });
 
     function validateForm() {
-        var x = document.forms["markComics"]["action"].value;
+        var x = document.forms["mark_comics"]["action"].value;
         var c = (document.querySelectorAll('input[class="checkbox"]:checked').length);
         if (c > 0 && x == "Delete") {
             if (c == 1) {msg = "Are you sure you want to permanently delete the selected comic?"}
@@ -256,12 +256,12 @@
                     }
                 },
                 callback: function (result) {
-                    if (result) { document.getElementById("markComics").submit(); }
+                    if (result) { document.getElementById("mark_comics").submit(); }
                 }
             });
             return false;
         }
-        else { document.getElementById("markComics").submit(); }
+        else { document.getElementById("mark_comics").submit(); }
     }
   </script>
 </%def>

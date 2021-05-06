@@ -18,10 +18,10 @@ import subprocess
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookrename import audio_parts, nameVars, id3read
+from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm
-from lazylibrarian.formatter import getList, makeUnicode, check_int, human_size, now, check_float
-from lazylibrarian.images import shrinkMag
+from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
+from lazylibrarian.images import shrink_mag
 
 try:
     # noinspection PyProtectedMember
@@ -66,7 +66,7 @@ def preprocess_ebook(bookfolder):
 
     basename, source_extn = os.path.splitext(sourcefile)
     logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
-    wanted_formats = getList(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
+    wanted_formats = get_list(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
             logger.debug("No %s" % ftype)
@@ -126,7 +126,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         try:
             params = [ffmpeg, "-version"]
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            res = makeUnicode(res).strip().split("Copyright")[0].split()[-1]
+            res = make_unicode(res).strip().split("Copyright")[0].split()[-1]
             logger.debug("Found ffmpeg version %s" % res)
             ff_ver = res
         except Exception as e:
@@ -144,7 +144,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                                               stderr=subprocess.STDOUT)
             else:
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            res = makeUnicode(res)
+            res = make_unicode(res)
             for lyne in res.split('\n'):
                 if 'AAC' in lyne:
                     ff_aac = lyne.strip().split(' ')[0]
@@ -173,7 +173,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     if failed or not parts:
         return
 
-    name_vars = nameVars(bookid, abridged)
+    namevars = name_vars(bookid, abridged)
 
     # if we get here, looks like we have all the parts
     # output file will be the same type as the first input file
@@ -251,7 +251,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         logger.error("%s: %s" % (type(e).__name__, str(e)))
                         return
 
-    bookfile = name_vars['AudioSingleFile']
+    bookfile = namevars['AudioSingleFile']
     if not bookfile:
         bookfile = "%s - %s" % (authorname, bookname)
     outfile = bookfile + out_type
@@ -348,7 +348,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
             params = [ffmpeg]
             params.extend(ffmpeg_params)
-            params.extend(getList(ffmpeg_options))
+            params.extend(get_list(ffmpeg_options))
             params.append('-y')
             params.append(os.path.join(bookfolder, outfile))
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
@@ -387,13 +387,13 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                       '-y', '-c:a', 'copy',
                       '-metadata', 'track="1/1"']
 
-            myDB = database.DBConnection()
-            match = myDB.match('SELECT * from books WHERE bookid=?', (bookid,))
+            db = database.DBConnection()
+            match = db.match('SELECT * from books WHERE bookid=?', (bookid,))
             audio_path = os.path.join(bookfolder, parts[0][3])
             if match:
                 id3r = id3read(audio_path)
                 if not match['Narrator'] and id3r['narrator']:
-                    myDB.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
+                    db.action("UPDATE books SET Narrator=? WHERE BookID=?", (id3r['narrator'], bookid))
                 # noinspection PyUnusedLocal
                 artist = id3r['artist']
                 # noinspection PyUnusedLocal
@@ -513,7 +513,7 @@ def preprocess_magazine(bookfolder, cover=0):
 
         if dpi:
             logger.debug("Resizing %s to %s dpi" % (srcfile, dpi))
-            shrunkfile = shrinkMag(srcfile, dpi)
+            shrunkfile = shrink_mag(srcfile, dpi)
             old_size = os.stat(srcfile).st_size
             if shrunkfile:
                 new_size = os.stat(shrunkfile).st_size

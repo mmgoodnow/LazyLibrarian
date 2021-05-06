@@ -12,7 +12,7 @@ import time
 import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
 from lazylibrarian.formatter import check_int
-from lazylibrarian.versioncheck import runGit
+from lazylibrarian.versioncheck import run_git
 from lazylibrarian.common import path_isfile, path_isdir, syspath
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
@@ -159,7 +159,7 @@ def main():
             except OSError:
                 raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
 
-        versioncheck.getInstallType()
+        versioncheck.get_install_type()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
@@ -220,7 +220,7 @@ def main():
     else:
         # Set the install type (win,git,source) &
         # check the version when the application starts
-        versioncheck.checkForUpdates()
+        versioncheck.check_for_updates()
 
         logger.debug('Current Version [%s] - Latest remote version [%s] - Install type [%s]' % (
             lazylibrarian.CONFIG['CURRENT_VERSION'], lazylibrarian.CONFIG['LATEST_VERSION'],
@@ -236,20 +236,20 @@ def main():
     if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
             and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-            res, _ = runGit('remote -v')
+            res, _ = run_git('remote -v')
             if 'gitlab.com' in res:
                 logger.warn('Unrecognised version, LazyLibrarian may have local changes')
             else:  # upgrading from github
                 logger.warn("Upgrading git origin")
-                runGit('remote rm origin')
-                runGit('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
-                runGit('config master.remote origin')
-                runGit('config master.merge refs/heads/master')
-                res, _ = runGit('pull origin master')
+                run_git('remote rm origin')
+                run_git('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
+                run_git('config master.remote origin')
+                run_git('config master.merge refs/heads/master')
+                res, _ = run_git('pull origin master')
                 if 'CONFLICT' in res:
                     logger.warn("Forcing reset to fix merge conflicts")
-                    runGit('reset --hard origin/master')
-                runGit('branch --set-upstream-to=origin/master master')
+                    run_git('reset --hard origin/master')
+                run_git('branch --set-upstream-to=origin/master master')
                 lazylibrarian.SIGNAL = 'restart'
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
             logger.warn('Unrecognised version [%s] to force upgrade delete %s' % (

@@ -41,11 +41,11 @@ class SearchResult:
             return "Invalid provider, unable to print self"
 
         # noinspection PyUnresolvedReferences
-        myString = self.provider.name + " @ " + self.url + "\n"
-        myString += "Extra Info:\n"
+        my_string = self.provider.name + " @ " + self.url + "\n"
+        my_string += "Extra Info:\n"
         for extra in self.extraInfo:
-            myString += "  " + extra + "\n"
-        return myString
+            my_string += "  " + extra + "\n"
+        return my_string
 
 
 class NZBSearchResult(SearchResult):

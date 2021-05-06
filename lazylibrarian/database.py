@@ -96,7 +96,7 @@ class DBConnection:
 
     # do not use directly, use through action() or upsert() which add lock
     def _action(self, query, args=None, suppress=None):
-        sqlResult = None
+        sql_result = None
         attempt = 0
         start = 0
         program = ""
@@ -115,10 +115,10 @@ class DBConnection:
                 if not args:
                     # context manager adds commit() on success or rollback() on exception
                     with self.connection:
-                        sqlResult = self.connection.execute(query)
+                        sql_result = self.connection.execute(query)
                 else:
                     with self.connection:
-                        sqlResult = self.connection.execute(query, args)
+                        sql_result = self.connection.execute(query, args)
 
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
                     elapsed = time.time() - start
@@ -206,50 +206,50 @@ class DBConnection:
             finally:
                 attempt += 1
 
-        return sqlResult
+        return sql_result
 
     def match(self, query, args=None):
         try:
             # if there are no results, action() returns None and .fetchone() fails
-            sqlResults = self.action(query, args).fetchone()
+            sql_results = self.action(query, args).fetchone()
         except sqlite3.Error:
             return []
-        if not sqlResults:
+        if not sql_results:
             return []
 
-        return sqlResults
+        return sql_results
 
     def select(self, query, args=None):
         try:
             # if there are no results, action() returns None and .fetchall() fails
-            sqlResults = self.action(query, args).fetchall()
+            sql_results = self.action(query, args).fetchall()
         except sqlite3.Error:
             return []
-        if not sqlResults:
+        if not sql_results:
             return []
 
-        return sqlResults
+        return sql_results
 
     @staticmethod
-    def genParams(myDict):
-        return [x + " = ?" for x in list(myDict.keys())]
+    def gen_params(my_dict):
+        return [x + " = ?" for x in list(my_dict.keys())]
 
-    def upsert(self, tableName, valueDict, keyDict):
+    def upsert(self, table_name, value_dict, key_dict):
         with db_lock:
-            changesBefore = self.connection.total_changes
+            changes_before = self.connection.total_changes
 
-            query = "UPDATE " + tableName + " SET " + ", ".join(self.genParams(valueDict)) + \
-                    " WHERE " + " AND ".join(self.genParams(keyDict))
+            query = "UPDATE " + table_name + " SET " + ", ".join(self.gen_params(value_dict)) + \
+                    " WHERE " + " AND ".join(self.gen_params(key_dict))
 
-            self._action(query, list(valueDict.values()) + list(keyDict.values()))
+            self._action(query, list(value_dict.values()) + list(key_dict.values()))
 
             # This version of upsert is not thread safe, each action() is thread safe,
             # but it's possible for another thread to jump in between the
             # UPDATE and INSERT statements so we use suppress=unique to log any conflicts
             # -- update -- should be thread safe now, threading lock moved
 
-            if self.connection.total_changes == changesBefore:
-                query = "INSERT INTO " + tableName + " ("
-                query += ", ".join(list(valueDict.keys()) + list(keyDict.keys())) + ") VALUES ("
-                query += ", ".join(["?"] * len(list(valueDict.keys()) + list(keyDict.keys()))) + ")"
-                self._action(query, list(valueDict.values()) + list(keyDict.values()), suppress="UNIQUE")
+            if self.connection.total_changes == changes_before:
+                query = "INSERT INTO " + table_name + " ("
+                query += ", ".join(list(value_dict.keys()) + list(key_dict.keys())) + ") VALUES ("
+                query += ", ".join(["?"] * len(list(value_dict.keys()) + list(key_dict.keys()))) + ")"
+                self._action(query, list(value_dict.values()) + list(key_dict.values()), suppress="UNIQUE")

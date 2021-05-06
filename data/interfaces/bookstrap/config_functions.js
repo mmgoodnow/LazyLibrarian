@@ -370,7 +370,7 @@
         });
 
         $('#generateAPI').click(function () {
-            $.get("generateAPI",
+            $.get("generate_api",
                 function (data) { });
         });
 
@@ -517,8 +517,8 @@
         });
 
 
-        $('#show_Stats').on('click', function(e) {
-            $.get('show_Stats', function(data) {
+        $('#show_stats').on('click', function(e) {
+            $.get('show_stats', function(data) {
                 bootbox.dialog({
                     title: 'Database Stats',
                     message: '<pre>'+data+'</pre>',
@@ -532,8 +532,8 @@
             });
         });
 
-        $('#show_Jobs').on('click', function(e) {
-            $.get('show_Jobs', function(data) {
+        $('#show_jobs').on('click', function(e) {
+            $.get('show_jobs', function(data) {
                 bootbox.dialog({
                     title: 'Job Status',
                     message: '<pre>'+data+'</pre>',
@@ -541,12 +541,12 @@
                         stopit: {
                             label: "<i class=\"fa fa-ban\"></i> Stop Jobs",
                             className: 'btn-warning',
-                            callback: function(result){ $.get("stop_Jobs", function(e) {}); }
+                            callback: function(result){ $.get("stop_jobs", function(e) {}); }
                         },
                         restart: {
                             label: "<i class=\"fa fa-sync\"></i> Restart Jobs",
                             className: 'btn-info',
-                            callback: function(result){ $.get("restart_Jobs", function(e) {}); }
+                            callback: function(result){ $.get("restart_jobs", function(e) {}); }
                         },
                         primary: {
                             label: "Close",
@@ -558,7 +558,7 @@
         });
 
         $('#show_apprise').on('click', function(e) {
-            $.get('show_Apprise', function(data) {
+            $.get('show_apprise', function(data) {
                 bootbox.dialog({
                     title: 'Supported Types',
                     message: '<pre>'+data+'</pre>',
@@ -572,7 +572,7 @@
             });
         });
 
-        $('#testSABnzbd').on('click', function() {
+        $('#test_sabnzbd').on('click', function() {
             var host = $.trim($("#sab_host").val());
             var port = $.trim($("#sab_port").val());
             var user = $.trim($("#sab_user").val());
@@ -580,7 +580,7 @@
             var api = $.trim($("#sab_api").val());
             var cat = $.trim($("#sab_cat").val());
             var subdir = $.trim($("#sab_subdir").val());
-            $.get("testSABnzbd", {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'api': api, 'cat': cat, 'subdir': subdir},
+            $.get("test_sabnzbd", {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'api': api, 'cat': cat, 'subdir': subdir},
             function(data) {
                 bootbox.dialog({
                     title: 'SABnzbd Connection',
@@ -595,14 +595,14 @@
             });
         });
 
-        $('#testNZBget').on('click', function(e) {
+        $('#test_nzbget').on('click', function(e) {
             var host = $.trim($("#nzbget_host").val());
             var port = $.trim($("#nzbget_port").val());
             var user = $.trim($("#nzbget_user").val());
             var pwd = $.trim($("#nzbget_pass").val());
             var cat = $.trim($("#nzbget_category").val());
             var pri = $.trim($("#nzbget_priority").val());
-            $.get('testNZBget', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'cat': cat, 'pri': pri},
+            $.get('test_nzbget', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'cat': cat, 'pri': pri},
                 function(data) {
                 bootbox.dialog({
                     title: 'NZBget Connection',
@@ -617,13 +617,13 @@
             });
         });
 
-        $('#testSynology').on('click', function(e) {
+        $('#test_synology').on('click', function(e) {
             var host = $.trim($("#synology_host").val());
             var port = $.trim($("#synology_port").val());
             var user = $.trim($("#synology_user").val());
             var pwd = $.trim($("#synology_pass").val());
             var dir = $.trim($("#synology_dir").val());
-            $.get('testSynology', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'dir': dir},
+            $.get('test_synology', {'host': host, 'port': port, 'user': user, 'pwd': pwd, 'dir': dir},
                 function(data) {
                 bootbox.dialog({
                     title: 'Synology Connection',
@@ -638,7 +638,7 @@
             });
         });
 
-        $('#testDeluge').on('click', function() {
+        $('#test_deluge').on('click', function() {
             var host = $.trim($("#deluge_host").val());
             var base = $.trim($("#deluge_base").val());
             var cert = $.trim($("#deluge_cert").val());
@@ -646,7 +646,7 @@
             var user = $.trim($("#deluge_user").val());
             var pwd = $.trim($("#deluge_pass").val());
             var label = $.trim($("#deluge_label").val());
-            $.get("testDeluge", {'host': host, 'port': port, 'base': base, 'cert': cert, 'user': user, 'pwd': pwd, 'label': label},
+            $.get("test_deluge", {'host': host, 'port': port, 'base': base, 'cert': cert, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                     bootbox.dialog({
                     title: 'Deluge Connection',
@@ -661,13 +661,13 @@
             });
         });
 
-        $('#testTransmission').on('click', function(e) {
+        $('#test_transmission').on('click', function(e) {
             var host = $.trim($("#transmission_host").val());
             var port = $.trim($("#transmission_port").val());
             var base = $.trim($("#transmission_base").val());
             var user = $.trim($("#transmission_user").val());
             var pwd = $.trim($("#transmission_pass").val());
-            $.get('testTransmission', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd},
+            $.get('test_transmission', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd},
                 function(data) {
                 bootbox.dialog({
                     title: 'Transmission Connection',
@@ -682,14 +682,14 @@
             });
         });
 
-        $('#testqBittorrent').on('click', function() {
+        $('#test_qbittorrent').on('click', function() {
             var host = $.trim($("#qbittorrent_host").val());
             var port = $.trim($("#qbittorrent_port").val());
             var base = $.trim($("#qbittorrent_base").val());
             var user = $.trim($("#qbittorrent_user").val());
             var pwd = $.trim($("#qbittorrent_pass").val());
             var label = $.trim($("#qbittorrent_label").val());
-            $.get('testqBittorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
+            $.get('test_qbittorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
                     title: 'qBittorrent Connection',
@@ -704,14 +704,14 @@
             });
         });
 
-        $('#testuTorrent').on('click', function(e) {
+        $('#test_utorrent').on('click', function(e) {
             var host = $.trim($("#utorrent_host").val());
             var port = $.trim($("#utorrent_port").val());
             var base = $.trim($("#utorrent_base").val());
             var user = $.trim($("#utorrent_user").val());
             var pwd = $.trim($("#utorrent_pass").val());
             var label = $.trim($("#utorrent_label").val());
-            $.get('testuTorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
+            $.get('test_utorrent', {'host': host, 'port': port, 'base': base, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
                     title: 'uTorrent Connection',
@@ -726,13 +726,13 @@
             });
         });
 
-        $('#testrTorrent').on('click', function(e) {
+        $('#test_rtorrent').on('click', function(e) {
             var host = $.trim($("#rtorrent_host").val());
             var dir = $.trim($("#rtorrent_dir").val());
             var user = $.trim($("#rtorrent_user").val());
             var pwd = $.trim($("#rtorrent_pass").val());
             var label = $.trim($("#rtorrent_label").val());
-            $.get('testrTorrent', {'host': host, 'dir': dir, 'user': user, 'pwd': pwd, 'label': label},
+            $.get('test_rtorrent', {'host': host, 'dir': dir, 'user': user, 'pwd': pwd, 'label': label},
                 function(data) {
                 bootbox.dialog({
                     title: 'rTorrent Connection',
@@ -1023,7 +1023,7 @@
         });
 
         $('#sysinfo').on('click', function(e) {
-            $.get('logHeader', function(data) {
+            $.get('log_header', function(data) {
                 bootbox.dialog({
                     title: 'System Info',
                     message: '<pre>'+data+'</pre>',
@@ -1038,7 +1038,7 @@
         });
 
         $('#savefilters').on('click', function(e) {
-            $.get('saveFilters', function(data) {
+            $.get('save_filters', function(data) {
                 bootbox.dialog({
                     title: 'Export Filters',
                     message: '<pre>'+data+'</pre>',
@@ -1053,7 +1053,7 @@
         });
 
         $('#loadfilters').on('click', function(e) {
-            $.get('loadFilters', function(data) {
+            $.get('load_filters', function(data) {
                 bootbox.dialog({
                     title: 'Import Filters',
                     message: '<pre>'+data+'</pre>',
@@ -1068,12 +1068,12 @@
         });
 
 
-        $('#testgrauth').click(function () {
+        $('#test_grauth').click(function () {
             var gr_api = $.trim($("#gr_api").val());
             var gr_secret = $.trim($("#gr_secret").val());
             var oauth_token = $.trim($("#gr_oauth_token").val());
             var oauth_secret = $.trim($("#gr_oauth_secret").val());
-            $.get("testGRAuth", {'gr_api': gr_api, 'gr_secret': gr_secret, 'oauth_token': oauth_token, 'oauth_secret': oauth_secret},
+            $.get("test_grauth", {'gr_api': gr_api, 'gr_secret': gr_secret, 'oauth_token': oauth_token, 'oauth_secret': oauth_secret},
                 function (data) {
                     bootbox.dialog({
                         title: 'GoodReads Auth',
@@ -1091,7 +1091,7 @@
         $('#grauthStep1').click(function () {
             var gr_api = $.trim($("#gr_api").val());
             var gr_secret = $.trim($("#gr_secret").val());
-            $.get("grauthStep1", {'gr_api': gr_api, 'gr_secret': gr_secret},
+            $.get("grauth_step1", {'gr_api': gr_api, 'gr_secret': gr_secret},
                 function (data) {
                 if ( data.substr(0, 4) == 'http') { bootbox.dialog({
                         title: 'GoodReads Auth',
@@ -1119,7 +1119,7 @@
         });
 
         $('#grauthStep2').click(function () {
-            $.get("grauthStep2", {},
+            $.get("grauth_step2", {},
                 function (data) { bootbox.dialog({
                         title: 'GoodReads Confirm',
                         message: '<pre>'+data+'</pre>',
@@ -1135,21 +1135,21 @@
         });
 
 
-        $('#twitterStep1').click(function () {
+        $('#twitter_step1').click(function () {
             $('#testTwitter-result').html('');
-            $.get("twitterStep1", function (data) {window.open(data); })
+            $.get("twitter_step1", function (data) {window.open(data); })
                 .done(function () { $('#testTwitter-result').html('<b>Step1:</b> Confirm Authorization'); });
         });
 
-        $('#twitterStep2').click(function () {
+        $('#twitter_step2').click(function () {
             $('#testTwitter-result').html('');
             var twitter_key = $("#twitter_key").val();
-            $.get("twitterStep2", {'key': twitter_key},
+            $.get("twitter_step2", {'key': twitter_key},
                 function (data) { $('#testTwitter-result').html(data); });
         });
 
-        $('#testTwitter').click(function () {
-            $.get("testTwitter", {},
+        $('#test_twitter').click(function () {
+            $.get("test_twitter", {},
                 function (data) {
                     bootbox.dialog({
                         title: 'Twitter Notifier',
@@ -1164,9 +1164,9 @@
                 });
         });
 
-        $('#testBoxcar').click(function () {
+        $('#test_boxcar').click(function () {
             var token = $.trim($("#boxcar_token").val());
-            $.get("testBoxcar", {'token': token},
+            $.get("test_boxcar", {'token': token},
                 function (data) {
                     bootbox.dialog({
                         title: 'Boxcar Notifier',
@@ -1181,10 +1181,10 @@
                 });
         });
 
-        $('#testPushbullet').click(function () {
+        $('#test_pushbullet').click(function () {
             var token = $.trim($("#pushbullet_token").val());
             var device = $.trim($("#pushbullet_deviceid").val());
-            $.get("testPushbullet", {'token': token, 'device': device},
+            $.get("test_pushbullet", {'token': token, 'device': device},
                 function (data) {
                     bootbox.dialog({
                         title: 'Pushbullet Notifier',
@@ -1199,12 +1199,12 @@
                 });
             });
 
-        $('#testPushover').click(function () {
+        $('#test_pushover').click(function () {
             var token = $.trim($("#pushover_apitoken").val());
             var keys = $.trim($("#pushover_keys").val());
             var priority = $.trim($("#pushover_priority").val());
             var device = $.trim($("#pushover_device").val());
-            $.get("testPushover", {'apitoken': token, 'keys': keys, 'priority': priority, 'device': device},
+            $.get("test_pushover", {'apitoken': token, 'keys': keys, 'priority': priority, 'device': device},
                 function (data) {
                     bootbox.dialog({
                         title: 'Pushover Notifier',
@@ -1219,10 +1219,10 @@
                 });
         });
 
-        $('#testProwl').click(function () {
+        $('#test_prowl').click(function () {
             var apikey = $.trim($("#prowl_apikey").val());
             var priority = $.trim($("#prowl_priority").val());
-            $.get("testProwl", {'apikey': apikey, 'priority': priority},
+            $.get("test_prowl", {'apikey': apikey, 'priority': priority},
                 function (data) {
                     bootbox.dialog({
                         title: 'Prowl Notifier',
@@ -1237,10 +1237,10 @@
                 });
         });
 
-        $('#testGrowl').click(function () {
+        $('#test_growl').click(function () {
             var host = $.trim($("#growl_host").val());
             var password = $.trim($("#growl_password").val());
-            $.get("testGrowl", {'host': host, 'password': password},
+            $.get("test_growl", {'host': host, 'password': password},
                 function (data) {
                     bootbox.dialog({
                         title: 'Growl Notifier',
@@ -1255,10 +1255,10 @@
                 });
         });
 
-        $('#testTelegram').click(function () {
+        $('#test_telegram').click(function () {
             var token = $.trim($("#telegram_token").val());
             var userid = $.trim($("#telegram_userid").val());
-            $.get("testTelegram", {'token': token, 'userid': userid},
+            $.get("test_telegram", {'token': token, 'userid': userid},
                 function (data) {
                     bootbox.dialog({
                         title: 'Telegram Notifier',
@@ -1273,10 +1273,10 @@
                 });
         });
 
-        $('#testSlack').click(function () {
+        $('#test_slack').click(function () {
             var token = $.trim($("#slack_token").val());
             var url = $.trim($("#slack_url").val());
-            $.get("testSlack", {'token': token, 'url': url},
+            $.get("test_slack", {'token': token, 'url': url},
                 function (data) {
                     bootbox.dialog({
                         title: 'Slack Notifier',
@@ -1291,9 +1291,9 @@
                 });
         });
 
-        $('#testCustom').click(function () {
+        $('#test_custom').click(function () {
             var script = $.trim($("#custom_script").val());
-            $.get("testCustom", {'script': script},
+            $.get("test_custom", {'script': script},
                 function (data) {
                     bootbox.dialog({
                         title: 'Custom Notifier',
@@ -1308,7 +1308,7 @@
                 });
         });
 
-        $('#testEmail').click(function () {
+        $('#test_email').click(function () {
             var tls = ($("#email_tls").prop('checked') == true) ? 'True' : 'False';
             var ssl = ($("#email_ssl").prop('checked') == true) ? 'True' : 'False';
             var sendfile = ($("#email_sendfile_ondownload").prop('checked') == true) ? 'True' : 'False';
@@ -1318,7 +1318,7 @@
             var user = $.trim($("#email_smtp_user").val());
             var password = $.trim($("#email_smtp_password").val());
             var port = $.trim($("#email_smtp_port").val());
-            $.get("testEmail", {'tls': tls, 'ssl': ssl, 'emailfrom': emailfrom, 'emailto': emailto, 'server': server, 'user': user, 'password': password, 'port': port, 'sendfile': sendfile},
+            $.get("test_email", {'tls': tls, 'ssl': ssl, 'emailfrom': emailfrom, 'emailto': emailto, 'server': server, 'user': user, 'password': password, 'port': port, 'sendfile': sendfile},
                 function (data) {
                     bootbox.dialog({
                         title: 'Email Notifier',
@@ -1333,11 +1333,11 @@
                 });
         });
 
-        $("#testAndroidPN").click(function () {
+        $("#test_androidpn").click(function () {
             var androidpn_url = $.trim($("#androidpn_url").val());
             var androidpn_username = $.trim($("#androidpn_username").val());
             var androidpn_broadcast = ($("#androidpn_broadcast").prop('checked') == true) ? 'Y' : 'N';
-            $.get("testAndroidPN", {'url': androidpn_url, 'username': androidpn_username, 'broadcast': androidpn_broadcast},
+            $.get("test_androidpn", {'url': androidpn_url, 'username': androidpn_username, 'broadcast': androidpn_broadcast},
                 function (data) {
                     bootbox.dialog({
                         title: 'Android Notifier',
@@ -1352,9 +1352,9 @@
                 });
         });
 
-        $('#testCalibredb').click(function () {
+        $('#test_calibredb').click(function () {
             var prg = $.trim($("#imp_calibredb").val());
-            $.get("testCalibredb", { 'prg': prg},
+            $.get("test_calibredb", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'CalibreDB',
@@ -1368,9 +1368,9 @@
                     });
                 });
         });
-        $('#testebookconvert').click(function () {
+        $('#test_ebookconvert').click(function () {
             var prg = $.trim($("#ebook_convert").val());
-            $.get("testebookconvert", { 'prg': prg},
+            $.get("test_ebookconvert", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'ebook-convert',
@@ -1404,7 +1404,7 @@
 
         $('#testpreprocessor').click(function () {
             var prg = $.trim($("#ext_preprocessor").val());
-            $.get("testPreProcessor", { 'prg': prg},
+            $.get("test_pre_processor", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'PreProcessor',
@@ -1478,7 +1478,7 @@
        $('#checkforupdates').on('click', function(e) {
             eraseCookie("ignoreUpdate");
             $("#myAlert").removeClass('hidden');
-            $.get('checkForUpdates', function(data) {
+            $.get('check_for_updates', function(data) {
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Check Version',

@@ -27,7 +27,7 @@ def convert(input_file, output_format):
     if lazylibrarian.CONFIG['CALIBRE_USE_SERVER']:
         ebook_directory = lazylibrarian.CONFIG['CALIBRE_SERVER']
     else:
-        ebook_directory = lazylibrarian.DIRECTORY('eBook')
+        ebook_directory = lazylibrarian.directory('eBook')
 
     basename, extn = os.path.splitext(input_file)
 

@@ -18,11 +18,11 @@ import json
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookwork import getBookWork, NEW_WHATWORK
-from lazylibrarian.formatter import plural, makeUnicode, makeBytestr, safe_unicode, check_int, makeUTF8bytes
+from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
+from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
 from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath, jpg_file
-from lazylibrarian.cache import cache_img, fetchURL
-from lazylibrarian.providers import ProviderIsBlocked, BlockProvider
+from lazylibrarian.cache import cache_img, fetch_url
+from lazylibrarian.providers import provider_is_blocked, block_provider
 from six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
@@ -127,30 +127,30 @@ def coverswap(sourcefile):
         return False
 
 
-def getAuthorImages():
+def get_author_images():
     """ Try to get an author image for all authors without one"""
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     cmd = 'select AuthorID, AuthorName from authors where (AuthorImg like "%nophoto%" or AuthorImg is null)'
     cmd += ' and Manual is not "1"'
-    authors = myDB.select(cmd)
+    authors = db.select(cmd)
     if authors:
         logger.info('Checking images for %s %s' % (len(authors), plural(len(authors), "author")))
         counter = 0
         for author in authors:
             authorid = author['AuthorID']
-            imagelink = getAuthorImage(authorid)
-            newValueDict = {}
+            imagelink = get_author_image(authorid)
+            new_value_dict = {}
             if not imagelink:
                 logger.debug('No image found for %s' % author['AuthorName'])
-                newValueDict = {"AuthorImg": 'images/nophoto.png'}
+                new_value_dict = {"AuthorImg": 'images/nophoto.png'}
             elif 'nophoto' not in imagelink:
                 logger.debug('Updating %s image to %s' % (author['AuthorName'], imagelink))
-                newValueDict = {"AuthorImg": imagelink}
+                new_value_dict = {"AuthorImg": imagelink}
 
-            if newValueDict:
+            if new_value_dict:
                 counter += 1
-                controlValueDict = {"AuthorID": authorid}
-                myDB.upsert("authors", newValueDict, controlValueDict)
+                control_value_dict = {"AuthorID": authorid}
+                db.upsert("authors", new_value_dict, control_value_dict)
 
         msg = 'Updated %s %s' % (counter, plural(counter, "image"))
         logger.info('Author Image check complete: ' + msg)
@@ -160,28 +160,28 @@ def getAuthorImages():
     return msg
 
 
-def getBookCovers():
+def get_book_covers():
     """ Try to get a cover image for all books """
 
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     cmd = 'select BookID,BookImg from books where BookImg like "%nocover%" '
     cmd += 'or BookImg like "%nophoto%" and Manual is not "1"'
-    books = myDB.select(cmd)
+    books = db.select(cmd)
     if books:
         logger.info('Checking covers for %s %s' % (len(books), plural(len(books), "book")))
         counter = 0
         for book in books:
             bookid = book['BookID']
-            coverlink, _ = getBookCover(bookid)
+            coverlink, _ = get_book_cover(bookid)
             if coverlink and "nocover" not in coverlink and "nophoto" not in coverlink:
-                controlValueDict = {"BookID": bookid}
-                newValueDict = {"BookImg": coverlink}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                control_value_dict = {"BookID": bookid}
+                new_value_dict = {"BookImg": coverlink}
+                db.upsert("books", new_value_dict, control_value_dict)
                 counter += 1
             if not coverlink and "http" in book['BookImg']:
-                controlValueDict = {"BookID": bookid}
-                newValueDict = {"BookImg": "images/nocover.png"}
-                myDB.upsert("books", newValueDict, controlValueDict)
+                control_value_dict = {"BookID": bookid}
+                new_value_dict = {"BookImg": "images/nocover.png"}
+                db.upsert("books", new_value_dict, control_value_dict)
         msg = 'Updated %s %s' % (counter, plural(counter, "cover"))
         logger.info('Cover check complete: ' + msg)
     else:
@@ -190,7 +190,7 @@ def getBookCovers():
     return msg
 
 
-def getBookCover(bookID=None, src=None):
+def get_book_cover(bookid=None, src=None):
     """ Return link to a local file containing a book cover image for a bookid, and which source used.
         Try 1. Local file cached from goodreads/googlebooks when book was imported
             2. cover.jpg if we have the book
@@ -203,28 +203,28 @@ def getBookCover(bookID=None, src=None):
 
         src = cache, cover, goodreads, librarything, whatwork, googleisbn, openlibrary, googleimage
         Return None if no cover available. """
-    if not bookID:
-        logger.error("getBookCover- No bookID")
+    if not bookid:
+        logger.error("get_book_cover- No bookID")
         return None, src
 
     if not src:
         src = ''
-    logger.debug("Getting %s cover for %s" % (src, bookID))
+    logger.debug("Getting %s cover for %s" % (src, bookid))
     # noinspection PyBroadException
     try:
-        myDB = database.DBConnection()
+        db = database.DBConnection()
         cachedir = lazylibrarian.CACHEDIR
-        item = myDB.match('select BookImg from books where bookID=?', (bookID,))
+        item = db.match('select BookImg from books where bookID=?', (bookid,))
         if item:
             coverlink = item['BookImg']
             coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
             if coverlink.startswith('http') and 'nocover' in coverlink or 'nophoto' in coverlink:
                 coverfile = os.path.join(lazylibrarian.DATADIR, 'images', 'nocover.png')
                 coverlink = 'images/nocover.png'
-                myDB.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookID))
+                db.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookid))
         else:
-            coverlink = "cache/book/" + bookID + ".jpg"
-            coverfile = os.path.join(cachedir, "book", bookID + '.jpg')
+            coverlink = "cache/book/" + bookid + ".jpg"
+            coverfile = os.path.join(cachedir, "book", bookid + '.jpg')
         if not src or src == 'cache' or src == 'current':
             if path_isfile(coverfile):  # use cached image if there is one
                 lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
@@ -234,7 +234,7 @@ def getBookCover(bookID=None, src=None):
                 return None, src
 
         if not src or src == 'cover':
-            item = myDB.match('select BookFile from books where bookID=?', (bookID,))
+            item = db.match('select BookFile from books where bookID=?', (bookid,))
             if item:
                 bookfile = item['BookFile']
                 if bookfile and path_isfile(bookfile):  # we may have a cover.jpg in the same folder
@@ -246,20 +246,20 @@ def getBookCover(bookID=None, src=None):
                         else:
                             extn = '.jpg'
 
-                        coverfile = os.path.join(cachedir, "book", bookID + extn)
-                        coverlink = 'cache/book/' + bookID + extn
-                        logger.debug("Caching %s for %s" % (extn, bookID))
+                        coverfile = os.path.join(cachedir, "book", bookid + extn)
+                        coverlink = 'cache/book/' + bookid + extn
+                        logger.debug("Caching %s for %s" % (extn, bookid))
                         _ = safe_copy(coverimg, coverfile)
                         return coverlink, src
                     else:
-                        logger.debug('No cover found for %s in %s' % (bookID, bookdir))
+                        logger.debug('No cover found for %s in %s' % (bookid, bookdir))
                 else:
                     if bookfile:
                         logger.debug("File %s not found" % bookfile)
                     else:
-                        logger.debug("No bookfile for %s" % bookID)
+                        logger.debug("No bookfile for %s" % bookid)
             else:
-                logger.debug("BookID %s not found" % bookID)
+                logger.debug("BookID %s not found" % bookid)
             if src:
                 return None, src
 
@@ -267,14 +267,14 @@ def getBookCover(bookID=None, src=None):
         if not src or src == 'librarything':
             if lazylibrarian.CONFIG['LT_DEVKEY']:
                 cmd = 'select BookISBN from books where bookID=?'
-                item = myDB.match(cmd, (bookID,))
+                item = db.match(cmd, (bookid,))
                 if item and item['BookISBN']:
                     img = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
                            lazylibrarian.CONFIG['LT_DEVKEY'], item['BookISBN'])])
                     if src:
-                        coverlink, success, _ = cache_img("book", bookID + '_lt', img)
+                        coverlink, success, _ = cache_img("book", bookid + '_lt', img)
                     else:
-                        coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                        coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                     # if librarything has no image they return a 1x1 gif
                     data = ''
@@ -283,28 +283,28 @@ def getBookCover(bookID=None, src=None):
                         with open(syspath(coverfile), 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
-                        logger.debug('Got an empty librarything image for %s [%s]' % (bookID, img))
+                        logger.debug('Got an empty librarything image for %s [%s]' % (bookid, img))
                     elif success:
-                        logger.debug("Caching librarything cover for %s" % bookID)
+                        logger.debug("Caching librarything cover for %s" % bookid)
                         return coverlink, 'librarything'
                     else:
                         logger.debug('Failed to cache image for %s [%s]' % (img, coverlink))
                 else:
-                    logger.debug("No isbn for %s" % bookID)
+                    logger.debug("No isbn for %s" % bookid)
             if src:
                 return None, src
 
         # see if librarything workpage has a cover
         if NEW_WHATWORK and (not src or src == 'whatwork'):
-            work = getBookWork(bookID, "Cover")
+            work = get_bookwork(bookid, "Cover")
             if work:
                 try:
                     img = work.split('workCoverImage')[1].split('="')[1].split('"')[0]
                     if img and img.startswith('http'):
                         if src:
-                            coverlink, success, _ = cache_img("book", bookID + '_ww', img)
+                            coverlink, success, _ = cache_img("book", bookid + '_ww', img)
                         else:
-                            coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                         # if librarything has no image they return a 1x1 gif
                         data = ''
@@ -313,24 +313,24 @@ def getBookCover(bookID=None, src=None):
                             with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
-                            logger.debug('Got an empty whatwork image for %s [%s]' % (bookID, coverlink))
+                            logger.debug('Got an empty whatwork image for %s [%s]' % (bookid, coverlink))
                         elif success:
-                            logger.debug("Caching whatwork cover for %s" % bookID)
+                            logger.debug("Caching whatwork cover for %s" % bookid)
                             return coverlink, 'whatwork'
                         else:
                             logger.debug('Failed to cache image for %s [%s]' % (img, coverlink))
                     else:
-                        logger.debug("No image found in work page for %s" % bookID)
+                        logger.debug("No image found in work page for %s" % bookid)
                 except IndexError:
-                    logger.debug('workCoverImage not found in work page for %s' % bookID)
+                    logger.debug('workCoverImage not found in work page for %s' % bookid)
 
                 try:
                     img = work.split('og:image')[1].split('="')[1].split('"')[0]
                     if img and img.startswith('http'):
                         if src:
-                            coverlink, success, _ = cache_img("book", bookID + '_ww', img)
+                            coverlink, success, _ = cache_img("book", bookid + '_ww', img)
                         else:
-                            coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                         # if librarything has no image they return a 1x1 gif
                         data = ''
@@ -339,31 +339,31 @@ def getBookCover(bookID=None, src=None):
                             with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
-                            logger.debug('Got an empty whatwork image for %s [%s]' % (bookID, coverlink))
+                            logger.debug('Got an empty whatwork image for %s [%s]' % (bookid, coverlink))
                         if success:
-                            logger.debug("Caching whatwork cover for %s" % bookID)
+                            logger.debug("Caching whatwork cover for %s" % bookid)
                             return coverlink, 'whatwork'
                         else:
                             logger.debug('Failed to cache image for %s [%s]' % (img, coverlink))
                     else:
-                        logger.debug("No image found in work page for %s" % bookID)
+                        logger.debug("No image found in work page for %s" % bookid)
                 except IndexError:
-                    logger.debug('og:image not found in work page for %s' % bookID)
+                    logger.debug('og:image not found in work page for %s' % bookid)
             else:
-                logger.debug('No work page for %s' % bookID)
+                logger.debug('No work page for %s' % bookid)
             if src:
                 return None, src
 
         cmd = 'select BookName,AuthorName,BookLink,BookISBN from books,authors where bookID=?'
         cmd += ' and books.AuthorID = authors.AuthorID'
-        item = myDB.match(cmd, (bookID,))
+        item = db.match(cmd, (bookid,))
         safeparams = ''
         booklink = ''
         if item:
             title = safe_unicode(item['BookName'])
             author = safe_unicode(item['AuthorName'])
             booklink = item['BookLink']
-            safeparams = quote_plus(makeUTF8bytes("%s %s" % (author, title))[0])
+            safeparams = quote_plus(make_utf8bytes("%s %s" % (author, title))[0])
 
         # try to get a cover from goodreads
         if not src or src == 'goodreads':
@@ -373,7 +373,7 @@ def getBookCover(bookID=None, src=None):
                 # <meta property="og:image" content="https://i.gr-assets.com/images/S/photo.goodreads.com/books/
                 # 1388267702i/16304._UY475_SS475_.jpg"/>
                 # to get the cover
-                result, success = fetchURL(booklink)
+                result, success = fetch_url(booklink)
                 if success:
                     try:
                         img = result.split('id="coverImage"')[1].split('src="')[1].split('"')[0]
@@ -384,9 +384,9 @@ def getBookCover(bookID=None, src=None):
                             img = None
                     if img and img.startswith('http') and 'nocover' not in img and 'nophoto' not in img:
                         if src == 'goodreads':
-                            coverlink, success, _ = cache_img("book", bookID + '_gr', img)
+                            coverlink, success, _ = cache_img("book", bookid + '_gr', img)
                         else:
-                            coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
@@ -394,14 +394,14 @@ def getBookCover(bookID=None, src=None):
                             with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
-                            logger.debug('Got an empty goodreads image for %s [%s]' % (bookID, coverlink))
+                            logger.debug('Got an empty goodreads image for %s [%s]' % (bookid, coverlink))
                         elif success:
                             logger.debug("Caching goodreads cover for %s %s" % (item['AuthorName'], item['BookName']))
                             return coverlink, 'goodreads'
                         else:
                             logger.debug("Error getting goodreads image for %s, [%s]" % (img, coverlink))
                     else:
-                        logger.debug("No image found in goodreads page for %s" % bookID)
+                        logger.debug("No image found in goodreads page for %s" % bookid)
                 else:
                     logger.debug("Error getting goodreads page %s, [%s]" % (booklink, result))
             if src:
@@ -409,10 +409,10 @@ def getBookCover(bookID=None, src=None):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
-            if not ProviderIsBlocked("openlibrary") and item and item['BookISBN']:
+            if not provider_is_blocked("openlibrary") and item and item['BookISBN']:
                 baseurl = '/'.join([lazylibrarian.CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
-                result, success = fetchURL(baseurl + item['BookISBN'])
+                result, success = fetch_url(baseurl + item['BookISBN'])
                 if success:
                     try:
                         source = json.loads(result)  # type: dict
@@ -434,9 +434,9 @@ def getBookCover(bookID=None, src=None):
 
                     if img and img.startswith('http') and 'nocover' not in img and 'nophoto' not in img:
                         if src == 'openlibrary':
-                            coverlink, success, _ = cache_img("book", bookID + '_ol', img)
+                            coverlink, success, _ = cache_img("book", bookid + '_ol', img)
                         else:
-                            coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
@@ -444,13 +444,13 @@ def getBookCover(bookID=None, src=None):
                             with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
-                            logger.debug('Got an empty openlibrary image for %s [%s]' % (bookID, coverlink))
+                            logger.debug('Got an empty openlibrary image for %s [%s]' % (bookid, coverlink))
                         elif success:
                             logger.debug("Caching openlibrary cover for %s %s" % (item['AuthorName'], item['BookName']))
                             return coverlink, 'openlibrary'
                 else:
                     logger.debug("OpenLibrary error: %s" % result)
-                    BlockProvider("openlibrary", result)
+                    block_provider("openlibrary", result)
             if src:
                 return None, src
 
@@ -458,8 +458,8 @@ def getBookCover(bookID=None, src=None):
             # try a google isbn page search...
             # there is no image returned if google doesn't have a link for buying the book
             if safeparams:
-                URL = "http://www.google.com/search?q=ISBN+" + safeparams
-                result, success = fetchURL(URL)
+                url = "http://www.google.com/search?q=ISBN+" + safeparams
+                result, success = fetch_url(url)
                 if success:
                     try:
                         img = result.split('imgurl=')[1].split('&imgrefurl')[0]
@@ -471,9 +471,9 @@ def getBookCover(bookID=None, src=None):
 
                     if img and img.startswith('http'):
                         if src:
-                            coverlink, success, _ = cache_img("book", bookID + '_gi', img)
+                            coverlink, success, _ = cache_img("book", bookid + '_gi', img)
                         else:
-                            coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
 
                         data = ''
                         coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
@@ -481,7 +481,7 @@ def getBookCover(bookID=None, src=None):
                             with open(syspath(coverfile), 'rb') as f:
                                 data = f.read()
                         if len(data) < 50:
-                            logger.debug('Got an empty google image for %s [%s]' % (bookID, coverlink))
+                            logger.debug('Got an empty google image for %s [%s]' % (bookid, coverlink))
                         elif success:
                             logger.debug("Caching google isbn cover for %s %s" %
                                          (item['AuthorName'], item['BookName']))
@@ -489,17 +489,17 @@ def getBookCover(bookID=None, src=None):
                         else:
                             logger.debug("Error caching google image %s, [%s]" % (img, coverlink))
                     else:
-                        logger.debug("No image found in google isbn page for %s" % bookID)
+                        logger.debug("No image found in google isbn page for %s" % bookid)
                 else:
                     logger.debug("Failed to fetch url from google")
             else:
-                logger.debug("No parameters for google isbn search for %s" % bookID)
+                logger.debug("No parameters for google isbn search for %s" % bookid)
             if src:
                 return None, src
 
         if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
             if PIL and safeparams:
-                icrawlerdir = os.path.join(cachedir, 'icrawler', bookID)
+                icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
                 gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
                 logger.debug(safeparams)
                 gc.crawl(keyword=safeparams, max_num=1)
@@ -511,16 +511,16 @@ def getBookCover(bookID=None, src=None):
                 if res:
                     img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
                     if src:
-                        coverlink, success, _ = cache_img("book", bookID + '_gb', img)
+                        coverlink, success, _ = cache_img("book", bookid + '_gb', img)
                     else:
-                        coverlink, success, _ = cache_img("book", bookID, img, refresh=True)
+                        coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
                     data = ''
                     coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
                     if path_isfile(coverfile):
                         with open(syspath(coverfile), 'rb') as f:
                             data = f.read()
                     if len(data) < 50:
-                        logger.debug('Got an empty google search image for %s [%s]' % (bookID, coverlink))
+                        logger.debug('Got an empty google search image for %s [%s]' % (bookid, coverlink))
                     elif success:
                         logger.debug("Cached google search cover for %s %s" %
                                      (item['AuthorName'], item['BookName']))
@@ -529,26 +529,26 @@ def getBookCover(bookID=None, src=None):
                     else:
                         logger.debug("Error getting google image %s, [%s]" % (img, coverlink))
                 else:
-                    logger.debug("No images found in google page for %s" % bookID)
+                    logger.debug("No images found in google page for %s" % bookid)
                 # rmtree(icrawlerdir, ignore_errors=True)
             else:
                 if not PIL:
-                    logger.debug("PIL not found for google image search for %s" % bookID)
+                    logger.debug("PIL not found for google image search for %s" % bookid)
                 else:
-                    logger.debug("No parameters for google image search for %s" % bookID)
+                    logger.debug("No parameters for google image search for %s" % bookid)
             if src:
                 return None, src
 
         logger.debug("No image found from any configured source")
         return None, src
     except Exception:
-        logger.error('Unhandled exception in getBookCover: %s' % traceback.format_exc())
+        logger.error('Unhandled exception in get_book_cover: %s' % traceback.format_exc())
     return None, src
 
 
-def getAuthorImage(authorid=None, refresh=False, max_num=1):
+def get_author_image(authorid=None, refresh=False, max_num=1):
     if not authorid:
-        logger.error("getAuthorImage: No authorid")
+        logger.error("get_author_image: No authorid")
         return None
 
     cachedir = lazylibrarian.CACHEDIR
@@ -556,16 +556,16 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
 
     if path_isfile(coverfile) and max_num == 1 and not refresh:  # use cached image if there is one
         lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-        logger.debug("getAuthorImage: Returning Cached response for %s" % coverfile)
+        logger.debug("get_author_image: Returning Cached response for %s" % coverfile)
         coverlink = 'cache/author/' + authorid + '.jpg'
         return coverlink
 
     lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
-    myDB = database.DBConnection()
-    author = myDB.match('select AuthorName from authors where AuthorID=?', (authorid,))
+    db = database.DBConnection()
+    author = db.match('select AuthorName from authors where AuthorID=?', (authorid,))
     if PIL and author:
         authorname = safe_unicode(author['AuthorName'])
-        safeparams = quote_plus(makeUTF8bytes("author %s" % authorname)[0])
+        safeparams = quote_plus(make_utf8bytes("author %s" % authorname)[0])
         icrawlerdir = os.path.join(cachedir, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
         gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
@@ -597,13 +597,13 @@ def getAuthorImage(authorid=None, refresh=False, max_num=1):
     return None
 
 
-def createMagCovers(refresh=False):
+def create_mag_covers(refresh=False):
     if not lazylibrarian.CONFIG['IMP_MAGCOVER']:
         logger.info('Cover creation is disabled in config')
         return ''
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     #  <> '' ignores empty string or NULL
-    issues = myDB.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
+    issues = db.select("SELECT Title,IssueFile from issues WHERE IssueFile <> ''")
     if refresh:
         logger.info("Creating covers for %s %s" % (len(issues), plural(len(issues), "issue")))
     else:
@@ -611,8 +611,8 @@ def createMagCovers(refresh=False):
     cnt = 0
     for item in issues:
         try:
-            maginfo = myDB.match("SELECT CoverPage from magazines WHERE Title=?", (item['Title'],))
-            createMagCover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
+            maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (item['Title'],))
+            create_mag_cover(item['IssueFile'], refresh=refresh, pagenum=maginfo['CoverPage'])
             cnt += 1
         except Exception as why:
             logger.warn('Unable to create cover for %s, %s %s' % (item['IssueFile'], type(why).__name__, str(why)))
@@ -637,7 +637,7 @@ def find_gs():
                 params = ["where", "gswin64c"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    GS = makeUnicode(GS).strip()
+                    GS = make_unicode(GS).strip()
                     generator = "gswin64c"
                 except Exception as e:
                     logger.debug("where gswin64c failed: %s %s" % (type(e).__name__, str(e)))
@@ -646,7 +646,7 @@ def find_gs():
                 params = ["where", "gswin32c"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    GS = makeUnicode(GS).strip()
+                    GS = make_unicode(GS).strip()
                     generator = "gswin32c"
                 except Exception as e:
                     logger.debug("where gswin32c failed: %s %s" % (type(e).__name__, str(e)))
@@ -663,7 +663,7 @@ def find_gs():
                 params = ["which", "gs"]
                 try:
                     GS = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    GS = makeUnicode(GS).strip()
+                    GS = make_unicode(GS).strip()
                     generator = GS
                 except subprocess.CalledProcessError as e:
                     if e.returncode == 1:
@@ -680,7 +680,7 @@ def find_gs():
             try:
                 params = [GS, "--version"]
                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                res = makeUnicode(res).strip()
+                res = make_unicode(res).strip()
                 logger.debug("Found %s [%s] version %s" % (generator, GS, res))
                 generator = "%s version %s" % (generator, res)
                 GS_VER = res
@@ -690,7 +690,7 @@ def find_gs():
     return GS, GS_VER, generator
 
 
-def shrinkMag(issuefile, dpi=0):
+def shrink_mag(issuefile, dpi=0):
     global GS, GS_VER, generator
     if not issuefile or not path_isfile(issuefile):
         logger.warn('No issuefile %s' % issuefile)
@@ -712,7 +712,7 @@ def shrinkMag(issuefile, dpi=0):
                   "-dUseCropBox", "-sOutputFile=%s" % outfile, issuefile]
         try:
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-            res = makeUnicode(res).strip()
+            res = make_unicode(res).strip()
             if not path_isfile(outfile):
                 logger.debug("Failed to shrink file: %s" % res)
                 return ''
@@ -724,7 +724,7 @@ def shrinkMag(issuefile, dpi=0):
 
 
 # noinspection PyUnresolvedReferences
-def createMagCover(issuefile=None, refresh=False, pagenum=1):
+def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
     if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
         logger.warn('No cover required for %s' % issuefile)
@@ -818,7 +818,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                 else:
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
 
-                res = makeUnicode(res).strip()
+                res = make_unicode(res).strip()
                 if res:
                     logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
             except Exception as e:
@@ -837,7 +837,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                           "-dUseCropBox", "-sOutputFile=%s" % coverfile, issuefile]
                 try:
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
-                    res = makeUnicode(res).strip()
+                    res = make_unicode(res).strip()
                     if not path_isfile(coverfile):
                         logger.debug("Failed to create jpg: %s" % res)
                 except Exception as e:
@@ -868,9 +868,9 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                     img = PythonMagick.Image()
                     # PythonMagick requires filenames to be bytestr, not unicode
                     if type(issuefile) is text_type:
-                        issuefile = makeBytestr(issuefile)
+                        issuefile = make_bytestr(issuefile)
                     if type(coverfile) is text_type:
-                        coverfile = makeBytestr(coverfile)
+                        coverfile = make_bytestr(coverfile)
                     img.read(issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']')
                     img.write(coverfile)
 
@@ -886,7 +886,7 @@ def createMagCover(issuefile=None, refresh=False, pagenum=1):
                         try:
                             res = subprocess.check_output(params, preexec_fn=lambda: os.nice(10),
                                                           stderr=subprocess.STDOUT)
-                            res = makeUnicode(res).strip()
+                            res = make_unicode(res).strip()
                             if not path_isfile(coverfile):
                                 logger.debug("Failed to create jpg: %s" % res)
                         except Exception as e:

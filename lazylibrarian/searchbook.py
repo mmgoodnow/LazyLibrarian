@@ -17,9 +17,9 @@ import time
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import plural, check_int
-from lazylibrarian.providers import IterateOverNewzNabSites, IterateOverTorrentSites, IterateOverRSSSites, \
-    IterateOverDirectSites, IterateOverIRCSites
-from lazylibrarian.resultlist import findBestResult, downloadResult
+from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
+    iterate_over_direct_sites, iterate_over_irc_sites
+from lazylibrarian.resultlist import find_best_result, download_result
 
 
 def cron_search_book():
@@ -29,7 +29,7 @@ def cron_search_book():
         logger.debug("SEARCHALLBOOKS is already running")
 
 
-def goodEnough(match):
+def good_enough(match):
     if match and int(match[0]) >= check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
         return True
     return False
@@ -38,7 +38,7 @@ def goodEnough(match):
 modelist = []
 
 
-def warnMode(mode):
+def warn_mode(mode):
     # don't nag. Show warning messages no more than every 20 mins
     global modelist
     timenow = int(time.time())
@@ -79,7 +79,7 @@ def search_book(books=None, library=None):
     library is "eBook" or "AudioBook" or None to search all book types
     """
     global modelist
-    myDB = database.DBConnection()
+    db = database.DBConnection()
     # noinspection PyBroadException
     try:
         threadname = threading.currentThread().name
@@ -95,7 +95,7 @@ def search_book(books=None, library=None):
             else:
                 threading.currentThread().name = "SEARCHBOOKS"
 
-        myDB.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
         searchlist = []
         searchbooks = []
 
@@ -104,7 +104,7 @@ def search_book(books=None, library=None):
             cmd = 'SELECT BookID, AuthorName, Bookname, BookSub, BookAdded, books.Status, AudioStatus '
             cmd += 'from books,authors WHERE (books.Status="Wanted" OR AudioStatus="Wanted") '
             cmd += 'and books.AuthorID = authors.AuthorID order by BookAdded desc'
-            results = myDB.select(cmd)
+            results = db.select(cmd)
             for terms in results:
                 searchbooks.append(terms)
         else:
@@ -115,7 +115,7 @@ def search_book(books=None, library=None):
                 if not book['bookid'] in ['booklang', 'library', 'ignored']:
                     cmd = 'SELECT BookID, AuthorName, BookName, BookSub, books.Status, AudioStatus '
                     cmd += 'from books,authors WHERE BookID=? AND books.AuthorID = authors.AuthorID'
-                    results = myDB.select(cmd, (book['bookid'],))
+                    results = db.select(cmd, (book['bookid'],))
                     if results:
                         for terms in results:
                             searchbooks.append(terms)
@@ -124,11 +124,11 @@ def search_book(books=None, library=None):
 
         if len(searchbooks) == 0:
             logger.debug("No books to search for")
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             return
 
-        nprov = lazylibrarian.USE_NZB() + lazylibrarian.USE_TOR() + lazylibrarian.USE_RSS()
-        nprov += lazylibrarian.USE_DIRECT() + lazylibrarian.USE_IRC()
+        nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
+        nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
 
         if nprov == 0:
             msg = "SearchBooks - No providers to search"
@@ -138,19 +138,19 @@ def search_book(books=None, library=None):
             else:
                 msg += " (check you have some enabled)"
             logger.debug(msg)
-            myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
             return
 
         modelist = []
-        if lazylibrarian.USE_NZB():
+        if lazylibrarian.use_nzb():
             modelist.append('nzb')
-        if lazylibrarian.USE_TOR():
+        if lazylibrarian.use_tor():
             modelist.append('tor')
-        if lazylibrarian.USE_DIRECT():
+        if lazylibrarian.use_direct():
             modelist.append('direct')
-        if lazylibrarian.USE_RSS():
+        if lazylibrarian.use_rss():
             modelist.append('rss')
-        if lazylibrarian.USE_IRC():
+        if lazylibrarian.use_irc():
             modelist.append('irc')
 
         logger.info('Searching %s %s %s for %i %s' %
@@ -185,7 +185,7 @@ def search_book(books=None, library=None):
 
             if searchbook['Status'] == "Wanted":
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="eBook" and Status="Snatched"'
-                snatched = myDB.match(cmd, (searchbook["BookID"],))
+                snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warn('eBook %s %s already marked snatched in wanted table' %
                                 (searchbook['AuthorName'], searchbook['BookName']))
@@ -200,7 +200,7 @@ def search_book(books=None, library=None):
 
             if searchbook['AudioStatus'] == "Wanted":
                 cmd = 'SELECT BookID from wanted WHERE BookID=? and AuxInfo="AudioBook" and Status="Snatched"'
-                snatched = myDB.match(cmd, (searchbook["BookID"],))
+                snatched = db.match(cmd, (searchbook["BookID"],))
                 if snatched:
                     logger.warn('AudioBook %s %s already marked snatched in wanted table' %
                                 (searchbook['AuthorName'], searchbook['BookName']))
@@ -216,11 +216,11 @@ def search_book(books=None, library=None):
         # only get rss results once per run, as they are not search specific
         rss_resultlist = None
         if 'rss' in modelist:
-            rss_resultlist, nprov, dltypes = IterateOverRSSSites()
+            rss_resultlist, nprov, dltypes = iterate_over_rss_sites()
             if not nprov or (library == 'Audiobook' and 'A' not in dltypes) or \
                             (library == 'eBook' and 'E' not in dltypes) or \
                             (library is None and ('E' in dltypes or 'A' in dltypes)):
-                warnMode('rss')
+                warn_mode('rss')
 
         book_count = 0
         for book in searchlist:
@@ -229,8 +229,8 @@ def search_book(books=None, library=None):
                 break
             do_search = True
             if lazylibrarian.CONFIG['DELAYSEARCH'] and not force:
-                res = myDB.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
-                                 (book['bookid'], book['library']))
+                res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
+                               (book['bookid'], book['library']))
                 if not res:
                     logger.debug("SearchDelay: %s %s has not failed before" % (book['library'], book['bookid']))
                 else:
@@ -239,8 +239,8 @@ def search_book(books=None, library=None):
                     if skipped < interval:
                         logger.debug("SearchDelay: %s %s not due (%d/%d)" %
                                      (book['library'], book['bookid'], skipped, interval))
-                        myDB.action("UPDATE failedsearch SET Count=? WHERE BookID=? AND Library=?",
-                                    (skipped + 1, book['bookid'], book['library']))
+                        db.action("UPDATE failedsearch SET Count=? WHERE BookID=? AND Library=?",
+                                  (skipped + 1, book['bookid'], book['library']))
                         do_search = False
                     else:
                         logger.debug("SearchDelay: %s %s due this time (%d/%d)" %
@@ -257,121 +257,121 @@ def search_book(books=None, library=None):
 
                     resultlist = None
                     if mode == 'nzb' and 'nzb' in modelist:
-                        resultlist, nprov = IterateOverNewzNabSites(book, searchtype)
+                        resultlist, nprov = iterate_over_newznab_sites(book, searchtype)
                         if not nprov:
-                            warnMode('nzb')
+                            warn_mode('nzb')
                     elif mode == 'tor' and 'tor' in modelist:
-                        resultlist, nprov = IterateOverTorrentSites(book, searchtype)
+                        resultlist, nprov = iterate_over_torrent_sites(book, searchtype)
                         if not nprov:
-                            warnMode('tor')
+                            warn_mode('tor')
                     elif mode == 'direct' and 'direct' in modelist:
-                        resultlist, nprov = IterateOverDirectSites(book, searchtype)
+                        resultlist, nprov = iterate_over_direct_sites(book, searchtype)
                         if not nprov:
-                            warnMode('direct')
+                            warn_mode('direct')
                     elif mode == 'irc' and 'irc' in modelist:
-                        resultlist, nprov = IterateOverIRCSites(book, searchtype)
+                        resultlist, nprov = iterate_over_irc_sites(book, searchtype)
                         if not nprov:
-                            warnMode('irc')
+                            warn_mode('irc')
                     elif mode == 'rss' and 'rss' in modelist:
                         if rss_resultlist:
                             resultlist = rss_resultlist
                         else:
-                            warnMode('rss')
+                            warn_mode('rss')
 
                     if resultlist:
-                        match = findBestResult(resultlist, book, searchtype, mode)
+                        match = find_best_result(resultlist, book, searchtype, mode)
                     else:
                         match = None
 
                     # if you can't find the book, try author/title without any "(extended details, series etc)"
-                    if not goodEnough(match) and '(' in book['bookName']:
+                    if not good_enough(match) and '(' in book['bookName']:
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, 'short' + searchtype)
+                            resultlist, nprov = iterate_over_newznab_sites(book, 'short' + searchtype)
                             if not nprov:
-                                warnMode('nzb')
+                                warn_mode('nzb')
 
                         elif mode == 'tor' and 'tor' in modelist:
-                            resultlist, nprov = IterateOverTorrentSites(book, 'short' + searchtype)
+                            resultlist, nprov = iterate_over_torrent_sites(book, 'short' + searchtype)
                             if not nprov:
-                                warnMode('tor')
+                                warn_mode('tor')
 
                         elif mode == 'direct' and 'direct' in modelist:
-                            resultlist, nprov = IterateOverDirectSites(book, 'short' + searchtype)
+                            resultlist, nprov = iterate_over_direct_sites(book, 'short' + searchtype)
                             if not nprov:
-                                warnMode('direct')
+                                warn_mode('direct')
 
                         elif mode == 'irc' and 'irc' in modelist:
-                            resultlist, nprov = IterateOverIRCSites(book, 'short' + searchtype)
+                            resultlist, nprov = iterate_over_irc_sites(book, 'short' + searchtype)
                             if not nprov:
-                                warnMode('irc')
+                                warn_mode('irc')
 
                         elif mode == 'rss' and 'rss' in modelist:
                             resultlist = rss_resultlist
 
                         if resultlist:
-                            match = findBestResult(resultlist, book, 'short' + searchtype, mode)
+                            match = find_best_result(resultlist, book, 'short' + searchtype, mode)
                         else:
                             match = None
 
                     # if you can't find the book under "books", you might find under general search
                     # general search is the same as booksearch for torrents, irc and rss, no need to check again
-                    if not goodEnough(match):
+                    if not good_enough(match):
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, 'general' + searchtype)
+                            resultlist, nprov = iterate_over_newznab_sites(book, 'general' + searchtype)
                             if not nprov:
-                                warnMode('nzb')
+                                warn_mode('nzb')
 
                             if resultlist:
-                                match = findBestResult(resultlist, book, 'general' + searchtype, mode)
+                                match = find_best_result(resultlist, book, 'general' + searchtype, mode)
                             else:
                                 match = None
 
                     # if still not found, try general search again without any "(extended details, series etc)"
                     # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
-                    if not goodEnough(match) and '(' in book['searchterm']:
+                    if not good_enough(match) and '(' in book['searchterm']:
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, 'shortgeneral' + searchtype)
+                            resultlist, nprov = iterate_over_newznab_sites(book, 'shortgeneral' + searchtype)
                             if not nprov:
-                                warnMode('nzb')
+                                warn_mode('nzb')
 
                             if resultlist:
-                                match = findBestResult(resultlist, book, 'shortgeneral' + searchtype, mode)
+                                match = find_best_result(resultlist, book, 'shortgeneral' + searchtype, mode)
                             else:
                                 match = None
 
                     # if still not found, try general search again with title only
-                    if not goodEnough(match):
+                    if not good_enough(match):
                         if mode == 'nzb' and 'nzb' in modelist:
-                            resultlist, nprov = IterateOverNewzNabSites(book, 'title' + searchtype)
+                            resultlist, nprov = iterate_over_newznab_sites(book, 'title' + searchtype)
                             if not nprov:
-                                warnMode('nzb')
+                                warn_mode('nzb')
 
                         elif mode == 'tor' and 'tor' in modelist:
-                            resultlist, nprov = IterateOverTorrentSites(book, 'title' + searchtype)
+                            resultlist, nprov = iterate_over_torrent_sites(book, 'title' + searchtype)
                             if not nprov:
-                                warnMode('tor')
+                                warn_mode('tor')
 
                         elif mode == 'direct' and 'direct' in modelist:
-                            resultlist, nprov = IterateOverDirectSites(book, 'title' + searchtype)
+                            resultlist, nprov = iterate_over_direct_sites(book, 'title' + searchtype)
                             if not nprov:
-                                warnMode('direct')
+                                warn_mode('direct')
 
                         # irchighway says search results without both author and title will be
                         # silently rejected but that doesn't seem to be actioned...
                         elif mode == 'irc' and 'irc' in modelist:
-                            resultlist, nprov = IterateOverIRCSites(book, 'title' + searchtype)
+                            resultlist, nprov = iterate_over_irc_sites(book, 'title' + searchtype)
                             if not nprov:
-                                warnMode('irc')
+                                warn_mode('irc')
 
                         elif mode == 'rss' and 'rss' in modelist:
                             resultlist = rss_resultlist
 
                         if resultlist:
-                            match = findBestResult(resultlist, book, 'title' + searchtype, mode)
+                            match = find_best_result(resultlist, book, 'title' + searchtype, mode)
                         else:
                             match = None
 
-                    if not goodEnough(match):
+                    if not good_enough(match):
                         logger.info("%s Searches for %s %s returned no results." %
                                     (mode.upper(), book['library'], book['searchterm']))
                     else:
@@ -383,20 +383,20 @@ def search_book(books=None, library=None):
                 highest = max(matches, key=lambda s: (s[0], s[3]))  # sort on percentage and priority
                 logger.info("Requesting %s download: %s%% %s: %s" %
                             (book['library'], highest[0], highest[1]['NZBprov'], highest[1]['NZBtitle']))
-                if downloadResult(highest, book) > 1:
+                if download_result(highest, book) > 1:
                     book_count += 1  # we found it
-                myDB.action("DELETE from failedsearch WHERE BookID=? AND Library=?", (book['bookid'], book['library']))
+                db.action("DELETE from failedsearch WHERE BookID=? AND Library=?", (book['bookid'], book['library']))
             elif lazylibrarian.CONFIG['DELAYSEARCH'] and not force and do_search and len(modelist):
-                res = myDB.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
-                                 (book['bookid'], book['library']))
+                res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
+                               (book['bookid'], book['library']))
                 if res:
                     interval = check_int(res['Interval'], 0)
                 else:
                     interval = 0
 
-                myDB.upsert("failedsearch",
-                            {'Count': 0, 'Interval': interval + 1, 'Time': time.time()},
-                            {'BookID': book['bookid'], 'Library': book['library']})
+                db.upsert("failedsearch",
+                          {'Count': 0, 'Interval': interval + 1, 'Time': time.time()},
+                          {'BookID': book['bookid'], 'Library': book['library']})
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
@@ -405,5 +405,5 @@ def search_book(books=None, library=None):
     except Exception:
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
     finally:
-        myDB.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
         threading.currentThread().name = "WEBSERVER"

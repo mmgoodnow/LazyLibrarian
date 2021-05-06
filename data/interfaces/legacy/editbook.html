@@ -5,9 +5,9 @@
 <%def name="headerIncludes()">
     <div id="subhead_container">
         <ul id="subhead_menu">
-            <li><a href="booksearch?bookid=${config['BookID']}&title=${config['BookName']}&author=${config['AuthorName']}" id="button"> Author/Title Search </a></li>
-            <li><a href="booksearch?bookid=${config['BookID']}&title=${config['BookName']}" id="button"> Title Search </a></li>
-            <li><a href="booksearch?bookid=${config['BookID']}&author=${config['AuthorName']}" id="button"> Author Search </a></li>
+            <li><a href="booksearch?bookid=${config['BookID']}&title=${config['BookName']}&author=${config['AuthorName']}" id="sbutton"> Author/Title Search </a></li>
+            <li><a href="booksearch?bookid=${config['BookID']}&title=${config['BookName']}" id="tbutton"> Title Search </a></li>
+            <li><a href="booksearch?bookid=${config['BookID']}&author=${config['AuthorName']}" id="abutton"> Author Search </a></li>
         </ul>
     </div>
 </%def>
@@ -15,7 +15,7 @@
 <BR><br>
 <h1>&nbsp;&nbsp;${title}</h1>
 <br><br>
-    <form accept-charset="UTF-8" action="bookUpdate" method="post">
+    <form accept-charset="UTF-8" action="book_update" method="post">
     <div class="table_wrapper">
         <input name="utf8" type="hidden" value="&#x2713;" />
         <table class="configtable">
@@ -62,13 +62,13 @@
                 <div>
                 <br>
                 <label>Book Series ${loop.index}</label>
-                <input type="text" name="series[${loop.index}][name]" value="${item['SeriesName']}" class="form-control" size="36 "placeholder="Series Name">
+                <input type="text" name="series[${loop.index}][name]" value="${item['SeriesName']}" class="form-control" size="36 " placeholder="Series Name">
                 <input type="text" name="series[${loop.index}][number]" value="${item['SeriesNum']}" class="form-control" size="36" placeholder="Number">
                 </div>
             %endfor
                 <br>
                 <label>New Series</label>
-                <input type="text" name="series[new][name]" value="" class="form-control" size="36 "placeholder="Series Name">
+                <input type="text" name="series[new][name]" value="" class="form-control" size="36 " placeholder="Series Name">
                 <input type="text" name="series[new][number]" value="" class="form-control" size="36" placeholder="Number">
             <br>
             <%

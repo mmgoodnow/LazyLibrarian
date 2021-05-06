@@ -17,9 +17,9 @@ from six.moves.urllib_parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.cache import fetchURL
-from lazylibrarian.formatter import plural, formatAuthorName, makeUnicode, size_in_bytes, url_fix, \
-    makeUTF8bytes, seconds_to_midnight, check_int
+from lazylibrarian.cache import fetch_url
+from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
+    make_utf8bytes, seconds_to_midnight, check_int
 from six import PY2
 
 try:
@@ -70,21 +70,21 @@ def bok_sleep():
         lazylibrarian.LAST_ZLIBRARY = time_now
 
 
-def BOK(book=None, prov=None, test=False):
+def direct_bok(book=None, prov=None, test=False):
     errmsg = ''
     provider = "zlibrary"
     if not prov:
-        prov = 'BOK'
-    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        prov = 'direct_bok'
+    if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
             return 0
-        return [], "ProviderIsBlocked"
+        return [], "provider_is_blocked"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
     results = []
     page = 1
     removed = 0
@@ -94,22 +94,22 @@ def BOK(book=None, prov=None, test=False):
 
     while next_page:
         params = {
-            "q": makeUTF8bytes(book['searchterm'])[0]
+            "q": make_utf8bytes(book['searchterm'])[0]
         }
         if page > 1:
             params['page'] = page
 
         providerurl = url_fix(host + "/s/")
-        searchURL = providerurl + "?%s" % urlencode(params)
+        search_url = providerurl + "?%s" % urlencode(params)
 
         next_page = False
         bok_sleep()
-        result, success = fetchURL(searchURL)
+        result, success = fetch_url(search_url)
         if not success or len(result) < 100:  # may return a "blocked" message
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                                  searchURL))
+                                                                                  search_url))
                 if test:
                     return 0
             elif '111' in result:
@@ -117,15 +117,15 @@ def BOK(book=None, prov=None, test=False):
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
+                lazylibrarian.providers.block_provider(provider, errmsg, delay=delay)
             else:
-                logger.debug(searchURL)
+                logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
             result = ''
 
         if len(result):
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             try:
                 rows = []
                 if 'class="fuzzyMatchesLine"' in result:
@@ -144,7 +144,7 @@ def BOK(book=None, prov=None, test=False):
                         rows = []
 
                 for row in rows:
-                    if lazylibrarian.providers.ProviderIsBlocked(provider):
+                    if lazylibrarian.providers.provider_is_blocked(provider):
                         next_page = False
                         break
                     url = None
@@ -168,7 +168,7 @@ def BOK(book=None, prov=None, test=False):
 
                     if url:
                         bok_sleep()
-                        res, succ = fetchURL(url)
+                        res, succ = fetch_url(url)
                         if succ:
                             try:
                                 newsoup = BeautifulSoup(res, "html5lib")
@@ -185,7 +185,7 @@ def BOK(book=None, prov=None, test=False):
                                         msg = res
                                         delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
                                     if delay:
-                                        lazylibrarian.providers.BlockProvider(provider, msg, delay=delay)
+                                        lazylibrarian.providers.block_provider(provider, msg, delay=delay)
                                         logger.warn(msg)
                                         url = None
                                 else:
@@ -235,47 +235,47 @@ def BOK(book=None, prov=None, test=False):
         else:
             bok_sleep()
 
-        if lazylibrarian.providers.ProviderIsBlocked(provider):
-            errmsg = "ProviderIsBlocked"
+        if lazylibrarian.providers.provider_is_blocked(provider):
+            errmsg = "provider_is_blocked"
             next_page = False
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
-def BFI(book=None, prov=None, test=False):
+def direct_bfi(book=None, prov=None, test=False):
     errmsg = ''
     provider = "BookFi"
     if not prov:
-        prov = 'BFI'
-    if lazylibrarian.providers.ProviderIsBlocked(provider):
+        prov = 'direct_bfi'
+    if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
             return 0
-        return [], "ProviderIsBlocked"
+        return [], "provider_is_blocked"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
     results = []
     removed = 0
     if test:
         book['bookid'] = '0'
 
     params = {
-        "q": makeUTF8bytes(book['searchterm'])[0]
+        "q": make_utf8bytes(book['searchterm'])[0]
     }
 
     providerurl = url_fix(host + "/s/")
-    searchURL = providerurl + "?%s" % urlencode(params)
+    search_url = providerurl + "?%s" % urlencode(params)
 
-    result, success = fetchURL(searchURL)
+    result, success = fetch_url(search_url)
     if not success:
         # may return 404 if no results, not really an error
         if '404' in result:
             logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                              searchURL))
+                                                                              search_url))
             if test:
                 return 0
         elif '111' in result:
@@ -283,15 +283,15 @@ def BFI(book=None, prov=None, test=False):
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
             delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-            lazylibrarian.providers.BlockProvider(provider, errmsg, delay=delay)
+            lazylibrarian.providers.block_provider(provider, errmsg, delay=delay)
         else:
-            logger.debug(searchURL)
+            logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
             errmsg = result
         result = ''
 
     if len(result):
-        logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+        logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         try:
             soup = BeautifulSoup(result, "html5lib")
             try:
@@ -300,7 +300,7 @@ def BFI(book=None, prov=None, test=False):
                 rows = []
 
             for row in rows:
-                if lazylibrarian.providers.ProviderIsBlocked(provider):
+                if lazylibrarian.providers.provider_is_blocked(provider):
                     break
                 rowsoup = BeautifulSoup(str(row), 'html5lib')
                 title = rowsoup.find('h3', itemprop='name').text
@@ -345,14 +345,14 @@ def BFI(book=None, prov=None, test=False):
         logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
         return len(results)
 
-    if lazylibrarian.providers.ProviderIsBlocked(provider):
-        errmsg = "ProviderIsBlocked"
+    if lazylibrarian.providers.provider_is_blocked(provider):
+        errmsg = "provider_is_blocked"
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
 
 
-def GEN(book=None, prov=None, test=False):
+def direct_gen(book=None, prov=None, test=False):
     errmsg = ''
     host = ''
     search = ''
@@ -360,10 +360,10 @@ def GEN(book=None, prov=None, test=False):
     provider = "libgen.io"
     if not prov:
         prov = 'GEN_0'
-    if lazylibrarian.providers.ProviderIsBlocked(prov):
+    if lazylibrarian.providers.provider_is_blocked(prov):
         if test:
             return 0
-        return [], "ProviderIsBlocked"
+        return [], "provider_is_blocked"
     for entry in lazylibrarian.GEN_PROV:
         if entry['NAME'].lower() == prov.lower():
             host = entry['HOST']
@@ -380,7 +380,7 @@ def GEN(book=None, prov=None, test=False):
     if not host:
         return [], "Unknown Provider [%s]" % prov
 
-    sterm = makeUnicode(book['searchterm'])
+    sterm = make_unicode(book['searchterm'])
 
     page = 1
     results = []
@@ -393,7 +393,7 @@ def GEN(book=None, prov=None, test=False):
     while next_page:
         if 'index.php' in search:
             params = {
-                "s": makeUTF8bytes(book['searchterm'])[0],
+                "s": make_utf8bytes(book['searchterm'])[0],
                 "f_lang": "All",
                 "f_columns": 0,
                 "f_ext": "All"
@@ -406,30 +406,30 @@ def GEN(book=None, prov=None, test=False):
                 "column": "def",
                 "lg_topic": "libgen",
                 "res": maxresults,
-                "req": makeUTF8bytes(book['searchterm'])[0]
+                "req": make_utf8bytes(book['searchterm'])[0]
             }
         elif 'comic' in search:
             params = {
-                "s": makeUTF8bytes(book['searchterm'])[0]
+                "s": make_utf8bytes(book['searchterm'])[0]
             }
         else:  # elif 'fiction' in search:
             params = {
-                "q": makeUTF8bytes(book['searchterm'])[0]
+                "q": make_utf8bytes(book['searchterm'])[0]
             }
 
         if page > 1:
             params['page'] = page
 
         providerurl = url_fix(host + "/%s" % search)
-        searchURL = providerurl + "?%s" % urlencode(params)
+        search_url = providerurl + "?%s" % urlencode(params)
 
         next_page = False
-        result, success = fetchURL(searchURL)
+        result, success = fetch_url(search_url)
         if not success:
             # may return 404 if no results, not really an error
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
-                                                                                  searchURL))
+                                                                                  search_url))
                 if test:
                     return 0
             elif '111' in result:
@@ -437,15 +437,15 @@ def GEN(book=None, prov=None, test=False):
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                lazylibrarian.providers.BlockProvider(prov, errmsg, delay=delay)
+                lazylibrarian.providers.block_provider(prov, errmsg, delay=delay)
             else:
-                logger.debug(searchURL)
+                logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
             result = False
 
         if result:
-            logger.debug('Parsing results from <a href="%s">%s</a>' % (searchURL, provider))
+            logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             try:
                 soup = BeautifulSoup(result, 'html5lib')
                 rows = []
@@ -508,7 +508,7 @@ def GEN(book=None, prov=None, test=False):
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
-                            author = formatAuthorName(td[0].text)
+                            author = format_author_name(td[0].text)
                             title = td[2].text
                             newsoup = None
                             if '/' in td[4].text:
@@ -531,7 +531,7 @@ def GEN(book=None, prov=None, test=False):
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
                         try:
-                            author = formatAuthorName(td[1].text)
+                            author = format_author_name(td[1].text)
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text
@@ -578,7 +578,7 @@ def GEN(book=None, prov=None, test=False):
                                     url = url_fix(host + "/ads.php?" + link)
 
                             # redirect page for other sources [libgen.me, library1.org, booksdl.org]
-                            bookresult, success = fetchURL(url)
+                            bookresult, success = fetch_url(url)
                             if not success:
                                 logger.debug('Error fetching link data from %s: %s' % (provider, bookresult))
                                 logger.debug(url)

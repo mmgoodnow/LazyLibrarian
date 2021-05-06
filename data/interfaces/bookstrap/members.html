@@ -4,20 +4,20 @@
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
-    <a href="authorPage?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
+    <a href="author_page?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
       <i class="fa fa-chevron-left"></i> Return to Author</a>
     <a href="series?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
     <i class="fa fa-list"></i> Series List</a>
     %if perm&lazylibrarian.perm_force:
-      <a href="refreshAuthor?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
+      <a href="refresh_author?AuthorID=${series['AuthorID']}" class="btn btn-sm btn-primary">
       <i class="fa fa-sync"></i> Refresh Author</a>
-      <a href="refreshSeries?SeriesID=${series['SeriesID']}" class="btn btn-sm btn-primary">
+      <a href="refresh_series?SeriesID=${series['SeriesID']}" class="btn btn-sm btn-primary">
       <i class="fa fa-sync"></i> Refresh Series</a>
     %endif
     %if ignored == 'True':
-        <a href="seriesMembers?seriesid=${series['SeriesID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+        <a href="series_members?seriesid=${series['SeriesID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
     %else:
-        <a href="seriesMembers?seriesid=${series['SeriesID']}&amp;ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+        <a href="series_members?seriesid=${series['SeriesID']}&amp;ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
     %endif
   </div>
 </%def>
@@ -27,7 +27,7 @@
   %else:
   <h1>${series['AuthorName']} : ${title}
   %if perm&lazylibrarian.perm_edit:
-    <a href="editSeries?SeriesID=${series['SeriesID']}" target="_new"><small><i> Edit</i></small></a>
+    <a href="edit_series?SeriesID=${series['SeriesID']}" target="_new"><small><i> Edit</i></small></a>
   %endif
   </h1>
   %endif
@@ -36,7 +36,7 @@
     <button onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Series scan in progress ...</button>
     </p>
   %endif
-  <form action="markBooks" method="get" class="form-inline">
+  <form action="mark_books" method="get" class="form-inline">
     <div class="indented">
       <input type="hidden" name="redirect" value="members">
       <input type="hidden" name="seriesid" value="${series['SeriesID']}">
@@ -71,7 +71,7 @@
 
 
         <label for="action" class=""> as </label>
-        <select class="markBooks form-control input-sm" id="action" name="action">
+        <select class="mark_books form-control input-sm" id="action" name="action">
           %for item in ["Wanted", "Have", "Ignored", "Skipped", "Remove", "Delete"]:
             <option value="${item}">${item}</option>
           %endfor
@@ -84,7 +84,7 @@
           %endif
         </select>
       </div>
-      <input type="submit" class="markBooks btn btn-sm btn-primary" value="Go">
+      <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
       %endif
     %if lazylibrarian.CONFIG['TOGGLES'] == True:
     &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1">  Cover</a>
@@ -132,7 +132,7 @@
                 <a href="${result['WorkPage']}" target="_new"><small><i>LibraryThing</i></small></a>&nbsp;
               %endif
               %if perm&lazylibrarian.perm_edit:
-              <a href="editBook?bookid=${result['BookID']}" target="_new"><small><i>Manual</i></small></a>
+              <a href="edit_book?bookid=${result['BookID']}" target="_new"><small><i>Manual</i></small></a>
               %endif
             </td>
             %if multi == "True":
@@ -144,7 +144,7 @@
             % if lazylibrarian.SHOW_EBOOK != 0:
               %if 'Open' in result['Status']:
                 <td class="status text-center">
-                <a class="button green btn btn-xs btn-warning" href="openBook?bookid=${result['BookID']}&library=eBook"
+                <a class="button green btn btn-xs btn-warning" href="open_book?bookid=${result['BookID']}&library=eBook"
                 target="_self"><i class="fa fa-book"></i> Open${result['Flag']}</a>
               %else:
                 <td class="status text-center"><i class="fa fa-book"></i> ${result['Status']}${result['Flag']}
@@ -157,7 +157,7 @@
                 <td class="status text-center">
               %endif
               %if 'Open' in result['AudioStatus']:
-                <a class="button green btn btn-xs btn-warning" href="openBook?bookid=${result['BookID']}&library=AudioBook"
+                <a class="button green btn btn-xs btn-warning" href="open_book?bookid=${result['BookID']}&library=AudioBook"
                 target="_self"><i class="fa fa-headphones"></i> Open</a>
               %else:
                 <i class="fa fa-headphones"></i> ${result['AudioStatus']}
