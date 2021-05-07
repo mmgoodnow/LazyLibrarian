@@ -26,9 +26,9 @@
             %endif
             <button class="button btn btn-sm btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Remove Author</button>
             %if ignored == 'True':
-                <a href="author_page?authorid=${author['AuthorID']}&Ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+                <a href="author_page?authorid=${author['AuthorID']}&ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
             %else:
-            <a href="author_page?authorid=${author['AuthorID']}&Ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+            <a href="author_page?authorid=${author['AuthorID']}&ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
             %endif
         %endif
         %if showseries >= 1:
@@ -255,7 +255,7 @@
         });
 
         $('#chooselanguage').change(function(){
-            new_settings = 'author_page?authorid=${author['AuthorID']}&BookLang=' + $(this).val()
+            new_settings = 'author_page?authorid=${author['AuthorID']}&book_lang=' + $(this).val()
             if (typeof $("#chooselib").val() != 'undefined') {
             new_settings += '&library=' + $("#chooselib").val() }
             window.location = new_settings
@@ -263,10 +263,10 @@
         $('#chooselib').change(function(){
             new_settings = 'author_page?authorid=${author['AuthorID']}&library=' + $(this).val()
             if (typeof $("#chooselanguage").val() != 'undefined') {
-            new_settings += '&BookLang=' + $("#chooselanguage").val() }
+            new_settings += '&book_lang=' + $("#chooselanguage").val() }
             window.location = new_settings
         })
-        $('#chooselanguage').val(getUrlVars()['BookLang']);
+        $('#chooselanguage').val(getUrlVars()['book_lang']);
         $('#chooselib').val(getUrlVars()['library']);
 
         if ($("#chooselib").val() != 'AudioBook') {
