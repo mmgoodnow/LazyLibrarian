@@ -123,7 +123,7 @@
         $('#chooselanguage').change(function(){
             window.location = 'books?BookLang=' + $(this).val()
         })
-        $('#chooselanguage').val(getUrlVars()['BookLang']);
+        $('#chooselanguage').val(getUrlVars()['book_lang']);
 
         var show = ""+${lazylibrarian.CONFIG['BOOK_IMG']};
             if ( show != '1' ) { showimg = false }
