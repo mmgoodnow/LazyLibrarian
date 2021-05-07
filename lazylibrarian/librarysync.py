@@ -943,14 +943,14 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.warn("Metadata bookid [%s] not found in database, trying to add..." %
                                                     (bookid,))
                                         if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
-                                            gr_id = GoodReads(gr_id)
-                                            gr_id.find_book(gr_id, None, None, "Added by librarysync")
+                                            finder = GoodReads(gr_id)
+                                            finder.find_book(gr_id, None, None, "Added by librarysync")
                                         elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
-                                            gb_id = GoogleBooks(gb_id)
-                                            gb_id.find_book(gb_id, None, None, "Added by librarysync")
+                                            finder = GoogleBooks(gb_id)
+                                            finder.find_book(gb_id, None, None, "Added by librarysync")
                                         elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
-                                            ol_id = OpenLibrary(ol_id)
-                                            ol_id.find_book(ol_id, None, None, "Added by librarysync")
+                                            finder = OpenLibrary(ol_id)
+                                            finder.find_book(ol_id, None, None, "Added by librarysync")
                                         # see if it's there now...
                                         match = db.match('SELECT AuthorID,Status from books where BookID=?',
                                                          (bookid,))
