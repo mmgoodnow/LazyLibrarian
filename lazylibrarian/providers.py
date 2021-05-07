@@ -611,8 +611,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             book['searchterm'] = authorname + ' ' + bookname
         book['searchterm'] = no_umlauts(book['searchterm'])
 
-    for prov in ['torrent_kat', 'torrent_tpb', 'torrent_wwt', 'torrent_zoo', 'torrent_tdl',
-                 'torrent_trf', 'torrent_lime']:
+    for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         logger.debug("DLTYPES: %s: %s %s" % (prov, lazylibrarian.CONFIG[prov],
                                              lazylibrarian.CONFIG[prov + '_DLTYPES']))
         if lazylibrarian.CONFIG[prov]:
@@ -634,19 +633,19 @@ def iterate_over_torrent_sites(book=None, search_type=None):
                 ignored = True
             if not ignored:
                 logger.debug('[iterate_over_torrent_sites] - %s' % lazylibrarian.CONFIG[prov + '_HOST'])
-                if prov == 'torrent_kat':
+                if prov == 'KAT':
                     results, error = torrent_kat(book)
-                elif prov == 'torrent_tpb':
+                elif prov == 'TPB':
                     results, error = torrent_tpb(book)
-                elif prov == 'torrent_wwt':
+                elif prov == 'WWT':
                     results, error = torrent_wwt(book)
-                elif prov == 'torrent_zoo':
+                elif prov == 'ZOO':
                     results, error = torrent_zoo(book)
-                elif prov == 'torrent_trf':
+                elif prov == 'TRF':
                     results, error = torrent_trf(book)
-                elif prov == 'torrent_tdl':
+                elif prov == 'TDL':
                     results, error = torrent_tdl(book)
-                elif prov == 'torrent_lime':
+                elif prov == 'LIME':
                     results, error = torrent_lime(book)
                 else:
                     results = ''
