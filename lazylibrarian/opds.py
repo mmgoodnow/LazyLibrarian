@@ -502,7 +502,7 @@ class OPDS(object):
                          'kind': 'acquisition',
                          'rel': rel,
                          'author': escape("%s" % author),
-                         'type': mime_type}
+                         'type': mimetype}
 
                 if lazylibrarian.CONFIG['OPDS_METAINFO']:
                     entry['image'] = self.searchroot + '/' + book['BookImg']
@@ -1029,7 +1029,7 @@ class OPDS(object):
                          'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, book['BookID'], userid),
                          'kind': 'acquisition',
                          'rel': rel,
-                         'type': mime_type}
+                         'type': mimetype}
                 if lazylibrarian.CONFIG['OPDS_METAINFO']:
                     entry['image'] = self.searchroot + '/' + book['BookImg']
                     entry['thumbnail'] = entry['image']
@@ -1122,7 +1122,7 @@ class OPDS(object):
                          'kind': 'acquisition',
                          'rel': rel,
                          'author': escape("%s" % author),
-                         'type': mime_type}
+                         'type': mimetype}
 
                 if lazylibrarian.CONFIG['OPDS_METAINFO']:
                     entry['image'] = self.searchroot + '/' + book['BookImg']
@@ -1400,7 +1400,7 @@ class OPDS(object):
                          'href': '%s?cmd=Serve&amp;bookid=%s%s' % (self.opdsroot, quote_plus(book['BookID']), userid),
                          'kind': 'acquisition',
                          'rel': rel,
-                         'type': mime_type}
+                         'type': mimetype}
 
                 if lazylibrarian.CONFIG['OPDS_METAINFO']:
                     auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
