@@ -15,6 +15,7 @@ import os
 import traceback
 import subprocess
 import json
+import io
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -768,24 +769,36 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 data = ''
     if data:
         img = None
+        fextn = ''
         try:
-            for item in ['cover.j', '000.j', '001.j', '00.j', '01.j']:
+            for item in ['cover.', '000.', '001.', '00.', '01.']:
                 if getattr(data, 'infoiter', None):
                     for member in data.infoiter():
-                        if item in member.filename.lower():
-                            r = data.read_files(member.filename)
-                            img = r[0][1]
-                            break
+                        fname = member.filename.lower()
+                        if item in fname:
+                            _, fextn = os.path.splitext(fname)
+                            if fextn in ['.jpg', '.jpeg', '.png', '.webp']:
+                                r = data.read_files(member.filename)
+                                img = r[0][1]
+                                break
                 else:
                     for member in data.namelist():
-                        if item in member.lower():
-                            img = data.read(member)
-                            break
+                        fname = member.lower()
+                        if item in fname:
+                            _, fextn = os.path.splitext(fname)
+                            if fextn in ['.jpg', '.jpeg', '.png', '.webp']:
+                                img = data.read(member)
+                                break
                 if img:
                     break
             if img:
-                with open(syspath(coverfile), 'wb') as f:
-                    f.write(img)
+                if PIL and fextn in ['.png', '.webp']:
+                    image = PILImage.open(io.BytesIO(img))
+                    image = image.convert('RGB')
+                    image.save(syspath(coverfile), 'jpeg')
+                else:
+                    with open(syspath(coverfile), 'wb') as f:
+                        f.write(img)
                 thumb = createthumb(coverfile)
                 if thumb:
                     return thumb
