@@ -24,9 +24,10 @@ import lazylibrarian
 
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
+from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
-from lazylibrarian.common import mime_type, zip_audio, path_isfile
-from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
+from lazylibrarian.common import mime_type, zip_audio, path_isfile, any_file, listdir
+from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
 from six import text_type, string_types
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
@@ -1566,11 +1567,39 @@ class OPDS(object):
             db = database.DBConnection()
             res = db.match('SELECT AudioFile,BookName from books where BookID=?', (myid,))
             basefile = res['AudioFile']
-            # zip up all the audiobook parts
+            # see if we need to zip up all the audiobook parts
             if basefile and path_isfile(basefile):
-                target = zip_audio(os.path.dirname(basefile), res['BookName'])
-                self.filepath = target
-                self.filename = res['BookName'] + '.zip'
+                foldername = os.path.dirname(basefile)
+                # is there already a zipfile
+                zipped = any_file(foldername, '.zip')
+                if zipped:
+                    self.filepath = zipped
+                    self.filename = res['BookName'] + '.zip'
+                else:
+                    cnt = 0
+                    target = ''
+                    namevars = name_vars(myid)
+                    singlefile = namevars('AudioSingleFile')
+                    # noinspection PyBroadException
+                    try:
+                        for fname in listdir(foldername):
+                            if is_valid_booktype(fname, booktype='audio'):
+                                cnt += 1
+                                target = fname
+                                bname, extn = os.path.splitext(fname)
+                                if bname == singlefile:
+                                    # found name matching the AudioSingleFile
+                                    cnt = 1
+                                    break
+                    except Exception:
+                        pass
+                    if cnt == 1:
+                        # only one audio file or a singlefile match, just send it
+                        self.filepath = os.path.join(foldername, target)
+                        self.filename = target
+                    else:
+                        self.filepath = zip_audio(foldername, res['BookName'])
+                        self.filename = res['BookName'] + '.zip'
             return
 
 
