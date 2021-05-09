@@ -3008,6 +3008,28 @@ class WebInterface(object):
                     bookfile = bookdata["AudioFile"]
                     if bookfile and path_isfile(bookfile):
                         parentdir = os.path.dirname(bookfile)
+                        namevars = name_vars(bookid)
+                        singlename = namevars['AudioSingleFile']
+                        singlefile = ''
+                        # noinspection PyBroadException
+                        try:
+                            for fname in listdir(parentdir):
+                                if is_valid_booktype(fname, booktype='audio'):
+                                    bname, extn = os.path.splitext(fname)
+                                    if bname == singlename:
+                                        # found name matching the AudioSingleFile
+                                        singlefile = os.path.join(parentdir, fname)
+                                        break
+                        except Exception:
+                            pass
+
+                        if booktype == 'whole' and singlefile and path_isfile(singlefile):
+                            if email:
+                                logger.debug('Emailing %s %s' % (library, singlefile))
+                            else:
+                                logger.debug('Opening %s %s' % (library, singlefile))
+                            return self.send_file(singlefile, name=os.path.basename(singlefile), email=email)
+
                         index = os.path.join(parentdir, 'playlist.ll')
                         if path_isfile(index):
                             if booktype == 'zip':
@@ -3053,6 +3075,8 @@ class WebInterface(object):
                                     partlist += str(item)
                                     item += 1
                                     partlist += ' zip'
+                                    if singlefile and path_isfile(singlefile):
+                                        partlist += ' whole'
                                 safetitle = book_name.replace('&', '&amp;').replace("'", "")
 
                                 return serve_template(templatename="choosetype.html",

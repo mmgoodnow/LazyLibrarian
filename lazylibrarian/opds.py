@@ -1579,7 +1579,7 @@ class OPDS(object):
                     cnt = 0
                     target = ''
                     namevars = name_vars(myid)
-                    singlefile = namevars('AudioSingleFile')
+                    singlefile = namevars['AudioSingleFile']
                     # noinspection PyBroadException
                     try:
                         for fname in listdir(foldername):
