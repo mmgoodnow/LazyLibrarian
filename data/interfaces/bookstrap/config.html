@@ -3131,6 +3131,17 @@
                   </div>
                   <div class="checkbox">
                     <%
+                        if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="write_audiotags" class="control-label">
+                      <input type="checkbox" id="write_audiotags" name="write_audiotags" value="1" ${checked} />
+                      Write audio tags</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
                         if lazylibrarian.CONFIG['CREATE_SINGLEAUDIO'] == True:
                             checked = 'checked="checked"'
                         else:
@@ -3138,7 +3149,18 @@
                         %>
                     <label for="create_singleaudio" class="control-label">
                       <input type="checkbox" id="create_singleaudio" name="create_singleaudio" value="1" ${checked} />
-                      Merge audiobook parts into one file</label>
+                      Create single file audiobook</label>
+                  </div>
+                  <div class="checkbox">
+                    <%
+                        if lazylibrarian.CONFIG['ZIP_AUDIOPARTS'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                        %>
+                    <label for="zip_audioparts" class="control-label">
+                      <input type="checkbox" id="zip_audioparts" name="zip_audioparts" value="1" ${checked} />
+                      Create zip of audio parts</label>
                   </div>
                   <div class="checkbox">
                     <%
@@ -3149,18 +3171,7 @@
                         %>
                     <label for="keep_separateaudio" class="control-label">
                       <input type="checkbox" id="keep_separateaudio" name="keep_separateaudio" value="1" ${checked} />
-                      Also keep separate parts</label>
-                  </div>
-                  <div class="checkbox">
-                    <%
-                        if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] == True:
-                            checked = 'checked="checked"'
-                        else:
-                            checked = ''
-                        %>
-                    <label for="write_audiotags" class="control-label">
-                      <input type="checkbox" id="write_audiotags" name="write_audiotags" value="1" ${checked} />
-                      Write audio tags</label>
+                      Keep separate parts</label>
                   </div>
                   <legend>Magazine Conversions</legend>
                   <div class="checkbox">

@@ -127,9 +127,9 @@
 
         $('#whichStatus').change(function(){
             %if authorid != None:
-               window.location = 'series?authorid=${authorid}&whichStatus=' + $(this).val()
+               window.location = 'series?authorid=${authorid}&which_status=' + $(this).val()
             %else:
-               window.location = 'series?whichStatus=' + $(this).val()
+               window.location = 'series?which_status=' + $(this).val()
             %endif
         })
 
@@ -196,7 +196,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[3, 'desc']],
                 "bServerSide": true,
-                "sAjaxSource": 'get_series?whichStatus=${whichStatus}&AuthorID=${authorid}',
+                "sAjaxSource": 'get_series?which_status=${whichStatus}&authorid=${authorid}',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
                 "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},

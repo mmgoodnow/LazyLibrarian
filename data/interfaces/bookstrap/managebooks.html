@@ -282,7 +282,7 @@
                         'render': function(data, type, row) {
                         return '<a href="' + data + '" target="_blank" rel="noreferrer"><img src="' + data + '" alt="Cover" class="bookcover-sm img-responsive"></a>';} },
                     { targets: [2], 'render': function(data, type, row) {
-                        return '<a href=\'author_page?AuthorID=' + row[8] + '\'">' + data + '</a>';}
+                        return '<a href=\'author_page?authorid=' + row[8] + '\'">' + data + '</a>';}
                     },
                     { targets: [3], 'render': function(data, type, row) {
                         var pre = data.split('<');
