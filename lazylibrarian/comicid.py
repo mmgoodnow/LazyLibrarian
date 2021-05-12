@@ -77,8 +77,9 @@ def get_issue_num(words, skipped):
 
 def name_words(name):
     # sanitize for better matching
-    # allow #num and word! or word? but strip other punctuation
-    punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').replace('?', '')))
+    # allow #num and word! or word? but strip other punctuation, allow '&' as a word
+    punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').
+                                          replace('?', '').replace('&', '')))
     name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
     strip = re.compile('[%s]' % re.escape(''.join(quotes)))
@@ -90,7 +91,9 @@ def name_words(name):
     namewords = []
     buildword = ''
     for word in tempwords:
-        if len(word) == 1 and not word.isdigit():
+        if word == '&' and not buildword:
+            namewords.append(word)
+        elif len(word) == 1 and not word.isdigit():
             buildword = "%s%s." % (buildword, word)
         else:
             if buildword:
@@ -153,7 +156,6 @@ def cv_identify(fname, best=True):
         url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(make_utf8bytes(matchwords)[0]), off)
         cv_api_sleep()
         res, _ = json_request(url)
-
         if not res:
             next_page = False
         else:
