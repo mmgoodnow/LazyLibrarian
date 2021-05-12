@@ -29,7 +29,7 @@ import cherrypy
 from shutil import rmtree
 
 from lazylibrarian import logger, database, versioncheck, postprocess, searchbook, searchmag, searchrss, \
-    importer, grsync, comicscan
+    importer, grsync, comicscan, bookrename
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import restart_jobs, log_header, schedule_job, listdir, \
     path_isdir, path_isfile, path_exists, syspath
@@ -681,6 +681,7 @@ CONFIG_DEFINITIONS = {
     'CREATE_SINGLEAUDIO': ('bool', 'Preprocess', 0),
     'KEEP_SEPARATEAUDIO': ('bool', 'Preprocess', 0),
     'WRITE_AUDIOTAGS': ('bool', 'Preprocess', 0),
+    'ZIP_AUDIOPARTS': ('bool', 'Preprocess', 0),
     'SWAP_COVERPAGE': ('bool', 'Preprocess', 0),
     'SHRINK_MAG': ('int', 'Preprocess', 0),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),

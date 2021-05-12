@@ -48,7 +48,8 @@ from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, upda
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.magazinescan import magazine_scan
 from lazylibrarian.manualbook import search_item
-from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, import_book, import_mag
+from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
+    process_book_from_dir, process_mag_from_file
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import gen_feed
@@ -561,7 +562,7 @@ class Api(object):
             library = 'eBook'
         else:
             library = kwargs['library']
-        self.data = import_book(kwargs['dir'], library, kwargs['id'])
+        self.data = process_book_from_dir(kwargs['dir'], library, kwargs['id'])
 
     def _importmag(self, **kwargs):
         if 'title' not in kwargs:
@@ -573,7 +574,7 @@ class Api(object):
         if 'file' not in kwargs:
             self.data = 'Missing parameter: file'
             return
-        self.data = import_mag(kwargs['file'], kwargs['title'], kwargs['num'])
+        self.data = process_mag_from_file(kwargs['file'], kwargs['title'], kwargs['num'])
 
     def _namevars(self, **kwargs):
         if 'id' not in kwargs:
@@ -850,8 +851,8 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _listnobooks(self):
-        q = 'select authorid,authorname,reason from authors where havebooks=0 and reason not like "%Series%" '
-        q += 'except select authors.authorid,authorname,reason from books,authors where '
+        q = 'select authorid,authorname,reason from authors where haveebooks+haveaudiobooks=0 and '
+        q += 'reason not like "%Series%" except select authors.authorid,authorname,reason from books,authors where '
         q += 'books.authorid=authors.authorid and books.status=="Wanted";'
         self.data = self._dic_from_query(q)
 

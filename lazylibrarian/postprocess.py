@@ -27,7 +27,10 @@ import traceback
 import uuid
 
 import lazylibrarian
+from lazylibrarian.gb import GoogleBooks
+from lazylibrarian.ol import OpenLibrary
 from six import PY2
+
 if PY2:
     from io import open
 
@@ -51,8 +54,6 @@ from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, t
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name
 from lazylibrarian.gr import GoodReads
-from lazylibrarian.gb import GoogleBooks
-from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
@@ -81,7 +82,7 @@ def update_downloads(provider):
         db.action('INSERT into downloads (Count, Provider) VALUES  (?, ?)', (1, provider))
 
 
-def import_mag(source_file=None, title=None, issuenum=None):
+def process_mag_from_file(source_file=None, title=None, issuenum=None):
     # import a magazine issue by title/num
     # Assumes the source file is the correct file for the issue and renames it to match
     # Adds the magazine id to the database if not already there
@@ -202,7 +203,7 @@ def import_mag(source_file=None, title=None, issuenum=None):
         return False
 
 
-def import_book(source_dir=None, library='eBook', bookid=None):
+def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
     # import a book by id from a directory
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there

@@ -59,8 +59,8 @@ from lazylibrarian.librarysync import library_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.opds import OPDS
-from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, import_book, \
-    create_opf
+from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
+    create_opf, process_book_from_dir
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
@@ -319,7 +319,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = displaylength
 
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
-            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
+            cmd += 'HaveEBooks+HaveAudioBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
             if lazylibrarian.IGNORED_AUTHORS:
                 cmd += 'where Status == "Ignored" '
                 if lazylibrarian.CONFIG['IGNORE_PAUSED']:
@@ -2927,7 +2927,7 @@ class WebInterface(object):
                                 cnt += 1
 
                 if cnt > 1 and not lazylibrarian.CONFIG['RSS_PODCAST']:
-                    target = zip_audio(os.path.dirname(myfile), res['BookName'])
+                    target = zip_audio(os.path.dirname(myfile), res['BookName'], itemid)
                     if target and path_isfile(target):
                         logger.debug('Opening %s %s' % (ftype, target))
                         return self.send_file(target, name=res['BookName'] + '.zip')
@@ -3033,7 +3033,7 @@ class WebInterface(object):
                         index = os.path.join(parentdir, 'playlist.ll')
                         if path_isfile(index):
                             if booktype == 'zip':
-                                zipfile = zip_audio(parentdir, book_name)
+                                zipfile = zip_audio(parentdir, book_name, bookid)
                                 if zipfile and path_isfile(zipfile):
                                     if email:
                                         logger.debug('Emailing %s %s' % (library, zipfile))
@@ -3362,7 +3362,7 @@ class WebInterface(object):
                     elif book_file(folder, booktype='ebook'):
                         library = 'eBook'
                 if library:
-                    res = import_book(folder, library, bookid)
+                    res = process_book_from_dir(folder, library, bookid)
                     if res:
                         scanresult = 'Imported manually from %s' % folder
                     else:
