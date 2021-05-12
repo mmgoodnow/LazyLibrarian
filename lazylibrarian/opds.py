@@ -32,7 +32,7 @@ from six import text_type, string_types
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
 
-searchable = ['Authors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
+searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
               'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres', 'Comics',
               'Comic', 'RecentComics']
 
@@ -300,16 +300,31 @@ class OPDS(object):
                     }
                 )
 
-        cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and CAST(HaveBooks AS INTEGER) > 0"
+        cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveEBooks > 0"
         res = db.match(cmd)
         if res['counter'] > 0:
             entries.append(
                 {
-                    'title': 'Authors (%i)' % res['counter'],
-                    'id': 'Authors',
+                    'title': 'Ebook Authors (%i)' % res['counter'],
+                    'id': 'EAuthors',
                     'updated': now(),
-                    'content': 'List of Authors',
-                    'href': '%s?cmd=Authors%s' % (self.opdsroot, userid),
+                    'content': 'List of Ebook Authors',
+                    'href': '%s?cmd=EAuthors%s' % (self.opdsroot, userid),
+                    'kind': 'navigation',
+                    'rel': 'subsection',
+                }
+            )
+
+        cmd = "SELECT count(*) as counter from authors WHERE Status != 'Ignored' and HaveAudioBooks > 0"
+        res = db.match(cmd)
+        if res['counter'] > 0:
+            entries.append(
+                {
+                    'title': 'Audiobook Authors (%i)' % res['counter'],
+                    'id': 'AAuthors',
+                    'updated': now(),
+                    'content': 'List of Audiobook Authors',
+                    'href': '%s?cmd=AAuthors%s' % (self.opdsroot, userid),
                     'kind': 'navigation',
                     'rel': 'subsection',
                 }
@@ -544,7 +559,10 @@ class OPDS(object):
         self.data = feed
         return
 
-    def _authors(self, **kwargs):
+    def _eauthors(self, **kwargs):
+        # select authorname,authors.authorid,(select count(*) from books
+        # where books.authorid=authors.authorid and books.status='Open')
+        # as books from books,authors where books > 1 group by authorname;
         index = 0
         limit = self.PAGE_SIZE
         if 'Aldiko' in self.reader:  # Aldiko doesn't paginate long lists
@@ -557,19 +575,19 @@ class OPDS(object):
             userid = '&amp;user=%s' % kwargs['user']
 
         db = database.DBConnection()
-        feed = {'title': 'LazyLibrarian OPDS - Authors', 'id': 'Authors', 'updated': now()}
+        feed = {'title': 'LazyLibrarian OPDS - Ebook Authors', 'id': 'EAuthors', 'updated': now()}
         links = []
         entries = []
         links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
                              rel='start', title='Home'))
-        links.append(getlink(href='%s?cmd=Authors%s' % (self.opdsroot, userid),
+        links.append(getlink(href='%s?cmd=EAuthors%s' % (self.opdsroot, userid),
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
         links.append(getlink(href='%s/opensearchauthors.xml' % self.searchroot,
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Authors'))
-        cmd = "SELECT AuthorName,AuthorID,HaveBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
+        cmd = "SELECT AuthorName,AuthorID,HaveEBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
         if 'query' in kwargs:
             cmd += "AuthorName LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "CAST(HaveBooks AS INTEGER) > 0 order by AuthorName"
+        cmd += "HaveEBooks > 0 order by AuthorName"
         results = db.select(cmd)
         if limit:
             page = results[index:(index + limit)]
@@ -578,7 +596,7 @@ class OPDS(object):
             limit = len(page)
         for author in page:
             totalbooks = check_int(author['TotalBooks'], 0)
-            havebooks = check_int(author['HaveBooks'], 0)
+            havebooks = check_int(author['HaveEBooks'], 0)
             lastupdated = datetime.datetime.utcfromtimestamp(author['Updated']).strftime("%Y-%m-%d")
             name = make_unicode(author['AuthorName'])
             entry = {
@@ -598,11 +616,85 @@ class OPDS(object):
 
         if len(results) > (index + limit):
             links.append(
-                getlink(href='%s?cmd=Authors&amp;index=%s%s' % (self.opdsroot, index + limit, userid),
+                getlink(href='%s?cmd=EAuthors&amp;index=%s%s' % (self.opdsroot, index + limit, userid),
                         ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
         if index >= limit:
             links.append(
-                getlink(href='%s?cmd=Authors&amp;index=%s%s' % (self.opdsroot, index - limit, userid),
+                getlink(href='%s?cmd=EAuthors&amp;index=%s%s' % (self.opdsroot, index - limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
+
+        feed['links'] = links
+        feed['entries'] = entries
+        fin = index + limit
+        if fin > len(results):
+            fin = len(results)
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "author"),
+                                                            index + 1, fin, len(results)))
+        self.data = feed
+        return
+
+    def _aauthors(self, **kwargs):
+        # select authorname,authors.authorid,(select count(*) from books
+        # where books.authorid=authors.authorid and books.status='Open')
+        # as books from books,authors where books > 1 group by authorname;
+        index = 0
+        limit = self.PAGE_SIZE
+        if 'Aldiko' in self.reader:  # Aldiko doesn't paginate long lists
+            limit = 0
+
+        if 'index' in kwargs:
+            index = check_int(kwargs['index'], 0)
+        userid = ''
+        if 'user' in kwargs:
+            userid = '&amp;user=%s' % kwargs['user']
+
+        db = database.DBConnection()
+        feed = {'title': 'LazyLibrarian OPDS - Audiobook Authors', 'id': 'AAuthors', 'updated': now()}
+        links = []
+        entries = []
+        links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                             rel='start', title='Home'))
+        links.append(getlink(href='%s?cmd=AAuthors%s' % (self.opdsroot, userid),
+                             ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
+        links.append(getlink(href='%s/opensearchauthors.xml' % self.searchroot,
+                             ftype='application/opensearchdescription+xml', rel='search', title='Search Authors'))
+        cmd = "SELECT AuthorName,AuthorID,HaveAudioBooks,TotalBooks,Updated,AuthorImg from Authors WHERE "
+        if 'query' in kwargs:
+            cmd += "AuthorName LIKE '%" + kwargs['query'] + "%' AND "
+        cmd += "HaveAudioBooks > 0 order by AuthorName"
+        results = db.select(cmd)
+        if limit:
+            page = results[index:(index + limit)]
+        else:
+            page = results
+            limit = len(page)
+        for author in page:
+            totalbooks = check_int(author['TotalBooks'], 0)
+            havebooks = check_int(author['HaveAudioBooks'], 0)
+            lastupdated = datetime.datetime.utcfromtimestamp(author['Updated']).strftime("%Y-%m-%d")
+            name = make_unicode(author['AuthorName'])
+            entry = {
+                    'title': escape('%s (%s/%s)' % (name, havebooks, totalbooks)),
+                    'id': escape('author:%s' % author['AuthorID']),
+                    'updated': opdstime(lastupdated),
+                    'content': escape('%s (%s)' % (name, havebooks)),
+                    'href': '%s?cmd=Author&amp;authorid=%s%s' % (self.opdsroot, author['AuthorID'], userid),
+                    'author': escape('%s' % name),
+                    'kind': 'navigation',
+                    'rel': 'subsection',
+                }
+
+            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                entry['thumbnail'] = '/' + author['AuthorImg']
+            entries.append(entry)
+
+        if len(results) > (index + limit):
+            links.append(
+                getlink(href='%s?cmd=AAuthors&amp;index=%s%s' % (self.opdsroot, index + limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
+        if index >= limit:
+            links.append(
+                getlink(href='%s?cmd=AAuthors&amp;index=%s%s' % (self.opdsroot, index - limit, userid),
                         ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
 
         feed['links'] = links
@@ -1047,7 +1139,7 @@ class OPDS(object):
         feed['updated'] = now()
         links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
                              rel='start', title='Home'))
-        links.append(getlink(href='%s?cmd=Authors%s' % (self.opdsroot, userid),
+        links.append(getlink(href='%s?cmd=EAuthors%s' % (self.opdsroot, userid),
                              ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
 
         if len(results) > (index + limit):
@@ -1598,7 +1690,7 @@ class OPDS(object):
                         self.filepath = os.path.join(foldername, target)
                         self.filename = target
                     else:
-                        self.filepath = zip_audio(foldername, res['BookName'])
+                        self.filepath = zip_audio(foldername, res['BookName'], myid)
                         self.filename = res['BookName'] + '.zip'
             return
 
