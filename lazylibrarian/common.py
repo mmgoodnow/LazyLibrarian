@@ -1190,7 +1190,7 @@ def show_stats():
     for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
         res = db.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
         author_stats.append([status, res['counter']])
-    res = db.match("SELECT count(*) as counter FROM authors WHERE HaveBooks=0")
+    res = db.match("SELECT count(*) as counter FROM authors WHERE HaveEBooks+HaveAudioBooks=0")
     author_stats.append(['Empty', res['counter']])
     res = db.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
     author_stats.append(['Blank', res['counter']])
@@ -1621,7 +1621,7 @@ def save_log():
     return "Debug log saved as %s" % (outfile + '.zip')
 
 
-def zip_audio(source, zipname):
+def zip_audio(source, zipname, bookid):
     """ Zip up all the audiobook parts in source folder to zipname
         Check if zipfile already exists, if not create a new one
         Doesn't actually check for audiobook parts, just zips everything
@@ -1631,15 +1631,22 @@ def zip_audio(source, zipname):
     zip_file = os.path.join(source, zipname + '.zip')
     if not path_exists(zip_file):
         logger.debug('Zipping up %s' % zipname)
+        namevars = lazylibrarian.bookrename.name_vars(bookid)
+        singlefile = namevars['AudioSingleFile']
+
         cnt = 0
         with zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED) as myzip:
             for rootdir, _, filenames in walk(source):
                 for filename in filenames:
                     # don't include self or our special index file
                     if not filename.endswith('.zip') and not filename.endswith('.ll'):
-                        cnt += 1
-                        myzip.write(os.path.join(rootdir, filename), filename)
+                        bname, extn = os.path.splitext(filename)
+                        # don't include singlefile
+                        if bname != singlefile:
+                            cnt += 1
+                            myzip.write(os.path.join(rootdir, filename), filename)
         logger.debug('Zipped up %s files' % cnt)
+        _ = setperm(zip_file)
     return zip_file
 
 
