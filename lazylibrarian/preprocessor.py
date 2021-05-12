@@ -19,7 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
-from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm
+from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrink_mag
 
@@ -109,12 +109,14 @@ def preprocess_ebook(bookfolder):
         logger.debug("No extra ebook formats created")
 
 
-def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None):
+def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
     if merge is None:
         merge = lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']
     if tag is None:
         tag = lazylibrarian.CONFIG['WRITE_AUDIOTAGS']
-    if not merge and not tag:
+    if zipp is None:
+        zipp = lazylibrarian.CONFIG['ZIP_AUDIOPARTS']
+    if not merge and not tag and not zipp:
         return
 
     ffmpeg = lazylibrarian.CONFIG['FFMPEG']
@@ -156,6 +158,9 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             lazylibrarian.FFMPEGAAC = ff_aac
 
     logger.debug("Preprocess audio %s %s %s" % (bookfolder, authorname, bookname))
+    if zipp:
+        _ = zip_audio(bookfolder, bookname, bookid)
+
     partslist = os.path.join(bookfolder, "partslist.ll")
     metadata = os.path.join(bookfolder, "metadata.ll")
 
