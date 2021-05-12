@@ -26,9 +26,17 @@
             %endif
             <button class="button btn btn-sm btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Remove Author</button>
             %if ignored == 'True':
+              %if library == 'AudioBook':
+                <a href="author_page?authorid=${author['AuthorID']}&ignored=False&library=AudioBook" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+              %else:
                 <a href="author_page?authorid=${author['AuthorID']}&ignored=False" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Show Active</a>
+              %endif
             %else:
-            <a href="author_page?authorid=${author['AuthorID']}&ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+              %if library == 'AudioBook':
+                <a href="author_page?authorid=${author['AuthorID']}&ignored=True&library=AudioBook" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+              %else:
+                <a href="author_page?authorid=${author['AuthorID']}&ignored=True" class="btn btn-sm btn-primary"><i class="fa fa-ban"></i> Show Ignored</a>
+              %endif
             %endif
         %endif
         %if showseries >= 1:
@@ -52,8 +60,8 @@
               %if  perm&lazylibrarian.perm_audio:
                 <label for="chooselib"><small>&nbsp;</small></label>
                 <select class="form-control input-sm" name="chooselib" id="chooselib">
-                  %for library in types:
-                    <option value="${library}">${library}</option>
+                  %for library_type in types:
+                    <option value="${library_type}">${library_type}</option>
                   %endfor
                 </select>
               %endif
