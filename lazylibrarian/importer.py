@@ -11,21 +11,22 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import inspect
-import threading
-import traceback
-import time
 import os
+import threading
+import time
+import traceback
 from operator import itemgetter
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.images import get_author_image
 from lazylibrarian.cache import cache_img
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, get_list, check_int
-from lazylibrarian.grsync import grfollow
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
+from lazylibrarian.grsync import grfollow
+from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -481,16 +482,17 @@ def update_totals(authorid):
     lastbook = db.match(cmd, (authorid,))
 
     cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
-    cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
-    cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
-    cmd += "else 0 end) as have, count(*) as total from books where authorid=?"
+    cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 else 0 end) as EHave, "
+    cmd += "sum(case when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
+    cmd += "else 0 end) as AHave, count(*) as total from books where authorid=?"
     totals = db.match(cmd, (authorid,))
 
     control_value_dict = {"AuthorID": authorid}
     new_value_dict = {
         "TotalBooks": check_int(totals['total'], 0),
         "UnignoredBooks": check_int(totals['unignored'], 0),
-        "HaveBooks": check_int(totals['have'], 0),
+        "HaveEBooks": check_int(totals['EHave'], 0),
+        "HaveAudioBooks": check_int(totals['AHave'], 0),
         "LastBook": lastbook['BookName'] if lastbook else None,
         "LastLink": lastbook['BookLink'] if lastbook else None,
         "LastBookID": lastbook['BookID'] if lastbook else None,
@@ -499,8 +501,8 @@ def update_totals(authorid):
     db.upsert("authors", new_value_dict, control_value_dict)
 
     cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
-    cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1"
-    cmd += " when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1"
+    cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
+    cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1"
     cmd += " else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid"
     cmd += " and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid"
     cmd += " and seriesauthors.authorid=? group by series.seriesid"
@@ -511,8 +513,8 @@ def update_totals(authorid):
                       (series['Have'], series['Total'], series['Series']))
 
     res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveBooks'],
-                                                    new_value_dict['TotalBooks']))
+    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveEBooks'] +
+                                                    new_value_dict['HaveAudioBooks'], new_value_dict['TotalBooks']))
 
 
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
