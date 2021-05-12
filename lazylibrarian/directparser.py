@@ -159,10 +159,13 @@ def direct_bok(book=None, prov=None, test=False):
                     author = newsoup.find('a', itemprop='author').text
                     detail = newsoup.find("div", {"class": "bookProperty property__file"}).text
                     try:
-                        extn, size = detail.split('\n')[-2].strip().split(',')
-                        extn = extn.lower()
+                        res = detail.split('\n')[-2].strip().split(',')
+                        extn = res[0].lower()
+                        size = res[-1]
+                        if len(res) == 3:
+                            size = "%s%s" % (res[1], res[2])
                         size = size_in_bytes(size.upper())
-                    except IndexError:
+                    except (IndexError, ValueError):
                         extn = ''
                         size = 0
 
