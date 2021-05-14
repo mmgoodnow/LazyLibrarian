@@ -79,7 +79,7 @@ def name_words(name):
     # sanitize for better matching
     # allow #num and word! or word? but strip other punctuation, allow '&' as a word
     punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').
-                                          replace('?', '').replace('&', '')))
+                                          replace('?', '').replace('&', '').replace(':', '')))
     name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
     strip = re.compile('[%s]' % re.escape(''.join(quotes)))
@@ -147,6 +147,8 @@ def cv_identify(fname, best=True):
     results = []
     offset = 0
     next_page = True
+    max_pages = check_int(lazylibrarian.CONFIG['MAX_PAGES'], 0)
+    page_number = 0
     while next_page:
         if offset:
             off = "&offset=%s" % offset
@@ -200,7 +202,12 @@ def cv_identify(fname, best=True):
                                 })
             if paged and len(choices) < total:
                 offset += paged
-                next_page = True
+                page_number += 1
+                if max_pages and page_number > max_pages:
+                    logger.debug("Maximum search pages reached, still more results available")
+                    next_page = False
+                else:
+                    next_page = True
             else:
                 next_page = False
 
@@ -431,6 +438,7 @@ def cx_identify(fname, best=True):
     matchwords = '+'.join(titlewords)
     if '+' in matchwords:
         minmatch = 2
+    max_pages = check_int(lazylibrarian.CONFIG['MAX_PAGES'], 0)
 
     url = '/'.join([lazylibrarian.CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
     data, _ = html_request(url)
@@ -462,12 +470,19 @@ def cx_identify(fname, best=True):
 
             if pager:
                 # eg '1 TO 18 OF 27'
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                    logger.debug(pager)
+
                 pager_words = pager.split()
                 if pager_words[2] == pager_words[4]:
                     next_page = False
                 else:
-                    next_page = True
                     page_number += 1
+                    if max_pages and page_number > max_pages:
+                        logger.debug("Maximum search pages reached, still more results available")
+                        next_page = False
+                    else:
+                        next_page = True
             else:
                 next_page = False
 
