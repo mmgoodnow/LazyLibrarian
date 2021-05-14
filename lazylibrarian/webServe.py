@@ -319,7 +319,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = displaylength
 
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
-            cmd += 'HaveEBooks+HaveAudioBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
+            cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
             if lazylibrarian.IGNORED_AUTHORS:
                 cmd += 'where Status == "Ignored" '
                 if lazylibrarian.CONFIG['IGNORE_PAUSED']:
@@ -4269,7 +4269,6 @@ class WebInterface(object):
                 for item in cxres:
                     item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
                     comicresults.append(item)
-
                 comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
                 return serve_template(templatename="comicresults.html", title="Comics", results=comicresults)
 
@@ -4291,25 +4290,27 @@ class WebInterface(object):
                 logger.debug("Comic %s already exists (%s)" % (exists['Title'], exists['comicid']))
             else:
                 match = False
-                for item in comicresults:
-                    if item['seriesid'] == comicid:
-                        aka = ''
-                        akares = cv_identify(item['title'])
-                        if not akares:
-                            akares = cx_identify(item['title'])
-                        if akares and akares[3]['seriesid'] != comicid:
-                            aka = akares[3]['seriesid']
-                        db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
-                                  'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
-                                  'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
-                                  (comicid, item['title'], 'Active', now(), None,
-                                   now(), None, 'Wanted', None, item['searchterm'], item['start'],
-                                   item['first'], item['last'], item['publisher'], item['link'], aka))
-                        match = True
-                        break
+                try:
+                    for item in comicresults:
+                        if item['seriesid'] == comicid:
+                            aka = ''
+                            akares = cv_identify(item['title'])
+                            if not akares:
+                                akares = cx_identify(item['title'])
+                            if akares and akares[3]['seriesid'] != comicid:
+                                aka = akares[3]['seriesid']
+                            db.action('INSERT INTO comics (ComicID, Title, Status, Added, LastAcquired, ' +
+                                      'Updated, LatestIssue, IssueStatus, LatestCover, SearchTerm, Start, ' +
+                                      'First, Last, Publisher, Link, aka) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+                                      (comicid, item['title'], 'Active', now(), None,
+                                       now(), None, 'Wanted', None, item['searchterm'], item['start'],
+                                       item['first'], item['last'], item['publisher'], item['link'], aka))
+                            match = True
+                            break
+                except NameError:
+                    match = False
                 if not match:
                     logger.warn("Failed to get data for %s" % comicid)
-
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose

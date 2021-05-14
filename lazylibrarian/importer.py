@@ -484,15 +484,18 @@ def update_totals(authorid):
     cmd = "select sum(case status when 'Ignored' then 0 else 1 end) as unignored,"
     cmd += "sum(case when status == 'Have' then 1 when status == 'Open' then 1 else 0 end) as EHave, "
     cmd += "sum(case when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 "
-    cmd += "else 0 end) as AHave, count(*) as total from books where authorid=?"
+    cmd += "else 0 end) as AHave, sum(case when status == 'Have' then 1 when status == 'Open' then 1 "
+    cmd += "when audiostatus == 'Have' then 1 when audiostatus == 'Open' then 1 else 0 end) as Have, "
+    cmd += "count(*) as total from books where authorid=?"
     totals = db.match(cmd, (authorid,))
 
     control_value_dict = {"AuthorID": authorid}
     new_value_dict = {
-        "TotalBooks": check_int(totals['total'], 0),
-        "UnignoredBooks": check_int(totals['unignored'], 0),
-        "HaveEBooks": check_int(totals['EHave'], 0),
-        "HaveAudioBooks": check_int(totals['AHave'], 0),
+        "TotalBooks": totals['total'],
+        "UnignoredBooks": totals['unignored'],
+        "HaveBooks": totals['Have'],
+        "HaveEBooks": totals['EHave'],
+        "HaveAudioBooks": totals['AHave'],
         "LastBook": lastbook['BookName'] if lastbook else None,
         "LastLink": lastbook['BookLink'] if lastbook else None,
         "LastBookID": lastbook['BookID'] if lastbook else None,
