@@ -375,29 +375,27 @@ def audio_rename(bookid, rename=False, playlist=False):
             logger.error('Unable to create playlist in %s: %s' % (r, why))
             playlist = None
 
-    for part in parts:
-        pattern = seriesinfo['AudioFile']
-        pattern = pattern.replace(
-            '$Part', str(part[0]).zfill(len(str(len(parts))))).replace(
-            '$Total', str(len(parts)))
-        pattern = ' '.join(pattern.split()).strip()
-        pattern = pattern + os.path.splitext(part[3])[1]
-        if rename:
-            pattern = replace_all(pattern, namedic)
-
+    if len(parts) == 1:
+        part = parts[0]
+        namevars = name_vars(bookid, abridged)
+        bookfile = namevars['AudioSingleFile']
+        if not bookfile:
+            bookfile = "%s - %s" % (exists['AuthorName'], exists['BookName'])
+        out_type = os.path.splitext(part[3])[1]
+        outfile = bookfile + out_type
         if playlist:
             if PY2:
                 if rename:
-                    playlist.write("%s\n" % make_utf8bytes(pattern)[0])
+                    playlist.write("%s\n" % make_utf8bytes(outfile))
                 else:
                     playlist.write("%s\n" % make_utf8bytes(part[3])[0])
             else:
                 if rename:
-                    playlist.write("%s\n" % make_unicode(pattern))
+                    playlist.write("%s\n" % make_unicode(outfile))
                 else:
                     playlist.write("%s\n" % make_unicode(part[3]))
         if rename:
-            n = os.path.join(make_unicode(r), make_unicode(pattern))
+            n = os.path.join(make_unicode(r), make_unicode(outfile))
             o = os.path.join(make_unicode(r), make_unicode(part[3]))
             # check for windows case insensitive
             if os.name == 'nt' and n.lower() == o.lower():
@@ -405,11 +403,46 @@ def audio_rename(bookid, rename=False, playlist=False):
             if o != n:
                 try:
                     n = safe_move(o, n)
-                    if part[0] == 1:
-                        book_filename = n  # return part 1 of set
+                    book_filename = n  # return part 1 of set
                     logger.debug('%s: audio_rename [%s] to [%s]' % (exists['BookName'], o, n))
                 except Exception as e:
                     logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
+    else:
+        for part in parts:
+            pattern = seriesinfo['AudioFile']
+            pattern = pattern.replace(
+                '$Part', str(part[0]).zfill(len(str(len(parts))))).replace(
+                '$Total', str(len(parts)))
+            pattern = ' '.join(pattern.split()).strip()
+            pattern = pattern + os.path.splitext(part[3])[1]
+            if rename:
+                pattern = replace_all(pattern, namedic)
+
+            if playlist:
+                if PY2:
+                    if rename:
+                        playlist.write("%s\n" % make_utf8bytes(pattern)[0])
+                    else:
+                        playlist.write("%s\n" % make_utf8bytes(part[3])[0])
+                else:
+                    if rename:
+                        playlist.write("%s\n" % make_unicode(pattern))
+                    else:
+                        playlist.write("%s\n" % make_unicode(part[3]))
+            if rename:
+                n = os.path.join(make_unicode(r), make_unicode(pattern))
+                o = os.path.join(make_unicode(r), make_unicode(part[3]))
+                # check for windows case insensitive
+                if os.name == 'nt' and n.lower() == o.lower():
+                    n = o
+                if o != n:
+                    try:
+                        n = safe_move(o, n)
+                        if part[0] == 1:
+                            book_filename = n  # return part 1 of set
+                        logger.debug('%s: audio_rename [%s] to [%s]' % (exists['BookName'], o, n))
+                    except Exception as e:
+                        logger.error('Unable to rename [%s] to [%s] %s %s' % (o, n, type(e).__name__, str(e)))
     if playlist:
         playlist.close()
     return book_filename
