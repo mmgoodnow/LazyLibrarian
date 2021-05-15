@@ -664,9 +664,16 @@ def update():
                                lazylibrarian.PROG_DIR, content_dir, rootdir, curfile)
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg('error', msg)
-                    if os.path.isfile(syspath(new_path)):
-                        os.remove(syspath(new_path))
-                    os.renames(syspath(old_path), syspath(new_path))
+                    if curfile.endswith('.dll'):
+                        # can't update a dll on windows if it's mapped into the system
+                        # but as the dll doesn't change just skip past it.
+                        # If we need to update it in the future we will need to rename it
+                        # or use a different upgrade mechanism
+                        logmsg("Skipping %s" % curfile)
+                    else:
+                        if os.path.isfile(syspath(new_path)):
+                            os.remove(syspath(new_path))
+                        os.renames(syspath(old_path), syspath(new_path))
 
             # Update version.txt and timestamp
             update_version_file(lazylibrarian.CONFIG['LATEST_VERSION'])
