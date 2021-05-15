@@ -32,9 +32,9 @@ from six import text_type, string_types
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
 
-searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'Author', 'RecentBooks', 'RecentAudio', 'RecentMags',
-              'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks', 'Genre', 'Genres', 'Comics',
-              'Comic', 'RecentComics']
+searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'EAuthor', 'AAuthor', 'RecentBooks',
+              'RecentAudio', 'RecentMags', 'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks',
+              'Genre', 'Genres', 'Comics', 'Comic', 'RecentComics']
 
 cmd_list = searchable + ['root', 'Serve', 'search', 'Members', 'Magazine']
 
@@ -604,7 +604,7 @@ class OPDS(object):
                     'id': escape('author:%s' % author['AuthorID']),
                     'updated': opdstime(lastupdated),
                     'content': escape('%s (%s)' % (name, havebooks)),
-                    'href': '%s?cmd=Author&amp;authorid=%s%s' % (self.opdsroot, author['AuthorID'], userid),
+                    'href': '%s?cmd=EAuthor&amp;authorid=%s%s' % (self.opdsroot, author['AuthorID'], userid),
                     'author': escape('%s' % name),
                     'kind': 'navigation',
                     'rel': 'subsection',
@@ -678,7 +678,7 @@ class OPDS(object):
                     'id': escape('author:%s' % author['AuthorID']),
                     'updated': opdstime(lastupdated),
                     'content': escape('%s (%s)' % (name, havebooks)),
-                    'href': '%s?cmd=Author&amp;authorid=%s%s' % (self.opdsroot, author['AuthorID'], userid),
+                    'href': '%s?cmd=AAuthor&amp;authorid=%s%s' % (self.opdsroot, author['AuthorID'], userid),
                     'author': escape('%s' % name),
                     'kind': 'navigation',
                     'rel': 'subsection',
@@ -1069,7 +1069,7 @@ class OPDS(object):
         self.data = feed
         return
 
-    def _author(self, **kwargs):
+    def _eauthor(self, **kwargs):
         index = 0
         limit = self.PAGE_SIZE
         if 'index' in kwargs:
@@ -1088,10 +1088,10 @@ class OPDS(object):
                              ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
         author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
         author = make_unicode(author['AuthorName'])
-        cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,BookFile,AudioFile from books WHERE "
+        cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,BookFile from books WHERE "
         if 'query' in kwargs:
             cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
-        cmd += "(Status='Open' or AudioStatus='Open') and AuthorID=? order by BookDate DESC"
+        cmd += "Status='Open' and AuthorID=? order by BookDate DESC"
         results = db.select(cmd, (kwargs['authorid'],))
         if limit:
             page = results[index:(index + limit)]
@@ -1107,9 +1107,6 @@ class OPDS(object):
                     rel = 'multi'
                 else:
                     mimetype = mime_type(book['BookFile'])
-
-            elif book['AudioFile']:
-                mimetype = mime_type(book['AudioFile'])
 
             if mimetype:
                 if book['BookDate'] and book['BookDate'] != '0000':
@@ -1144,12 +1141,98 @@ class OPDS(object):
 
         if len(results) > (index + limit):
             links.append(
-                getlink(href='%s?cmd=Author&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
+                getlink(href='%s?cmd=EAuthor&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
                         quote_plus(kwargs['authorid']), index + limit, userid),
                         ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
         if index >= limit:
             links.append(
-                getlink(href='%s?cmd=Author&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
+                getlink(href='%s?cmd=EAuthor&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
+                        quote_plus(kwargs['authorid']), index - limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
+        feed['links'] = links
+        feed['entries'] = entries
+        self.data = feed
+        fin = index + limit
+        if fin > len(results):
+            fin = len(results)
+        logger.debug("Returning %s %s, %s to %s from %s" % (len(entries), plural(len(entries), "book"),
+                                                            index + 1, fin, len(results)))
+        return
+
+    def _aauthor(self, **kwargs):
+        index = 0
+        limit = self.PAGE_SIZE
+        if 'index' in kwargs:
+            index = check_int(kwargs['index'], 0)
+        userid = ''
+        if 'user' in kwargs:
+            userid = '&amp;user=%s' % kwargs['user']
+
+        db = database.DBConnection()
+        if 'authorid' not in kwargs:
+            self.data = self._error_with_message('No Author Provided')
+            return
+        links = []
+        entries = []
+        links.append(getlink(href='%s/opensearchbooks.xml' % self.searchroot,
+                             ftype='application/opensearchdescription+xml', rel='search', title='Search Books'))
+        author = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (kwargs['authorid'],))
+        author = make_unicode(author['AuthorName'])
+        cmd = "SELECT BookName,BookDate,BookID,BookAdded,BookDesc,BookImg,AudioFile from books WHERE "
+        if 'query' in kwargs:
+            cmd += "BookName LIKE '%" + kwargs['query'] + "%' AND "
+        cmd += "AudioStatus='Open' and AuthorID=? order by BookDate DESC"
+        results = db.select(cmd, (kwargs['authorid'],))
+        if limit:
+            page = results[index:(index + limit)]
+        else:
+            page = results
+            limit = len(page)
+        for book in page:
+            mimetype = None
+            rel = 'file'
+            if book['AudioFile']:
+                mimetype = mime_type(book['AudioFile'])
+
+            if mimetype:
+                if book['BookDate'] and book['BookDate'] != '0000':
+                    disptitle = escape('%s (%s)' % (book['BookName'], book['BookDate']))
+                else:
+                    disptitle = escape('%s' % book['BookName'])
+                entry = {'title': disptitle,
+                         'id': escape('book:%s' % book['BookID']),
+                         'updated': opdstime(book['BookAdded']),
+                         'href': '%s?cmd=Serve&amp;audioid=%s%s' % (self.opdsroot, book['BookID'], userid),
+                         'kind': 'acquisition',
+                         'rel': rel,
+                         'type': mimetype}
+                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                    entry['image'] = self.searchroot + '/' + book['BookImg']
+                    entry['thumbnail'] = entry['image']
+                    entry['content'] = escape('%s - %s' % (book['BookName'], book['BookDesc']))
+                    entry['author'] = escape('%s' % author)
+                else:
+                    entry['content'] = escape('%s (%s)' % (book['BookName'], book['BookAdded']))
+                entries.append(entry)
+
+        feed = {}
+        authorname = '%s (%s)' % (escape(author), len(entries))
+        feed['title'] = 'LazyLibrarian OPDS - %s' % authorname
+        feed['id'] = 'author:%s' % escape(kwargs['authorid'])
+        feed['updated'] = now()
+        links.append(getlink(href=self.opdsroot, ftype='application/atom+xml; profile=opds-catalog; kind=navigation',
+                             rel='start', title='Home'))
+        links.append(getlink(href='%s?cmd=AAuthors%s' % (self.opdsroot, userid),
+                             ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='self'))
+
+        if len(results) > (index + limit):
+            links.append(
+                getlink(href='%s?cmd=AAuthor&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
+                        quote_plus(kwargs['authorid']), index + limit, userid),
+                        ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='next'))
+        if index >= limit:
+            links.append(
+                getlink(href='%s?cmd=AAuthor&amp;authorid=%s&amp;index=%s%s' % (self.opdsroot,
                         quote_plus(kwargs['authorid']), index - limit, userid),
                         ftype='application/atom+xml; profile=opds-catalog; kind=navigation', rel='previous'))
         feed['links'] = links
