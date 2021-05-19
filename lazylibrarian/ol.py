@@ -863,12 +863,16 @@ class OpenLibrary:
                                                   ' Reason) VALUES (?,?,?,?,?)',
                                                   (seriesid, series[0], 'Paused', time.time(), id_librarything))
                                         db.commit()
+                                        exists = {'Status': 'Paused'}
                                     seriesmembers = None
                                     cmd = "SELECT * from member WHERE seriesid=? AND WorkID=?"
                                     if not db.match(cmd, (seriesid, id_librarything)):
                                         seriesmembers = [[series[1], title, auth_name, auth_key, id_librarything]]
                                         if seriesid in series_updates:
                                             logger.debug("Series %s already updated" % seriesid)
+                                        elif exists['Status'] in ['Paused', 'Ignored']:
+                                            logger.debug("Not getting additional series members for %s, status is %s" %
+                                                         (series[0], exists['Status']))
                                         else:
                                             seriesmembers = self.get_series_members(seriesid, series[0])
                                             series_updates.append(seriesid)
