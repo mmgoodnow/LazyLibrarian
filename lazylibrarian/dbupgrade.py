@@ -106,8 +106,9 @@ from lazylibrarian.ol import OpenLibrary
 # 70 Add gr_id to books and authors tables
 # 71 Add narrator to books table
 # 72 Add separate HaveEBooks and HaveAudioBooks to authors table
+# 73 Add gr_id to series table
 
-db_current_version = 72
+db_current_version = 73
 
 
 def upgrade_needed():
@@ -1169,6 +1170,13 @@ def update_schema(db, upgradelog):
         if authors:
             for author in authors:
                 update_totals(author['AuthorID'])
+
+    if not has_column(db, "series", "gr_id"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding gr_id to series table'
+        upgradelog.write("%s v73: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE series ADD COLUMN gr_id TEXT')
+
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))
     logger.debug("Schema changes: %s" % changes)
