@@ -499,7 +499,7 @@ class GoodReads:
                                 logger.warn("Ignoring %s: Publisher %s" % (bookname, bookpub))
                                 rejected = 'publisher', bookpub
 
-                        bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                        # bookname = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
 
                         # if not rejected and re.match(r'[^\w-]', bookname):
                         # reject books with bad characters in title
@@ -634,10 +634,11 @@ class GoodReads:
                             if not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
                                 # try lookup by name
                                 if bookname:
+                                    name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
                                     try:
                                         isbn_count += 1
                                         start = time.time()
-                                        res = isbn_from_words(unaccented(bookname, only_ascii=False) + ' ' +
+                                        res = isbn_from_words(unaccented(name, only_ascii=False) + ' ' +
                                                               unaccented(author_name_result, only_ascii=False))
                                         isbn_time += (time.time() - start)
                                     except Exception as e:
