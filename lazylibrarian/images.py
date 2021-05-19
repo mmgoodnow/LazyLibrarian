@@ -257,8 +257,6 @@ def get_book_cover(bookid=None, src=None):
                 else:
                     if bookfile:
                         logger.debug("File %s not found" % bookfile)
-                    else:
-                        logger.debug("No bookfile for %s" % bookid)
             else:
                 logger.debug("BookID %s not found" % bookid)
             if src:
