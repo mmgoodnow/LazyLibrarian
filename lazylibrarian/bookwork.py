@@ -183,9 +183,9 @@ def set_series(serieslist=None, bookid=None, authorid=None, workid=None, reason=
                             reason = 'Unknown reason in set_series'
 
                     reason = "Bookid %s: %s" % (bookid, reason)
-                    db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?)',
+                    db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                               (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                               0, 0, 0, reason), suppress='UNIQUE')
+                               0, 0, 0, reason, ''), suppress='UNIQUE')
 
             if not workid or not authorid:
                 book = db.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
@@ -1176,9 +1176,9 @@ def get_work_series(bookid=None, reason=""):
                             match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
                                 reason = "Bookid %s: %s" % (bookid, reason)
-                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                                           (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                                           0, 0, 0, reason))
+                                           0, 0, 0, reason, ''))
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
                                             seriesid, seriesname, match['SeriesName']))
@@ -1188,9 +1188,9 @@ def get_work_series(bookid=None, reason=""):
                             match = db.match('SELECT SeriesName from series WHERE SeriesID=?', (seriesid,))
                             if not match:
                                 reason = "Bookid %s: %s" % (bookid, reason)
-                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
                                           (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
-                                           0, 0, 0, reason))
+                                           0, 0, 0, reason, ''))
     else:
         work = get_bookwork(bookid, "Series")
         if work:
