@@ -491,11 +491,11 @@ def update_totals(authorid):
 
     control_value_dict = {"AuthorID": authorid}
     new_value_dict = {
-        "TotalBooks": totals['total'],
-        "UnignoredBooks": totals['unignored'],
-        "HaveBooks": totals['Have'],
-        "HaveEBooks": totals['EHave'],
-        "HaveAudioBooks": totals['AHave'],
+        "TotalBooks": check_int(totals['total'], 0),
+        "UnignoredBooks": check_int(totals['unignored'], 0),
+        "HaveBooks": check_int(totals['Have'], 0),
+        "HaveEBooks": check_int(totals['EHave'], 0),
+        "HaveAudioBooks": check_int(totals['AHave'], 0),
         "LastBook": lastbook['BookName'] if lastbook else None,
         "LastLink": lastbook['BookLink'] if lastbook else None,
         "LastBookID": lastbook['BookID'] if lastbook else None,
@@ -505,19 +505,19 @@ def update_totals(authorid):
 
     cmd = "select series.seriesid as Series,sum(case books.status when 'Ignored' then 0 else 1 end) as Total,"
     cmd += "sum(case when books.status == 'Have' then 1 when books.status == 'Open' then 1 "
-    cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1"
-    cmd += " else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid"
-    cmd += " and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid"
-    cmd += " and seriesauthors.authorid=? group by series.seriesid"
+    cmd += "when books.audiostatus == 'Have' then 1 when books.audiostatus == 'Open' then 1 "
+    cmd += "else 0 end) as Have from books,member,series,seriesauthors where member.bookid=books.bookid "
+    cmd += "and member.seriesid = series.seriesid and seriesauthors.seriesid = series.seriesid "
+    cmd += "and seriesauthors.authorid=? group by series.seriesid"
     res = db.select(cmd, (authorid,))
     if len(res):
         for series in res:
             db.action('UPDATE series SET Have=?, Total=? WHERE SeriesID=?',
-                      (series['Have'], series['Total'], series['Series']))
+                      (check_int(series['Have'], 0), check_int(series['Total'], 0), series['Series']))
 
     res = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
-    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveEBooks'] +
-                                                    new_value_dict['HaveAudioBooks'], new_value_dict['TotalBooks']))
+    logger.debug('Updated totals for [%s] %s/%s' % (res['AuthorName'], new_value_dict['HaveBooks'],
+                                                    new_value_dict['TotalBooks']))
 
 
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
