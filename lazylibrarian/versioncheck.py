@@ -669,7 +669,7 @@ def update():
                         # but as the dll doesn't change just skip past it.
                         # If we need to update it in the future we will need to rename it
                         # or use a different upgrade mechanism
-                        logmsg("debug", "Skipping %s" % curfile)
+                        logmsg('debug', "Skipping %s" % curfile)
                     else:
                         if os.path.isfile(syspath(new_path)):
                             os.remove(syspath(new_path))
