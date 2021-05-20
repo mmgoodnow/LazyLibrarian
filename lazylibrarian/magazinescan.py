@@ -25,6 +25,8 @@ from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_by
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
 from six import PY2
+if PY2:
+    from io import open
 
 
 def create_id(issuename=None):
@@ -300,8 +302,8 @@ def magazine_scan(title=None):
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
-                            with open(syspath(ignorefile), 'a') as f:
-                                f.write("magazine")
+                            with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                                f.write(u"magazine")
                         except IOError as e:
                             logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 

@@ -1298,8 +1298,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     logger.error("%s is not executable" % repr(pp_path))
                                 parent = os.path.dirname(pp_path)
                                 try:
-                                    with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
-                                        f.write('test')
+                                    with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
+                                        f.write(u'test')
                                     remove(os.path.join(parent, 'll_temp'))
                                 except Exception as why:
                                     logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
@@ -2258,8 +2258,8 @@ def process_book(pp_path=None, bookid=None, library=None):
                         logger.error("%s is not writeable" % repr(pp_path))
                     parent = os.path.dirname(pp_path)
                     try:
-                        with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
-                            f.write('test')
+                        with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
+                            f.write(u'test')
                         remove(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
@@ -2668,8 +2668,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 if booktype in ['magazine', 'comic']:
                     ignorefile = os.path.join(target_dir, '.ll_ignore')
                     try:
-                        with open(syspath(ignorefile), 'a') as f:
-                            f.write("%s" % booktype)
+                        with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                            f.write(make_unicode(booktype))
                     except IOError as e:
                         logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
@@ -2733,8 +2733,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         # extra debugging to see if we can figure out a windows encoding issue
                         parent = os.path.dirname(destfile)
                         try:
-                            with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
-                                f.write('test')
+                            with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
+                                f.write(u'test')
                             remove(os.path.join(parent, 'll_temp'))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
@@ -2789,9 +2789,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         elif booktype in ['magazine', 'comic']:
             ignorefile = os.path.join(dest_path, b'.ll_ignore')
             try:
-                with open(syspath(ignorefile), 'a') as f:
-                    f.write("%s" % booktype)
-            except IOError as e:
+                with open(syspath(ignorefile), 'w') as f:
+                    f.write(make_unicode(booktype))
+            except (IOError, TypeError) as e:
                 logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
             if booktype == 'comic':

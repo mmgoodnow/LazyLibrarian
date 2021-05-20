@@ -25,6 +25,8 @@ from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, g
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
 from six import PY2
+if PY2:
+    from io import open
 
 
 def comic_scan(comicid=None):
@@ -244,8 +246,8 @@ def comic_scan(comicid=None):
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
-                            with open(syspath(ignorefile), 'a') as f:
-                                f.write('comic')
+                            with open(syspath(ignorefile), 'w', encoding='utf-8') as f:
+                                f.write(u'comic')
                         except IOError as e:
                             logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
