@@ -144,8 +144,8 @@ class IRC:
                 logger.debug("Received %s lines" % len(lynes))
         for lyne in lynes:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                if self.nick in lyne:
-                    logger.debug(lyne)
+                # if self.nick in lyne:
+                logger.debug(lyne)
             if lyne.startswith('PING '):
                 self.pong(lyne)
             elif lyne.startswith('VERSION '):
