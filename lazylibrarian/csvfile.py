@@ -381,8 +381,8 @@ def import_csv(search_dir=None, library='eBook'):
                                 and result['authorid'] == authorid:
                             bookmatch = result
                             break
-                    if not bookmatch:  # no match on full searchterm, try splitting out subtitle
-                        newtitle, _ = split_title(authorname, title)
+                    if not bookmatch:  # no match on full searchterm, try splitting out subtitle and series
+                        newtitle, _, _ = split_title(authorname, title)
                         if newtitle != title:
                             title = newtitle
                             searchterm = "%s <ll> %s" % (title, authorname)

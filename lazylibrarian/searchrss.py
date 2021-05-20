@@ -230,8 +230,8 @@ def search_wishlist():
                             break
 
                 if authorname and not bookmatch:
-                    # no match on full searchterm, try splitting out subtitle
-                    newtitle, _ = split_title(authorname, book['rss_title'])
+                    # no match on full searchterm, try splitting out subtitle and series
+                    newtitle, _, _ = split_title(authorname, book['rss_title'])
                     if newtitle != book['rss_title']:
                         title = newtitle
                         searchterm = "%s <ll> %s" % (title, authorname)

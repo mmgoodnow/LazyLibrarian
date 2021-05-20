@@ -342,7 +342,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
     book_lower = unaccented(book.lower(), only_ascii=False)
     book_lower = replace_with(book_lower, quotes, '')
-    book_partname, book_sub = split_title(author, book_lower)
+    book_partname, book_sub, _ = split_title(author, book_lower)
 
     # We want to match a book on disk with a subtitle to a shorter book in the DB
     # - Strict prefix match with a : followed by junk is allowed
@@ -1035,13 +1035,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             if rootxml is None:
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
                                             else:
-                                                book, _ = split_title(author, book)
+                                                book, _, _ = split_title(author, book)
                                                 book = replace_with(book, quotes, '')
                                                 resultxml = rootxml.iter('work')
                                                 for item in resultxml:
                                                     try:
                                                         booktitle = item.find('./best_book/title').text
-                                                        booktitle, _ = split_title(author, booktitle)
+                                                        booktitle, _, _ = split_title(author, booktitle)
                                                         booktitle = replace_with(booktitle, quotes, '')
                                                     except (KeyError, AttributeError):
                                                         booktitle = ""
@@ -1089,7 +1089,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                     for item in resultxml:
                                                         try:
                                                             booktitle = item.find('./best_book/title').text
-                                                            booktitle, _ = split_title(author, booktitle)
+                                                            booktitle, _, _ = split_title(author, booktitle)
                                                             booktitle = replace_with(booktitle, quotes, '')
                                                         except (KeyError, AttributeError):
                                                             booktitle = ""

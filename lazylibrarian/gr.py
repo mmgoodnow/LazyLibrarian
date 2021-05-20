@@ -357,6 +357,7 @@ class GoodReads:
         mydict = {}
         for val, idx, default in [
             ('name', 'title', ''),
+            ('shortname', 'title_without_series', ''),
             ('id', 'id', ''),
             ('desc', 'description', ''),
             ('pub', 'publisher', ''),
@@ -471,6 +472,7 @@ class GoodReads:
 
                         bookdict = self.get_bookdict(book)
 
+                        shortname = bookdict['shortname']
                         bookname = bookdict['name']
                         bookid = bookdict['id']
                         bookdesc = bookdict['desc']
@@ -633,8 +635,11 @@ class GoodReads:
 
                             if not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
                                 # try lookup by name
-                                if bookname:
-                                    name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
+                                if bookname or shortname:
+                                    if shortname:
+                                        name = replace_all(shortname, {':': ' ', '"': '', '\'': ''}).strip()
+                                    else:
+                                        name = replace_all(bookname, {':': ' ', '"': '', '\'': ''}).strip()
                                     try:
                                         isbn_count += 1
                                         start = time.time()
@@ -665,7 +670,9 @@ class GoodReads:
                         if not rejected:
                             dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
                                    '[': ' ', ']': ' ', '#': '# ', ':': ' ', ';': ' '}
-                            name = replace_all(bookname, dic).strip()
+                            name = replace_all(shortname, dic).strip()
+                            if not name:
+                                name = replace_all(bookname, dic).strip()
                             name = name.lower()
                             # remove extra spaces if they're in a row
                             name = " ".join(name.split())
@@ -678,34 +685,41 @@ class GoodReads:
                                     break
 
                         if not rejected:
-                            bookname = unaccented(bookname, only_ascii=False)
+                            name = unaccented(bookname, only_ascii=False)
                             if lazylibrarian.CONFIG['NO_SETS']:
                                 # allow date ranges eg 1981-95
-                                m = re.search(r'(\d+)-(\d+)', bookname)
+                                m = re.search(r'(\d+)-(\d+)', name)
                                 if m:
                                     if check_year(m.group(1), past=1800, future=0):
                                         logger.debug("Allow %s, looks like a date range" % bookname)
                                     else:
                                         rejected = 'set', 'Set or Part %s' % m.group(0)
                                         logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
-                                elif re.search(r'\d+ of \d+', bookname) or \
-                                        re.search(r'\d+/\d+', bookname):
+                                elif re.search(r'\d+ of \d+', name) or \
+                                        re.search(r'\d+/\d+', name):
                                     rejected = 'set', 'Set or Part'
                                     logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
 
                         if not rejected:
-                            bookname, booksub = split_title(author_name_result, bookname)
+                            bookname, booksub, bookseries = split_title(author_name_result, bookname)
+                            if shortname:
+                                sbookname, sbooksub, _ = split_title(author_name_result, shortname)
+                                if sbookname != bookname:
+                                    logger.warn('Different titles [%s][%s]' % (sbookname, bookname))
+                                    bookname = sbookname
+                                if sbooksub != booksub:
+                                    logger.warn('Different subtitles [%s][%s]' % (sbooksub, booksub))
+                                    booksub = sbooksub
                             dic = {':': '.', '"': ''}  # do we need to strip apostrophes , '\'': ''}
-                            bookname = replace_all(bookname, dic)
-                            bookname = bookname.strip()
-                            booksub = replace_all(booksub, dic)
-                            booksub = booksub.strip()
-                            if booksub:
-                                seriesdetails = booksub
+                            bookname = replace_all(bookname, dic).strip()
+                            booksub = replace_all(booksub, dic).strip()
+                            bookseries = replace_all(bookseries, dic).strip()
+                            if bookseries:
+                                series, series_num = book_series(bookseries)
+                            elif booksub:
+                                series, series_num = book_series(booksub)
                             else:
-                                seriesdetails = bookname
-
-                            series, series_num = book_series(seriesdetails)
+                                series, series_num = book_series(bookname)
 
                             # 1. The author/list page only contains one author per book even if the book/show page
                             #    and html show multiple authors
@@ -1396,11 +1410,13 @@ class GoodReads:
             return
 
         # bookname = unaccented(bookname, only_ascii=False)
-        bookname, booksub = split_title(authorname, bookname)
+        bookname, booksub, bookseries = split_title(authorname, bookname)
         dic = {':': '.', '"': ''}
         bookname = replace_all(bookname, dic).strip()
         booksub = replace_all(booksub, dic).strip()
-        if booksub:
+        if bookseries:
+            series, series_num = book_series(bookseries)
+        elif booksub:
             series, series_num = book_series(booksub)
         else:
             series, series_num = book_series(bookname)

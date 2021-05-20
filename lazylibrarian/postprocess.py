@@ -398,8 +398,8 @@ def process_alternate(source_dir=None, library='eBook'):
                             and result['authorid'] == authorid:
                         match = result
                         break
-                if not match:  # no match on full searchterm, try splitting out subtitle
-                    newtitle, _ = split_title(authorname, bookname)
+                if not match:  # no match on full searchterm, try splitting out subtitle and series
+                    newtitle, _, _ = split_title(authorname, bookname)
                     if newtitle != bookname:
                         bookname = newtitle
                         searchterm = "%s <ll> %s" % (unaccented(bookname, only_ascii=False),

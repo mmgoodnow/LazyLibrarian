@@ -576,6 +576,7 @@ def safe_unicode(obj, *args):
 
 
 def split_title(author, book):
+    bookseries = ''
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
@@ -589,15 +590,17 @@ def split_title(author, book):
         # If there is a digit before the closing brace assume it's series
         # eg Abraham Lincoln: Vampire Hunter (Abraham Lincoln: Vampire Hunter, #1)
         if book[-2].isdigit():
-            # discard the series part
-            book = book.rsplit('(', 1)[0].strip()
+            # separate out the series part
+            book, bookseries = book.rsplit('(', 1)
+            book = book.strip()
             brace = book.find('(')
+            brace += 1
         else:
             parts = book.rsplit('(', 1)
             parts[1] = '(' + parts[1]
             bookname = parts[0].strip()
             booksub = parts[1]
-            return bookname, booksub
+            return bookname, booksub, bookseries
     # if not (words in braces at end of string)
     # split subtitle on whichever comes first, ':' or '('
     # unless the part in braces is one word, eg (TM) or (Annotated) or (Unabridged)
@@ -634,7 +637,7 @@ def split_title(author, book):
     if parts:
         bookname = parts[0].strip()
         booksub = parts[1]
-    return bookname, booksub
+    return bookname, booksub, bookseries
 
 
 def format_author_name(author):
