@@ -586,11 +586,18 @@ def split_title(author, book):
     if brace and book.endswith(')'):
         # if title ends with words in braces, split on last brace
         # as this always seems to be a subtitle or series info
-        parts = book.rsplit('(', 1)
-        parts[1] = '(' + parts[1]
-        bookname = parts[0].strip()
-        booksub = parts[1]
-        return bookname, booksub
+        # If there is a digit before the closing brace assume it's series
+        # eg Abraham Lincoln: Vampire Hunter (Abraham Lincoln: Vampire Hunter, #1)
+        if book[-2].isdigit():
+            # discard the series part
+            book = book.rsplit('(', 1)[0].strip()
+            brace = book.find('(')
+        else:
+            parts = book.rsplit('(', 1)
+            parts[1] = '(' + parts[1]
+            bookname = parts[0].strip()
+            booksub = parts[1]
+            return bookname, booksub
     # if not (words in braces at end of string)
     # split subtitle on whichever comes first, ':' or '('
     # unless the part in braces is one word, eg (TM) or (Annotated) or (Unabridged)
