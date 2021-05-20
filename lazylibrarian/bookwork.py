@@ -750,7 +750,8 @@ def get_series_authors(seriesid):
         logger.error("Error getting series name for %s" % seriesid)
         return 0
     if result['Status'] in ['Paused', 'Ignored']:
-        logger.debug("Not getting series authors for %s, status is %s" % (result['SeriesName'], result['Status']))
+        logger.debug("Not getting additional series authors for %s, status is %s" %
+                     (result['SeriesName'], result['Status']))
         return 0
 
     seriesname = result['SeriesName']
@@ -866,7 +867,8 @@ def get_series_members(seriesid=None, seriesname=None):
     result = db.match('select SeriesName,Status from series where SeriesID=?', (seriesid,))
     if result:
         if result['Status'] in ['Paused', 'Ignored']:
-            logger.debug("Not getting series members for %s, status is %s" % (result['SeriesName'], result['Status']))
+            logger.debug("Not getting additional series members for %s, status is %s" %
+                         (result['SeriesName'], result['Status']))
             return results, api_hits
 
     if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
