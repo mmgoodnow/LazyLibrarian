@@ -1179,7 +1179,7 @@ class WebInterface(object):
         cmd += ' and series.SeriesID=?'
         series = db.match(cmd, (seriesid,))
         cmd = 'SELECT member.BookID,BookName,SeriesNum,BookImg,books.Status,AuthorName,authors.AuthorID,'
-        cmd += 'BookLink,WorkPage,AudioStatus'
+        cmd += 'BookLink,WorkPage,AudioStatus,BookSub'
         cmd += ' from member,series,books,authors'
         cmd += ' where series.SeriesID=member.SeriesID and books.BookID=member.BookID'
         cmd += ' and books.AuthorID=authors.AuthorID and '
@@ -1232,10 +1232,15 @@ class WebInterface(object):
                     flag = '&nbsp;<i class="fas fa-ban"></i>'
                 else:
                     flag = ''
-                newrow = {'BookID': entry[0], 'BookName': entry[1], 'SeriesNum': entry[2], 'BookImg': entry[3],
+                if entry[10]:  # is there a sub-title
+                    bk_name = '%s<br><small><i>%s</i></small>' % (entry[1], entry[10])
+                else:
+                    bk_name = entry[1]
+                newrow = {'BookID': entry[0], 'BookName': bk_name, 'SeriesNum': entry[2], 'BookImg': entry[3],
                           'Status': entry[4], 'AuthorName': entry[5], 'AuthorID': entry[6],
                           'BookLink': entry[7] if entry[7] else '', 'WorkPage': entry[8] if entry[8] else '',
                           'AudioStatus': entry[9], 'Flag': flag}
+
                 rows.append(newrow)  # add the new dict to the masterlist
 
         return serve_template(templatename="members.html", title=series['SeriesName'],
