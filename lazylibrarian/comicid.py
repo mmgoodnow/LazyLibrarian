@@ -155,7 +155,10 @@ def cv_identify(fname, best=True):
         else:
             off = ''
         url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
-        url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(make_utf8bytes(matchwords)[0]), off)
+        if fname.startswith('CV'):
+            url += '&format=json&sort=name:asc&filter=id:%s%s' % (fname[2:], off)
+        else:
+            url += '&format=json&sort=name:asc&filter=name:%s%s' % (quote_plus(make_utf8bytes(matchwords)[0]), off)
         cv_api_sleep()
         res, _ = json_request(url)
         if not res:

@@ -4254,6 +4254,7 @@ class WebInterface(object):
     def find_comic(self, title=None):
         # noinspection PyGlobalUndefined
         global comicresults
+        comicresults = []
         db = database.DBConnection()
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
@@ -4264,17 +4265,21 @@ class WebInterface(object):
                 logger.debug("Comic %s already exists (%s)" % (title, exists['Title']))
             else:
                 cvres = cv_identify(title, best=False)
-                cxres = cx_identify(title, best=False)
-                words = name_words(title)
-                titlewords = ' '.join(title_words(words))
-                comicresults = []
-                for item in cvres:
-                    item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                    comicresults.append(item)
-                for item in cxres:
-                    item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
-                    comicresults.append(item)
-                comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
+                if title.startswith('CV'):
+                    for item in cvres:
+                        item['fuzz'] = fuzz.token_sort_ratio(title, item['seriesid'])
+                        comicresults.append(item)
+                else:
+                    cxres = cx_identify(title, best=False)
+                    words = name_words(title)
+                    titlewords = ' '.join(title_words(words))
+                    for item in cvres:
+                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                        comicresults.append(item)
+                    for item in cxres:
+                        item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
+                        comicresults.append(item)
+                    comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
                 return serve_template(templatename="comicresults.html", title="Comics", results=comicresults)
 
             raise cherrypy.HTTPRedirect("comics")
