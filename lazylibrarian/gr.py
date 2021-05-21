@@ -701,11 +701,12 @@ class GoodReads:
                                     logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
 
                         if not rejected:
+                            oldbookname = bookname
                             bookname, booksub, bookseries = split_title(author_name_result, bookname)
                             if shortname:
                                 sbookname, sbooksub, _ = split_title(author_name_result, shortname)
                                 if sbookname != bookname:
-                                    logger.warn('Different titles [%s][%s]' % (sbookname, bookname))
+                                    logger.warn('Different titles [%s][%s][%s]' % (oldbookname, sbookname, bookname))
                                     bookname = sbookname
                                 if sbooksub != booksub:
                                     logger.warn('Different subtitles [%s][%s]' % (sbooksub, booksub))
@@ -788,8 +789,9 @@ class GoodReads:
 
                         if not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
-                            cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
-                            match = db.match(cmd, (bookname, author_name_result))
+                            cmd += ' and BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE'
+                            cmd += ' and AuthorName=? COLLATE NOCASE'
+                            match = db.match(cmd, (bookname, booksub, author_name_result))
 
                             if match and match['BookID'] != bookid:
                                 # we have a different bookid for this author/title already
@@ -1211,9 +1213,10 @@ class GoodReads:
         dupes = len(res)
         if dupes:
             for item in res:
-                cmd = "select BookID,Status,AudioStatus from books where bookname=? and authorid=?"
+                cmd = "select BookID,BookSub,Status,AudioStatus from books where bookname=? and authorid=?"
                 dupe_books = db.select(cmd, (item['bookname'], authorid))
                 cnt = len(dupe_books)
+                booksubs = []
                 for dupe in dupe_books:
                     cnt -= 1
                     if dupe['Status'] not in ['Ignored', 'Skipped'] \
@@ -1221,9 +1224,13 @@ class GoodReads:
                         # this one is important (owned/wanted/snatched)
                         logger.debug("Keeping bookid %s (%s/%s)" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                    elif dupe['BookSub'] not in booksubs:
+                        booksubs.append(dupe['BookSub'])
+                        logger.debug("Keeping bookid %s [%s][%s]" %
+                                     (dupe['BookID'], item['bookname'], dupe['BookSub']))
                     elif cnt:
-                        logger.debug("Removing bookid %s (%s/%s)" %
-                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus']))
+                        logger.debug("Removing bookid %s (%s/%s) %s" %
+                                     (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
                     else:
                         logger.debug("Not removing bookid %s (%s/%s) last entry for %s" %
                                      (dupe['BookID'], dupe['Status'], dupe['AudioStatus'], item['bookname']))
