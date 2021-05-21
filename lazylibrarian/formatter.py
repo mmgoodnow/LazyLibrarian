@@ -82,6 +82,14 @@ def book_series(bookname):
     # )             end group
     series = ""
     seriesnum = ""
+
+    # First handle things like "(Book 3: series name)"
+    if ':' in bookname:
+        # change to "(series name, Book 3)"
+        parts = bookname[1:-1].split(':', 1)
+        if parts[0][-1].isdigit():
+            bookname = '(%s, %s)' % (parts[1], parts[0])
+
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
                         'the first', 'includes', 'paperback', 'first', 'books', 'large print', 'of',
@@ -576,6 +584,8 @@ def safe_unicode(obj, *args):
 
 
 def split_title(author, book):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+        lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
@@ -592,14 +602,16 @@ def split_title(author, book):
         if book[-2].isdigit():
             # separate out the series part
             book, bookseries = book.rsplit('(', 1)
-            book = book.strip()
+            book = book.strip().rstrip(':').strip()
             brace = book.find('(')
             brace += 1
         else:
             parts = book.rsplit('(', 1)
             parts[1] = '(' + parts[1]
             bookname = parts[0].strip()
-            booksub = parts[1]
+            booksub = parts[1].rstrip(':').strip()
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
             return bookname, booksub, bookseries
     # if not (words in braces at end of string)
     # split subtitle on whichever comes first, ':' or '('
@@ -636,7 +648,9 @@ def split_title(author, book):
         parts[1] = '(' + parts[1]
     if parts:
         bookname = parts[0].strip()
-        booksub = parts[1]
+        booksub = parts[1].rstrip(':').strip()
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+        lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
     return bookname, booksub, bookseries
 
 
