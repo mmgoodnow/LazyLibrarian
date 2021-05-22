@@ -175,17 +175,16 @@
         <label for="action" class="">Mark selected ${library}s as</label>
         <select class="mark_books form-control input-sm" id="action" name="action">
           %if perm&lazylibrarian.perm_status:
-            %if lazylibrarian.SHOW_EBOOK > 0:
-              <option value="WantEbook">eBook Wanted</option>
-            %endif
-            %if lazylibrarian.SHOW_AUDIO > 0:
-              <option value="WantAudio">Audio Wanted</option>
-            %endif
+            <option value="Wanted">Wanted</option>
             %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
               <option value="WantBoth">Both Wanted</option>
             %endif
             <option value="Have">Have</option>
             <option value="Ignored">Ignored</option>
+            %endif
+            %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+              <option value="IgnoreBoth">Both Ignored</option>
+            %endif
             <option value="Skipped">Skipped</option>
             <option value="Remove">Remove</option>
             <option value="Delete">Delete</option>
@@ -202,7 +201,6 @@
       </div>
       <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
     </div>
-    %endif
     %if lazylibrarian.CONFIG['TOGGLES'] == True:
     <div class="toggles col-xs-12 col-sm-7 text-right">
     Toggle: <a class="toggle-vis" data-column="1"> Cover</a>

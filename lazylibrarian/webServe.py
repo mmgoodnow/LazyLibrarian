@@ -3569,70 +3569,49 @@ class WebInterface(object):
         for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype']:
             args.pop(arg, None)
 
+        cookie = None
+        to_read = []
+        have_read = []
+        reading = []
+        abandoned = []
+
         db = database.DBConnection()
         if not redirect:
             redirect = "books"
         check_totals = []
         if redirect == 'author':
             check_totals = [authorid]
+        reading_lists = ["Unread", "Read", "ToRead", "Reading", "Abandoned"]
         if action:
+            if action in reading_lists:
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    userdata = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
+                                        (cookie['ll_uid'].value,))
+                    if userdata:
+                        to_read = set(get_list(userdata['ToRead']))
+                        have_read = set(get_list(userdata['HaveRead']))
+                        reading = set(get_list(userdata['Reading']))
+                        abandoned = set(get_list(userdata['Abandoned']))
+
             for bookid in args:
-                if action in ["Unread", "Read", "ToRead", "Reading", "Abandoned"]:
-                    cookie = cherrypy.request.cookie
-                    if cookie and 'll_uid' in list(cookie.keys()):
-                        res = db.match('SELECT ToRead,HaveRead,Reading,Abandoned from users where UserID=?',
-                                       (cookie['ll_uid'].value,))
-                        if res:
-                            to_read = set(get_list(res['ToRead']))
-                            have_read = set(get_list(res['HaveRead']))
-                            reading = set(get_list(res['Reading']))
-                            abandoned = set(get_list(res['Abandoned']))
+                if action in reading_lists:
+                    to_read.discard(bookid)
+                    have_read.discard(bookid)
+                    reading.discard(bookid)
+                    abandoned.discard(bookid)
 
-                            for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype']:
-                                to_read.discard(arg)
-                                have_read.discard(arg)
-                                reading.discard(arg)
-                                abandoned.discard(arg)
+                    if action == "Read":
+                        have_read.add(bookid)
+                    elif action == "ToRead":
+                        to_read.add(bookid)
+                    elif action == "Reading":
+                        reading.add(bookid)
+                    elif action == "Abandoned":
+                        abandoned.add(bookid)
+                    logger.debug('Status set to %s for %s' % (action, bookid))
 
-                            if action == "Unread":
-                                to_read.discard(bookid)
-                                have_read.discard(bookid)
-                                reading.discard(bookid)
-                                abandoned.discard(bookid)
-                                logger.debug('Status set to "unread" for "%s"' % bookid)
-                            elif action == "Read":
-                                to_read.discard(bookid)
-                                reading.discard(bookid)
-                                abandoned.discard(bookid)
-                                have_read.add(bookid)
-                                logger.debug('Status set to "read" for "%s"' % bookid)
-                            elif action == "ToRead":
-                                to_read.add(bookid)
-                                have_read.discard(bookid)
-                                reading.discard(bookid)
-                                abandoned.discard(bookid)
-                                logger.debug('Status set to "to read" for "%s"' % bookid)
-                            elif action == "Reading":
-                                to_read.discard(bookid)
-                                have_read.discard(bookid)
-                                reading.add(bookid)
-                                abandoned.discard(bookid)
-                                logger.debug('Status set to "reading" for "%s"' % bookid)
-                            elif action == "Abandoned":
-                                to_read.discard(bookid)
-                                have_read.discard(bookid)
-                                reading.discard(bookid)
-                                abandoned.add(bookid)
-                                logger.debug('Status set to "abandoned" for "%s"' % bookid)
-
-                            db.action('UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?',
-                                      (', '.join('"{0}"'.format(w) for w in to_read),
-                                       ', '.join('"{0}"'.format(w) for w in have_read),
-                                       ', '.join('"{0}"'.format(w) for w in reading),
-                                       ', '.join('"{0}"'.format(w) for w in abandoned),
-                                       cookie['ll_uid'].value))
-
-                elif action in ["Wanted", "Have", "Ignored", "Skipped", "WantAudio", "WantEbook", "WantBoth"]:
+                elif action in ["Skipped", "Have", "Ignored", "IgnoreBoth", "Wanted", "WantBoth"]:
                     bookdata = db.match('SELECT AuthorID,BookName,Status,AudioStatus from books WHERE BookID=?',
                                         (bookid,))
                     if bookdata:
@@ -3640,27 +3619,34 @@ class WebInterface(object):
                         bookname = bookdata['BookName']
                         if authorid not in check_totals:
                             check_totals.append(authorid)
-                        if action in ["WantEbook", "WantAudio", "WantBoth"]:
-                            if action in ["WantEbook", "WantBoth"]:
-                                if bookdata['Status'] == "Open":
-                                    logger.debug('eBook "%s" is already marked Open' % bookname)
-                                else:
-                                    db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
-                                    logger.debug('Status set to "Wanted" for "%s"' % bookname)
-                            if action in ["WantAudio", "WantBoth"]:
-                                if bookdata['AudioStatus'] == "Open":
-                                    logger.debug('AudioBook "%s" is already marked Open' % bookname)
-                                else:
-                                    db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
-                                    logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
-                        else:
-                            if action == 'Ignored':
-                                db.upsert("books", {'ScanResult': 'User ignored'}, {'BookID': bookid})
-                            if 'eBook' in library:
-                                db.upsert("books", {'Status': action}, {'BookID': bookid})
+                        if (action == "Wanted" and library == 'eBook') or action == "WantBoth":
+                            if bookdata['Status'] == "Open":
+                                logger.debug('eBook "%s" is already marked Open' % bookname)
+                            else:
+                                db.upsert("books", {'Status': 'Wanted'}, {'BookID': bookid})
+                                logger.debug('Status set to "Wanted" for "%s"' % bookname)
+                        if (action == "Wanted" and library == 'AudioBook') or action == "WantBoth":
+                            if bookdata['AudioStatus'] == "Open":
+                                logger.debug('AudioBook "%s" is already marked Open' % bookname)
+                            else:
+                                db.upsert("books", {'AudioStatus': 'Wanted'}, {'BookID': bookid})
+                                logger.debug('AudioStatus set to "Wanted" for "%s"' % bookname)
+                        if (action == "Ignored" and library == 'eBook') or action == "IgnoreBoth":
+                            db.upsert("books", {'Status': "Ignored", 'ScanResult': 'User %s' % action},
+                                      {'BookID': bookid})
+                            logger.debug('Status set to "Ignored" for "%s"' % bookname)
+                        if (action == "Ignored" and library == 'AudioBook') or action == "IgnoreBoth":
+                            db.upsert("books", {'AudioStatus': "Ignored", 'ScanResult': 'User %s' % action},
+                                      {'BookID': bookid})
+                            logger.debug('AudioStatus set to "Ignored" for "%s"' % bookname)
+                        if action in ["Skipped", "Have"]:
+                            if library == 'eBook':
+                                db.upsert("books", {'Status': action, 'ScanResult': 'User %s' % action},
+                                          {'BookID': bookid})
                                 logger.debug('Status set to "%s" for "%s"' % (action, bookname))
-                            if 'Audio' in library:
-                                db.upsert("books", {'AudioStatus': action}, {'BookID': bookid})
+                            if library == 'AudioBook':
+                                db.upsert("books", {'AudioStatus': action, 'ScanResult': 'User %s' % action},
+                                          {'BookID': bookid})
                                 logger.debug('AudioStatus set to "%s" for "%s"' % (action, bookname))
                     else:
                         logger.warn("Unable to set status %s for %s" % (action, bookid))
@@ -3739,6 +3725,14 @@ class WebInterface(object):
                             db.action('delete from books where bookid=?', (bookid,))
                             db.action('delete from wanted where bookid=?', (bookid,))
                             logger.info('Removed "%s" from database' % bookname)
+
+            if action in reading_lists:
+                db.action('UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?',
+                          (', '.join('"{0}"'.format(w) for w in to_read),
+                           ', '.join('"{0}"'.format(w) for w in have_read),
+                           ', '.join('"{0}"'.format(w) for w in reading),
+                           ', '.join('"{0}"'.format(w) for w in abandoned),
+                           cookie['ll_uid'].value))
 
         if check_totals:
             for author in check_totals:
@@ -4280,7 +4274,12 @@ class WebInterface(object):
                         item['fuzz'] = fuzz.token_sort_ratio(titlewords, item['title'])
                         comicresults.append(item)
                     comicresults = sorted(comicresults, key=lambda x: -(check_int(x["fuzz"], 0)))
-                return serve_template(templatename="comicresults.html", title="Comics", results=comicresults)
+                comicids = db.select("SELECT ComicID from comics")
+                comiclist = []
+                for item in comicids:
+                    comiclist.append(item['ComicID'])
+                return serve_template(templatename="comicresults.html", title="Comics",
+                                      results=comicresults, comicids=comiclist)
 
             raise cherrypy.HTTPRedirect("comics")
 
