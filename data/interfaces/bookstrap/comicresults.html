@@ -24,15 +24,25 @@
       </thead>
       <tbody>
         %for item in results:
-        <tr>
-          <td class="bookid">${item['fuzz']} %</td>
-          <td class="filename">${item['title']}</td>
-          <td class="provider"><a data-toggle="tooltip" title="${item['seriesid']}">${item['publisher']}</a></td>
-          <td class="date">${item['start']}</td>
-          <td class="size">${item['description']}</td>
-          <td class="status text-center"> <a class="btn btn-xs btn-info button"
-                    href="add_comic?comicid=${item['seriesid']}" title="Add">Add</a></td>
-        </tr>
+          <%
+            if comicids and item['seriesid'] in comicids:
+              value = "Have"
+              but_class = "btn-info"
+              destination = "comicissue_page?comicid="+item['seriesid']
+            else:
+              value = "Add"
+              but_class = "btn-success"
+              destination = "add_comic?comicid="+item['seriesid']
+          %>
+          <tr>
+            <td class="bookid">${item['fuzz']} %</td>
+            <td class="filename">${item['title']}</td>
+            <td class="provider"><a data-toggle="tooltip" title="${item['seriesid']}">${item['publisher']}</a></td>
+            <td class="date">${item['start']}</td>
+            <td class="size">${item['description']}</td>
+            <td class="status text-center"> <a class="${but_class} btn btn-xs button"
+                      href="${destination}">${value}</a></td>
+          </tr>
         %endfor
       </tbody>
     </table>
