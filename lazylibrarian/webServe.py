@@ -3739,10 +3739,8 @@ class WebInterface(object):
                 update_totals(author)
 
         # start searchthreads
-        if action in ['Wanted', 'WantEbook', 'WantAudio']:
+        if action in ['Wanted', 'WantBoth']:
             books = []
-            for arg in ['booklang', 'library', 'ignored', 'book_table_length']:
-                args.pop(arg, None)
             for arg in args:
                 books.append({"bookid": arg})
 
@@ -3752,10 +3750,10 @@ class WebInterface(object):
                 if check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
                     logger.debug("Starting search threads, library=%s, action=%s" %
                                  (library, action))
-                    if action == 'WantEbook' or (action == 'Wanted' and 'eBook' in library):
+                    if action == 'WantBoth' or (action == 'Wanted' and 'eBook' in library):
                         threading.Thread(target=search_book, name='SEARCHBOOK',
                                          args=[books, 'eBook']).start()
-                    if action == 'WantAudio' or (action == 'Wanted' and 'Audio' in library):
+                    if action == 'WantBoth' or (action == 'Wanted' and 'Audio' in library):
                         threading.Thread(target=search_book, name='SEARCHBOOK',
                                          args=[books, 'AudioBook']).start()
 
