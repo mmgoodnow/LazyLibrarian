@@ -973,7 +973,7 @@ class WebInterface(object):
                                   members=members)
         else:
             logger.info('Missing series %s' % seriesid)
-        raise cherrypy.HTTPRedirect("series")
+            raise cherrypy.HTTPError(404, "Series %s not found" % seriesid)
 
     @cherrypy.expose
     def series_update(self, seriesid='', **kwargs):
@@ -1005,7 +1005,7 @@ class WebInterface(object):
                     logger.debug("Updated series info for %s:%s" % (seriesid, seriesname))
             else:
                 logger.debug("No match updating series %s" % seriesid)
-
+                raise cherrypy.HTTPError(404, "Series %s not found" % seriesid)
         raise cherrypy.HTTPRedirect("series")
 
     @cherrypy.expose
@@ -1963,7 +1963,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
         else:
             logger.debug('pause_author Invalid authorid [%s]' % authorid)
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPError(404, "AuthorID %s not found" % authorid)
 
     @cherrypy.expose
     def pause_author(self, authorid):
@@ -2005,7 +2005,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
         else:
             logger.debug('refresh_author Invalid authorid [%s]' % authorid)
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPError(404, "AuthorID %s not found" % authorid)
 
     @cherrypy.expose
     def follow_author(self, authorid):
@@ -2024,7 +2024,10 @@ class WebInterface(object):
                     followid = msg.split("followid=")[1]
                     db.action("UPDATE authors SET GRfollow=? WHERE AuthorID=?", (followid, authorid))
         else:
-            logger.error("Invalid authorid to follow (%s)" % authorid)
+            msg = "Invalid authorid to follow (%s)" % authorid
+            logger.error(msg)
+            raise cherrypy.HTTPError(404, msg)
+
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 
     @cherrypy.expose
@@ -2042,7 +2045,9 @@ class WebInterface(object):
                     db.action("UPDATE authors SET GRfollow='0' WHERE AuthorID=?", (authorid,))
                     logger.info(msg)
         else:
-            logger.error("Invalid authorid to unfollow (%s)" % authorid)
+            msg = "Invalid authorid to unfollow (%s)" % authorid
+            logger.error(msg)
+            raise cherrypy.HTTPError(404, msg)
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 
     @cherrypy.expose
@@ -2115,7 +2120,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("author_page?authorid=%s&library=%s" % (authorid, library))
         else:
             logger.debug('ScanAuthor Invalid authorid [%s]' % authorid)
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPError(404, "AuthorID %s not found" % authorid)
 
     @cherrypy.expose
     def add_author(self, authorname):
@@ -2130,7 +2135,6 @@ class WebInterface(object):
                          args=['', False, authorid, True, 'WebServer add_author_id %s' % authorid]).start()
         time.sleep(2)  # so we get some data before going to authorpage
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
-        # raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
     def toggle_auth(self):
@@ -2281,7 +2285,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("author_page?authorid=%s&library=%s" % (author_id, library))
         else:
             logger.debug('snatch_book Invalid bookid [%s]' % bookid)
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPError(404, "BookID %s not found" % bookid)
 
     @cherrypy.expose
     def audio(self, booklang=None):
@@ -3189,9 +3193,9 @@ class WebInterface(object):
                     authorimg = ''
                 manual = bool(check_int(manual, 0))
 
-                if not (authdata["AuthorBorn"] == authorborn):
+                if authdata["AuthorBorn"] != authorborn:
                     edited += "Born "
-                if not (authdata["AuthorDeath"] == authordeath):
+                if authdata["AuthorDeath"] != authordeath:
                     edited += "Died "
                 if 'cover' in kwargs:
                     if kwargs['cover'] == "manual":
@@ -3201,12 +3205,12 @@ class WebInterface(object):
                         authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
                         edited += "Image %s " % kwargs['cover']
 
-                if not (authdata["About"] == editordata):
+                if authdata["About"] != editordata:
                     edited += "Description "
                 if not (bool(check_int(authdata["Manual"], 0)) == manual):
                     edited += "Manual "
 
-                if not (authdata["AuthorName"] == authorname):
+                if authdata["AuthorName"] != authorname:
                     match = db.match('SELECT AuthorName from authors where AuthorName=?', (authorname,))
                     if match:
                         logger.debug("Unable to rename, new author name %s already exists" % authorname)
@@ -3309,7 +3313,7 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
         else:
             logger.warn("Invalid authorid [%s] for %s" % (authorid, authorname))
-            raise cherrypy.HTTPRedirect("authors")
+            raise cherrypy.HTTPError(404, "AuthorID %s not found for %s" % (authorid, authorname))
 
     @cherrypy.expose
     def edit_book(self, bookid=None, library='eBook'):
@@ -3914,6 +3918,59 @@ class WebInterface(object):
     # COMICS #########################################################
 
     @cherrypy.expose
+    def edit_comic(self, comicid=None):
+        self.label_thread('EDIT_COMIC')
+        db = database.DBConnection()
+        data = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if data:
+            return serve_template(templatename="editcomic.html", title="Edit Comic", config=data)
+        else:
+            logger.info('Missing comic %s:' % comicid)
+            raise cherrypy.HTTPError(404, "Comic ID %s not found" % comicid)
+
+    # noinspection PyUnusedLocal
+    @cherrypy.expose
+    def comic_update(self, comicid='', new_name='', new_id='', aka='', editordata='', **kwargs):
+        db = database.DBConnection()
+        comicdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if comicdata:
+            edited = ""
+            if comicdata["Title"] != new_name:
+                edited += "Title "
+            if comicdata["aka"] != aka:
+                edited += "aka "
+            if comicdata["Description"] != editordata:
+                edited += "Description "
+
+            if comicid != new_id:
+                match = db.match('SELECT ComicID from comics where ComicID=?', (new_id,))
+                if match:
+                    logger.debug("Unable to use new ID, %s already exists" % new_id)
+                else:
+                    db.action('PRAGMA foreign_keys = OFF')
+                    db.action("UPDATE comics SET comicid=? WHERE comicid=?", (new_id, comicid))
+                    db.action("UPDATE comicissues SET comicid=? WHERE comicid=?", (new_id, comicid))
+                    db.action('PRAGMA foreign_keys = ON')
+                    logger.debug("Updated comicid %s to %s" % (comicid, new_id))
+                    comicid = new_id
+
+            if edited:
+                control_value_dict = {'ComicID': comicid}
+                new_value_dict = {
+                    'Title': new_name,
+                    'aka': aka,
+                    'Description': editordata
+                }
+                db.upsert("comics", new_value_dict, control_value_dict)
+                logger.info('Updated [ %s] for %s' % (edited, comicdata["Title"]))
+            else:
+                logger.debug('Comic [%s] has not been changed' % comicdata["Title"])
+            raise cherrypy.HTTPRedirect("comicissue_page?comicid=%s" % comicid)
+        else:
+            logger.warn("Invalid comicid [%s]" % comicid)
+            raise cherrypy.HTTPError(404, "Comic ID %s not found" % comicid)
+
+    @cherrypy.expose
     def search_for_comic(self, comicid=None):
         db = database.DBConnection()
         bookdata = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
@@ -4092,6 +4149,8 @@ class WebInterface(object):
         global lastcomic
         db = database.DBConnection()
         mag_data = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
+        if not mag_data:
+            raise cherrypy.HTTPError(404, "Comic ID %s not found" % comicid)
         title = mag_data['Title']
         if title and '&' in title and '&amp;' not in title:
             safetitle = title.replace('&', '&amp;')
@@ -4155,7 +4214,7 @@ class WebInterface(object):
                 return self.send_file(issue_file, name="%s %s%s" % (title, issue_id, os.path.splitext(issue_file)[1]))
             else:
                 logger.warn("No issue %s for comic %s" % (issue_id, title))
-                raise cherrypy.HTTPRedirect("comics")
+                raise cherrypy.HTTPError(404, "Comic Issue %s not found for %s" % (issue_id, title))
 
         else:  # multiple issues, show a list
             logger.debug("%s has %s %s" % (comicid, len(iss_data), plural(len(iss_data), "issue")))
@@ -4288,8 +4347,10 @@ class WebInterface(object):
         if not comicid or comicid == 'None':
             raise cherrypy.HTTPRedirect("comics")
         elif comicid.startswith('CV') and not apikey:
-            logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
-            raise cherrypy.HTTPRedirect("comics")
+            msg = "Please obtain an apikey from https://comicvine.gamespot.com/api/"
+            logger.warn(msg)
+            raise cherrypy.HTTPError(404, msg)
+
         else:
             db = database.DBConnection()
             exists = db.match('SELECT Title from comics WHERE ComicID=?', (comicid,))
@@ -4317,7 +4378,9 @@ class WebInterface(object):
                 except NameError:
                     match = False
                 if not match:
-                    logger.warn("Failed to get data for %s" % comicid)
+                    msg = "Failed to get data for %s" % comicid
+                    logger.warn(msg)
+                    raise cherrypy.HTTPError(404, msg)
         raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
@@ -5198,9 +5261,10 @@ class WebInterface(object):
             # start searchthreads
             mags = [{"bookid": bookdata['Title']}]
             self.start_magazine_search(mags)
+            raise cherrypy.HTTPRedirect("magazines")
         else:
             logger.warn("Magazine %s was not found in the library" % bookid)
-        raise cherrypy.HTTPRedirect("magazines")
+            raise cherrypy.HTTPError(404, "Magazine %s not found" % bookid)
 
     @cherrypy.expose
     def start_magazine_search(self, mags=None):

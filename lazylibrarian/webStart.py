@@ -56,6 +56,7 @@ def initialize(options=None):
         'tools.encode.encoding': 'utf-8',
         'tools.decode.on': True,
         'error_page.401': error_page_401,
+        'error_page.404': error_page_404,
     }
 
     if https_enabled:
@@ -253,10 +254,20 @@ def initialize(options=None):
 
 
 # noinspection PyShadowingNames,PyUnusedLocal
+def error_page_404(status, message, traceback, version):
+    """ Custom handler for 404 error """
+    return error_page_401(status=status, message=message, traceback=traceback, version=version)
+
+
+# noinspection PyShadowingNames,PyUnusedLocal
 def error_page_401(status, message, traceback, version):
     """ Custom handler for 401 error """
+    body = 'Error %s: ' % status
+    if str(status) == '401':
+        body = body + 'You need to provide a valid username and password. '
+    if message:
+        body = body + message
     title = "I'm not getting out of bed"
-    body = 'Error %s: You need to provide a valid username and password.' % status
     return r'''
 <html>
     <head>

@@ -1,0 +1,77 @@
+<%inherit file="base.html"/>
+<%!
+    import lazylibrarian
+%>
+<%def name="headerIncludes()">
+    <div id="subhead_container">
+        <div id="subhead_menu">
+        </div>
+    </div>
+</%def>
+<%def name="body()">
+<form accept-charset="UTF-8" action="comic_update" method="post">
+    <div class="configtable">
+        <input name="utf8" type="hidden" value="&#x2713;" />
+        <fieldset>
+            <legend>${title}</legend>
+            <div class="form-group">
+                <input type="text" id="comicid" name="comicid" value="${config['ComicID']}" class="hidden">
+            </div>
+            <div class="form-group">
+                <label for="new_name" class="control-label">Comic Title:</label>
+                <input type="text" id="new_name" name="new_name" value="${config['Title']}" class="form-control" placeholder="Comic Title">
+            </div>
+            <div class="form-group">
+                <label for="new_id" class="control-label">Comic ID:</label>
+                <input type="text" id="new_id" name="new_id" value="${config['ComicID']}" class="form-control" placeholder="Comic ID">
+            </div>
+
+            <div class="form-group">
+                <label for="aka" class="control-label">Aka:</label>
+                <input type="text" id="aka" name="aka" value="${config['aka']}" class="form-control" placeholder="Alternate IDs">
+            </div>
+        <div class="form-group">
+          <label for="summernote" class="control-label">Comic Description</label>
+          <textarea id="summernote" name="editordata" class="form-control" rows="10" placeholder="Nothing to see here...">${config['Description']}</textarea>
+        </div>
+
+</fieldset>
+<div class="table_wrapper_button">
+  <input type="submit" value="Save changes" id="add" class="btn btn-primary">
+<button class="pull-right button btn btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Delete Comic</button>
+</div>
+<p>&nbsp;</p>
+</div>
+</form>
+</%def>
+<%def name="javascriptIncludes()">
+  <script type="text/javascript">
+    function initThisPage()
+
+    {
+        "use strict";
+    }
+    $(document).ready(function() {
+        initThisPage();
+        $('#removeme').click(function () {
+            bootbox.confirm({
+                message: "Are you sure you want to permanently delete the comic?",
+                buttons: {
+                    confirm: {
+                        label: 'Yes',
+                        className: 'btn-success'
+                    },
+                    cancel: {
+                        label: 'No',
+                        className: 'btn-danger'
+                    }
+                },
+                callback: function (result) {
+                  if (result) { $.get("remove_comic", {'comicid': '${config['ComicID']}' },
+                      function (data) { }); }
+                }
+            });
+        });    });
+  </script>
+</%def>
+<html><head></head><body></body></html>
