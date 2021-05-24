@@ -167,16 +167,19 @@
                                 %endif
                            }
                         else if ( btn.indexOf('Wanted') >= 0 ) {
-                            btn = '<p><a class="a btn btn-xs btn-danger">' + btn + '</a></p>'
+                            btn = '<p><a class="a btn btn-xs btn-danger" href="comicissue_page?comicid=' + row[0] +
+                                      '" target="_self">' + btn + '</a></p>'
                             %if perm&lazylibrarian.perm_force:
                                btn += '<p><a class="b btn btn-xs btn-success" href="search_for_comic?comicid=' + row[0] +
                                       '" target="_self"><i class="fa fa-search"></i> Search</a></p>'
                             %endif
                             }
                         else if ( btn.indexOf('Snatched') >= 0 ) {
-                            btn = '<a class="button btn btn-xs btn-info">' + btn + '</a>'}
+                            btn = '<a class="button btn btn-xs btn-info"  href="comicissue_page?comicid=' + row[0] +
+                                      '" target="_self">' + btn + '</a>'}
                         else if ( btn.indexOf('Have') >= 0 ) {
-                            btn = '<a class="button btn btn-xs btn-info">' + btn + '</a>'}
+                            btn = '<a class="button btn btn-xs btn-info"  href="comicissue_page?comicid=' + row[0] +
+                                      '" target="_self">' + btn + '</a>'}
                         else { btn = '<a class="button btn btn-xs btn-default grey">' + btn + '</a>'}
                         return btn;} },
                         ],
