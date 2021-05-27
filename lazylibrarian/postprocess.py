@@ -2934,7 +2934,7 @@ def create_comic_opf(pp_path, data, global_name, overwrite=False):
     """ Needs calibre to be configured to read metadata from file contents, not filename """
     title = data['Title']
     issue = data['IssueID']
-    contributors = data['Contributors']
+    contributors = data.get('Contributors', '')
     issue_id = "%s_%s" % (data['ComicID'], data['IssueID'])
     iname = "%s: %s" % (data['Title'], data['IssueID'])
     publisher = data['Publisher']
