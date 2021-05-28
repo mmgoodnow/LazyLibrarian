@@ -604,15 +604,12 @@ def cx_identify(fname, best=True):
 
 
 def comic_metadata(archivename, xml=False):
-
     archivename = make_unicode(archivename)
     if not path_isfile(archivename):  # regular files only
         logger.debug("%s is not a file" % archivename)
         return {}
 
     if zipfile.is_zipfile(archivename):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-            logger.debug('%s is a zip file' % archivename)
         try:
             z = zipfile.ZipFile(archivename)
         except Exception as e:
@@ -627,10 +624,11 @@ def comic_metadata(archivename, xml=False):
                     logger.debug("%s bytes xml" % len(res))
                     return res
                 return meta_dict(z.read(item))
-
-    elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-            logger.debug('%s is a rar file' % archivename)
+            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        return {}
+
+    if lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
         try:
             z = lazylibrarian.RARFILE.RarFile(archivename)
         except Exception as e:
@@ -645,15 +643,17 @@ def comic_metadata(archivename, xml=False):
                     logger.debug("%s bytes xml" % len(res))
                     return res
                 return meta_dict(z.read(item))
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        return {}
 
-    elif lazylibrarian.UNRARLIB == 2:
-        # noinspection PyBroadException
+    if lazylibrarian.UNRARLIB == 2:
         try:
             rarc = lazylibrarian.RARFILE(archivename)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-                logger.debug('%s is a rar file' % archivename)
-        except Exception:
-            return ''
+        except Exception as e:
+            logger.error("Failed to unrar %s: %s" % (archivename, e))
+            return {}
+
         data = rarc.read_files('ComicInfo.xml')
         if data:
             if xml:
@@ -661,6 +661,9 @@ def comic_metadata(archivename, xml=False):
                 logger.debug("%s bytes xml" % len(res))
                 return res
             return meta_dict(data[0][1])
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            logger.debug('ComicInfo.xml not found in %s' % archivename)
+        return {}
 
     logger.debug("%s is not an archive we can unpack" % archivename)
     return {}
