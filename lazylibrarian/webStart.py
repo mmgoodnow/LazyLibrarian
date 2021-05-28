@@ -362,4 +362,3 @@ OjAwC98hhgAAAABJRU5ErkJggg==" alt="embedded icon" align="middle"><br><br>
     </body>
 </html>
 ''' % (title, body)
-
