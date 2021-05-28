@@ -124,7 +124,9 @@ def comic_scan(comicid=None):
                     if not res:
                         res = cx_identify(fname)
                     if res:
-                        if comicid and comicid != res[3]['seriesid']:
+                        if not comicid:
+                            comicid = res[3]['seriesid']
+                        elif comicid and res[3]['seriesid'] and comicid != res[3]['seriesid']:
                             # stick with comicid from metadata and use identify result as aka
                             aka = res[3]['seriesid']
 
