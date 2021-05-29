@@ -2178,6 +2178,9 @@ def shutdown(restart=False, update=False):
             updated = versioncheck.update()
             if updated:
                 logmsg('info', 'Lazylibrarian version updated')
+                makocache = os.path.join(CACHEDIR, 'mako')
+                rmtree(makocache)
+                os.makedirs(makocache)
                 if __INITIALIZED__:
                     CONFIG['GIT_UPDATED'] = str(int(time.time()))
                     config_write('Git')
