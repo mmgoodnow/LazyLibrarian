@@ -632,7 +632,7 @@ def comic_metadata(archivename, xml=False):
         try:
             z = lazylibrarian.RARFILE.RarFile(archivename)
         except Exception as e:
-            logger.error("Failed to unrar %s: %s" % (archivename, e))
+            logger.error("Failed to unrar lib_1 %s: %s" % (archivename, e))
             return {}
 
         namelist = z.namelist()
@@ -651,7 +651,7 @@ def comic_metadata(archivename, xml=False):
         try:
             rarc = lazylibrarian.RARFILE(archivename)
         except Exception as e:
-            logger.error("Failed to unrar %s: %s" % (archivename, e))
+            logger.error("Failed to unrar lib_2 %s: %s" % (archivename, e))
             return {}
 
         data = rarc.read_files('ComicInfo.xml')
