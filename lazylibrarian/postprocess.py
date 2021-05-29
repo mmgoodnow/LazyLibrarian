@@ -3081,7 +3081,13 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         entries = []
         names = ''
         for contributor in get_list(data['Contributors'], ','):
-            role, name = contributor.split(':')
+            name = ''
+            role = ''
+            if ':' in contributor:
+                role, name = contributor.split(':', 1)
+            else:
+                name = contributor
+                role = 'Unknown'
             if name and role:
                 entries.append([name.strip(), role.strip()])
                 if names:
