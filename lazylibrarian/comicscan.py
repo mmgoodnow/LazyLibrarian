@@ -147,10 +147,10 @@ def comic_scan(comicid=None):
                         seriesdescription = res[3]['description']
                         logger.debug("Found %s (%s) Issue %s" % (title, comicid, issue))
 
-                        control_value_dict = {"ComicID": comicid}
-                        # is this comic already in the database?
+                        # is this comicid already in the database?
                         mag_entry = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
                         if mag_entry:
+                            logger.debug("ComicID %s already exists" % (comicid))
                             if aka:
                                 akas = get_list(mag_entry['aka'])
                                 if aka not in akas:
@@ -158,12 +158,28 @@ def comic_scan(comicid=None):
                                     akas.append(aka)
                                     new_value_dict = {"aka": ','.join(akas)}
                                     db.upsert("comics", new_value_dict, control_value_dict)
-                        else:
+                        elif aka:
+                            # is the aka id in the database
                             mag_entry = db.match('SELECT * from comics WHERE aka LIKE "%' + aka + '%"')
                             if mag_entry:
-                                comicid = mag_entry['ComicID']  # use existing comicid
+                                logger.debug("aka %s exists for %s" % (aka, comicid))
+                                comicid = mag_entry['ComicID']  # use aka as comicid
+                        if not mag_entry:
+                            mag_entry = db.match('SELECT * from comics WHERE Title=?', (title,))
+                            if mag_entry:
+                                aka = comicid
+                                comicid = mag_entry['ComicID']
+                                logger.debug("%s exists for %s" % (comicid, title))
+                                akas = get_list(mag_entry['aka'])
+                                if aka not in akas:
+                                    logger.debug("Adding aka %s to %s" % (aka, comicid))
+                                    akas.append(aka)
+                                    control_value_dict = {"ComicID": comicid}
+                                    new_value_dict = {"aka": ','.join(akas)}
+                                    db.upsert("comics", new_value_dict, control_value_dict)
                         if not mag_entry:
                             # need to add a new comic to the database
+                            control_value_dict = {"ComicID": comicid}
                             new_value_dict = {
                                 "Title": title,
                                 "Status": "Active",
