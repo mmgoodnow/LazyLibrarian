@@ -694,11 +694,13 @@ class GoodReads:
                                         logger.debug("Allow %s, looks like a date range" % bookname)
                                     else:
                                         rejected = 'set', 'Set or Part %s' % m.group(0)
-                                        logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
-                                elif re.search(r'\d+ of \d+', name) or \
-                                        re.search(r'\d+/\d+', name):
+                                if re.search(r'\d+ of \d+', name) or \
+                                        re.search(r'\d+/\d+', name) and not re.search(r'\d+/\d+/\d+', name):
                                     rejected = 'set', 'Set or Part'
-                                    logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
+                                elif re.search(r'\w+\s*/\s*\w+', name):
+                                    rejected = 'set', 'Set or Part'
+                                if rejected:
+                                    logger.debug('Rejected %s, %s' % (name, rejected[1]))
 
                         if not rejected:
                             oldbookname = bookname
@@ -791,6 +793,7 @@ class GoodReads:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
                             cmd += ' and BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE'
                             cmd += ' and AuthorName=? COLLATE NOCASE'
+                            cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                             match = db.match(cmd, (bookname, booksub, author_name_result))
 
                             if match and match['BookID'] != bookid:
@@ -1344,6 +1347,11 @@ class GoodReads:
                     logger.warn(msg)
                     if reason.startswith("Series:"):
                         return
+            elif re.search(r'\w+\s*/\s*\w+', bookname):
+                msg = 'Set or Part %s' % bookname
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
         try:
             bookimg = rootxml.find('./book/img_url').text
             if not bookimg or 'nocover' in bookimg or 'nophoto' in bookimg:

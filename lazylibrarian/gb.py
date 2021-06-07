@@ -424,6 +424,7 @@ class GoogleBooks:
                         if not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
                             cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
+                            cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                             match = db.match(cmd, (bookname, authorname))
                             if match:
                                 if match['BookID'] != bookid:  # we have a different book with this author/title already
@@ -704,8 +705,15 @@ class GoogleBooks:
                     logger.warn(msg)
                     if reason.startswith("Series:"):
                         return
-            elif re.search(r'\d+ of \d+', bookname) or \
-                    re.search(r'\d+/\d+', bookname):
+            # book 1 of 3 or 1/3 but not dates 01/02/21
+            if re.search(r'\d+ of \d+', bookname) or \
+                    re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
+                msg = 'Book %s Set or Part'
+                logger.warn(msg)
+                if reason.startswith("Series:"):
+                    return
+            # book title / another titla
+            elif re.search(r'\w+\s*/\s*\w+', bookname):
                 msg = 'Book %s Set or Part'
                 logger.warn(msg)
                 if reason.startswith("Series:"):

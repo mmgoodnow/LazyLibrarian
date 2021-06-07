@@ -607,19 +607,24 @@ class OpenLibrary:
                 if not rejected and not title:
                     rejected = 'name', 'No title'
 
-                cmd = "SELECT * from books WHERE BookName=? COLLATE NOCASE and BookID !=?"
-                exists = db.match(cmd, (title, key))
+                cmd = 'SELECT BookID,LT_WorkID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
+                cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
+                cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
+                exists = db.match(cmd, (title, auth_name))
+
                 if exists and id_librarything and not exists['LT_WorkID']:
                     db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
                               (id_librarything, exists['BookID']))
                 if exists and not rejected:
                     # existing bookid might not still be listed so won't refresh.
                     # should we keep new bookid or existing one?
-                    # existing one might have beed user edited, might be locked,
+                    # existing one might have been user edited, might be locked,
                     # might have been merged from another authorid or inherited from goodreads?
                     # Should probably use the one with the "best" info but since we don't know
                     # which that is, keep the old one which is already linked to other db tables
-                    logger.debug('Duplicate title (%s, already have %s)' % (key, exists['BookID']))
+                    # but allow info (dates etc) to be updated
+                    logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
+                                 (key, auth_name, title, exists['BookID']))
                     key = exists['BookID']
                     if not id_librarything and exists['LT_WorkID']:
                         id_librarything = exists['LT_WorkID']
@@ -681,9 +686,13 @@ class OpenLibrary:
                                 logger.debug("Allow %s, looks like a date range" % bookname)
                             else:
                                 rejected = 'set', 'Set or Part %s' % m.group(0)
-                        elif re.search(r'\d+ of \d+', bookname) or \
-                                re.search(r'\d+/\d+', bookname):
+                        if re.search(r'\d+ of \d+', bookname) or \
+                                re.search(r'\d+/\d+', bookname) and not re.search(r'\d+/\d+/\d+', bookname):
                             rejected = 'set', 'Set or Part'
+                        elif re.search(r'\w+\s*/\s*\w+', bookname):
+                            rejected = 'set', 'Set or Part'
+                        if rejected:
+                            logger.debug('Rejected %s, %s' % (bookname, rejected[1]))
 
                 if rejected and rejected[0] not in ignorable:
                     logger.debug('Rejecting %s, %s' % (title, rejected[1]))
@@ -1109,8 +1118,11 @@ class OpenLibrary:
                         db.action("UPDATE books SET SeriesDisplay=? WHERE BookID=?", (seriesdisplay, key))
                     added_count += 1
 
-            offset += len(authorbooks['docs'])
-            if offset >= check_int(authorbooks["numFound"], 0):
+            if authorbooks and authorbooks.get("docs"):
+                offset += len(authorbooks['docs'])
+                if offset >= check_int(authorbooks["numFound"], 0):
+                    next_page = False
+            else:
                 next_page = False
 
         resultcount = added_count + updated_count
@@ -1335,8 +1347,3 @@ def cache_cover(bookid, cover):
         db.upsert("books", new_value_dict, control_value_dict)
     else:
         logger.debug('Failed to cache image for %s (%s)' % (cover, link))
-
-
-
-
-
