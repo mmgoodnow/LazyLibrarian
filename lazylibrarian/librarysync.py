@@ -916,6 +916,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # If we have a valid ID, use that
                                 bookid = ''
                                 mtype = ''
+                                match = None
                                 if gr_id and lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
                                     bookid = gr_id
                                 elif gb_id and lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
@@ -944,30 +945,35 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 db.action(cmd, (bookid, match['BookID']))
                                             db.action('PRAGMA foreign_keys = ON')
 
-                                    if not match:
-                                        # Try and find in database under author and bookname
-                                        # as we may have it under a different bookid or isbn to goodreads/googlebooks
-                                        # which might have several bookid/isbn for the same book
-                                        reason = 'Author exists for %s' % book
-                                        logger.debug(reason)
-                                        oldbookid = bookid
-                                        bookid, mtype = find_book_in_db(author, book, reason=reason)
-                                        if bookid:
+                                if not match:
+                                    # Try and find in database under author and bookname
+                                    # as we may have it under a different bookid or isbn to goodreads/googlebooks
+                                    # which might have several bookid/isbn for the same book
+                                    reason = 'Author exists for %s' % book
+                                    logger.debug(reason)
+                                    oldbookid = bookid
+                                    bookid, mtype = find_book_in_db(author, book, reason=reason)
+                                    if bookid:
+                                        if oldbookid:
                                             logger.warn("Metadata bookid [%s] not found in database, using %s" %
                                                         (oldbookid, bookid))
                                         else:
-                                            bookid = oldbookid
-                                            logger.warn("Metadata bookid [%s] not found in database, trying to add..." %
-                                                        (bookid,))
-                                            if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
-                                                finder = GoodReads(gr_id)
-                                                finder.find_book(gr_id, None, None, "Added by librarysync")
-                                            elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
-                                                finder = GoogleBooks(gb_id)
-                                                finder.find_book(gb_id, None, None, "Added by librarysync")
-                                            elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
-                                                finder = OpenLibrary(ol_id)
-                                                finder.find_book(ol_id, None, None, "Added by librarysync")
+                                            logger.debug("Found bookid %s for %s" % (bookid, book))
+                                    elif oldbookid:
+                                        bookid = oldbookid
+                                        logger.warn("Metadata bookid [%s] not found in database, trying to add..." %
+                                                    (bookid,))
+                                        if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
+                                            finder = GoodReads(gr_id)
+                                            finder.find_book(gr_id, None, None, "Added by librarysync")
+                                        elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
+                                            finder = GoogleBooks(gb_id)
+                                            finder.find_book(gb_id, None, None, "Added by librarysync")
+                                        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
+                                            finder = OpenLibrary(ol_id)
+                                            finder.find_book(ol_id, None, None, "Added by librarysync")
+
+                                    if bookid:
                                         # see if it's there now...
                                         match = db.match('SELECT AuthorID,Status from books where BookID=?',
                                                          (bookid,))
@@ -977,7 +983,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.warn("Metadata authorid [%s] does not match database [%s]" %
                                                             (authorid, match['AuthorID']))
                                         else:
-                                            logger.debug("Unable to add bookid via metadata (%s)" % bookid)
+                                            logger.debug("Unable to add bookid via metadata bookid (%s)" % bookid)
                                             bookid = ""
 
                                 if not bookid and isbn:
@@ -1153,11 +1159,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.debug("Rescan found [%s] %s : %s: %s" %
                                                              (item['authorname'], item['bookname'],
                                                               item['booklang'], item['bookid']))
-                                                rehit.append(booktitle)
                                                 bookid = item['bookid']
                                                 bookauthor = item['authorname']
                                                 booktitle = item['bookname']
                                                 language = item['booklang']
+                                                rehit.append(booktitle)
                                                 break
 
                                         if bookid:
