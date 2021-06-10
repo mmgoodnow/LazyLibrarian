@@ -616,7 +616,7 @@ class OpenLibrary:
                     db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
                               (id_librarything, exists['BookID']))
                 if exists and not rejected:
-                    # existing bookid might not still be listed so won't refresh.
+                    # existing bookid might not still be listed at openlibrary so won't refresh.
                     # should we keep new bookid or existing one?
                     # existing one might have been user edited, might be locked,
                     # might have been merged from another authorid or inherited from goodreads?
@@ -625,6 +625,7 @@ class OpenLibrary:
                     # but allow info (dates etc) to be updated
                     logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                  (key, auth_name, title, exists['BookID']))
+                    duplicates += 1
                     key = exists['BookID']
                     if not id_librarything and exists['LT_WorkID']:
                         id_librarything = exists['LT_WorkID']
@@ -702,8 +703,8 @@ class OpenLibrary:
                     logger.debug("Found title: %s LT:%s" % (title, id_librarything))
                     if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
                         if publish_date > today()[:len(publish_date)]:
+                            rejected = 'future', 'Future publication date [%s]' % publish_date
                             if ignorable is None:
-                                rejected = 'future', 'Future publication date [%s]' % publish_date
                                 logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                             else:
                                 logger.debug("Not rejecting %s (future pub date %s) as %s" %
@@ -711,8 +712,8 @@ class OpenLibrary:
 
                     if not rejected and lazylibrarian.CONFIG['NO_PUBDATE']:
                         if not publish_date or publish_date == '0000':
+                            rejected = 'date', 'No publication date'
                             if ignorable is None:
-                                rejected = 'date', 'No publication date'
                                 logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                             else:
                                 logger.debug("Not rejecting %s (no pub date) as %s" %

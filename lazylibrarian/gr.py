@@ -764,7 +764,7 @@ class GoodReads:
                         cmd = 'SELECT AuthorName,BookName,AudioStatus,books.Status,ScanResult '
                         cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
                         match = db.match(cmd, (bookid,))
-                        rejectable = None
+                        not_rejectable = None
                         if match:
                             # we have a book with this bookid already
                             if author_name_result != match['AuthorName']:
@@ -785,9 +785,9 @@ class GoodReads:
 
                             # Make sure we don't reject books we have already got or want
                             if match['Status'] not in ['Ignored', 'Skipped']:
-                                rejectable = "Status: %s" % match['Status']
+                                not_rejectable = "Status: %s" % match['Status']
                             elif match['AudioStatus'] not in ['Ignored', 'Skipped']:
-                                rejectable = "AudioStatus: %s" % match['AudioStatus']
+                                not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
                         if not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
@@ -798,14 +798,14 @@ class GoodReads:
 
                             if match and match['BookID'] != bookid:
                                 # we have a different bookid for this author/title already
-                                if rejectable is None:
+                                if not_rejectable:
+                                    logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
+                                                 (bookname, bookid, match['BookID'], not_rejectable))
+                                else:
                                     duplicates += 1
                                     rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
                                     logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
                                                  (bookid, author_name_result, bookname, match['BookID']))
-                                else:
-                                    logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
-                                                 (bookname, bookid, match['BookID'], rejectable))
 
                         if rejected and rejected[0] not in ignorable:
                             removed_results += 1
@@ -854,21 +854,21 @@ class GoodReads:
 
                             if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
                                 if bookdate > today()[:len(bookdate)]:
-                                    if rejectable is None:
+                                    if not_rejectable:
+                                        logger.debug("Not rejecting %s (future pub date %s) as %s" %
+                                                     (bookname, bookdate, not_rejectable))
+                                    else:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
-                                    else:
-                                        logger.debug("Not rejecting %s (future pub date %s) as %s" %
-                                                     (bookname, bookdate, rejectable))
 
                             if not rejected and lazylibrarian.CONFIG['NO_PUBDATE']:
                                 if not bookdate or bookdate == '0000':
-                                    if rejectable is None:
+                                    if not_rejectable:
+                                        logger.debug("Not rejecting %s (no pub date) as %s" %
+                                                     (bookname, not_rejectable))
+                                    else:
                                         rejected = 'date', 'No publication date'
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
-                                    else:
-                                        logger.debug("Not rejecting %s (no pub date) as %s" %
-                                                     (bookname, rejectable))
 
                             if rejected:
                                 if rejected[0] in ignorable:
