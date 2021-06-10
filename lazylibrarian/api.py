@@ -208,6 +208,10 @@ cmd_dict = {'help': 'list available commands. ' +
             'unsubscribe': '&user= &feed= remove a user from a feed',
             'listAlienAuthors': 'List authors not matching current book api',
             'listAlienBooks': 'List books not matching current book api',
+            'listNabProviders': 'List all newznab/torznab providers',
+            'delNabProvider': '&name= Delete a newznab/torznab provider by name',
+            'amendNabProvider': '&name= &xxx= Amend a newznab/torznab provider by name',
+            'addNabProvider': '&type= &xxx= Add a Newznab/Torznab provider with additional parameters',
             }
 
 
@@ -304,9 +308,79 @@ class Api(object):
 
         return rows_as_dic
 
+    def _listnabproviders(self):
+        self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV
+
+    def _delnabprovider(self, **kwargs):
+        if 'name' not in kwargs:
+            self.data = 'Missing parameter: name'
+            return
+        if kwargs['name'].startswith('Newznab'):
+            providers = lazylibrarian.NEWZNAB_PROV
+        elif kwargs['name'].startswith('Torznab'):
+            providers = lazylibrarian.TORZNAB_PROV
+        else:
+            self.data = 'Invalid parameter: name'
+            return
+        for item in providers:
+            if item['NAME'] == kwargs['name']:
+                item['HOST'] = ''
+                lazylibrarian.config_write('newznab')
+                self.data = 'Ok'
+                return
+        self.data = 'Provider %s not found' % kwargs['name']
+        return
+
+    def _amendnabprovider(self, **kwargs):
+        if 'name' not in kwargs:
+            self.data = 'Missing parameter: name'
+            return
+        if kwargs['name'].startswith('Newznab'):
+            providers = lazylibrarian.NEWZNAB_PROV
+        elif kwargs['name'].startswith('Torznab'):
+            providers = lazylibrarian.TORZNAB_PROV
+        else:
+            self.data = 'Invalid parameter: name'
+            return
+        for item in providers:
+            if item['NAME'] == kwargs['name']:
+                for arg in kwargs:
+                    if arg in item:
+                        item[arg] = kwargs[arg]
+                lazylibrarian.config_write(kwargs['name'])
+                self.data = 'Ok'
+                return
+        self.data = 'Provider %s not found' % kwargs['name']
+        return
+
+    def _addnabprovider(self, **kwargs):
+        if 'type' not in kwargs:
+            self.data = 'Missing parameter: type'
+            return
+        if 'HOST' not in kwargs:
+            self.data = 'Missing parameter: HOST'
+            return
+        if kwargs['type'] == 'Newznab':
+            providers = lazylibrarian.NEWZNAB_PROV
+        elif kwargs['type'] == 'Torznab':
+            providers = lazylibrarian.TORZNAB_PROV
+        else:
+            self.data = 'Invalid parameter: type. Should be Newznab or Torznab'
+            return
+
+        num = len(providers)
+        provname = "%s%s" % (kwargs['type'], num)
+        providers[-1]['NAME'] = provname
+        providers[-1]['DISPNAME'] = provname
+        for arg in kwargs:
+            if arg in providers[0]:
+                providers[-1][arg] = kwargs[arg]
+        lazylibrarian.config_write(kwargs['type'])
+        self.data = 'Ok'
+        return
+
     def _memuse(self):
         """ Current Memory usage in kB """
-
         with open('/proc/self/status') as f:
             memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
         self.data = memusage.strip()

@@ -1348,6 +1348,9 @@ def config_write(part=None):
                         for item in nab_items + entry[2]:
                             try:
                                 provider[item] = CFG.get(provider['NAME'], item.lower())
+                            except configparser.NoSectionError:
+                                logger.debug("No section [%s]" % provider['NAME'])
+                                break
                             except configparser.NoOptionError:
                                 logger.debug("No option [%s] in %s" % (item, provider['NAME']))
                                 pass
