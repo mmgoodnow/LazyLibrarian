@@ -168,7 +168,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'setAllBookAuthors': '[&wait] Set all authors for all books from book workpages',
             'setWorkID': '[&wait] [&bookids] Set WorkID for all books that dont have one, or bookids',
             'importAlternate': '[&wait] [&dir=] [&library=] Import ebooks/audiobooks from named or alternate folder' +
-                                ' and any subfolders',
+                               ' and any subfolders',
             'includeAlternate': '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named or ' +
                                 ' alternate folder and any subfolders',
             'importCSVwishlist': '[&wait] [&dir=] Import a CSV wishlist from named or alternate directory',
@@ -209,9 +209,14 @@ cmd_dict = {'help': 'list available commands. ' +
             'listAlienAuthors': 'List authors not matching current book api',
             'listAlienBooks': 'List books not matching current book api',
             'listNabProviders': 'List all newznab/torznab providers',
-            'delNabProvider': '&name= Delete a newznab/torznab provider by name',
-            'amendNabProvider': '&name= &xxx= Amend a newznab/torznab provider by name',
-            'addNabProvider': '&type= &xxx= Add a Newznab/Torznab provider with additional parameters',
+            'listRSSProviders': 'List all rss/wishlist providers',
+            'listTorrentProviders': 'List all torrent providers',
+            'listIRCProviders': 'List all irc providers',
+            'listDirectProviders': 'List all direct providers',
+            'listProviders': 'List all providers',
+            'amendProvider': '&name= &xxx= Amend a provider',
+            'addProvider': '&type= &xxx= Add a new provider',
+            'delProvider': '&name= Delete a provider',
             }
 
 
@@ -308,30 +313,85 @@ class Api(object):
 
         return rows_as_dic
 
+    def _listproviders(self):
+        self._listdirectproviders()
+        direct = self.data
+        self._listtorrentproviders()
+        torrent = self.data
+        self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV + lazylibrarian.RSS_PROV + \
+            lazylibrarian.IRC_PROV + torrent + direct
+
     def _listnabproviders(self):
         self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV
 
-    def _delnabprovider(self, **kwargs):
+    def _listrssproviders(self):
+        self.data = lazylibrarian.RSS_PROV
+
+    def _listircproviders(self):
+        self.data = lazylibrarian.IRC_PROV
+
+    def _listtorrentproviders(self):
+        providers = []
+        for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
+            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'SEEDERS']:
+                name = "%s_%s" % (provider, item)
+                mydict[name] = lazylibrarian.CONFIG[name]
+            providers.append(mydict)
+        self.data = providers
+        return
+
+    def _listdirectproviders(self):
+        providers = []
+        for provider in ['BOK', 'BFI']:
+            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
+            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT']:
+                name = "%s_%s" % (provider, item)
+                if name in lazylibrarian.CONFIG:
+                    mydict[name] = lazylibrarian.CONFIG[name]
+            providers.append(mydict)
+        for item in lazylibrarian.GEN_PROV:
+            providers.append(item)
+        self.data = providers
+        return
+
+    def _delprovider(self, **kwargs):
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
         if kwargs['name'].startswith('Newznab'):
             providers = lazylibrarian.NEWZNAB_PROV
+            section = 'newznab'
+            clear = 'HOST'
         elif kwargs['name'].startswith('Torznab'):
             providers = lazylibrarian.TORZNAB_PROV
+            section = 'torznab'
+            clear = 'HOST'
+        elif kwargs['name'].startswith('RSS_'):
+            providers = lazylibrarian.RSS_PROV
+            section = 'rss_'
+            clear = 'HOST'
+        elif kwargs['name'].startswith('GEN_'):
+            providers = lazylibrarian.GEN_PROV
+            section = 'GEN_'
+            clear = 'HOST'
+        elif kwargs['name'].startswith('IRC_'):
+            providers = lazylibrarian.GEN_PROV
+            section = 'IRC_'
+            clear = 'SERVER'
         else:
             self.data = 'Invalid parameter: name'
             return
         for item in providers:
             if item['NAME'] == kwargs['name']:
-                item['HOST'] = ''
-                lazylibrarian.config_write('newznab')
+                item[clear] = ''
+                lazylibrarian.config_write(section)
                 self.data = 'Ok'
                 return
         self.data = 'Provider %s not found' % kwargs['name']
         return
 
-    def _amendnabprovider(self, **kwargs):
+    def _amendprovider(self, **kwargs):
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
@@ -339,13 +399,40 @@ class Api(object):
             providers = lazylibrarian.NEWZNAB_PROV
         elif kwargs['name'].startswith('Torznab'):
             providers = lazylibrarian.TORZNAB_PROV
+        elif kwargs['name'].startswith('RSS_'):
+            providers = lazylibrarian.RSS_PROV
+        elif kwargs['name'].startswith('IRC_'):
+            providers = lazylibrarian.IRC_PROV
+        elif kwargs['name'].startswith('GEN_'):
+            providers = lazylibrarian.GEN_PROV
+        elif kwargs['name'] in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+            for arg in kwargs:
+                if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
+                    name = "%s_%s" % (kwargs['name'], arg)
+                    if name in lazylibrarian.CONFIG:
+                        lazylibrarian.CONFIG[name] = kwargs[arg]
+                elif arg == 'ENABLED':
+                    if kwargs[arg] in ['1', 1, True, 'True', 'true']:
+                        val = True
+                    else:
+                        val = False
+                    lazylibrarian.CONFIG[kwargs['name']] = val
+            lazylibrarian.config_write(kwargs['name'])
+            self.data = 'Ok'
+            return
         else:
             self.data = 'Invalid parameter: name'
             return
         for item in providers:
             if item['NAME'] == kwargs['name']:
                 for arg in kwargs:
-                    if arg in item:
+                    if arg == 'ENABLED':
+                        if kwargs[arg] in ['1', 1, True, 'True', 'true']:
+                            val = True
+                        else:
+                            val = False
+                        item[arg] = val
+                    elif arg in item:
                         item[arg] = kwargs[arg]
                 lazylibrarian.config_write(kwargs['name'])
                 self.data = 'Ok'
@@ -353,29 +440,45 @@ class Api(object):
         self.data = 'Provider %s not found' % kwargs['name']
         return
 
-    def _addnabprovider(self, **kwargs):
+    def _addprovider(self, **kwargs):
         if 'type' not in kwargs:
             self.data = 'Missing parameter: type'
             return
-        if 'HOST' not in kwargs:
-            self.data = 'Missing parameter: HOST'
+        if 'HOST' not in kwargs and 'SERVER' not in kwargs:
+            self.data = 'Missing parameter: HOST or SERVER'
             return
         if kwargs['type'] == 'Newznab':
             providers = lazylibrarian.NEWZNAB_PROV
+            provname = 'Newznab'
+            section = 'Newznab'
         elif kwargs['type'] == 'Torznab':
             providers = lazylibrarian.TORZNAB_PROV
+            provname = 'Torznab'
+            section = 'Torznab'
+        elif kwargs['type'] == 'RSS':
+            providers = lazylibrarian.RSS_PROV
+            provname = 'RSS_'
+            section = 'rss_'
+        elif kwargs['type'] == 'GEN':
+            providers = lazylibrarian.GEN_PROV
+            provname = 'GEN_'
+            section = 'GEN_'
+        elif kwargs['type'] == 'IRC':
+            providers = lazylibrarian.IRC_PROV
+            provname = 'IRC_'
+            section = 'IRC_'
         else:
-            self.data = 'Invalid parameter: type. Should be Newznab or Torznab'
+            self.data = 'Invalid parameter: type. Should be Newznab,Torznab,RSS,GEN,IRC'
             return
 
         num = len(providers)
-        provname = "%s%s" % (kwargs['type'], num)
+        provname = "%s%s" % (provname, num)
         providers[-1]['NAME'] = provname
         providers[-1]['DISPNAME'] = provname
         for arg in kwargs:
             if arg in providers[0]:
                 providers[-1][arg] = kwargs[arg]
-        lazylibrarian.config_write(kwargs['type'])
+        lazylibrarian.config_write(section)
         self.data = 'Ok'
         return
 

@@ -1442,7 +1442,7 @@ def config_write(part=None):
 
         if part:  # only update the named provider
             for provider in new_list:
-                if provider['NAME'].lower() != part:  # keep old values
+                if provider['NAME'].upper() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in gen_items:
@@ -1489,7 +1489,7 @@ def config_write(part=None):
 
         if part:  # only update the named provider
             for provider in new_list:
-                if provider['NAME'].lower() != part:  # keep old values
+                if provider['NAME'].upper() != part:  # keep old values
                     if CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in irc_items:
@@ -1880,8 +1880,7 @@ def use_nzb():
 
 def use_tor():
     count = 0
-    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME',
-                     'TDL', 'TRF']:
+    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
         if bool(CONFIG[provider]) and not provider_is_blocked(provider):
             count += 1
     return count
