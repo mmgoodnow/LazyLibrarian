@@ -468,7 +468,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     cnt = 0
     list_dir = listdir(sourcedir)
     for ourfile in list_dir:
-        if ourfile.startswith(fname) or is_valid_booktype(ourfile, booktype="audiobook"):
+        if ourfile.startswith(fname):  # or is_valid_booktype(ourfile, booktype="audiobook"):
             if is_valid_type(ourfile):
                 try:
                     srcfile = os.path.join(sourcedir, ourfile)
@@ -3081,8 +3081,6 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         entries = []
         names = ''
         for contributor in get_list(data['Contributors'], ','):
-            name = ''
-            role = ''
             if ':' in contributor:
                 role, name = contributor.split(':', 1)
             else:
