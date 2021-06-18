@@ -1108,7 +1108,7 @@ class OpenLibrary:
                                       'WorkPage, AudioStatus, ScanResult, OriginalPubDate) ' +
                                       'VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)',
                                       (authorid, title, cover, link, key, publish_date,
-                                       lang, now(), bookstatus, '', audiostatus, reason, first_publish_year))
+                                       lang, now(), book_status, '', audio_status, reason, first_publish_year))
                             if 'nocover' in cover or 'nophoto' in cover:
                                 cover = get_cover(key, title)
                                 cover_count += 1
