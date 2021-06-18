@@ -214,7 +214,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'listIRCProviders': 'List all irc providers',
             'listDirectProviders': 'List all direct providers',
             'listProviders': 'List all providers',
-            'amendProvider': '&name= &xxx= Amend a provider',
+            'changeProvider': '&name= &xxx= Change values for a provider',
             'addProvider': '&type= &xxx= Add a new provider',
             'delProvider': '&name= Delete a provider',
             }
@@ -357,7 +357,7 @@ class Api(object):
 
     def _delprovider(self, **kwargs):
         if 'name' not in kwargs:
-            self.data = 'Missing parameter: name'
+            self.data = {'success': False, 'data': 'Missing parameter: name'}
             return
         if kwargs['name'].startswith('Newznab'):
             providers = lazylibrarian.NEWZNAB_PROV
@@ -380,21 +380,23 @@ class Api(object):
             section = 'IRC_'
             clear = 'SERVER'
         else:
-            self.data = 'Invalid parameter: name'
+            self.data = {'success': False, 'data': 'Invalid parameter: name'}
             return
         for item in providers:
             if item['NAME'] == kwargs['name']:
                 item[clear] = ''
                 lazylibrarian.config_write(section)
-                self.data = 'Ok'
+                self.data = {'success': True, 'data': 'Deleted %s' % kwargs['name']}
                 return
-        self.data = 'Provider %s not found' % kwargs['name']
+        self.data = {'success': False, 'data': 'Provider %s not found' % kwargs['name']}
         return
 
-    def _amendprovider(self, **kwargs):
+    def _changeprovider(self, **kwargs):
         if 'name' not in kwargs:
-            self.data = 'Missing parameter: name'
+            self.data = {'success': False, 'data': 'Missing parameter: name'}
             return
+        hit = []
+        miss = []
         if kwargs['name'].startswith('Newznab'):
             providers = lazylibrarian.NEWZNAB_PROV
         elif kwargs['name'].startswith('Torznab'):
@@ -411,75 +413,94 @@ class Api(object):
                     name = "%s_%s" % (kwargs['name'], arg)
                     if name in lazylibrarian.CONFIG:
                         lazylibrarian.CONFIG[name] = kwargs[arg]
+                        hit += arg
                 elif arg == 'ENABLED':
+                    hit.append(arg)
                     if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                         val = True
                     else:
                         val = False
                     lazylibrarian.CONFIG[kwargs['name']] = val
+                else:
+                    miss.append(arg)
             lazylibrarian.config_write(kwargs['name'])
-            self.data = 'Ok'
+            self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
+            if miss:
+                logger.debug("Invalid parameters changing %s [%s]" % (kwargs['name'], ','.join(miss)))
             return
         else:
-            self.data = 'Invalid parameter: name'
+            self.data = {'success': False, 'data': 'Invalid parameter: name'}
             return
         for item in providers:
             if item['NAME'] == kwargs['name']:
                 for arg in kwargs:
                     if arg == 'ENABLED':
+                        hit.append(arg)
                         if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                             val = True
                         else:
                             val = False
                         item[arg] = val
                     elif arg in item:
+                        hit.append(arg)
                         item[arg] = kwargs[arg]
+                    else:
+                        miss.append(arg)
                 lazylibrarian.config_write(kwargs['name'])
-                self.data = 'Ok'
+                self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
+                if miss:
+                    logger.debug("Invalid parameters changing %s [%s]" % (kwargs['name'], ','.join(miss)))
                 return
-        self.data = 'Provider %s not found' % kwargs['name']
+        self.data = {'success': False, 'data': 'Provider %s not found' % kwargs['name']}
         return
 
     def _addprovider(self, **kwargs):
         if 'type' not in kwargs:
-            self.data = 'Missing parameter: type'
+            self.data = {'success': False, 'data': 'Missing parameter: type'}
             return
         if 'HOST' not in kwargs and 'SERVER' not in kwargs:
-            self.data = 'Missing parameter: HOST or SERVER'
+            self.data = {'success': False, 'data': 'Missing parameter: HOST or SERVER'}
             return
-        if kwargs['type'] == 'Newznab':
+        if kwargs['type'] == 'newznab':
             providers = lazylibrarian.NEWZNAB_PROV
             provname = 'Newznab'
             section = 'Newznab'
-        elif kwargs['type'] == 'Torznab':
+        elif kwargs['type'] == 'torznab':
             providers = lazylibrarian.TORZNAB_PROV
             provname = 'Torznab'
             section = 'Torznab'
-        elif kwargs['type'] == 'RSS':
+        elif kwargs['type'] == 'rss':
             providers = lazylibrarian.RSS_PROV
             provname = 'RSS_'
             section = 'rss_'
-        elif kwargs['type'] == 'GEN':
+        elif kwargs['type'] == 'gen':
             providers = lazylibrarian.GEN_PROV
             provname = 'GEN_'
             section = 'GEN_'
-        elif kwargs['type'] == 'IRC':
+        elif kwargs['type'] == 'irc':
             providers = lazylibrarian.IRC_PROV
             provname = 'IRC_'
             section = 'IRC_'
         else:
-            self.data = 'Invalid parameter: type. Should be Newznab,Torznab,RSS,GEN,IRC'
+            self.data = {'success': False, 'data': 'Invalid parameter: type. Should be newznab,torznab,rss,gen,irc'}
             return
 
         num = len(providers)
+        hit = []
+        miss = []
         provname = "%s%s" % (provname, num)
         providers[-1]['NAME'] = provname
         providers[-1]['DISPNAME'] = provname
         for arg in kwargs:
             if arg in providers[0]:
+                hit.append(arg)
                 providers[-1][arg] = kwargs[arg]
+            else:
+                miss.append(arg)
         lazylibrarian.config_write(section)
-        self.data = 'Ok'
+        self.data = {'success': True, 'data': 'Added %s [%s]' % (kwargs['type'], ','.join(hit))}
+        if miss:
+            logger.debug("Invalid parameters adding %s [%s]" % (kwargs['type'], ','.join(miss)))
         return
 
     def _memuse(self):
