@@ -2529,7 +2529,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         opfpath, our_opf = create_opf(pp_path, data, global_name, True)
                         # if we send an opf, does calibre update the book-meta as well?
                     elif booktype == 'comic':
-                        process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
+                        if data.get('Cover'):
+                            process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
                         if not lazylibrarian.CONFIG['IMP_COMICOPF']:
                             logger.debug('create_comic_opf is disabled')
                         else:
@@ -2801,11 +2802,14 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 db = database.DBConnection()
                 data = db.match(cmd, (issueid, comicid))
                 bookid = "%s_%s" % (comicid, issueid)
-                process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
-                if not lazylibrarian.CONFIG['IMP_COMICOPF']:
-                    logger.debug('create_comic_opf is disabled')
+                if data:
+                    process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
+                    if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                        logger.debug('create_comic_opf is disabled')
+                    else:
+                        _, _ = create_comic_opf(pp_path, data, global_name, True)
                 else:
-                    _, _ = create_comic_opf(pp_path, data, global_name, True)
+                    logger.debug('No data found for %s_%s' % (comicid, issueid))
             else:
                 if not lazylibrarian.CONFIG['IMP_MAGOPF']:
                     logger.debug('create_mag_opf is disabled')
