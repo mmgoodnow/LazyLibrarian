@@ -318,8 +318,16 @@ class Api(object):
         direct = self.data
         self._listtorrentproviders()
         torrent = self.data
-        self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV + lazylibrarian.RSS_PROV + \
-            lazylibrarian.IRC_PROV + torrent + direct
+        for item in torrent:  # type: dict
+            keys = list(item.keys())
+            item['NAME'] = keys[-1].split('_')[0]
+        self.data = {'newznab': lazylibrarian.NEWZNAB_PROV,
+                     'torznab': lazylibrarian.TORZNAB_PROV,
+                     'rss': lazylibrarian.RSS_PROV,
+                     'irc': lazylibrarian.IRC_PROV,
+                     'torrent': torrent,
+                     'direct': direct,
+                     }
 
     def _listnabproviders(self):
         self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV
@@ -426,7 +434,7 @@ class Api(object):
             lazylibrarian.config_write(kwargs['name'])
             self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
             if miss:
-                logger.debug("Invalid parameters changing %s [%s]" % (kwargs['name'], ','.join(miss)))
+                self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
             return
         else:
             self.data = {'success': False, 'data': 'Invalid parameter: name'}
@@ -449,7 +457,7 @@ class Api(object):
                 lazylibrarian.config_write(kwargs['name'])
                 self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
                 if miss:
-                    logger.debug("Invalid parameters changing %s [%s]" % (kwargs['name'], ','.join(miss)))
+                    self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
                 return
         self.data = {'success': False, 'data': 'Provider %s not found' % kwargs['name']}
         return
@@ -482,7 +490,9 @@ class Api(object):
             provname = 'IRC_'
             section = 'IRC_'
         else:
-            self.data = {'success': False, 'data': 'Invalid parameter: type. Should be newznab,torznab,rss,gen,irc'}
+            self.data = {'success': False,
+                         'data': 'Invalid parameter: type. Should be one of newznab,torznab,rss,gen,irc'
+                         }
             return
 
         num = len(providers)
@@ -500,7 +510,7 @@ class Api(object):
         lazylibrarian.config_write(section)
         self.data = {'success': True, 'data': 'Added %s [%s]' % (kwargs['type'], ','.join(hit))}
         if miss:
-            logger.debug("Invalid parameters adding %s [%s]" % (kwargs['type'], ','.join(miss)))
+            self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
         return
 
     def _memuse(self):
