@@ -1506,7 +1506,6 @@ def return_search_structure(provider, api_key, book, search_type, search_mode):
                 "apikey": api_key,
                 "cat": provider['MAGCAT'],
                 "q": make_utf8bytes(book['searchterm'].replace(':', ''))[0],
-                "extended": provider['EXTENDED'],
             }
         elif provider['GENERALSEARCH'] and provider['MAGCAT']:
             params = {
@@ -1514,7 +1513,6 @@ def return_search_structure(provider, api_key, book, search_type, search_mode):
                 "apikey": api_key,
                 "cat": provider['MAGCAT'],
                 "q": make_utf8bytes(book['searchterm'].replace(':', ''))[0],
-                "extended": provider['EXTENDED'],
             }
     else:
         if provider['GENERALSEARCH']:
@@ -1531,9 +1529,21 @@ def return_search_structure(provider, api_key, book, search_type, search_mode):
                 "t": provider['GENERALSEARCH'],
                 "apikey": api_key,
                 "q": make_utf8bytes(searchterm)[0],
-                "extended": provider['EXTENDED'],
             }
     if params:
+        if provider['EXTENDED']:
+            extends = provider['EXTENDED'].split('&')
+            if extends[0] in ['1', '0']:
+                params["extended"] = extends[0]
+            if '=' not in extends[0]:
+                extends.pop(0)
+            for item in extends:
+                try:
+                    key, value = item.split('=')
+                    params[key] = value
+                except ValueError:
+                    pass
+
         logger.debug('%s Search parameters set to %s' % (search_mode, str(params)))
     else:
         logger.debug('%s No matching search parameters for %s' % (search_mode, search_type))
