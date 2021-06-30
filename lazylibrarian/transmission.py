@@ -333,8 +333,11 @@ def torrent_action(method, arguments):
                 parts[2] += "/transmission/rpc"
 
         host_url = urlunparse(parts)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('Transmission host %s' % host_url)
 
-    auth = (username, password) if username and password else None
+    # blank username is valid
+    auth = (username, password) if password else None
     proxies = proxy_list()
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
     # Retrieve session id
