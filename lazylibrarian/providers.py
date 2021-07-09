@@ -883,7 +883,7 @@ def ircsearch(book, provider, search_type, test=False):
             book['searchterm'] = authorname
         logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
                                                  provider['CHANNEL'], book['searchterm']))
-        fname, data = irc_search(provider, book['searchterm'], cache=True)
+        fname, data = irc_search(provider, book['searchterm'], cache=True, retries=0)
         if not fname and 'timed out' in make_unicode(data):  # need to reconnect
             provider['IRC'] = None
             logger.error(data)

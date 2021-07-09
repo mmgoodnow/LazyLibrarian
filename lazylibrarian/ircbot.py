@@ -153,7 +153,7 @@ class IRC:
         return lynes
 
 
-def irc_connect(provider):
+def irc_connect(provider, retries=3):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         logger.warn("%s is blocked" % provider['SERVER'])
         return None
@@ -178,18 +178,17 @@ def irc_connect(provider):
                 if entry["name"] == provider['SERVER']:
                     lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
 
-    retries = 0
-    maxretries = 5
+    retried = 0
     irc = IRC()
     e = ''
     botnick = provider['BOTNICK']
-    while retries < maxretries:
+    while retried < retries:
         try:
             if ' 114 ' in str(e):  # already in progress
                 time.sleep(5)
             else:
                 irc.connect(provider['SERVER'], 6667, botnick, provider['BOTPASS'])
-            while retries < maxretries:
+            while retried < retries:
                 try:
                     lynes = irc.get_response()
                     for lyne in lynes:
@@ -212,14 +211,14 @@ def irc_connect(provider):
                                 return irc
                 except socket.timeout:
                     logger.warn("Reply timed out")
-                    retries += 1
+                    retried += 1
         except Exception as e:
             logger.error(str(e))
-            retries += 1
+            retried += 1
     return None
 
 
-def irc_search(provider, searchstring, cmd=":@search", cache=True):
+def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
@@ -265,8 +264,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
     last_cmd = ''
     last_search_cmd = ''
     last_search_time = 0
-    retries = 0
-    maxretries = 3
+    retried = 0
     abortafter = 60
     ratelimit = 2
     pingcheck = 0
@@ -281,7 +279,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
             lynes = irc.get_response()
         except socket.timeout:
             logger.warn("Timed out, status [%s]" % status)
-            retries += 1
+            retried += 1
             lynes = ''
             if status == "":
                 logger.debug("Rejoining %s" % provider['CHANNEL'])
@@ -318,7 +316,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
                 if last_cmd:
                     logger.debug("Empty response to %s" % last_cmd)
                     time.sleep(ratelimit)
-                    retries += 1
+                    retried += 1
                 else:
                     status = ""
                     try:
@@ -432,12 +430,12 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
                             logger.warn("Connection reset by peer")
                             new_data = ''
                             status = ""
-                            retries += 1
+                            retried += 1
                         if not new_data:
                             # Read nothing: connection must be down.
                             logger.warn("Connection reset by peer")
                             status = ""
-                            retries += 1
+                            retried += 1
                         else:
                             received_data += new_data
                             if len(received_data) >= filesize:
@@ -449,7 +447,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                                     logger.debug("Got %s of %s" % (len(received_data), filesize))
                                 peersocket.send(struct.pack("!I", len(received_data)))
-                        if retries > maxretries:
+                        if retried > retries:
                             msg = "Aborting download, too many retries"
                             logger.warn(msg)
                             return '', msg
@@ -467,8 +465,8 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
             if time.time() - cmd_sent > abortafter:
                 logger.warn("No response in %ssec from %s" % (abortafter, last_cmd))
                 status = ""
-                retries += 1
-            if retries > maxretries:
+                retried += 1
+            if retried > retries:
                 msg = "Aborting, too many retries"
                 logger.warn(msg)
                 return '', msg
@@ -483,7 +481,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True):
     return filename, received_data
 
 
-def irc_results(provider, fname):
+def irc_results(provider, fname, retries=5):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word
@@ -545,8 +543,7 @@ def irc_results(provider, fname):
     if results:
         irc = provider['IRC']
         if irc:
-            retries = 0
-            maxretries = 8
+            retried = 0
             userlist = []
             for item in results:
                 userlist.append(item['tor_url'].lstrip('!'))
@@ -578,8 +575,8 @@ def irc_results(provider, fname):
                         elif not len(online):
                             return []
 
-                retries += 1
-                if retries >= maxretries:
+                retried += 1
+                if retried >= retries:
                     msg = "Ignoring ison, too many retries"
                     logger.warn(msg)
                     return results
