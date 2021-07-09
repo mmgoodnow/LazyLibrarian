@@ -508,7 +508,10 @@ def preprocess_magazine(bookfolder, cover=0):
             return
 
         dpi = check_int(lazylibrarian.CONFIG['SHRINK_MAG'], 0)
-        if not dpi and not (lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover >= 2):
+        cover = check_int(cover, 0)
+
+        if not dpi and not (lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover > 1):
+            logger.debug("No preprocessing required")
             return
 
         # reordering or shrinking pages is quite slow if the source is on a networked drive
@@ -532,7 +535,7 @@ def preprocess_magazine(bookfolder, cover=0):
             elif shrunkfile:
                 remove(shrunkfile)
 
-        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover >= 2:
+        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] and cover > 1:
             if not PdfFileWriter:
                 logger.error("PdfFileWriter not found")
             else:

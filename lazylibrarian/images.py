@@ -746,7 +746,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
             logger.debug('Cover for %s exists' % issuefile)
             return coverfile  # quit if cover already exists and we didn't want to refresh
 
-    logger.debug('Creating cover for %s' % issuefile)
+    logger.debug('Creating cover for %s, page %s' % (issuefile, pagenum))
     data = ''  # result from unzip or unrar
     extn = extn.lower()
     if extn in ['.cbz', '.epub']:

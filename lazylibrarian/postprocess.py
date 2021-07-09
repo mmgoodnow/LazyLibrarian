@@ -28,6 +28,7 @@ import uuid
 
 import lazylibrarian
 from lazylibrarian.gb import GoogleBooks
+from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
 from six import PY2
 
@@ -53,7 +54,6 @@ from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name
-from lazylibrarian.gr import GoodReads
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
