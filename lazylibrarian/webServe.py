@@ -1338,7 +1338,7 @@ class WebInterface(object):
 
             if "redirect" in args:
                 if not args['redirect'] == 'None':
-                    raise cherrypy.HTTPRedirect("series?AuthorID=%s" % args['redirect'])
+                    raise cherrypy.HTTPRedirect("series?authorid=%s" % args['redirect'])
             raise cherrypy.HTTPRedirect("series")
 
     # CONFIG ############################################################
