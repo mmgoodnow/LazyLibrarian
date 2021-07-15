@@ -709,19 +709,12 @@ def name_vars(bookid, abridged=''):
             mydict['SortTitle'] = ''
 
     dest_path = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'], mydict)
-    dest_path = replace_all(dest_path, namedic)
-    mydict['FolderName'] = stripspaces(dest_path)
+    mydict['FolderName'] = stripspaces(replace_all(dest_path, namedic))
     dest_path = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'], mydict)
-    dest_path = replace_all(dest_path, namedic)
-    mydict['AudioFolderName'] = stripspaces(dest_path)
-
-    bookfile = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'], mydict)
-    # replace all '/' with '_' as '/' is a directory separator but also used in some multi-book titles
-    mydict['BookFile'] = bookfile.replace(os.sep, '_')
-    audiofile = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'], mydict)
-    audiosingle = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'], mydict)
-    mydict['AudioFile'] = audiofile.replace(os.sep, '_')
-    mydict['AudioSingleFile'] = audiosingle.replace(os.sep, '_')
+    mydict['AudioFolderName'] = stripspaces(replace_all(dest_path, namedic))
+    mydict['BookFile'] = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'], mydict)
+    mydict['AudioFile'] = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'], mydict)
+    mydict['AudioSingleFile'] = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'], mydict)
     return mydict
 
 
@@ -730,5 +723,5 @@ def replacevars(base, mydict):
                  '$SerName', '$SerNum', '$PadNum', '$PubYear', '$SerYear', '$Part', '$Total',
                  '$Abridged']:
         if item[1:] in mydict:
-            base = base.replace(item, mydict[item[1:]])
+            base = base.replace(item, mydict[item[1:]].replace(os.sep, '_'))
     return base.replace('$$', ' ')
