@@ -29,7 +29,9 @@ from . import slack
 from . import tweet
 from . import telegram
 from . import apprise_notify
+import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.common import set_redactlist
 
 # online
 twitter_notifier = tweet.TwitterNotifier()
@@ -78,6 +80,9 @@ def custom_notify_snatch(bookid, fail=False):
 
 
 def notify_download(title, bookid=None):
+    set_redactlist()
+    for item in lazylibrarian.REDACTLIST:
+        title = title.replace(item, '******')
     try:
         for n in notifiers:
             if 'EmailNotifier' in str(n):
@@ -90,6 +95,9 @@ def notify_download(title, bookid=None):
 
 
 def notify_snatch(title, fail=False):
+    set_redactlist()
+    for item in REDACTLIST:
+        title = title.replace(item, '******')
     try:
         for n in notifiers:
             n.notify_snatch(title, fail=fail)
