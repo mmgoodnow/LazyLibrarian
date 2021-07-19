@@ -107,8 +107,9 @@ from lazylibrarian.ol import OpenLibrary
 # 71 Add narrator to books table
 # 72 Add separate HaveEBooks and HaveAudioBooks to authors table
 # 73 Add gr_id to series table
+# 74 Add Theme to users table
 
-db_current_version = 73
+db_current_version = 74
 
 
 def upgrade_needed():
@@ -1176,6 +1177,12 @@ def update_schema(db, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding gr_id to series table'
         upgradelog.write("%s v73: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE series ADD COLUMN gr_id TEXT')
+
+    if not has_column(db, "users", "Theme"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Theme to users table'
+        upgradelog.write("%s v74: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE users ADD COLUMN Theme TEXT')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

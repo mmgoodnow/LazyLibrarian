@@ -70,21 +70,15 @@
               </div>
               <div class="form-group col-md-6">
                 <label for="booktype">Preferred BookType to open/email</label>
-                        <select name="booktype" id="booktype" class="form-control">
-                          %for btype in typelist:
-                          <%
-                            if btype == "epub":
-                                selected = 'selected="selected"'
-                            else:
-                                selected = ''
-                          %>
-                          <option value="${btype}" ${selected}>${btype}</option>
-                          %endfor
-                        </select>
+                <input id="booktype" name="booktype" class="form-control" value="">
               </div>
               <div class="form-group col-md-6">
                 <label for="userid">UserID (for information only)</label>
                 <input id="userid" name="userid" class="form-control" value="" readonly>
+              </div>
+              <div class="form-group col-md-12">
+                <label for="lltheme">Theme</label>
+                <input id="lltheme" name="lltheme" class="form-control" value="" placeholder="Default">
               </div>
               <div class="form-group col-md-12">
                 <label for="summernote">Subscriptions (for information only)</label>
@@ -128,7 +122,7 @@
 
       $('#user').change(function(){
           var user = $.trim($("#user").val());
-          $.get("admin_userdata", {'user': user}, function (data) {
+          $.get("get_user_profile", {'user': user}, function (data) {
             var obj = JSON.parse(data);
             $("#username").val(user);
             $("#email").val(obj['email']);
@@ -139,8 +133,9 @@
             $("#caltoread").val(obj['caltoread']);
             $("#booktype").val(obj['booktype']);
             $("#userid").val(obj['userid']);
-            $("#password").val("");
+            $("#lltheme").val(obj['theme']);
             $("#summernote").val(obj['subs']);
+            $("#password").val("");
             });
         });
 
@@ -253,9 +248,10 @@
           var caltoread = $.trim($("#caltoread").val());
           var booktype = $.trim($("#booktype").val());
           var password = $.trim($("#password").val());
+          var lltheme = $.trim($("#lltheme").val());
           $.get("admin_users", {'user': user, 'username': username, 'fullname': fullname, 'email': email,
                 'sendto': sendto, 'perms': perms, 'password': password, 'calread': calread, 'caltoread': caltoread,
-                'booktype': booktype},
+                'booktype': booktype, 'theme': lltheme},
                 function (data) {
                 bootbox.dialog({
                     title: 'Update User',

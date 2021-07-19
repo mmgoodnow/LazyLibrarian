@@ -86,9 +86,13 @@ lastmagazine = ''
 lastcomic = ''
 
 
-def clear_mako_cache():
-    logger.warn("Clearing mako cache")
-    makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
+def clear_mako_cache(userid=0):
+    if userid:
+        logger.warn("Clearing mako cache %s" % userid)
+        makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
+    else:
+        logger.warn("Clearing mako cache")
+        makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
     try:
         rmtree(makocache, ignore_errors=True)
         # noinspection PyArgumentList
@@ -130,16 +134,19 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=lazylibrarian.perm_admin, **kwargs)
 
         username = ''  # anyone logged in yet?
+        userid = 0
         perm = 0
         res = None
         cookie = None
         userprefs = 0
+        usertheme = ''
         db = database.DBConnection()
 
         if lazylibrarian.LOGINUSER:
             res = db.match('SELECT UserName,Perms from users where UserID=?', (lazylibrarian.LOGINUSER,))
             if res:
                 cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
+                userid = lazylibrarian.LOGINUSER
                 logger.debug("Auto-login for %s" % res['UserName'])
                 lazylibrarian.SHOWLOGOUT = 0
             else:
@@ -153,7 +160,7 @@ def serve_template(templatename, **kwargs):
         else:
             cookie = cherrypy.request.cookie
             if cookie and 'll_uid' in list(cookie.keys()):
-                res = db.match('SELECT UserName,Perms from users where UserID=?', (cookie['ll_uid'].value,))
+                res = db.match('SELECT UserName,Perms,UserID from users where UserID=?', (cookie['ll_uid'].value,))
             if not res:
                 columns = db.select('PRAGMA table_info(users)')
                 if not columns:  # no such table
@@ -172,6 +179,15 @@ def serve_template(templatename, **kwargs):
         if res:
             perm = check_int(res['Perms'], 0)
             username = res['UserName']
+            userid = res['UserID']
+            try:
+                res2 = db.match('SELECT Theme from users where UserID=?', (userid,))
+                if res2:
+                    usertheme = res2['Theme']
+                    if not usertheme:
+                        usertheme = ''
+            except Exception as e:
+                logger.debug("Unable to get user theme for %s: %s" % (userid, str(e)))
         if cookie and 'll_prefs' in list(cookie.keys()):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
 
@@ -204,25 +220,44 @@ def serve_template(templatename, **kwargs):
                 templatename = "login.html"
 
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
-            logger.debug("User %s: %s %s %s" % (username, perm, userprefs, templatename))
+            logger.debug("User %s: %s %s %s %s" % (username, perm, userprefs, usertheme, templatename))
 
+        theme = usertheme.split('_', 1)[0]
+        if theme and theme != lazylibrarian.CONFIG['HTTP_LOOK']:
+            template_dir = os.path.join(str(interface_dir), theme)
+            if not path_isdir(template_dir):
+                logger.error("Unable to locate template [%s], reverting to default" % template_dir)
+
+                template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+                if not path_isdir(template_dir):
+                    logger.error("Unable to locate template [%s], reverting to legacy" % template_dir)
+                    lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
+                    template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+
+            module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
+            _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
+                                       module_directory=module_directory)
         try:
             template = _hplookup.get_template(templatename)
         except AttributeError:
-            clear_mako_cache()
+            clear_mako_cache(userid)
             template = _hplookup.get_template(templatename)
+
+        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
+        theme = usertheme.split('_', 1)
+        if len(theme) > 1:
+            style = theme[1]
 
         if templatename in ["login.html", "formlogin.html"]:
             lazylibrarian.SUPPRESS_UPDATE = True
             cherrypy.response.cookie['ll_template'] = ''
-            return template.render(perm=0, title="Redirected")
+            return template.render(perm=0, title="Redirected", style=style)
 
         lazylibrarian.SUPPRESS_UPDATE = not perm & lazylibrarian.perm_config
 
         # keep template name for help context
         cherrypy.response.cookie['ll_template'] = templatename
-        # noinspection PyArgumentList
-        return template.render(perm=perm, pref=userprefs, **kwargs)
+        return template.render(perm=perm, pref=userprefs, style=style, **kwargs)
 
     except Exception:
         return exceptions.html_error_template().render()
@@ -266,7 +301,7 @@ class WebInterface(object):
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             db = database.DBConnection()
-            user = db.match('SELECT UserName,UserID,Name,Email,SendTo from users where UserID=?',
+            user = db.match('SELECT UserName,UserID,Name,Email,SendTo,BookType,Theme from users where UserID=?',
                             (cookie['ll_uid'].value,))
             if user:
                 subs = db.select('SELECT Type,WantID from subscribers WHERE UserID=?', (cookie['ll_uid'].value,))
@@ -293,7 +328,14 @@ class WebInterface(object):
                             if res:
                                 item_name = "(%s)" % res['Title']
                     subscriptions += '%s %s %s' % (item['Type'], item['WantID'], item_name)
-                return serve_template(templatename="profile.html", title=title, user=user, subs=subscriptions)
+                user = dict(user)
+                if not user['Theme']:
+                    user['Theme'] = ''
+                themelist = ['Default']
+                for item in lazylibrarian.BOOKSTRAP_THEMELIST:
+                    themelist.append('bookstrap_' + item)
+                return serve_template(templatename="profile.html", title=title, user=user, subs=subscriptions,
+                                      typelist=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']), themelist=themelist)
         return serve_template(templatename="index.html", title=title)
 
     # noinspection PyUnusedLocal
@@ -509,7 +551,8 @@ class WebInterface(object):
         if cookie and 'll_uid' in list(cookie.keys()):
             userid = cookie['ll_uid'].value
             db = database.DBConnection()
-            user = db.match('SELECT UserName,Name,Email,Password,BookType from users where UserID=?', (userid,))
+            user = db.match('SELECT UserName,Name,Email,Password,BookType,SendTo,Theme from users where UserID=?',
+                            (userid,))
             if user:
                 if kwargs['username'] and user['UserName'] != kwargs['username']:
                     # if username changed, must not have same username as another user
@@ -527,6 +570,26 @@ class WebInterface(object):
                 if user['Email'] != kwargs['email']:
                     changes += ' email'
                     db.action('UPDATE users SET email=? WHERE UserID=?', (kwargs['email'], userid))
+
+                if user['Theme'] != kwargs['theme']:
+                    valid = False
+                    theme = kwargs['theme']
+                    if theme in ['None', 'Default', '']:
+                        theme = ''
+                    if not theme:
+                        valid = True
+                    if theme == 'legacy':
+                        valid = True
+                    else:
+                        parts = theme.split('_', 1)
+                        if parts[0] == 'bookstrap':
+                            if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
+                                valid = True
+                    if valid:
+                        changes += ' Theme'
+                        db.action('UPDATE users SET Theme=? WHERE UserID=?', (theme, userid))
+                    else:
+                        logger.warn("Invalid user theme [%s]" % theme)
 
                 if user['SendTo'] != kwargs['sendto']:
                     changes += ' sendto'
@@ -646,7 +709,8 @@ class WebInterface(object):
         self.label_thread('USERADMIN')
         db = database.DBConnection()
         title = "Manage User Accounts"
-        cmd = 'SELECT UserID, UserName, Name, Email, SendTo, Perms, CalibreRead, CalibreToRead, BookType from users'
+        cmd = 'SELECT UserID, UserName, Name, Email, SendTo, Perms, CalibreRead, '
+        cmd += 'CalibreToRead, BookType, Theme from users'
         users = db.select(cmd)
         return serve_template(templatename="users.html", title=title, users=users,
                               typelist=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']))
@@ -735,7 +799,7 @@ class WebInterface(object):
         return "No user!"
 
     @cherrypy.expose
-    def admin_userdata(self, **kwargs):
+    def get_user_profile(self, **kwargs):
         db = database.DBConnection()
         match = db.match('SELECT * from users where UserName=?', (kwargs['user'],))
         if match:
@@ -748,10 +812,10 @@ class WebInterface(object):
             res = json.dumps({'email': match['Email'], 'name': match['Name'], 'perms': match['Perms'],
                               'calread': match['CalibreRead'], 'caltoread': match['CalibreToRead'],
                               'sendto': match['SendTo'], 'booktype': match['BookType'],
-                              'userid': match['UserID'], 'subs': subscriptions})
+                              'userid': match['UserID'], 'subs': subscriptions, 'theme': match['Theme']})
         else:
             res = json.dumps({'email': '', 'name': '', 'perms': '0', 'calread': '', 'caltoread': '',
-                              'sendto': '', 'booktype': '', 'userid': '', 'subs': ''})
+                              'sendto': '', 'booktype': '', 'userid': '', 'subs': '', 'theme': ''})
         return res
 
     @cherrypy.expose
@@ -827,7 +891,7 @@ class WebInterface(object):
                     return "Username already exists"
 
             changes = ''
-            cmd = 'SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType'
+            cmd = 'SELECT UserID,Name,Email,SendTo,Password,Perms,CalibreRead,CalibreToRead,BookType,Theme'
             cmd += ' from users where UserName=?'
             details = db.match(cmd, (user,))
 
@@ -860,6 +924,21 @@ class WebInterface(object):
                     if pwd != details['Password']:
                         changes += ' password'
                         db.action('UPDATE users SET password=? WHERE UserID=?', (pwd, userid))
+
+                if details['Theme'] != kwargs['theme']:
+                    valid = False
+                    if kwargs['theme'] == 'legacy':
+                        valid = True
+                    elif kwargs['theme']:
+                        parts = kwargs['theme'].split('_', 1)
+                        if parts[0] == 'bookstrap':
+                            if len(parts) == 2 and parts[1] in lazylibrarian.BOOKSTRAP_THEMELIST:
+                                valid = True
+                    if valid:
+                        changes += ' Theme'
+                        db.action('UPDATE users SET Theme=? WHERE UserID=?', (kwargs['theme'], userid))
+                    else:
+                        logger.warn("Invalid user theme [%s]" % kwargs['theme'])
 
                 if details['CalibreRead'] != kwargs['calread']:
                     changes += ' CalibreRead'

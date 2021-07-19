@@ -1533,7 +1533,8 @@ def set_redactlist():
         if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
             lazylibrarian.REDACTLIST.append(u"%s" % item['URL'])
 
-    logger.debug("Redact list has %s" % len(lazylibrarian.REDACTLIST))
+    logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
+                                            plural(len(lazylibrarian.REDACTLIST), "entry")))
 
 
 def save_log():
