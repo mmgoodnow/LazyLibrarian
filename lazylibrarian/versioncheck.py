@@ -80,6 +80,8 @@ def run_git(args):
             logmsg('debug', 'Git output: [%s]' % output)
             if err:
                 logmsg('debug', 'Git err: [%s]' % err)
+            elif not output:
+                output = ' '
 
         except OSError:
             logmsg('debug', 'Command ' + cmd + ' didn\'t work, couldn\'t find git')
@@ -536,7 +538,7 @@ def update():
             branch = get_current_git_branch()
 
             _, _ = run_git('stash clear')
-            output, _ = run_git('pull origin ' + branch)  # type: str
+            output, _ = run_git('pull --no-rebase origin ' + branch)  # type: str
 
             if not output:
                 msg = 'Couldn\'t download latest version'

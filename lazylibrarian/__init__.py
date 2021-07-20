@@ -2226,8 +2226,10 @@ def shutdown(restart=False, update=False):
 
             popen_list = [executable, FULL_PATH]
             popen_list += ARGS
-            if '--update' in popen_list:
+            while '--update' in popen_list:
                 popen_list.remove('--update')
+            while '--upgrade' in popen_list:
+                popen_list.remove('--upgrade')
             if LOGLEVEL:
                 for item in ['--quiet', '-q', '--debug']:
                     if item in popen_list:
