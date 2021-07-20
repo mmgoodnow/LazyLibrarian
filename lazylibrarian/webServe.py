@@ -124,14 +124,17 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=0, message="Database upgrade in progress, please wait...",
                                    title="Database Upgrade", timer=5)
 
+        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
         if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
             try:
                 template = _hplookup.get_template(templatename)
             except AttributeError:
                 clear_mako_cache()
                 template = _hplookup.get_template(templatename)
-            # noinspection PyArgumentList
-            return template.render(perm=lazylibrarian.perm_admin, **kwargs)
+            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
+                return template.render(**kwargs)
+            else:
+                return template.render(perm=lazylibrarian.perm_admin, style=style, **kwargs)
 
         username = ''  # anyone logged in yet?
         userid = 0
@@ -243,7 +246,6 @@ def serve_template(templatename, **kwargs):
             clear_mako_cache(userid)
             template = _hplookup.get_template(templatename)
 
-        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
         theme = usertheme.split('_', 1)
         if len(theme) > 1:
             style = theme[1]
@@ -708,12 +710,8 @@ class WebInterface(object):
     def user_admin(self):
         self.label_thread('USERADMIN')
         db = database.DBConnection()
-        title = "Manage User Accounts"
-        cmd = 'SELECT UserID, UserName, Name, Email, SendTo, Perms, CalibreRead, '
-        cmd += 'CalibreToRead, BookType, Theme from users'
-        users = db.select(cmd)
-        return serve_template(templatename="users.html", title=title, users=users,
-                              typelist=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']))
+        users = db.select('SELECT UserName from users')
+        return serve_template(templatename="users.html", title="Manage User Accounts", users=users)
 
     @cherrypy.expose
     def update_feeds(self, **kwargs):
