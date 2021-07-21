@@ -119,12 +119,16 @@ def serve_template(templatename, **kwargs):
                                module_directory=module_directory)
     # noinspection PyBroadException
     try:
+        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
         if lazylibrarian.UPDATE_MSG:
             template = _hplookup.get_template("dbupdate.html")
-            return template.render(perm=0, message="Database upgrade in progress, please wait...",
-                                   title="Database Upgrade", timer=5)
+            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
+                return template.render(message="Database upgrade in progress, please wait...",
+                                       title="Database Upgrade", timer=5)
+            else:
+                return template.render(perm=0, message="Database upgrade in progress, please wait...",
+                                       title="Database Upgrade", timer=5, style=style)
 
-        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
         if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
             try:
                 template = _hplookup.get_template(templatename)
