@@ -53,7 +53,7 @@ class OpenLibrary:
         self.LT_NSERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'nseries/'])
         self.LT_SERIES = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/'])
         self.LT_WORK = '/'.join([lazylibrarian.CONFIG['LT_URL'], "work/"])
-        self.name = make_unicode(str(name))
+        self.name = make_unicode(name)
         self.lt_cache = False
 
     def find_results(self, searchterm=None, queue=None):
