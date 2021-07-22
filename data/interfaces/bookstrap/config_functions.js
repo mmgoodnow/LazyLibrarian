@@ -369,7 +369,7 @@
                 }
         });
 
-        $('#generateAPI').click(function () {
+        $('#generate_api').click(function () {
             $.get("generate_api",
                 function (data) { });
         });
