@@ -476,6 +476,8 @@ def make_unicode(txt):
     # it could be a file on a windows filesystem, unix...
     if isinstance(txt, text_type):  # nothing to do if already unicode
         return txt
+    if txt is None:
+        return txt
     if not isinstance(txt, binary_type):  # list, int etc
         txt = str(txt)
         if isinstance(txt, text_type):
@@ -493,6 +495,8 @@ def make_unicode(txt):
 
 def make_bytestr(txt):
     if isinstance(txt, binary_type):  # nothing to do if already bytestring
+        return txt
+    if txt is None:
         return txt
     if not isinstance(txt, text_type):  # list, int etc
         txt = str(txt)
