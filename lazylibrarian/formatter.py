@@ -19,7 +19,7 @@ import re
 import unicodedata
 
 import lazylibrarian
-from six import PY2, text_type
+from six import PY2, text_type, binary_type
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
 
@@ -474,10 +474,12 @@ _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 def make_unicode(txt):
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
-    if not txt:
-        return u''
-    elif isinstance(txt, text_type):
+    if isinstance(txt, text_type):  # nothing to do if already unicode
         return txt
+    if not isinstance(txt, binary_type):  # list, int etc
+        txt = str(txt)
+        if isinstance(txt, text_type):
+            return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
         _encodings.insert(0, lazylibrarian.SYS_ENCODING)
     for encoding in _encodings:
@@ -490,10 +492,12 @@ def make_unicode(txt):
 
 
 def make_bytestr(txt):
-    if not txt:
-        return b''
-    elif not isinstance(txt, text_type):  # nothing to do if already bytestring
+    if isinstance(txt, binary_type):  # nothing to do if already bytestring
         return txt
+    if not isinstance(txt, text_type):  # list, int etc
+        txt = str(txt)
+        if isinstance(txt, binary_type):
+            return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
         _encodings.insert(0, lazylibrarian.SYS_ENCODING)
     for encoding in _encodings:
