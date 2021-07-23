@@ -96,7 +96,7 @@ def notify_download(title, bookid=None):
 
 def notify_snatch(title, fail=False):
     set_redactlist()
-    for item in REDACTLIST:
+    for item in lazylibrarian.REDACTLIST:
         title = title.replace(item, '******')
     try:
         for n in notifiers:
