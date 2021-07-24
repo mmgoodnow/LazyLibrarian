@@ -627,7 +627,7 @@ class WebInterface(object):
     @cherrypy.expose
     def user_login(self, **kwargs):
         # anti-phishing
-        # block ip address if over 5 failed usernames in a row.
+        # block ip address if over 3 failed usernames in a row.
         # dont count attempts older than 24 hrs
         self.label_thread("LOGIN")
         limit = int(time.time()) - 1 * 60 * 60
@@ -637,7 +637,7 @@ class WebInterface(object):
         for item in lazylibrarian.USER_BLOCKLIST:
             if item[0] == remote_ip:
                 cnt += 1
-        if cnt >= 5:
+        if cnt >= 3:
             msg = "IP address [%s] is blocked" % remote_ip
             logger.warn(msg)
             return msg
@@ -678,13 +678,15 @@ class WebInterface(object):
                     cnt += 1
             if cnt >= 2:
                 msg = "Too many failed attempts. Reset password or retry after 1 hour"
+                logger.warn("Blocked user: %s: [%s] %s" % (username, remote_ip, msg))
             else:
                 lazylibrarian.USER_BLOCKLIST.append((username, int(time.time())))
                 msg = "Wrong password entered. You have %s %s left" % (2 - cnt, plural(2 - cnt, "attempt"))
-            logger.warn("Failed login: %s: %s" % (username, lazylibrarian.LOGIN_MSG))
+            logger.warn("Failed login attempt: %s: [%s] %s" % (username, remote_ip, lazylibrarian.LOGIN_MSG))
         else:
             # invalid or missing username, or valid user but missing password
             msg = "Invalid user or password."
+            logger.warn("Blocked IP: %s: [%s] %s" % (username, remote_ip, msg))
             lazylibrarian.USER_BLOCKLIST.append((remote_ip, int(time.time())))
         return msg
 
