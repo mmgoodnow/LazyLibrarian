@@ -494,6 +494,7 @@ class OpenLibrary:
             ignorable.append('lang')
 
         while next_page:
+            loop_count += 1
             url = self.OL_SEARCH + "author=" + authorid
             if offset:
                 url += "&offset=%s" % offset
@@ -515,6 +516,7 @@ class OpenLibrary:
                 else:
                     miss += 1
             logger.debug("%s books on page, %s with LT_ID, %s without" % (hit + miss, hit, miss))
+            total_count += hit + miss
             for book in docs:
                 book_status = bookstatus
                 audio_status = audiostatus
@@ -623,12 +625,11 @@ class OpenLibrary:
                     # Should probably use the one with the "best" info but since we don't know
                     # which that is, keep the old one which is already linked to other db tables
                     # but allow info (dates etc) to be updated
-                    logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
-                                 (key, auth_name, title, exists['BookID']))
-                    duplicates += 1
-                    key = exists['BookID']
-                    if not id_librarything and exists['LT_WorkID']:
-                        id_librarything = exists['LT_WorkID']
+                    if key != exists['BookID']:
+                        logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
+                                     (key, auth_name, title, exists['BookID']))
+                        duplicates += 1
+                        rejected = 'name', 'Duplicate id (%s/%s)' % (key, exists['BookID'])
                 if not rejected:
                     exists = db.match("SELECT * from books WHERE LT_WorkID=? and BookName !=? COLLATE NOCASE",
                                       (id_librarything, title))

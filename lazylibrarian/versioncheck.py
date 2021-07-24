@@ -73,12 +73,11 @@ def run_git(args):
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  shell=True, cwd=lazylibrarian.PROG_DIR)
             output, err = p.communicate()
-
             output = make_unicode(output).strip('\n')
-            err = make_unicode(err)
 
             logmsg('debug', 'Git output: [%s]' % output)
             if err:
+                err = make_unicode(err)
                 logmsg('debug', 'Git err: [%s]' % err)
             elif not output:
                 output = ' '
