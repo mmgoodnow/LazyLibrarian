@@ -1088,7 +1088,7 @@
                 });
         });
 
-        $('#grauthStep1').click(function () {
+        $('#grauth_step1').click(function () {
             var gr_api = $.trim($("#gr_api").val());
             var gr_secret = $.trim($("#gr_secret").val());
             $.get("grauth_step1", {'gr_api': gr_api, 'gr_secret': gr_secret},
@@ -1118,7 +1118,7 @@
               })
         });
 
-        $('#grauthStep2').click(function () {
+        $('#grauth_step2').click(function () {
             $.get("grauth_step2", {},
                 function (data) { bootbox.dialog({
                         title: 'GoodReads Confirm',
