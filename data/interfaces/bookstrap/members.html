@@ -146,6 +146,9 @@
                 <td class="status text-center">
                 <a class="button green btn btn-xs btn-warning" href="open_book?bookid=${result['BookID']}&library=eBook"
                 target="_self"><i class="fa fa-book"></i> Open${result['Flag']}</a>
+                %if len(email):
+                    <a class="button green btn btn-xs btn-info" href="send_book?bookid=${result['BookID']}'&library=eBook" target="_self">Send</a>
+                %endif
               %else:
                 <td class="status text-center"><i class="fa fa-book"></i> ${result['Status']}${result['Flag']}
               %endif

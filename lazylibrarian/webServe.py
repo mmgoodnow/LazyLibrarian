@@ -1283,21 +1283,21 @@ class WebInterface(object):
                     multi = "True"
                     break
 
+        email = ''
         to_read = set()
         have_read = set()
         reading = set()
         abandoned = set()
-        if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy' and lazylibrarian.CONFIG['USER_ACCOUNTS']:
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                res = db.match('SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms from users where UserID=?',
-                               (cookie['ll_uid'].value,))
-                if res:
-                    to_read = set(get_list(res['ToRead']))
-                    have_read = set(get_list(res['HaveRead']))
-                    reading = set(get_list(res['Reading']))
-                    abandoned = set(get_list(res['Abandoned']))
-
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            cmd = 'SELECT UserName,ToRead,HaveRead,Reading,Abandoned,Perms,SendTo from users where UserID=?'
+            res = db.match(cmd, (cookie['ll_uid'].value,))
+            if res:
+                to_read = set(get_list(res['ToRead']))
+                have_read = set(get_list(res['HaveRead']))
+                reading = set(get_list(res['Reading']))
+                abandoned = set(get_list(res['Abandoned']))
+                email = res['SendTo']
         # turn the sqlite rowlist into a list of lists
         rows = []
 
@@ -1327,7 +1327,7 @@ class WebInterface(object):
                 rows.append(newrow)  # add the new dict to the masterlist
 
         return serve_template(templatename="members.html", title=series['SeriesName'],
-                              members=rows, series=series, multi=multi, ignored=ignored)
+                              members=rows, series=series, multi=multi, ignored=ignored, email=email)
 
     @cherrypy.expose
     def mark_series(self, action=None, **args):
@@ -6746,7 +6746,7 @@ class WebInterface(object):
         return msg
 
     @cherrypy.expose
-    def testffmpeg(self, **kwargs):
+    def test_ffmpeg(self, **kwargs):
         threading.currentThread().name = "WEBSERVER"
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
@@ -6777,7 +6777,7 @@ class WebInterface(object):
             return "ffmpeg -version failed: %s %s" % (type(e).__name__, str(e))
 
     @cherrypy.expose
-    def testebookconvert(self, **kwargs):
+    def test_ebook_convert(self, **kwargs):
         threading.currentThread().name = "WEBSERVER"
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
@@ -6800,7 +6800,7 @@ class WebInterface(object):
         return calibre_test()
 
     @cherrypy.expose
-    def test_pre_processor(self, **kwargs):
+    def test_preprocessor(self, **kwargs):
         threading.currentThread().name = "WEBSERVER"
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
