@@ -2437,13 +2437,13 @@
                     <label for="ext_preprocess">Additional PreProcessor program:</label>
                     <input type="text" id="ext_preprocess" name="ext_preprocess" value="${lazylibrarian.CONFIG['EXT_PREPROCESS']}" class="form-control">
                     <span class="help-block">Path to additional preprocessor to run before importing books into the library</span>
-                    <input type="button" value="Test preprocessor" id="testpreprocessor" class="btn btn-default" />
+                    <input type="button" value="Test preprocessor" id="test_preprocessor" class="btn btn-default" />
                   </div>
                   <div class="form-group">
                     <label for="ebook_convert">ebook-convert program:</label>
                     <input type="text" id="ebook_convert" name="ebook_convert" value="${lazylibrarian.CONFIG['EBOOK_CONVERT']}" class="form-control" placeholder="ebook-convert program">
                     <span class="help-block">Path to "ebook-convert" to convert book formats</span>
-                    <input type="button" value="Test ebook-convert" id="testebookconvert" class="btn btn-default" />
+                    <input type="button" value="Test ebook-convert" id="test_ebook_convert" class="btn btn-default" />
                   </div>
                   <div class="form-group">
                     <label for="ffmpeg">ffmpeg program:</label>
@@ -2454,7 +2454,7 @@
                     <label for="ffmpeg">ffmpeg output extension:</label>
                     <input type="text" id="ffmpeg_out" name="ffmpeg_out" value="${lazylibrarian.CONFIG['FFMPEG_OUT']}" class="form-control" placeholder="leave blank to use input extension">
                     <span class="help-block">If you need to force a particular output type</span>
-                    <input type="button" value="Test ffmpeg" id="testffmpeg" class="btn btn-default" />
+                    <input type="button" value="Test ffmpeg" id="test_ffmpeg" class="btn btn-default" />
                   </div>
                   <div class="form-group">
                     <label for="git_program">git program:</label>

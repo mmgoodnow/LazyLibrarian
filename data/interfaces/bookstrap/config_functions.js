@@ -1370,7 +1370,7 @@
         });
         $('#test_ebookconvert').click(function () {
             var prg = $.trim($("#ebook_convert").val());
-            $.get("test_ebookconvert", { 'prg': prg},
+            $.get("test_ebook_convert", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'ebook-convert',
@@ -1385,9 +1385,9 @@
                 });
         });
 
-        $('#testffmpeg').click(function () {
+        $('#test_ffmpeg').click(function () {
             var prg = $.trim($("#ffmpeg").val());
-            $.get("testffmpeg", { 'prg': prg},
+            $.get("test_ffmpeg", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'FFMPEG',
@@ -1402,9 +1402,9 @@
                 });
         });
 
-        $('#testpreprocessor').click(function () {
+        $('#test_preprocessor').click(function () {
             var prg = $.trim($("#ext_preprocessor").val());
-            $.get("test_pre_processor", { 'prg': prg},
+            $.get("test_preprocessor", { 'prg': prg},
                 function (data) {
                     bootbox.dialog({
                         title: 'PreProcessor',
