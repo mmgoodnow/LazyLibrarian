@@ -383,7 +383,7 @@ def safe_move(src, dst, action='move'):
     """ Move or copy src to dst
         Retry without accents if unicode error as some file systems can't handle (some) accents
         Retry with some characters stripped if bad filename
-        eg windows can't handle <>?":| (and maybe others) in filenames
+        eg windows can't handle <>?"*:| (and maybe others) in filenames
         Return (new) dst if success """
 
     if src == dst:  # nothing to do

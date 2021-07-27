@@ -982,7 +982,7 @@ def initialize():
             # noinspection PyUnresolvedReferences
             from lazylibrarian import dbcheck
             dbcheck.dbcheck()
-        except ImportError:
+        except ImportError as e:
             pass
 
         BOOKSTRAP_THEMELIST = build_bookstrap_themes(PROG_DIR)
