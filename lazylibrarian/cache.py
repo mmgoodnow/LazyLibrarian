@@ -201,12 +201,14 @@ def html_request(my_url, use_cache=True, expire=True):
     return result, in_cache
 
 
-def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, headers={}):
+def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, headers=None):
     # hashfilename = hash of url
     # if hashfilename exists in cache and isn't too old, return its contents
     # if not, read url and store the result in the cache
     # return the result, and boolean True if source was cache
     #
+    if headers is None:
+        headers = {}
     cache_location = cache + "Cache"
     cache_location = os.path.join(lazylibrarian.CACHEDIR, cache_location)
     myhash = md5_utf8(url)

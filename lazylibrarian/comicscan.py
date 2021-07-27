@@ -65,12 +65,12 @@ def comic_scan(comicid=None):
                 issueid = mag['IssueID']
                 comicid = mag['ComicID']
                 issuefile = mag['IssueFile']
+                control_value_dict = {"ComicID": comicid}
 
                 if issuefile and not path_isfile(issuefile):
                     db.action('DELETE from comicissues where issuefile=?', (issuefile,))
                     logger.info('Issue %s - %s deleted as not found on disk' % (title, issueid))
 
-                    control_value_dict = {"ComicID": comicid}
                     new_value_dict = {
                         "LastAcquired": None,  # clear magazine dates
                         "LatestIssue": None,  # we will fill them in again later
@@ -150,7 +150,7 @@ def comic_scan(comicid=None):
                         # is this comicid already in the database?
                         mag_entry = db.match('SELECT * from comics WHERE ComicID=?', (comicid,))
                         if mag_entry:
-                            logger.debug("ComicID %s already exists" % (comicid))
+                            logger.debug("ComicID %s already exists" % comicid)
                             if aka:
                                 akas = get_list(mag_entry['aka'])
                                 if aka not in akas:
