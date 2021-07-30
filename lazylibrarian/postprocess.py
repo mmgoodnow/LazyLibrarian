@@ -49,11 +49,11 @@ from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3re
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts_file, jpg_file, \
-    safe_copy, safe_move, make_dirs, run_script, multibook, namedic, listdir, \
+    safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
-    make_utf8bytes, disp_name
+    make_utf8bytes, disp_name, sanitize
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
@@ -98,9 +98,9 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.warn("%s is not a valid issue file" % source_file)
             return False
         if PY2:
-            title = unaccented_bytes(replace_all(title, namedic), only_ascii=False)
+            title = unaccented_bytes(sanitize(title), only_ascii=False)
         else:
-            title = unaccented(replace_all(title, namedic), only_ascii=False)
+            title = unaccented(sanitize(title), only_ascii=False)
         if not title:
             logger.warn("No title for %s, rejecting" % source_file)
             return False
@@ -137,7 +137,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         else:
             global_name = "%s %s" % (title, issuenum)
         global_name = unaccented(global_name, only_ascii=False)
-        global_name = replace_all(global_name, namedic)
+        global_name = sanitize(global_name)
         tempdir = tempfile.mkdtemp()
         _ = safe_copy(source_file, tempdir)
         data = {"IssueDate": issuenum, "Title": title}
@@ -792,7 +792,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # torrent names might have words_separated_by_underscores
                     matchtitle = matchtitle.split(' LL.(')[0].replace('_', ' ')
                     # strip noise characters
-                    matchtitle = replace_all(matchtitle, namedic)
+                    matchtitle = sanitize(matchtitle)
                     matches = []
                     logger.debug('Looking for %s %s in %s' % (booktype, matchtitle, download_dir))
 
@@ -811,7 +811,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             else:
                                 matchname = unaccented(fname, only_ascii=False)
                             matchname = matchname.split(' LL.(')[0].replace('_', ' ')
-                            matchname = replace_all(matchname, namedic)
+                            matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                                 logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
@@ -977,7 +977,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = make_utf8bytes(dest_path)[0]
                             global_name = namevars['BookFile']
-                            global_name = replace_all(global_name, namedic)
+                            global_name = sanitize(global_name)
                             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': book['BookID']}
                         else:
                             data = db.match('SELECT * from magazines WHERE Title=?', (book['BookID'],))
@@ -989,9 +989,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 # trying to go to the same directory.
                                 mostrecentissue = data['IssueDate']  # keep for processing issues arriving out of order
                                 if PY2:
-                                    mag_name = unaccented_bytes(replace_all(book['BookID'], namedic), only_ascii=False)
+                                    mag_name = unaccented_bytes(sanitize(book['BookID']), only_ascii=False)
                                 else:
-                                    mag_name = unaccented(replace_all(book['BookID'], namedic), only_ascii=False)
+                                    mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
                                 # book auxinfo is a cleaned date, eg 2015-01-01
                                 iss_date = book['AuxInfo']
                                 # suppress the "-01" day on monthly magazines
@@ -1016,7 +1016,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 else:
                                     global_name = "%s %s" % (mag_name, book['AuxInfo'])
                                 global_name = unaccented(global_name, only_ascii=False)
-                                global_name = replace_all(global_name, namedic)
+                                global_name = sanitize(global_name)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
                             else:
                                 if book['BookID'] and '_' in book['BookID']:
@@ -1031,11 +1031,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
                                     mostrecentissue = data['LatestIssue']
                                     if PY2:
-                                        comic_name = unaccented_bytes(replace_all(data['Title'], namedic),
-                                                                      only_ascii=False)
+                                        comic_name = unaccented_bytes(sanitize(data['Title']), only_ascii=False)
                                     else:
-                                        comic_name = unaccented(replace_all(data['Title'], namedic),
-                                                                only_ascii=False)
+                                        comic_name = unaccented(sanitize(data['Title']), only_ascii=False)
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
@@ -1043,7 +1041,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                                     global_name = "%s %s" % (comic_name, issueid)
                                     global_name = unaccented(global_name, only_ascii=False)
-                                    global_name = replace_all(global_name, namedic)
+                                    global_name = sanitize(global_name)
                                     data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
                                     if lazylibrarian.CONFIG['COMIC_RELATIVE']:
@@ -2185,7 +2183,7 @@ def process_book(pp_path=None, bookid=None, library=None):
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
             # audiobooks are usually multi part so can't be renamed this way
             global_name = namevars['BookFile']
-            global_name = replace_all(global_name, namedic)
+            global_name = sanitize(global_name)
             if booktype == "AudioBook":
                 dest_path = stripspaces(os.path.join(dest_dir, namevars['AudioFolderName']))
             else:

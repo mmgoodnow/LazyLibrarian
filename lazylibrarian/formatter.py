@@ -24,6 +24,25 @@ from six import PY2, text_type, binary_type
 from six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
 
 
+# dict to remove/replace characters we don't want in a filename - this might be too strict?
+namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
+           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
+           '\\\\': '\\'}
+
+
+def sanitize(name):
+    filename = make_unicode(name)
+    # strip characters we don't want in a filename
+    filename = replace_all(filename, namedic)
+    # Remove all characters below code point 32
+    filename = "".join(c for c in filename if 31 < ord(c))
+    filename = unicodedata.normalize('NFKD', filename)
+    # windows filenames can't end in space or dot
+    while filename and filename[-1] in '. ':
+        filename = filename[:-1]
+    return filename
+
+
 def versiontuple(versionstring):
     # convert a version string into 3 part tuple without using packaging.version.parse
     # as we can't be sure that's installed

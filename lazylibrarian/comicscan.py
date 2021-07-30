@@ -20,8 +20,8 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
-from lazylibrarian.common import walk, setperm, path_isfile, syspath, namedic
-from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, replace_all
+from lazylibrarian.common import walk, setperm, path_isfile, syspath
+from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
 from six import PY2
@@ -41,7 +41,7 @@ def comic_scan(comicid=None):
                 title = mags['Title']
         mag_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
         if title and '$Title' in mag_path:
-            comic_name = unaccented(replace_all(title, namedic), only_ascii=False)
+            comic_name = unaccented(sanitize(title), only_ascii=False)
             mag_path = mag_path.replace('$Title', comic_name)
             onetitle = comic_name
         else:
@@ -157,6 +157,7 @@ def comic_scan(comicid=None):
                                     logger.debug("Adding aka %s to %s" % (aka, comicid))
                                     akas.append(aka)
                                     new_value_dict = {"aka": ','.join(akas)}
+                                    control_value_dict = {"ComicID": comicid}
                                     db.upsert("comics", new_value_dict, control_value_dict)
                         elif aka:
                             # is the aka id in the database

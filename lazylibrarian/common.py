@@ -60,7 +60,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run_time, is_valid_booktype, check_int, \
-    get_list, make_unicode, unaccented, replace_all, make_bytestr
+    get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -69,10 +69,6 @@ NOTIFY_FAIL = 3
 
 notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library", NOTIFY_FAIL: "Download failed"}
 
-# dict to remove/replace characters we don't want in a filename - this might be too strict?
-namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
-           ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
-           '\\\\': '\\', '\r': '', '\t': '', '\n': ''}
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark

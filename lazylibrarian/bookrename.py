@@ -17,10 +17,9 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook, listdir, namedic, path_isdir, \
-    only_punctuation, syspath
-from lazylibrarian.formatter import plural, is_valid_booktype, check_int, replace_all, get_list, \
-    make_unicode, make_utf8bytes, sort_definite, surname_first
+from lazylibrarian.common import safe_move, multibook, listdir, path_isdir, only_punctuation, syspath
+from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
+    make_unicode, make_utf8bytes, sort_definite, surname_first, sanitize
 from six import PY2
 
 try:
@@ -416,7 +415,7 @@ def audio_rename(bookid, rename=False, playlist=False):
             pattern = ' '.join(pattern.split()).strip()
             pattern = pattern + os.path.splitext(part[3])[1]
             if rename:
-                pattern = replace_all(pattern, namedic)
+                pattern = sanitize(pattern)
 
             if playlist:
                 if PY2:
@@ -708,13 +707,16 @@ def name_vars(bookid, abridged=''):
             mydict['SortAuthor'] = ''
             mydict['SortTitle'] = ''
 
-    dest_path = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'], mydict)
-    mydict['FolderName'] = stripspaces(replace_all(dest_path, namedic))
-    dest_path = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'], mydict)
-    mydict['AudioFolderName'] = stripspaces(replace_all(dest_path, namedic))
-    mydict['BookFile'] = replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'], mydict)
-    mydict['AudioFile'] = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'], mydict)
-    mydict['AudioSingleFile'] = replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'], mydict)
+    mydict['FolderName'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'],
+                                                            mydict)))
+    mydict['AudioFolderName'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'],
+                                                                 mydict)))
+    mydict['BookFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'],
+                                                          mydict)))
+    mydict['AudioFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'],
+                                                           mydict)))
+    mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'],
+                                                                 mydict)))
     return mydict
 
 
