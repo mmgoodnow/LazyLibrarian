@@ -702,11 +702,15 @@ def cv_issue(seriesid, issuenum):
     # so try to extract site-detail-url from data, then page scrape
     # to get names and roles
     contributors = ''
-    try:
-        res['Link'] = data['results'][0]['site_detail_url']
-        res['Description'] = data['results'][0]['description']
-    except IndexError:
-        logger.debug("No link/description from %s" % url)
+    if data:
+        try:
+            res['Link'] = data['results'][0]['site_detail_url']
+            res['Description'] = data['results'][0]['description']
+        except IndexError:
+            logger.debug("No link/description from %s" % url)
+            return res
+    else:
+        logger.debug("No data from %s" % url)
         return res
 
     if res['Link']:

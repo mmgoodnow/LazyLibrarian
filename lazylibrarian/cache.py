@@ -98,7 +98,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             if raw:
                 return r.content, True
             return r.text, True
-        elif r.status_code == 403 and 'googleapis' in url:
+        elif r.status_code == 403:
             logger.debug(r.text)
             # noinspection PyBroadException
             try:
@@ -207,8 +207,6 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     # if not, read url and store the result in the cache
     # return the result, and boolean True if source was cache
     #
-    if headers is None:
-        headers = {}
     cache_location = cache + "Cache"
     cache_location = os.path.join(lazylibrarian.CACHEDIR, cache_location)
     myhash = md5_utf8(url)
