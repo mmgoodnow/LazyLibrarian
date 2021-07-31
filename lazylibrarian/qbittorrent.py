@@ -121,6 +121,8 @@ class QbittorrentClient(object):
             url = self.base_url + '/' + command
         data = None
         headers = dict()
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug('QBittorrent URL: %s' % url)
 
         if files or content_type == 'multipart/form-data':
             data, headers = encode_multipart(args, files, '-------------------------acebdf13572468')
@@ -143,6 +145,8 @@ class QbittorrentClient(object):
                 content_type = response.headers['content-type']
             except KeyError:
                 content_type = ''
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                logger.debug("QBitTorrent content type [%s]" % content_type)
 
             resp = response.read()
             # some commands return json
@@ -176,10 +180,11 @@ class QbittorrentClient(object):
         :rtype: dict
         """
         if self.hashid:
-            args = {'hashes': self.hashid}
+            args = {'hashes': self.hashid.lower()}
         else:
             args = None
         if self.cmdset == 2:
+            args = None  # hashes appears to be broken in api 2.6.x, no results returned
             value = self._command('torrents/info', args)
         else:
             value = self._command('query/torrents', args)
