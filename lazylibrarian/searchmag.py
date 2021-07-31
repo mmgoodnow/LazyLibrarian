@@ -599,6 +599,9 @@ def get_issue_date(nzbtitle_exploded):
                     break
                 except ValueError:
                     regex_pass = 0
+                except OverflowError:
+                    logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
+                    regex_pass = 0
         pos += 1
 
     # MonthName DD YYYY or MonthName DD, YYYY
@@ -617,6 +620,10 @@ def get_issue_date(nzbtitle_exploded):
                         break
                     except ValueError:
                         regex_pass = 0
+                    except OverflowError:
+                        logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
+                        regex_pass = 0
+
             pos += 1
 
     # YYYY MM_or_MonthName or YYYY MM_or_MonthName DD
@@ -644,6 +651,9 @@ def get_issue_date(nzbtitle_exploded):
                         issuedate = "%04d-%02d-%02d" % (year, month, day)
                         break
                     except ValueError:
+                        regex_pass = 0
+                    except OverflowError:
+                        logger.debug("Overflow [%s]" % str(nzbtitle_exploded))
                         regex_pass = 0
             pos += 1
 
