@@ -216,7 +216,6 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         authorimg = ''
         new_author = not refresh
         entry_status = 'Active'
-        dbauthor = None
 
         if is_valid_authorid(authorid):
             dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
