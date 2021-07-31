@@ -7,8 +7,14 @@ Logs/*
 lazylibrarian.db*
 version.txt
 *.log
-*.AuthorCache/*
-*.ProviderCache/*
+.idea/*
+.vscode/*
+venv/*
+client*
+*docker*
+git_helper.sh
+update-version.sh
+startlazy.sh
 
 #  Bookstrap related  #
 #######################

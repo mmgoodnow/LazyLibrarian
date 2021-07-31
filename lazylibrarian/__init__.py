@@ -2046,6 +2046,7 @@ def daemonize():
     """
     Fork off as a daemon
     """
+    # active_count in python 3.9 but camelCase name still supported
     threadcount = threading.activeCount()
     if threadcount != 1:
         logger.warn('There are %d active threads. Daemonizing may cause strange behavior.' % threadcount)

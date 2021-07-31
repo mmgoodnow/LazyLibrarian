@@ -216,6 +216,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         authorimg = ''
         new_author = not refresh
         entry_status = 'Active'
+        dbauthor = None
 
         if is_valid_authorid(authorid):
             dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
@@ -283,9 +284,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 db.upsert("authors", new_value_dict, control_value_dict)
                 match = True
             else:
-                logger.warn("Nothing found for %s:%s" % (authorid, authorname))
-                if not dbauthor:  # goodreads may have changed authorid?
-                    db.action('DELETE from authors WHERE AuthorID=?', (authorid,))
+                logger.warn("No author info for %s:%s" % (authorid, authorname))
+                # goodreads sometimes changes authorid
+                # maybe change of provider or no reply from provider
 
         if not match and authorname and 'unknown' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
@@ -295,7 +296,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             else:
                 gr = GoodReads(authorname)
                 author = gr.find_author_id(refresh=refresh)
-            dbauthor = None
+
             if author:
                 authorid = author['authorid']
                 dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (author['authorid'],))
@@ -363,9 +364,10 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     db.action("PRAGMA foreign_keys = ON")
                 match = True
             else:
-                logger.warn("Nothing found for %s" % authorname)
-                if not dbauthor:
-                    db.action('DELETE from authors WHERE AuthorName=?', (authorname,))
+                logger.error("No authorID found for %s" % authorname)
+                # name not found at provider or no reply from provider
+                # don't keep trying the same one...
+                db.action("UPDATE authors SET Updated=? WHERE AuthorName=?", (int(time.time()), authorname))
                 return
         if not match:
             logger.error("No matching result for %s:%s" % (authorid, authorname))
