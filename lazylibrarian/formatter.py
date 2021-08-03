@@ -31,11 +31,13 @@ namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's
 
 
 def sanitize(name):
+    if not name:
+        return ''
     filename = make_unicode(name)
     # strip characters we don't want in a filename
     filename = replace_all(filename, namedic)
     # Remove all characters below code point 32
-    filename = "".join(c for c in filename if 31 < ord(c))
+    filename = u"".join(c for c in filename if 31 < ord(c))
     filename = unicodedata.normalize('NFKD', filename)
     # windows filenames can't end in space or dot
     while filename and filename[-1] in '. ':
