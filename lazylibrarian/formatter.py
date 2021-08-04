@@ -787,6 +787,7 @@ def unaccented(str_or_unicode, only_ascii=True, umlauts=True):
 def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     if not str_or_unicode:
         return ''.encode('ASCII')  # ensure bytestring for python3
+    # use long form to separate out the accents into combining type
     try:
         cleaned = unicodedata.normalize('NFKD', str_or_unicode)
     except TypeError:

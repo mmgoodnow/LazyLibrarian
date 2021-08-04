@@ -3349,7 +3349,7 @@ class WebInterface(object):
                             logger.warn("Failed to find file %s" % authorimg)
                         else:
                             extn = os.path.splitext(authorimg)[1].lower()
-                            if extn and extn in ['.jpg', '.jpeg', '.png']:
+                            if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
                                 destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
                                 try:
                                     copyfile(authorimg, destfile)
@@ -3365,11 +3365,11 @@ class WebInterface(object):
 
                         if authorimg.startswith('http'):
                             # cache image from url
-                            extn = os.path.splitext(authorimg)[1].lower()
-                            if extn and extn in ['.jpg', '.jpeg', '.png']:
-                                authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
-                                if success:
-                                    rejected = False
+                            # extn = os.path.splitext(authorimg)[1].lower()
+                            # if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
+                            authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
+                            if success:
+                                rejected = False
 
                         if rejected:
                             logger.warn("Author Image [%s] rejected" % authorimg)
