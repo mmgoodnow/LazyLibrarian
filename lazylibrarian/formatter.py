@@ -38,7 +38,7 @@ def sanitize(name):
     filename = replace_all(filename, namedic)
     # Remove all characters below code point 32
     filename = u"".join(c for c in filename if 31 < ord(c))
-    filename = unicodedata.normalize('NFKD', filename)
+    filename = unicodedata.normalize('NFC', filename)
     # windows filenames can't end in space or dot
     while filename and filename[-1] in '. ':
         filename = filename[:-1]
