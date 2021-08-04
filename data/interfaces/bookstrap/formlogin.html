@@ -30,10 +30,19 @@
 		  <input type="password" placeholder="password" name="current_password" id="current_password" required autocomplete/>
     </p>
     <p>
-      <button>Sign in</button>
+      <button name="login" id="login">Sign in</button>
     </p>
   </form>
 </body>
 
 </html>
 
+  <script type="text/javascript">
+    $(document).ready(function()
+    {
+        $('#current_password').keypress(function(e){
+            if(e.keyCode==13)
+                $('#login').click();
+        });
+    });
+  </script>

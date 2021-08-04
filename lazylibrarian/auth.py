@@ -149,7 +149,7 @@ class AuthController(object):
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
-    def login(self, current_username=None, current_password=None, remember_me='0', from_page="/"):
+    def login(self, current_username=None, current_password=None, remember_me='0', from_page="/", **kwargs):
         if current_username is None or current_password is None:
             return self.get_loginform("", from_page=from_page)
 
