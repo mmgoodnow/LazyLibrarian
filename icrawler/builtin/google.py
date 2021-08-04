@@ -169,7 +169,7 @@ class GoogleParser(Parser):
             #data = meta[31][0][12][2]
             #uris = [img[1][3][0] for img in data if img[0] == 1]
 
-            uris = re.findall(r'http.*?\.(?:jpg|png|bmp)', txt)
+            uris = re.findall(r'http[^\[]*?\.(?:jpg|png|bmp)', txt)
             return [{'file_url': uri} for uri in uris]
 
 
