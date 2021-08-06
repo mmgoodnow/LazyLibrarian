@@ -4912,11 +4912,12 @@ class WebInterface(object):
                               firstpage=firstpage)
 
     @cherrypy.expose
-    def past_issues(self, which_status=None, mag=None):
+    def past_issues(self, mag=None, **kwargs):
         if not mag or mag == 'None':
             title = "Past Issues"
         else:
             title = mag
+        which_status = kwargs.get('whichStatus', '')
         if not which_status or which_status == 'None':
             which_status = "Skipped"
         return serve_template(
