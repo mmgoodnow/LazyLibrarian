@@ -766,16 +766,19 @@ umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd
 def no_umlauts(s):
     if 'de' not in get_list(lazylibrarian.CONFIG['IMP_PREFLANG']):
         return s
-    # replace any diacritic 0x308 (umlaut) with 'e' so 'ü': 'ue', 'Ä': 'Ae'
+
+    s = replace_all(s, umlaut_dict)
     res = ''
+    # long form to split out the accents
+    s = unicodedata.normalize('NFKD', s)
+    # replace any diacritic 0x308 (umlaut) with 'e' so 'ü': 'ue', 'Ä': 'Ae'
     for c in s:
-        if unicodedata.combining(c):
-            if ord(c) == 0x308:
-                res += 'e'
+        if unicodedata.combining(c) and ord(c) == 0x308:
+            res += 'e'
         else:
             res += c
-    res = replace_all(res, umlaut_dict)
-    return res
+    # back to short form for consistency
+    return unicodedata.normalize('NFC', res)
 
 
 def unaccented(str_or_unicode, only_ascii=True, umlauts=True):
