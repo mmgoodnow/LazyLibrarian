@@ -465,14 +465,22 @@ def book_rename(bookid):
     db = database.DBConnection()
     cmd = 'select AuthorName,BookName,BookFile from books,authors where books.AuthorID = authors.AuthorID and bookid=?'
     exists = db.match(cmd, (bookid,))
+
     if not exists:
-        logger.debug("Invalid bookid in book_rename %s" % bookid)
-        return ''
+        msg = "Invalid bookid in book_rename %s" % bookid
+        logger.debug(msg)
+        return '', msg
 
     f = exists['BookFile']
     if not f:
-        logger.debug("No filename for %s in BookRename %s" % bookid)
-        return ''
+        msg = "No filename for %s in BookRename" % bookid
+        logger.debug(msg)
+        return '', msg
+
+    if not os.path.isfile(f):
+        msg = "Missing source file for %s in BookRename" % bookid
+        logger.debug(msg)
+        return '', msg
 
     r = os.path.dirname(f)
     if not lazylibrarian.CONFIG['CALIBRE_RENAME']:
@@ -487,24 +495,26 @@ def book_rename(bookid):
         if calibreid:
             msg = '[%s] looks like a calibre directory: not renaming book' % os.path.basename(r)
             logger.debug(msg)
-            return f
+            return f, msg
 
     reject = multibook(r)
     if reject:
-        logger.debug("Not renaming %s, found multiple %s" % (f, reject))
-        return f
+        msg = "Not renaming %s, found multiple %s" % (f, reject)
+        logger.debug(msg)
+        return f, msg
 
-    seriesinfo = name_vars(bookid)
-    dest_path = seriesinfo['FolderName']
+    namevars = name_vars(bookid)
+    dest_path = namevars['FolderName']
     dest_dir = lazylibrarian.directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
     dest_path = stripspaces(dest_path)
     oldpath = r
 
-    new_basename = seriesinfo['BookFile']
+    new_basename = namevars['BookFile']
     if ' / ' in new_basename:  # used as a separator in goodreads omnibus
-        logger.warn("book_rename [%s] looks like an omnibus? Not renaming" % new_basename)
-        return f
+        msg = "book_rename [%s] looks like an omnibus? Not renaming" % new_basename
+        logger.warn(msg)
+        return f, msg
 
     if oldpath != dest_path:
         try:
@@ -512,12 +522,16 @@ def book_rename(bookid):
             logger.debug("book_rename folder %s to %s" % (oldpath, dest_path))
         except Exception as why:
             if not path_isdir(dest_path):
-                logger.error('Unable to create directory %s: %s' % (dest_path, why))
-                return f
+                msg = 'Unable to create directory %s: %s' % (dest_path, why)
+                logger.error(msg)
+                return f, msg
 
     book_basename, _ = os.path.splitext(os.path.basename(f))
 
-    if book_basename != new_basename:
+    if book_basename == new_basename:
+        return f, "No change"
+    else:
+        msg = ''
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
         for fname in listdir(dest_path):
             extn = ''
@@ -536,14 +550,17 @@ def book_rename(bookid):
                 if ofname != nfname:
                     try:
                         nfname = safe_move(ofname, nfname)
-                        logger.debug("book_rename file %s to %s" % (ofname, nfname))
+                        m = "book_rename file %s to %s " % (ofname, nfname)
+                        logger.debug(m)
+                        msg += m
                         oldname = os.path.join(oldpath, fname)
                         if oldname == exists['BookFile']:  # if we renamed/moved the preferred file, return new name
                             f = nfname
                     except Exception as e:
-                        logger.error('Unable to rename [%s] to [%s] %s %s' %
-                                     (ofname, nfname, type(e).__name__, str(e)))
-    return f
+                        m = 'Unable to rename [%s] to [%s] %s %s ' % (ofname, nfname, type(e).__name__, str(e))
+                        logger.error(m)
+                        msg += m
+        return f, msg
 
 
 def name_vars(bookid, abridged=''):
@@ -714,9 +731,13 @@ def name_vars(bookid, abridged=''):
     mydict['BookFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'],
                                                           mydict)))
     mydict['AudioFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'],
-                                                           mydict)))
+                                                           mydict))).replace('sPart',
+                                                                             '$Part').replace('sTotal',
+                                                                                              '$Total')
     mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'],
-                                                                 mydict)))
+                                                                 mydict))).replace('sPart',
+                                                                                   '$Part').replace('sTotal',
+                                                                                                    '$Total')
     return mydict
 
 
