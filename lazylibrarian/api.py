@@ -25,7 +25,7 @@ from six.moves.urllib_parse import urlsplit, urlunsplit
 import cherrypy
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.bookrename import audio_rename, name_vars
+from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
     set_work_id, get_gb_info, set_genres, genre_filter, get_book_pubdate, add_series_members
@@ -217,6 +217,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'changeProvider': '&name= &xxx= Change values for a provider',
             'addProvider': '&type= &xxx= Add a new provider',
             'delProvider': '&name= Delete a provider',
+            'renameBook': '&id= Rename a book to match configured pattern',
             }
 
 
@@ -312,6 +313,14 @@ class Api(object):
             rows_as_dic.append(row_as_dic)
 
         return rows_as_dic
+
+    def _renamebook(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = {'success': False, 'data': 'Missing parameter: id'}
+        else:
+            fname, err = book_rename(kwargs['id'])
+            self.data = {'success': fname != '', 'data': fname, 'msg': err}
+        return
 
     def _listproviders(self):
         self._listdirectproviders()
