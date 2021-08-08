@@ -619,7 +619,7 @@ def split_title(author, book):
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
-    brace = book.find('(')
+    brace = book.rfind('(')
     # .find() returns position in string (0 to len-1) or -1 if not found
     # change position to 1 to len, or zero if not found so we can use boolean if
     brace += 1
@@ -632,7 +632,7 @@ def split_title(author, book):
             # separate out the series part
             book, bookseries = book.rsplit('(', 1)
             book = book.strip().rstrip(':').strip()
-            brace = book.find('(')
+            brace = book.rfind('(')
             brace += 1
         else:
             parts = book.rsplit('(', 1)
@@ -654,7 +654,7 @@ def split_title(author, book):
     if brace:
         endbrace = book.find(')')
         endbrace += 1
-        if endbrace:
+        if endbrace > brace:
             if ' ' not in book[brace:endbrace - 1]:
                 brace = 0
     if colon:
