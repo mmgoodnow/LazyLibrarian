@@ -3653,7 +3653,7 @@ class WebInterface(object):
         if 'marktype' in args:
             library = args['marktype']
 
-        for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype']:
+        for arg in ['book_table_length', 'ignored', 'library', 'booklang', 'marktype', 'AuthorID']:
             args.pop(arg, None)
 
         cookie = None

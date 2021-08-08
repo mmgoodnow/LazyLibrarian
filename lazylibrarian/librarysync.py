@@ -1232,7 +1232,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                       (book_filename, bookid))
 
                                             if lazylibrarian.CONFIG['IMP_RENAME']:
-                                                book_filename = book_rename(bookid)
+                                                book_filename, _ = book_rename(bookid)
 
                                             # location may have changed on rename
                                             if book_filename and book_filename != check_status['BookFile']:
