@@ -63,7 +63,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2020-09-13 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2021-09-06 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -80,20 +80,41 @@ class IRC:
             lazylibrarian.providers.block_provider(server, msg, 600)
 
     def ison(self, msg):
-        self.irc.send(make_bytestr("ISON " + msg + "\n"))
+        try:
+            self.irc.send(make_bytestr("ISON " + msg + "\n"))
+        except Exception as e:
+            logger.debug("Exception sending %s" % msg)
+            logger.debug(str(e))
+            lazylibrarian.providers.block_provider(self.server, msg, 600)
 
     def pong(self, msg):
         reply = msg.replace('PING', 'PONG')
         logger.debug(reply)
-        self.irc.send(make_bytestr(reply + "\n"))
+        try:
+            self.irc.send(make_bytestr(reply + "\n"))
+        except Exception as e:
+            logger.debug("Exception sending %s" % msg)
+            logger.debug(str(e))
+            lazylibrarian.providers.block_provider(self.server, msg, 600)
 
     def version(self):
         reply = "VERSION " + self.ver
         logger.debug(reply)
-        self.irc.send(make_bytestr(reply + "\n"))
+        try:
+            self.irc.send(make_bytestr(reply + "\n"))
+        except Exception as e:
+            logger.debug("Exception sending %s" % reply)
+            logger.debug(str(e))
+            lazylibrarian.providers.block_provider(self.server, reply, 600)
 
     def join(self, channel):
-        self.irc.send(make_bytestr("JOIN " + channel + "\n"))
+        try:
+            self.irc.send(make_bytestr("JOIN " + channel + "\n"))
+        except Exception as e:
+            msg = "Exception sending JOIN %s" % channel
+            logger.debug(msg)
+            logger.debug(str(e))
+            lazylibrarian.providers.block_provider(self.server, msg, 600)
 
     def part(self, channel):
         self.irc.send(make_bytestr("PART " + channel + " :Bye\n"))
