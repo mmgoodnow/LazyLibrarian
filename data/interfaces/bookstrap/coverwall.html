@@ -47,7 +47,7 @@
                     <td class="bookart text-center"><a href="open_mag?bookid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueDate']}</td>
               %endif
               %if redirect == 'authors':
-                    <td class="bookart text-center"><a href="author_page?authorid=${result['AuthorID']}" target="_blank" rel="noreferrer"><img src="${result['AuthorImg']}" alt="cover" class="bookcover-sm"></a><br>${result['AuthorName']}<br>${result['Status']}<br>${result['HaveBooks']}/${result['TotalBooks']}</td>
+                    <td class="bookart text-center"><a href="author_page?authorid=${result['AuthorID']}" target="_blank" rel="noreferrer"><img loading="lazy" src="${result['AuthorImg']}" alt="cover" class="bookcover-sm"></a><br>${result['AuthorName']}<br>${result['Status']}<br>${result['HaveBooks']}/${result['TotalBooks']}</td>
               %endif
               %if count == columns:
                 <% count = 0 %>
