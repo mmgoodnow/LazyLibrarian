@@ -3965,6 +3965,33 @@ class WebInterface(object):
             columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
+    def author_wall(self, have='1'):
+        self.label_thread('AUTHORWALL')
+        db = database.DBConnection()
+        cmd = 'SELECT Status,AuthorImg,AuthorID,AuthorName,HaveBooks,TotalBooks from authors '
+        if have == '1':
+            cmd += 'where Status="Active" or Status="Wanted" order by AuthorName ASC'
+            title = 'Active/Wanted Authors'
+        else:
+            cmd += 'where Status !="Active" and Status != "Wanted" order by AuthorName ASC'
+            title = 'Inactive Authors'
+        results = db.select(cmd)
+        if not len(results):
+            raise cherrypy.HTTPRedirect("authors")
+        # maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
+        # if maxcount and len(results) > maxcount:
+        #     results = results[:maxcount]
+        #     title = "%s (Top %i)" % (title, len(results))
+        ret = []
+        for result in results:
+            item = dict(result)
+
+            ret.append(item)
+        return serve_template(
+            templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
+            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+
+    @cherrypy.expose
     def audio_wall(self):
         self.label_thread('AUDIOWALL')
         db = database.DBConnection()
@@ -3995,6 +4022,10 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect('book_wall?have=%s' % have)
         elif redirect == 'magazines':
             raise cherrypy.HTTPRedirect('mag_wall')
+        elif redirect == 'comic':
+            raise cherrypy.HTTPRedirect('comic_wall')
+        elif redirect == 'authors':
+            raise cherrypy.HTTPRedirect('author_wall?have=%s' % have)
         else:
             raise cherrypy.HTTPRedirect('home')
 

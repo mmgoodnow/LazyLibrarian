@@ -21,6 +21,11 @@
                 <a href="toggle_my_auth" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-users"></i></a>
               %endif
             %endif
+            %if lazylibrarian.IGNORED_AUTHORS == True:
+                <a href="author_wall?have=0" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="Grid view"><i class="fa fa-th"></i></a>
+            %else:
+                <a href="author_wall?have=1" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="Grid view"><i class="fa fa-th"></i></a>
+            %endif
         </div>
         <div class="clearfix visible-xs"><hr/></div>
         %if perm&lazylibrarian.perm_search:

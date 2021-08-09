@@ -36,16 +36,18 @@
                 %else:
                   <td class="bookart text-center"><a href="${result['BookLink']}" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
                 %endif
-              %else:
-                %if redirect == 'audio':
+              %endif
+              %if redirect == 'audio':
                   <td class="bookart text-center"><a href="open_book?bookid=${result['BookID']}&library=AudioBook" target="_blank" rel="noreferrer"><img src="${result['BookImg']}" alt="cover" class="bookcover-sm"></a><br>${result['BookName']}</td>
-                %else:
-                  %if redirect == 'comic':
+              %endif
+              %if redirect == 'comic':
                     <td class="bookart text-center"><a href="open_comic?comicid=${result['ComicID']}&issueid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueID']}</td>
-                  %else:
+              %endif
+              %if redirect == 'magazines':
                     <td class="bookart text-center"><a href="open_mag?bookid=${result['IssueID']}" target="_blank" rel="noreferrer"><img src="${result['Cover']}" alt="cover" class="bookcover-sm"></a><br>${result['Title']}<br>${result['IssueDate']}</td>
-                  %endif
-                %endif
+              %endif
+              %if redirect == 'authors':
+                    <td class="bookart text-center"><a href="author_page?authorid=${result['AuthorID']}" target="_blank" rel="noreferrer"><img src="${result['AuthorImg']}" alt="cover" class="bookcover-sm"></a><br>${result['AuthorName']}<br>${result['Status']}<br>${result['HaveBooks']}/${result['TotalBooks']}</td>
               %endif
               %if count == columns:
                 <% count = 0 %>
