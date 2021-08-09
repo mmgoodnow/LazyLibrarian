@@ -29,6 +29,11 @@ namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's
            ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
            '\\\\': '\\'}
 
+#   ä ö ü Ä Ö Ü ß
+umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
+
+apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+
 
 def sanitize(name):
     if not name:
@@ -751,16 +756,16 @@ def surname_first(authorname):
 def clean_name(name, extras=None):
     if not name:
         return u''
+
+    if extras and "'" in extras:
+        name = replace_all(name, apostrophe_dic)
+
     valid_name_chars = u"-_.() %s" % extras
     cleaned = u''.join(c for c in name if c in valid_name_chars or c.isalnum())
     cleaned = cleaned.strip()
     if cleaned:
         return cleaned
     return name
-
-
-#   ä ö ü Ä Ö Ü ß
-umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
 
 
 def no_umlauts(s):
@@ -802,7 +807,7 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
     # replace all non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-    dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+    dic = apostrophe_dic
     # Other characters not converted by unicodedata.combining
     # c6 Ae, d0 Eth, d7 multiply, d8 Ostroke, de Thorn, df sharpS
     dic.update({u'\xc6': 'A', u'\xd0': 'D', u'\xd7': '*', u'\xd8': 'O', u'\xde': 'P', u'\xdf': 's'})

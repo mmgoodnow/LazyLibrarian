@@ -247,7 +247,7 @@ def get_searchterm(book, search_type):
         if bookname == authorname and book['bookSub']:
             # books like "Spike Milligan: Man of Letters"
             # where we split the title/subtitle on ':'
-            bookname = clean_name(book['bookSub'])
+            bookname = clean_name(book['bookSub'], "'")
         if bookname.startswith(authorname) and len(bookname) > len(authorname):
             # books like "Spike Milligan In his own words"
             # where we don't want to look for "Spike Milligan Spike Milligan In his own words"
