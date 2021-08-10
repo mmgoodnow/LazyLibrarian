@@ -2324,9 +2324,9 @@ class WebInterface(object):
         return "Searching %s providers, please wait..." % count
 
     @cherrypy.expose
-    def snatch_book(self, bookid=None, mode=None, provider=None, url=None, size=None, library=None):
-        logger.debug("snatch %s bookid %s mode=%s from %s url=[%s]" %
-                     (library, bookid, mode, provider, url))
+    def snatch_book(self, bookid=None, mode=None, provider=None, url=None, size=None, library=None, title=''):
+        logger.debug("snatch %s bookid %s mode=%s from %s url=[%s] %s" %
+                     (library, bookid, mode, provider, url, title))
         db = database.DBConnection()
         bookdata = db.match('SELECT AuthorID, BookName from books WHERE BookID=?', (bookid,))
         if bookdata:
@@ -2352,7 +2352,10 @@ class WebInterface(object):
             elif mode == 'nzb':
                 snatch, res = nzb_dl_method(bookid, bookdata["BookName"], url, library)
             elif mode == 'irc':
-                snatch, res = irc_dl_method(bookid, bookdata["BookName"], url, library, provider)
+                if title:
+                    snatch, res = irc_dl_method(bookid, title, url, library, provider)
+                else:
+                    snatch, res = irc_dl_method(bookid, bookdata["BookName"], url, library, provider)
             else:
                 res = 'Unhandled NZBmode [%s] for %s' % (mode, url)
                 logger.error(res)

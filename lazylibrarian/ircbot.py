@@ -63,7 +63,7 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2021-09-06 (https://gitlab.com/LazyLibrarian)"
+        self.ver = "LazyLibrarian ircbot version 2021-09-10 (https://gitlab.com/LazyLibrarian)"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -230,6 +230,7 @@ def irc_connect(provider, retries=3):
                                     _ = irc.get_response()
                                 provider['IRC'] = irc
                                 return irc
+                    retried += 1  # welcome not found yet
                 except socket.timeout:
                     logger.warn("Reply timed out")
                     retried += 1
@@ -332,23 +333,23 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
             # if disconnected need to reconnect and rejoin channel
             return '', str(e)
 
-        for lyne in lynes:
-            if len(lynes) == 1 and not lyne:
-                if last_cmd:
-                    logger.debug("Empty response to %s" % last_cmd)
-                    time.sleep(ratelimit)
-                    retried += 1
-                else:
-                    status = ""
-                    try:
-                        irc.join(provider['CHANNEL'])
-                    except Exception as e:
-                        logger.debug(str(e))
-                        return '', str(e)
-                    last_cmd = 'Empty response, rejoin %s' % provider['CHANNEL']
-                    cmd_sent = time.time()
+        if not lynes or len(lynes) == 1 and not lynes[0]:
+            if last_cmd:
+                logger.debug("Empty response to %s" % last_cmd)
+                time.sleep(ratelimit)
+            else:
+                status = ""
+                try:
+                    irc.join(provider['CHANNEL'])
+                except Exception as e:
+                    logger.debug(str(e))
+                    return '', str(e)
+                last_cmd = 'Empty response, rejoin %s' % provider['CHANNEL']
+                cmd_sent = time.time()
+            retried += 1
 
-            elif 'KICK' in lyne:
+        for lyne in lynes:
+            if 'KICK' in lyne:
                 logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
                 lazylibrarian.providers.block_provider(provider['SERVER'], "Kick", 600)
                 return '', "Kick"
@@ -405,7 +406,8 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
                         logger.warn("Search Denied by %s" % cmd)
                     logger.debug(msg)
                     # irc.part(channel)
-                    return '', msg
+                    if 'you already have' not in msg.lower():
+                        return '', msg
 
             elif provider['CHANNEL'] in lyne and status == "":
                 status = "joined"
