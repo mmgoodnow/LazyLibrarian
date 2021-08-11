@@ -39,6 +39,8 @@ def sanitize(name):
     if not name:
         return ''
     filename = make_unicode(name)
+    # replace non-ascii quotes with regular ones
+    filename = replace_all(filename, apostrophe_dic)
     # strip characters we don't want in a filename
     filename = replace_all(filename, namedic)
     # Remove all characters below code point 32
