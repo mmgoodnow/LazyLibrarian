@@ -37,7 +37,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clear_log, restart_jobs, show_jobs, check_running_jobs, all_author_update, setperm, \
     log_header, author_update, show_stats, series_update, listdir, path_isfile, path_isdir, syspath, cpu_use
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
-from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all
+from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -111,6 +111,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'forceAudioBookScan': '[&wait] [&remove] [&dir=] [&id=] rescan whole or part audiobook library',
             'forceMagazineScan': '[&wait] [&title=] rescan whole or part magazine library',
             'getVersion': 'show lazylibrarian current/git version',
+            'getCurrentVersion': 'show lazylibrarian current version',
             'shutdown': 'stop lazylibrarian',
             'restart': 'restart lazylibrarian',
             'update': 'update lazylibrarian',
@@ -237,31 +238,34 @@ class Api(object):
     def check_params(self, **kwargs):
 
         if not lazylibrarian.CONFIG['API_ENABLED']:
-            self.data = 'API not enabled'
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
             return
         if not lazylibrarian.CONFIG['API_KEY']:
-            self.data = 'API key not generated'
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 501, 'Message': 'No API key'}}
             return
         if len(lazylibrarian.CONFIG['API_KEY']) != 32:
-            self.data = 'API key is invalid'
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 503, 'Message': 'Invalid API key'}}
             return
 
         if 'apikey' not in kwargs:
-            self.data = 'Missing api key'
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: apikey'}}
             return
 
         if kwargs['apikey'] != lazylibrarian.CONFIG['API_KEY']:
-            self.data = 'Incorrect API key'
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 401, 'Message': 'Incorrect API key'}}
             return
         else:
             self.apikey = kwargs.pop('apikey')
 
         if 'cmd' not in kwargs:
-            self.data = 'Missing parameter: cmd, try cmd=help'
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 405,
+                                                                  'Message': 'Missing parameter: cmd, try cmd=help'}}
             return
 
         if kwargs['cmd'] not in cmd_dict:
-            self.data = 'Unknown command: %s, try cmd=help' % kwargs['cmd']
+            self.data = {'Success': False, 'Data': '',
+                         'Error':  {'Code': 405, 'Message': 'Unknown command: %s, try cmd=help' % kwargs['cmd']}}
             return
         else:
             self.cmd = kwargs.pop('cmd')
@@ -287,6 +291,8 @@ class Api(object):
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                    logger.debug(str(self.data))
                 if isinstance(self.data, string_types):
                     return self.data
                 else:
@@ -316,10 +322,11 @@ class Api(object):
 
     def _renamebook(self, **kwargs):
         if 'id' not in kwargs:
-            self.data = {'success': False, 'data': 'Missing parameter: id'}
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: id'}}
         else:
             fname, err = book_rename(kwargs['id'])
-            self.data = {'success': fname != '', 'data': fname, 'msg': err}
+            self.data = {'Success': fname != '', 'Data': fname, 'Error':  {'Code': 200, 'Message': err}}
         return
 
     def _listproviders(self):
@@ -339,7 +346,33 @@ class Api(object):
                      }
 
     def _listnabproviders(self):
-        self.data = lazylibrarian.NEWZNAB_PROV + lazylibrarian.TORZNAB_PROV
+        newzlist = []
+        for item in lazylibrarian.NEWZNAB_PROV:
+            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
+                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
+            if item['AUDIOCAT']:
+                if entry['Categories']:
+                    entry['Categories'] += ','
+                entry['Categories'] += item['AUDIOCAT']
+            newzlist.append(entry)
+
+        torzlist = []
+        for item in lazylibrarian.TORZNAB_PROV:
+            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
+                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
+            if item['AUDIOCAT']:
+                if entry['Categories']:
+                    entry['Categories'] += ','
+                entry['Categories'] += item['AUDIOCAT']
+            torzlist.append(entry)
+
+        self.data = {'Success': True,
+                     'Data': {
+                        'Newznabs': newzlist,
+                        'Torznabs': torzlist,
+                     },
+                     'Error':  {'Code': 200, 'Message': 'OK'}
+                     }
 
     def _listrssproviders(self):
         self.data = lazylibrarian.RSS_PROV
@@ -373,63 +406,78 @@ class Api(object):
         return
 
     def _delprovider(self, **kwargs):
-        if 'name' not in kwargs:
-            self.data = {'success': False, 'data': 'Missing parameter: name'}
+        if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: name'}}
             return
-        if kwargs['name'].startswith('Newznab'):
+
+        name = kwargs.get('name', '')
+        if not name:
+            name = kwargs.get('NAME', '')
+
+        if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
             providers = lazylibrarian.NEWZNAB_PROV
             section = 'newznab'
             clear = 'HOST'
-        elif kwargs['name'].startswith('Torznab'):
+        elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
             providers = lazylibrarian.TORZNAB_PROV
             section = 'torznab'
             clear = 'HOST'
-        elif kwargs['name'].startswith('RSS_'):
+        elif name.startswith('RSS_'):
             providers = lazylibrarian.RSS_PROV
             section = 'rss_'
             clear = 'HOST'
-        elif kwargs['name'].startswith('GEN_'):
+        elif name.startswith('GEN_'):
             providers = lazylibrarian.GEN_PROV
             section = 'GEN_'
             clear = 'HOST'
-        elif kwargs['name'].startswith('IRC_'):
+        elif name.startswith('IRC_'):
             providers = lazylibrarian.GEN_PROV
             section = 'IRC_'
             clear = 'SERVER'
         else:
-            self.data = {'success': False, 'data': 'Invalid parameter: name'}
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Invalid parameter: name'}}
             return
         for item in providers:
-            if item['NAME'] == kwargs['name']:
+            if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
                 lazylibrarian.config_write(section)
-                self.data = {'success': True, 'data': 'Deleted %s' % kwargs['name']}
+                self.data = {'Success': True, 'Data': 'Deleted %s' % name,
+                             'Error':  {'Code': 200, 'Message': 'OK'}}
                 return
-        self.data = {'success': False, 'data': 'Provider %s not found' % kwargs['name']}
+        self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 404,
+                                                              'Message': 'Provider %s not found' % name}}
         return
 
     def _changeprovider(self, **kwargs):
-        if 'name' not in kwargs:
-            self.data = {'success': False, 'data': 'Missing parameter: name'}
+        if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: name'}}
             return
         hit = []
         miss = []
-        if kwargs['name'].startswith('Newznab'):
+        name = kwargs.get('NAME', '')
+        if not name:
+            name = kwargs.get('name', '')
+
+        # prowlarr gives us  providertype
+        if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
             providers = lazylibrarian.NEWZNAB_PROV
-        elif kwargs['name'].startswith('Torznab'):
+        elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
             providers = lazylibrarian.TORZNAB_PROV
-        elif kwargs['name'].startswith('RSS_'):
+        elif name.startswith('RSS_'):
             providers = lazylibrarian.RSS_PROV
-        elif kwargs['name'].startswith('IRC_'):
+        elif name.startswith('IRC_'):
             providers = lazylibrarian.IRC_PROV
-        elif kwargs['name'].startswith('GEN_'):
+        elif name.startswith('GEN_'):
             providers = lazylibrarian.GEN_PROV
-        elif kwargs['name'] in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+        elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
-                    name = "%s_%s" % (kwargs['name'], arg)
-                    if name in lazylibrarian.CONFIG:
-                        lazylibrarian.CONFIG[name] = kwargs[arg]
+                    itemname = "%s_%s" % (name, arg)
+                    if itemname in lazylibrarian.CONFIG:
+                        lazylibrarian.CONFIG[itemname] = kwargs[arg]
                         hit += arg
                 elif arg == 'ENABLED':
                     hit.append(arg)
@@ -437,19 +485,21 @@ class Api(object):
                         val = True
                     else:
                         val = False
-                    lazylibrarian.CONFIG[kwargs['name']] = val
+                    lazylibrarian.CONFIG[name] = val
                 else:
                     miss.append(arg)
-            lazylibrarian.config_write(kwargs['name'])
-            self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
+            lazylibrarian.config_write(name)
+            self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
+                         'Error':  {'Code': 200, 'Message': 'OK'}}
             if miss:
-                self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
+                self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
             return
         else:
-            self.data = {'success': False, 'data': 'Invalid parameter: name'}
+            self.data = {'Success': False, 'Data': '',
+                         'Error':  {'Code': 400, 'Message': 'Invalid parameter: name'}}
             return
         for item in providers:
-            if item['NAME'] == kwargs['name']:
+            if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
                     if arg == 'ENABLED':
                         hit.append(arg)
@@ -461,28 +511,49 @@ class Api(object):
                     elif arg in item:
                         hit.append(arg)
                         item[arg] = kwargs[arg]
+                    elif arg == 'categories' and 'BOOKCAT' in providers[0]:
+                        hit.append(arg)
+                        # prowlarr only gives us one category list
+                        catlist = get_list(kwargs[arg])
+                        bookcat = ''
+                        audiocat = ''
+                        for catnum in catlist:
+                            if catnum.startswith('3'):
+                                if audiocat:
+                                    audiocat += ','
+                                audiocat += catnum
+                            else:
+                                if bookcat:
+                                    bookcat += ','
+                                bookcat += catnum
+                        providers[-1]['BOOKCAT'] = bookcat
+                        providers[-1]['AUDIOCAT'] = audiocat
                     else:
                         miss.append(arg)
-                lazylibrarian.config_write(kwargs['name'])
-                self.data = {'success': True, 'data': 'Changed %s [%s]' % (kwargs['name'], ','.join(hit))}
+                lazylibrarian.config_write(name)
+                self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
+                             'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
-                    self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
+                    self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
                 return
-        self.data = {'success': False, 'data': 'Provider %s not found' % kwargs['name']}
+        self.data = {'Success': False, 'Data': '',
+                     'Error':  {'Code': 404, 'Message': 'Provider %s not found' % name}}
         return
 
     def _addprovider(self, **kwargs):
-        if 'type' not in kwargs:
-            self.data = {'success': False, 'data': 'Missing parameter: type'}
+        if 'type' not in kwargs and 'providertype' not in kwargs:
+            self.data = {'Success': False, 'Data': '',
+                         'Error':  {'Code': 400, 'Message': 'Missing parameter: type'}}
             return
-        if 'HOST' not in kwargs and 'SERVER' not in kwargs:
-            self.data = {'success': False, 'data': 'Missing parameter: HOST or SERVER'}
+        if 'HOST' not in kwargs and 'SERVER' not in kwargs and 'host' not in kwargs:
+            self.data = {'Success': False, 'Data': '',
+                         'Error':  {'Code': 400, 'Message': 'Missing parameter: HOST or SERVER'}}
             return
-        if kwargs['type'] == 'newznab':
+        if kwargs.get('type', '') == 'newznab' or kwargs.get('providertype', '') == 'newznab':
             providers = lazylibrarian.NEWZNAB_PROV
             provname = 'Newznab'
             section = 'Newznab'
-        elif kwargs['type'] == 'torznab':
+        elif kwargs.get('type', '') == 'torznab' or kwargs.get('providertype', '') == 'torznab':
             providers = lazylibrarian.TORZNAB_PROV
             provname = 'Torznab'
             section = 'Torznab'
@@ -499,8 +570,10 @@ class Api(object):
             provname = 'IRC_'
             section = 'IRC_'
         else:
-            self.data = {'success': False,
-                         'data': 'Invalid parameter: type. Should be one of newznab,torznab,rss,gen,irc'
+            self.data = {'Success': False,
+                         'Data': '',
+                         'Error':  {'Code': 400,
+                                    'Message': 'Invalid parameter: type. Should be newznab,torznab,rss,gen,irc'}
                          }
             return
 
@@ -514,12 +587,51 @@ class Api(object):
             if arg in providers[0]:
                 hit.append(arg)
                 providers[-1][arg] = kwargs[arg]
+            elif arg == 'host':
+                hit.append(arg)
+                providers[-1]['HOST'] = kwargs[arg]
+            elif arg == 'prov_apikey':
+                hit.append(arg)
+                providers[-1]['API'] = kwargs[arg]
+            elif arg == 'enabled':
+                hit.append(arg)
+                providers[-1]['ENABLED'] = kwargs[arg] == 'true'
+            elif arg == 'altername':
+                for existing in providers:
+                    if kwargs[arg] and existing['DISPNAME'] == kwargs[arg]:
+                        self.data = {'Success': False,
+                                     'Data': '',
+                                     'Error':  {'Code': 409,
+                                                'Message': '%s Already Exists' % kwargs[arg]}
+                                     }
+                        return
+
+                hit.append(arg)
+                providers[-1]['DISPNAME'] = kwargs[arg]
+            elif arg == 'categories' and 'BOOKCAT' in providers[0]:
+                hit.append(arg)
+                # prowlarr only gives us one category list
+                catlist = get_list(kwargs[arg])
+                bookcat = ''
+                audiocat = ''
+                for item in catlist:
+                    if item.startswith('3'):
+                        if audiocat:
+                            audiocat += ','
+                        audiocat += item
+                    else:
+                        if bookcat:
+                            bookcat += ','
+                        bookcat += item
+                providers[-1]['BOOKCAT'] = bookcat
+                providers[-1]['AUDIOCAT'] = audiocat
             else:
                 miss.append(arg)
         lazylibrarian.config_write(section)
-        self.data = {'success': True, 'data': 'Added %s [%s]' % (kwargs['type'], ','.join(hit))}
+        self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
+                     'Error':  {'Code': 200, 'Message': 'OK'}}
         if miss:
-            self.data['data'] += " Invalid parameters [%s]" % ','.join(miss)
+            self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)
         return
 
     def _memuse(self):
@@ -1521,10 +1633,18 @@ class Api(object):
 
     def _getversion(self):
         self.data = {
+            'Success': True,
             'install_type': lazylibrarian.CONFIG['INSTALL_TYPE'],
             'current_version': lazylibrarian.CONFIG['CURRENT_VERSION'],
             'latest_version': lazylibrarian.CONFIG['LATEST_VERSION'],
             'commits_behind': lazylibrarian.CONFIG['COMMITS_BEHIND'],
+        }
+
+    def _getcurrentversion(self):
+        self.data = {
+            'Success': True,
+            'Data': lazylibrarian.CONFIG['CURRENT_VERSION'],
+            'Error':  {'Code': 200, 'Message': 'OK'}
         }
 
     @staticmethod

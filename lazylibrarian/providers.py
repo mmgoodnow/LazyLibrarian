@@ -173,6 +173,8 @@ def test_provider(name, host=None, api=None):
                         logger.debug("Capabilities are set to manual for %s" % provider['NAME'])
                     else:
                         if host:
+                            if host[-1:] == '/':
+                                host = host[:-1]
                             provider['HOST'] = host
                         if api:
                             ap, seed = api.split(' : ', 1)
@@ -206,6 +208,7 @@ def test_provider(name, host=None, api=None):
                             provider['HOST'] = host
                         if api:
                             provider['API'] = api
+
                         provider = get_capabilities(provider, force=True)
                     if provider['BOOKSEARCH']:
                         success, error_msg = newznab_plus(book, provider, 'book', 'newznab', True)
@@ -293,11 +296,14 @@ def get_capabilities(provider, force=False):
         logger.debug('Using stored capabilities for %s' % provider['HOST'])
     else:
         host = provider['HOST']
-        if not str(host)[:4] == "http":
+        if not str(host[:4]) == "http":
             host = 'http://' + host
         if host[-1:] == '/':
             host = host[:-1]
-        url = host + '/api?t=caps'
+        if host[-4:] == '/api':
+            url = host + '?t=caps'
+        else:
+            url = host + '/api?t=caps'
 
         # most providers will give you caps without an api key
         logger.debug('Requesting capabilities for %s' % url)
@@ -1326,13 +1332,14 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
     params = return_search_structure(provider, api_key, book, search_type, search_mode)
 
     if params:
-        if not str(host)[:4] == "http":
+        if not str(host[:4]) == "http":
             host = 'http://' + host
         if host[-1:] == '/':
             host = host[:-1]
-        if host[-4] == '/api':
-            host = host[:-4]
-        url = host + '/api?' + urlencode(params)
+        if host[-4:] == '/api':
+            url = host + '?' + urlencode(params)
+        else:
+            url = host + '/api?' + urlencode(params)
 
         sterm = make_unicode(book['searchterm'])
 
