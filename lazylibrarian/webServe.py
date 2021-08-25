@@ -292,7 +292,7 @@ class WebInterface(object):
         raise cherrypy.HTTPRedirect("home")
 
     @cherrypy.expose
-    def home(self):
+    def authors(self):
         title = 'Authors'
         if lazylibrarian.IGNORED_AUTHORS:
             if lazylibrarian.CONFIG['IGNORE_PAUSED']:
@@ -300,6 +300,23 @@ class WebInterface(object):
             else:
                 title = 'Ignored Authors'
         return serve_template(templatename="index.html", title=title)
+
+    @cherrypy.expose
+    def home(self):
+        home = lazylibrarian.CONFIG.get('HOMEPAGE', '')
+        logger.debug("Homepage [%s]" % home)
+        if home == 'eBooks':
+            raise cherrypy.HTTPRedirect("books")
+        elif home == 'Series':
+            raise cherrypy.HTTPRedirect("series")
+        elif home == 'AudioBooks':
+            raise cherrypy.HTTPRedirect("audio")
+        elif home == 'Magazines':
+            raise cherrypy.HTTPRedirect("magazines")
+        elif home == 'Comics':
+            raise cherrypy.HTTPRedirect("comics")
+        else:
+            raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def profile(self):

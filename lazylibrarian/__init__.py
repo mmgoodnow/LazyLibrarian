@@ -233,7 +233,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
                      'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
                      'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
-                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED',
+                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED', 'HOMEPAGE',
                      'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
@@ -251,6 +251,7 @@ CONFIG_DEFINITIONS = {
     'SINGLE_USER': ('bool', 'General', 0),
     'ADMIN_EMAIL': ('str', 'General', ''),
     'SYS_ENCODING': ('str', 'General', ''),
+    'HOMEPAGE': ('str', 'General', ''),
     'LOGDIR': ('str', 'General', ''),
     'LOGLIMIT': ('int', 'General', 500),
     'LOGFILES': ('int', 'General', 10),
@@ -1204,6 +1205,17 @@ def config_read(reloaded=False):
         SHOW_AUDIO = 0
         SHOW_COMICS = 0
         SHOW_EBOOK = 1
+    else:
+        if CONFIG['HOMEPAGE'] == 'eBooks' and not SHOW_EBOOK:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'AudioBooks' and not SHOW_AUDIO:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Magazines' and not SHOW_MAGS:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Comics' and not SHOW_COMICS:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Series' and not SHOW_SERIES:
+            CONFIG['HOMEPAGE'] = ''
 
     for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
         CONFIG[item] = 1 if CONFIG[item] else 0
@@ -1580,6 +1592,17 @@ def config_write(part=None):
         SHOW_AUDIO = 0
         SHOW_COMICS = 0
         SHOW_EBOOK = 1
+    else:
+        if CONFIG['HOMEPAGE'] == 'eBooks' and not SHOW_EBOOK:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'AudioBooks' and not SHOW_AUDIO:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Magazines' and not SHOW_MAGS:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Comics' and not SHOW_COMICS:
+            CONFIG['HOMEPAGE'] = ''
+        if CONFIG['HOMEPAGE'] == 'Series' and not SHOW_SERIES:
+            CONFIG['HOMEPAGE'] = ''
 
     if CONFIG['NO_SINGLE_BOOK_SERIES']:
         db = database.DBConnection()

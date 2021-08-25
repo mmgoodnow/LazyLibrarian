@@ -137,7 +137,7 @@
   min-width: 70px;
 }
 @media screen  and (min-width: 768px)and (max-width: 1024px) {
-    /* Add a pseudo element with the
+    /* Add a pseudo-element with the
        text from attribute 'data-abbr' */
     .shorten[data-abbr]::after {
         content: attr(data-abbr);
@@ -175,16 +175,24 @@
                     %endif
                   %endif
                 %endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Authors':
+                  <li><a id="authors" href="authors" class="navbarele">Authors</a></li>
+                % endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'eBooks':
                 % if lazylibrarian.SHOW_EBOOK:
                   % if perm&lazylibrarian.perm_ebook:
                   <li><a id="books" href="books" class="navbarele">eBooks</a></li>
                   % endif
                 % endif
+                % endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Series':
                 % if lazylibrarian.SHOW_SERIES:
                   %if perm&lazylibrarian.perm_series:
                   <li><a id="series" href="series" class="navbarele">Series</a></li>
                   % endif
                 % endif
+                % endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'AudioBooks':
                 % if lazylibrarian.SHOW_AUDIO:
                   %if perm&lazylibrarian.perm_audio:
                   <li><a id="audio" href="audio" class="navbarele">
@@ -194,6 +202,8 @@
                   </a></li>
                   % endif
                 % endif
+                % endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Magazines':
                 % if lazylibrarian.SHOW_MAGS:
                   %if perm&lazylibrarian.perm_magazines:
                   <li><a id="magazines" href="magazines" class="navbarele">
@@ -203,10 +213,13 @@
                   </a></li>
                   % endif
                 % endif
+                % endif
+                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Comics':
                 % if lazylibrarian.SHOW_COMICS:
                   %if perm&lazylibrarian.perm_comics:
                   <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
                   % endif
+                % endif
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
                   % if lazylibrarian.SHOW_AUDIO:
@@ -251,7 +264,7 @@
               msg = '<div class="input-group">You are running an unknown version via source install</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release">Update</a></div>'
           % elif lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION']:
               % if lazylibrarian.CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
-                  msg = '<div class="input-group">Unable to get latest version from git</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
+                  msg = '<div class="input-group">Unable to get the latest version from git</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] < 0:
                   msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 1:

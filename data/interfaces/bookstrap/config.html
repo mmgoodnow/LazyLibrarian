@@ -559,6 +559,20 @@
                   <fieldset>
                     <legend>Appearance</legend>
                     <div class="form-group">
+                      <label for="homepage">Homepage:</label>
+                      <select id="homepage" name="homepage" class="form-control">
+                        %for page in ['Authors', 'eBooks', 'Series', 'AudioBooks','Magazines', 'Comics']:
+                        <%
+                        if page == lazylibrarian.CONFIG['HOMEPAGE']:
+                            selected = 'selected="selected"'
+                        else:
+                            selected = ''
+                        %>
+                        <option value="${page}" ${selected}>${page}</option>
+                        %endfor
+                      </select>
+                    </div>
+                    <div class="form-group">
                       <label for="http_look">Interface:</label>
                       <select id="http_look" name="http_look" class="form-control">
                         %for http_look in config['http_look_list']:
