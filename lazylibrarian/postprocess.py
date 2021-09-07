@@ -2340,7 +2340,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
 
 # noinspection PyBroadException
-def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype=None):
+def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype=''):
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
@@ -2348,6 +2348,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
     bestmatch = ''
+    cover = ''
     comicid = data.get('BookID', '')
     issueid = data.get('IssueDate', '')
     authorname = data.get('AuthorName', '')
@@ -2465,7 +2466,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
                 elif magfile:
-                    jpgfile = create_mag_cover(magfile, refresh=False)
+                    jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=False)
                     coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
 

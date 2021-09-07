@@ -216,6 +216,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         authorimg = ''
         new_author = not refresh
         entry_status = 'Active'
+        dbauthor = None
 
         if is_valid_authorid(authorid):
             dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
@@ -250,6 +251,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                     (authorname, authorid, dbauthor['AuthorID']))
                         db.action("delete from authors where authorid=?", (authorid,))
                         authorid = dbauthor['AuthorID']
+                        entry_status = dbauthor['Status']
                     logger.debug("Updating author %s (%s)" % (authorid, authorname))
                     new_author = False
                 else:
@@ -453,9 +455,10 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     followid = ''
                 db.action('UPDATE authors SET GRfollow=? WHERE AuthorID=?', (followid, authorid))
         else:
-            # if we're not loading any books, mark author as paused in case it's
-            # a new author in a wishlist or a series contributor
-            entry_status = 'Paused'
+            # if we're not loading any books and it's a new author,
+            # mark author as paused in case it's a wishlist or a series contributor
+            if not dbauthor:
+                entry_status = 'Paused'
 
         if match:
             update_totals(authorid)
