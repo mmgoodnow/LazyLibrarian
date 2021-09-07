@@ -1267,8 +1267,13 @@ class OpenLibrary:
             if match:
                 authorname = match['AuthorName']
             else:
-                lazylibrarian.importer.add_author_to_db(authorid=authorid, refresh=False, addbooks=False,
-                                                        reason="ol.find_book %s" % bookid)
+                # ol does not give us authorname in work page
+                auth_id = lazylibrarian.importer.add_author_to_db(authorid=authorid, refresh=False,
+                                                                  addbooks=False,
+                                                                  reason="ol.find_book %s" % bookid)
+                # authorid may have changed on importing
+                if authorid != auth_id and auth_id.startswith('OL'):
+                    authorid = auth_id
                 match = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
                 if match:
                     authorname = match['AuthorName']

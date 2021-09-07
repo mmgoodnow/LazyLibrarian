@@ -248,6 +248,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if dbauthor['AuthorID'] != authorid:
                         logger.warn("Conflicting authorid for %s (new:%s old:%s) Using existing authorid" %
                                     (authorname, authorid, dbauthor['AuthorID']))
+                        db.action("delete from authors where authorid=?", (authorid,))
                         authorid = dbauthor['AuthorID']
                     logger.debug("Updating author %s (%s)" % (authorid, authorname))
                     new_author = False
@@ -363,15 +364,17 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     db.action("PRAGMA foreign_keys = ON")
                 match = True
             else:
-                logger.error("No authorID found for %s" % authorname)
+                msg = "No authorID found for %s" % authorname
+                logger.error(msg)
                 # name not found at provider or no reply from provider
                 # don't keep trying the same one...
                 db.action("UPDATE authors SET Updated=? WHERE AuthorName=?", (int(time.time()), authorname))
-                return
+                return msg
         if not match:
-            logger.error("No matching result for %s:%s" % (authorid, authorname))
+            msg = "No matching result for %s:%s" % (authorid, authorname)
+            logger.error(msg)
             db.action("UPDATE authors SET Updated=? WHERE AuthorID=?", (int(time.time()), authorid))
-            return
+            return msg
 
         # if author is set to manual, should we allow replacing 'nophoto' ?
         new_img = False
@@ -459,10 +462,11 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             db.action("UPDATE authors SET Status=? WHERE AuthorID=?", (entry_status, authorid))
             msg = "%s [%s] Author update complete, status %s" % (authorid, authorname, entry_status)
             logger.info(msg)
+            return authorid
         else:
             msg = "Authorid %s (%s) not found in database" % (authorid, authorname)
             logger.warn(msg)
-        return msg
+            return msg
 
     except Exception:
         msg = 'Unhandled exception in add_author_to_db: %s' % traceback.format_exc()
