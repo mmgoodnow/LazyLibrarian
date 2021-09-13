@@ -228,11 +228,8 @@ class Api(object):
         self.apikey = None
         self.cmd = None
         self.id = None
-
         self.kwargs = None
-
         self.data = None
-
         self.callback = None
 
     def check_params(self, **kwargs):
@@ -267,9 +264,8 @@ class Api(object):
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 405, 'Message': 'Unknown command: %s, try cmd=help' % kwargs['cmd']}}
             return
-        else:
-            self.cmd = kwargs.pop('cmd')
 
+        self.cmd = kwargs.pop('cmd')
         self.kwargs = kwargs
         self.data = 'OK'
 
@@ -683,20 +679,9 @@ class Api(object):
         self.data = res
 
     def _getrssfeed(self, **kwargs):
-        if 'feed' in kwargs:
-            ftype = kwargs['feed']
-        else:
-            ftype = 'eBook'
-
-        if 'limit' in kwargs:
-            limit = kwargs['limit']
-        else:
-            limit = 10
-
-        if 'authorid' in kwargs:
-            authorid = kwargs['authorid']
-        else:
-            authorid = None
+        ftype = kwargs.get('feed', 'eBook')
+        limit = kwargs.get('limit', 10)
+        authorid = kwargs.get('authorid', '')
 
         # url might end in .xml
         if not str(limit).isdigit():
@@ -715,21 +700,15 @@ class Api(object):
         self.data = gen_feed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid)
 
     def _synccalibrelist(self, **kwargs):
-        col1 = None
-        col2 = None
-        if 'toread' in kwargs:
-            col2 = kwargs['toread']
-        if 'read' in kwargs:
-            col1 = kwargs['read']
+        col1 = kwargs.get('read')
+        col2 = kwargs.get('toread')
         self.data = sync_calibre_list(col1, col2)
 
     def _subscribe(self, **kwargs):
-        if 'user' not in kwargs:
-            self.data = 'Missing parameter: user'
-            return
-        if 'feed' not in kwargs:
-            self.data = 'Missing parameter: feed'
-            return
+        for item in ['user', 'feed']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         db = database.DBConnection()
         res = db.match('SELECT UserID from users WHERE userid=?', (kwargs['user'],))
         if not res:
@@ -746,12 +725,10 @@ class Api(object):
         return
 
     def _unsubscribe(self, **kwargs):
-        if 'user' not in kwargs:
-            self.data = 'Missing parameter: user'
-            return
-        if 'feed' not in kwargs:
-            self.data = 'Missing parameter: feed'
-            return
+        for item in ['user', 'feed']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         db = database.DBConnection()
         db.action('DELETE FROM subscribers WHERE UserID=? and Type=? and WantID=?',
                   (kwargs['user'], 'feed', kwargs['feed']))
@@ -759,20 +736,15 @@ class Api(object):
         return
 
     def _calibrelist(self, **kwargs):
-        col1 = None
-        col2 = None
-        if 'toread' in kwargs:
-            col2 = kwargs['toread']
-        if 'read' in kwargs:
-            col1 = kwargs['read']
+        col1 = kwargs.get('read')
+        col2 = kwargs.get('toread')
         self.data = calibre_list(col1, col2)
 
     def _showcaps(self, **kwargs):
-        if 'provider' not in kwargs:
+        prov = kwargs.get('provider')
+        if not prov:
             self.data = 'Missing parameter: provider'
             return
-
-        prov = kwargs['provider']
         match = False
         for provider in lazylibrarian.NEWZNAB_PROV:
             if prov == provider['HOST']:
@@ -815,18 +787,16 @@ class Api(object):
             "SELECT * from wanted WHERE Status != 'Skipped' and Status != 'Ignored'")
 
     def _listnewauthors(self, **kwargs):
-        if 'limit' in kwargs:
-            limit = "limit %s" % kwargs['limit']
-        else:
-            limit = ''
+        limit = kwargs.get('limit', '')
+        if limit:
+            limit = "limit " + limit
         self.data = self._dic_from_query(
             "SELECT authorid,authorname,dateadded,reason,status from authors order by dateadded desc %s" % limit)
 
     def _listnewbooks(self, **kwargs):
-        if 'limit' in kwargs:
-            limit = "limit %s" % kwargs['limit']
-        else:
-            limit = ''
+        limit = kwargs.get('limit', '')
+        if limit:
+            limit = "limit " + limit
         self.data = self._dic_from_query(
             "SELECT bookid,bookname,bookadded,scanresult,status from books order by bookadded desc %s" % limit)
 
@@ -839,20 +809,20 @@ class Api(object):
     def _renameaudio(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
-        self.data = audio_rename(kwargs['id'], rename=True)
+        else:
+            self.data = audio_rename(kwargs['id'], rename=True)
 
     def _getbookpubdate(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
-        self.data = get_book_pubdate(kwargs['id'])
+        else:
+            self.data = get_book_pubdate(kwargs['id'])
 
     def _createplaylist(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
-        self.data = audio_rename(kwargs['id'], playlist=True)
+        else:
+            self.data = audio_rename(kwargs['id'], playlist=True)
 
     def _preprocessaudio(self, **kwargs):
         for item in ['dir', 'title', 'author']:
@@ -881,35 +851,25 @@ class Api(object):
         self.data = 'OK'
 
     def _importbook(self, **kwargs):
-        if 'id' not in kwargs:
-            self.data = 'Missing parameter: id'
-            return
-        if 'dir' not in kwargs:
-            self.data = 'Missing parameter: dir'
-            return
-        if 'library' not in kwargs:
-            library = 'eBook'
-        else:
-            library = kwargs['library']
+        for item in ['id', 'dir']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
+        library = kwargs.get('library', 'eBook')
         self.data = process_book_from_dir(kwargs['dir'], library, kwargs['id'])
 
     def _importmag(self, **kwargs):
-        if 'title' not in kwargs:
-            self.data = 'Missing parameter: title'
-            return
-        if 'num' not in kwargs:
-            self.data = 'Missing parameter: num'
-            return
-        if 'file' not in kwargs:
-            self.data = 'Missing parameter: file'
-            return
+        for item in ['title', 'num', 'file']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         self.data = process_mag_from_file(kwargs['file'], kwargs['title'], kwargs['num'])
 
     def _namevars(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
-            return
-        self.data = name_vars(kwargs['id'])
+        else:
+            self.data = name_vars(kwargs['id'])
 
     def _savetable(self, **kwargs):
         if 'table' not in kwargs:
@@ -936,30 +896,30 @@ class Api(object):
                     if self.data[1] is True:
                         counter += 1
                 except IndexError:
-                    counter = counter
+                    continue
         self.data = 'Updated opf for %s %s' % (counter, plural(counter, "book"))
 
     def _writeopf(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
-            db = database.DBConnection()
-            cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
-            cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
-            res = db.match(cmd, (kwargs['id'],))
-            if not res:
-                self.data = 'No data found for bookid %s' % kwargs['id']
-                return
-            if not res['BookFile'] or not path_isfile(res['BookFile']):
-                self.data = 'No bookfile found for bookid %s' % kwargs['id']
-                return
-            dest_path = os.path.dirname(res['BookFile'])
-            global_name = os.path.splitext(os.path.basename(res['BookFile']))[0]
-            refresh = 'refresh' in kwargs
-            process_img(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
-            self.data = create_opf(dest_path, res, global_name, refresh)
+
+        db = database.DBConnection()
+        cmd = 'SELECT AuthorName,BookID,BookName,BookDesc,BookIsbn,BookImg,BookDate,BookLang,BookPub,'
+        cmd += 'BookFile,BookRate from books,authors WHERE BookID=? and books.AuthorID = authors.AuthorID'
+        res = db.match(cmd, (kwargs['id'],))
+        if not res:
+            self.data = 'No data found for bookid %s' % kwargs['id']
+            return
+        if not res['BookFile'] or not path_isfile(res['BookFile']):
+            self.data = 'No bookfile found for bookid %s' % kwargs['id']
+            return
+        dest_path = os.path.dirname(res['BookFile'])
+        global_name = os.path.splitext(os.path.basename(res['BookFile']))[0]
+        refresh = 'refresh' in kwargs
+        process_img(dest_path, kwargs['id'], res['BookImg'], global_name, refresh)
+        self.data = create_opf(dest_path, res, global_name, refresh)
 
     @staticmethod
     def _dumpmonths():
@@ -1029,26 +989,21 @@ class Api(object):
         self.data = lazylibrarian.LOGLIST
 
     def _logmessage(self, **kwargs):
-        if 'level' not in kwargs:
-            self.data = 'Missing parameter: level'
-            return
-        if 'text' not in kwargs:
-            self.data = 'Missing parameter: text'
-            return
+        for item in ['level', 'text']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         self.data = kwargs['text']
         if kwargs['level'].upper() == 'INFO':
             logger.info(self.data)
-            return
-        if kwargs['level'].upper() == 'WARN':
+        elif kwargs['level'].upper() == 'WARN':
             logger.warn(self.data)
-            return
-        if kwargs['level'].upper() == 'ERROR':
+        elif kwargs['level'].upper() == 'ERROR':
             logger.error(self.data)
-            return
-        if kwargs['level'].upper() == 'DEBUG':
+        elif kwargs['level'].upper() == 'DEBUG':
             logger.debug(self.data)
-            return
-        self.data = 'Invalid level: %s' % kwargs['level']
+        else:
+            self.data = 'Invalid level: %s' % kwargs['level']
         return
 
     def _getdebug(self):
@@ -1078,7 +1033,7 @@ class Api(object):
         self.data = self._dic_from_query(
             'SELECT * from authors order by AuthorName COLLATE NOCASE')
 
-    def _listlolang(self):
+    def _listnolang(self):
         q = 'SELECT BookID,BookISBN,BookName,AuthorName from books,authors where '
         q += '(BookLang="Unknown" or BookLang="" or BookLang is NULL) and books.AuthorID = authors.AuthorID'
         self.data = self._dic_from_query(q)
@@ -1245,12 +1200,10 @@ class Api(object):
         self.data = res
 
     def _getauthor(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
-
         author = self._dic_from_query(
             'SELECT * from authors WHERE AuthorID="' + self.id + '"')
         books = self._dic_from_query(
@@ -1268,10 +1221,10 @@ class Api(object):
         self.data = self._dic_from_query(q)
 
     def _getissues(self, **kwargs):
-        if 'name' not in kwargs:
+        self.id = kwargs.get('name')
+        if not self.id:
             self.data = 'Missing parameter: name'
             return
-        self.id = kwargs['name']
         magazine = self._dic_from_query(
             'SELECT * from magazines WHERE Title="' + self.id + '"')
         issues = self._dic_from_query(
@@ -1284,9 +1237,7 @@ class Api(object):
             if item not in kwargs:
                 self.data = 'Missing parameter: ' + item
                 return
-        self.data = ''
-        res = shrink_mag(kwargs['name'], check_int(kwargs['dpi'], 0))
-        self.data = res
+        self.data = shrink_mag(kwargs['name'], check_int(kwargs['dpi'], 0))
 
     def _getissuename(self, **kwargs):
         if 'name' not in kwargs:
@@ -1336,12 +1287,10 @@ class Api(object):
             self.data = create_mag_cover(issuefile=kwargs['file'], refresh=refresh)
 
     def _getbook(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
-
         book = self._dic_from_query('SELECT * from books WHERE BookID="' + self.id + '"')
         self.data = {'book': book}
 
@@ -1354,7 +1303,7 @@ class Api(object):
             if not res:
                 self.data = "Invalid id: %s" % kwargs['id']
             else:
-                if 'type' in kwargs and kwargs['type'] == 'AudioBook':
+                if kwargs.get('type', '') == 'AudioBook':
                     db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (kwargs['id'],))
                 else:
                     db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (kwargs['id'],))
@@ -1369,19 +1318,17 @@ class Api(object):
             if not res:
                 self.data = "Invalid id: %s" % kwargs['id']
             else:
-                if 'type' in kwargs and kwargs['type'] == 'AudioBook':
+                if kwargs.get('type', '') == 'AudioBook':
                     db.action('UPDATE books SET AudioStatus="Skipped" WHERE BookID=?', (kwargs['id'],))
                 else:
                     db.action('UPDATE books SET Status="Skipped" WHERE BookID=?', (kwargs['id'],))
                 self.data = 'OK'
 
     def _addmagazine(self, **kwargs):
-        if 'name' not in kwargs:
+        self.id = kwargs.get('name')
+        if not self.id:
             self.data = 'Missing parameter: name'
             return
-        else:
-            self.id = kwargs['name']
-
         db = database.DBConnection()
         control_value_dict = {"Title": self.id}
         new_value_dict = {
@@ -1394,12 +1341,10 @@ class Api(object):
         db.upsert("magazines", new_value_dict, control_value_dict)
 
     def _removemagazine(self, **kwargs):
-        if 'name' not in kwargs:
+        self.id = kwargs.get('name')
+        if not self.id:
             self.data = 'Missing parameter: name'
             return
-        else:
-            self.id = kwargs['name']
-
         db = database.DBConnection()
         db.action('DELETE from magazines WHERE Title=?', (self.id,))
         db.action('DELETE from wanted WHERE BookID=?', (self.id,))
@@ -1454,12 +1399,10 @@ class Api(object):
 
     def _refreshauthor(self, **kwargs):
         refresh = 'refresh' in kwargs
-        if 'name' not in kwargs:
+        self.id = kwargs.get('name')
+        if not self.id:
             self.data = 'Missing parameter: name'
             return
-        else:
-            self.id = kwargs['name']
-
         try:
             add_author_to_db(self.id, refresh=refresh, reason="API refresh_author %s" % self.id)
         except Exception as e:
@@ -1511,10 +1454,7 @@ class Api(object):
             self.data = 'No wishlists set, check config'
 
     def _forcebooksearch(self, **kwargs):
-        if 'type' in kwargs:
-            library = kwargs['type']
-        else:
-            library = None
+        library = kwargs.get('type')
         if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
                 lazylibrarian.use_direct() or lazylibrarian.use_irc():
             if 'wait' in kwargs:
@@ -1526,21 +1466,15 @@ class Api(object):
 
     @staticmethod
     def _forceprocess(**kwargs):
-        startdir = None
-        if 'dir' in kwargs:
-            startdir = kwargs['dir']
+        startdir = kwargs.get('dir')
         ignoreclient = 'ignoreclient' in kwargs
         process_dir(startdir=startdir, ignoreclient=ignoreclient)
 
     @staticmethod
     def _forcelibraryscan(**kwargs):
-        startdir = None
-        authid = None
+        startdir = kwargs.get('dir')
+        authid = kwargs.get('id')
         remove = 'remove' in kwargs
-        if 'dir' in kwargs:
-            startdir = kwargs['dir']
-        if 'id' in kwargs:
-            authid = kwargs['id']
         if 'wait' in kwargs:
             library_scan(startdir=startdir, library='eBook', authid=authid, remove=remove)
         else:
@@ -1549,9 +1483,7 @@ class Api(object):
 
     @staticmethod
     def _forcecomicscan(**kwargs):
-        comicid = None
-        if 'id' in kwargs:
-            comicid = kwargs['id']
+        comicid = kwargs.get('id')
         if 'wait' in kwargs:
             comic_scan(comicid=comicid)
         else:
@@ -1560,13 +1492,9 @@ class Api(object):
 
     @staticmethod
     def _forceaudiobookscan(**kwargs):
-        startdir = None
-        authid = None
+        startdir = kwargs.get('dir')
+        authid = kwargs.get('id')
         remove = 'remove' in kwargs
-        if 'dir' in kwargs:
-            startdir = kwargs['dir']
-        if 'id' in kwargs:
-            authid = kwargs['id']
         if 'wait' in kwargs:
             library_scan(startdir=startdir, library='AudioBook', authid=authid, remove=remove)
         else:
@@ -1575,9 +1503,7 @@ class Api(object):
 
     @staticmethod
     def _forcemagazinescan(**kwargs):
-        title = None
-        if 'title' in kwargs:
-            title = kwargs['title']
+        title = kwargs.get('title')
         if 'wait' in kwargs:
             magazine_scan(title)
         else:
@@ -1599,9 +1525,7 @@ class Api(object):
             threading.Thread(target=set_work_pages, name='API-SETWORKPAGES', args=[]).start()
 
     def _setworkid(self, **kwargs):
-        ids = None
-        if 'bookids' in kwargs:
-            ids = kwargs['bookids']
+        ids = kwargs.get('bookids')
         if 'wait' in kwargs:
             self.data = set_work_id(ids)
         else:
@@ -1735,12 +1659,10 @@ class Api(object):
                                                                               None, None, "Added by API"]).start()
 
     def _movebook(self, **kwargs):
-        if 'id' not in kwargs:
-            self.data = 'Missing parameter: id'
-            return
-        if 'toid' not in kwargs:
-            self.data = 'Missing parameter: toid'
-            return
+        for item in ['id', 'toid']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         try:
             db = database.DBConnection()
             authordata = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['toid'],))
@@ -1762,12 +1684,10 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _movebooks(self, **kwargs):
-        if 'fromname' not in kwargs:
-            self.data = 'Missing parameter: fromname'
-            return
-        if 'toname' not in kwargs:
-            self.data = 'Missing parameter: toname'
-            return
+        for item in ['fromname', 'toname']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         try:
             db = database.DBConnection()
             q = 'SELECT bookid,books.authorid from books,authors where books.AuthorID = authors.AuthorID'
@@ -1791,28 +1711,22 @@ class Api(object):
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _comicmeta(self, **kwargs):
-        if 'name' in kwargs:
-            name = kwargs['name']
-        else:
+        name = kwargs.get('name')
+        if not name:
             self.data = 'Missing parameter: name'
             return
         xml = 'xml' in kwargs
         self.data = comic_metadata(name, xml=xml)
 
     def _comicid(self, **kwargs):
-        if 'name' in kwargs:
-            name = kwargs['name']
-        else:
+        name = kwargs.get('name')
+        if not name:
             self.data = 'Missing parameter: name'
             return
-        if 'source' not in kwargs:
-            self.data = 'Missing parameter: source'
+        source = kwargs.get('source')
+        if source not in ['cv', 'cx']:
+            self.data = 'Invalid parameter: source'
             return
-        else:
-            source = kwargs['source']
-            if source not in ['cv', 'cx']:
-                self.data = 'Invalid parameter: source'
-                return
         best = 'best' in kwargs
         if source == 'cv':
             self.data = cv_identify(name, best=best)
@@ -1820,22 +1734,20 @@ class Api(object):
             self.data = cx_identify(name, best=best)
 
     def _addauthor(self, **kwargs):
-        if 'name' not in kwargs:
+        name = kwargs.get('name')
+        if not name:
             self.data = 'Missing parameter: name'
             return
-        else:
-            self.id = kwargs['name']
         try:
             self.data = add_author_name_to_db(author=self.id, refresh=False, reason="API add_author %s" % self.id)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
     def _addauthorid(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
         try:
             self.data = add_author_to_db(refresh=False, authorid=self.id, reason="API add_author_id %s" % self.id)
         except Exception as e:
@@ -1867,15 +1779,11 @@ class Api(object):
         self.data = "Added follow to %s %s" % (count, plural(count, "author"))
 
     def _grsync(self, **kwargs):
-        if 'shelf' not in kwargs:
-            self.data = 'Missing parameter: shelf'
-            return
-        if 'status' not in kwargs:
-            self.data = 'Missing parameter: status'
-            return
-        library = 'eBook'
-        if 'library' in kwargs:
-            library = kwargs['library']
+        for item in ['shelf', 'status']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
+        library = kwargs.get('library', 'eBook')
         reset = 'reset' in kwargs
         try:
             self.data = grsync(kwargs['status'], kwargs['shelf'], library, reset)
@@ -1911,13 +1819,8 @@ class Api(object):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-
         books = [{"bookid": kwargs['id']}]
-        if 'type' in kwargs:
-            library = kwargs['type']
-        else:
-            library = None
-
+        library = kwargs.get('type')
         if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
                 lazylibrarian.use_direct() or lazylibrarian.use_irc():
             if 'wait' in kwargs:
@@ -1928,12 +1831,10 @@ class Api(object):
             self.data = "No search methods set, check config"
 
     def _removeauthor(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
-
         db = database.DBConnection()
         authorsearch = db.select('SELECT AuthorName from authors WHERE AuthorID=?', (kwargs['id'],))
         if len(authorsearch):  # to stop error if try to remove an author while they are still loading
@@ -1942,15 +1843,10 @@ class Api(object):
             db.action('DELETE from authors WHERE AuthorID=?', (kwargs['id'],))
 
     def _writecfg(self, **kwargs):
-        if 'name' not in kwargs:
-            self.data = 'Missing parameter: name'
-            return
-        if 'value' not in kwargs:
-            self.data = 'Missing parameter: value'
-            return
-        if 'group' not in kwargs:
-            self.data = 'Missing parameter: group'
-            return
+        for item in ['name', 'value', 'group']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         try:
             self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
             lazylibrarian.CFG.set(kwargs['group'], kwargs['name'], kwargs['value'])
@@ -1965,12 +1861,10 @@ class Api(object):
             self.data = 'Unable to update CFG entry for %s: %s, %s' % (kwargs['group'], kwargs['name'], str(e))
 
     def _readcfg(self, **kwargs):
-        if 'name' not in kwargs:
-            self.data = 'Missing parameter: name'
-            return
-        if 'group' not in kwargs:
-            self.data = 'Missing parameter: group'
-            return
+        for item in ['name', 'group']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
         try:
             self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
         except configparser.Error:
@@ -1981,75 +1875,65 @@ class Api(object):
         lazylibrarian.config_read(reloaded=True)
 
     def _getseriesauthors(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
         else:
-            self.id = kwargs['id']
             count = get_series_authors(self.id)
             self.data = "Added %s" % count
 
     def _addseriesmembers(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        self.data = add_series_members(self.id)
+            self.data = add_series_members(self.id)
 
     def _getseriesmembers(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        self.data = get_series_members(self.id)
+            self.data = get_series_members(self.id)
 
     def _getbookauthors(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        self.data = get_book_authors(self.id)
+            self.data = get_book_authors(self.id)
 
     def _getworkseries(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        self.data = get_work_series(self.id, reason="API get_work_series")
+            self.data = get_work_series(self.id, reason="API get_work_series")
 
     def _getworkpage(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        self.data = get_work_page(self.id)
+            self.data = get_work_page(self.id)
 
     def _getbookcover(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
-            self.id = kwargs['id']
-        if 'src' in kwargs:
-            self.data = get_book_cover(self.id, kwargs['src'])
-        else:
-            self.data = get_book_cover(self.id)
+            if 'src' in kwargs:
+                self.data = get_book_cover(self.id, kwargs['src'])
+            else:
+                self.data = get_book_cover(self.id)
 
     def _getauthorimage(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self.id = kwargs['id']
         refresh = 'refresh' in kwargs
-        if 'max' in kwargs:
-            max_num = kwargs['max']
-        else:
-            max_num = 1
+        max_num = kwargs.get('max', 1)
         self.data = get_author_image(self.id, refresh=refresh, max_num=max_num)
 
     def _lock(self, table, itemid, state):
@@ -2061,42 +1945,32 @@ class Api(object):
             self.data = "%sID %s not found" % (table, itemid)
 
     def _setauthorlock(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
             self._lock("author", kwargs['id'], "1")
 
     def _setauthorunlock(self, **kwargs):
-        if 'id' not in kwargs:
+        self.id = kwargs.get('id')
+        if not self.id:
             self.data = 'Missing parameter: id'
-            return
         else:
             self._lock("author", kwargs['id'], "0")
 
     def _setauthorimage(self, **kwargs):
-        if 'id' not in kwargs:
-            self.data = 'Missing parameter: id'
-            return
-        else:
-            self.id = kwargs['id']
-        if 'img' not in kwargs:
-            self.data = 'Missing parameter: img'
-            return
-        else:
-            self._setimage("author", kwargs['id'], kwargs['img'])
+        for item in ['id', 'img']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
+        self._setimage("author", kwargs['id'], kwargs['img'])
 
     def _setbookimage(self, **kwargs):
-        if 'id' not in kwargs:
-            self.data = 'Missing parameter: id'
-            return
-        else:
-            self.id = kwargs['id']
-        if 'img' not in kwargs:
-            self.data = 'Missing parameter: img'
-            return
-        else:
-            self._setimage("book", kwargs['id'], kwargs['img'])
+        for item in ['id', 'img']:
+            if item not in kwargs:
+                self.data = 'Missing parameter: ' + item
+                return
+        self._setimage("book", kwargs['id'], kwargs['img'])
 
     def _setimage(self, table, itemid, img):
         msg = "%s Image [%s] rejected" % (table, img)
@@ -2144,15 +2018,13 @@ class Api(object):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self._lock("book", kwargs['id'], "1")
+        self._lock("book", kwargs['id'], "1")
 
     def _setbookunlock(self, **kwargs):
         if 'id' not in kwargs:
             self.data = 'Missing parameter: id'
             return
-        else:
-            self._lock("book", kwargs['id'], "0")
+        self._lock("book", kwargs['id'], "0")
 
     @staticmethod
     def _restartjobs():
@@ -2169,28 +2041,16 @@ class Api(object):
         self.data = show_stats()
 
     def _importalternate(self, **kwargs):
-        if 'dir' in kwargs:
-            usedir = kwargs['dir']
-        else:
-            usedir = lazylibrarian.CONFIG['ALTERNATE_DIR']
-        if 'library' in kwargs:
-            library = kwargs['library']
-        else:
-            library = 'eBook'
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = process_alternate(usedir, library)
         else:
             threading.Thread(target=process_alternate, name='API-IMPORTALT', args=[usedir, library]).start()
 
     def _includealternate(self, **kwargs):
-        if 'dir' in kwargs:
-            startdir = kwargs['dir']
-        else:
-            startdir = lazylibrarian.CONFIG['ALTERNATE_DIR']
-        if 'library' in kwargs:
-            library = kwargs['library']
-        else:
-            library = 'eBook'
+        startdir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = library_scan(startdir, library, None, False)
         else:
@@ -2198,20 +2058,14 @@ class Api(object):
                              args=[startdir, library, None, False]).start()
 
     def _importcsvwishlist(self, **kwargs):
-        if 'dir' in kwargs:
-            usedir = kwargs['dir']
-        else:
-            usedir = lazylibrarian.CONFIG['ALTERNATE_DIR']
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
         if 'wait' in kwargs:
             self.data = import_csv(usedir)
         else:
             threading.Thread(target=import_csv, name='API-IMPORTCSV', args=[usedir]).start()
 
     def _exportcsvwishlist(self, **kwargs):
-        if 'dir' in kwargs:
-            usedir = kwargs['dir']
-        else:
-            usedir = lazylibrarian.CONFIG['ALTERNATE_DIR']
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
         if 'wait' in kwargs:
             self.data = export_csv(usedir)
         else:
