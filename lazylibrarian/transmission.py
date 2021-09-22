@@ -45,6 +45,7 @@ def add_torrent(link, directory=None, metainfo=None):
         directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
     if directory:
         arguments['download-dir'] = directory
+    arguments['paused'] = True if lazylibrarian.CONFIG['TORRENT_PAUSED'] else False
 
     logger.debug('add_torrent args(%s)' % arguments)
     response, res = torrent_action(method, arguments)  # type: dict

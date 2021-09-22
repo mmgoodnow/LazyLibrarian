@@ -114,6 +114,8 @@ def add_torrent(link, data=None):
 
         if retid:
             logger.info('Deluge: Torrent sent to Deluge successfully  (%s)' % retid)
+            if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                torrent_pause(retid)
             return retid, ''
 
         res = 'Deluge returned status %s' % retid
@@ -676,7 +678,7 @@ def set_torrent_path(result):
         return False
 
 
-def set_torrent_pause(result):
+def torrent_pause(retid):
     global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Pausing torrent')
@@ -684,7 +686,7 @@ def set_torrent_pause(result):
     timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
 
     try:
-        post_json = {"method": "core.pause_torrent", "params": [[result['hash']]], "id": 9}
+        post_json = {"method": "core.pause_torrent", "params": [retid], "id": 9}
 
         response = requests.post(delugeweb_url, json=post_json, cookies=cookies,
                                  verify=deluge_verify_cert, headers=headers, timeout=timeout)
@@ -699,7 +701,7 @@ def set_torrent_pause(result):
 
         return not response.json()['error']
     except Exception as err:
-        logger.error('Deluge %s: set_torrent_pause failed: %s' % (type(err).__name__, str(err)))
+        logger.error('Deluge %s: torrent_pause failed: %s' % (type(err).__name__, str(err)))
         return False
 
 

@@ -693,6 +693,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
                         logger.debug(res)
                         download_id = client.call('core.add_torrent_url', tor_url, args)
                     if download_id:
+                        if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                            _ = client.call('core.pause_torrent', download_id)
                         label = use_label(source, library)
                         if label:
                             _ = client.call('label.set_torrent', download_id, label.lower())
