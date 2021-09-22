@@ -364,7 +364,7 @@ def add_torrent(link, hashid):
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args['paused'] = 'false'
+    args['paused'] = 'true' if lazylibrarian.CONFIG['QBITTORRENT_PAUSED'] else 'false'
     dl_dir = lazylibrarian.CONFIG['QBITTORRENT_DIR']
     if dl_dir:
         args['savepath'] = dl_dir

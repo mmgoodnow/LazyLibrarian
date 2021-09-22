@@ -1659,7 +1659,7 @@ def get_download_name(title, source, downloadid):
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         elif source == 'SABNZBD':
             data = {}
-            if lazylibrarian.SAB_VER == (0, 0, 0):
+            if not lazylibrarian.SAB_VER[0]:
                 _ = sabnzbd.check_link()
             if lazylibrarian.SAB_VER > (3, 2, 0):
                 # we can filter on nzo_ids
@@ -1774,7 +1774,7 @@ def get_download_folder(source, downloadid):
 
         elif source == 'SABNZBD':
             data = {}
-            if lazylibrarian.SAB_VER == (0, 0, 0):
+            if not lazylibrarian.SAB_VER[0]:
                 _ = sabnzbd.check_link()
             if lazylibrarian.SAB_VER > (3, 2, 0):
                 # we can filter on nzo_ids
@@ -1868,7 +1868,7 @@ def get_download_progress(source, downloadid):
 
         elif source == 'SABNZBD':
             data = {}
-            if lazylibrarian.SAB_VER == (0, 0, 0):
+            if not lazylibrarian.SAB_VER[0]:
                 _ = sabnzbd.check_link()
             if lazylibrarian.SAB_VER > (3, 2, 0):
                 res, _ = sabnzbd.sab_nzbd(nzburl='queue', nzo_ids=downloadid)

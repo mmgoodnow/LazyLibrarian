@@ -36,6 +36,7 @@ def check_link():
         vers = {'version': 'unknown'}
     else:
         lazylibrarian.SAB_VER = versiontuple(vers['version'])
+        logger.debug("SAB version tuple %s" % str(lazylibrarian.SAB_VER))
     # check apikey is valid
     cats, _ = sab_nzbd(nzburl='get_cats')  # type: dict
     if not cats:

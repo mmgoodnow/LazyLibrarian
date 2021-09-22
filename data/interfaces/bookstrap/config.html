@@ -1627,6 +1627,17 @@
                           <label for="qbittorrent_dir" class="control-label">Download directory :</label>
                           <input type="text" id="qbittorrent_dir" name="qbittorrent_dir" value="${lazylibrarian.CONFIG['QBITTORRENT_DIR']}" class="form-control" placeholder="use qbittorrent default">
                         </div>
+                  <div class="checkbox">
+                    <%
+                    if lazylibrarian.CONFIG['QBITTORRENT_PAUSED'] == True:
+                        checked = 'checked="checked"'
+                    else:
+                        checked = ''
+                    %>
+                    <label for="qbittorrent_paused" class="control-label">
+                    <input type="checkbox" id="qbittorrent_paused" name="qbittorrent_paused" value="1" ${checked} />
+                    Pause torrents when added</label>
+                  </div>
                       </div>
                       <div class="row">
                         <div class="col-md-6">
