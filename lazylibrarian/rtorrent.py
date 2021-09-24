@@ -103,7 +103,8 @@ def add_torrent(tor_url, hash_id, data=None):
             else:
                 server.d.set_directory(hash_id, directory)
 
-        server.d.start(hash_id)
+        if not lazylibrarian.CONFIG['TORRENT_PAUSED']:
+            server.d.start(hash_id)
 
     except Exception as e:
         res = "rTorrent Error: %s: %s" % (type(e).__name__, str(e))

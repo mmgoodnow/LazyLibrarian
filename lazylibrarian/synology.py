@@ -225,6 +225,36 @@ def _delete_task(task_cgi, sid, download_id, remove_data):
     return False
 
 
+def _pause_task(task_cgi, sid, download_id):
+    # Pause a download task, return True or False
+
+    params = {
+        "api": "SYNO.DownloadStation.Task",
+        "version": "1",
+        "method": "pause",
+        "id": download_id,
+        "session": "DownloadStation",
+        "_sid": sid
+    }
+
+    result, success = _get_json(task_cgi, params)
+    logger.debug("Result from pause: %s" % repr(result))
+    if success:
+        if not result['success']:
+            errnum = result['error']['code']
+            logger.debug("Synology Pause Error: %s" % _error_msg(errnum, "pause"))
+        else:
+            try:
+                errnum = result['data'][0]['error']
+            except (KeyError, TypeError):
+                errnum = 0
+            if errnum:
+                logger.debug("Synology Pause exited: %s" % _error_msg(errnum, "pause"))
+                return False
+            return True
+    return False
+
+
 def _add_torrent_uri(task_cgi, sid, torurl):
     # Sends a magnet, Torrent url or NZB url to DownloadStation
     # Return task ID, or False if failed
@@ -420,6 +450,17 @@ def get_files(download_id):
                 except KeyError:
                     return ""
     return ""
+
+
+def pause_torrent(download_id):
+    hosturl = _host_url()
+    if hosturl:
+        auth_cgi, task_cgi, sid = _login(hosturl)
+        if sid:
+            result = _pause_task(task_cgi, sid, download_id)
+            _logout(auth_cgi, sid)
+            return result
+    return False
 
 
 def add_torrent(tor_url):

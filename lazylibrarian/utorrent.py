@@ -276,6 +276,13 @@ def name_torrent(hashid):
     return ""
 
 
+def pause_torrent(hashid):
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("pause %s" % hashid)
+    uclient = UtorrentClient()
+    return uclient.pause(hashid)
+
+
 def progress_torrent(hashid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug("get progress for %s" % hashid)

@@ -588,6 +588,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
             source = "UTORRENT"
             download_id, res = utorrent.add_torrent(tor_url, hashid)  # returns hash or False
             if download_id:
+                if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                    utorrent.pause_torrent(download_id)
                 label = use_label(source, library)
                 if label:
                     utorrent.label_torrent(download_id, label)
@@ -650,6 +652,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
             download_id, res = synology.add_torrent(tor_url)  # returns id or False
             if download_id:
                 tor_title = synology.get_name(download_id)
+                if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+                    synology.pause_torrent(download_id)
 
         if lazylibrarian.CONFIG['TOR_DOWNLOADER_DELUGE'] and lazylibrarian.CONFIG['DELUGE_HOST']:
             if not lazylibrarian.CONFIG['DELUGE_USER']:
