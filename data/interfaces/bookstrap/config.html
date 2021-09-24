@@ -1375,6 +1375,17 @@
                         <input type="text" id="nzb_blackholedir" name="nzb_blackholedir" value="${lazylibrarian.CONFIG['NZB_BLACKHOLEDIR']}" class="form-control" placeholder="NZB Blackhole Directory">
                       </div>
                     </fieldset>
+                  <div class="checkbox">
+                    <%
+                    if lazylibrarian.CONFIG['NZB_PAUSED'] == True:
+                        checked = 'checked="checked"'
+                    else:
+                        checked = ''
+                    %>
+                    <label for="nzb_paused" class="control-label">
+                    <input type="checkbox" id="nzb_paused" name="nzb_paused" value="1" ${checked} />
+                    Pause NZB when added</label>
+                  </div>
                     <div class="input-group col-md-8">
                       <label for="usenet_retention" class="input-group-addon">Usenet Retention</label>
                       <input type="number" id="usenet_retention" name="usenet_retention" value="${lazylibrarian.CONFIG['USENET_RETENTION']}" class="form-control" placeholder="Retention Maximum Age">

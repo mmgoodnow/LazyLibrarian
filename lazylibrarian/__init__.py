@@ -394,6 +394,7 @@ CONFIG_DEFINITIONS = {
     'NZB_DOWNLOADER_SYNOLOGY': ('bool', 'USENET', 0),
     'NZB_DOWNLOADER_BLACKHOLE': ('bool', 'USENET', 0),
     'NZB_BLACKHOLEDIR': ('str', 'USENET', ''),
+    'NZB_PAUSED': ('bool', 'USENET', 1),
     'USENET_RETENTION': ('int', 'USENET', 0),
     'NZBMATRIX_USER': ('str', 'NZBMatrix', ''),
     'NZBMATRIX_API': ('str', 'NZBMatrix', ''),

@@ -195,6 +195,8 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                 # logger.debug("Temp file deleted")
         else:
             download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzburl, False)  # returns nzb_ids or False
+        if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
+            _ = sabnzbd.sab_nzbd(nzbtitle, 'pause', False, None, download_id)
 
     if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET'] and lazylibrarian.CONFIG['NZBGET_HOST']:
         source = "NZBGET"
@@ -209,6 +211,8 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
             nzb.name = nzbtitle
             nzb.url = nzburl
             download_id, res = nzbget.send_nzb(nzb)
+            if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
+                _ = nzbget.send_nzb(nzb, 'GroupPause', download_id)
 
     if lazylibrarian.CONFIG['NZB_DOWNLOADER_SYNOLOGY'] and lazylibrarian.CONFIG['USE_SYNOLOGY'] and \
             lazylibrarian.CONFIG['SYNOLOGY_HOST']:

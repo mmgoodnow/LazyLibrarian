@@ -53,7 +53,7 @@ def check_link():
 
 def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None):
 
-    if nzburl in ['delete', 'delhistory'] and title == 'unknown':
+    if nzburl in ['delete', 'delhistory', 'pause'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
         logger.debug(res)
         return False, res
@@ -146,6 +146,18 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         if remove_data:
             params['del_files'] = 1
         title = 'LL.(DelHistory) ' + title
+    elif nzburl == 'pause':
+        params['mode'] = 'queue'
+        params['output'] = 'json'
+        params['name'] = 'pause'
+        params['value'] = nzo_ids
+        if lazylibrarian.CONFIG['SAB_USER']:
+            params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
+        if lazylibrarian.CONFIG['SAB_PASS']:
+            params['ma_password'] = lazylibrarian.CONFIG['SAB_PASS']
+        if lazylibrarian.CONFIG['SAB_API']:
+            params['apikey'] = lazylibrarian.CONFIG['SAB_API']
+        title = 'LL.(Pause) ' + title
     else:
         params['mode'] = 'addurl'
         params['output'] = 'json'

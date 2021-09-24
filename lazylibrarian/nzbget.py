@@ -60,7 +60,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None):
         return False, res
 
     add_to_top = False
-    nzbget_xm_lrpc = "%(username)s:%(password)s@%(host)s:%(port)s/xmlrpc"
+    nzbget_xml_rpc = "%(username)s:%(password)s@%(host)s:%(port)s/xmlrpc"
 
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
@@ -68,7 +68,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None):
     host = host.rstrip('/')
     hostparts = host.split('://')
 
-    url = hostparts[0] + '://' + nzbget_xm_lrpc % {"host": hostparts[1],
+    url = hostparts[0] + '://' + nzbget_xml_rpc % {"host": hostparts[1],
                                                    "username": quote(lazylibrarian.CONFIG['NZBGET_USER'], safe=''),
                                                    "port": port,
                                                    "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'], safe='')}
@@ -85,6 +85,8 @@ def send_nzb(nzb=None, cmd=None, nzbid=None):
         msg = "lazylibrarian requesting history"
     elif cmd == 'listgroups':
         msg = "lazylibrarian requesting listgroups"
+    elif cmd == 'GroupPause':
+        msg = "lazylibrarian requesting pause"
     elif nzbid:
         msg = "lazylibrarian connected to %s %s" % (cmd, nzbid)
     else:
@@ -133,7 +135,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None):
     elif nzbid is not None:
         # its a command for an existing task
         id_array = [int(nzbid)]
-        if cmd in ['GroupDelete', 'GroupFinalDelete', 'HistoryDelete', 'HistoryFinalDelete']:
+        if cmd in ['GroupDelete', 'GroupFinalDelete', 'HistoryDelete', 'HistoryFinalDelete', 'GroupPause']:
             return nzb_get_rpc.editqueue(cmd, 0, "", id_array), ''
         else:
             res = 'Unsupported nzbget command %s' % repr(cmd)
