@@ -219,13 +219,17 @@ def get_book_info(fname):
             elif 'creator' in tag and 'creator' not in res:
                 # take the first author name if multiple authors
                 res['creator'] = txt
-            elif 'identifier' in tag and attrib.get('scheme') == 'ISBN':
-                if is_valid_isbn(txt):
-                    res['isbn'] = txt
-            elif 'identifier' in tag and attrib.get('scheme') == 'GOODREADS':
-                res['gr_id'] = txt
-            elif 'identifier' in tag and attrib.get('scheme') == 'OPENLIBRARY':
-                res['ol_id'] = txt
+            elif 'identifier' in tag:
+                for k in attrib.keys():
+                    if k.endswith('scheme'):  # can be "scheme" or "http://www.idpf.org/2007/opf:scheme"
+                        if attrib[k] == 'ISBN' and is_valid_isbn(txt):
+                            res['isbn'] = txt
+                        elif attrib[k] == 'GOODREADS':
+                            res['gr_id'] = txt
+                        elif attrib[k] == 'OPENLIBRARY':
+                            res['ol_id'] = txt
+                        elif attrib[k] == 'GOOGLE':
+                            res['gb_id'] = txt
         n += 1
     return res
 
