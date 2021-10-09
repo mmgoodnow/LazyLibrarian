@@ -1164,10 +1164,10 @@ def config_read(reloaded=False):
     if CONFIG['HTTP_PORT'] < 21 or CONFIG['HTTP_PORT'] > 65535:
         CONFIG['HTTP_PORT'] = 5299
 
-    # to make extension matching easier
+    # to make matching easier/faster
     for item in ['EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'AUDIOBOOK_TYPE', 'MAG_TYPE',
                  'COMIC_TYPE', 'REJECT_MAGS', 'REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_COMIC',
-                 'REJECT_PUBLISHER', 'BANNED_EXT', 'NAME_POSTFIX', 'NAME_DEFINITE']:
+                 'REJECT_PUBLISHER', 'BANNED_EXT', 'NAME_POSTFIX', 'NAME_DEFINITE', 'IMP_NOSPLIT']:
         CONFIG[item] = CONFIG[item].lower()
 
     if os.name == 'nt':

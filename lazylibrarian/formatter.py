@@ -623,70 +623,55 @@ def split_title(author, book):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
+    splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'], ',')
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
-    brace = book.rfind('(')
-    # .find() returns position in string (0 to len-1) or -1 if not found
-    # change position to 1 to len, or zero if not found so we can use boolean if
-    brace += 1
+    brace = book.rfind('(') + 1
     if brace and book.endswith(')'):
         # if title ends with words in braces, split on last brace
         # as this always seems to be a subtitle or series info
         # If there is a digit before the closing brace assume it's series
         # eg Abraham Lincoln: Vampire Hunter (Abraham Lincoln: Vampire Hunter, #1)
+        # unless the part in braces is one word, eg (TM) or (Annotated) or (Unabridged)
         if book[-2].isdigit():
             # separate out the series part
             book, bookseries = book.rsplit('(', 1)
             book = book.strip().rstrip(':').strip()
-            brace = book.rfind('(')
-            brace += 1
         else:
             parts = book.rsplit('(', 1)
             parts[1] = '(' + parts[1]
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
-            return bookname, booksub, bookseries
+            endbrace = booksub.find(')') + 1
+            if endbrace and ' ' in booksub:
+                braced_words = book[brace:endbrace - 1].lower()
+                # check for any we don't want to split...
+                for item in splitlist:
+                    if item in braced_words:
+                        brace = 0
+            if brace:
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                    lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+                return bookname, booksub, bookseries
+
     # if not (words in braces at end of string)
-    # split subtitle on whichever comes first, ':' or '('
-    # unless the part in braces is one word, eg (TM) or (Annotated) or (Unabridged)
-    # Might need to expand this to be a list of allowed words?
-    colon = book.find(':')
-    colon += 1
+    # split subtitle on first ':'
+    colon = book.find(':') + 1
     bookname = book
     booksub = ''
-    parts = ''
-    if brace:
-        endbrace = book.find(')')
-        endbrace += 1
-        if endbrace > brace:
-            if ' ' not in book[brace:endbrace - 1]:
-                brace = 0
     if colon:
-        # check for any we don't want to split...
-        splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'])
-        for item in splitlist:
-            if item and book.startswith(item):
-                colon = 0
-                break
-    if colon and brace:
-        if colon < brace:
-            parts = book.split(':', 1)
-        else:
-            parts = book.split('(', 1)
-            parts[1] = '(' + parts[1]
-    elif colon:
         parts = book.split(':', 1)
-    elif brace:
-        parts = book.split('(', 1)
-        parts[1] = '(' + parts[1]
-    if parts:
         bookname = parts[0].strip()
         booksub = parts[1].rstrip(':').strip()
+        booksub_lower = booksub.lower()
+        for item in splitlist:
+            if item and booksub_lower.startswith(item):
+                bookname = book
+                booksub = ''
+                break
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-        lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+        lazylibrarian.logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
     return bookname, booksub, bookseries
 
 

@@ -527,6 +527,8 @@ class OpenLibrary:
                 link = book.get('key')
                 bookpages = 0
                 bookdesc = ''
+                if title.endswith(')') and '(' not in title:  # openlibrary oddity, "book title )"
+                    title = title.rstrip(')').strip()
                 key = book.get('key').split('/')[-1]
                 first_publish_year = book.get('first_publish_year')
                 auth_key = book.get('author_key')[0]
