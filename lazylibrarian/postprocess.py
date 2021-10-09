@@ -3075,7 +3075,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         <dc:title>%s</dc:title>\n\
         <dc:language>%s</dc:language>\n' % (data.get('BookName', ''), data.get('BookLang', ''))
 
-    opfinfo += '        <dc:identifier scheme="%s">%s</dc:identifier>\n' % (scheme, bookid)
+    opfinfo += '        <dc:identifier opf:scheme="%s">%s</dc:identifier>\n' % (scheme, bookid)
 
     if "Contributors" in data:  # split into individuals and add each eg
         # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
@@ -3107,7 +3107,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="narrator">%s</dc:creator>\n' % \
                        (surname_first(data['Narrator']), data['Narrator'])
     if data.get('BookIsbn', ''):
-        opfinfo += '        <dc:identifier scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
+        opfinfo += '        <dc:identifier opf:scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 
     if data.get('BookPub', ''):
         opfinfo += '        <dc:publisher>%s</dc:publisher>\n' % data['BookPub']
