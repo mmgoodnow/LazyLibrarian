@@ -664,9 +664,10 @@ def split_title(author, book):
         parts = book.split(':', 1)
         bookname = parts[0].strip()
         booksub = parts[1].rstrip(':').strip()
+        bookname_lower = bookname.lower()
         booksub_lower = booksub.lower()
         for item in splitlist:
-            if item and booksub_lower.startswith(item):
+            if item and booksub_lower.startswith(item) or bookname_lower.startswith(item):
                 bookname = book
                 booksub = ''
                 break
