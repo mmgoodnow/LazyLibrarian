@@ -27,7 +27,7 @@ import traceback
 from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
     is_valid_email, path_isfile, syspath, run_script
-from lazylibrarian.formatter import check_int, get_list, make_utf8bytes
+from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
 from six import PY2
 
 
@@ -82,24 +82,24 @@ class EmailNotifier:
             for f in files:
                 fsize = check_int(os.path.getsize(syspath(f)), 0)
                 limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+                title = unaccented(os.path.basename(f))
                 if limit and fsize > limit * 1024 * 1024:
                     oversize = True
-                    msg = '%s is too large (%s) to email' % (os.path.basename(f), fsize)
+                    msg = '%s is too large (%s) to email' % (title, fsize)
                     logger.debug(msg)
                     if lazylibrarian.CONFIG['CREATE_LINK']:
                         logger.debug("Creating link to %s" % f)
                         params = [lazylibrarian.CONFIG['CREATE_LINK'], f]
                         rc, res, err = run_script(params)
                         if res and res.startswith('http'):
-                            msg = "%s is available to download, %s" % (
-                                   os.path.basename(f), res)
+                            msg = "%s is available to download, %s" % (title, res)
                             logger.debug(msg)
                     message.attach(MIMEText(msg))
                 else:
-                    logger.debug('Attaching %s' % os.path.basename(f))
+                    logger.debug('Attaching %s' % title)
                     with open(syspath(f), "rb") as fil:
-                        part = MIMEApplication(fil.read(), Name=os.path.basename(f))
-                        part['Content-Disposition'] = 'attachment; filename="%s"' % os.path.basename(f)
+                        part = MIMEApplication(fil.read(), Name=title)
+                        part['Content-Disposition'] = 'attachment; filename="%s"' % title
                         message.attach(part)
 
         try:
