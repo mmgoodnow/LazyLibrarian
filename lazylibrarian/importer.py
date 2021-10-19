@@ -269,6 +269,10 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     new_value_dict["DateAdded"] = today()
                     new_value_dict["AuthorImg"] = authorimg
                     new_value_dict["AuthorLink"] = author['authorlink']
+                    new_value_dict["AuthorBorn"] = author['authorborn']
+                    new_value_dict["AuthorDeath"] = author['authordeath']
+                    if author.get('about', ''):
+                        new_value_dict['About'] = author['about']
                 elif dbauthor and not dbauthor['manual']:
                     new_value_dict["AuthorBorn"] = author['authorborn']
                     new_value_dict["AuthorDeath"] = author['authordeath']

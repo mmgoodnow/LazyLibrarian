@@ -2016,7 +2016,7 @@ class WebInterface(object):
             languages = db.select(
                 "SELECT DISTINCT BookLang from books WHERE AuthorID=? AND Status !='Ignored'", (authorid,))
 
-        author = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+        author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
 
         types = []
         if lazylibrarian.SHOW_EBOOK:
@@ -2040,6 +2040,9 @@ class WebInterface(object):
         authorname = author['AuthorName']
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("home")
+
+        author['AuthorBorn'] = date_format(author['AuthorBorn'], lazylibrarian.CONFIG['DATE_FORMAT'])
+        author['AuthorDeath'] = date_format(author['AuthorDeath'], lazylibrarian.CONFIG['DATE_FORMAT'])
 
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),

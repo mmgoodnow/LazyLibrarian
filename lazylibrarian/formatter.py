@@ -273,7 +273,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     if not datestr:
         return ''
 
-    if datestr.isdigit():  # issue number
+    if datestr.isdigit():  # issue number or year
         return datestr
 
     dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').split()
