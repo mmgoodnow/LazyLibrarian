@@ -238,7 +238,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
                      'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT', 'DEL_DOWNLOADFAILED',
-                     'TORRENT_PAUSED']
+                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -318,6 +318,7 @@ CONFIG_DEFINITIONS = {
     'IMP_PREFLANG': ('str', 'General', 'en, eng, en-US, en-GB'),
     'ISS_FORMAT': ('str', 'General', '$Y-$m-$d'),
     'DATE_FORMAT': ('str', 'General', '$Y-$m-$d'),
+    'AUTHOR_DATE_FORMAT': ('str', 'General', '$d-$m-$Y'),
     'IMP_MONTHLANG': ('str', 'General', ''),
     'IMP_AUTOADD': ('str', 'General', ''),
     'IMP_AUTOADD_COPY': ('bool', 'General', 1),

@@ -289,11 +289,14 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     elif len(dateparts) == 4:  # 04-25 23:46 (this year)
         m, d, hh, mm = dateparts
         y = now()[:4]
-    elif len(dateparts) == 3:  # 2018-04-25 or June 20 2008
+    elif len(dateparts) == 3:  # 2018-04-25 or June 20 2008 or 20 June 2008
         if check_year(dateparts[0]):
             y, m, d = dateparts
         else:
-            m, d, y = dateparts
+            if dateparts[0].isdigit():
+                d, m, y = dateparts
+            else:
+                m, d, y = dateparts
         hh = '00'
         mm = '00'
     elif len(dateparts) == 2:  # May 1995

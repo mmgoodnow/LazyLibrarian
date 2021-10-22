@@ -2041,8 +2041,8 @@ class WebInterface(object):
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("home")
 
-        author['AuthorBorn'] = date_format(author['AuthorBorn'], lazylibrarian.CONFIG['DATE_FORMAT'])
-        author['AuthorDeath'] = date_format(author['AuthorDeath'], lazylibrarian.CONFIG['DATE_FORMAT'])
+        author['AuthorBorn'] = date_format(author['AuthorBorn'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
+        author['AuthorDeath'] = date_format(author['AuthorDeath'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
 
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
@@ -3325,39 +3325,26 @@ class WebInterface(object):
                         edited += "Name "
 
                 if edited:
-                    # Check dates in format yyyy/mm/dd, or None to clear date
+                    # Check dates, format to yyyy/mm/dd
+                    # use None to clear date
                     # Leave unchanged if fails datecheck
                     if authorborn is not None:
-                        ab = authorborn
-                        authorborn = authdata["AuthorBorn"]  # assume fail, leave unchanged
-                        if ab:
-                            rejected = True
-                            if len(ab) == 10:
-                                try:
-                                    _ = datetime.date(int(ab[:4]), int(ab[5:7]), int(ab[8:]))
-                                    authorborn = ab
-                                    rejected = False
-                                except ValueError:
-                                    authorborn = authdata["AuthorBorn"]
-                            if rejected:
-                                logger.warn("Author Born date [%s] rejected" % ab)
-                                edited = edited.replace('Born ', '')
+                        ab = date_format(authorborn)
+                        if len(ab) == 10:
+                            authorborn = ab
+                        else:
+                            logger.warn("Author Born date [%s] rejected" % authorborn)
+                            authorborn = authdata["AuthorBorn"]  # leave unchanged
+                            edited = edited.replace('Born ', '')
 
                     if authordeath is not None:
-                        ab = authordeath
-                        authordeath = authdata["AuthorDeath"]  # assume fail, leave unchanged
-                        if ab:
-                            rejected = True
-                            if len(ab) == 10:
-                                try:
-                                    _ = datetime.date(int(ab[:4]), int(ab[5:7]), int(ab[8:]))
-                                    authordeath = ab
-                                    rejected = False
-                                except ValueError:
-                                    authordeath = authdata["AuthorDeath"]
-                            if rejected:
-                                logger.warn("Author Died date [%s] rejected" % ab)
-                                edited = edited.replace('Died ', '')
+                        ab = date_format(authordeath)
+                        if len(ab) == 10:
+                            authordeath = ab
+                        else:
+                            logger.warn("Author Died date [%s] rejected" % authordeath)
+                            authordeath = authdata["AuthorDeath"]  # leave unchanged
+                            edited = edited.replace('Died ', '')
 
                     if not authorimg:
                         authorimg = authdata["AuthorImg"]
