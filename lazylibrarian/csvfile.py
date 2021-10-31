@@ -63,17 +63,17 @@ def dump_table(table, savedir=None, status=None):
             csvfile = os.path.join(savedir, "%s.csv" % label)
             headers = headers.split(',')
             if PY2:
-                with open(syspath(csvfile), 'wb') as csvfile:
+                with open(syspath(csvfile), 'wb') as outfile:
                     # noinspection PyTypeChecker
-                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                    csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
                     csvwrite.writerow(headers)
                     for item in data:
                         csvwrite.writerow([make_bytestr(s) if s else '' for s in item])
                         count += 1
             else:
-                with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as csvfile:
+                with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
                     # noinspection PyTypeChecker
-                    csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                    csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
                     csvwrite.writerow(headers)
                     for item in data:
                         csvwrite.writerow([str(s) if s else '' for s in item])
@@ -193,9 +193,9 @@ def export_csv(search_dir=None, status="Wanted", library='eBook'):
             return msg
         count = 0
         if PY2:
-            with open(syspath(csvfile), 'wb') as csvfile:
+            with open(syspath(csvfile), 'wb') as outfile:
                 # noinspection PyTypeChecker
-                csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
                 # write headers, change AuthorName BookName BookIsbn to match import csv names
                 csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
@@ -208,9 +208,9 @@ def export_csv(search_dir=None, status="Wanted", library='eBook'):
                     count += 1
         else:
             # noinspection PyArgumentList
-            with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as csvfile:
+            with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
                 # noinspection PyTypeChecker
-                csvwrite = writer(csvfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
                 # write headers, change AuthorName BookName BookIsbn to match import csv names
                 csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
