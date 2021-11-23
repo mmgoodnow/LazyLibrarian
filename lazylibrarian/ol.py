@@ -642,8 +642,6 @@ class OpenLibrary:
                         if bookpub.lower() in get_list(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
                             rejected = 'publisher', bookpub
                             break
-                if publishers and not rejected:
-                    publishers = ', '.join(publishers)
 
                 if not rejected and not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
                     # try lookup by name
@@ -797,6 +795,8 @@ class OpenLibrary:
                                 reason = "[%s] %s" % (threadname, reason)
                                 if not lang:
                                     lang = 'Unknown'
+                                if isinstance(publishers, list):
+                                    publishers = ', '.join(publishers)
                                 db.action('INSERT INTO books (AuthorID, BookName, BookDesc, BookGenre, ' +
                                           'BookIsbn, BookPub, BookRate, BookImg, BookLink, BookID, BookDate, ' +
                                           'BookLang, BookAdded, Status, WorkPage, AudioStatus, LT_WorkID, ' +
