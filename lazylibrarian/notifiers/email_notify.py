@@ -26,7 +26,7 @@ import os
 import traceback
 from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
-    is_valid_email, path_isfile, syspath, run_script
+    is_valid_email, path_isfile, syspath, run_script, mime_type
 from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
 from six import PY2
 
@@ -100,6 +100,7 @@ class EmailNotifier:
                     with open(syspath(f), "rb") as fil:
                         part = MIMEApplication(fil.read(), Name=title)
                         part['Content-Disposition'] = 'attachment; filename="%s"' % title
+                        part['Content-Type'] = mime_type(syspath(f))
                         message.attach(part)
 
         try:
