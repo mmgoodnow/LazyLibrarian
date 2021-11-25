@@ -764,6 +764,11 @@ class OpenLibrary:
                                 locked = False
                                 bookdate = publish_date
                                 bookrate = rating
+                                if 'Invalid language: ' in reason:
+                                    try:
+                                        lang = reason.split('Invalid language: ')[1].split("'")[1]
+                                    except IndexError:
+                                        pass
                                 infodict = get_gb_info(isbn=isbn, author=auth_name, title=title, expire=False)
                                 if infodict:
                                     gbupdate = []
@@ -787,6 +792,9 @@ class OpenLibrary:
                                     if infodict['pages'] and not bookpages:
                                         bookpages = infodict['pages']
                                         gbupdate.append('Pages')
+                                    if infodict['lang'] and not lang:
+                                        lang = infodict['lang']
+                                        gbupdate.append('Language')
                                     if gbupdate:
                                         logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
                                         gb_lang_change += 1
