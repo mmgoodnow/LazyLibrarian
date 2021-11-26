@@ -16,6 +16,7 @@
 import smtplib
 import ssl
 import cherrypy
+import uuid
 from email.utils import formatdate, formataddr
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
@@ -71,10 +72,12 @@ class EmailNotifier:
         message['From'] = formataddr(('LazyLibrarian', from_addr))
         message['To'] = to_addr
         message['Date'] = formatdate(localtime=True)
+        message['Message-ID'] = "<%s@%s>" % (uuid.uuid4(), from_addr.split('@')[1])
 
         logger.debug('Email notification: %s' % message['Subject'])
         logger.debug('Email from: %s' % message['From'])
         logger.debug('Email to: %s' % message['To'])
+        logger.debug('Email ID: %s' % message['Message-ID'])
         logger.debug('Email text: %s' % text)
         logger.debug('Files: %s' % files)
 
@@ -96,11 +99,11 @@ class EmailNotifier:
                             logger.debug(msg)
                     message.attach(MIMEText(msg))
                 else:
-                    logger.debug('Attaching %s' % title)
+                    subtype = mime_type(syspath(f)).split('/')[1]
+                    logger.debug('Attaching %s %s' % (subtype, title))
                     with open(syspath(f), "rb") as fil:
-                        part = MIMEApplication(fil.read(), Name=title)
+                        part = MIMEApplication(fil.read(), _subtype=subtype, Name=title)
                         part['Content-Disposition'] = 'attachment; filename="%s"' % title
-                        part['Content-Type'] = mime_type(syspath(f))
                         message.attach(part)
 
         try:
