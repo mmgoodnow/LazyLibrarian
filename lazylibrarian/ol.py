@@ -245,6 +245,16 @@ class OpenLibrary:
             logger.debug("No info found for %s" % authorid)
             return {}
 
+        try:
+            if authorinfo['type']['key'] == '/type/redirect':
+                authorid = authorinfo['location'].rsplit('/', 1)[1]
+                authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
+                if not authorinfo:
+                    logger.debug("No info found for redirect %s" % authorid)
+                    return {}
+        except (IndexError, KeyError):
+            pass
+
         bio = authorinfo.get('bio', '')
         if bio and isinstance(bio, dict):
             about = bio.get('value', '')
@@ -271,6 +281,8 @@ class OpenLibrary:
 
         if not author_name:
             logger.warn("Rejecting authorid %s, no authorname" % authorid)
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                logger.debug(str(authorinfo))
             return {}
 
         logger.debug("[%s] Processing info for authorID: %s" % (author_name, authorid))

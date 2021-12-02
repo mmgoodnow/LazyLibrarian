@@ -20,7 +20,8 @@ from operator import itemgetter
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import cache_img
-from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, get_list, check_int
+from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
+    unaccented_bytes, get_list, check_int
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
@@ -281,9 +282,10 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         new_value_dict['About'] = author['about']
                 if dbauthor and dbauthor['authorname'] != authorname:
                     if 'unknown' not in dbauthor['authorname']:
-                        authorname = dbauthor['authorname']
-                        logger.warn("Authorname mismatch for %s [%s][%s]" %
-                                    (authorid, dbauthor['authorname'], author['authorname']))
+                        if unaccented_bytes(dbauthor['authorname']) != unaccented_bytes(authorname):
+                            authorname = dbauthor['authorname']
+                            logger.warn("Authorname mismatch for %s [%s][%s]" %
+                                        (authorid, dbauthor['authorname'], author['authorname']))
 
                 new_value_dict["AuthorName"] = authorname
 
