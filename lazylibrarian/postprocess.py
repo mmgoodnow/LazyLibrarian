@@ -1367,7 +1367,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     when_snatched = datetime.datetime.strptime(book['NZBdate'], '%Y-%m-%d %H:%M:%S')
                     timenow = datetime.datetime.now()
                     td = timenow - when_snatched
-                    diff = td.seconds  # time difference in seconds
+                    diff = td.total_seconds()  # time difference in seconds
                 except ValueError:
                     diff = 0
                 hours = int(diff / 3600)
