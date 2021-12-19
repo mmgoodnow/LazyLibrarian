@@ -592,7 +592,7 @@ class Api(object):
             elif arg == 'enabled':
                 hit.append(arg)
                 providers[-1]['ENABLED'] = kwargs[arg] == 'true'
-            elif arg == 'altername':
+            elif arg in ['altername', 'name']:
                 for existing in providers:
                     if kwargs[arg] and existing['DISPNAME'] == kwargs[arg]:
                         self.data = {'Success': False,
@@ -601,7 +601,6 @@ class Api(object):
                                                 'Message': '%s Already Exists' % kwargs[arg]}
                                      }
                         return
-
                 hit.append(arg)
                 providers[-1]['DISPNAME'] = kwargs[arg]
             elif arg == 'categories' and 'BOOKCAT' in providers[0]:
@@ -621,6 +620,8 @@ class Api(object):
                         bookcat += item
                 providers[-1]['BOOKCAT'] = bookcat
                 providers[-1]['AUDIOCAT'] = audiocat
+            elif arg == 'providertype':
+                hit.append(arg)
             else:
                 miss.append(arg)
         lazylibrarian.config_write(section)
