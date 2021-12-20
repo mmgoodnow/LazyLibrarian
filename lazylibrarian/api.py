@@ -37,7 +37,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clear_log, restart_jobs, show_jobs, check_running_jobs, all_author_update, setperm, \
     log_header, author_update, show_stats, series_update, listdir, path_isfile, path_isdir, syspath, cpu_use
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
-from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list
+from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -271,9 +271,7 @@ class Api(object):
 
     @property
     def fetch_data(self):
-
-        threading.currentThread().name = "API"
-
+        thread_name("API")
         if self.data == 'OK':
             remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
             if not remote_ip:
@@ -497,16 +495,16 @@ class Api(object):
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
-                    if arg == 'ENABLED':
+                    if arg.upper() == 'ENABLED':
                         hit.append(arg)
                         if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                             val = True
                         else:
                             val = False
-                        item[arg] = val
-                    elif arg in item:
+                        item['ENABLED'] = val
+                    elif arg.upper() in item:
                         hit.append(arg)
-                        item[arg] = kwargs[arg]
+                        item[arg.upper()] = kwargs[arg]
                     elif arg == 'categories' and 'BOOKCAT' in providers[0]:
                         hit.append(arg)
                         # prowlarr only gives us one category list
@@ -580,13 +578,7 @@ class Api(object):
         providers[-1]['NAME'] = provname
         providers[-1]['DISPNAME'] = provname
         for arg in kwargs:
-            if arg in providers[0]:
-                hit.append(arg)
-                providers[-1][arg] = kwargs[arg]
-            elif arg == 'host':
-                hit.append(arg)
-                providers[-1]['HOST'] = kwargs[arg]
-            elif arg == 'prov_apikey':
+            if arg == 'prov_apikey':
                 hit.append(arg)
                 providers[-1]['API'] = kwargs[arg]
             elif arg == 'enabled':
@@ -622,6 +614,9 @@ class Api(object):
                 providers[-1]['AUDIOCAT'] = audiocat
             elif arg == 'providertype':
                 hit.append(arg)
+            elif arg.upper() in providers[0]:
+                hit.append(arg)
+                providers[-1][arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
         lazylibrarian.config_write(section)

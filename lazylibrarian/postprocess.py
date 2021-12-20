@@ -53,7 +53,7 @@ from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts
     path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
-    make_utf8bytes, disp_name, sanitize
+    make_utf8bytes, disp_name, sanitize, thread_name
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
@@ -666,7 +666,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         if threadname == 'POSTPROCESS':
             count += 1
 
-    threadname = threading.currentThread().name
+    threadname = thread_name()
     if threadname == 'POSTPROCESS':
         count -= 1
     if count:
@@ -674,12 +674,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         status['status'] = 'running'
         return status
 
-    threading.currentThread().name = "POSTPROCESS"
+    thread_name("POSTPROCESS")
     db = database.DBConnection()
     # noinspection PyBroadException,PyStatementEffect
     try:
         ppcount = 0
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         skipped_extensions = get_list(lazylibrarian.CONFIG['SKIPPED_EXT'])
         if startdir:
             templist = [startdir]
@@ -757,7 +757,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 downloads = listdir(download_dir)
             except OSError as why:
                 logger.error('Could not access directory [%s] %s' % (download_dir, why.strerror))
-                threading.currentThread().name = "WEBSERVER"
+                thread_name("WEBSERVER")
                 return status
 
             logger.debug('Found %s %s in %s' % (len(downloads), plural(len(downloads), "file"), download_dir))
@@ -1430,7 +1430,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 else:
                     logger.debug('%s was sent somewhere?? %s minutes ago ' % (book['NZBtitle'], mins))
 
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         # Check if postprocessor needs to run again
         snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
         seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
@@ -1452,7 +1452,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
     finally:
         logger.debug('Returning %s' % status)
-        threading.currentThread().name = threadname
+        thread_name(threadname)
         return status
 
 

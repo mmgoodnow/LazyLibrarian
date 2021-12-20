@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name
+    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name, thread_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -39,15 +39,15 @@ def search_magazines(mags=None, reset=False):
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        threadname = threading.currentThread().name
+        threadname = thread_name()
         if "Thread-" in threadname:
             if not mags:
-                threading.currentThread().name = "SEARCHALLMAG"
+                thread_name("SEARCHALLMAG")
                 threadname = "SEARCHALLMAG"
             else:
-                threading.currentThread().name = "SEARCHMAG"
+                thread_name("SEARCHMAG")
 
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         searchlist = []
 
         if not mags:  # backlog search
@@ -63,8 +63,8 @@ def search_magazines(mags=None, reset=False):
 
         if len(searchmags) == 0:
             logger.debug("No magazines to search for")
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
-            threading.currentThread().name = "WEBSERVER"
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+            thread_name("WEBSERVER")
             return
 
         logger.info('Searching for %i %s' % (len(searchmags), plural(len(searchmags), "magazine")))
@@ -530,8 +530,8 @@ def search_magazines(mags=None, reset=False):
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
     finally:
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
-        threading.currentThread().name = "WEBSERVER"
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        thread_name("WEBSERVER")
 
 
 def get_issue_date(nzbtitle_exploded):

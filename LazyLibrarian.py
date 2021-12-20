@@ -6,12 +6,11 @@ from __future__ import print_function
 import locale
 import os
 import sys
-import threading
 import time
 
 import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
-from lazylibrarian.formatter import check_int
+from lazylibrarian.formatter import check_int, thread_name
 from lazylibrarian.versioncheck import run_git
 from lazylibrarian.common import path_isfile, path_isdir, syspath
 # noinspection PyUnresolvedReferences
@@ -36,7 +35,7 @@ if opt_out_of_certificate_verification:
 
 def main():
     # rename this thread
-    threading.currentThread().name = "MAIN"
+    thread_name("MAIN")
 
     # Set paths
     if hasattr(sys, 'frozen'):

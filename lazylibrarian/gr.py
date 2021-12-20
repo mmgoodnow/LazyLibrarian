@@ -14,7 +14,6 @@ import re
 import time
 import traceback
 import unicodedata
-import threading
 
 try:
     import urllib3
@@ -30,7 +29,8 @@ from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_
 from lazylibrarian.images import get_book_cover
 from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
-    clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, make_utf8bytes
+    clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
+    make_utf8bytes, thread_name
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -449,7 +449,7 @@ class GoodReads:
                 author_name_result = ' '.join(author_name_result.split())
                 logger.debug("GoodReads author name [%s]" % author_name_result)
                 loop_count = 1
-                threadname = threading.currentThread().name
+                threadname = thread_name()
                 while resultxml:
                     if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                         logger.debug("Aborting %s" % threadname)
@@ -917,7 +917,7 @@ class GoodReads:
                                     if gbupdate:
                                         logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
 
-                                threadname = threading.currentThread().getName()
+                                threadname = thread_name()
                                 reason = "[%s] %s" % (threadname, reason)
                                 control_value_dict = {"BookID": bookid}
                                 new_value_dict = {
@@ -1463,7 +1463,7 @@ class GoodReads:
                     else:
                         bookgenre = 'Unknown'
 
-        threadname = threading.currentThread().getName()
+        threadname = thread_name()
         reason = "[%s] %s" % (threadname, reason)
         match = db.match("SELECT * from authors where AuthorID=?", (author_id,))
         if not match:

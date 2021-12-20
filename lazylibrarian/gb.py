@@ -17,7 +17,6 @@
 import re
 import traceback
 import time
-import threading
 
 try:
     import urllib3
@@ -32,7 +31,7 @@ from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_
 from lazylibrarian.images import get_book_cover
 from lazylibrarian.cache import json_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
-    get_list, clean_name, make_unicode, make_utf8bytes, replace_with, check_year
+    get_list, clean_name, make_unicode, make_utf8bytes, replace_with, check_year, thread_name
 from lazylibrarian.common import quotes
 from lazylibrarian.ol import OpenLibrary
 try:
@@ -280,7 +279,7 @@ class GoogleBooks:
             db.upsert("authors", new_value_dict, control_value_dict)
 
             try:
-                threadname = threading.currentThread().name
+                threadname = thread_name()
                 while startindex < number_results:
                     if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                         logger.debug("Aborting %s" % threadname)
@@ -500,8 +499,7 @@ class GoogleBooks:
                             if locked:
                                 locked_count += 1
                             else:
-                                threadname = threading.currentThread().getName()
-                                reason = "[%s] %s" % (threadname, reason)
+                                reason = "[%s] %s" % (thread_name(), reason)
                                 control_value_dict = {"BookID": bookid}
                                 new_value_dict = {
                                     "AuthorID": authorid,
@@ -760,8 +758,7 @@ class GoogleBooks:
             logger.warn("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
             return
 
-        threadname = threading.currentThread().getName()
-        reason = "[%s] %s" % (threadname, reason)
+        reason = "[%s] %s" % (thread_name(), reason)
         control_value_dict = {"BookID": bookid}
         new_value_dict = {
             "AuthorID": author_id,

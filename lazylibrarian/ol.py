@@ -11,14 +11,13 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import threading
 import time
 import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import json_request, html_request, cache_img
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
-    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format
+    get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     thinglang
 from six import PY2
@@ -811,8 +810,7 @@ class OpenLibrary:
                                         logger.debug("Updated %s from googlebooks" % ', '.join(gbupdate))
                                         gb_lang_change += 1
 
-                                threadname = threading.currentThread().getName()
-                                reason = "[%s] %s" % (threadname, reason)
+                                reason = "[%s] %s" % (thread_name(), reason)
                                 if not lang:
                                     lang = 'Unknown'
                                 if isinstance(publishers, list):
@@ -1060,8 +1058,7 @@ class OpenLibrary:
 
                                                                 reason = "Member %s of series %s" % (member[0],
                                                                                                      series[0])
-                                                                threadname = threading.currentThread().getName()
-                                                                reason = "[%s] %s" % (threadname, reason)
+                                                                reason = "[%s] %s" % (thread_name(), reason)
                                                                 added_count += 1
                                                                 if not lang:
                                                                     lang = 'Unknown'
@@ -1121,8 +1118,7 @@ class OpenLibrary:
                                 reason = 'Author: %s' % auth_name
                             else:
                                 reason = entryreason
-                            threadname = threading.currentThread().getName()
-                            reason = "[%s] %s" % (threadname, reason)
+                            reason = "[%s] %s" % (thread_name(), reason)
                             added_count += 1
                             if not lang:
                                 lang = 'Unknown'
@@ -1322,8 +1318,7 @@ class OpenLibrary:
                 else:
                     bookgenre = 'Unknown'
 
-            threadname = threading.currentThread().getName()
-            reason = "[%s] %s" % (threadname, reason)
+            reason = "[%s] %s" % (thread_name(), reason)
             control_value_dict = {"BookID": bookid}
             new_value_dict = {
                 "AuthorID": authorid,

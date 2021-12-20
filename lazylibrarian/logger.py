@@ -13,7 +13,6 @@
 import inspect
 import logging
 import os
-import threading
 
 import lazylibrarian
 from lazylibrarian import formatter
@@ -85,7 +84,7 @@ class RotatingLogger(object):
 
         logger = logging.getLogger(__name__)
 
-        threadname = threading.currentThread().getName()
+        threadname = formatter.thread_name()
 
         # Get the frame data of the method that made the original logger call
         if len(inspect.stack()) > 2:

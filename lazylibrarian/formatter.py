@@ -17,6 +17,7 @@ from hashlib import md5
 import os
 import re
 import unicodedata
+import threading
 
 import lazylibrarian
 from six import PY2, text_type, binary_type
@@ -33,6 +34,21 @@ namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's
 umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
 
 apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+
+
+# noinspection PyDeprecation
+def thread_name(name=None):
+    if name:
+        if PY2:
+            threading.currentThread().name = name
+        else:
+            threading.current_thread().name = name
+    else:
+        if PY2:
+            # noinspection PyDeprecation
+            return threading.currentThread().getName()
+        else:
+            return threading.current_thread().name
 
 
 def sanitize(name):

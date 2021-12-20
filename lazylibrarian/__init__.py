@@ -34,7 +34,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import restart_jobs, log_header, schedule_job, listdir, \
     path_isdir, path_isfile, path_exists, syspath
 from lazylibrarian.formatter import get_list, book_series, unaccented, check_int, unaccented_bytes, \
-    make_unicode, make_bytestr
+    make_unicode, make_bytestr, thread_name
 from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.providers import provider_is_blocked
 
@@ -1244,8 +1244,8 @@ def config_write(part=None):
     if part:
         logger.info("Writing config for section [%s]" % part)
 
-    currentname = threading.currentThread().name
-    threading.currentThread().name = "CONFIG_WRITE"
+    currentname = thread_name()
+    thread_name("CONFIG_WRITE")
 
     interface = CFG.get('General', 'http_look')
     if CONFIG['HTTP_LOOK'] != interface:
@@ -1623,7 +1623,7 @@ def config_write(part=None):
     except Exception as e:
         msg = '{} {} {} {}'.format('Unable to create new config file:', CONFIGFILE, type(e).__name__, str(e))
         logger.warn(msg)
-        threading.currentThread().name = currentname
+        thread_name(currentname)
         return
     try:
         os.remove(syspath(CONFIGFILE + '.bak'))
@@ -1649,7 +1649,7 @@ def config_write(part=None):
         msg = 'Config file [%s] %s has been updated' % (CONFIGFILE, part)
         logger.info(msg)
 
-    threading.currentThread().name = currentname
+    thread_name(currentname)
 
 
 # noinspection PyUnresolvedReferences

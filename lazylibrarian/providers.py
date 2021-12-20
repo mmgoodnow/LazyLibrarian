@@ -402,6 +402,8 @@ def get_capabilities(provider, force=False):
                     if cat.attrib['name'].lower() == 'audio':
                         provider['AUDIOCAT'] = cat.attrib['id']
                         subcats = cat.iter('subcat')
+                        if not subcats:
+                            subcats = cat.iter('subCategories')
                         for subcat in subcats:
                             if 'audiobook' in subcat.attrib['name'].lower():
                                 provider['AUDIOCAT'] = subcat.attrib['id']
@@ -432,6 +434,8 @@ def get_capabilities(provider, force=False):
                         # subcategories override main category (not in addition to)
                         # but allow multile subcategories (mags->english, mags->french)
                         subcats = cat.iter('subcat')
+                        if not subcats:
+                            subcats = cat.iter('subCategories')
                         ebooksubs = ''
                         magsubs = ''
                         comicsubs = ''

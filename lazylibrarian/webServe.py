@@ -48,7 +48,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
     md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_with, format_author_name, \
-    check_float
+    check_float, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -102,7 +102,7 @@ def clear_mako_cache(userid=0):
 
 
 def serve_template(templatename, **kwargs):
-    threading.currentThread().name = "WEBSERVER"
+    thread_name("WEBSERVER")
     interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
@@ -499,11 +499,11 @@ class WebInterface(object):
     @staticmethod
     def label_thread(name=None):
         if name:
-            threading.currentThread().name = name
+            thread_name(name)
         else:
-            threadname = threading.currentThread().name
+            threadname = thread_name()
             if "Thread-" in threadname:
-                threading.currentThread().name = "WEBSERVER"
+                thread_name("WEBSERVER")
 
     # USERS ############################################################
 
@@ -6111,7 +6111,7 @@ class WebInterface(object):
     @cherrypy.expose
     def testprovider(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "TESTPROVIDER"
+        thread_name("TESTPROVIDER")
         if 'name' in kwargs and kwargs['name']:
             host = ''
             api = ''
@@ -6243,7 +6243,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_gr_auth(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'gr_api' in kwargs:
             lazylibrarian.CONFIG['GR_API'] = kwargs['gr_api']
         if 'gr_secret' in kwargs:
@@ -6280,7 +6280,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_twitter(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         result = notifiers.twitter_notifier.test_notify()
         if result:
             return "Tweet successful, check your twitter to make sure it worked"
@@ -6290,7 +6290,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_android_pn(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'url' in kwargs:
             lazylibrarian.CONFIG['ANDROIDPN_URL'] = kwargs['url']
         if 'username' in kwargs:
@@ -6310,7 +6310,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_boxcar(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'token' in kwargs:
             lazylibrarian.CONFIG['BOXCAR_TOKEN'] = kwargs['token']
         result = notifiers.boxcar_notifier.test_notify()
@@ -6323,7 +6323,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_pushbullet(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'token' in kwargs:
             lazylibrarian.CONFIG['PUSHBULLET_TOKEN'] = kwargs['token']
         if 'device' in kwargs:
@@ -6338,7 +6338,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_pushover(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'apitoken' in kwargs:
             lazylibrarian.CONFIG['PUSHOVER_APITOKEN'] = kwargs['apitoken']
         if 'keys' in kwargs:
@@ -6361,7 +6361,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_telegram(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'token' in kwargs:
             lazylibrarian.CONFIG['TELEGRAM_TOKEN'] = kwargs['token']
         if 'userid' in kwargs:
@@ -6377,7 +6377,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_prowl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'apikey' in kwargs:
             lazylibrarian.CONFIG['PROWL_APIKEY'] = kwargs['apikey']
         if 'priority' in kwargs:
@@ -6393,7 +6393,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_growl(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'apikey' in kwargs:
             lazylibrarian.CONFIG['GROWL_HOST'] = kwargs['host']
         if 'priority' in kwargs:
@@ -6409,7 +6409,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_slack(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'token' in kwargs:
             lazylibrarian.CONFIG['SLACK_TOKEN'] = kwargs['token']
         if 'url' in kwargs:
@@ -6425,7 +6425,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_custom(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'script' in kwargs:
             lazylibrarian.CONFIG['CUSTOM_SCRIPT'] = kwargs['script']
         result = notifiers.custom_notifier.test_notify()
@@ -6438,7 +6438,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_email(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'tls' in kwargs:
             if kwargs['tls'] == 'True':
                 lazylibrarian.CONFIG['EMAIL_TLS'] = True
@@ -6571,7 +6571,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_deluge(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['DELUGE_HOST'] = kwargs['host']
         if 'base' in kwargs:
@@ -6647,7 +6647,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_sabnzbd(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['SAB_HOST'] = kwargs['host']
         if 'port' in kwargs:
@@ -6670,7 +6670,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_nzbget(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['NZBGET_HOST'] = kwargs['host']
         if 'port' in kwargs:
@@ -6691,7 +6691,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_transmission(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['TRANSMISSION_HOST'] = kwargs['host']
         if 'base' in kwargs:
@@ -6710,7 +6710,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_qbittorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['QBITTORRENT_HOST'] = kwargs['host']
         if 'port' in kwargs:
@@ -6731,7 +6731,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_utorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['UTORRENT_HOST'] = kwargs['host']
         if 'port' in kwargs:
@@ -6752,7 +6752,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_rtorrent(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['RTORRENT_HOST'] = kwargs['host']
         if 'dir' in kwargs:
@@ -6771,7 +6771,7 @@ class WebInterface(object):
     @cherrypy.expose
     def test_synology(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         if 'host' in kwargs:
             lazylibrarian.CONFIG['SYNOLOGY_HOST'] = kwargs['host']
         if 'port' in kwargs:
@@ -6789,7 +6789,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def test_ffmpeg(self, **kwargs):
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
             lazylibrarian.CONFIG['FFMPEG'] = kwargs['prg']
@@ -6820,7 +6820,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def test_ebook_convert(self, **kwargs):
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
             lazylibrarian.CONFIG['EBOOK_CONVERT'] = kwargs['prg']
@@ -6835,7 +6835,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def test_calibredb(self, **kwargs):
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
             lazylibrarian.CONFIG['IMP_CALIBREDB'] = kwargs['prg']
@@ -6843,7 +6843,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def test_preprocessor(self, **kwargs):
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
             lazylibrarian.CONFIG['EXT_PREPROCESS'] = kwargs['prg']

@@ -13,7 +13,6 @@
 import json
 import os
 import shutil
-import threading
 import time
 from xml.etree import ElementTree
 try:
@@ -26,7 +25,8 @@ from six import PY2
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, remove
-from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode
+from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
+    thread_name
 
 
 def gr_api_sleep():
@@ -332,9 +332,9 @@ def clean_cache():
         Check covers and authorimages etc referenced in the database exist
         and change database entry if missing, expire old pastissues table entries """
 
-    threadname = threading.currentThread().name
+    threadname = thread_name()
     if "Thread-" in threadname:
-        threading.currentThread().name = "CLEANCACHE"
+        thread_name("CLEANCACHE")
 
     db = database.DBConnection()
     db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
@@ -576,5 +576,5 @@ def clean_cache():
         logger.debug(msg)
     db.upsert("jobs", {"Finish": time.time()}, {"Name": "CLEANCACHE"})
 
-    threading.currentThread().name = threadname
+    thread_name(threadname)
     return result

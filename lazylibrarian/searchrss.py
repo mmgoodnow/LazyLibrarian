@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import schedule_job
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, format_author_name, check_int, split_title
+from lazylibrarian.formatter import plural, unaccented, format_author_name, check_int, split_title, thread_name
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list
@@ -128,13 +128,13 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
 
 # noinspection PyBroadException
 def search_wishlist():
-    threading.currentThread().name = "SEARCHWISHLIST"
+    thread_name("SEARCHWISHLIST")
     new_books = []
     new_audio = []
     search_start = time.time()
     try:
         db = database.DBConnection()
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         resultlist, wishproviders = iterate_over_wishlists()
         if not wishproviders:
             logger.debug('No wishlists are set')
@@ -147,7 +147,7 @@ def search_wishlist():
             # we get rss_author, rss_title, maybe rss_isbn, rss_bookid (goodreads bookid)
             # we can just use bookid if goodreads, or try isbn and name matching on author/title if not
             # eg NYTimes wishlist
-            if lazylibrarian.STOPTHREADS and threading.currentThread().name == "SEARCHWISHLIST":
+            if lazylibrarian.STOPTHREADS and thread_name() == "SEARCHWISHLIST":
                 logger.debug("Aborting SEARCHWISHLIST")
                 break
 
@@ -273,7 +273,7 @@ def search_wishlist():
             logger.info("Wishlist marked %s %s as Wanted" % (tot, plural(tot, "item")))
         else:
             logger.debug("Wishlist marked no new items as Wanted")
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
 
     except Exception:
         logger.error('Unhandled exception in search_wishlist: %s' % traceback.format_exc())
@@ -292,7 +292,7 @@ def search_wishlist():
                              args=[new_audio, 'AudioBook']).start()
             threading.Thread(target=lazylibrarian.searchbook.search_book, name='WISHLISTAUDIO',
                              args=[new_audio, 'AudioBook']).start()
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")
 
 
 # noinspection PyBroadException
@@ -306,12 +306,12 @@ def search_rss_book(books=None, library=None):
         schedule_job(action='Stop', target='search_rss_book')
         return
     try:
-        threadname = threading.currentThread().name
+        threadname = thread_name()
         if "Thread-" in threadname:
             if not books:
-                threading.currentThread().name = "SEARCHALLRSS"
+                thread_name("SEARCHALLRSS")
             else:
-                threading.currentThread().name = "SEARCHRSS"
+                thread_name("SEARCHRSS")
 
         db = database.DBConnection()
 
@@ -410,9 +410,9 @@ def search_rss_book(books=None, library=None):
                 rss_count += 1
 
         logger.info("rss Search for Wanted items complete, found %s %s" % (rss_count, plural(rss_count, "book")))
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
 
     except Exception:
         logger.error('Unhandled exception in search_rss_book: %s' % traceback.format_exc())
     finally:
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")

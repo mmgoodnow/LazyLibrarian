@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import cache_img
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
-    unaccented_bytes, get_list, check_int
+    unaccented_bytes, get_list, check_int, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
@@ -207,9 +207,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         else:
             reason = "Unknown reason in add_author_to_db"
 
-    threadname = threading.currentThread().name
+    threadname = thread_name()
     if "Thread-" in threadname:
-        threading.currentThread().name = "AddAuthorToDB"
+        thread_name("AddAuthorToDB")
     # noinspection PyBroadException
     try:
         db = database.DBConnection()

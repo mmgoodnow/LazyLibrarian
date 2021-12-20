@@ -30,7 +30,7 @@ except ImportError:
 
 from lazylibrarian import logger, version, database
 from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
-from lazylibrarian.formatter import check_int, make_unicode
+from lazylibrarian.formatter import check_int, make_unicode, thread_name
 
 
 def logmsg(level, msg):
@@ -226,8 +226,8 @@ def check_for_updates():
     """ Called at startup, from webserver with thread name WEBSERVER, or as a cron job """
     auto_update = False
     suppress = False
-    if 'Thread-' in threading.currentThread().name:
-        threading.currentThread().name = "CRON-VERSIONCHECK"
+    if 'Thread-' in thread_name():
+        thread_name("CRON-VERSIONCHECK")
         auto_update = lazylibrarian.CONFIG['AUTO_UPDATE']
     # noinspection PyBroadException
     try:

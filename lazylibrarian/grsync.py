@@ -24,7 +24,7 @@ from six.moves.urllib_parse import urlencode, parse_qsl
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
-from lazylibrarian.formatter import plural, get_list, check_int
+from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
 from six import PY2
 
@@ -482,7 +482,7 @@ def sync_to_gr():
 
     # noinspection PyBroadException
     try:
-        threading.currentThread().name = 'GRSync'
+        thread_name('GRSync')
         db = database.DBConnection()
         db.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
         if lazylibrarian.CONFIG['GR_SYNCUSER']:
@@ -596,7 +596,7 @@ def sync_to_gr():
             threading.Thread(target=lazylibrarian.searchbook.search_book, name='GRSYNCAUDIO',
                              args=[new_audio, 'AudioBook']).start()
 
-        threading.currentThread().name = 'WEBSERVER'
+        thread_name('WEBSERVER')
         return msg
 
 

@@ -17,7 +17,7 @@ import time
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
-    now, disp_name
+    now, disp_name, thread_name
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.common import schedule_job
@@ -197,15 +197,15 @@ def cron_search_comics():
 def search_comics(comicid=None):
     # noinspection PyBroadException
     try:
-        threadname = threading.currentThread().name
+        threadname = thread_name()
         if "Thread-" in threadname:
             if not comicid:
-                threading.currentThread().name = "SEARCHALLCOMICS"
+                thread_name("SEARCHALLCOMICS")
             else:
-                threading.currentThread().name = "SEARCHCOMIC"
+                thread_name("SEARCHCOMIC")
 
         db = database.DBConnection()
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         cmd = "SELECT ComicID,Title, aka from comics WHERE Status='Active'"
         count = 0
         if comicid:
@@ -334,8 +334,8 @@ def search_comics(comicid=None):
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
         logger.info("ComicSearch for Wanted items complete, found %s %s" % (count, plural(count, "comic")))
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
     except Exception:
         logger.error('Unhandled exception in search_comics: %s' % traceback.format_exc())
     finally:
-        threading.currentThread().name = "WEBSERVER"
+        thread_name("WEBSERVER")

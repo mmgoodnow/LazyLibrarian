@@ -16,7 +16,7 @@ import traceback
 import time
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import plural, check_int
+from lazylibrarian.formatter import plural, check_int, thread_name
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
@@ -82,7 +82,7 @@ def search_book(books=None, library=None):
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
-        threadname = threading.currentThread().name
+        threadname = thread_name()
         if 'SEARCHALL' in threadname or 'API-SEARCH' in threadname or 'FORCE-SEARCH' in threadname:
             force = True
         else:
@@ -90,12 +90,12 @@ def search_book(books=None, library=None):
 
         if "Thread-" in threadname:
             if not books:
-                threading.currentThread().name = "SEARCHALLBOOKS"
+                thread_name("SEARCHALLBOOKS")
                 threadname = "SEARCHALLBOOKS"
             else:
-                threading.currentThread().name = "SEARCHBOOKS"
+                thread_name("SEARCHBOOKS")
 
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         searchlist = []
         searchbooks = []
 
@@ -124,7 +124,7 @@ def search_book(books=None, library=None):
 
         if len(searchbooks) == 0:
             logger.debug("No books to search for")
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             return
 
         nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
@@ -138,7 +138,7 @@ def search_book(books=None, library=None):
             else:
                 msg += " (check you have some enabled)"
             logger.debug(msg)
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             return
 
         modelist = []
@@ -405,5 +405,5 @@ def search_book(books=None, library=None):
     except Exception:
         logger.error('Unhandled exception in search_book: %s' % traceback.format_exc())
     finally:
-        db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
-        threading.currentThread().name = "WEBSERVER"
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
+        thread_name("WEBSERVER")

@@ -20,7 +20,6 @@ import random
 import shutil
 import string
 import sys
-import threading
 import time
 import traceback
 import subprocess
@@ -60,7 +59,7 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run_time, is_valid_booktype, check_int, \
-    get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
+    get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic, thread_name
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -926,16 +925,16 @@ def schedule_job(action='Start', target=None):
 
 
 def author_update(restart=True, only_overdue=True):
-    threadname = threading.currentThread().name
+    threadname = thread_name()
     if "Thread-" in threadname:
-        threading.currentThread().name = "AUTHORUPDATE"
+        thread_name("AUTHORUPDATE")
 
     db = database.DBConnection()
     msg = ''
 
     # noinspection PyBroadException
     try:
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
@@ -949,7 +948,7 @@ def author_update(restart=True, only_overdue=True):
                 if lazylibrarian.STOPTHREADS:
                     return ''
                 msg = 'Updated author %s' % name
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job("Restart", "author_update")
     except Exception:
@@ -960,16 +959,16 @@ def author_update(restart=True, only_overdue=True):
 
 
 def series_update(restart=True, only_overdue=True):
-    threadname = threading.currentThread().name
+    threadname = thread_name()
     if "Thread-" in threadname:
-        threading.currentThread().name = "SERIESUPDATE"
+        thread_name("SERIESUPDATE")
 
     db = database.DBConnection()
     msg = ''
 
     # noinspection PyBroadException
     try:
-        db.upsert("jobs", {"Start": time.time()}, {"Name": threading.currentThread().name})
+        db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
         if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
@@ -983,7 +982,7 @@ def series_update(restart=True, only_overdue=True):
                 msg = 'Updated series %s' % name
             logger.debug(msg)
 
-            db.upsert("jobs", {"Finish": time.time()}, {"Name": threading.currentThread().name})
+            db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             if total and restart and not lazylibrarian.STOPTHREADS:
                 schedule_job("Restart", "series_update")
     except Exception:

@@ -15,7 +15,6 @@ import inspect
 import os
 import re
 import time
-import threading
 import traceback
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus, quote, urlencode
@@ -24,7 +23,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
-    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented
+    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 
 try:
     from fuzzywuzzy import fuzz
@@ -242,7 +241,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
     new_astatus = ''
     authorid = match['AuthorID']
     bookname = match['BookName']
-    threadname = threading.currentThread().getName()
+    threadname = thread_name()
     # Is the book part of any series we want or don't want?
     for item in serieslist:
         match = db.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
