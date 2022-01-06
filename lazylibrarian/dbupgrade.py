@@ -108,8 +108,9 @@ from lazylibrarian.ol import OpenLibrary
 # 72 Add separate HaveEBooks and HaveAudioBooks to authors table
 # 73 Add gr_id to series table
 # 74 Add Theme to users table
+# 75 Add ol_id to author table
 
-db_current_version = 74
+db_current_version = 75
 
 
 def upgrade_needed():
@@ -1183,6 +1184,19 @@ def update_schema(db, upgradelog):
         lazylibrarian.UPDATE_MSG = 'Adding Theme to users table'
         upgradelog.write("%s v74: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE users ADD COLUMN Theme TEXT')
+
+    if not has_column(db, "authors", "ol_id"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding ol_id to series table'
+        upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE authors ADD COLUMN ol_id TEXT')
+        res = db.select('SELECT authorid from authors WHERE authorid like "OL%A"')
+        lazylibrarian.UPDATE_MSG = "Copying authorid for %s authors" % len(res)
+        logger.debug(lazylibrarian.UPDATE_MSG)
+        for author in res:
+            db.action("UPDATE authors SET ol_id=? WHERE authorid=?", (author['authorid'], author['authorid']))
+        lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors" % len(res)
+        logger.debug(lazylibrarian.UPDATE_MSG)
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))
