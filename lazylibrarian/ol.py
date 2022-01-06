@@ -504,16 +504,28 @@ class OpenLibrary:
         if lazylibrarian.CONFIG['NO_LANG']:
             ignorable.append('lang')
 
+        ol_id = ''
+        match = db.match('SELECT ol_id FROM authors where authorid=?', (authorid,))
+        if match:
+            ol_id = match['ol_id']
+        if not ol_id:
+            ol_id = authorid
+
+        # Artist is loading
+        control_value_dict = {"AuthorID": authorid}
+        new_value_dict = {"Status": "Loading"}
+        db.upsert("authors", new_value_dict, control_value_dict)
+
         while next_page:
             loop_count += 1
-            url = self.OL_SEARCH + "author=" + authorid
+            url = self.OL_SEARCH + "author=" + ol_id
             if offset:
                 url += "&offset=%s" % offset
             authorbooks, in_cache = json_request(url, use_cache=not refresh)
             api_hits += not in_cache
             cache_hits += in_cache
             if not authorbooks or not authorbooks["docs"]:
-                logger.debug("No books found for key %s" % authorid)
+                logger.debug("No books found for key %s" % ol_id)
                 next_page = False
                 docs = []
             else:
@@ -1144,6 +1156,33 @@ class OpenLibrary:
                     next_page = False
             else:
                 next_page = False
+
+        cmd = 'SELECT BookName, BookLink, BookDate, BookImg, BookID from books WHERE AuthorID=?'
+        cmd += ' AND Status != "Ignored" order by BookDate DESC'
+        lastbook = db.match(cmd, (authorid,))
+        if lastbook:
+            lastbookname = lastbook['BookName']
+            lastbooklink = lastbook['BookLink']
+            lastbookdate = lastbook['BookDate']
+            lastbookid = lastbook['BookID']
+            lastbookimg = lastbook['BookImg']
+        else:
+            lastbookname = ""
+            lastbooklink = ""
+            lastbookdate = ""
+            lastbookid = ""
+            lastbookimg = ""
+
+        control_value_dict = {"AuthorID": authorid}
+        new_value_dict = {
+            "Status": entrystatus,
+            "LastBook": lastbookname,
+            "LastLink": lastbooklink,
+            "LastDate": lastbookdate,
+            "LastBookID": lastbookid,
+            "LastBookImg": lastbookimg
+        }
+        db.upsert("authors", new_value_dict, control_value_dict)
 
         resultcount = added_count + updated_count
         logger.debug("Found %s %s in %s %s" % (total_count, plural(total_count, "result"),

@@ -216,7 +216,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMNS', 'HTTP_TIMEOUT',
                  'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
-                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT',
+                 'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'MULTI_SOURCE',
                  'DELUGE_TIMEOUT', 'OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']
 # default interface does not know about these items, so leaves them unchanged
 CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
@@ -248,6 +248,7 @@ CONFIG_DEFINITIONS = {
     'LT_URL': ('str', 'General', 'https://www.librarything.com'),
     'CV_URL': ('str', 'General', 'https://www.comicvine.gamespot.com'),
     'CX_URL': ('str', 'General', 'https://www.comixology.com'),
+    'MULTI_SOURCE': ('bool', 'General', 0),
     'USER_ACCOUNTS': ('bool', 'General', 0),
     'SINGLE_USER': ('bool', 'General', 0),
     'ADMIN_EMAIL': ('str', 'General', ''),
