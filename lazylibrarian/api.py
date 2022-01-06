@@ -338,6 +338,10 @@ class Api(object):
                      'torrent': torrent,
                      'direct': direct,
                      }
+        tot = 0
+        for item in self.data:
+            tot += len(item)
+        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
 
     def _listnabproviders(self):
         newzlist = []
@@ -360,6 +364,8 @@ class Api(object):
                 entry['Categories'] += item['AUDIOCAT']
             torzlist.append(entry)
 
+        tot = len(lazylibrarian.NEWZNAB_PROV) + len(lazylibrarian.TORZNAB_PROV)
+        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = {'Success': True,
                      'Data': {
                         'Newznabs': newzlist,
@@ -369,9 +375,13 @@ class Api(object):
                      }
 
     def _listrssproviders(self):
+        tot = len(lazylibrarian.RSS_PROV)
+        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = lazylibrarian.RSS_PROV
 
     def _listircproviders(self):
+        tot = len(lazylibrarian.IRC_PROV)
+        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = lazylibrarian.IRC_PROV
 
     def _listtorrentproviders(self):
@@ -382,6 +392,7 @@ class Api(object):
                 name = "%s_%s" % (provider, item)
                 mydict[name] = lazylibrarian.CONFIG[name]
             providers.append(mydict)
+        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
         return
 
@@ -396,6 +407,7 @@ class Api(object):
             providers.append(mydict)
         for item in lazylibrarian.GEN_PROV:
             providers.append(item)
+        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
         return
 
