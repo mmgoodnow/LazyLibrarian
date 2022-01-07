@@ -54,6 +54,7 @@ from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts
 from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
+from lazylibrarian.images import createthumbs
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
@@ -165,6 +166,8 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             shutil.copyfile(coverfile, hashname)
             setperm(hashname)
             coverfile = 'cache/magazine/%s.jpg' % myhash
+            createthumbs(hashname)
+
         issueid = create_id("%s %s" % (title, issuenum))
         control_value_dict = {"Title": title, "IssueDate": issuenum}
         new_value_dict = {"IssueAcquired": today(),
@@ -813,11 +816,31 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
+                            pp_path = ''
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                                 logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
                             if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                                # matching file or folder name
                                 pp_path = os.path.join(download_dir, fname)
+                            elif path_isdir(os.path.join(download_dir, fname)):
+                                # obfuscated folder might contain our file
+                                for f in listdir(os.path.join(download_dir, fname)):
+                                    if is_valid_type(f, extras='cbr, cbz'):
+                                        if PY2:
+                                            matchname = unaccented_bytes(f, only_ascii=False)
+                                        else:
+                                            matchname = unaccented(f, only_ascii=False)
+                                        matchname = matchname.split(' LL.(')[0].replace('_', ' ')
+                                        matchname = sanitize(matchname)
+                                        match = fuzz.token_set_ratio(matchtitle, matchname)
+                                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                                            logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
+                                        if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                                            # found matching file in this folder
+                                            pp_path = os.path.join(download_dir, fname)
+                                            break
 
+                            if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                                     logger.debug("process_dir found %s %s" % (type(pp_path), repr(pp_path)))
 
@@ -1102,6 +1125,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     shutil.copyfile(coverfile, hashname)
                                     setperm(hashname)
                                     coverfile = 'cache/comic/%s.jpg' % myhash
+                                    createthumbs(hashname)
+
                                 control_value_dict = {"ComicID": comicid}
                                 if older:  # check this in case processing issues arriving out of order
                                     new_value_dict = {"LastAcquired": today(),
@@ -1139,6 +1164,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 shutil.copyfile(coverfile, hashname)
                                 setperm(hashname)
                                 coverfile = 'cache/magazine/%s.jpg' % myhash
+                                createthumbs(hashname)
+
                             issueid = create_id("%s %s" % (book['BookID'], book['AuxInfo']))
                             control_value_dict = {"Title": book['BookID'], "IssueDate": book['AuxInfo']}
                             new_value_dict = {"IssueAcquired": today(),

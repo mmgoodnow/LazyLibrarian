@@ -236,22 +236,73 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             db.upsert("authors", new_value_dict, control_value_dict)
 
-            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                ol = OpenLibrary(authorid)
-                author = ol.get_author_info(authorid=authorid)
+            author = {}
+            ol_id = ''
+            gr_id = ''
+
+            if dbauthor:
+                ol_id = dbauthor['ol_id']
+                gr_id = dbauthor['gr_id']
+            elif authorid.startswith('OL'):
+                ol_id = authorid
+            elif authorid:
+                gr_id = authorid
+
+            if not ol_id:
+                ol = OpenLibrary(authorname)
+                ol_author = ol.find_author_id()
+                if ol_author:
+                    ol_id = ol_author['authorid']
+                else:
+                    ol_id = authorid
+            if not gr_id:
+                gr = GoodReads(authorname)
+                gr_author = gr.find_author_id()
+                if gr_author:
+                    gr_id = gr_author['authorid']
+                else:
+                    gr_id = authorid
+
+            ol = OpenLibrary(ol_id)
+            ol_author = ol.get_author_info(authorid=ol_id)
+            gr = GoodReads(gr_id)
+            gr_author = gr.get_author_info(authorid=gr_id)
+            if ol_author:
+                ol_author['ol_id'] = ol_author['authorid']
+                for item in ol_author:
+                    if not author.get(item):  # if key doesn't exist or value empty
+                        author[item] = ol_author[item]
+            if gr_author:
+                gr_author['gr_id'] = gr_author['authorid']
+                for item in gr_author:
+                    if not author.get(item):
+                        author[item] = gr_author[item]
+
+            # which id do we prefer
+            if author.get('ol_id') and lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+                author['authorid'] = author['ol_id']
+            elif author.get('gr_id'):
+                author['authorid'] = author['gr_id']
             else:
-                gr = GoodReads(authorid)
-                author = gr.get_author_info(authorid=authorid)
+                author = {}
+
             if author:
                 authorname = author['authorname']
+                authorid = author['authorid']
                 if not dbauthor:
                     dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     if dbauthor['AuthorID'] != authorid:
-                        logger.warn("Conflicting authorid for %s (new:%s old:%s) Using existing authorid" %
+                        logger.warn("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
                                     (authorname, authorid, dbauthor['AuthorID']))
-                        db.action("delete from authors where authorid=?", (authorid,))
-                        authorid = dbauthor['AuthorID']
+                        db.action("PRAGMA foreign_keys = OFF")
+                        db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                                  (authorid, dbauthor['authorid']))
+                        db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                                  (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                        db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
+                                  (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                        db.action("PRAGMA foreign_keys = ON")
                         entry_status = dbauthor['Status']
                     logger.debug("Updating author %s (%s)" % (authorid, authorname))
                     new_author = False
@@ -272,12 +323,16 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     new_value_dict["AuthorLink"] = author['authorlink']
                     new_value_dict["AuthorBorn"] = author['authorborn']
                     new_value_dict["AuthorDeath"] = author['authordeath']
+                    new_value_dict["gr_id"] = author.get('gr_id', '')
+                    new_value_dict["ol_id"] = author.get('ol_id', '')
                     if author.get('about', ''):
                         new_value_dict['About'] = author['about']
                 elif dbauthor and not dbauthor['manual']:
                     new_value_dict["AuthorBorn"] = author['authorborn']
                     new_value_dict["AuthorDeath"] = author['authordeath']
                     new_value_dict["AuthorLink"] = author['authorlink']
+                    new_value_dict["gr_id"] = author.get('gr_id', '')
+                    new_value_dict["ol_id"] = author.get('ol_id', '')
                     if author.get('about', ''):
                         new_value_dict['About'] = author['about']
                 if dbauthor and dbauthor['authorname'] != authorname:
@@ -298,14 +353,37 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
         if not match and authorname and 'unknown' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
-            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
-                ol = OpenLibrary(authorname)
-                author = ol.find_author_id(refresh=refresh)
-            else:
-                gr = GoodReads(authorname)
-                author = gr.find_author_id(refresh=refresh)
+            ol = OpenLibrary(authorname)
+            ol_author = ol.find_author_id(refresh=refresh)
+            gr = GoodReads(authorname)
+            gr_author = gr.find_author_id(refresh=refresh)
 
-            if author:
+            author = {}
+            # which do we prefer
+            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+                if ol_author.get('authorid'):
+                    ol_author['ol_id'] = ol_author['authorid']
+                    for item in ol_author:
+                        if not author.get(item):  # if key doesn't exist or value empty
+                            author[item] = ol_author[item]
+                if gr_author.get('authorid'):
+                    gr_author['gr_id'] = gr_author['authorid']
+                    for item in gr_author:
+                        if not author.get(item):
+                            author[item] = gr_author[item]
+            else:
+                if gr_author.get('authorid'):
+                    gr_author['gr_id'] = gr_author['authorid']
+                    for item in gr_author:
+                        if not author.get(item):
+                            author[item] = gr_author[item]
+                if ol_author.get('authorid'):
+                    ol_author['ol_id'] = ol_author['authorid']
+                    for item in ol_author:
+                        if not author.get(item):  # if key doesn't exist or value empty
+                            author[item] = ol_author[item]
+
+            if author.get('authorid'):
                 authorid = author['authorid']
                 dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (author['authorid'],))
                 if not dbauthor:
@@ -334,7 +412,9 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     control_value_dict = {"AuthorID": authorid}
                     new_value_dict = {
                         "Updated": int(time.time()),
-                        "Status": "Loading"
+                        "Status": "Loading",
+                        "gr_id": author.get('gr_id', ''),
+                        "ol_id": author.get('ol_id', '')
                     }
                     logger.debug("Updating author: %s (%s)" % (authorid, authorname))
                     entry_status = dbauthor['Status']
@@ -365,6 +445,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     new_value_dict["AuthorImg"] = author['authorimg']
                     new_value_dict["AuthorBorn"] = author['authorborn']
                     new_value_dict["AuthorDeath"] = author['authordeath']
+                    new_value_dict["gr_id"] = author.get('gr_id', '')
+                    new_value_dict["ol_id"] = author.get('ol_id', '')
 
                 db.upsert("authors", new_value_dict, control_value_dict)
 
@@ -417,34 +499,52 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             if entry_status not in ['Active', 'Wanted', 'Ignored', 'Paused']:
                 entry_status = 'Active'  # default for invalid/unknown or "loading"
             # process books
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
-                if lazylibrarian.CONFIG['GB_API']:
-                    book_api = GoogleBooks()
+            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and lazylibrarian.CONFIG['GB_API']:
+                book_api = GoogleBooks()
+                book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                          audiostatus=audiostatus, entrystatus=entry_status,
+                                          refresh=refresh, reason=reason)
+                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                    book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                # if lazylibrarian.CONFIG['GR_API']:
-                #     book_api = GoodReads(authorname)
-                #     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                #                               ausiostatus=audiostatus, entrystatus=entry_status,
-                #                               refresh=refresh)
-            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-                if lazylibrarian.CONFIG['GR_API']:
-                    book_api = GoodReads(authorname)
+                    if lazylibrarian.CONFIG['GR_API']:
+                        book_api = GoodReads(authorname)
+                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
+            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and lazylibrarian.CONFIG['GR_API']:
+                book_api = GoodReads(authorname)
+                book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                          audiostatus=audiostatus, entrystatus=entry_status,
+                                          refresh=refresh, reason=reason)
+                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                    book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                # if lazylibrarian.CONFIG['GB_API']:
-                #     book_api = GoogleBooks()
-                #     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
-                #                               audiostatus=audiostatus, entrystatus=entry_status,
-                #                               refresh=refresh)
+                    if lazylibrarian.CONFIG['GB_API']:
+                        book_api = GoogleBooks()
+                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
             elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
                 book_api = OpenLibrary(authorname)
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-
+                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                    if lazylibrarian.CONFIG['GR_API']:
+                        book_api = GoodReads()
+                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
+                    if lazylibrarian.CONFIG['GB_API']:
+                        book_api = GoogleBooks()
+                        book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
+                                                  audiostatus=audiostatus, entrystatus=entry_status,
+                                                  refresh=refresh, reason=reason)
             if lazylibrarian.STOPTHREADS and threadname == "AUTHORUPDATE":
                 msg = "[%s] Author update aborted, status %s" % (authorname, entry_status)
                 logger.debug(msg)

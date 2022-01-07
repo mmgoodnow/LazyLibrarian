@@ -1,8 +1,10 @@
 __name__ = "rfeed"
 __version__ = (1, 0, 0)
 __author__ = "Santiago L. Valdarrama - https://blog.svpino.com"
-_generator = __name__ + " v" + ".".join(map(str, __version__))
+_generator = __name__ + " v" + ".".join(map(str, __version__)) + 'll'
 _docs = "https://github.com/svpino/rfeed/blob/master/README.md"
+# Modified for lazylibrarian by phil.borman@gmail.com
+# added headers for atom/media/webfeeds and added thumbnail to Feed and Item
 
 import itertools
 import sys
@@ -618,7 +620,8 @@ class Item(Host):
     More information at http://cyber.law.harvard.edu/rss/rss.html#hrelementsOfLtitemgt
     """
     def __init__(self, title=None, link=None, description=None, author=None, creator=None, categories=None,
-                 comments=None, enclosure=None, guid=None, pubDate=None, source=None, extensions=None):
+                 comments=None, enclosure=None, guid=None, pubDate=None, source=None, extensions=None,
+                 thumbnail=None):
         """ Keyword arguments:
         title -- Optional. The title of the item.
         link  -- Optional. The URL of the item.
@@ -632,6 +635,7 @@ class Item(Host):
         pubDate -- Optional. Indicates when the item was published.
         source -- Optional. The RSS channel that the item came from.
         extensions -- Optional. The list of extensions added to the item.
+        thumbnail -- Optional. Thumbnail image to attach
         """
 
         Host.__init__(self, extensions)
@@ -649,6 +653,7 @@ class Item(Host):
         self.guid = guid
         self.pubDate = pubDate
         self.source = source
+        self.thumbnail = thumbnail
 
         self.categories = [] if categories is None else categories
 
@@ -686,6 +691,12 @@ class Item(Host):
 
         for extension in self.extensions:
             extension.publish(self.handler)
+
+        if self.thumbnail is not None:
+            self._write_element("webfeeds:icon", self.thumbnail)
+            self._write_element("media:thumbnail", None, {"url": self.thumbnail, "width": "100", "height": "130"})
+            self._write_element("media:content", None, {"type": "image/jpeg", "url": self.thumbnail})
+            self._write_element("enclosure", None, {"type": "image/jpeg", "url": self.thumbnail, "length": "0"})
 
         self.handler.endElement("item")
 
@@ -752,7 +763,6 @@ class Feed(Host):
         self.skipDays = skipDays
 
         self.categories = [] if categories is None else categories
-
         if isinstance(self.categories, Category):
             self.categories = [self.categories]
         elif isinstance(self.categories, basestring):
@@ -777,6 +787,7 @@ class Feed(Host):
 
         handler.startElement("channel", {})
 
+        self._write_element("atom:link", None, {"href": self.link, "rel": "self", "type": "application/rss+xml"})
         self._write_element("title", self.title)
         self._write_element("link", self.link)
         self._write_element("description", self.description)
@@ -800,6 +811,8 @@ class Feed(Host):
             self.cloud.publish(self.handler)
 
         if self.image is not None:
+            self._write_element("webfeeds:icon", self.image)
+            self.image = Image(self.image, self.title, self.link)
             self.image.publish(self.handler)
 
         if self.textInput is not None:
@@ -820,7 +833,12 @@ class Feed(Host):
         handler.endElement("channel")
 
     def _get_attributes(self):
-        attributes = {"version": "2.0", "xmlns:dc": "http://purl.org/dc/elements/1.1/"}
+        attributes = {"version": "2.0",
+                      "xmlns:dc": "http://purl.org/dc/elements/1.1/",
+                      "xmlns:media": "http://search.yahoo.com/mrss/",
+                      "xmlns:atom": "http://www.w3.org/2005/Atom",
+                      "xmlns:webfeeds": "http://webfeeds.org/rss/1.0"
+                      }
 
         for extension in self.extensions:
             if isinstance(extension, Extension):

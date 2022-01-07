@@ -396,14 +396,23 @@ class GoodReads:
             gb_lang_change = 0
             cache_hits = 0
             not_cached = 0
-            url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
-                            'author/list/' + authorid + '.xml?' + urlencode(self.params)])
 
             # Artist is loading
             db = database.DBConnection()
             control_value_dict = {"AuthorID": authorid}
             new_value_dict = {"Status": "Loading"}
             db.upsert("authors", new_value_dict, control_value_dict)
+
+            gr_id = ''
+            match = db.match('SELECT gr_id FROM authors where authorid=?', (authorid,))
+            if match:
+                gr_id = match['gr_id']
+            if not gr_id:
+                gr_id = authorid
+
+            url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                            'author/list/' + gr_id + '.xml?' + urlencode(self.params)])
+
             try:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                     logger.debug(url)
@@ -441,7 +450,7 @@ class GoodReads:
                 ignorable.append('lang')
 
             if resultxml is None:
-                logger.warn('[%s] No books found for author with ID: %s' % (authorname, authorid))
+                logger.warn('[%s] No books found for author with ID: %s' % (authorname, gr_id))
             else:
                 logger.debug("[%s] Now processing books with GoodReads API" % authorname)
                 author_name_result = rootxml.find('./author/name').text
@@ -745,9 +754,9 @@ class GoodReads:
                                 if alist:
                                     alist += ', '
                                 alist += anm
-                                if aid == authorid or anm == author_name_result:
-                                    if aid != authorid:
-                                        logger.warn("Author %s has different authorid %s:%s" % (anm, aid, authorid))
+                                if aid == gr_id or anm == author_name_result:
+                                    if aid != gr_id:
+                                        logger.warn("Author %s has different authorid %s:%s" % (anm, aid, gr_id))
                                     if role is None or 'author' in role.lower() or \
                                             'writer' in role.lower() or \
                                             'creator' in role.lower() or \
@@ -1030,7 +1039,7 @@ class GoodReads:
                     if 0 < lazylibrarian.CONFIG['MAX_BOOKPAGES'] < loop_count:
                         resultxml = None
                     else:
-                        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'author/list/' + authorid + '.xml?' +
+                        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'author/list/' + gr_id + '.xml?' +
                                         urlencode(self.params) + '&page=' + str(loop_count)])
                         resultxml = None
                         try:

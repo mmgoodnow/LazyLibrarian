@@ -80,13 +80,14 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
         else:
             results = db.select(cmd, (limit,))
         items = []
-        logger.debug("Found %s %s results" % (len(results), ftype))
+        logger.debug("Found %s %s" % (len(results), ftype))
 
         if not results:
             podcast = False
 
         for result in results:
             link = ''
+            img = ''
             itunes_item = ''
             if ftype == 'eBook':
                 pubdate = datetime.datetime.strptime(result['BookLibrary'], '%Y-%m-%d %H:%M:%S')
@@ -97,6 +98,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 extn = os.path.splitext(result['BookFile'])[1]
                 if user:
                     link = '%s/serve_book/%s%s%s' % (baseurl, user, result['BookID'], extn)
+                    img = '%s/serve_img/%s%s' % (baseurl, user, result['BookID'])
 
             elif ftype == 'AudioBook':
                 pubdate = datetime.datetime.strptime(result['AudioLibrary'], '%Y-%m-%d %H:%M:%S')
@@ -107,6 +109,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 extn = os.path.splitext(result['AudioFile'])[1]
                 if user:
                     link = '%s/serve_audio/%s%s%s' % (baseurl, user, result['BookID'], extn)
+                    img = '%s/serve_img/%s%s' % (baseurl, user, result['BookID'])
 
                 if TinyTag and TinyTag.is_supported(result['AudioFile']) and path_exists(result['AudioFile']):
                     id3r = TinyTag.get(result['AudioFile'])
@@ -132,6 +135,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
                     link = '%s/serve_issue/%s%s%s' % (baseurl, user, result['IssueID'], extn)
+                    img = '%s/serve_img/%s%s' % (baseurl, user, result['IssueID'])
 
             else:  # if ftype == 'Comic':
                 pubdate = datetime.datetime.strptime(result['IssueAcquired'], '%Y-%m-%d')
@@ -142,6 +146,10 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 extn = os.path.splitext(result['IssueFile'])[1]
                 if user:
                     link = '%s/serve_comic/%s%s_%s%s' % (baseurl, user, result['ComicID'], result['IssueID'], extn)
+                    img = '%s/serve_img/%s%s_%s' % (baseurl, user, result['ComicID'], result['IssueID'])
+
+            if not description:
+                description = ''
 
             if podcast:
                 item = Item(
@@ -155,13 +163,18 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                     extensions=[itunes_item]
                 )
             else:
+                html = '<![CDATA[<p><img width="500" height="600" src="%s_w500"' % img
+                html += ' class="webfeedsFeaturedVisual wp-post-image"'
+                html += ' alt="%s" loading="lazy"><p>]]>%s' % (title, description)
+
                 item = Item(
                     title=title,
                     link=link,
-                    description=description,
+                    description=html,
                     author=author,
                     guid=Guid(bookid),
-                    pubDate=pubdate
+                    pubDate=pubdate,
+                    thumbnail="%s_w100" % img
                 )
             items.append(item)
 
@@ -196,6 +209,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
                 description="LazyLibrarian %s" % title,
                 language="en-US",
                 lastBuildDate=datetime.datetime.now(),
+                image='%s/serve_img/%s' % (baseurl, user),
                 items=items)
 
         logger.debug("Returning %s %s" % (len(items), ftype))

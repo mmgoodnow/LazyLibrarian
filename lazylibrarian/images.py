@@ -62,19 +62,44 @@ GS_VER = ''
 generator = ''
 
 
-def createthumb(jpeg):
+def createthumbs(jpeg):
+    if not PIL:
+        return
+    for basewidth in (100, 200, 300, 500):
+        createthumb(jpeg, basewidth, overwrite=False)
+
+
+def createthumb(jpeg, basewidth=None, overwrite=True):
     if not PIL:
         return ''
+    if not path_isfile(jpeg):
+        return ''
+    fname, extn = os.path.splitext(jpeg)
+    if not basewidth:
+        outfile = fname + '_thumb' + extn
+    else:
+        outfile = "%s_w%s%s" % (fname, basewidth, extn)
+    if not overwrite and path_isfile(outfile):
+        return outfile
 
-    basewidth = 300
+    if basewidth:
+        bwidth = basewidth
+    else:
+        bwidth = 300
     img = PILImage.open(jpeg)
-    wpercent = (basewidth / float(img.size[0]))
+    wpercent = (bwidth / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
     # noinspection PyUnresolvedReferences
-    img = img.resize((basewidth, hsize), PIL.Image.ANTIALIAS)
-    fname, extn = os.path.splitext(jpeg)
-    outfile = fname + '_thumb' + extn
-    img.save(outfile)
+    img = img.resize((bwidth, hsize), PIL.Image.ANTIALIAS)
+    try:
+        img.save(outfile)
+    except OSError:
+        try:
+            img.convert('RGB').save(outfile)
+        except OSError:
+            return ''
+    logger.debug("Created %s" % outfile)
+    setperm(outfile)
     return outfile
 
 
@@ -797,9 +822,6 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 else:
                     with open(syspath(coverfile), 'wb') as f:
                         f.write(img)
-                thumb = createthumb(coverfile)
-                if thumb:
-                    return thumb
                 return coverfile
             else:
                 logger.debug("Failed to find image in %s" % issuefile)
@@ -911,11 +933,6 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
         if path_isfile(coverfile):
             setperm(coverfile)
             logger.debug("Created cover (page %d) for %s using %s" % (check_int(pagenum, 1), issuefile, generator))
-            thumb = createthumb(coverfile)
-            if thumb:
-                logger.debug("Created thumbnail for cache")
-                setperm(thumb)
-                return thumb
             return coverfile
 
     # if not recognised extension or cover creation failed
