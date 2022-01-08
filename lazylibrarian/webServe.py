@@ -3940,7 +3940,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
 
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
@@ -3982,7 +3983,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
 
                 mod_issues.append(this_issue)
                 count += 1
@@ -4026,7 +4028,7 @@ class WebInterface(object):
             else:
                 imgthumb = createthumb(imgfile, 200, False)
                 if imgthumb:
-                    item['BookImg'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                    item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
@@ -4057,7 +4059,7 @@ class WebInterface(object):
             else:
                 imgthumb = createthumb(imgfile, 200, False)
                 if imgthumb:
-                    item['AuthorImg'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                    item['AuthorImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
@@ -4086,7 +4088,7 @@ class WebInterface(object):
             else:
                 imgthumb = createthumb(imgfile, 200, False)
                 if imgthumb:
-                    item['BookImg'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                    item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
@@ -4252,7 +4254,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_mag['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_mag['Cover'] = "%s%s" % ('cache/',
+                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     mags.append(this_mag)
 
                 rowlist = []
@@ -4451,7 +4454,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     mod_issues.append(this_issue)
 
                 rowlist = []
@@ -4772,7 +4776,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_mag['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_mag['Cover'] = "%s%s" % ('cache/',
+                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     temp_title = mag['Title']
                     this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
                     mags.append(this_mag)
@@ -4880,7 +4885,8 @@ class WebInterface(object):
                     covercount += 1
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        this_mag['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                        this_mag['Cover'] = "%s%s" % ('cache/',
+                                                      imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 temp_title = mag['Title']
                 this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
                 mags.append(this_mag)
@@ -4916,7 +4922,8 @@ class WebInterface(object):
                     else:
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     mod_issues.append(this_issue)
 
                 rowlist = []
@@ -5034,7 +5041,8 @@ class WebInterface(object):
                     covercount += 1
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        this_issue['Cover'] = "%s%s" % ('cache/', imgthumb.rsplit('cache/')[1])
+                        this_issue['Cover'] = "%s%s" % ('cache/',
+                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 mod_issues.append(this_issue)
 
             if not lazylibrarian.CONFIG['MAG_IMG'] or not lazylibrarian.CONFIG['IMP_MAGCOVER']:
