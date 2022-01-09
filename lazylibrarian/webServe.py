@@ -3932,16 +3932,17 @@ class WebInterface(object):
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
                 this_issue = dict(issue)
+                imgfile = ''
                 if this_issue.get('Cover'):
                     imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                            this_issue['Cover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_issue['cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                if not imgfile or not path_isfile(imgfile):
+                    this_issue['cover'] = 'images/nocover.jpg'
+                else:
+                    imgthumb = createthumb(imgfile, 200, False)
+                    if imgthumb:
+                        this_issue['Cover'] = "%s%s" % ('cache/',
+                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
 
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
@@ -3975,16 +3976,17 @@ class WebInterface(object):
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
                 this_issue = dict(issue)
+                imgfile = ''
                 if this_issue.get('Cover'):
                     imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                            this_issue['Cover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_issue['Cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                if not imgfile or not path_isfile(imgfile):
+                    this_issue['Cover'] = 'images/nocover.jpg'
+                else:
+                    imgthumb = createthumb(imgfile, 200, False)
+                    if imgthumb:
+                        this_issue['Cover'] = "%s%s" % ('cache/',
+                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
 
                 mod_issues.append(this_issue)
                 count += 1
@@ -4020,9 +4022,10 @@ class WebInterface(object):
                 item['BookLink'] = ''
             elif item['BookLink'].startswith('/works/OL'):
                 item['BookLink'] = lazylibrarian.CONFIG['OL_URL'] + item['BookLink']
-
-            imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                   item['BookImg'].replace('cache/', ''))
+            imgfile = ''
+            if item.get('BookImg'):
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                       item['BookImg'].replace('cache/', ''))
             if not imgfile or not path_isfile(imgfile):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
@@ -4052,8 +4055,10 @@ class WebInterface(object):
         ret = []
         for result in results:
             item = dict(result)
-            imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                   item['AuthorImg'].replace('cache/', ''))
+            imgfile = ''
+            if item.get('AuthorImg'):
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                       item['AuthorImg'].replace('cache/', ''))
             if not imgfile or not path_isfile(imgfile):
                 item['AuthorImg'] = 'images/nocover.jpg'
             else:
@@ -4081,8 +4086,10 @@ class WebInterface(object):
         ret = []
         for result in results:
             item = dict(result)
-            imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                   item['BookImg'].replace('cache/', ''))
+            imgfile = ''
+            if item.get('BookImg'):
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                       item['BookImg'].replace('cache/', ''))
             if not imgfile or not path_isfile(imgfile):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
@@ -4247,8 +4254,11 @@ class WebInterface(object):
                     this_mag = dict(mag)
                     cover = db.match('SELECT Cover from comicissues WHERE ComicID=? and IssueID=?',
                                      (mag['ComicID'], mag['LatestIssue']))
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           cover['Cover'].replace('cache/', ''))
+                    imgfile = ''
+                    cover = dict(cover)
+                    if cover.get('Cover'):
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               cover['Cover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4447,8 +4457,10 @@ class WebInterface(object):
                 mod_issues = []
                 for issue in rowlist:
                     this_issue = dict(issue)
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_issue['Cover'].replace('cache/', ''))
+                    imgfile = ''
+                    if this_issue.get('Cover'):
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               this_issue['Cover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_issue['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4769,8 +4781,11 @@ class WebInterface(object):
                     this_mag = dict(mag)
                     cover = db.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
                                      (mag['Title'], mag['IssueDate']))
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           cover['Cover'].replace('cache/', ''))
+                    imgfile = ''
+                    cover = dict(cover)
+                    if cover.get('Cover'):
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               cover['Cover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4877,8 +4892,11 @@ class WebInterface(object):
                 this_mag = dict(mag)
                 cover = db.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
                                  (mag['Title'], mag['IssueDate']))
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       cover['Cover'].replace('cache/', ''))
+                imgfile = ''
+                cover = dict(cover)
+                if cover.get('Cover'):
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                           cover['Cover'].replace('cache/', ''))
                 if not imgfile or not path_isfile(imgfile):
                     this_mag['Cover'] = 'images/nocover.jpg'
                 else:
@@ -4915,8 +4933,10 @@ class WebInterface(object):
                 mod_issues = []
                 for issue in rowlist:
                     this_issue = dict(issue)
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_issue['Cover'].replace('cache/', ''))
+                    imgfile = ''
+                    if this_issue.get('Cover'):
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               this_issue['Cover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_issue['Cover'] = 'images/nocover.jpg'
                     else:
@@ -5033,8 +5053,10 @@ class WebInterface(object):
             covercount = 0
             for issue in issues:
                 this_issue = dict(issue)
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       this_issue['Cover'].replace('cache/', ''))
+                imgfile = ''
+                if this_issue.get('Cover'):
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                           this_issue['Cover'].replace('cache/', ''))
                 if not imgfile or not path_isfile(imgfile):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
