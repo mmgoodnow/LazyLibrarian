@@ -3937,7 +3937,7 @@ class WebInterface(object):
                     imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
                                            this_issue['Cover'].replace('cache/', ''))
                 if not imgfile or not path_isfile(imgfile):
-                    this_issue['cover'] = 'images/nocover.jpg'
+                    this_issue['Cover'] = 'images/nocover.jpg'
                 else:
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
@@ -4252,13 +4252,8 @@ class WebInterface(object):
             if len(rowlist):
                 for mag in rowlist:
                     this_mag = dict(mag)
-                    cover = db.match('SELECT Cover from comicissues WHERE ComicID=? and IssueID=?',
-                                     (mag['ComicID'], mag['LatestIssue']))
-                    imgfile = ''
-                    cover = dict(cover)
-                    if cover.get('Cover'):
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               cover['Cover'].replace('cache/', ''))
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                           this_mag['LatestCover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4266,6 +4261,8 @@ class WebInterface(object):
                         if imgthumb:
                             this_mag['Cover'] = "%s%s" % ('cache/',
                                                           imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        else:
+                            this_mag['Cover'] = this_mag['LatestCover']
                     mags.append(this_mag)
 
                 rowlist = []
@@ -4779,13 +4776,8 @@ class WebInterface(object):
             if len(rowlist):
                 for mag in rowlist:
                     this_mag = dict(mag)
-                    cover = db.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
-                                     (mag['Title'], mag['IssueDate']))
-                    imgfile = ''
-                    cover = dict(cover)
-                    if cover.get('Cover'):
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               cover['Cover'].replace('cache/', ''))
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                           this_mag['LatestCover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4793,6 +4785,8 @@ class WebInterface(object):
                         if imgthumb:
                             this_mag['Cover'] = "%s%s" % ('cache/',
                                                           imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        else:
+                            this_mag['Cover'] = this_mag['LatestCover']
                     temp_title = mag['Title']
                     this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
                     mags.append(this_mag)
@@ -4890,13 +4884,8 @@ class WebInterface(object):
         if magazines:
             for mag in magazines:
                 this_mag = dict(mag)
-                cover = db.match('SELECT Cover from issues WHERE Title=? and IssueDate=?',
-                                 (mag['Title'], mag['IssueDate']))
-                imgfile = ''
-                cover = dict(cover)
-                if cover.get('Cover'):
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           cover['Cover'].replace('cache/', ''))
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                       this_mag['LatestCover'].replace('cache/', ''))
                 if not imgfile or not path_isfile(imgfile):
                     this_mag['Cover'] = 'images/nocover.jpg'
                 else:
@@ -4905,6 +4894,8 @@ class WebInterface(object):
                     if imgthumb:
                         this_mag['Cover'] = "%s%s" % ('cache/',
                                                       imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        this_mag['Cover'] = this_mag['LatestCover']
                 temp_title = mag['Title']
                 this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
                 mags.append(this_mag)
@@ -5327,10 +5318,13 @@ class WebInterface(object):
                         copyfile(coverfile, hashname)
                         setperm(hashname)
                         control_value_dict = {"IssueFile": issue['IssueFile']}
-                        new_value_dict = {
-                            "Cover": 'cache/magazine/%s.jpg' % myhash
-                        }
+                        newcover = 'cache/magazine/%s.jpg' % myhash
+                        new_value_dict = {"Cover": newcover}
                         db.upsert("Issues", new_value_dict, control_value_dict)
+                        latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
+                        if latest:
+                            if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
+                                db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
 
                     if action == 'coverswap':
                         coverfile = None
@@ -5353,10 +5347,13 @@ class WebInterface(object):
                             copyfile(coverfile, hashname)
                             setperm(hashname)
                             control_value_dict = {"IssueFile": issue['IssueFile']}
-                            new_value_dict = {
-                                "Cover": 'cache/magazine/%s.jpg' % myhash
-                            }
+                            newcover = 'cache/magazine/%s.jpg' % myhash
+                            new_value_dict = {"Cover": newcover}
                             db.upsert("Issues", new_value_dict, control_value_dict)
+                            latest = db.match("select LatestCover,IssueDate from magazines where title=?", (title,))
+                            if latest:
+                                if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
+                                    db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
 
                     if action == "Delete":
                         result = self.delete_issue(issue['IssueFile'])

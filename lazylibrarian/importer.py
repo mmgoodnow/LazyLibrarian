@@ -217,10 +217,24 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         authorimg = ''
         new_author = not refresh
         entry_status = 'Active'
-        dbauthor = None
 
         if is_valid_authorid(authorid):
             dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
+            if not dbauthor and authorname and 'unknown' not in authorname:
+                dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
+                if dbauthor:
+                    logger.warn("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
+                                (authorname, authorid, dbauthor['AuthorID']))
+                    db.action("PRAGMA foreign_keys = OFF")
+                    db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                              (authorid, dbauthor['authorid']))
+                    db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                              (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                    db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
+                              (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                    db.action("PRAGMA foreign_keys = ON")
+                    entry_status = dbauthor['Status']
+                    authorid = dbauthor['authorid']
             if not dbauthor:
                 authorname = 'unknown author %s' % authorid
             else:
@@ -304,7 +318,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                   (authorid, dbauthor['authorid']), suppress='UNIQUE')
                         db.action("PRAGMA foreign_keys = ON")
                         entry_status = dbauthor['Status']
-                    logger.debug("Updating author %s (%s)" % (authorid, authorname))
+                    logger.debug("Updating author %s (%s) %s" % (authorid, authorname, entry_status))
                     new_author = False
                 else:
                     new_author = True
@@ -563,7 +577,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
         else:
             # if we're not loading any books and it's a new author,
             # mark author as paused in case it's a wishlist or a series contributor
-            if not dbauthor:
+            if new_author and not addbooks:
                 entry_status = 'Paused'
 
         if match:

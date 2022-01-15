@@ -767,6 +767,18 @@ def check_db(upgradelog=None):
             logger.warn(msg)
             db.action('UPDATE books SET BookDate="0000" WHERE BookDate is NULL or BookDate=""')
 
+        # check magazine latest cover is correct:
+        cmd = 'select magazines.title,magazines.issuedate,latestcover,cover from magazines,issues '
+        cmd += 'where magazines.title=issues.title and magazines.issuedate=issues.issuedate '
+        cmd += 'and latestcover != cover and cover != "" and cover is not NULL'
+        latest = db.select(cmd)
+        if latest:
+            cnt += len(latest)
+            msg = 'Found %s %s with incorrect latest cover' % (len(latest), plural(len(latest), "magazine"))
+            logger.warn(msg)
+            for item in latest:
+                db.action('UPDATE magazines SET LatestCover=? WHERE Title=?', (item['cover'], item['title']))
+
     except Exception as e:
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
         logger.error(msg)
