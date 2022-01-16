@@ -4252,8 +4252,10 @@ class WebInterface(object):
             if len(rowlist):
                 for mag in rowlist:
                     this_mag = dict(mag)
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_mag['LatestCover'].replace('cache/', ''))
+                    imgfile = ''
+                    if this_mag['LatestCover']:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               this_mag['LatestCover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4640,9 +4642,9 @@ class WebInterface(object):
             if action == "Reset":
                 control_value_dict = {"ComicID": item}
                 new_value_dict = {
-                    "LastAcquired": None,
-                    "LatestIssue": None,
-                    "LatestCover": None,
+                    "LastAcquired": '',
+                    "LatestIssue": '',
+                    "LatestCover": '',
                     "IssueStatus": "Wanted"
                 }
                 db.upsert("comics", new_value_dict, control_value_dict)
@@ -4776,8 +4778,10 @@ class WebInterface(object):
             if len(rowlist):
                 for mag in rowlist:
                     this_mag = dict(mag)
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_mag['LatestCover'].replace('cache/', ''))
+                    imgfile = ''
+                    if this_mag['LatestCover']:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                               this_mag['LatestCover'].replace('cache/', ''))
                     if not imgfile or not path_isfile(imgfile):
                         this_mag['Cover'] = 'images/nocover.jpg'
                     else:
@@ -4884,8 +4888,10 @@ class WebInterface(object):
         if magazines:
             for mag in magazines:
                 this_mag = dict(mag)
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       this_mag['LatestCover'].replace('cache/', ''))
+                imgfile = ''
+                if this_mag['LatestCover']:
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
+                                           this_mag['LatestCover'].replace('cache/', ''))
                 if not imgfile or not path_isfile(imgfile):
                     this_mag['Cover'] = 'images/nocover.jpg'
                 else:
@@ -5466,9 +5472,9 @@ class WebInterface(object):
             elif action == "Reset":
                 control_value_dict = {"Title": title}
                 new_value_dict = {
-                    "LastAcquired": None,
-                    "IssueDate": None,
-                    "LatestCover": None,
+                    "LastAcquired": '',
+                    "IssueDate": '',
+                    "LatestCover": '',
                     "IssueStatus": "Wanted"
                 }
                 db.upsert("magazines", new_value_dict, control_value_dict)
