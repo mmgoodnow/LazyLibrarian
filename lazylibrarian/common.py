@@ -903,7 +903,7 @@ def schedule_job(action='Start', target=None):
 
                 interval = maxage * 60 * 24
                 interval = interval / max(total, 1)
-                interval = int(interval * 0.9)  # allow some update time
+                interval = int(interval * 0.85)  # allow some update time
 
                 if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
                     interval = 5
@@ -1497,7 +1497,7 @@ def set_redactlist():
         return
 
     lazylibrarian.REDACTLIST = []
-    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', 'DEVKEY']
+    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
     if lazylibrarian.CONFIG['HOSTREDACT']:
         wordlist.append('_HOST')
     for key in lazylibrarian.CONFIG.keys():

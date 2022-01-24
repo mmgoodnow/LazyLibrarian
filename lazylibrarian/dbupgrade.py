@@ -13,7 +13,6 @@
 from __future__ import with_statement
 
 import datetime
-import logging
 import os
 import time
 import traceback
@@ -25,9 +24,8 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_genres
 from lazylibrarian.common import restart_jobs, pwd_generator, setperm, syspath
 from lazylibrarian.formatter import plural, md5_utf8, get_list, check_int
-from lazylibrarian.importer import update_totals, search_for
+from lazylibrarian.importer import update_totals
 from lazylibrarian.common import path_exists
-from lazylibrarian.ol import OpenLibrary
 
 # database version history:
 # 0 original version or new empty database
@@ -300,124 +298,6 @@ def dbupgrade(current_version):
             upgradelog.write("%s: %s\n" % (time.ctime(), msg))
             logger.error(msg)
             lazylibrarian.UPDATE_MSG = ''
-
-
-def gr_to_ol():
-    lazylibrarian.UPDATE_MSG = "Converting GoodReads to OpenLibrary"
-    lazylibrarian.CONFIG['BOOK_API'] = "OpenLibrary"
-    lazylibrarian.config_write()
-    db = database.DBConnection()
-    if not has_column(db, 'authors', 'gr_id'):
-        db.action('ALTER TABLE authors ADD COLUMN gr_id TEXT')
-
-    res = db.select('SELECT authorid from authors WHERE authorid NOT LIKE "OL%A"')
-    tot = len(res)
-    if tot:
-        logger.info("Copying authorid for %s authors" % tot)
-        cnt = 0
-        for auth in res:
-            gr_id = auth[0]
-            if gr_id.isdigit():
-                cnt += 1
-                db.action("UPDATE authors SET gr_id=? WHERE authorid=?", (gr_id, gr_id))
-        logger.info("Copied authorid for %s authors (from %s)" % (cnt, tot))
-
-    db.action('PRAGMA foreign_keys = OFF')
-    logging.captureWarnings(True)  # suppress insecure ssl warnings
-
-    upd = 0
-    authors = db.select('SELECT AuthorID,AuthorName,AuthorLink,AKA from authors WHERE AuthorID NOT LIKE "OL%A"')
-    # cache = os.path.join(lazylibrarian.CACHEDIR, 'authors')
-    miss = 0
-    misslist = []
-    tot = len(authors)
-    for entry in authors:
-        authorid = entry['AuthorID']
-        if authorid.isdigit():
-            authorname = entry['AuthorName']
-            lazylibrarian.UPDATE_MSG = "Updating %s/%s %s" % (upd + miss, tot, authorname)
-            ol = OpenLibrary(authorname)
-            info = ol.find_author_id(authorname)
-            key = info.get('authorid')
-            if key:
-                res = db.match("SELECT * from authors WHERE AuthorID=?", (key,))
-                if not res:
-                    upd += 1
-                    db.action("UPDATE authors SET AuthorID=?,AuthorLink=? WHERE AuthorID=?",
-                              (key, info['authorlink'], entry['AuthorID']))
-                    db.action("UPDATE books SET AuthorID=? WHERE AuthorID=?", (key, entry['AuthorID']))
-                    db.action("UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?", (key, entry['AuthorID']))
-                    db.action('UPDATE subscribers SET WantID=? WHERE WantID=? and Type="author"',
-                              (key, entry['AuthorID']))
-                    # no need to move authorimg in cache, link remains valid
-                akas = get_list(entry['AKA'], ',')
-                if info['authorname'] != authorname and info['authorname'] not in akas:
-                    akas.append(info['authorname'])
-                    db.action("UPDATE authors SET AKA=? WHERE AuthorID=?",
-                              (', '.join(akas), key))
-            else:
-                miss += 1
-                misslist.append(authorname)
-    msg = "Updated %s authors, no match for %s" % (upd, miss)
-    lazylibrarian.UPDATE_MSG = msg
-    logger.info(msg)
-    logger.debug(str(misslist))
-
-    if not has_column(db, 'books', 'gr_id'):
-        db.action('ALTER TABLE books ADD COLUMN gr_id TEXT')
-
-    res = db.select('SELECT bookid from books WHERE bookid NOT LIKE "OL%W"')
-    tot = len(res)
-    if tot:
-        logger.info("Copying bookid for %s books" % tot)
-        cnt = 0
-        for book in res:
-            gr_id = book[0]
-            if gr_id.isdigit():
-                cnt += 1
-                db.action("UPDATE books SET gr_id=? WHERE bookid=?", (gr_id, gr_id))
-        logger.info("Copied bookid for %s books (from %s)" % (cnt, tot))
-
-    cmd = "SELECT authors.AuthorID,AuthorName,BookID,BookName from authors,books WHERE "
-    cmd += 'books.authorid = authors.authorid and BookID NOT LIKE "OL%W"'
-    books = db.select(cmd)
-    logger.info("Checking %s books" % len(books))
-    upd = 0
-    miss = 0
-    dupe = 0
-    tot = len(books)
-    start_time = time.time()
-    for book in books:
-        lazylibrarian.UPDATE_MSG = '%s: %s' % (book[3], calc_eta(start_time, tot, upd + miss + dupe))
-        searchterm = book[3] + ' <ll> ' + book[1]
-        # noinspection PyBroadException
-        try:
-            res = search_for(searchterm)
-        except Exception:
-            res = None
-        if res:
-            if res[0]['author_fuzz'] > 95 and res[0]['book_fuzz'] > 95:
-                exists = db.match("SELECT * from books WHERE BookID=?", (res[0]['bookid'],))
-                if not exists:
-                    upd += 1
-                    for table in ['books', 'wanted', 'member', 'failedsearch', 'genrebooks']:
-                        cmd = "UPDATE " + table + " SET bookid=? WHERE bookid=?"
-                        db.action(cmd, (res[0]['bookid'], book[2]))
-                    db.action("UPDATE authors SET lastbookid=? WHERE lastbookid=?", (res[0]['bookid'], book[2]))
-                else:
-                    dupe += 1
-            else:
-                miss += 1
-        else:
-            miss += 1
-
-    msg = "Updated %s books, no match for %s, %s duplicates" % (upd, miss, dupe)
-    lazylibrarian.UPDATE_MSG = msg
-    logger.info(msg)
-    db.action('PRAGMA foreign_keys = ON')
-    logging.captureWarnings(False)
-    time.sleep(5)
-    lazylibrarian.UPDATE_MSG = ""
 
 
 def check_db(upgradelog=None):

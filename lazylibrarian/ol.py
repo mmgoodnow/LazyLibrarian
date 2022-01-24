@@ -638,6 +638,13 @@ class OpenLibrary:
                 cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
                 cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                 exists = db.match(cmd, (title, auth_name))
+                if not exists:
+                    in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title,
+                                                                      ignored=False, library='eBook',
+                                                                      reason='ol_get_author_books')
+                    if in_db and in_db[0]:
+                        cmd = 'SELECT BookID,LT_WorkID FROM books WHERE BookID=?'
+                        exists = db.match(cmd, (in_db[0],))
 
                 if exists and id_librarything and not exists['LT_WorkID']:
                     db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",

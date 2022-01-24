@@ -510,13 +510,6 @@
             });
         });
 
-        $('#move_to_ol').on('click', function(e) {
-            $.get('move_to_ol', function(data) {});
-            alert("This could take some time...")
-            document.location.reload(true);
-        });
-
-
         $('#show_stats').on('click', function(e) {
             $.get('show_stats', function(data) {
                 bootbox.dialog({
@@ -1417,26 +1410,6 @@
                         }
                     });
                 });
-        });
-
-        if ($("#book_api").val() == 'GoodReads')
-            {
-                    $("#gr_options").show();
-                    $("#gb_options").hide();
-            }
-        else
-            {
-                    $("#gr_options").hide();
-                    $("#gb_options").show();
-            }
-        $('#book_api').change(function() {
-            if ($(this).val() == 'GoodReads') {
-                $("#gb_options").slideUp();
-                $("#gr_options").slideDown();
-            } else {
-                $("#gr_options").slideUp();
-                $("#gb_options").slideDown();
-            }
         });
 
         $('#http_look').change(function() {

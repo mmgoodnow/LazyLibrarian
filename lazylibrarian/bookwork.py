@@ -391,10 +391,10 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
 
     db = database.DBConnection()
     if bookid:
-        cmd = 'select BookName,AuthorName,BookISBN from books,authors where bookID=?'
+        cmd = 'select BookName,AuthorName,BookISBN from books,authors where bookID=? or books.gr_id=?'
         cmd += ' and books.AuthorID = authors.AuthorID'
         cache_location = "WorkCache"
-        item = db.match(cmd, (bookid,))
+        item = db.match(cmd, (bookid, bookid))
     else:
         cmd = 'select SeriesName from series where SeriesID=?'
         cache_location = "SeriesCache"
@@ -1131,7 +1131,7 @@ def google_book_dict(item):
     return mydict
 
 
-def get_work_series(bookid=None, reason=""):
+def get_work_series(bookid=None, source='GR', reason=""):
     """ Return the series names and numbers in series for the given id as a list of tuples
         For goodreads the id is a WorkID, for librarything it's a BookID """
     db = database.DBConnection()
@@ -1140,7 +1140,7 @@ def get_work_series(bookid=None, reason=""):
         logger.error("get_work_series - No bookID")
         return serieslist
 
-    if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
+    if source == 'GR':
         url = '/'.join([lazylibrarian.CONFIG['GR_URL'], "work/"])
         seriesurl = url + bookid + "/series?format=xml&key=" + lazylibrarian.CONFIG['GR_API']
 

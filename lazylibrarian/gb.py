@@ -34,6 +34,7 @@ from lazylibrarian.formatter import plural, today, replace_all, unaccented, unac
     get_list, clean_name, make_unicode, make_utf8bytes, replace_with, check_year, thread_name
 from lazylibrarian.common import quotes
 from lazylibrarian.ol import OpenLibrary
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -425,6 +426,12 @@ class GoogleBooks:
                             cmd += ' and BookName=? COLLATE NOCASE and AuthorName=? COLLATE NOCASE'
                             cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                             match = db.match(cmd, (bookname, authorname))
+                            if not match:
+                                in_db = lazylibrarian.librarysync.find_book_in_db(authorname, bookname,
+                                                                                  ignored=False, library='eBook',
+                                                                                  reason='gb_get_author_books')
+                                if in_db and in_db[0]:
+                                    match = {'BookID': in_db[0]}
                             if match:
                                 if match['BookID'] != bookid:  # we have a different book with this author/title already
                                     logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
@@ -546,7 +553,7 @@ class GoogleBooks:
                                 if book['series']:
                                     serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
                                 if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
-                                    newserieslist = get_work_series(bookid, reason=reason)
+                                    newserieslist = get_work_series(bookid, 'LT', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
@@ -805,7 +812,7 @@ class GoogleBooks:
         if book['series']:
             serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
         if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
-            newserieslist = get_work_series(bookid, reason=reason)
+            newserieslist = get_work_series(bookid, 'LT', reason=reason)
             if newserieslist:
                 serieslist = newserieslist
                 logger.debug('Updated series: %s [%s]' % (bookid, serieslist))

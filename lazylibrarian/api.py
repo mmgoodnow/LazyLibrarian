@@ -153,7 +153,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'showThreads': 'show threaded processes',
             'checkRunningJobs': 'ensure all needed jobs are running',
             'vacuum': 'vacuum the database',
-            'getWorkSeries': '&id= Get series from Librarything BookWork using BookID or GoodReads using WorkID',
+            'getWorkSeries': '&id= &source= Get series from Librarything using BookID or GoodReads using WorkID',
             'addSeriesMembers': '&id= add series members to database using SeriesID',
             'getSeriesMembers': '&id= Get list of series members using SeriesID',
             'getSeriesAuthors': '&id= Get all authors for a series and import them',
@@ -1915,8 +1915,10 @@ class Api(object):
         self.id = kwargs.get('id')
         if not self.id:
             self.data = 'Missing parameter: id'
+        if not kwargs.get('source'):
+            self.data = 'Missing parameter: source'
         else:
-            self.data = get_work_series(self.id, reason="API get_work_series")
+            self.data = get_work_series(self.id, kwargs.get('source'), reason="API get_work_series")
 
     def _getworkpage(self, **kwargs):
         self.id = kwargs.get('id')

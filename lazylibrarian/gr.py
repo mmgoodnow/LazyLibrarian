@@ -31,6 +31,7 @@ from lazylibrarian.cache import gr_xml_request, cache_img
 from lazylibrarian.formatter import plural, today, replace_all, book_series, unaccented, split_title, get_list, \
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
+
 try:
     from fuzzywuzzy import fuzz
 except ImportError:
@@ -330,14 +331,7 @@ class GoodReads:
 
         # added authorname to author_dict - this holds the intact name preferred by GR
         # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
-        authorname = resultxml[1].text
-        if "," in authorname:
-            postfix = get_list(lazylibrarian.CONFIG['NAME_POSTFIX'])
-            words = authorname.split(',')
-            if len(words) == 2:
-                if words[0].strip().strip('.').lower in postfix:
-                    authorname = words[1].strip() + ' ' + words[0].strip()
-
+        authorname = format_author_name(resultxml[1].text)
         logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
         author_dict = {
             'authorid': resultxml[0].text,
@@ -347,7 +341,7 @@ class GoodReads:
             'authordeath': resultxml.find('died_at').text,
             'about': resultxml.find('about').text,
             'totalbooks': resultxml.find('works_count').text,
-            'authorname': ' '.join(authorname.split())  # remove any extra whitespace
+            'authorname': authorname
         }
         return author_dict
 
@@ -798,23 +792,32 @@ class GoodReads:
                             elif match['AudioStatus'] not in ['Ignored', 'Skipped']:
                                 not_rejectable = "AudioStatus: %s" % match['AudioStatus']
 
-                        if not rejected:
+                        if not match and not rejected:
                             cmd = 'SELECT BookID FROM books,authors WHERE books.AuthorID = authors.AuthorID'
                             cmd += ' and BookName=? COLLATE NOCASE and BookSub=? COLLATE NOCASE'
                             cmd += ' and AuthorName=? COLLATE NOCASE'
                             cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                             match = db.match(cmd, (bookname, booksub, author_name_result))
 
-                            if match and match['BookID'] != bookid:
-                                # we have a different bookid for this author/title already
-                                if not_rejectable:
-                                    logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
-                                                 (bookname, bookid, match['BookID'], not_rejectable))
-                                else:
-                                    duplicates += 1
-                                    rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
-                                    logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
-                                                 (bookid, author_name_result, bookname, match['BookID']))
+                            if not match:
+                                in_db = lazylibrarian.librarysync.find_book_in_db(author_name_result, bookname,
+                                                                                  ignored=False, library='eBook',
+                                                                                  reason='gr_get_author_books')
+                                if in_db and in_db[0]:
+                                    cmd = 'SELECT AuthorName,BookName,BookID,AudioStatus,books.Status,ScanResult '
+                                    cmd += 'FROM books,authors WHERE authors.AuthorID = books.AuthorID AND BookID=?'
+                                    match = db.match(cmd, (in_db[0],))
+                            if match:
+                                if match['BookID'] != bookid:
+                                    # we have a different bookid for this author/title already
+                                    if not_rejectable:
+                                        logger.debug("Not rejecting duplicate title %s (%s/%s) as %s" %
+                                                     (bookname, bookid, match['BookID'], not_rejectable))
+                                    else:
+                                        duplicates += 1
+                                        rejected = 'bookid', 'Got %s under bookid %s' % (bookid, match['BookID'])
+                                        logger.debug('Rejecting bookid %s for [%s][%s] already got %s' %
+                                                     (bookid, author_name_result, bookname, match['BookID']))
 
                         if rejected and rejected[0] not in ignorable:
                             removed_results += 1
@@ -947,6 +950,7 @@ class GoodReads:
                                     "AudioStatus": audio_status,
                                     "BookAdded": added,
                                     "WorkID": workid,
+                                    "gr_id": bookid,
                                     "ScanResult": reason,
                                     "OriginalPubDate": originalpubdate
                                 }
@@ -960,7 +964,7 @@ class GoodReads:
                                 if series:
                                     serieslist = [('', series_num, clean_name(series, '&/'))]
                                 if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
-                                    newserieslist = get_work_series(workid, reason=reason)
+                                    newserieslist = get_work_series(workid, 'GR', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
@@ -1134,16 +1138,16 @@ class GoodReads:
     def verify_ids(self, authorid):
         """ GoodReads occasionally consolidates bookids/workids and renumbers so check if changed... """
         db = database.DBConnection()
-        cmd = "select BookID,BookName from books WHERE AuthorID=?"
+        cmd = "select BookID,gr_id,BookName from books WHERE AuthorID=? and gr_id is not NULL"
         books = db.select(cmd, (authorid,))
         counter = 0
         logger.debug('Checking BookID/WorkID for %s %s' % (len(books), plural(len(books), "book")))
         page = ''
         pages = []
         for book in books:
-            bookid = book['BookID']
+            bookid = book['gr_id']
             if not bookid:
-                logger.warn("No bookid for %s" % book['BookName'])
+                logger.warn("No gr_id for %s" % book['BookName'])
             else:
                 if page:
                     page = page + ','
@@ -1189,7 +1193,7 @@ class GoodReads:
                                         differ += 1
                                         logger.debug("Updating workid for %s from [%s] to [%s]" % (
                                                      books[cnt], res['WorkID'], workid))
-                                        control_value_dict = {"BookID": books[cnt]}
+                                        control_value_dict = {"gr_id": books[cnt]}
                                         new_value_dict = {"WorkID": workid}
                                         db.upsert("books", new_value_dict, control_value_dict)
                             cnt += 1
@@ -1200,7 +1204,7 @@ class GoodReads:
 
         cnt = 0
         for bookid in notfound:
-            res = db.match("SELECT BookName,Status,AudioStatus from books WHERE bookid=?", (bookid,))
+            res = db.match("SELECT BookName,Status,AudioStatus from books WHERE gr_id=?", (bookid,))
             if res:
                 if lazylibrarian.CONFIG['FULL_SCAN']:
                     if res['Status'] in ['Wanted', 'Open', 'Have']:
@@ -1211,7 +1215,7 @@ class GoodReads:
                                     (bookid, res['BookName'], res['Status']))
                     else:
                         logger.debug("Deleting unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
-                        db.action("DELETE from books WHERE BookID=?", (bookid,))
+                        db.action("DELETE from books WHERE gr_id=?", (bookid,))
                         cnt += 1
                 else:
                     logger.warn("Unknown goodreads bookid %s: %s" % (bookid, res['BookName']))
@@ -1497,6 +1501,7 @@ class GoodReads:
                 "AudioStatus": audiostatus,
                 "BookAdded": today(),
                 "WorkID": workid,
+                "gr_id": bookid,
                 "ScanResult": reason,
                 "OriginalPubDate": originalpubdate
             }
@@ -1526,7 +1531,7 @@ class GoodReads:
             if series:
                 serieslist = [('', series_num, clean_name(series, '&/'))]
             if lazylibrarian.CONFIG['ADD_SERIES'] and "Ignored:" not in reason:
-                newserieslist = get_work_series(workid, reason=reason)
+                newserieslist = get_work_series(workid, 'GR', reason=reason)
                 if newserieslist:
                     serieslist = newserieslist
                     logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
