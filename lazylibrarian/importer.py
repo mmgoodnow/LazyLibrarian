@@ -255,6 +255,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             gr_id = ''
             gr_name = ''
             ol_name = ''
+            ol_author = {}
+            gr_author = {}
 
             if dbauthor:
                 ol_id = dbauthor['ol_id']
@@ -264,14 +266,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             elif authorid:
                 gr_id = authorid
 
-            if not ol_id:
+            if not ol_id and 'unknown' not in authorname:
                 ol = OpenLibrary(authorname)
                 ol_author = ol.find_author_id()
                 if ol_author:
                     ol_id = ol_author['authorid']
                 else:
                     ol_id = authorid
-            if not gr_id:
+            if not gr_id and 'unknown' not in authorname:
                 gr = GoodReads(authorname)
                 gr_author = gr.find_author_id()
                 if gr_author:
@@ -279,10 +281,13 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 else:
                     gr_id = authorid
 
-            ol = OpenLibrary(ol_id)
-            ol_author = ol.get_author_info(authorid=ol_id)
-            gr = GoodReads(gr_id)
-            gr_author = gr.get_author_info(authorid=gr_id)
+            if ol_id:
+                ol = OpenLibrary(ol_id)
+                ol_author = ol.get_author_info(authorid=ol_id)
+            if gr_id:
+                gr = GoodReads(gr_id)
+                gr_author = gr.get_author_info(authorid=gr_id)
+
             if ol_author:
                 ol_author['ol_id'] = ol_author['authorid']
                 ol_name = ol_author['authorname']
@@ -306,14 +311,16 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             if author:
                 authorname = author['authorname']
+                akas = []
                 if gr_name and ol_name and gr_name != ol_name:
-                    akas = get_list(author['AKA'], ',')
+                    if author.get('AKA'):
+                        akas = get_list(author.get('AKA', ''), ',')
                     if authorname != gr_name and gr_name not in akas:
-                        logger.warn("Conflicting authorname for %s [%s][%s] setting AKA" %
+                        logger.warn("Conflicting goodreads authorname for %s [%s][%s] setting AKA" %
                                     (authorid, authorname, gr_name))
                         akas.append(gr_name)
                     if authorname != ol_name and ol_name not in akas:
-                        logger.warn("Conflicting authorname for %s [%s][%s] setting AKA" %
+                        logger.warn("Conflicting openlibrary authorname for %s [%s][%s] setting AKA" %
                                     (authorid, authorname, ol_name))
                         akas.append(ol_name)
                     author['AKA'] = ', '.join(akas)
