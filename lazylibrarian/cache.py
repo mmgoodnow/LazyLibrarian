@@ -10,6 +10,7 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import http.client
 import json
 import os
 import shutil
@@ -27,6 +28,34 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, remove
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
+
+
+def redirect_url(url, times):
+    s = requests.Session()
+    times -= 1
+    if not times:
+        return url
+    try:
+        r = s.head(url.rstrip(), verify=False)
+        location = r.headers.get("location", "").rstrip()
+        logger.debug("Redirect %s: %s %s" % (times, r.status_code, location if location else r.url))
+        if url.find(location) > 0:
+            # in case redirect to same page
+            return url
+        next_step = redirect_url(location, times) if location else url
+        return next_step
+    except requests.exceptions.ConnectionError as e:
+        logger.debug(str(e))
+
+def httpclient_logging_patch():
+    # enable HTTPConnection debug logging
+    def httpclient_log(*args):
+        logger.debug(" ".join(args))
+
+    # mask the print() built-in in the http.client module to use logging instead
+    http.client.print = httpclient_log
+    # enable debugging
+    http.client.HTTPConnection.debuglevel = 1
 
 
 def gr_api_sleep():
@@ -59,6 +88,9 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
+    if lazylibrarian.REQUESTSLOG:
+        httpclient_logging_patch()
+
     url = make_unicode(url)
     if 'googleapis' in url:
         lazylibrarian.GB_CALLS += 1
@@ -80,65 +112,88 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         # some sites insist on having a user-agent, default is to add one
         # if you don't want any headers, send headers=[]
         headers = {'User-Agent': get_user_agent()}
+
     proxies = proxy_list()
+
+    # jackett query all indexers needs a longer timeout
+    # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
+    if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
+        timeout = check_int(lazylibrarian.CONFIG['HTTP_EXT_TIMEOUT'], 90)
+    else:
+        timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+
+    payload = {"headers": headers, "timeout": timeout, "proxies": proxies}
+    verify = False
+    if url.startswith('https'):
+        if lazylibrarian.CONFIG['SSL_VERIFY']:
+            verify = True
+            if lazylibrarian.CONFIG['SSL_CERTS']:
+                verify = lazylibrarian.CONFIG['SSL_CERTS']
     try:
-        # jackett query all indexers needs a longer timeout
-        # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
-        if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_EXT_TIMEOUT'], 90)
-        else:
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-            r = requests.get(url, headers=headers, timeout=timeout, proxies=proxies,
-                             verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
-        else:
-            r = requests.get(url, headers=headers, timeout=timeout, proxies=proxies, verify=False)
-
-        if str(r.status_code).startswith('2'):  # (200 OK etc)
-            if raw:
-                return r.content, True
-            return r.text, True
-        elif r.status_code == 403:
-            logger.debug(r.text)
-            # noinspection PyBroadException
-            try:
-                source = r.json()
-                msg = source['error']['message']
-            except Exception:
-                msg = "Error 403: see debug log"
-
-            if 'Limit Exceeded' in msg:
-                # how long until midnight Pacific Time when google reset the quotas
-                delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
-                if delay > 86400:
-                    delay -= 86400  # no roll-over to next day
-            else:
-                # might be forbidden for a different reason where midnight might not matter
-                # eg "Cannot determine user location for geographically restricted operation"
-                delay = 3600
-
-            for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                if entry["name"] == 'googleapis':
-                    lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
-            newentry = {"name": 'googleapis', "resume": int(time.time()) + delay, "reason": msg}
-            lazylibrarian.PROVIDER_BLOCKLIST.append(newentry)
-
-        # noinspection PyBroadException
+        r = requests.get(url, verify=verify, params=payload)
+    except requests.exceptions.TooManyRedirects as e:
+        # This is to work around an oddity (bug??) with verified https goodreads requests
+        # Goodreads sometimes redirects back to the same page in a loop using code 301,
+        # and after a variable number of tries it might then return 200
+        # but if it takes more than 30 loops the requests library stops trying
+        # Retrying with verify off seems to clear it
+        if not retry:
+            logger.error("fetch_url: TooManyRedirects getting response from %s" % url)
+            return "TooManyRedirects %s" % str(e), False
+        logger.debug("Retrying - got TooManyRedirects on %s" % url)
         try:
-            # noinspection PyProtectedMember
-            msg = requests.status_codes._codes[r.status_code][0]
-        except Exception:
-            msg = r.text
-        return "Response status %s: %s" % (r.status_code, msg), False
+            r = requests.get(url, verify=False, params=payload)
+            logger.debug("TooManyRedirects retry status code %s" % r.status_code)
+        except Exception as e:
+            return "Exception %s: %s" % (type(e).__name__, str(e)), False
     except requests.exceptions.Timeout as e:
         if not retry:
             logger.error("fetch_url: Timeout getting response from %s" % url)
             return "Timeout %s" % str(e), False
         logger.debug("fetch_url: retrying - got timeout on %s" % url)
-        result, success = fetch_url(url, headers=headers, retry=False, raw=raw)
-        return result, success
+        try:
+            r = requests.get(url, verify=verify, params=payload)
+        except Exception as e:
+            return "Exception %s: %s" % (type(e).__name__, str(e)), False
     except Exception as e:
         return "Exception %s: %s" % (type(e).__name__, str(e)), False
+
+    if str(r.status_code).startswith('2'):  # (200 OK etc)
+        if raw:
+            return r.content, True
+        return r.text, True
+    elif r.status_code == 403:
+        logger.debug(r.text)
+        # noinspection PyBroadException
+        try:
+            source = r.json()
+            msg = source['error']['message']
+        except Exception:
+            msg = "Error 403: see debug log"
+
+        if 'Limit Exceeded' in msg:
+            # how long until midnight Pacific Time when google reset the quotas
+            delay = seconds_to_midnight() + 28800  # PT is 8hrs behind UTC
+            if delay > 86400:
+                delay -= 86400  # no roll-over to next day
+        else:
+            # might be forbidden for a different reason where midnight might not matter
+            # eg "Cannot determine user location for geographically restricted operation"
+            delay = 3600
+
+        for entry in lazylibrarian.PROVIDER_BLOCKLIST:
+            if entry["name"] == 'googleapis':
+                lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
+        newentry = {"name": 'googleapis', "resume": int(time.time()) + delay, "reason": msg}
+        lazylibrarian.PROVIDER_BLOCKLIST.append(newentry)
+
+    # noinspection PyBroadException
+    try:
+        # noinspection PyProtectedMember
+        msg = requests.status_codes._codes[r.status_code][0]
+    except Exception:
+        msg = r.text
+    return "Response status %s: %s" % (r.status_code, msg), False
 
 
 def cache_img(img_type, img_id, img_url, refresh=False):
@@ -430,7 +485,10 @@ def clean_cache():
     kept = 0
     if path_isdir(cache):
         for cached_file in listdir(cache):
-            item = db.match('select * from issues where cover=?', ('cache/magazine/%s' % cached_file,))
+            # strip any size or thumb
+            fname, extn = os.path.splitext(cached_file)
+            target = fname.split('_')[0] + extn
+            item = db.match('select * from issues where cover=?', ('cache/magazine/%s' % target,))
             if not item:
                 remove(os.path.join(cache, cached_file))
                 cleaned += 1
