@@ -21,17 +21,29 @@
                 <label for="authorname" class="control-label">Author Name:</label>
                 <input type="text" id="authorname" name="authorname" value="${config['AuthorName']}" class="form-control" placeholder="Author Name">
             </div>
-            <div class="form-group">
+            <div class="row">
+              <div class="form-group col-md-6">
                 <label for="authorborn" class="control-label">Born:</label>
                 <input type="text" id="authorborn" name="authorborn" value="${config['AuthorBorn']}" class="form-control" placeholder="Born (yyyy/mm/dd)">
-            </div>
-            <div class="form-group">
+              </div>
+              <div class="form-group col-md-6">
                 <label for="authordeath" class="control-label">Died:</label>
                 <input type="text" id="authordeath" name="authordeath" value="${config['AuthorDeath']}" class="form-control" placeholder="Died (yyyy/mm/dd)">
+              </div>
             </div>
             <div class="form-group">
                 <label for="reason" class="control-label">Added by:</label>
                 <input type="text" id="reason" name="reason" value="${config['Reason']}" readonly class="form-control" placeholder="Reason for inclusion">
+            </div>
+            <div class="row">
+              <div class="form-group col-md-6">
+                <label for="gr_id" class="control-label">GoodReads:</label>
+                <input type="text" id="gr_id" name="gr_id" value="${config['gr_id']}" readonly class="form-control">
+              </div>
+              <div class="form-group col-md-6">
+                <label for="ol_id" class="control-label">OpenLibrary:</label>
+                <input type="text" id="ol_id" name="ol_id" value="${config['ol_id']}" readonly class="form-control">
+              </div>
             </div>
         <div class="form-group">
           <!--div><p>${config['About']}</p></div-->
