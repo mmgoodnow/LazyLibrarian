@@ -62,6 +62,7 @@ DBFILE = None
 COMMIT_LIST = None
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
+REQUESTSLOG = 0
 DOCKER = False
 STOPTHREADS = False
 
@@ -152,6 +153,7 @@ log_cache = 1 << 11  # 2048 cache results
 log_libsync = 1 << 12  # 4096 librarysync details
 log_admin = 1 << 13  # 8192 admin logging
 log_cherrypy = 1 << 14  # 16384 cherrypy logging
+log_requests = 1 << 15  # 32768 requests httpclient logging
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page
@@ -238,7 +240,7 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
                      'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT', 'DEL_DOWNLOADFAILED',
-                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT', 'MULTI_SOURCE']
+                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT', 'MULTI_SOURCE', 'REQUESTSLOG']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default

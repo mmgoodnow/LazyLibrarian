@@ -170,6 +170,8 @@ def main():
             lazylibrarian.LOGLEVEL = int(options.loglevel)
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_cherrypy:
                 lazylibrarian.CHERRYPYLOG = 1
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_requests:
+                lazylibrarian.REQUESTSLOG = 1
         except ValueError:
             lazylibrarian.LOGLEVEL = 2
 

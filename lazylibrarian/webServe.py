@@ -1880,6 +1880,8 @@ class WebInterface(object):
                 newloglevel += lazylibrarian.log_admin
             if 'log_cherrypy' in kwargs:
                 newloglevel += lazylibrarian.log_cherrypy
+            if 'log_requests' in kwargs:
+                newloglevel += lazylibrarian.log_requests
         else:  # legacy interface, no log_type
             newloglevel = int(kwargs.get('loglevel', 0))
 

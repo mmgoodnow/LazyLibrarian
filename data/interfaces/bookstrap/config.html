@@ -343,6 +343,17 @@
                           <input type="checkbox" id="log_cherrypy" name="log_cherrypy" value="1" ${checked} />
                           Cherrypy Logging (needs restart)</label>
                         </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_requests:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_requests" class="control-label">
+                          <input type="checkbox" id="log_requests" name="log_requests" value="1" ${checked} />
+                          Requests Logging (needs restart)</label>
+                        </div>
                       </div>
                       %endif
                     </fieldset>
