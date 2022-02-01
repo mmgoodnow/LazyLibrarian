@@ -10,7 +10,6 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import http.client
 import json
 import os
 import shutil
@@ -29,6 +28,10 @@ from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfil
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
+if PY2:
+    import httplib as http_client
+else:
+    import http.client as http_client
 
 def redirect_url(url, times):
     s = requests.Session()
@@ -46,16 +49,6 @@ def redirect_url(url, times):
         return next_step
     except requests.exceptions.ConnectionError as e:
         logger.debug(str(e))
-
-def httpclient_logging_patch():
-    # enable HTTPConnection debug logging
-    def httpclient_log(*args):
-        logger.debug(" ".join(args))
-
-    # mask the print() built-in in the http.client module to use logging instead
-    http.client.print = httpclient_log
-    # enable debugging
-    http.client.HTTPConnection.debuglevel = 1
 
 
 def gr_api_sleep():
@@ -89,7 +82,9 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
     if lazylibrarian.REQUESTSLOG:
-        httpclient_logging_patch()
+        http_client.HTTPConnection.debuglevel = 1
+    else:
+        http_client.HTTPConnection.debuglevel = 0
 
     url = make_unicode(url)
     if 'googleapis' in url:
