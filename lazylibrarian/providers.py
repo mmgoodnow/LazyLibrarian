@@ -396,6 +396,17 @@ def get_capabilities(provider, force=False):
                     # noinspection PyUnresolvedReferences
                     if search.attrib['available'] == 'yes':
                         provider['GENERALSEARCH'] = 'search'
+            limits = data.find('limits')
+            if limits is not None:
+                try:
+                    limit = limits.attrib.get('max', 0)
+                    if limit:
+                        provider['APILIMIT'] = limit
+                        logger.debug("%s apilimit %s" % (provider['HOST'], limit))
+                except Exception as e:
+                    logger.debug('Error getting apilimit from %s: %s %s' % (provider['HOST'],
+                                                                            type(e).__name__, str(e)))
+
             categories = data.iter('category')
             for cat in categories:
                 if 'name' in cat.attrib:
@@ -1411,6 +1422,21 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                 if test and search_type == 'book' and cancelled:
                     return newznab_plus(book, provider, 'generalbook', search_mode, test)
             else:
+                channel = rootxml.find('channel')
+                if channel:
+                    for item in channel:
+                        if 'apilimits' in str(item):
+                            limits = item
+                            apimax = limits.get('apimax', 0)
+                            if apimax:
+                                provider['APILIMIT'] = apimax
+                            apicurrent = limits.get('apicurrent', 0)
+                            if apicurrent:
+                                provider['APICOUNT'] = apicurrent
+                            logger.debug("%s used %s of %s" % (provider['DISPNAME'],
+                                                               provider['APICOUNT'],
+                                                               provider['APILIMIT']))
+                            break
                 resultxml = rootxml.iter('item')
                 nzbcount = 0
                 maxage = check_int(lazylibrarian.CONFIG['USENET_RETENTION'], 0)
