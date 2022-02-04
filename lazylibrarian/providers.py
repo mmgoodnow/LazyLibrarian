@@ -399,7 +399,7 @@ def get_capabilities(provider, force=False):
             limits = data.find('limits')
             if limits is not None:
                 try:
-                    limit = limits.attrib.get('max', 0)
+                    limit = limits.attrib.get('max')
                     if limit:
                         provider['APILIMIT'] = limit
                         logger.debug("%s apilimit %s" % (provider['HOST'], limit))
@@ -1427,10 +1427,10 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                     for item in channel:
                         if 'apilimits' in str(item):
                             limits = item
-                            apimax = limits.get('apimax', 0)
+                            apimax = limits.get('apimax')
                             if apimax:
                                 provider['APILIMIT'] = apimax
-                            apicurrent = limits.get('apicurrent', 0)
+                            apicurrent = limits.get('apicurrent')
                             if apicurrent:
                                 provider['APICOUNT'] = apicurrent
                             logger.debug("%s used %s of %s" % (provider['DISPNAME'],

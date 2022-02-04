@@ -33,6 +33,7 @@ if PY2:
 else:
     import http.client as http_client
 
+
 def redirect_url(url, times):
     s = requests.Session()
     times -= 1
