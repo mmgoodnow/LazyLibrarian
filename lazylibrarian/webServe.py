@@ -77,10 +77,7 @@ from six import PY2, text_type
 from mako import exceptions
 from mako.lookup import TemplateLookup
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 
 lastauthor = ''
 lastmagazine = ''

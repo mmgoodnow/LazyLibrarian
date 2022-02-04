@@ -32,10 +32,7 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for
 from lazylibrarian.preprocessor import preprocess_audio
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 from lib.mobi import Mobi
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus, urlencode

@@ -25,10 +25,7 @@ from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remov
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 from six import PY2
 
 try:

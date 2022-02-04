@@ -32,10 +32,7 @@ from lazylibrarian.formatter import plural, today, replace_all, book_series, una
     clean_name, is_valid_isbn, format_author_name, check_int, make_unicode, check_year, check_float, \
     make_utf8bytes, thread_name
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote, quote_plus, urlencode
 

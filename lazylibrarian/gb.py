@@ -35,10 +35,7 @@ from lazylibrarian.formatter import plural, today, replace_all, unaccented, unac
 from lazylibrarian.common import quotes
 from lazylibrarian.ol import OpenLibrary
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 
 from six import PY2
 # noinspection PyUnresolvedReferences

@@ -67,10 +67,8 @@ try:
     from deluge_client import DelugeRPCClient
 except ImportError:
     from lib.deluge_client import DelugeRPCClient
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+
+from lib.thefuzz import fuzz
 
 
 def update_downloads(provider):

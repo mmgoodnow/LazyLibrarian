@@ -35,10 +35,7 @@ from six.moves.urllib_parse import quote_plus
 
 from lazylibrarian.images import get_book_cover
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 
 
 class OpenLibrary:

@@ -28,10 +28,7 @@ from lazylibrarian.grsync import grfollow
 from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 # noinspection PyUnresolvedReferences
 from six.moves import queue
 

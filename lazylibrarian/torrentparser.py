@@ -22,10 +22,7 @@ from six import PY2
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote, urlencode, quote_plus
 
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 
 try:
     import html5lib

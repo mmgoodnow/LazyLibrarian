@@ -1451,17 +1451,12 @@ def log_header():
 
     # noinspection PyBroadException
     try:
-        import fuzzywuzzy
-        vers = fuzzywuzzy.__dict__['__version__']
+        import lib.thefuzz as fuzz
+        vers = fuzz.__dict__['__version__']
     except Exception:
-        # noinspection PyBroadException
-        try:
-            import lib.fuzzywuzzy as fuzzywuzzy
-            vers = fuzzywuzzy.__dict__['__version__']
-        except Exception:
-            vers = 'None'
+        vers = 'None'
     if vers:
-        header += "fuzzywuzzy: %s\n" % vers
+        header += "fuzz: %s\n" % vers
         # noinspection PyBroadException
         try:
             import Levenshtein

@@ -2,17 +2,32 @@ from __future__ import unicode_literals
 import sys
 import functools
 
-from lib.fuzzywuzzy.string_processing import StringProcessor
+from lib.thefuzz.string_processing import StringProcessor
 
 
 PY3 = sys.version_info[0] == 3
 
 
 def validate_string(s):
+    """
+    Check input has length and that length > 0
+
+    :param s:
+    :return: True if len(s) > 0 else False
+    """
     try:
         return len(s) > 0
     except TypeError:
         return False
+
+
+def check_for_equivalence(func):
+    @functools.wraps(func)
+    def decorator(*args, **kwargs):
+        if args[0] == args[1]:
+            return 100
+        return func(*args, **kwargs)
+    return decorator
 
 
 def check_for_none(func):
@@ -73,9 +88,6 @@ def full_process(s, force_ascii=False):
         -- trim whitespace
         -- force to lower case
         if force_ascii == True, force convert to ascii"""
-
-    if s is None:
-        return ""
 
     if force_ascii:
         s = asciidammit(s)

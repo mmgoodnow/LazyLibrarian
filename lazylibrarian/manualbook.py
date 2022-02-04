@@ -16,10 +16,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, unaccented_bytes, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
-try:
-    from fuzzywuzzy import fuzz
-except ImportError:
-    from lib.fuzzywuzzy import fuzz
+from lib.thefuzz import fuzz
 
 from six import PY2
 # noinspection PyUnresolvedReferences
