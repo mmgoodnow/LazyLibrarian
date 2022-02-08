@@ -12,7 +12,7 @@ import lazylibrarian
 from lazylibrarian import webStart, logger, versioncheck, dbupgrade
 from lazylibrarian.formatter import check_int, thread_name
 from lazylibrarian.versioncheck import run_git
-from lazylibrarian.common import path_isfile, path_isdir, syspath
+from lazylibrarian.common import path_isfile, path_isdir, syspath, remove
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
 
@@ -186,6 +186,10 @@ def main():
 
     print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
     time.sleep(4)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+
+    icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+    if path_isfile(icon):
+        remove(icon)
 
     # create database and config
     lazylibrarian.DBFILE = os.path.join(lazylibrarian.DATADIR, 'lazylibrarian.db')

@@ -43,6 +43,12 @@ from six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
 
+try:
+    import urllib3
+    import requests
+except ImportError:
+    import lib.requests as requests
+
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
 FULL_PATH = None
@@ -2195,6 +2201,7 @@ def logmsg(level, msg):
 def shutdown(restart=False, update=False):
     global __INITIALIZED__
     cherrypy.engine.exit()
+    logmsg('info', 'cherrypy server exit')
     if SCHED:
         # noinspection PyUnresolvedReferences
         SCHED.shutdown(wait=False)
@@ -2289,72 +2296,81 @@ def shutdown(restart=False, update=False):
 
                     # depending on proxy might need host:port/root or just host/root
                     if CONFIG['HTTP_ROOT']:
-                        server1 = host + ':' + CONFIG['HTTP_PORT'] + '/' + CONFIG['HTTP_ROOT'].lstrip('/')
-                        server2 = host + '/' + CONFIG['HTTP_ROOT'].lstrip('/')
+                        server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
+                                                CONFIG['HTTP_ROOT'].lstrip('/'))
+                        server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
                     else:
-                        server1 = host + ':' + CONFIG['HTTP_PORT']
+                        server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
                         server2 = ''
 
                     msg = "Waiting for %s to start" % server1
                     if updated:
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg("info", msg)
-                    pawse = 12
+                    pawse = 18
                     success = False
                     res = ''
                     while pawse:
-                        result, success = fetch_url(server1, retry=False)
-                        if not success and server2:
-                            result, success = fetch_url(server2, retry=False)
-                        if success:
-                            try:
-                                res = result.split('<title>')[1].split('</title>')[0]
-                            except IndexError:
-                                res = ''
-                            success = res.startswith('LazyLibrarian')
-                            if success:
+                        # noinspection PyBroadException
+                        try:
+                            r = requests.get(server1)
+                            res = r.status_code
+                            if res == 200 or res == 401:
                                 break
-                        else:
-                            print("Waiting... %s" % pawse)
-                            time.sleep(5)
+                        except Exception:
+                            r = None
+
+                        if not r and server2:
+                            # noinspection PyBroadException
+                            try:
+                                r = requests.get(server2)
+                                res = r.status_code
+                                if res == 200 or res == 401:
+                                    break
+                            except Exception:
+                                pass
+
+                        print("Waiting... %s %s" % (pawse, res))
+                        time.sleep(5)
                         pawse -= 1
 
-                    archivename = 'backup.tgz'
-                    if success:
-                        msg = 'Reached webserver page %s, deleting backup' % res
-                        if updated:
-                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                        logmsg("info", msg)
-                        try:
-                            os.remove(syspath(archivename))
-                        except OSError as e:
-                            if e.errno != 2:  # doesn't exist is ok
-                                msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
-                                                           archivename, e.strerror)
-                                logmsg("warn", msg)
-                    else:
-                        msg = 'Webserver failed to start, reverting update'
-                        upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                        logmsg("info", msg)
-                        if tarfile.is_tarfile(archivename):
-                            try:
-                                with tarfile.open(archivename) as tar:
-                                    tar.extractall()
-                                success = True
-                            except Exception as e:
-                                msg = 'Failed to unpack tarfile %s (%s): %s' % \
-                                      (type(e).__name__, archivename, str(e))
-                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                                logmsg("warn", msg)
-                        else:
-                            msg = "Invalid archive"
-                            upgradelog.write("%s %s\n" % (time.ctime(), msg))
-                            logmsg("warn", msg)
+                    if update:
+                        archivename = 'backup.tgz'
                         if success:
-                            msg = "Restarting from backup"
+                            msg = 'Reached webserver page %s, deleting backup' % res
+                            if updated:
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                            logmsg("info", msg)
+                            try:
+                                os.remove(syspath(archivename))
+                            except OSError as e:
+                                if e.errno != 2:  # doesn't exist is ok
+                                    msg = '{} {} {} {}'.format(type(e).__name__, 'deleting backup file:',
+                                                               archivename, e.strerror)
+                                    logmsg("warn", msg)
+                        else:
+                            msg = 'Webserver failed to start, reverting update'
                             upgradelog.write("%s %s\n" % (time.ctime(), msg))
                             logmsg("info", msg)
-                            subprocess.Popen(popen_list, cwd=os.getcwd())
+                            if tarfile.is_tarfile(archivename):
+                                try:
+                                    with tarfile.open(archivename) as tar:
+                                        tar.extractall()
+                                    success = True
+                                except Exception as e:
+                                    msg = 'Failed to unpack tarfile %s (%s): %s' % \
+                                          (type(e).__name__, archivename, str(e))
+                                    upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                    logmsg("warn", msg)
+                            else:
+                                msg = "Invalid archive"
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                logmsg("warn", msg)
+                            if success:
+                                msg = "Restarting from backup"
+                                upgradelog.write("%s %s\n" % (time.ctime(), msg))
+                                logmsg("info", msg)
+                                subprocess.Popen(popen_list, cwd=os.getcwd())
 
     logmsg('info', 'Lazylibrarian (pid %s) is exiting now' % os.getpid())
     sys.exit(0)

@@ -903,7 +903,7 @@ def schedule_job(action='Start', target=None):
 
                 interval = maxage * 60 * 24
                 interval = interval / max(total, 1)
-                interval = int(interval * 0.85)  # allow some update time
+                interval = int(interval * 0.80)  # allow some update time
 
                 if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
                     interval = 5

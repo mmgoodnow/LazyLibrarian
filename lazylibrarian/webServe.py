@@ -5592,8 +5592,12 @@ class WebInterface(object):
         logger.debug('(webServe-Update) - Performing update')
         lazylibrarian.SIGNAL = 'update'
         message = 'Updating...'
+        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        if path_isfile(icon):
+            logger.debug("remove %s" % icon)
+            remove(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Updating",
-                              message=message, timer=60)
+                              message=message, timer=90)
 
     # IMPORT/EXPORT #####################################################
 
@@ -5784,16 +5788,24 @@ class WebInterface(object):
         # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closing ...'
+        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        if path_isfile(icon):
+            logger.debug("remove %s" % icon)
+            remove(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Close library",
-                              message=message, timer=15)
+                              message=message, timer=30)
 
     @cherrypy.expose
     def restart(self):
         self.label_thread('RESTART')
         lazylibrarian.SIGNAL = 'restart'
         message = 'reopening ...'
+        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        if path_isfile(icon):
+            logger.debug("remove %s" % icon)
+            remove(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Reopen library",
-                              message=message, timer=30)
+                              message=message, timer=50)
 
     @cherrypy.expose
     def show_jobs(self):

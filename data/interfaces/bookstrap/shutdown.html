@@ -15,14 +15,30 @@
   </%def>
   <%def name="javascriptIncludes()">
     <script type="text/javascript">
-      $(function(){
+     $(function(){
           var countdown = ${timer};
           if (countdown > 0) {
             setInterval(function() {
                   countdown--;
-                  $('#countdown').html('Refreshing in '+countdown+' seconds');
-                  if (countdown <= 0) {
+                  //$('#countdown').html('Refreshing in '+countdown+' seconds');
+                  var img = document.body.appendChild(document.createElement("img"));
+                  img.src = "cache/alive.png";
+                  img.style.display = "none";
+                  img.onload = function()
+                  {
+                    // If the server is up
+                    window.location = 'index';
+                  }
+                  img.onerror = function()
+                  {
+                    // If the server is down
+                    // $('#countdown').html('Refreshing in '+countdown+' seconds')
+                  }
+                  if (countdown <= 10) {
+                    $('#countdown').html('Server is taking longer than expected to respond. Check the log.');
+                    if (countdown <= 0) {
                       window.location = 'index';
+                    }
                   }
             }, 1000);
           }
