@@ -293,10 +293,12 @@
 
         $('#ignoreUpdate').click(function() {
             createCookie("ignoreUpdate", true, 1);
+            location.reload(true);
         });
 
         $('#doUpdate').click(function () {
             createCookie("ignoreUpdate", true, 0.01);  // suppress popup while updating
+            location.reload(true);
         });
        $('#getChangelog').on('click', function(e) {
             $.get('check_for_updates', function(data) {
