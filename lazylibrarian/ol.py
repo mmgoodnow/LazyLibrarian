@@ -193,6 +193,7 @@ class OpenLibrary:
 
     def find_author_id(self, refresh=False):
         authorname = self.name.replace('#', '').replace('/', '_')
+        logger.debug("Getting author id for %s, refresh=%s" % (authorname, refresh))
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
@@ -235,7 +236,7 @@ class OpenLibrary:
         return {}
 
     def get_author_info(self, authorid=None, refresh=False):
-        logger.debug("Getting author info for %s" % authorid)
+        logger.debug("Getting author info for %s, refresh=%s" % (authorid, refresh))
         authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
         if not authorinfo:
             logger.debug("No info found for %s" % authorid)
@@ -243,7 +244,9 @@ class OpenLibrary:
 
         try:
             if authorinfo['type']['key'] == '/type/redirect':
-                authorid = authorinfo['location'].rsplit('/', 1)[1]
+                newauthorid = authorinfo['location'].rsplit('/', 1)[1]
+                logger.debug("Authorid %s redirected to %s" % (authorid, newauthorid))
+                authorid = newauthorid
                 authorinfo, in_cache = json_request(self.OL_AUTHOR + authorid + '.json', use_cache=not refresh)
                 if not authorinfo:
                     logger.debug("No info found for redirect %s" % authorid)

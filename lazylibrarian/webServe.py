@@ -2090,6 +2090,23 @@ class WebInterface(object):
         db = database.DBConnection()
         authorsearch = db.match('SELECT AuthorName from authors WHERE AuthorID=?', (authorid,))
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
+            if authorid.startswith('OL'):
+                ol = OpenLibrary(authorid)
+                author = ol.get_author_info(authorid=authorid, refresh=True)
+            else:
+                gr = GoodReads(authorid)
+                author = gr.get_author_info(authorid=authorid)
+            if author and authorid != author['authorid']:
+                logger.debug("Authorid changed from %s to %s" % (authorid, author['authorid']))
+                db.action("PRAGMA foreign_keys = OFF")
+                db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                          (author['authorid'], authorid))
+                db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                          (author['authorid'], authorid), suppress='UNIQUE')
+                db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
+                          (author['authorid'], authorid), suppress='UNIQUE')
+                db.action("PRAGMA foreign_keys = ON")
+                authorid = author['authorid']
             threading.Thread(target=add_author_to_db, name='REFRESHAUTHOR_%s' % authorid,
                              args=[None, True, authorid, True, "WebServer refresh_author %s" % authorid]).start()
             raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)

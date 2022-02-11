@@ -399,9 +399,21 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         # this should also stop us matching single books against omnibus editions
         words = len(get_list(book_lower))
         words -= len(get_list(a_book_lower))
-        ratio -= abs(words)
-        partial -= abs(words)
-        partname -= abs(words)
+        # lose points if the difference is just digits so we don't match "book 2" and "book 3"
+        # or "some book" and "some book 2"
+        set1 = set(book_lower)
+        set2 = set(a_book_lower)
+        difference = set1.symmetric_difference(set2)
+        digits = sum(c.isdigit() for c in difference)
+        if digits == len(difference):
+            # make sure we are below match threshold
+            ratio = lazylibrarian.CONFIG['NAME_RATIO'] - 1
+            partial = lazylibrarian.CONFIG['NAME_PARTIAL'] - 1
+            partname = lazylibrarian.CONFIG['NAME_PARTNAME'] - 1
+        else:
+            ratio -= abs(words)
+            partial -= abs(words)
+            partname -= abs(words)
 
         use_it = False
         if ratio > best_ratio:

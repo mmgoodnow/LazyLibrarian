@@ -280,7 +280,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             if ol_id:
                 ol = OpenLibrary(ol_id)
-                ol_author = ol.get_author_info(authorid=ol_id)
+                ol_author = ol.get_author_info(authorid=ol_id, refresh=refresh)
             if gr_id:
                 gr = GoodReads(gr_id)
                 gr_author = gr.get_author_info(authorid=gr_id)
