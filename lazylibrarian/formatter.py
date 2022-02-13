@@ -292,7 +292,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     if datestr.isdigit():  # issue number or year
         return datestr
 
-    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').split()
+    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 6:
