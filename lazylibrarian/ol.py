@@ -544,6 +544,7 @@ class OpenLibrary:
                 book_status = bookstatus
                 audio_status = audiostatus
                 auth_name = book.get('author_name')[0]
+                auth_id = book.get('author_key')[0]
                 title = book.get('title')
                 cover = book.get('cover_i')
                 isbns = book.get('isbn')
@@ -639,12 +640,16 @@ class OpenLibrary:
                 cmd += ' and books.Status != "Ignored" and AudioStatus != "Ignored"'
                 exists = db.match(cmd, (title, auth_name))
                 if not exists:
-                    in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title,
-                                                                      ignored=False, library='eBook',
-                                                                      reason='ol_get_author_books')
-                    if in_db and in_db[0]:
-                        cmd = 'SELECT BookID,LT_WorkID FROM books WHERE BookID=?'
-                        exists = db.match(cmd, (in_db[0],))
+                    if auth_id != authorid:
+                        rejected = 'name', 'Different author (%s/%s/%s)' % (authorid, auth_id, auth_name)
+                    else:
+                        in_db = lazylibrarian.librarysync.find_book_in_db(auth_name, title,
+                                                                          ignored=False, library='eBook',
+                                                                          reason='ol_get_author_books %s,%s' %
+                                                                          (authorid, title))
+                        if in_db and in_db[0]:
+                            cmd = 'SELECT BookID,LT_WorkID FROM books WHERE BookID=?'
+                            exists = db.match(cmd, (in_db[0],))
 
                 if exists and id_librarything and not exists['LT_WorkID']:
                     db.action("UPDATE books SET LT_WorkID=? WHERE BookID=?",
@@ -691,7 +696,7 @@ class OpenLibrary:
                             else:
                                 isbnhead = res[0:3]
 
-                if not isbnhead and lazylibrarian.CONFIG['NO_ISBN']:
+                if not rejected and isbnhead and lazylibrarian.CONFIG['NO_ISBN']:
                     rejected = 'isbn', 'No ISBN'
 
                 if not rejected:
