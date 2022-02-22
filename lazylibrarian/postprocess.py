@@ -352,18 +352,27 @@ def process_alternate(source_dir=None, library='eBook'):
             authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
 
             if not authmatch:
-                # try goodreads preferred authorname
-                logger.debug("Checking GoodReads for [%s]" % authorname)
-                gr = GoodReads(authorname)
-                try:
-                    author_gr = gr.find_author_id()
-                except Exception as e:
-                    author_gr = {}
-                    logger.warn("No author id for [%s] %s" % (authorname, type(e).__name__))
+                # try goodreads/openlibrary preferred authorname
+                if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+                    logger.debug("Checking OpenLibrary for [%s]" % authorname)
+                    ol = OpenLibrary(authorname)
+                    try:
+                        author_gr = ol.find_author_id()
+                    except Exception as e:
+                        author_gr = {}
+                        logger.warn("No author id for [%s] %s" % (authorname, type(e).__name__))
+                else:
+                    logger.debug("Checking GoodReads for [%s]" % authorname)
+                    gr = GoodReads(authorname)
+                    try:
+                        author_gr = gr.find_author_id()
+                    except Exception as e:
+                        author_gr = {}
+                        logger.warn("No author id for [%s] %s" % (authorname, type(e).__name__))
                 if author_gr:
                     grauthorname = author_gr['authorname']
                     authorid = author_gr['authorid']
-                    logger.debug("GoodReads reports [%s] for [%s]" % (grauthorname, authorname))
+                    logger.debug("Found [%s] for [%s]" % (grauthorname, authorname))
                     authorname = grauthorname
                     authmatch = db.match('SELECT * FROM authors where AuthorID=?', (authorid,))
 
@@ -908,22 +917,60 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                     break
 
                                     skipped = False
-                                    # Might be multiple books in the download, could be a collection?
-                                    # If so, should we process all the books recursively? we can maybe use
-                                    # process_alternate(pp_path) but that currently only does ebooks, not audio or mag
-                                    # or should we just try to find and extract the one item from the collection?
-                                    # For now just import single book, might not be in top dir...
-                                    mult = multibook(pp_path, recurse=True)
-                                    if mult:
-                                        logger.debug("Skipping %s, found multiple %s" % (pp_path, mult))
-                                        skipped = True
-                                    elif booktype == 'eBook':
-                                        result = book_file(pp_path, 'ebook', recurse=True)
-                                        if result:
-                                            pp_path = os.path.dirname(result)
-                                        else:
-                                            logger.debug("Skipping %s, no ebook found" % pp_path)
+
+                                    if booktype == 'eBook':
+                                        # Might be multiple books in the download, could be a collection?
+                                        # If so, should we process all the books recursively? we can maybe use
+                                        # process_alternate(pp_path) but that currently only does ebooks,
+                                        # not audio or mag, or should we just try to find and extract
+                                        # the one wanted item from the collection?
+                                        # For now, try to find best match and only copy that book
+                                        mult = multibook(pp_path, recurse=True)
+                                        if mult:
                                             skipped = True
+                                            found_file = None
+                                            found_score = 0
+                                            # find the best match
+                                            for f in listdir(pp_path):
+                                                if is_valid_booktype(f, booktype="book"):
+                                                    bookmatch = fuzz.token_set_ratio(matchtitle, f)
+                                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
+                                                        logger.debug("%s%% match %s : %s" % (bookmatch,
+                                                                                             matchtitle, f))
+                                                    if bookmatch > found_score:
+                                                        found_file = f
+                                                        found_score = bookmatch
+
+                                            if found_score >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                                                # found a matching book file in this folder
+                                                targetdir = os.path.join(download_dir, matchtitle + '.unpack')
+                                                if not make_dirs(targetdir, new=True):
+                                                    logger.error("Failed to create target dir %s" % targetdir)
+                                                else:
+                                                    logger.debug("Found %s (%s%%) for %s" % (found_file,
+                                                                                             found_score,
+                                                                                             matchtitle))
+                                                    found_file, _ = os.path.splitext(found_file)
+                                                    # copy all valid types of this title, plus opf, jpg
+                                                    for f in listdir(pp_path):
+                                                        base, extn = os.path.splitext(f)
+                                                        if base == found_file:
+                                                            if is_valid_booktype(f, booktype="book") or \
+                                                                    extn in ['.opf', '.jpg']:
+                                                                shutil.copyfile(os.path.join(pp_path, f),
+                                                                                os.path.join(targetdir, f))
+                                                    pp_path = targetdir
+                                                    skipped = False
+                                            if skipped:
+                                                logger.debug("Skipping %s, found multiple %s with no good match" %
+                                                             (pp_path, mult))
+                                        else:
+                                            result = book_file(pp_path, 'ebook', recurse=True)
+                                            if result:
+                                                pp_path = os.path.dirname(result)
+                                            else:
+                                                logger.debug("Skipping %s, no ebook found" % pp_path)
+                                                skipped = True
                                     elif booktype == 'AudioBook':
                                         result = book_file(pp_path, 'audiobook', recurse=True)
                                         if result:
