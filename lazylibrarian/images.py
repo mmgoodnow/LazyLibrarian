@@ -244,7 +244,7 @@ def get_book_cover(bookid=None, src=None):
         if item:
             coverlink = item['BookImg']
             coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
-            if coverlink.startswith('http') and 'nocover' in coverlink or 'nophoto' in coverlink:
+            if coverlink != 'images/nocover.png' and 'nocover' in coverlink or 'nophoto' in coverlink:
                 coverfile = os.path.join(lazylibrarian.DATADIR, 'images', 'nocover.png')
                 coverlink = 'images/nocover.png'
                 db.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookid))
