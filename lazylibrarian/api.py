@@ -219,6 +219,7 @@ cmd_dict = {'help': 'list available commands. ' +
             'addProvider': '&type= &xxx= Add a new provider',
             'delProvider': '&name= Delete a provider',
             'renameBook': '&id= Rename a book to match configured pattern',
+            'newAuthorid': '&id= &newid= update an authorid',
             }
 
 
@@ -321,6 +322,40 @@ class Api(object):
         else:
             fname, err = book_rename(kwargs['id'])
             self.data = {'Success': fname != '', 'Data': fname, 'Error':  {'Code': 200, 'Message': err}}
+        return
+
+    def _newauthorid(self, **kwargs):
+        if 'id' not in kwargs:
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: id'}}
+        elif 'newid' not in kwargs:
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Missing parameter: newid'}}
+        elif kwargs['id'].startswith('OL') and not kwargs['newid'].startswith('OL'):
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Invalid parameter: newid'}}
+        elif not kwargs['id'].startswith('OL') and kwargs['newid'].startswith('OL'):
+            self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                  'Message': 'Invalid parameter: newid'}}
+        else:
+            db = database.DBConnection()
+            res = db.match('SELECT * from authors WHERE authorid=?', (kwargs['id'],))
+            if not res:
+                self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
+                                                                      'Message': 'Invalid parameter: id'}}
+            else:
+                db.action("PRAGMA foreign_keys = OFF")
+                db.action('UPDATE books SET AuthorID=? WHERE AuthorID=?',
+                          (kwargs['newid'], kwargs['id']))
+                db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
+                          (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
+                          (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                db.action("PRAGMA foreign_keys = ON")
+                self.data = {'Success': True,
+                             'Data': {'AuthorID': kwargs['newid']},
+                             'Error':  {'Code': 200, 'Message': 'OK'}
+                             }
         return
 
     def _listproviders(self):
