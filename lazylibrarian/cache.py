@@ -159,7 +159,6 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             return r.content, True
         return r.text, True
     elif r.status_code == 403:
-        logger.debug(r.text)
         # noinspection PyBroadException
         try:
             source = r.json()
