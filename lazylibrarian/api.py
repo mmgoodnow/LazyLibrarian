@@ -121,8 +121,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'addBook': '&id= add book details to the database',
             'moveBooks': '&fromname= &toname= move all books from one author to another by AuthorName',
             'moveBook': '&id= &toid= move one book to new author by BookID and AuthorID',
-            'addAuthor': '&name= add author to database by name',
-            'addAuthorID': '&id= add author to database by AuthorID',
+            'addAuthor': '&name= [&books] add author to database by name, optionally add their books',
+            'addAuthorID': '&id= add author to database by AuthorID, optionally add their books',
             'removeAuthor': '&id= remove author from database by AuthorID',
             'addMagazine': '&name= add magazine to database by name',
             'removeMagazine': '&name= remove magazine and all of its issues from database by name',
@@ -1781,8 +1781,10 @@ class Api(object):
         if not name:
             self.data = 'Missing parameter: name'
             return
+        books = True if kwargs.get('books') else False
         try:
-            self.data = add_author_name_to_db(author=self.id, refresh=False, reason="API add_author %s" % self.id)
+            self.data = add_author_name_to_db(author=name, refresh=False, addbooks=books,
+                                              reason="API add_author %s" % name)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
@@ -1791,8 +1793,10 @@ class Api(object):
         if not self.id:
             self.data = 'Missing parameter: id'
             return
+        books = True if kwargs.get('books') else False
         try:
-            self.data = add_author_to_db(refresh=False, authorid=self.id, reason="API add_author_id %s" % self.id)
+            self.data = add_author_to_db(refresh=False, authorid=self.id, addbooks=books,
+                                         reason="API add_author_id %s" % self.id)
         except Exception as e:
             self.data = "%s %s" % (type(e).__name__, str(e))
 
