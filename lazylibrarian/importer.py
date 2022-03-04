@@ -227,8 +227,12 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                               (authorid, dbauthor['authorid']))
                     db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
                               (authorid, dbauthor['authorid']), suppress='UNIQUE')
-                    db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
-                              (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                    if authorid.startswith('OL'):
+                        db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                  (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
+                    else:
+                        db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                  (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
                     db.action("PRAGMA foreign_keys = ON")
                     entry_status = dbauthor['Status']
                     authorid = dbauthor['authorid']
@@ -334,8 +338,12 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                   (authorid, dbauthor['authorid']))
                         db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
                                   (authorid, dbauthor['authorid']), suppress='UNIQUE')
-                        db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
-                                  (authorid, dbauthor['authorid']), suppress='UNIQUE')
+                        if authorid.startswith('OL'):
+                            db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                                      (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
+                        else:
+                            db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                                      (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
                         db.action("PRAGMA foreign_keys = ON")
                         entry_status = dbauthor['Status']
                     logger.debug("Updating author %s (%s) %s" % (authorid, authorname, entry_status))

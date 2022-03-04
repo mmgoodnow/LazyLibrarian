@@ -1826,6 +1826,7 @@ class WebInterface(object):
                 lazylibrarian.IRC_PROV[count]['CHANNEL'] = kwargs.get('irc_%i_channel' % count, '')
                 lazylibrarian.IRC_PROV[count]['BOTNICK'] = kwargs.get('irc_%i_botnick' % count, '')
                 lazylibrarian.IRC_PROV[count]['BOTPASS'] = kwargs.get('irc_%i_botpass' % count, '')
+                lazylibrarian.IRC_PROV[count]['SEARCH'] = kwargs.get('irc_%i_search' % count, '@search')
                 lazylibrarian.IRC_PROV[count]['DLPRIORITY'] = check_int(kwargs.get(
                     'irc_%i_dlpriority' % count, 0), 0)
                 lazylibrarian.IRC_PROV[count]['DLTYPES'] = kwargs.get(
@@ -2103,8 +2104,12 @@ class WebInterface(object):
                           (author['authorid'], authorid))
                 db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
                           (author['authorid'], authorid), suppress='UNIQUE')
-                db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
-                          (author['authorid'], authorid), suppress='UNIQUE')
+                if author['authorid'].startswith('OL'):
+                    db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                              (author['authorid'], author['authorid'], authorid), suppress='UNIQUE')
+                else:
+                    db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                              (author['authorid'], author['authorid'], authorid), suppress='UNIQUE')
                 db.action("PRAGMA foreign_keys = ON")
                 authorid = author['authorid']
             threading.Thread(target=add_author_to_db, name='REFRESHAUTHOR_%s' % authorid,

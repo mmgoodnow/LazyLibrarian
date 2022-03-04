@@ -349,8 +349,13 @@ class Api(object):
                           (kwargs['newid'], kwargs['id']))
                 db.action('UPDATE seriesauthors SET AuthorID=? WHERE AuthorID=?',
                           (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
-                db.action('UPDATE authors SET AuthorID=? WHERE AuthorID=?',
-                          (kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                if kwargs['newid'].startswith('OL'):
+                    db.action('UPDATE authors SET AuthorID=?,ol_id=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+                else:
+                    db.action('UPDATE authors SET AuthorID=?,gr_id=? WHERE AuthorID=?',
+                              (kwargs['newid'], kwargs['newid'], kwargs['id']), suppress='UNIQUE')
+
                 db.action("PRAGMA foreign_keys = ON")
                 self.data = {'Success': True,
                              'Data': {'AuthorID': kwargs['newid']},
