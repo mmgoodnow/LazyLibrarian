@@ -118,7 +118,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
     else:
         timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
 
-    payload = {"headers": headers, "timeout": timeout, "proxies": proxies}
+    payload = {"timeout": timeout, "proxies": proxies}
     verify = False
     if url.startswith('https'):
         if lazylibrarian.CONFIG['SSL_VERIFY']:
@@ -126,7 +126,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             if lazylibrarian.CONFIG['SSL_CERTS']:
                 verify = lazylibrarian.CONFIG['SSL_CERTS']
     try:
-        r = requests.get(url, verify=verify, params=payload)
+        r = requests.get(url, verify=verify, params=payload, headers=headers)
     except requests.exceptions.TooManyRedirects as e:
         # This is to work around an oddity (bug??) with verified https goodreads requests
         # Goodreads sometimes redirects back to the same page in a loop using code 301,
@@ -138,7 +138,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             return "TooManyRedirects %s" % str(e), False
         logger.debug("Retrying - got TooManyRedirects on %s" % url)
         try:
-            r = requests.get(url, verify=False, params=payload)
+            r = requests.get(url, verify=False, params=payload, headers=headers)
             logger.debug("TooManyRedirects retry status code %s" % r.status_code)
         except Exception as e:
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
@@ -148,7 +148,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             return "Timeout %s" % str(e), False
         logger.debug("fetch_url: retrying - got timeout on %s" % url)
         try:
-            r = requests.get(url, verify=verify, params=payload)
+            r = requests.get(url, verify=verify, params=payload, headers=headers)
         except Exception as e:
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
     except Exception as e:
