@@ -108,6 +108,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
     if not myprov:
         msg = "%s server not found" % provider
     else:
+        myprov['IRC'] = None  # new download, start a new connection
         irc = irc_connect(myprov)
         if not irc:
             msg = "Failed to connect"
@@ -395,10 +396,19 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
                 host = lazylibrarian.CONFIG['BOK_HOST']
                 headers['Referer'] = dl_url
-                res, succ = fetch_url(r.url)
-                if not succ:
-                    return False, "Unable to fetch %s: %s" % (r.url, succ)
+
+                if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+                    r = requests.get(dl_url, headers=headers, timeout=90,
+                                     proxies=proxies,
+                                     verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG[
+                                         'SSL_CERTS'] else True)
+                else:
+                    r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+
+                if not str(r.status_code).startswith('2'):
+                    return False, "Unable to fetch %s: %s" % (r.url, r.status_code)
                 try:
+                    res = r.content
                     newsoup = BeautifulSoup(res, "html5lib")
                     a = newsoup.find('a', {"class": "dlButton"})
                     if not a:

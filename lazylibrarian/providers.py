@@ -14,7 +14,7 @@ import time
 from xml.etree import ElementTree
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
@@ -43,7 +43,23 @@ except ImportError:
 
 
 def test_provider(name, host=None, api=None):
-    book = {'searchterm': 'Agatha Christie', 'library': 'eBook', 'bookid': '1'}
+    db = database.DBConnection()
+    res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
+    if res:
+        testname = res['authorname']
+        testid = res['authorid']
+        res = db.match("SELECT bookname from books where authorid=? order by bookrate desc", (testid,))
+        if res:
+            testbook = res['bookname']
+        else:
+            testbook = ''
+    else:
+        testname = "Agatha Christie"
+        testbook = "Poirot"
+
+    book = {'searchterm': testname, 'authorName': testname, 'library': 'eBook', 'bookid': '1',
+            'bookName': testbook, 'bookSub': ''}
+
     if name == 'TPB':
         logger.debug("Testing provider %s" % name)
         if host:
@@ -160,7 +176,6 @@ def test_provider(name, host=None, api=None):
 
     # for torznab/newznab get capabilities first, unless locked,
     # then try book search if enabled, fall back to general search
-    book.update({'authorName': 'Agatha Christie', 'bookName': 'Poirot', 'bookSub': ''})
     if name.startswith('torznab_'):
         try:
             prov = name.split('_')[1]
@@ -233,6 +248,7 @@ def test_provider(name, host=None, api=None):
                         if api:
                             provider['BOTNICK'], provider['BOTPASS'] = api.split(' : ', 1)
                     logger.debug("Testing provider %s" % name)
+                    provider['IRC'] = None  # start a new connection
                     success, _ = ircsearch(book, provider, "book", True)
                     return success, name
         except IndexError:
@@ -889,6 +905,8 @@ def ircsearch(book, provider, search_type, test=False):
 
     irc = irc_connect(provider)
     if not irc:
+        logger.error("Failed to connect to %s" % provider['SERVER'])
+        provider['IRC'] = None
         return False, results
 
     # if test:
@@ -905,7 +923,7 @@ def ircsearch(book, provider, search_type, test=False):
             book['searchterm'] = authorname
         logger.debug("Searching %s:%s for %s" % (provider['DISPNAME'],
                                                  provider['CHANNEL'], book['searchterm']))
-        fname, data = irc_search(provider, book['searchterm'], cache=True, retries=0)
+        fname, data = irc_search(provider, book['searchterm'], cache=True)
         if not fname and 'timed out' in make_unicode(data):  # need to reconnect
             provider['IRC'] = None
             logger.error(data)
