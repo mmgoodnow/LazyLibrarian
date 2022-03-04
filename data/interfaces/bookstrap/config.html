@@ -2175,6 +2175,12 @@
                       <span class="input-group-addon"></span>
                     </div>
                     <div class="input-group">
+                      <span id="log_type" class="input-group-addon">Search</span>
+                      <label for="irc_${loop.index}_search" class="sr-only">Search</label>
+                      <input type="text" placeholder="IRC Search #${loop.index}" id="irc_${loop.index}_search" name="irc_${loop.index}_search" value="${provider['SEARCH']}" class="form-control">
+                      <span class="input-group-addon"></span>
+                    </div>
+                    <div class="input-group">
                       <span class="input-group-addon">Priority</span>
                       <input type="number" id="irc_${loop.index}_dlpriority" name="irc_${loop.index}_dlpriority" value="${provider['DLPRIORITY']}" class="form-control" placeholder="0">
                       <span class="input-group-addon">Types</span>

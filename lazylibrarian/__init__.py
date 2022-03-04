@@ -1123,6 +1123,7 @@ def config_read(reloaded=False):
                          "CHANNEL": check_setting('str', irc_name, 'CHANNEL', ''),
                          "BOTNICK": check_setting('str', irc_name, 'BOTNICK', ''),
                          "BOTPASS": check_setting('str', irc_name, 'BOTPASS', ''),
+                         "SEARCH": check_setting('str', irc_name, 'SEARCH', '@search'),
                          "DLPRIORITY": check_setting('int', irc_name, 'DLPRIORITY', 0),
                          "DLTYPES": check_setting('str', irc_name, 'dltypes', 'E'),
                          })
@@ -1504,7 +1505,7 @@ def config_write(part=None):
         add_gen_slot()
 
     if not part or part.startswith('IRC_'):
-        irc_items = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS',
+        irc_items = ['ENABLED', 'DISPNAME', 'SERVER', 'CHANNEL', 'BOTNICK', 'BOTPASS', 'SEARCH',
                      'DLPRIORITY', 'DLTYPES']
         new_list = []
         # strip out any empty slots
@@ -1808,6 +1809,7 @@ def add_irc_slot():
         CFG.set(irc_name, 'CHANNEL', '')
         CFG.set(irc_name, 'BOTNICK', '')
         CFG.set(irc_name, 'BOTPASS', '')
+        CFG.set(irc_name, 'SEARCH', '')
         CFG.set(irc_name, 'DLPRIORITY', 0)
         CFG.set(irc_name, 'DLTYPES', 'E')
         IRC_PROV.append({"NAME": irc_name,
@@ -1817,6 +1819,7 @@ def add_irc_slot():
                          "CHANNEL": '',
                          "BOTNICK": '',
                          "BOTPASS": '',
+                         "SEARCH": '',
                          "DLPRIORITY": 0,
                          "DLTYPES": 'E'
                          })
