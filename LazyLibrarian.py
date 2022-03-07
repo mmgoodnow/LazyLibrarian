@@ -120,6 +120,8 @@ def main():
 
     if options.nojobs:
         lazylibrarian.STOPTHREADS = True
+    else:
+        lazylibrarian.STOPTHREADS = False
 
     if options.datadir:
         lazylibrarian.DATADIR = str(options.datadir)

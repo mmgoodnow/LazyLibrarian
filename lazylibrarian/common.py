@@ -718,6 +718,7 @@ def nextrun(target=None, interval=0, action='', hours=False):
         return ''
 
     if action == 'StartNow':
+        lazylibrarian.STOPTHREADS = False
         hours = False
         interval = 0
 
