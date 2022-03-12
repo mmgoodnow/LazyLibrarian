@@ -1,16 +1,9 @@
 ## LazyLibrarian
 LazyLibrarian is a program to follow authors and grab metadata for all your digital reading needs.
-It uses a combination of [OpenLibrary] [Librarything](https://www.librarything.com/) OpenLibrary and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
+It uses a combination of [OpenLibrary](https://openlibrary.org/) [Librarything](https://www.librarything.com/) [GoodReads](https://www.goodreads.com) and optionally [GoogleBooks](https://www.googleapis.com/books/v1/) as sources for author info and book info. License: GNU GPL v3
 
 ## IMPORTANT NOTE
-LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing lazylibrarian installation you will need to move provider. I suggest using OpenLibrary.
-
-
-# To move provider
-If your api is currently set to GoodReads there will be a button on the top bar of lazylibrarian config page to start the conversion process. I suggest keeping a copy of your unmodified lazylibrarian database in case of problems.
-
-The process can take several hours to run. We need to look up each author and book in your library and try to find a match in the openlibrary api. You will find some authors and books will not be matched as the openlibrary dataset is not as large as goodreads. These will stay in your local library under their goodreads IDs and their information will not be urefreshed. This means new books by those authors will not be listed. Existing books can still be searched for. Hopefully openlibrary will get better over time. After conversion you can get a list of the authors/books that did not get matched using the lazylibrarian api.
-
+LazyLibrarian used GoodReads extensively for author and book info, but they have now shut down their api. If you have an existing,working goodreads api key you can continue using it until they close completely, otherwise I suggest using OpenLibrary.
 
 ## Description
 Right now it's capable of the following:
@@ -72,8 +65,7 @@ AUR package available here: https://aur.archlinux.org/packages/lazylibrarian/
 QNAP LazyLibrarian is now available for the QNAP NAS via sherpa. https://forum.qnap.com/viewtopic.php?f=320&t=132373v
 
 ## Docker packages
-By LinuxServer : https://hub.docker.com/r/linuxserver/lazylibrarian/
-By thraxis : https://hub.docker.com/r/thraxis/lazylibrarian-calibre/
-The above docker packages both include ghostscript for magazine cover generation and calibredb (via optional variable in LinuxServer version)
-LinuxServer version is multi-arch and works on X86_64, armhf and aarch64 (calibredb only available on X86_64)
+LinuxServer : https://hub.docker.com/r/linuxserver/lazylibrarian/
+The docker package includes ghostscript for magazine cover generation and calibredb (via optional variable)
+LinuxServer docker is multi-arch and works on X86_64, armhf and aarch64 (calibredb only available on X86_64)
 The dockers can be upgraded using the lazylibrarian internal upgrade mechanism
