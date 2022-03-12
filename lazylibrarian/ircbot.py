@@ -19,7 +19,7 @@ import struct
 import os
 from six import PY2
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import path_isfile, syspath, remove
 try:
@@ -63,7 +63,24 @@ class IRC:
     irc = socket.socket()
 
     def __init__(self):
-        self.ver = "LazyLibrarian ircbot version 2021-09-10 (https://gitlab.com/LazyLibrarian)"
+        self.email = "https://gitlab.com/LazyLibrarian/LazyLibrarian"
+        self.name = 'eBook ircBot'
+        db = database.DBConnection()
+        res = db.match('SELECT name,email from users where username="Admin" COLLATE NOCASE')
+        if res:
+            self.email = res['email']
+            if not self.email:
+                self.email = lazylibrarian.CONFIG['ADMIN_EMAIL']
+            if not self.email:
+                logger.warn("No admin email, using default")
+            if res['name']:
+                self.name = res['name']
+            else:
+                logger.warn("No admin name, using default")
+        else:
+            logger.warn("No admin user, expect problems")
+
+        self.ver = "eBook ircBot version 2022-02-24 (" + self.email + ")"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -73,7 +90,11 @@ class IRC:
     def send(self, server, channel, msg):
         # Transfer data
         try:
-            self.irc.send(make_bytestr("PRIVMSG " + channel + " " + msg + "\n"))
+            if msg.startswith(':'):
+                msg = msg[1:]
+            send_string = 'PRIVMSG %s :%s\n' % (channel, msg)
+            logger.debug(send_string)
+            self.irc.send(make_bytestr(send_string))
         except Exception as e:
             logger.debug("Exception sending %s" % msg)
             logger.debug(str(e))
@@ -116,38 +137,43 @@ class IRC:
             logger.debug(str(e))
             lazylibrarian.providers.block_provider(self.server, msg, 600)
 
-    def part(self, channel):
-        self.irc.send(make_bytestr("PART " + channel + " :Bye\n"))
+    def leave(self, provider):
+        if provider['IRC']:
+            self.irc.send(make_bytestr("PART " + provider['CHANNEL'] + " :Bye\n"))
+            pause_until = time.time() + 2
+            while pause_until > time.time():
+                _ = self.get_response('leaving pause')  # listen and handle ping
+            self.irc.send(make_bytestr("QUIT\n"))
+            provider['IRC'] = None
 
     def connect(self, server, port, botnick="", botpass=""):
         # Connect to the server
         logger.debug("Connecting to: " + server)
         logger.debug(self.ver)
         try:
-            email = lazylibrarian.CONFIG['ADMIN_EMAIL']
             self.irc.connect((server, port))
             self.server = server
             self.nick = botnick
             if botnick:
                 logger.debug("Sending auth for %s" % botnick)
-                # Perform user authentication
-                self.irc.send(make_bytestr("USER " + botnick + " " + botnick + " " + botnick + " :LazyLibrarian\n"))
+                # Perform user authentication, username, hostname, servername, realname
+                self.irc.send(make_bytestr("USER " + botnick + " " + botnick + " " + botnick + " :%s\n" % self.name))
                 self.irc.send(make_bytestr("NICK " + botnick + "\n"))
-                if botpass and email:
+                if botpass and self.email:
                     logger.debug("Sending nickserv")
-                    self.irc.send(make_bytestr("NICKSERV REGISTER " + botpass + " " + email + "\n"))
+                    self.irc.send(make_bytestr("NICKSERV REGISTER " + botpass + " " + self.email + "\n"))
                     time.sleep(2)
                     self.irc.send(make_bytestr("NICKSERV IDENTIFY " + botpass + "\n"))
                     time.sleep(2)
         except Exception:
             raise
 
-    def get_response(self):
+    def get_response(self, why=''):
         # Get the response
         try:
             reply = self.irc.recv(2040)
         except socket.timeout:
-            logger.debug("response timeout")
+            logger.debug("response timeout %s" % why)
             reply = ''
         # should really put the data in a queue/buffer so we can handle split lines
         # for now we'll just split on newline and ignore the last line not being complete
@@ -160,21 +186,23 @@ class IRC:
         lynes = resp.split('\n')
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             if len(lynes) == 1 and not lynes[0]:
-                logger.warn("Empty response")
-            else:
-                logger.debug("Received %s lines" % len(lynes))
+                logger.warn("Empty response %s" % why)
         for lyne in lynes:
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                # if self.nick in lyne:
+                if lyne:
+                    logger.debug(lyne)
+            elif "NOTICE" in lyne:
                 logger.debug(lyne)
             if lyne.startswith('PING '):
                 self.pong(lyne)
             elif lyne.startswith('VERSION '):
                 self.version()
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            logger.debug("%s line response to %s" % (len(lynes), why))
         return lynes
 
 
-def irc_connect(provider, retries=3):
+def irc_connect(provider, retries=10):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         logger.warn("%s is blocked" % provider['SERVER'])
         return None
@@ -183,10 +211,10 @@ def irc_connect(provider, retries=3):
     if irc:
         logger.debug("Trying existing connection to %s" % provider['SERVER'])
         try:
-            res = irc.get_response()
+            res = irc.get_response("existing connection")
             if res:
                 irc.join(provider['CHANNEL'])
-                _ = irc.get_response()
+                _ = irc.get_response("join")
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Sent JOIN %s" % provider['CHANNEL'])
                 return irc
@@ -198,53 +226,61 @@ def irc_connect(provider, retries=3):
             for entry in lazylibrarian.PROVIDER_BLOCKLIST:
                 if entry["name"] == provider['SERVER']:
                     lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
-
     retried = 0
     irc = IRC()
     e = ''
     botnick = provider['BOTNICK']
     while retried < retries:
-        try:
-            if ' 114 ' in str(e):  # already in progress
-                time.sleep(5)
-            else:
-                irc.connect(provider['SERVER'], 6667, botnick, provider['BOTPASS'])
-            while retried < retries:
-                try:
-                    lynes = irc.get_response()
-                    for lyne in lynes:
-                        if "All connections in use" in lyne:
-                            logger.warn(lyne)
-                            return None
+        if ' 114 ' in str(e):  # already in progress
+            logger.debug(str(e))
+            time.sleep(5)
+        else:
+            irc.connect(provider['SERVER'], 6667, botnick, provider['BOTPASS'])
+        while retried < retries:
+            try:
+                lynes = irc.get_response("connect, retried=%s" % retried)
+                for lyne in lynes:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms and lyne:
+                        logger.debug(lyne)
+                    if "All connections in use" in lyne:
+                        logger.warn(lyne)
+                        return None
 
-                        if botnick in lyne:
-                            if "433" in lyne:  # ERR_NICKNAMEINUSE
-                                botnick += '_'
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                                    logger.debug("Trying NICK %s" % botnick)
-                                break
-                            elif "001" in lyne:  # Welcome
-                                irc.join(provider['CHANNEL'])
-                                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                                    logger.debug("Sent JOIN %s" % provider['CHANNEL'])
-                                    _ = irc.get_response()
-                                provider['IRC'] = irc
-                                return irc
-                    retried += 1  # welcome not found yet
-                except socket.timeout:
-                    logger.warn("Reply timed out")
-                    retried += 1
-        except Exception as e:
-            logger.error(str(e))
-            retried += 1
+                    if botnick in lyne:
+                        if "433" in lyne:  # ERR_NICKNAMEINUSE
+                            botnick += '_'
+                            logger.debug("Trying NICK %s" % botnick)
+                            break
+                        elif "001" in lyne:  # Welcome
+                            logger.debug("Got Welcome message")
+                            # wait for welcome messages to finish...
+                            logger.debug("Waiting 5sec before joining %s" % provider['CHANNEL'])
+                            pause_until = time.time() + 5
+                            while pause_until > time.time():
+                                _ = irc.get_response('welcome pause')  # listen and handle ping
+                            irc.join(provider['CHANNEL'])
+                            _ = irc.get_response("join")
+                            provider['IRC'] = irc
+                            return irc
+                retried += 1  # welcome not found yet
+            except socket.timeout:
+                logger.warn("Reply timed out")
+                retried += 1
+            except Exception as e:
+                logger.error(str(e))
+                return None
+    logger.debug("Connect failed")
     return None
 
 
-def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
+def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
         return '', msg
+
+    if not cmd:
+        cmd = provider.get('SEARCH', '@search')
 
     if cache:
         cache_location = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
@@ -254,7 +290,10 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + cmd)
         valid_cache = False
         hashfilename = os.path.join(cache_location, myhash + ".irc")
-        expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 2 * 24 * 3600)
+        # cache results so we can do multiple searches for the same author
+        # or multiple search types for a book without hammering the irc provider
+        # expire cache after 2 hours, there might be new additions
+        expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 2 * 3600)
 
         if path_isfile(hashfilename):
             cache_modified_time = os.stat(hashfilename).st_mtime
@@ -285,20 +324,23 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
     cmd_sent = time.time()
     last_cmd = ''
     last_search_cmd = ''
-    last_search_time = 0
     retried = 0
-    abortafter = 60
+    abortafter = 90
     ratelimit = 2
     pingcheck = 0
     filename = ''
 
     irc = provider['IRC']
     if not irc:
-        irc_connect(provider)
+        irc = irc_connect(provider)
+
+    if not irc:
+        provider['IRC'] = None
+        return '', "Failed to connect to %s" % provider['SERVER']
 
     while status != "finished":
         try:
-            lynes = irc.get_response()
+            lynes = irc.get_response("irc_search %s" % status)
         except socket.timeout:
             logger.warn("Timed out, status [%s]" % status)
             retried += 1
@@ -316,17 +358,17 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
                     # about to repeat search, ensure not too soon
-                    pause_until = last_search_time + abortafter
+                    pause_until = provider.get('LAST_SEARCH_TIME', 0) + abortafter
                     pause = int(pause_until - time.time())
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
                         while pause_until > time.time():
-                            _ = irc.get_response()  # listen and handle ping
+                            _ = irc.get_response('re-send pause')  # listen and handle ping
                 irc.send(provider['SERVER'], provider['CHANNEL'], new_cmd)
                 cmd_sent = time.time()
                 last_cmd = "socket timeout resend %s" % new_cmd
                 logger.debug(new_cmd)
-                last_search_time = cmd_sent
+                provider['LAST_SEARCH_TIME'] = time.time()
                 last_search_cmd = new_cmd
         except socket.error as e:
             logger.error("Socket error: %s" % str(e))
@@ -350,14 +392,21 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
 
         for lyne in lynes:
             if 'KICK' in lyne:
-                logger.debug("Kick: %s" % lyne.rsplit(':', 1)[1])
+                msg = "Kick: %s" % lyne.rsplit(':', 1)[1]
+                logger.debug(msg)
                 lazylibrarian.providers.block_provider(provider['SERVER'], "Kick", 600)
-                return '', "Kick"
+                return '', msg
+
+            elif ' 474 ' in lyne:  # banned
+                msg = "Banned: %s" % lyne.rsplit(':', 1)[1]
+                logger.debug(msg)
+                lazylibrarian.providers.block_provider(provider['SERVER'], "Banned", 24*60*60)
+                return '', msg
 
             elif ' 404 ' in lyne:  # cannot send to channel
                 status = ""
                 logger.debug("[%s] Rejoining %s" % (
-                    lyne.rsplit(':', 1)[1], provider['CHANNEL']))
+                    lyne, provider['CHANNEL']))
                 time.sleep(ratelimit)
                 irc.join(provider['CHANNEL'])
                 last_cmd = '404 rejoin %s' % provider['CHANNEL']
@@ -371,30 +420,41 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
                     # about to repeat search, ensure not too soon
-                    pause_until = last_search_time + abortafter
+                    pause_until = provider.get('LAST_SEARCH_TIME', 0) + abortafter
                     pause = int(pause_until - time.time())
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
                         while pause_until > time.time():
-                            _ = irc.get_response()  # listen and handle ping
+                            _ = irc.get_response('join/resend pause')  # listen and handle ping
+                else:
+                    # just joined, wait for welcome messages to finish...
+                    logger.debug("Waiting 5sec before sending search")
+                    pause_until = time.time() + 5
+                    while pause_until > time.time():
+                        _ = irc.get_response('joined pause')  # listen and handle ping
+
+                logger.debug("Sending %s" % new_cmd)
                 irc.send(provider['SERVER'], provider['CHANNEL'], new_cmd)
-                cmd_sent = time.time()
                 last_cmd = new_cmd
                 status = "waiting"
-                logger.debug("Asking %s for %s" % (cmd, searchstring))
                 last_search_cmd = new_cmd
-                last_search_time = cmd_sent
+                provider['LAST_SEARCH_TIME'] = time.time()
 
             elif status == "waiting":
                 if len(lyne.split("matches")) > 1:
                     res = lyne.split("matches")[0].split()
                     try:
                         matches = int(res[-1])
+                        logger.debug("Found %d matches" % matches)
+                        if not matches:
+                            return '', 'No matches'
                     except ValueError:
-                        matches = 0
-                    logger.debug("Found %d matches" % matches)
-                    if not matches:
-                        status = "finished"
+                        return '', 'ValueError: %s' % lyne
+                    status = "finished"
+                elif 'search' in lyne and 'accepted' in lyne:
+                    logger.debug("Search accepted by %s" % cmd)
+                elif 'Request Accepted' in lyne:
+                    logger.debug("Request accepted by %s" % cmd)
                 elif 'Request Denied' in lyne or 'Search denied' in lyne:
                     try:
                         msg = lyne.split("PRIVMSG")[1].split('\n')[0]
@@ -405,7 +465,7 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
                     else:
                         logger.warn("Search Denied by %s" % cmd)
                     logger.debug(msg)
-                    # irc.part(channel)
+                    irc.leave(provider)
                     if 'you already have' not in msg.lower():
                         return '', msg
 
@@ -465,33 +525,31 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
                                 peersocket.close()
                                 logger.debug("Completed, got %s" % len(received_data))
                                 status = "finished"
-                                # irc.part(channel)
                             else:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                                     logger.debug("Got %s of %s" % (len(received_data), filesize))
                                 peersocket.send(struct.pack("!I", len(received_data)))
-                        if retried > retries:
-                            msg = "Aborting download, too many retries"
-                            logger.warn(msg)
-                            return '', msg
+                        if status != "finished":
+                            if retried > retries:
+                                msg = "Aborting download, too many retries"
+                                logger.warn(msg)
+                                irc.leave(provider)
+                                return '', msg
 
-                        # check every few seconds so we don't miss a ping from irc server
-                        if time.time() > pingcheck + 10:
-                            try:
-                                # read and handle any PING, discard anything else
-                                _ = irc.get_response()
-                            except socket.timeout:
-                                logger.warn("Timed out on main channel")
-                            pingcheck = time.time()
+                            # check every few seconds so we don't miss a ping from irc server
+                            if time.time() > pingcheck + 10:
+                                try:
+                                    # read and handle any PING, discard anything else
+                                    _ = irc.get_response("pingcheck")
+                                except socket.timeout:
+                                    logger.warn("Timed out on main channel")
+                                pingcheck = time.time()
 
         if status != "finished":
             if time.time() - cmd_sent > abortafter:
-                logger.warn("No response in %ssec from %s" % (abortafter, last_cmd))
-                status = ""
-                retried += 1
-            if retried > retries:
-                msg = "Aborting, too many retries"
+                msg = "No response in %ssec from %s" % (abortafter, last_cmd)
                 logger.warn(msg)
+                irc.leave(provider)
                 return '', msg
 
     if cache:
@@ -504,6 +562,11 @@ def irc_search(provider, searchstring, cmd=":@search", cache=True, retries=3):
     return filename, received_data
 
 
+def irc_leave(provider):
+    if provider['IRC']:
+        provider['IRC'].leave(provider)
+
+
 def irc_results(provider, fname, retries=5):
     # Open the zip file, extract the txt
     # for each line that starts with !
@@ -513,55 +576,58 @@ def irc_results(provider, fname, retries=5):
     # if \r- in line last two words are size/unit
     results = []
     tor_date = today()
-
+    logger.debug("Checking results in %s" % fname)
     if fname and zipfile.is_zipfile(fname):
-        data = zipfile.ZipFile(fname)
-        if data:
-            our_member = None
-            for member in data.namelist():
-                if '.txt' in member.lower():
-                    our_member = member
-                    break
+        try:
+            data = zipfile.ZipFile(fname)
+            if data:
+                our_member = None
+                for member in data.namelist():
+                    if '.txt' in member.lower():
+                        our_member = member
+                        break
 
-            if our_member:
-                with data.open(our_member) as ourfile:
-                    new_line = '!'
-                    while new_line:
-                        new_line = ourfile.readline()
-                        lyne = new_line.decode('utf-8').rstrip()
-                        if lyne.startswith('!'):
-                            user, remainder = lyne.split(' ', 1)
-                            filename = ''
-                            size = ''
-                            if '::INFO::' in remainder:
-                                filename, size = remainder.split('::INFO::', 1)
-                            elif '\r-' in remainder:
-                                filename, remainder = remainder.split('\r-', 1)
-                                words = remainder.strip().split()
-                                size = words[-2]
-                                units = words[-1]
-                                size = size + units
+                if our_member:
+                    with data.open(our_member) as ourfile:
+                        new_line = '!'
+                        while new_line:
+                            new_line = ourfile.readline()
+                            lyne = new_line.decode('utf-8').rstrip()
+                            if lyne.startswith('!'):
+                                user, remainder = lyne.split(' ', 1)
+                                filename = ''
+                                size = ''
+                                if '::INFO::' in remainder:
+                                    filename, size = remainder.split('::INFO::', 1)
+                                elif '\r-' in remainder:
+                                    filename, remainder = remainder.split('\r-', 1)
+                                    words = remainder.strip().split()
+                                    size = words[-2]
+                                    units = words[-1]
+                                    size = size + units
 
-                            if filename and size:
-                                filename = filename.strip()
-                                size = size_in_bytes(str(size))
+                                if filename and size:
+                                    filename = filename.strip()
+                                    size = size_in_bytes(str(size))
 
-                                results.append({
-                                    'tor_prov': provider['SERVER'],
-                                    'tor_title': filename,
-                                    'tor_url': user,
-                                    'tor_size': str(size),
-                                    'tor_date': tor_date,
-                                    'tor_feed': provider['NAME'],
-                                    'tor_type': 'irc',
-                                    'priority': provider['DLPRIORITY'],
-                                    'dispname': provider['DISPNAME'],
-                                    'types': provider['DLTYPES'],
-                                })
+                                    results.append({
+                                        'tor_prov': provider['SERVER'],
+                                        'tor_title': filename,
+                                        'tor_url': user,
+                                        'tor_size': str(size),
+                                        'tor_date': tor_date,
+                                        'tor_feed': provider['NAME'],
+                                        'tor_type': 'irc',
+                                        'priority': provider['DLPRIORITY'],
+                                        'dispname': provider['DISPNAME'],
+                                        'types': provider['DLTYPES'],
+                                    })
+                else:
+                    logger.error("No results file found in %s" % fname)
             else:
-                logger.error("No results file found in %s" % fname)
-        else:
-            logger.error("No zip data in %s" % fname)
+                logger.error("No zip data in %s" % fname)
+        except Exception as e:
+            logger.error("Error reading results: %s" % str(e))
 
     if results:
         irc = provider['IRC']
@@ -578,7 +644,7 @@ def irc_results(provider, fname, retries=5):
             online = ''
             while not online:
                 try:
-                    lynes = irc.get_response()
+                    lynes = irc.get_response("ison")
                 except socket.timeout:
                     logger.warn("Timed out waiting for ison response")
                     lynes = []

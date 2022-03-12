@@ -485,7 +485,8 @@
                 var host = server + ' : ' + channel
                 var nick = $("#" + prov.toLowerCase() + "_botnick").val();
                 var pass = $("#" + prov.toLowerCase() + "_botpass").val();
-                var api = nick + ' : ' + pass
+                var search = $("#" + prov.toLowerCase() + "_search").val();
+                var api = nick + ' : ' + pass + ' : ' + search
             }
             if ( prov.indexOf('apprise_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_url").val();

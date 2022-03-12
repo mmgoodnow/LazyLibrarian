@@ -22,7 +22,7 @@ from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, 
 from lazylibrarian.common import syspath
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
-from lazylibrarian.ircbot import irc_connect, irc_search, irc_results
+from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from six import PY2
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import urlencode, urlparse
@@ -246,7 +246,7 @@ def test_provider(name, host=None, api=None):
                         if host:
                             provider['SERVER'], provider['CHANNEL'] = host.split(' : ', 1)
                         if api:
-                            provider['BOTNICK'], provider['BOTPASS'] = api.split(' : ', 1)
+                            provider['BOTNICK'], provider['BOTPASS'], provider['SEARCH'] = api.split(' : ', 2)
                     logger.debug("Testing provider %s" % name)
                     provider['IRC'] = None  # start a new connection
                     success, _ = ircsearch(book, provider, "book", True)
@@ -928,11 +928,16 @@ def ircsearch(book, provider, search_type, test=False):
             provider['IRC'] = None
             logger.error(data)
             return False, results
-
         if fname:
             results = irc_results(provider, fname)
+        elif test and 'No results' in make_unicode(data):
+            return -1, provider['SERVER']
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
+    try:
+        irc_leave(provider)
+    except Exception as e:
+        logger.error(str(e))
     if test:
         return len(results), provider['SERVER']
     return True, results

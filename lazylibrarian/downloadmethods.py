@@ -114,7 +114,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             msg = "Failed to connect"
             myprov['IRC'] = None
         else:
-            fname, data = irc_search(myprov, dl_title, cmd=':' + dl_url, cache=False)
+            fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
             if not fname:
                 myprov['IRC'] = None
 

@@ -1929,7 +1929,7 @@ def get_download_progress(source, downloadid):
             else:
                 progress = 0
 
-        elif source.startswith('IRC'):
+        elif str(source).startswith('IRC'):
             cmd = 'SELECT * from wanted WHERE DownloadID=? and Source=?'
             data = db.match(cmd, (downloadid, source))
             if data:

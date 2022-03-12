@@ -111,7 +111,7 @@ def direct_bok(book=None, prov=None, test=False):
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
                 if test:
-                    return 0
+                    return -1
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -280,7 +280,7 @@ def direct_bfi(book=None, prov=None, test=False):
             logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                               search_url))
             if test:
-                return 0
+                return -1
         elif '111' in result:
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -434,7 +434,7 @@ def direct_gen(book=None, prov=None, test=False):
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
                 if test:
-                    return 0
+                    return -1
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
