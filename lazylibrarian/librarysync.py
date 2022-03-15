@@ -109,7 +109,7 @@ def get_book_info(fname):
     if not extn:
         return res
 
-    res['type'] == extn[1:].lower()
+    res['type'] = extn[1:].lower()
     if res['type'] in ["mobi", "azw3"]:
         try:
             book = Mobi(fname)
