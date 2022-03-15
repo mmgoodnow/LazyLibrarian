@@ -109,8 +109,8 @@ def get_book_info(fname):
     if not extn:
         return res
 
-    if extn == ".mobi" or extn == ".azw3":
-        res['type'] = extn[1:]
+    res['type'] == extn[1:].lower()
+    if res['type'] in ["mobi", "azw3"]:
         try:
             book = Mobi(fname)
             book.parse()
@@ -143,9 +143,7 @@ def get_book_info(fname):
                     res['type'] = "pdf"
                     return res
         """
-    elif extn == ".epub":
-        res['type'] = "epub"
-
+    elif res['type'] == "epub":
         # prepare to read from the .epub file
         try:
             zipdata = zipfile.ZipFile(fname)
@@ -175,8 +173,7 @@ def get_book_info(fname):
         # grab the metadata block from the contents metafile
         txt = zipdata.read(cfname)
 
-    elif extn == ".opf":
-        res['type'] = "opf"
+    elif res['type'] == "opf":
         txt = open(fname, 'rb').read()
         if not PY2:
             txt = make_unicode(txt)
@@ -764,7 +761,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         extn = os.path.splitext(files)[1]
 
                         # if it's an epub or a mobi we can try to read metadata from it
-                        if extn in [".epub", ".mobi"]:
+                        if extn.lower() in [".epub", ".mobi"]:
                             book_filename = os.path.join(rootdir, files)
                             try:
                                 res = get_book_info(book_filename)
