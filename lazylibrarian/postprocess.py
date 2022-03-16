@@ -204,7 +204,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         return False
 
 
-def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
+def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automerge=False):
     # import a book by id from a directory
     # Assumes the book is the correct file for the id and renames it to match
     # Adds the id to the database if not already there
@@ -242,7 +242,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
             if not book:
                 logger.debug("Unable to add bookid %s to database" % bookid)
                 return False
-            return process_book(source_dir, bookid, library)
+            return process_book(source_dir, bookid, library, automerge=automerge)
         else:
             logger.error("import_book not implemented for %s" % library)
             return False
@@ -251,7 +251,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None):
         return False
 
 
-def process_alternate(source_dir=None, library='eBook'):
+def process_alternate(source_dir=None, library='eBook', automerge=False):
     # import a book from an alternate directory
     # noinspection PyBroadException
     try:
@@ -271,7 +271,7 @@ def process_alternate(source_dir=None, library='eBook'):
         for fname in flist:
             subdir = os.path.join(source_dir, fname)
             if path_isdir(subdir):
-                process_alternate(subdir, library=library)
+                process_alternate(subdir, library=library, automerge=automerge)
 
         metadata = {}
         if library == 'eBook':
@@ -444,7 +444,7 @@ def process_alternate(source_dir=None, library='eBook'):
                     if res and res['AudioStatus'] == 'Ignored':
                         logger.warn("%s %s by %s is marked Ignored in database, importing anyway" %
                                     (library, bookname, authorname))
-                return process_book(source_dir, bookid, library)
+                return process_book(source_dir, bookid, library, automerge=automerge)
             else:
                 msg = "%s %s by %s not found in database" % (library, bookname, authorname)
                 if not results:
@@ -2182,7 +2182,7 @@ def delete_task(source, download_id, remove_data):
         return False
 
 
-def process_book(pp_path=None, bookid=None, library=None):
+def process_book(pp_path=None, bookid=None, library=None, automerge=False):
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -2263,7 +2263,8 @@ def process_book(pp_path=None, bookid=None, library=None):
             dest_path = make_utf8bytes(dest_path)[0]
 
             data = {'AuthorName': authorname, 'BookName': bookname, 'BookID': bookid}
-            success, dest_file, pp_path = process_destination(pp_path, dest_path, global_name, data, booktype)
+            success, dest_file, pp_path = process_destination(pp_path, dest_path, global_name, data,
+                                                              booktype, automerge=automerge)
             if success:
                 # update nzbs
                 dest_file = make_unicode(dest_file)
@@ -2412,7 +2413,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
 
 # noinspection PyBroadException
-def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype=''):
+def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', automerge=False):
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
@@ -2550,7 +2551,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                          '--series', title, '--title', "%s - %s" % (title, issuedate),
                                                  '--cover', jpgfile, '--tags', 'Magazine'])
             else:
-                res, err, rc = calibredb('add', ['-1'], [pp_path])
+                if automerge:
+                    res, err, rc = calibredb('add', ['-1', '--automerge'], [pp_path])
+                else:
+                    res, err, rc = calibredb('add', ['-1'], [pp_path])
 
             if rc:
                 return False, 'calibredb rc %s from %s' % (rc, lazylibrarian.CONFIG['IMP_CALIBREDB']), pp_path

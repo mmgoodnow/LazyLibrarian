@@ -5689,7 +5689,7 @@ class WebInterface(object):
         if 'IMPORTALT' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 threading.Thread(target=process_alternate, name='IMPORTALT',
-                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library]).start()
+                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library, True]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
         else:
