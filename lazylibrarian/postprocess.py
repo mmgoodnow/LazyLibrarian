@@ -2552,7 +2552,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                                  '--cover', jpgfile, '--tags', 'Magazine'])
             else:
                 if automerge:
-                    res, err, rc = calibredb('add', ['-1', '--automerge'], [pp_path])
+                    res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [pp_path])
                 else:
                     res, err, rc = calibredb('add', ['-1'], [pp_path])
 
