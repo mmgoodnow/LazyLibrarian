@@ -415,11 +415,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         link = ''
                         delay = 0
                         msg = ''
-                        if 'WARNING' in res and '24 hours' in res:
-                            msg = res.split('WARNING')[1].split('24 hours')[0]
-                            msg = 'WARNING' + msg + '24 hours'
+                        if b'WARNING' in res and b'24 hours' in res:
+                            msg = res.split(b'WARNING')[1].split(b'24 hours')[0]
+                            msg = 'WARNING %s 24 hours' % msg
                             delay = seconds_to_midnight()
-                        elif 'Too many requests' in res:
+                        elif b'Too many requests' in res:
                             msg = res
                             delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
                         if delay:
