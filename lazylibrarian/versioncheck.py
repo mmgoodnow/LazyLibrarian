@@ -25,8 +25,13 @@ import lazylibrarian
 try:
     import urllib3
     import requests
-except ImportError:
-    import lib.requests as requests
+except (ImportError, ModuleNotFoundError):
+    try:
+        import lib.requests as requests
+    except (ImportError, ModuleNotFoundError) as e:
+        print(str(e))
+        print('Unable to load requests library')
+        exit(1)
 
 from lazylibrarian import logger, version, database
 from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
