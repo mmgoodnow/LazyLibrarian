@@ -270,7 +270,7 @@ def magazine_scan(title=None):
 
                         # is this issue already in the database?
                         issue_id = create_id("%s %s" % (title, issuedate))
-                        iss_entry = db.match('SELECT Title,IssueFile from issues WHERE Title=? and IssueDate=?',
+                        iss_entry = db.match('SELECT Title,IssueFile,Cover from issues WHERE Title=? and IssueDate=?',
                                              (title, issuedate))
 
                         new_entry = False
@@ -299,6 +299,7 @@ def magazine_scan(title=None):
                             db.upsert("Issues", new_value_dict, control_value_dict)
                         else:
                             logger.debug("Issue %s %s already exists" % (title, issuedate))
+                            cover = iss_entry['Cover']
 
                         ignorefile = os.path.join(os.path.dirname(issuefile), '.ll_ignore')
                         try:
@@ -324,7 +325,7 @@ def magazine_scan(title=None):
                             new_value_dict = {
                                 "MagazineAdded": iss_acquired,
                                 "LastAcquired": iss_acquired,
-                                "LatestCover": 'cache/magazine/%s.jpg' % myhash,
+                                "LatestCover": cover,
                                 "IssueDate": issuedate,
                                 "IssueStatus": "Open"
                             }
@@ -342,7 +343,7 @@ def magazine_scan(title=None):
                                 new_value_dict["LastAcquired"] = iss_acquired
                             if not magissuedate or magissuedate == 'None' or issuedate >= magissuedate:
                                 new_value_dict["IssueDate"] = issuedate
-                                new_value_dict["LatestCover"] = 'cache/magazine/%s.jpg' % myhash
+                                new_value_dict["LatestCover"] = cover
                             db.upsert("magazines", new_value_dict, control_value_dict)
 
             if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
