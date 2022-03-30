@@ -13,6 +13,7 @@
 
 import json
 import re
+import time
 # noinspection PyUnresolvedReferences
 from six.moves import http_cookiejar
 # noinspection PyUnresolvedReferences
@@ -246,7 +247,7 @@ def label_torrent(hashid, label):
     uclient = UtorrentClient()
     torrent_list = uclient.list()
     for torrent in torrent_list[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             uclient.setprops(torrent[0], 'label', label)
             return True
     return False
@@ -259,7 +260,7 @@ def dir_torrent(hashid):
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
     for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             return torrent[26]
     return False
 
@@ -271,7 +272,7 @@ def name_torrent(hashid):
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
     for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             return torrent[2]
     return ""
 
@@ -290,7 +291,7 @@ def progress_torrent(hashid):
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
     for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             return check_int(torrent[4], 0) // 10, torrent[1], \
                              (torrent[1] & 65 == 0)  # status not started or queued
     return -1, '', False
@@ -303,7 +304,7 @@ def list_torrent(hashid):
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
     for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             return uclient.getfiles(torrent[0])
     return []
 
@@ -315,7 +316,7 @@ def remove_torrent(hashid, remove_data=False):
     torrentlist = uclient.list()
     # noinspection PyUnresolvedReferences
     for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
+        if torrent[0].lower() == hashid.lower():
             if remove_data:
                 uclient.removedata(torrent[0])
             else:
@@ -327,9 +328,15 @@ def remove_torrent(hashid, remove_data=False):
 def add_torrent(link, hashid):
     uclient = UtorrentClient()
     uclient.add_url(link)
-    torrentlist = uclient.list()
-    # noinspection PyUnresolvedReferences
-    for torrent in torrentlist[1].get('torrents'):
-        if torrent[0].lower() == hashid:
-            return hashid, ''
+    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        logger.debug("Add hashid %s" % hashid)
+    count = 10
+    while count:
+        torrentlist = uclient.list()
+        # noinspection PyUnresolvedReferences
+        for torrent in torrentlist[1].get('torrents'):
+            if torrent[0].lower() == hashid.lower():
+                return hashid, ''
+        time.sleep(1)
+        count -= 1
     return False, 'uTorrent failed to locate hashid'
