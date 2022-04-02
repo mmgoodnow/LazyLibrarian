@@ -62,7 +62,7 @@ from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir
+    create_opf, process_book_from_dir, process_issues
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
@@ -5683,6 +5683,21 @@ class WebInterface(object):
         else:
             logger.debug('ALT-LIBRARYSCAN already running')
         raise cherrypy.HTTPRedirect("manage?library=%s" % library)
+
+    @cherrypy.expose
+    def import_issues(self, title=None):
+        if not title:
+            logger.error("No title to import")
+            raise cherrypy.HTTPRedirect("magazines")
+        if 'IMPORTISSUES' not in [n.name for n in [t for t in threading.enumerate()]]:
+            try:
+                threading.Thread(target=process_issues, name='IMPORTISSUES',
+                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], title]).start()
+            except Exception as e:
+                logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
+        else:
+            logger.debug('IMPORTISSUES already running')
+        raise cherrypy.HTTPRedirect("issue_page?title=%s" % title)
 
     @cherrypy.expose
     def import_alternate(self, library='eBook'):

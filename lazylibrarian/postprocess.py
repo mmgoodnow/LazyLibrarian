@@ -251,8 +251,82 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
         return False
 
 
+def process_issues(source_dir=None, title=''):
+    # import magazine issues for a given title from an alternate directory
+    # noinspection PyBroadException
+    try:
+        if not source_dir:
+            logger.warn("Alternate Directory not configured")
+            return False
+        if not path_isdir(source_dir):
+            logger.warn("%s is not a directory" % source_dir)
+            return False
+
+        logger.debug('Looking for %s issues in %s' % (title, source_dir))
+        # first, recursively process any items in subdirectories
+        flist = listdir(source_dir)
+        for fname in flist:
+            subdir = os.path.join(source_dir, fname)
+            if path_isdir(subdir):
+                process_issues(subdir, title)
+
+        db = database.DBConnection()
+        dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
+        res = db.match('SELECT Reject from magazines WHERE Title=?', (title,))
+        if not res:
+            logger.error("%s not found in database" % title)
+            return False
+
+        rejects = get_list(res['Reject'])
+        title_words = replace_all(title.lower(), dic).split()
+
+        # import any files in this directory that match the title, are a magazine file, and have a parseable date
+        for f in listdir(source_dir):
+            _, extn = os.path.splitext(f)
+            extn = extn.lstrip('.')
+            if not extn or extn.lower() not in get_list(lazylibrarian.CONFIG['MAG_TYPE']):
+                continue
+
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                logger.debug('Trying to match %s' % f)
+            filename_words = replace_all(f.lower(), dic).split()
+            found_title = True
+            for word in title_words:
+                if word not in filename_words:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                        logger.debug('[%s] not found in %s' % (word, f))
+                    found_title = False
+                    break
+            if found_title:
+                for item in rejects:
+                    if item in filename_words:
+                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                            logger.debug('Rejecting %s, contains %s' % (f, item))
+                        found_title = False
+                        break
+            if found_title:
+                regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words)
+                if regex_pass:
+                    # suppress the "-01" day on monthly magazines
+                    if re.match(r'\d+-\d\d-01', str(issuedate)):
+                        issuedate = issuedate[:-3]
+
+                    if process_mag_from_file(os.path.join(source_dir, f), title, issuedate):
+                        logger.debug('Processed %s issue %s' % (title, issuedate))
+                    else:
+                        logger.warn('Failed to process %s' % f)
+                else:
+                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                        logger.debug('regex failed for %s' % f)
+        return True
+
+    except Exception:
+        logger.error('Unhandled exception in process_issues: %s' % traceback.format_exc())
+        return False
+
+
 def process_alternate(source_dir=None, library='eBook', automerge=False):
-    # import a book from an alternate directory
+    # import a book/audiobook from an alternate directory
     # noinspection PyBroadException
     try:
         if not source_dir:
