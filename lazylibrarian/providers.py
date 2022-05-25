@@ -596,7 +596,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
             if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['HOST'])
                 ignored = True
             elif "audio" in search_type and 'A' not in provider['DLTYPES']:
@@ -657,7 +657,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             if provider_is_blocked(prov):
                 logger.debug('%s is BLOCKED' % lazylibrarian.CONFIG[prov + '_HOST'])
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
                 ignored = True
             elif "audio" in search_type and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
@@ -716,7 +716,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
             if provider_is_blocked(prov['NAME']):
                 logger.debug('%s is BLOCKED' % prov['NAME'])
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in prov['DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in prov['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov['NAME'])
                 ignored = True
             elif "audio" in search_type and 'A' not in prov['DLTYPES']:
@@ -745,7 +745,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
             if provider_is_blocked(prov):
                 logger.debug('%s is BLOCKED' % prov)
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
                 ignored = True
             elif "audio" in search_type and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
@@ -774,7 +774,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
             if provider_is_blocked(prov):
                 logger.debug('%s is BLOCKED' % prov)
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % prov)
                 ignored = True
             elif "audio" in search_type and 'A' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
@@ -870,7 +870,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
             if provider_is_blocked(provider['SERVER']):
                 logger.debug('%s is BLOCKED' % provider['SERVER'])
                 ignored = True
-            elif search_type in ['book', 'shortbook'] and 'E' not in provider['DLTYPES']:
+            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
                 logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
                 ignored = True
             elif "audio" in search_type and 'A' not in provider['DLTYPES']:
@@ -1321,7 +1321,7 @@ def cancel_search_type(search_type, error_msg, provider):
 
     errormsg = make_unicode(error_msg).lower()
 
-    if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook"]) or \
+    if (provider['BOOKSEARCH'] and search_type in ["book", "shortbook", 'titlebook']) or \
             (provider['AUDIOSEARCH'] and search_type in ["audio", "shortaudio"]):
         match = False
         for item in errorlist:
@@ -1330,7 +1330,7 @@ def cancel_search_type(search_type, error_msg, provider):
                 break
 
         if match:
-            if search_type in ["book", "shortbook"]:
+            if search_type in ["book", "shortbook", 'titlebook']:
                 msg = 'BOOKSEARCH'
             elif search_type in ["audio", "shortaudio"]:
                 msg = 'AUDIOSEARCH'
@@ -1467,7 +1467,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                     try:
                         thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider['DLPRIORITY'])
                         thisnzb['dispname'] = provider['DISPNAME']
-                        if search_type in ['book', 'shortbook']:
+                        if search_type in ['book', 'shortbook', 'titlebook']:
                             thisnzb['booksearch'] = provider['BOOKSEARCH']
 
                         if 'seeders' in thisnzb:
@@ -1518,7 +1518,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
 
 def return_search_structure(provider, api_key, book, search_type, search_mode):
     params = None
-    if search_type in ["book", "shortbook"]:
+    if search_type in ["book", "shortbook", 'titlebook']:
         authorname, bookname = get_searchterm(book, search_type)
         bookname = no_umlauts(bookname)
         if provider['BOOKSEARCH'] and provider['BOOKCAT']:  # if specific booksearch, use it
