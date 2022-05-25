@@ -259,13 +259,13 @@ def search_magazines(mags=None, reset=False):
                                     if word == '&':
                                         word = 'and'
                                     elif word == '+':
-                                        word = 'plus'
+                                        word = 'and'
                                     wlist.append(word.lower())
                                 for word in bookid_exploded:
                                     if word == '&':
                                         word = 'and'
                                     elif word == '+':
-                                        word = 'plus'
+                                        word = 'and'
                                     if word.lower() not in wlist:
                                         logger.debug("Rejecting %s, missing [%s]" % (nzbtitle, word))
                                         rejected = True

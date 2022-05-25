@@ -5549,6 +5549,16 @@ class WebInterface(object):
 
             # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
             title = replace_with(title, quotes, "'")
+            title_exploded = title.split()
+            # replace symbols by words
+            new_title = []
+            for word in title_exploded:
+                if word == '&':
+                    word = 'and'
+                elif word == '+':
+                    word = 'and'
+                new_title.append(word)
+            title = ' '.join(new_title)
             exists = db.match('SELECT Title from magazines WHERE Title=? COLLATE NOCASE', (title,))
             if exists:
                 logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
@@ -5784,7 +5794,7 @@ class WebInterface(object):
         return res.encode('UTF-8')
 
     @cherrypy.expose
-    def import_csv(self, library='eBook'):
+    def import_csv(self, library=''):
         if 'IMPORTCSV' not in [n.name for n in [t for t in threading.enumerate()]]:
             self.label_thread('IMPORTCSV')
             try:
@@ -5808,7 +5818,7 @@ class WebInterface(object):
             return message
 
     @cherrypy.expose
-    def export_csv(self, library='eBook'):
+    def export_csv(self, library=''):
         self.label_thread('EXPORTCSV')
         message = export_csv(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
         message = message.replace('\n', '<br>')
