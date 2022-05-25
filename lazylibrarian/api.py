@@ -172,8 +172,8 @@ cmd_dict = {'help': 'list available commands. ' +
                                ' and any subfolders',
             'includeAlternate': '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named or ' +
                                 ' alternate folder and any subfolders',
-            'importCSVwishlist': '[&wait] [&dir=] Import a CSV wishlist from named or alternate directory',
-            'exportCSVwishlist': '[&wait] [&dir=] Export a CSV wishlist to named or alternate directory',
+            'importCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Import a CSV wishlist from named or alternate directory',
+            'exportCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Export a CSV wishlist to named or alternate directory',
             'grSync': '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads shelf, ' +
                       'or reset goodreads shelf to match lazylibrarian',
             'grFollow': '&id= Follow an author on goodreads',
@@ -2113,14 +2113,18 @@ class Api(object):
 
     def _importcsvwishlist(self, **kwargs):
         usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        status = kwargs.get('status', 'Wanted')
+        library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
-            self.data = import_csv(usedir)
+            self.data = import_csv(usedir, status, library)
         else:
-            threading.Thread(target=import_csv, name='API-IMPORTCSV', args=[usedir]).start()
+            threading.Thread(target=import_csv, name='API-IMPORTCSV', args=[usedir, status, library]).start()
 
     def _exportcsvwishlist(self, **kwargs):
         usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        status = kwargs.get('status', 'Wanted')
+        library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
-            self.data = export_csv(usedir)
+            self.data = export_csv(usedir, status, library)
         else:
-            threading.Thread(target=export_csv, name='API-EXPORTCSV', args=[usedir]).start()
+            threading.Thread(target=export_csv, name='API-EXPORTCSV', args=[usedir, status, library]).start()
