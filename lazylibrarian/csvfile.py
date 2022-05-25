@@ -158,9 +158,14 @@ def restore_table(table, savedir=None, status=None):
         return 0
 
 
-def export_csv(search_dir=None, status="Wanted", library='eBook'):
+def export_csv(search_dir=None, status="Wanted", library=''):
     """ Write a csv file to the search_dir containing all books marked as "Wanted" """
     msg = 'Export CSV'
+    if not library:
+        if lazylibrarian.SHOW_AUDIO:
+            library = 'AudioBook'
+        else:
+            library = 'eBook'
     # noinspection PyBroadException
     try:
         if not search_dir:
@@ -273,13 +278,18 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-def import_csv(search_dir=None, library='eBook'):
+def import_csv(search_dir=None, library=''):
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
         Optionally delete the file on successful completion
     """
     msg = 'Import CSV'
+    if not library:
+        if lazylibrarian.SHOW_AUDIO:
+            library = 'audio'
+        else:
+            library = 'eBook'
     # noinspection PyBroadException
     try:
         if not search_dir:
