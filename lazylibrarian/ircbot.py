@@ -80,7 +80,7 @@ class IRC:
         else:
             logger.warn("No admin user, expect problems")
 
-        self.ver = "eBook ircBot version 2022-02-24 (" + self.email + ")"
+        self.ver = "eBook ircBot version 2022-05-15 (" + self.email + ")"
         self.server = ""
         self.nick = ""
         # Define the socket
@@ -450,7 +450,7 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
                             return '', 'No matches'
                     except ValueError:
                         return '', 'ValueError: %s' % lyne
-                    status = "finished"
+                    status = "pending"
                 elif 'search' in lyne and 'accepted' in lyne:
                     logger.debug("Search accepted by %s" % cmd)
                 elif 'Request Accepted' in lyne:
