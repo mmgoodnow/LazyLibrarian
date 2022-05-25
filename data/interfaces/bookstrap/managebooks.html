@@ -185,6 +185,12 @@
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
+        $('#chooselib').val(getUrlVars()['library']);
+
+        if ($("#chooselib").val() != 'AudioBook') {
+            $('#chooselib').val('eBook')
+        }
+
         $('#chooselib').change(function(){
             new_settings = 'manage?whichStatus=' + $('#whichStatus').val() + '&library=' + $(this).val()
             window.location = new_settings
