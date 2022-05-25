@@ -184,10 +184,12 @@ def set_series(serieslist=None, bookid=None, authorid=None, workid=None, reason=
                                0, 0, 0, reason, ''), suppress='UNIQUE')
 
             if not workid or not authorid:
-                book = db.match('SELECT AuthorID,WorkID from books where BookID=?', (bookid,))
+                book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
                 if book:
                     authorid = book['AuthorID']
                     workid = book['WorkID']
+                    if not workid:
+                        workid = book['LT_WorkID']
             if seriesid and authorid and workid:
                 for member in members:
                     if member[3] == workid:
@@ -918,7 +920,7 @@ def get_series_members(seriesid=None, seriesname=None):
                 if book:
                     results.append([item[0], item[1], item[2], item[4], book[0], '', '', '', book[1]])
                 else:
-                    results.append([item[0], item[1], item[2], '', '', '', '', '', ''])
+                    results.append([item[0], item[1], item[2], item[4], '', '', '', '', ''])
         if not results:
             data = get_bookwork(None, "SeriesPage", seriesid)
             if data:
