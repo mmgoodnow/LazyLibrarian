@@ -54,11 +54,6 @@ def magazine_scan(title=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if not mag_path or not path_isdir(mag_path):
-            logger.warn("Magazine folder %s not found" % mag_path)
-            lazylibrarian.MAG_UPDATE = 0
-            return
-
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
             mags = db.select('select * from Issues')
             # check all the issues are still there, delete entry if not
