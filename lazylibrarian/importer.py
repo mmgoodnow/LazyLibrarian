@@ -36,10 +36,11 @@ from six.moves import queue
 def is_valid_authorid(authorid):
     if not authorid:
         return False
+    # GoogleBooks doesn't provide authorid so we use one of the other sources
     if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True
     if authorid.startswith('OL') and authorid.endswith('A') and \
-            lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
         return True
     return False
 
