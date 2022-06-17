@@ -965,7 +965,7 @@ class GoodReads:
                                     if newserieslist:
                                         serieslist = newserieslist
                                         logger.debug('Updated series: %s [%s]' % (bookid, serieslist))
-                                    _api_hits, pubdate = set_series(serieslist, bookid, authorid, workid, reason=reason)
+                                    _api_hits, pubdate = set_series(serieslist, bookid, reason=reason)
                                     api_hits += _api_hits
                                     if pubdate and pubdate > originalpubdate:  # more detailed
                                         update_value_dict["OriginalPubDate"] = pubdate
