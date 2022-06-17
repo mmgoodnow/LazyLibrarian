@@ -133,7 +133,7 @@ def set_all_book_series():
     return msg
 
 
-def set_series(serieslist=None, bookid=None, authorid=None, workid=None, reason=""):
+def set_series(serieslist=None, bookid=None, reason=""):
     """ set series details in series/member tables from the supplied dict
         and a displayable summary in book table
         serieslist is a tuple (SeriesID, SeriesNum, SeriesName)
@@ -183,14 +183,17 @@ def set_series(serieslist=None, bookid=None, authorid=None, workid=None, reason=
                               (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'],
                                0, 0, 0, reason, ''), suppress='UNIQUE')
 
-            if not workid or not authorid:
-                book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
-                if book:
-                    authorid = book['AuthorID']
-                    workid = book['WorkID']
-                    if not workid:
-                        workid = book['LT_WorkID']
-            if seriesid and authorid and workid:
+            book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
+            authorid = book['AuthorID']
+            workid = book['WorkID']
+            if not workid:
+                workid = book['LT_WorkID']
+
+            control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
+            if not workid:
+                new_value_dict = {"SeriesNum": item[1]}
+            else:
+                new_value_dict = {"SeriesNum": item[1], "WorkID": workid}
                 for member in members:
                     if member[3] == workid:
                         if check_year(member[5], past=1800, future=0):
@@ -201,21 +204,10 @@ def set_series(serieslist=None, bookid=None, authorid=None, workid=None, reason=
                             new_value_dict = {"BookDate": bookdate, "OriginalPubDate": bookdate}
                             db.upsert("books", new_value_dict, control_value_dict)
                             originalpubdate = bookdate
-                        break
 
-                control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
-                new_value_dict = {"SeriesNum": item[1], "WorkID": workid}
-                db.upsert("member", new_value_dict, control_value_dict)
-                db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
-                          (seriesid, authorid), suppress='UNIQUE')
-            else:
-                if not authorid:
-                    logger.debug('Unable to set series for book %s, no authorid' % bookid)
-                elif not workid:
-                    logger.debug('Unable to set series for book %s, no workid' % bookid)
-                elif not seriesid:
-                    logger.debug('Unable to set series for book %s, no seriesid' % bookid)
-                return api_hits, originalpubdate
+            db.upsert("member", new_value_dict, control_value_dict)
+            db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
+                      (seriesid, authorid), suppress='UNIQUE')
 
         series = ''
         for item in newserieslist:
