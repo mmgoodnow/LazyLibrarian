@@ -45,13 +45,13 @@ def check_link():
     if lazylibrarian.CONFIG['SAB_CAT']:
         if 'categories' not in cats or not len(cats['categories']):
             return "Failed to get sab_nzbd categories: %s" % str(cats)
-        if lazylibrarian.CONFIG['SAB_CAT'] not in cats['categories']:
+        if lazylibrarian.CONFIG['SAB_CAT'].split(',')[0] not in cats['categories']:
             return "sab_nzbd: Unknown category [%s]\nValid categories:\n%s" % (
                     lazylibrarian.CONFIG['SAB_CAT'], str(cats['categories']))
     return "sab_nzbd connection successful, version %s" % vers['version']
 
 
-def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None):
+def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=None, library='eBook', label=''):
 
     if nzburl in ['delete', 'delhistory', 'pause'] and title == 'unknown':
         res = '%s function unavailable in this version of sabnzbd, no nzo_ids' % nzburl
@@ -92,7 +92,10 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         if nzo_ids:
             params['nzo_ids'] = nzo_ids
         if lazylibrarian.CONFIG['SAB_CAT']:
-            params['category'] = lazylibrarian.CONFIG['SAB_CAT']
+            if label:
+                params['category'] = label
+            else:
+                params['category'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -109,7 +112,10 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         if nzo_ids:
             params['nzo_ids'] = nzo_ids
         if lazylibrarian.CONFIG['SAB_CAT']:
-            params['category'] = lazylibrarian.CONFIG['SAB_CAT']
+            if label:
+                params['category'] = label
+            else:
+                params['category'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
         if lazylibrarian.CONFIG['SAB_USER']:
             params['ma_username'] = lazylibrarian.CONFIG['SAB_USER']
         if lazylibrarian.CONFIG['SAB_PASS']:
@@ -172,7 +178,10 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         if lazylibrarian.CONFIG['SAB_API']:
             params['apikey'] = lazylibrarian.CONFIG['SAB_API']
         if lazylibrarian.CONFIG['SAB_CAT']:
-            params['cat'] = lazylibrarian.CONFIG['SAB_CAT']
+            if label:
+                params['category'] = label
+            else:
+                params['cat'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
         if lazylibrarian.CONFIG['USENET_RETENTION']:
             params["maxage"] = lazylibrarian.CONFIG['USENET_RETENTION']
 

@@ -1106,6 +1106,7 @@ def config_read(reloaded=False):
                          "HOST": check_setting('str', rss_name, 'HOST', ''),
                          "DLPRIORITY": check_setting('int', rss_name, 'DLPRIORITY', 0),
                          "DLTYPES": check_setting('str', rss_name, 'dltypes', 'E'),
+                         "LABEL": check_setting('str', rss_name, 'label', ''),
                          })
         count += 1
     # if the last slot is full, add an empty one on the end
@@ -1413,7 +1414,7 @@ def config_write(part=None):
                 add_torz_slot()
 
     if not part or part.startswith('rss_'):
-        rss_items = ['ENABLED', 'DISPNAME', 'HOST', 'DLPRIORITY', 'DLTYPES']
+        rss_items = ['ENABLED', 'DISPNAME', 'HOST', 'DLPRIORITY', 'DLTYPES', 'LABEL']
         new_list = []
         # strip out any empty slots
         for provider in RSS_PROV:
@@ -1794,7 +1795,8 @@ def add_rss_slot():
                          "ENABLED": 0,
                          "HOST": '',
                          "DLPRIORITY": 0,
-                         "DLTYPES": 'E'
+                         "DLTYPES": 'E',
+                         'LABEL': '',
                          })
 
 
@@ -1877,6 +1879,17 @@ def wishlist_type(host):
     # NYTimes best-sellers html pages
     if 'nytimes' in host and 'best-sellers' in host:
         return 'ny_times'
+    # Publisherweekly best-seller in category
+    if 'publishersweekly' in host and '/pw/' in host:
+        return 'publishersweekly'
+    # Publisherweekly best-seller in category
+    if 'apps.npr.org' in host and '/best-books/' in host:
+        return 'apps.npr.org'
+    if 'penguinrandomhouse' in host:
+        return 'penguinrandomhouse'
+    if 'barnesandnoble' in host:
+        return 'barnesandnoble'
+ 
     return ''
 
 

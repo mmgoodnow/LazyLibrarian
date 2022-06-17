@@ -229,6 +229,7 @@ def find_best_result(resultlist, book, searchtype, source):
                     "NZBtitle": res[prefix + 'title'],  # was resultTitle,
                     "NZBmode": mode,
                     "AuxInfo": auxinfo,
+                    "Label": res.get('label', ''),
                     "Status": "Matched"
                 }
                 if source == 'irc':
@@ -325,6 +326,7 @@ def download_result(match, book):
             return 1  # someone else already found it
 
         db.upsert("wanted", new_value_dict, control_value_dict)
+        label = new_value_dict.get('Label', '')
         if new_value_dict['NZBmode'] == 'direct':
             snatch, res = direct_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
                                            control_value_dict["NZBurl"], new_value_dict["AuxInfo"],
@@ -335,10 +337,10 @@ def download_result(match, book):
                                         new_value_dict['NZBprov'])
         elif new_value_dict['NZBmode'] in ["torznab", "torrent", "magnet"]:
             snatch, res = tor_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
-                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"])
+                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label)
         elif new_value_dict['NZBmode'] == 'nzb':
             snatch, res = nzb_dl_method(new_value_dict["BookID"], new_value_dict["NZBtitle"],
-                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"])
+                                        control_value_dict["NZBurl"], new_value_dict["AuxInfo"], label)
         else:
             res = 'Unhandled NZBmode [%s] for %s' % (new_value_dict['NZBmode'], control_value_dict["NZBurl"])
             logger.error(res)

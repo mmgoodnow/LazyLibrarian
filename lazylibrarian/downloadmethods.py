@@ -69,6 +69,10 @@ def use_label(source, library):
         labels = lazylibrarian.CONFIG['DELUGE_LABEL']
     elif source in ['TRANSMISSION', 'UTORRENT', 'RTORRENT', 'QBITTORRENT']:
         labels = lazylibrarian.CONFIG['%s_LABEL' % source]
+    elif source in ['SABNZBD']:
+        labels = lazylibrarian.CONFIG['SAB_CAT']
+    elif source in ['NZBGET']:
+        labels = lazylibrarian.CONFIG['NZBGET_CATEGORY']
     else:
         labels = ''
 
@@ -160,7 +164,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
     return False, msg
 
 
-def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
+def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', label=''):
     db = database.DBConnection()
     source = ''
     download_id = ''
@@ -190,14 +194,16 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
                     nzb_url = nzb_url + '/' + lazylibrarian.CONFIG['HTTP_ROOT']
                 nzb_url = nzb_url + '/nzbfile.nzb'
                 logger.debug("nzb_url [%s]" % nzb_url)
-                download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzb_url, False)  # returns nzb_ids or False
+                download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzb_url, remove_data=False, library=library, label=label)
+                # returns nzb_ids or False
                 logger.debug("Sab returned %s/%s" % (download_id, res))
                 # os.unlink(temp_filename)
                 # logger.debug("Temp file deleted")
         else:
-            download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzburl, False)  # returns nzb_ids or False
+            download_id, res = sabnzbd.sab_nzbd(nzbtitle, nzburl, remove_data=False, library=library, label=label)
+            # returns nzb_ids or False
         if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
-            _ = sabnzbd.sab_nzbd(nzbtitle, 'pause', False, None, download_id)
+            _ = sabnzbd.sab_nzbd(nzbtitle, 'pause', False, None, download_id, library=library, label=label)
 
     if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET'] and lazylibrarian.CONFIG['NZBGET_HOST']:
         source = "NZBGET"
@@ -211,7 +217,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook'):
             nzb.extraInfo.append(data)
             nzb.name = nzbtitle
             nzb.url = nzburl
-            download_id, res = nzbget.send_nzb(nzb)
+            download_id, res = nzbget.send_nzb(nzb, library=library, label=label)
             if download_id and lazylibrarian.CONFIG['NZB_PAUSED']:
                 _ = nzbget.send_nzb(nzb, 'GroupPause', download_id)
 
@@ -448,7 +454,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     return False, res
 
 
-def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
+def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', label=''):
     db = database.DBConnection()
     download_id = False
     source = ''
@@ -604,7 +610,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
             if download_id:
                 if lazylibrarian.CONFIG['TORRENT_PAUSED']:
                     utorrent.pause_torrent(download_id)
-                label = use_label(source, library)
+                if not label:
+                    label = use_label(source, library)
                 if label:
                     utorrent.label_torrent(download_id, label)
                 tor_title = utorrent.name_torrent(download_id)
@@ -640,7 +647,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
 
         if lazylibrarian.CONFIG['TOR_DOWNLOADER_TRANSMISSION'] and lazylibrarian.CONFIG['TRANSMISSION_HOST']:
             source = "TRANSMISSION"
-            label = use_label(source, library)
+            if not label:
+                label = use_label(source, library)
             directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
             if label and not directory.endswith(label):
                 directory = os.path.join(directory, label)
@@ -680,7 +688,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
                     logger.debug("Sending %s url to Deluge" % tor_title)
                     download_id, res = deluge.add_torrent(tor_url)  # can be link or magnet, returns hash or False
                 if download_id:
-                    label = use_label(source, library)
+                    if not label:
+                        label = use_label(source, library)
                     if label:
                         deluge.set_torrent_label(download_id, label)
                     tor_title = deluge.get_torrent_folder(download_id)
@@ -713,7 +722,8 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook'):
                     if download_id:
                         if lazylibrarian.CONFIG['TORRENT_PAUSED']:
                             _ = client.call('core.pause_torrent', download_id)
-                        label = use_label(source, library)
+                        if not label:
+                            label = use_label(source, library)
                         if label:
                             _ = client.call('label.set_torrent', download_id, label.lower())
                         result = client.call('core.get_torrent_status', download_id, {})
