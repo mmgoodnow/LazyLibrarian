@@ -97,7 +97,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
 
     new = False
     author_info = {}
-    if not author or len(author) < 2 or 'unknown' in author.lower():
+    if not author or len(author) < 2 or 'unknown' in author.lower() or 'anonymous' in author.lower():
         logger.debug('Invalid Author Name [%s]' % author)
         return "", "", False
 
@@ -152,7 +152,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if "unknown" not in author.lower() and (match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
+            if "unknown" not in author.lower() and 'anonymous' not in author.lower() and (
+                    match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
                 # use "intact" name for author that we stored in
                 # author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!
@@ -218,7 +219,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
         if is_valid_authorid(authorid):
             dbauthor = db.match("SELECT * from authors WHERE AuthorID=?", (authorid,))
-            if not dbauthor and authorname and 'unknown' not in authorname:
+            if not dbauthor and authorname and 'unknown' not in authorname and 'anonymous' not in authorname:
                 dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                 if dbauthor:
                     logger.warn("Conflicting authorid for %s (new:%s old:%s) Using new authorid" %
@@ -268,14 +269,14 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             elif authorid:
                 gr_id = authorid
 
-            if not ol_id and 'unknown' not in authorname:
+            if not ol_id and 'unknown' not in authorname and 'anonymous' not in authorname:
                 ol = OpenLibrary(authorname)
                 ol_author = ol.find_author_id()
                 if ol_author:
                     ol_id = ol_author['authorid']
                 else:
                     ol_id = authorid
-            if not gr_id and 'unknown' not in authorname:
+            if not gr_id and 'unknown' not in authorname and 'anonymous' not in authorname:
                 gr = GoodReads(authorname)
                 gr_author = gr.find_author_id()
                 if gr_author:
@@ -373,7 +374,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                     if author.get('about', ''):
                         new_value_dict['About'] = author['about']
                 if dbauthor and dbauthor['authorname'] != authorname:
-                    if 'unknown' not in dbauthor['authorname']:
+                    if 'unknown' not in dbauthor['authorname'] and 'anonymous' not in dbauthor['authorname']:
                         if unaccented_bytes(dbauthor['authorname']) != unaccented_bytes(authorname):
                             authorname = dbauthor['authorname']
                             logger.warn("Authorname mismatch for %s [%s][%s]" %
@@ -388,7 +389,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 # goodreads sometimes changes authorid
                 # maybe change of provider or no reply from provider
 
-        if not match and authorname and 'unknown' not in authorname.lower():
+        if not match and authorname and 'unknown' not in authorname.lower() and 'anonymous' not in authorname.lower():
             authorname = ' '.join(authorname.split())  # ensure no extra whitespace
             ol = OpenLibrary(authorname)
             ol_author = ol.find_author_id(refresh=refresh)
