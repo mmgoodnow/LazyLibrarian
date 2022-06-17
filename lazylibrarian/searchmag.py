@@ -106,6 +106,9 @@ def search_magazines(mags=None, reset=False):
                     if check_int(lazylibrarian.NO_NZB_MSG, 0) + 1200 < timenow:
                         logger.warn('No nzb providers are available. Check config and blocklist')
                         lazylibrarian.NO_NZB_MSG = timenow
+                else:
+                    # prefer larger nzb over smaller ones which may be par2 repair files?
+                    resultlist = sorted(resultlist, key=lambda d: check_int(d['nzbsize'], 0), reverse=True)
 
             if lazylibrarian.use_direct():
                 dir_resultlist, nproviders = iterate_over_direct_sites(book, 'mag')
