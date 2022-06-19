@@ -107,8 +107,9 @@ from lazylibrarian.common import path_exists
 # 73 Add gr_id to series table
 # 74 Add Theme to users table
 # 75 Add ol_id to author table
+# 76 Add Label to wanted table
 
-db_current_version = 75
+db_current_version = 76
 
 
 def upgrade_needed():
@@ -1089,6 +1090,12 @@ def update_schema(db, upgradelog):
             db.action("UPDATE authors SET ol_id=? WHERE authorid=?", (author['authorid'], author['authorid']))
         lazylibrarian.UPDATE_MSG = "Copied authorid for %s authors" % len(res)
         logger.debug(lazylibrarian.UPDATE_MSG)
+
+    if not has_column(db, "wanted", "Label"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Label to wanted table'
+        upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE wanted ADD COLUMN Label TEXT')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))
