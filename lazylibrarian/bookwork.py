@@ -190,10 +190,12 @@ def set_series(serieslist=None, bookid=None, reason=""):
                 workid = book['LT_WorkID']
 
             control_value_dict = {"BookID": bookid, "SeriesID": seriesid}
-            if not workid:
-                new_value_dict = {"SeriesNum": item[1]}
-            else:
-                new_value_dict = {"SeriesNum": item[1], "WorkID": workid}
+            new_value_dict = {"SeriesNum": item[1]}
+            if workid:
+                new_value_dict['WorkID'] = workid
+            db.upsert("member", new_value_dict, control_value_dict)
+
+            if workid:
                 for member in members:
                     if member[3] == workid:
                         if check_year(member[5], past=1800, future=0):
@@ -205,7 +207,6 @@ def set_series(serieslist=None, bookid=None, reason=""):
                             db.upsert("books", new_value_dict, control_value_dict)
                             originalpubdate = bookdate
 
-            db.upsert("member", new_value_dict, control_value_dict)
             db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
                       (seriesid, authorid), suppress='UNIQUE')
 

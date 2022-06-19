@@ -1802,6 +1802,8 @@ class WebInterface(object):
                     'rss_%i_dltypes' % count, 'E')
                 lazylibrarian.RSS_PROV[count]['DISPNAME'] = kwargs.get(
                     'rss_%i_dispname' % count, '')
+                lazylibrarian.RSS_PROV[count]['LABEL'] = kwargs.get(
+                    'rss_%i_label' % count, '')
             count += 1
 
         count = 0
