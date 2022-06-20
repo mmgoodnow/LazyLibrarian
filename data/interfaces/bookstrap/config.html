@@ -1789,16 +1789,14 @@
               <div class="col-md-12">
                 <fieldset>
                   <legend>
-                    <div class="checkbox">
-                      <%
+                    <%
                         if lazylibrarian.CONFIG['SHOW_NEWZ_PROV'] == True:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
                       %>
                       <input type="checkbox" id="show_newz_prov" name="show_newz_prov" value="1" ${checked} />
-                    </div>
-                  Newznab Providers
+                      <label for="show_newz_prov">  Newznab Providers </label>
                   </legend>
                   <fieldset id="newz_prov">
                    %for provider in lazylibrarian.NEWZNAB_PROV:
@@ -1845,15 +1843,14 @@
               <div class="col-md-12">
                 <fieldset>
                   <legend>
-                    <div class="checkbox">
-                      <%
+                    <%
                         if lazylibrarian.CONFIG['SHOW_TORZ_PROV'] == True:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
                       %>
                       <input type="checkbox" id="show_torz_prov" name="show_torz_prov" value="1" ${checked} />
-                    </div>Torznab Providers
+                      <label for="show_torz_prov">  Torznab Providers </label>
                   </legend>
                   <fieldset id="torz_prov">
                   %for provider in lazylibrarian.TORZNAB_PROV:
@@ -1903,15 +1900,16 @@
               </div>
               <div class="col-md-12">
                 <fieldset>
-                  <legend><div class="checkbox">
-                      <%
+                  <legend>
+                    <%
                         if lazylibrarian.CONFIG['SHOW_RSS_PROV'] == True:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
                       %>
                       <input type="checkbox" id="show_rss_prov" name="show_rss_prov" value="1" ${checked} />
-                    </div>rss/Wishlist Providers</legend>
+                      <label for="show_rss_prov"> rss/Wishlist Providers</label>
+                  </legend>
                   <fieldset id="rss_prov">
                   %for provider in lazylibrarian.RSS_PROV:
                   <%
@@ -1960,15 +1958,14 @@
               <div class="col-md-12">
                 <fieldset>
                   <legend>
-                    <div class="checkbox">
                     <%
-                      if lazylibrarian.CONFIG['SHOW_TOR_PROV'] == True:
-                          checked = 'checked="checked"'
-                      else:
-                          checked = ''
-                    %>
-                    <input type="checkbox" id="show_tor_prov" name="show_tor_prov" value="1" ${checked} />
-                    </div>rTorrent Providers
+                        if lazylibrarian.CONFIG['SHOW_TOR_PROV'] == True:
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <input type="checkbox" id="show_tor_prov" name="show_tor_prov" value="1" ${checked} />
+                      <label for="show_tor_prov">  Torrent Providers</label>
                   </legend>
                   <fieldset id="tor_prov">
                   <%
@@ -2172,15 +2169,16 @@
               </div>
               <div class="col-md-12">
                 <fieldset>
-                  <legend><div class="checkbox">
-                      <%
+                  <legend>
+                    <%
                         if lazylibrarian.CONFIG['SHOW_IRC_PROV'] == True:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
                       %>
                       <input type="checkbox" id="show_irc_prov" name="show_irc_prov" value="1" ${checked} />
-                    </div>rIRC Providers</legend>
+                      <label for="show_irc_prov">  IRC Providers</label>
+                  </legend>
                    <fieldset id="irc_prov">
                   %for provider in lazylibrarian.IRC_PROV:
                   <%
@@ -2243,16 +2241,16 @@
               </div>
               <div class="col-md-12">
                   <fieldset>
-                    <legend>
-                      <div class="checkbox">
-                      <%
+                  <legend>
+                    <%
                         if lazylibrarian.CONFIG['SHOW_DIRECT_PROV'] == True:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
                       %>
                       <input type="checkbox" id="show_direct_prov" name="show_direct_prov" value="1" ${checked} />
-                    </div>Direct Download Providers</legend>
+                      <label for="show_direct_prov">  Direct Providers</label>
+                  </legend>
                     <fieldset id=direct_prov>
                     <%
                       if lazylibrarian.CONFIG['BOK'] == True:
