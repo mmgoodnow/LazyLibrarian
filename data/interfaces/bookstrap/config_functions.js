@@ -174,7 +174,127 @@
                 }
         });
 
-        if ($("#tor_downloader_blackhole").is(":checked"))
+        if ($("#show_direct_prov").is(":checked"))
+            {
+                    $("#direct_prov").show();
+            }
+        else
+            {
+                    $("#direct_prov").hide();
+            }
+
+        $("#show_direct_prov").click(function(){
+                if ($("#show_direct_prov").is(":checked"))
+                {
+                        $("#direct_prov").slideDown();
+                }
+                else
+                {
+                        $("#direct_prov").slideUp();
+                }
+        });
+
+        if ($("#show_newz_prov").is(":checked"))
+            {
+                    $("#newz_prov").show();
+            }
+        else
+            {
+                    $("#newz_prov").hide();
+            }
+
+        $("#show_newz_prov").click(function(){
+                if ($("#show_newz_prov").is(":checked"))
+                {
+                        $("#newz_prov").slideDown();
+                }
+                else
+                {
+                        $("#newz_prov").slideUp();
+                }
+        });
+
+        if ($("#show_torz_prov").is(":checked"))
+            {
+                    $("#torz_prov").show();
+            }
+        else
+            {
+                    $("#torz_prov").hide();
+            }
+
+        $("#show_torz_prov").click(function(){
+                if ($("#show_torz_prov").is(":checked"))
+                {
+                        $("#torz_prov").slideDown();
+                }
+                else
+                {
+                        $("#torz_prov").slideUp();
+                }
+        });
+
+        if ($("#show_rss_prov").is(":checked"))
+            {
+                    $("#rss_prov").show();
+            }
+        else
+            {
+                    $("#rss_prov").hide();
+            }
+
+        $("#show_rss_prov").click(function(){
+                if ($("#show_rss_prov").is(":checked"))
+                {
+                        $("#rss_prov").slideDown();
+                }
+                else
+                {
+                        $("#rss_prov").slideUp();
+                }
+        });
+
+         if ($("#show_tor_prov").is(":checked"))
+            {
+                    $("#tor_prov").show();
+            }
+        else
+            {
+                    $("#tor_prov").hide();
+            }
+
+        $("#show_tor_prov").click(function(){
+                if ($("#show_tor_prov").is(":checked"))
+                {
+                        $("#tor_prov").slideDown();
+                }
+                else
+                {
+                        $("#tor_prov").slideUp();
+                }
+        });
+
+        if ($("#show_irc_prov").is(":checked"))
+            {
+                    $("#irc_prov").show();
+            }
+        else
+            {
+                    $("#irc_prov").hide();
+            }
+
+        $("#show_irc_prov").click(function(){
+                if ($("#show_irc_prov").is(":checked"))
+                {
+                        $("#irc_prov").slideDown();
+                }
+                else
+                {
+                        $("#irc_prov").slideUp();
+                }
+        });
+
+       if ($("#tor_downloader_blackhole").is(":checked"))
             {
                     $("#tor_blackhole_options").show();
             }
