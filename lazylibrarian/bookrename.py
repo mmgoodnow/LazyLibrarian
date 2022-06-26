@@ -359,6 +359,7 @@ def audio_rename(bookid, rename=False, playlist=False):
             logger.debug("Moving folder [%s] to [%s]" % (repr(r), repr(dest_path)))
             dest_path = safe_move(r, dest_path)
             r = dest_path
+            book_filename = os.path.join(r, os.path.basename(book_filename))
         except Exception as why:
             if not path_isdir(dest_path):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
