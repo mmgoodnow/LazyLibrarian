@@ -1932,6 +1932,12 @@
                       <input type="text" placeholder="rss URL #${loop.index}" id="rss_${loop.index}_host" name="rss_${loop.index}_host" value="${provider['HOST']}" class="form-control" />
                       <span class="input-group-addon"></span>
                     </div>
+                    <div class="input-group">
+                      <span class="input-group-addon">Label</span>
+                      <label for="rss_${loop.index}_label" class="sr-only">rss label</label>
+                      <input type="text" placeholder="rss label #${loop.index}" id="rss_${loop.index}_label" name="rss_${loop.index}_label" value="${provider['LABEL']}" class="form-control" />
+                      <span class="input-group-addon"></span>
+                    </div>
                       <%
                         label = 'Priority'
                         if 'list_rss' in provider['HOST']:
