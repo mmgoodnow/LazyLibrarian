@@ -547,7 +547,13 @@ class Api(object):
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
-                    if arg.upper() == 'ENABLED':
+                    if arg.upper() == 'NAME':
+                        # dont allow api to change our internal name
+                        continue
+                    elif arg == 'altername':
+                        hit.append(arg)
+                        item['DISPNAME'] = kwargs[arg]
+                    elif arg.upper() == 'ENABLED':
                         hit.append(arg)
                         if kwargs[arg] in ['1', 1, True, 'True', 'true']:
                             val = True
@@ -557,6 +563,9 @@ class Api(object):
                     elif arg.upper() in item:
                         hit.append(arg)
                         item[arg.upper()] = kwargs[arg]
+                    elif arg == 'prov_apikey':
+                        hit.append(arg)
+                        item['API'] = kwargs[arg]
                     elif arg == 'categories' and 'BOOKCAT' in providers[0]:
                         hit.append(arg)
                         # prowlarr only gives us one category list
@@ -576,8 +585,8 @@ class Api(object):
                         providers[-1]['AUDIOCAT'] = audiocat
                     else:
                         miss.append(arg)
-                lazylibrarian.config_write(name)
-                self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
+                lazylibrarian.config_write(item['NAME'])
+                self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
                     self.data['Data'] += " Invalid parameters [%s]" % ','.join(miss)

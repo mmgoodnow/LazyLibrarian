@@ -162,6 +162,8 @@ def test_provider(name, host=None, api=None):
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
         except IndexError:
             pass
+        except Exception as e:
+            logger.debug("Exception: %s" % str(e))
 
     if name.startswith('apprise_'):
         for provider in lazylibrarian.APPRISE_PROV:
@@ -208,6 +210,9 @@ def test_provider(name, host=None, api=None):
                     return success, provider['DISPNAME']
         except IndexError:
             pass
+        except Exception as e:
+            logger.debug("Exception: %s" % str(e))
+
     if name.startswith('newznab_'):
         try:
             prov = name.split('_')[1]
@@ -235,6 +240,8 @@ def test_provider(name, host=None, api=None):
                     return success, provider['DISPNAME']
         except IndexError:
             pass
+        except Exception as e:
+            logger.debug("Exception: %s" % str(e))
 
     if name.startswith('irc_'):
         try:
@@ -253,6 +260,8 @@ def test_provider(name, host=None, api=None):
                     return success, name
         except IndexError:
             pass
+        except Exception as e:
+            logger.debug("Exception: %s" % str(e))
 
     msg = "Unknown provider [%s]" % name
     logger.error(msg)
