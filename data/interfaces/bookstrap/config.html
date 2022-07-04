@@ -1796,7 +1796,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_newz_prov" name="show_newz_prov" value="1" ${checked} />
-                      <label for="show_newz_prov">  Newznab Providers </label>
+                      <label for="show_newz_prov" class="fa">  Newznab Providers </label>
                   </legend>
                   <fieldset id="newz_prov">
                    %for provider in lazylibrarian.NEWZNAB_PROV:
@@ -1850,7 +1850,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_torz_prov" name="show_torz_prov" value="1" ${checked} />
-                      <label for="show_torz_prov">  Torznab Providers </label>
+                      <label for="show_torz_prov" class="fa">  Torznab Providers </label>
                   </legend>
                   <fieldset id="torz_prov">
                   %for provider in lazylibrarian.TORZNAB_PROV:
@@ -1908,7 +1908,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_rss_prov" name="show_rss_prov" value="1" ${checked} />
-                      <label for="show_rss_prov"> rss/Wishlist Providers</label>
+                      <label for="show_rss_prov" class="fa"> rss/Wishlist Providers</label>
                   </legend>
                   <fieldset id="rss_prov">
                   %for provider in lazylibrarian.RSS_PROV:
@@ -1971,7 +1971,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_tor_prov" name="show_tor_prov" value="1" ${checked} />
-                      <label for="show_tor_prov">  Torrent Providers</label>
+                      <label for="show_tor_prov" class="fa">  Torrent Providers</label>
                   </legend>
                   <fieldset id="tor_prov">
                   <%
@@ -2183,7 +2183,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_irc_prov" name="show_irc_prov" value="1" ${checked} />
-                      <label for="show_irc_prov">  IRC Providers</label>
+                      <label for="show_irc_prov" class="fa">  IRC Providers</label>
                   </legend>
                    <fieldset id="irc_prov">
                   %for provider in lazylibrarian.IRC_PROV:
@@ -2255,7 +2255,7 @@
                             checked = ''
                       %>
                       <input type="checkbox" id="show_direct_prov" name="show_direct_prov" value="1" ${checked} />
-                      <label for="show_direct_prov">  Direct Providers</label>
+                      <label for="show_direct_prov" class="fa">  Direct Providers</label>
                   </legend>
                     <fieldset id=direct_prov>
                     <%
