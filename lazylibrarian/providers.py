@@ -10,22 +10,25 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+import json
+import re
 import time
 from xml.etree import ElementTree
+
+# noinspection PyUnresolvedReferences
+from six.moves.urllib_parse import urlencode, urlparse
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import syspath
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, make_bytestr, no_umlauts, month2num
-from lazylibrarian.common import syspath
+from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
-from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode, urlparse
 
 if PY2:
     import lib.feedparser as feedparser
@@ -157,6 +160,24 @@ def test_provider(name, host=None, api=None):
                     elif 'nytimes' in host:
                         return ny_times(host, provider['NAME'], provider['DLPRIORITY'],
                                         provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'publishersweekly' in host:
+                        return publishersweekly(host, provider['NAME'], provider['DLPRIORITY'],
+                                                provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'apps.npr.org' in host:
+                        return appsnprorg(host, provider['NAME'], provider['DLPRIORITY'],
+                                          provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'penguinrandomhouse' in host:
+                        return penguinrandomhouse(host, provider['NAME'], provider['DLPRIORITY'],
+                                                  provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'barnesandnoble' in host:
+                        return barnesandnoble(host, provider['NAME'], provider['DLPRIORITY'],
+                                              provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'bookdepository' in host:
+                        return bookdepository(host, provider['NAME'], provider['DLPRIORITY'],
+                                              provider['DISPNAME'], test=True), provider['DISPNAME']
+                    elif 'indigo' in host:
+                        return indigo(host, provider['NAME'], provider['DLPRIORITY'],
+                                      provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
                         return rss(host, provider['NAME'], provider['DLPRIORITY'],
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
@@ -874,7 +895,63 @@ def iterate_over_wishlists():
                     resultslist += ny_times(provider['HOST'], provider['NAME'],
                                             provider['DLPRIORITY'], provider['DISPNAME'],
                                             provider['DLTYPES'], False, provider['LABEL'])
+            elif wishtype == 'publishersweekly':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += publishersweekly(provider['HOST'], provider['NAME'],
+                                                    provider['DLPRIORITY'], provider['DISPNAME'],
+                                                    provider['DLTYPES'], False, provider['LABEL'])
 
+            elif wishtype == 'apps.npr.org':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += appsnprorg(provider['HOST'], provider['NAME'],
+                                              provider['DLPRIORITY'], provider['DISPNAME'],
+                                              provider['DLTYPES'], False, provider['LABEL'])
+
+            elif wishtype == 'penguinrandomhouse':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += penguinrandomhouse(provider['HOST'], provider['NAME'],
+                                                      provider['DLPRIORITY'], provider['DISPNAME'],
+                                                      provider['DLTYPES'], False, provider['LABEL'])
+            elif wishtype == 'barnesandnoble':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += barnesandnoble(provider['HOST'], provider['NAME'],
+                                                  provider['DLPRIORITY'], provider['DISPNAME'],
+                                                  provider['DLTYPES'], False, provider['LABEL'])
+
+            elif wishtype == 'bookdepository':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += bookdepository(provider['HOST'], provider['NAME'],
+                                                  provider['DLPRIORITY'], provider['DISPNAME'],
+                                                  provider['DLTYPES'], False, provider['LABEL'])
+            elif wishtype == 'indigo':
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
+                else:
+                    providers += 1
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
+                    resultslist += indigo(provider['HOST'], provider['NAME'],
+                                          provider['DLPRIORITY'], provider['DISPNAME'],
+                                          provider['DLTYPES'], False, provider['LABEL'])
     return resultslist, providers
 
 
@@ -1074,6 +1151,431 @@ def amazon(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     if test:
         return len(results)
+    return results
+
+
+def publishersweekly(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    publishersweekly best-sellers voir dans configLazy folder pour les commentaires
+    """
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+
+    url = host
+    provider = host.split('/pw/nielsen/')[1].strip('.html')
+    if provider:
+        provider = provider.split('/')[0]
+    else:
+        provider = 'best-sellers'
+    if not dispname:
+        dispname = provider
+
+    result, success = fetch_url(url)
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (url, result))
+        if not test:
+            block_provider(basehost, result)
+
+    elif result:
+        logger.debug('Parsing results from %s' % url)
+        data = result.split('class="nielsen-bookinfo"')
+        for entry in data[1:]:
+            try:
+                title = make_unicode(entry.split('<div')[1])
+                title = re.sub('<.*?>', '', title)
+                title = title.split('">')[1].strip()
+                author_name = make_unicode(entry.split('<div>')[1].split(', Author')[0])
+                rss_isbn = make_unicode(entry.split('<div')[3].split('<br>')[1])
+                author_name = author_name.split(' and ')[0].strip()  # multi-author, use first one
+                results.append({
+                    'rss_prov': provider,
+                    'rss_feed': feednr,
+                    'rss_title': title,
+                    'rss_author': author_name,
+                    'rss_bookid': '',
+                    'rss_isbn': rss_isbn,
+                    'priority': priority,
+                    'dispname': dispname,
+                    'types': types,
+                    'label': label,
+                })
+            except IndexError:
+                pass
+    else:
+        logger.debug('No data returned from %s' % url)
+    if test:
+        return len(results)
+    return results
+
+
+def appsnprorg(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    best-book aoos,npr.org
+    """
+    results = []
+    basehost = host
+    booknames = []
+    authnames = []
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+
+    url = host
+    provider = host.split('/best-books/')[0]
+    if provider:
+        provider = provider.split('/')[0]
+    else:
+        provider = 'apps.nprorg'
+    if not dispname:
+        dispname = provider
+
+    try:
+        year_url = url.split('year=')[1]
+        url_to_json = (url.split('#')[0]) + year_url + "-detail.json"
+        result, success = fetch_url(url_to_json)
+    except IndexError as e:
+        success = False
+        result = str(e)
+
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (url, result))
+        if not test:
+            block_provider(basehost, result)
+    #
+    elif result:
+
+        data = json.loads(result)
+        res = []
+        isbn = []
+        for books in data:
+            temp_dic = data[books]
+            booknames.append(temp_dic["title"])
+            authnames.append(temp_dic["author"])
+            isbn.append(temp_dic["isbn"])
+        temp_res = list(zip(authnames, booknames, isbn))
+        for item in temp_res:
+            if item[0] and item[1] and item not in res:
+                res.append(item)
+        for item in res:
+            results.append({
+                'rss_prov': provider,
+                'rss_feed': feednr,
+                'rss_title': item[1],
+                'rss_author': item[0],
+                'rss_bookid': '',
+                'rss_isbn': item[2],
+                'priority': priority,
+                'dispname': dispname,
+                'types': types,
+                'label': label,
+            })
+
+    else:
+        logger.debug('No data returned from %s' % url)
+
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+    if test:
+        return len(results)
+    return results
+
+
+def penguinrandomhouse(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    penguinrandomhouse html page
+    """
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+
+    if '/books/' in host:
+        provider = host.split('/books')[0]
+    else:
+        provider = "penguinrandomhouse"
+
+    url = host
+    result, success = fetch_url(url)
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (url, result))
+        if not test:
+            block_provider(basehost, result)
+    elif result:
+        logger.debug('Parsing results from %s' % url)
+
+        soup = BeautifulSoup(result, 'html5lib')
+        data = soup.find_all(id="tmpl-indc")
+        resultnumber = data[0].get('totalresults')
+        if resultnumber:
+            authnames = []
+            booknames = []
+            res = []
+            book_cat = data[0].get('cat')
+            # requesting ajax page
+            url = "https://www.penguinrandomhouse.com/ajaxc/categories/books/?from=0&to=" + resultnumber + \
+                  "&contentId=" + book_cat.lower() + \
+                  "&elClass=book&dataType=html&catFilter=best-sellers&sortType=frontlistiest_onsale"
+            # page of all the book
+            result, success = fetch_url(url)
+            soup = BeautifulSoup(result, 'html5lib')
+            titles = soup.find_all('div', {'class': 'title'})
+            authors = soup.find_all('div', {'class': 'contributor'})
+
+            if len(titles) == len(authors):
+                for item in authors:
+                    tmp = item.text.strip()
+                    if ' and ' in tmp:
+                        if ',' in tmp:
+                            authnames.append(tmp.split(',')[0].strip())
+                        else:
+                            authnames.append(tmp.split(' and ')[0].strip())
+                    else:
+                        authnames.append(tmp)
+                for item in titles:
+                    booknames.append(item.text.replace('\n', '').strip())
+                temp_res = list(zip(authnames, booknames))
+                for item in temp_res:
+                    if item[0] and item[1] and item not in res:
+                        res.append(item)
+
+                for item in res:
+                    results.append({
+                        'rss_prov': provider,
+                        'rss_feed': feednr,
+                        'rss_title': item[1],
+                        'rss_author': item[0],
+                        'rss_bookid': '',
+                        'rss_isbn': '',
+                        'priority': priority,
+                        'dispname': dispname,
+                        'types': types,
+                        'label': label,
+                    })
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+    if test:
+        return len(results)
+    return results
+
+
+def barnesandnoble(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    Barneandnoble charts html page
+    """
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+    provider = "barnesandnoble"
+
+    url = host
+    result, success = fetch_url(url)
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (url, result))
+        if not test:
+            block_provider(basehost, result)
+    elif result:
+        logger.debug('Parsing results from %s' % url)
+        soup = BeautifulSoup(result, 'html5lib')
+        titles = soup.find_all("div", {"class": "product-shelf-title product-info-title pt-xs"})
+        authors = soup.find_all("div", {"class": "product-shelf-author pt-0 mt-1"})
+
+        if len(authors) == len(titles):
+            res = []
+            authnames = []
+            for item in authors:
+                tmp = item.text.strip()
+                if "," in tmp:
+                    authnames.append(tmp.split(',')[0].split('by')[1].strip())
+                else:
+                    authnames.append(tmp.split('by')[1].strip())
+            booknames = []
+            for item in titles:
+                booknames.append(str(item.contents[1]).split('title="')[1].split('"')[0].strip())
+            temp_res = list(zip(authnames, booknames))
+            # suppress blanks and duplicates
+            for item in temp_res:
+                if item[0] and item[1] and item not in res:
+                    res.append(item)
+
+            for item in res:
+                results.append({
+                    'rss_prov': provider,
+                    'rss_feed': feednr,
+                    'rss_title': item[1],
+                    'rss_author': item[0],
+                    'rss_bookid': '',
+                    'rss_isbn': '',
+                    'priority': priority,
+                    'dispname': dispname,
+                    'types': types,
+                    'label': label,
+                })
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+    if test:
+        return len(results)
+    return results
+
+
+def bookdepository(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    bookdepository
+    """
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+    provider = "bookdepository"
+    page = 1
+    next_page = True
+    url = host
+
+    while next_page:
+        time.sleep(1)
+        if 'page=' in host:
+            host = str(url.split('page=')[0])
+        if '?' in host:
+            url = "%s&page=%i" % (host, page)
+        else:
+            url = "%s?page=%i" % (host, page)
+
+        result, success = fetch_url(url)
+
+        next_page = False
+        if not success:
+            logger.error('Error fetching data from %s: %s' % (url, result))
+            if not test:
+                block_provider(basehost, result)
+        elif result:
+            logger.debug('Parsing results from %s' % url)
+            soup = BeautifulSoup(result, 'html5lib')
+            titles = soup.find_all("h3", {"class": "title"})
+
+            authors = soup.find_all("p", {"class": "author"})
+            # take the number of result to see when max page
+            resultnumber = soup.find_all("div", {"class": "search-info"})
+            actual_result = str(resultnumber[0].text).split()[3].strip()
+            max_result = str(resultnumber[0].text).split()[5].strip()
+            next_page = actual_result != max_result
+
+            if len(authors) == len(titles):
+                res = []
+                authnames = []
+                for item in authors:
+                    authnames.append(item.text.strip())
+                booknames = []
+                for item in titles:
+                    booknames.append(item.text.strip())
+                temp_res = list(zip(authnames, booknames))
+                for item in temp_res:
+                    if item[0] and item[1] and item not in res:
+                        res.append(item)
+
+                for item in res:
+                    results.append({
+                        'rss_prov': provider,
+                        'rss_feed': feednr,
+                        'rss_title': item[1],
+                        'rss_author': item[0],
+                        'rss_bookid': '',
+                        'rss_isbn': '',
+                        'priority': priority,
+                        'dispname': dispname,
+                        'types': types,
+                        'label': label,
+                    })
+
+        if test:
+            logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
+            return len(results)
+
+        page += 1
+
+    return results
+
+
+def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=False, label=''):
+    """
+    indigo book list
+    """
+    # May have to check again, the api seems to return XML in browser from time to time,
+    # may have to do a checkup to see if the result is xml
+    results = []
+    basehost = host
+    if not str(host)[:4] == "http":
+        host = 'http://' + host
+    provider = "indigo"
+    # The first page is 0
+    page = 0
+    next_page = True
+    url = host
+
+    result, success = fetch_url(url)
+    if not success:
+        logger.error('Error fetching data from %s: %s' % (url, result))
+        if not test:
+            block_provider(basehost, result)
+
+    elif result:
+        logger.debug('Parsing results from %s' % url)
+        api = 'https://www.chapters.indigo.ca/en-ca/api/v1/merchandising/GetCmsProductList/?sortDirection=0'
+        api += '&sortKey=Default&rangeLength=0&rangeStart=0&pageSize=12'
+        list_id = re.findall('(?<="productLists":\[{"ContentID":).*?,', result)[0].split(',')[0]
+        list_id = "&id=" + str(list_id)
+        while next_page:
+            time.sleep(1)
+            if '?' in api:
+                urlapi = "%s&page=%i%s" % (api, page, list_id)
+            else:
+                urlapi = "%s?page=%i%s" % (api, page, list_id)
+
+            # Response in List format
+            apiresult, success = fetch_url(urlapi)
+            soup = BeautifulSoup(apiresult, 'html5lib')
+            # Test if page result is empty
+            if soup.text.strip() == "[]" or soup.text.strip() == "<feff>":
+                return len(results)
+            else:
+                next_page = True
+
+            # replace weird character , delete new line
+            apiresult = apiresult.replace('\n', '').strip().replace(':', ': ').replace("“", "'").replace("”", "'")
+
+            # conver to list of dict
+            apilist = list(eval(apiresult))
+
+            # List containt word without quote
+            titles = []
+            authors = []
+            isbn = []
+            for item in apilist:
+                tmp_dic = item
+                titles.append(tmp_dic['FullTitle'])
+                authors.append(tmp_dic['MajorContributorName'])
+                isbn.append(tmp_dic['ExternalProductId'])
+
+            if len(authors) == len(titles):
+                res = []
+                temp_res = list(zip(authors, titles, isbn))
+                # suppress blanks and duplicates
+                for item in temp_res:
+                    if item[0] and item[1] and item not in res:
+                        res.append(item)
+
+                for item in res:
+                    results.append({
+                        'rss_prov': provider,
+                        'rss_feed': feednr,
+                        'rss_title': item[1],
+                        'rss_author': item[0],
+                        'rss_bookid': '',
+                        'rss_isbn': item[2],
+                        'priority': priority,
+                        'dispname': dispname,
+                        'types': types,
+                        'label': label,
+                    })
+            page += 1
+    logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), host))
     return results
 
 
