@@ -1026,7 +1026,7 @@ def ircsearch(book, provider, search_type, test=False):
         if fname:
             results = irc_results(provider, fname)
         elif test and 'No results' in make_unicode(data):
-            return -1, provider['SERVER']
+            return 0, provider['SERVER']
 
     logger.debug("Found %i %s from %s" % (len(results), plural(len(results), "result"), provider['SERVER']))
     try:

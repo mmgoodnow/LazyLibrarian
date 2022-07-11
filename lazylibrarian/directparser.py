@@ -77,7 +77,7 @@ def direct_bok(book=None, prov=None, test=False):
         prov = 'direct_bok'
     if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
-            return 0
+            return False
         return [], "provider_is_blocked"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
@@ -111,7 +111,7 @@ def direct_bok(book=None, prov=None, test=False):
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
                 if test:
-                    return -1
+                    return False
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -253,7 +253,7 @@ def direct_bfi(book=None, prov=None, test=False):
         prov = 'direct_bfi'
     if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
-            return 0
+            return False
         return [], "provider_is_blocked"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
@@ -280,7 +280,7 @@ def direct_bfi(book=None, prov=None, test=False):
             logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                               search_url))
             if test:
-                return -1
+                return False
         elif '111' in result:
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -365,7 +365,7 @@ def direct_gen(book=None, prov=None, test=False):
         prov = 'GEN_0'
     if lazylibrarian.providers.provider_is_blocked(prov):
         if test:
-            return 0
+            return False
         return [], "provider_is_blocked"
     for entry in lazylibrarian.GEN_PROV:
         if entry['NAME'].lower() == prov.lower():
@@ -434,7 +434,7 @@ def direct_gen(book=None, prov=None, test=False):
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
                 if test:
-                    return -1
+                    return False
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
@@ -447,7 +447,10 @@ def direct_gen(book=None, prov=None, test=False):
                 errmsg = result
             result = False
 
-        if result:
+        if test and not result:
+            logger.debug("Test found no results")
+            return 0
+        else:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             try:
                 soup = BeautifulSoup(result, 'html5lib')
@@ -636,9 +639,9 @@ def direct_gen(book=None, prov=None, test=False):
                 logger.error("An error occurred in the %s parser: %s" % (provider, str(e)))
                 logger.debug('%s: %s' % (provider, traceback.format_exc()))
 
-        if test:
-            logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
-            return len(results)
+            if test:
+                logger.debug("Test found %s %s" % (len(results), plural(len(results), "result")))
+                return len(results)
 
         page += 1
         if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
