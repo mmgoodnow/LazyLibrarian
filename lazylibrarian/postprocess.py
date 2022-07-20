@@ -1197,9 +1197,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         logger.warn('Unable to create directory %s' % dest_path)
 
                                 else:  # not recognised, maybe deleted
-                                    logger.debug('Nothing in database matching "%s"' % book['BookID'])
+                                    emsg = 'Nothing in database matching "%s"' % book['BookID']
+                                    logger.debug(emsg)
                                     control_value_dict = {"BookID": book['BookID'], "Status": "Snatched"}
-                                    new_value_dict = {"Status": "Failed", "NZBDate": now()}
+                                    new_value_dict = {"Status": "Failed", "NZBDate": now(), "DLResult": emsg}
                                     db.upsert("wanted", new_value_dict, control_value_dict)
                                     data = None
                     else:
@@ -2351,7 +2352,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     db.upsert("wanted", new_value_dict, control_value_dict)
                 else:
                     control_value_dict = {"BookID": bookid}
-                    new_value_dict = {"AuxInfo": booktype}
+                    new_value_dict = {"AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
                     snatched_from = "manually added"
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
@@ -2413,7 +2414,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 was_snatched = db.match('SELECT NZBurl FROM wanted WHERE BookID=? and Status="Snatched"', (bookid,))
                 if was_snatched:
                     control_value_dict = {"NZBurl": was_snatched['NZBurl']}
-                    new_value_dict = {"Status": "Failed", "NZBDate": now()}
+                    new_value_dict = {"Status": "Failed", "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
                 # reset status so we try for a different version
                 if booktype == 'AudioBook':

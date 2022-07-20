@@ -544,12 +544,12 @@ def provider_is_blocked(name):
     return False
 
 
-def block_provider(who, why, delay=0):
-    if not delay:
+def block_provider(who, why, delay=None):
+    if delay is None:
         delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
     if len(why) > 80:
         why = why[:80]
-    if delay == 0:
+    if not delay:
         logger.debug('Not blocking %s,%s as timer is zero' % (who, why))
     else:
         mins = int(delay / 60) + (delay % 60 > 0)

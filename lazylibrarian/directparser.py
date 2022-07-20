@@ -116,8 +116,7 @@ def direct_bok(book=None, prov=None, test=False):
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                lazylibrarian.providers.block_provider(provider, errmsg, delay=delay)
+                lazylibrarian.providers.block_provider(provider, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -178,18 +177,16 @@ def direct_bok(book=None, prov=None, test=False):
                                 a = newsoup.find('a', {"class": "dlButton"})
                                 if not a:
                                     link = ''
-                                    delay = 0
-                                    msg = ''
                                     if 'WARNING' in res and '24 hours' in res:
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
-                                        delay = seconds_to_midnight()
-                                    if 'Too many requests' in res:
-                                        msg = res
-                                        delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                                    if delay:
-                                        lazylibrarian.providers.block_provider(provider, msg, delay=delay)
+                                        lazylibrarian.providers.block_provider(provider, msg,
+                                                                               delay=seconds_to_midnight())
                                         logger.warn(msg)
+                                        url = None
+                                    elif 'Too many requests' in res:
+                                        lazylibrarian.providers.block_provider(provider, res)
+                                        logger.warn(res)
                                         url = None
                                 else:
                                     link = a.get('href')
@@ -285,8 +282,7 @@ def direct_bfi(book=None, prov=None, test=False):
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
-            delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-            lazylibrarian.providers.block_provider(provider, errmsg, delay=delay)
+            lazylibrarian.providers.block_provider(provider, errmsg)
         else:
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -360,7 +356,7 @@ def direct_gen(book=None, prov=None, test=False):
     host = ''
     search = ''
     priority = 0
-    provider = "libgen.io"
+    provider = "libgen"
     if not prov:
         prov = 'GEN_0'
     if lazylibrarian.providers.provider_is_blocked(prov):
@@ -439,13 +435,12 @@ def direct_gen(book=None, prov=None, test=False):
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                lazylibrarian.providers.block_provider(prov, errmsg, delay=delay)
+                lazylibrarian.providers.block_provider(prov, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
-            result = False
+            result = ''
 
         if test and not result:
             logger.debug("Test found no results")

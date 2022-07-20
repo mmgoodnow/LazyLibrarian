@@ -419,19 +419,16 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     a = newsoup.find('a', {"class": "dlButton"})
                     if not a:
                         link = ''
-                        delay = 0
-                        msg = ''
                         if b'WARNING' in res and b'24 hours' in res:
                             msg = res.split(b'WARNING')[1].split(b'24 hours')[0]
                             msg = 'WARNING %s 24 hours' % msg
-                            delay = seconds_to_midnight()
-                        elif b'Too many requests' in res:
-                            msg = res
-                            delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
-                        if delay:
-                            block_provider(provider, msg, delay=delay)
+                            block_provider(provider, msg, delay=seconds_to_midnight())
                             logger.warn(msg)
                             return False, msg
+                        elif b'Too many requests' in res:
+                            block_provider(provider, res)
+                            logger.warn(res)
+                            return False, res
                     else:
                         link = a.get('href')
                     if link and len(link) > 2:
