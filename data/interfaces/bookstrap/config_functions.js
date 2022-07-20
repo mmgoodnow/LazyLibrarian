@@ -578,9 +578,12 @@
             var prov = $(this).val();
             var host = ""
             var api = ""
-            if ( 'KAT TPB WWT ZOO TDL TRF LIME BOK'.indexOf(prov) >= 0 ) {
+            if ( 'KAT TPB WWT ZOO TDL TRF LIME'.indexOf(prov) >= 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();
                 var api = $("#" + prov.toLowerCase() + "_seeders").val();
+            }
+            if ( 'BOK BFI'.indexOf(prov) >= 0 ) {
+                var host = $("#" + prov.toLowerCase() + "_host").val();
             }
             if ( prov.indexOf('gen_') == 0 ) {
                 var host = $("#" + prov.toLowerCase() + "_host").val();

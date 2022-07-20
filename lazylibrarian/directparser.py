@@ -110,17 +110,19 @@ def direct_bok(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
-                if test:
-                    return False
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 lazylibrarian.providers.block_provider(provider, errmsg)
+                if test:
+                    return False
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
+                if test:
+                    return False
             result = ''
 
         if len(result):
@@ -276,17 +278,19 @@ def direct_bfi(book=None, prov=None, test=False):
         if '404' in result:
             logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                               search_url))
-            if test:
-                return False
         elif '111' in result:
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
             lazylibrarian.providers.block_provider(provider, errmsg)
+            if test:
+                return False
         else:
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
             errmsg = result
+            if test:
+                return False
         result = ''
 
     if len(result):
@@ -429,17 +433,19 @@ def direct_gen(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
-                if test:
-                    return False
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 lazylibrarian.providers.block_provider(prov, errmsg)
+                if test:
+                    return False
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
+                if test:
+                    return False
             result = ''
 
         if test and not result:

@@ -135,6 +135,7 @@ def test_provider(name, host=None, api=None):
         if host:
             lazylibrarian.CONFIG['BFI_HOST'] = host
         return direct_bfi(book, prov=name, test=True), "BookFi"
+
     if name.startswith('rss_'):
         try:
             prov = name.split('_')[1]

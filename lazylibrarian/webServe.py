@@ -6291,14 +6291,14 @@ class WebInterface(object):
             if 'api' in kwargs and kwargs['api']:
                 api = kwargs['api']
             result, name = test_provider(kwargs['name'], host=host, api=api)
-            if result:
-                lazylibrarian.config_write(kwargs['name'])
-                if isinstance(result, bool):
-                    msg = "%s test PASSED" % name
-                else:
-                    msg = "%s test PASSED, found %s" % (name, result)
-            else:
+            if result is False:
                 msg = "%s test FAILED, check debug log" % name
+            elif result is True:
+                msg = "%s test PASSED" % name
+                lazylibrarian.config_write(kwargs['name'])
+            else:
+                msg = "%s test PASSED, found %s" % (name, result)
+                lazylibrarian.config_write(kwargs['name'])
         else:
             msg = "Invalid or missing name in testprovider"
         return msg
