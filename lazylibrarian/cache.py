@@ -54,26 +54,26 @@ def redirect_url(url, times):
 
 def gr_api_sleep():
     time_now = time.time()
-    delay = time_now - lazylibrarian.LAST_GOODREADS
+    delay = time_now - lazylibrarian.TIMERS['LAST_GR']
     if delay < 1.0:
         sleep_time = 1.0 - delay
-        lazylibrarian.GR_SLEEP += sleep_time
+        lazylibrarian.TIMERS['SLEEP_GR'] += sleep_time
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
-            logger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.GR_SLEEP))
+            logger.debug("GoodReads sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_GR']))
         time.sleep(sleep_time)
-    lazylibrarian.LAST_GOODREADS = time_now
+    lazylibrarian.TIMERS['LAST_GR'] = time_now
 
 
 def cv_api_sleep():
     time_now = time.time()
-    delay = time_now - lazylibrarian.LAST_COMICVINE
+    delay = time_now - lazylibrarian.TIMERS['LAST_CV']
     if delay < 1.0:
         sleep_time = 1.0 - delay
-        lazylibrarian.CV_SLEEP += sleep_time
+        lazylibrarian.TIMERS['SLEEP_CV'] += sleep_time
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
-            logger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.CV_SLEEP))
+            logger.debug("ComicVine sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_CV']))
         time.sleep(sleep_time)
-    lazylibrarian.LAST_COMICVINE = time_now
+    lazylibrarian.TIMERS['LAST_CV'] = time_now
 
 
 def fetch_url(url, headers=None, retry=True, raw=None):

@@ -63,11 +63,11 @@ def bok_sleep():
     limit = check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0)
     if limit:
         time_now = time.time()
-        delay = time_now - lazylibrarian.LAST_ZLIBRARY
+        delay = time_now - lazylibrarian.TIMERS['LAST_ZLIB']
         if delay < limit:
             sleep_time = limit - delay
             time.sleep(sleep_time)
-        lazylibrarian.LAST_ZLIBRARY = time_now
+        lazylibrarian.TIMERS['LAST_ZLIB'] = time_now
 
 
 def direct_bok(book=None, prov=None, test=False):
@@ -110,20 +110,20 @@ def direct_bok(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
+                if test:
+                    return 0
             elif '111' in result:
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 lazylibrarian.providers.block_provider(provider, errmsg)
-                if test:
-                    return False
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
-                if test:
-                    return False
-            result = ''
+            if test:
+                return False
+            return results, errmsg
 
         if len(result):
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
@@ -278,20 +278,20 @@ def direct_bfi(book=None, prov=None, test=False):
         if '404' in result:
             logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                               search_url))
+            if test:
+                return 0
         elif '111' in result:
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
             lazylibrarian.providers.block_provider(provider, errmsg)
-            if test:
-                return False
         else:
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
             errmsg = result
-            if test:
-                return False
-        result = ''
+        if test:
+            return False
+        return results, errmsg
 
     if len(result):
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
@@ -433,25 +433,22 @@ def direct_gen(book=None, prov=None, test=False):
             if '404' in result:
                 logger.debug("No results found from %s for %s, got 404 for %s" % (provider, sterm,
                                                                                   search_url))
+            if test:
+                return 0
             elif '111' in result:
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
                 lazylibrarian.providers.block_provider(prov, errmsg)
-                if test:
-                    return False
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
                 errmsg = result
-                if test:
-                    return False
-            result = ''
+            if test:
+                return False
+            return results, errmsg
 
-        if test and not result:
-            logger.debug("Test found no results")
-            return 0
-        else:
+        if len(result):
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
             try:
                 soup = BeautifulSoup(result, 'html5lib')

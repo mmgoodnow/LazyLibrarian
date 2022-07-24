@@ -356,13 +356,13 @@ def set_work_id(books=None):
 def librarything_wait():
     """ Wait for a second between librarything api calls """
     time_now = time.time()
-    delay = time_now - lazylibrarian.LAST_LIBRARYTHING
+    delay = time_now - lazylibrarian.TIMERS['LAST_LT']
     if delay < 1.0:
         sleep_time = 1.0 - delay
-        lazylibrarian.LT_SLEEP += sleep_time
-        logger.debug("LibraryThing sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.LT_SLEEP))
+        lazylibrarian.TIMERS['SLEEP_LT'] += sleep_time
+        logger.debug("LibraryThing sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_LT']))
         time.sleep(sleep_time)
-    lazylibrarian.LAST_LIBRARYTHING = time_now
+    lazylibrarian.TIMERS['LAST_LT'] = time_now
 
 
 # Feb 2018 librarything have disabled "whatwork"

@@ -1092,7 +1092,8 @@ def show_stats():
                                           plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
                                           check_int(lazylibrarian.CACHE_MISS, 0)),
               "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
-                  lazylibrarian.GR_SLEEP, lazylibrarian.LT_SLEEP, lazylibrarian.CV_SLEEP),
+                  lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
+                  lazylibrarian.TIMERS['SLEEP_CV']),
               "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
 
     db = database.DBConnection()

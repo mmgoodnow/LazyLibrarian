@@ -88,25 +88,27 @@ LOGTYPE = ''
 # These are globals
 SUPPRESS_UPDATE = False
 UPDATE_MSG = ''
-NO_TOR_MSG = 0
-NO_RSS_MSG = 0
-NO_NZB_MSG = 0
-NO_CV_MSG = 0
-NO_DIRECT_MSG = 0
-NO_IRC_MSG = 0
+TIMERS = {
+            'NO_TOR_MSG': 0,
+            'NO_RSS_MSG': 0,
+            'NO_NZB_MSG': 0,
+            'NO_CV_MSG': 0,
+            'NO_DIRECT_MSG': 0,
+            'NO_IRC_MSG': 0,
+            'LAST_GR': 0,
+            'LAST_LT': 0,
+            'LAST_CV': 0,
+            'LAST_ZLIB': 0,
+            'LAST_BFI': 0,
+            'SLEEP_GR': 0.0,
+            'SLEEP_LT': 0.0,
+            'SLEEP_CV': 0.0,
+        }
 IGNORED_AUTHORS = 0
 CURRENT_TAB = '1'
 CACHE_HIT = 0
 CACHE_MISS = 0
 IRC_CACHE_EXPIRY = 2 * 24 * 3600
-LAST_GOODREADS = 0
-LAST_LIBRARYTHING = 0
-LAST_COMICVINE = 0
-LAST_ZLIBRARY = 0
-LAST_BOOKFI = 0
-GR_SLEEP = 0.0
-LT_SLEEP = 0.0
-CV_SLEEP = 0.0
 GB_CALLS = 0
 MONTHNAMES = []
 CACHEDIR = ''
@@ -815,11 +817,10 @@ def get_unrarlib():
 def initialize():
     global FULL_PATH, PROG_DIR, ARGS, DAEMON, SIGNAL, PIDFILE, DATADIR, CONFIGFILE, SYS_ENCODING, LOGLEVEL, \
         CONFIG, CFG, DBFILE, COMMIT_LIST, SCHED, INIT_LOCK, __INITIALIZED__, started, LOGLIST, LOGTOGGLE, \
-        UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, LAST_LIBRARYTHING, LAST_GOODREADS, SHOW_SERIES, SHOW_MAGS, \
-        SHOW_AUDIO, CACHEDIR, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
+        UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, SHOW_COMICS, \
+        CACHEDIR, TIMERS, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
-        GR_SLEEP, LT_SLEEP, GB_CALLS, GRGENRES, SHOW_COMICS, LAST_COMICVINE, CV_SLEEP, \
-        SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE, LOGINUSER
+        GB_CALLS, GRGENRES, SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE, LOGINUSER
 
     with INIT_LOCK:
 
@@ -942,12 +943,12 @@ def initialize():
         # to respect api terms, but don't wait un-necessarily either
         # keep track of how long we slept
         time_now = int(time.time())
-        LAST_LIBRARYTHING = time_now
-        LAST_GOODREADS = time_now
-        LAST_COMICVINE = time_now
-        GR_SLEEP = 0.0
-        LT_SLEEP = 0.0
-        CV_SLEEP = 0.0
+        TIMERS['LAST_LT'] = time_now
+        TIMERS['LAST_GR'] = time_now
+        TIMERS['LAST_CV'] = time_now
+        TIMERS['SLEEP_GR'] = 0.0
+        TIMERS['SLEEP_LT'] = 0.0
+        TIMERS['SLEEP_CV'] = 0.0
         GB_CALLS = 0
 
         if CONFIG['BOOK_API'] != 'GoodReads':

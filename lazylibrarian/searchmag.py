@@ -103,9 +103,9 @@ def search_magazines(mags=None, reset=False):
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
-                    if check_int(lazylibrarian.NO_NZB_MSG, 0) + 1200 < timenow:
+                    if check_int(lazylibrarian.TIMERS['NO_NZB_MSG'], 0) + 1200 < timenow:
                         logger.warn('No nzb providers are available. Check config and blocklist')
-                        lazylibrarian.NO_NZB_MSG = timenow
+                        lazylibrarian.TIMERS['NO_NZB_MSG'] = timenow
                 else:
                     # prefer larger nzb over smaller ones which may be par2 repair files?
                     resultlist = sorted(resultlist, key=lambda d: check_int(d['nzbsize'], 0), reverse=True)
@@ -115,9 +115,9 @@ def search_magazines(mags=None, reset=False):
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
-                    if check_int(lazylibrarian.NO_DIRECT_MSG, 0) + 1200 < timenow:
+                    if check_int(lazylibrarian.TIMERS['NO_DIRECT_MSG'], 0) + 1200 < timenow:
                         logger.warn('No direct providers are available. Check config and blocklist')
-                        lazylibrarian.NO_DIRECT_MSG = timenow
+                        lazylibrarian.TIMERS['NO_DIRECT_MSG'] = timenow
 
                 if dir_resultlist:
                     for item in dir_resultlist:  # reformat the results so they look like nzbs
@@ -136,9 +136,9 @@ def search_magazines(mags=None, reset=False):
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
-                    if check_int(lazylibrarian.NO_IRC_MSG, 0) + 1200 < timenow:
+                    if check_int(lazylibrarian.TIMERS['NO_IRC_MSG'], 0) + 1200 < timenow:
                         logger.warn('No irc providers are available. Check config and blocklist')
-                        lazylibrarian.NO_IRC_MSG = timenow
+                        lazylibrarian.TIMERS['NO_IRC_MSG'] = timenow
 
                 if irc_resultlist:
                     for item in irc_resultlist:  # reformat the results so they look like nzbs
@@ -157,9 +157,9 @@ def search_magazines(mags=None, reset=False):
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
-                    if check_int(lazylibrarian.NO_TOR_MSG, 0) + 1200 < timenow:
+                    if check_int(lazylibrarian.TIMERS['NO_TOR_MSG'], 0) + 1200 < timenow:
                         logger.warn('No tor providers are available. Check config and blocklist')
-                        lazylibrarian.NO_TOR_MSG = timenow
+                        lazylibrarian.TIMERS['NO_TOR_MSG'] = timenow
 
                 if tor_resultlist:
                     for item in tor_resultlist:  # reformat the torrent results so they look like nzbs
@@ -178,9 +178,9 @@ def search_magazines(mags=None, reset=False):
                 if not nproviders or 'M' not in dltypes:
                     # don't nag. Show warning message no more than every 20 mins
                     timenow = int(time.time())
-                    if check_int(lazylibrarian.NO_RSS_MSG, 0) + 1200 < timenow:
+                    if check_int(lazylibrarian.TIMERS['NO_RSS_MSG'], 0) + 1200 < timenow:
                         logger.warn('No rss providers are available. Check config and blocklist')
-                        lazylibrarian.NO_RSS_MSG = timenow
+                        lazylibrarian.TIMERS['NO_RSS_MSG'] = timenow
 
                 if rss_resultlist:
                     for item in rss_resultlist:  # reformat the rss results so they look like nzbs

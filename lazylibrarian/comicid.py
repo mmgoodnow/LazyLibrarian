@@ -128,9 +128,9 @@ def cv_identify(fname, best=True):
     if not apikey:
         # don't nag. Show warning message no more than every 20 mins
         timenow = int(time.time())
-        if check_int(lazylibrarian.NO_CV_MSG, 0) + 1200 < timenow:
+        if check_int(lazylibrarian.TIMERS['NO_CV_MSG'], 0) + 1200 < timenow:
             logger.warn("Please obtain an apikey from https://comicvine.gamespot.com/api/")
-            lazylibrarian.NO_CV_MSG = timenow
+            lazylibrarian.TIMERS['NO_CV_MSG'] = timenow
         return []
 
     fname = make_unicode(fname)
