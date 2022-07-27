@@ -355,7 +355,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 logger.warn("Don't know the filetype for %s" % dl_title)
                 basename = dl_title
             else:
-                extn = extn.strip()
+                extn = extn.lower().strip()
             if '/' in basename:
                 basename = basename.split('/')[0]
 
