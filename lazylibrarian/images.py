@@ -57,6 +57,18 @@ except ImportError:
         PdfFileWriter = None
         PdfFileReader = None
 
+# noinspection PyBroadException
+try:
+    # noinspection PyUnresolvedReferences
+    import magic
+except Exception:  # magic might fail for multiple reasons
+    # noinspection PyBroadException
+    try:
+        import lib.magic as magic
+    except Exception:
+        magic = None
+
+
 GS = ''
 GS_VER = ''
 generator = ''
@@ -74,6 +86,8 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         return ''
     if not path_isfile(jpeg):
         return ''
+    if os.name == 'nt':
+        jpeg = jpeg.replace('/', os.sep)
     fname, extn = os.path.splitext(jpeg)
     if not basewidth:
         outfile = fname + '_thumb' + extn
@@ -86,7 +100,18 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         bwidth = basewidth
     else:
         bwidth = 300
-    img = PILImage.open(jpeg)
+    try:
+        img = PILImage.open(jpeg)
+    except Exception as e:
+        logger.debug(str(e))
+        if magic:
+            try:
+                mtype = magic.from_file(jpeg).upper()
+                logger.debug("magic reports %s" % mtype)
+            except Exception as e:
+                logger.debug("%s reading magic from %s, %s" % (type(e).__name__, jpeg, e))
+        return ''
+
     wpercent = (bwidth / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
     # noinspection PyUnresolvedReferences
