@@ -446,7 +446,7 @@ def get_capabilities(provider, force=False):
             limits = data.find('limits')
             if limits is not None:
                 try:
-                    limit = limits.attrib.get('max')
+                    limit = limits.attrib.get('apimax')
                     if limit:
                         provider['APILIMIT'] = limit
                         logger.debug("%s apilimit %s" % (provider['HOST'], limit))
