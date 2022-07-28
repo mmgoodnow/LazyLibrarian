@@ -19,7 +19,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight, check_int
+    make_utf8bytes, seconds_to_midnight, check_float
 from six import PY2
 
 try:
@@ -60,14 +60,19 @@ def redirect_url(genhost, url):
 
 
 def bok_sleep():
-    limit = check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0)
-    if limit:
-        time_now = time.time()
-        delay = time_now - lazylibrarian.TIMERS['LAST_ZLIB']
-        if delay < limit:
-            sleep_time = limit - delay
-            time.sleep(sleep_time)
-        lazylibrarian.TIMERS['LAST_ZLIB'] = time_now
+    time_now = time.time()
+    delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
+    limit = check_float(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0.0)
+    # make sure bok leaves at least a 2 second delay between calls to prevent "Too many requests from your IP"
+    if limit < 2.0:
+        limit = 2.0
+    if delay < limit:
+        sleep_time = limit - delay
+        lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+            logger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
+        time.sleep(sleep_time)
+    lazylibrarian.TIMERS['LAST_BOK'] = time_now
 
 
 def direct_bok(book=None, prov=None, test=False):

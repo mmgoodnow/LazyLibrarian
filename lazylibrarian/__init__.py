@@ -98,11 +98,12 @@ TIMERS = {
             'LAST_GR': 0,
             'LAST_LT': 0,
             'LAST_CV': 0,
-            'LAST_ZLIB': 0,
+            'LAST_BOK': 0,
             'LAST_BFI': 0,
             'SLEEP_GR': 0.0,
             'SLEEP_LT': 0.0,
             'SLEEP_CV': 0.0,
+            'SLEEP_BOK': 0.0,
         }
 IGNORED_AUTHORS = 0
 CURRENT_TAB = '1'
@@ -115,7 +116,6 @@ CACHEDIR = ''
 NEWZNAB_PROV = []
 TORZNAB_PROV = []
 NABAPICOUNT = ''
-BOK_DLCOUNT = 0
 RSS_PROV = []
 IRC_PROV = []
 GEN_PROV = []
@@ -946,9 +946,11 @@ def initialize():
         TIMERS['LAST_LT'] = time_now
         TIMERS['LAST_GR'] = time_now
         TIMERS['LAST_CV'] = time_now
+        TIMERS['LAST_BOK'] = time_now
         TIMERS['SLEEP_GR'] = 0.0
         TIMERS['SLEEP_LT'] = 0.0
         TIMERS['SLEEP_CV'] = 0.0
+        TIMERS['SLEEP_BOK'] = 0.0
         GB_CALLS = 0
 
         if CONFIG['BOOK_API'] != 'GoodReads':
@@ -1899,6 +1901,14 @@ def wishlist_type(host):
         return 'barnesandnoble'
  
     return ''
+
+
+def bok_dlcount():
+    db = database.DBConnection()
+    yesterday = time.time() - 24*60*60
+    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ?', (yesterday,))
+    db.close()
+    return len(grabs)
 
 
 def use_rss():

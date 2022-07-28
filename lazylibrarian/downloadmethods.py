@@ -280,7 +280,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     dl_url = make_unicode(dl_url)
     if provider == 'zlibrary':  # needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
-        if lazylibrarian.BOK_DLCOUNT >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+        if lazylibrarian.bok_dlcount() >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
             res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
             block_provider(provider, res, delay=seconds_to_midnight())
             return False, res
@@ -360,8 +360,6 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 basename = basename.split('/')[0]
 
             logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
-            if provider == 'zlibrary':
-                lazylibrarian.BOK_DLCOUNT += 1
 
             basename = sanitize(basename)
             destdir = os.path.join(lazylibrarian.directory('Download'), basename)

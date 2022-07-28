@@ -529,7 +529,6 @@ def provider_is_blocked(name):
     # Reset api counters if it's a new day
     if lazylibrarian.NABAPICOUNT != today():
         lazylibrarian.NABAPICOUNT = today()
-        lazylibrarian.BOK_DLCOUNT = 0
         for provider in lazylibrarian.NEWZNAB_PROV:
             provider['APICOUNT'] = 0
         for provider in lazylibrarian.TORZNAB_PROV:
