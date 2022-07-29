@@ -13,6 +13,7 @@
 
 import os
 import re
+import time
 import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
@@ -280,9 +281,11 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     dl_url = make_unicode(dl_url)
     if provider == 'zlibrary':  # needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
-        if lazylibrarian.bok_dlcount() >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+        count, oldest = lazylibrarian.bok_dlcount()
+        if count >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
             res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
-            block_provider(provider, res, delay=seconds_to_midnight())
+            delay = oldest + 24*60*60 - time.time()
+            block_provider(provider, res, delay=delay)
             return False, res
 
     redirects = 0

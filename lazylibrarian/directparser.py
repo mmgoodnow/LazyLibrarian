@@ -19,7 +19,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight, check_float
+    make_utf8bytes, seconds_to_midnight, check_float, check_int
 from six import PY2
 
 try:
@@ -83,7 +83,13 @@ def direct_bok(book=None, prov=None, test=False):
     if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
             return False
-        return [], "provider_is_blocked"
+        return [], "provider_is_already blocked"
+
+    bok_today = lazylibrarian.bok_dlcount()[0]
+    if bok_today and bok_today >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+        if test:
+            return False
+        return [], "download limit reached"
 
     host = lazylibrarian.CONFIG[prov + '_HOST']
     if not host.startswith('http'):

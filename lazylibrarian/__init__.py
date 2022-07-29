@@ -1906,9 +1906,12 @@ def wishlist_type(host):
 def bok_dlcount():
     db = database.DBConnection()
     yesterday = time.time() - 24*60*60
-    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ?', (yesterday,))
+    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
+                      (yesterday,))
     db.close()
-    return len(grabs)
+    if grabs:
+        return len(grabs), grabs[0]['completed']
+    return 0, 0
 
 
 def use_rss():
