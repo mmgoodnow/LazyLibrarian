@@ -773,8 +773,8 @@ def iterate_over_direct_sites(book=None, search_type=None):
                                              lazylibrarian.CONFIG[prov + '_DLTYPES']))
         if lazylibrarian.CONFIG[prov]:
             ignored = False
-            if provider_is_blocked(prov):
-                logger.debug('%s is BLOCKED' % prov)
+            if provider_is_blocked('zlibrary'):
+                logger.debug('zlibrary is BLOCKED')
                 ignored = True
             elif search_type in ['book', 'shortbook', 'titlebook'] and \
                     'E' not in lazylibrarian.CONFIG[prov + '_DLTYPES']:
@@ -793,7 +793,13 @@ def iterate_over_direct_sites(book=None, search_type=None):
                 logger.debug('Querying %s' % prov)
                 results, error = direct_bok(book, prov)
                 if error:
-                    block_provider(prov, error)
+                    # use a short delay for site unavailable etc
+                    delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                    count, oldest = lazylibrarian.bok_dlcount()
+                    if count and count >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+                        # rolling 24hr delay if limit reached
+                        delay = oldest + 24*60*60 - time.time()
+                    block_provider('zlibrary', error, delay=delay)
                 else:
                     resultslist += results
                     providers += 1

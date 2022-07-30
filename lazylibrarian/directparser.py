@@ -79,14 +79,14 @@ def direct_bok(book=None, prov=None, test=False):
     errmsg = ''
     provider = "zlibrary"
     if not prov:
-        prov = 'direct_bok'
+        prov = 'BOK'
     if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
             return False
-        return [], "provider_is_already blocked"
+        return [], "provider is already blocked"
 
     bok_today = lazylibrarian.bok_dlcount()[0]
-    if bok_today and bok_today >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+    if bok_today and bok_today >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
         if test:
             return False
         return [], "download limit reached"
@@ -141,6 +141,7 @@ def direct_bok(book=None, prov=None, test=False):
             try:
                 rows = []
                 if 'class="fuzzyMatchesLine"' in result:
+                    logger.debug("Skipping fuzzy matches for %s" % book['searchterm'])
                     subset = result.split('class="fuzzyMatchesLine"')[0]
                     soup = BeautifulSoup(subset, "html5lib")
                     try:
@@ -155,6 +156,7 @@ def direct_bok(book=None, prov=None, test=False):
                     except IndexError:
                         rows = []
 
+                logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
                 for row in rows:
                     if lazylibrarian.providers.provider_is_blocked(provider):
                         next_page = False
@@ -193,8 +195,13 @@ def direct_bok(book=None, prov=None, test=False):
                                     if 'WARNING' in res and '24 hours' in res:
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
-                                        lazylibrarian.providers.block_provider(provider, msg,
-                                                                               delay=seconds_to_midnight())
+                                        count, oldest = lazylibrarian.bok_dlcount()
+                                        if count and count >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
+                                            # rolling 24hr delay if limit reached
+                                            delay = oldest + 24*60*60 - time.time()
+                                        else:
+                                            delay = seconds_to_midnight()
+                                        lazylibrarian.providers.block_provider(provider, msg, delay=delay)
                                         logger.warn(msg)
                                         url = None
                                     elif 'Too many requests' in res:
@@ -260,13 +267,13 @@ def direct_bfi(book=None, prov=None, test=False):
     errmsg = ''
     provider = "BookFi"
     if not prov:
-        prov = 'direct_bfi'
+        prov = 'BFI'
     if lazylibrarian.providers.provider_is_blocked(provider):
         if test:
             return False
         return [], "provider_is_blocked"
 
-    host = lazylibrarian.CONFIG[prov + '_HOST']
+    host = lazylibrarian.CONFIG['prov + _HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
