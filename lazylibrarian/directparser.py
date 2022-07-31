@@ -147,6 +147,7 @@ def direct_bok(book=None, prov=None, test=False):
                     try:
                         rows = soup.find_all('table', {"class": "resItemTable"})
                     except IndexError:
+                        logger.debug("No table found in results")
                         rows = []
 
                 if not rows and not results:  # nothing found in earlier pages or before the cutoff line
@@ -154,6 +155,7 @@ def direct_bok(book=None, prov=None, test=False):
                     try:
                         rows = soup.find_all('table', {"class": "resItemTable"})
                     except IndexError:
+                        logger.debug("No table found in results")
                         rows = []
 
                 logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
@@ -318,6 +320,7 @@ def direct_bfi(book=None, prov=None, test=False):
             try:
                 rows = soup.find_all('div', {"class": "resItemBox"})
             except IndexError:
+                logger.debug("No item box found in results")
                 rows = []
 
             for row in rows:
@@ -483,6 +486,7 @@ def direct_gen(book=None, prov=None, test=False):
                         # all rows from the last matching table
                         rows = tables[-1].find_all('tr')
                 except IndexError:  # no results table in result page
+                    logger.debug("No table found in results")
                     rows = []
 
                 if len(rows) > 1:  # skip table headers

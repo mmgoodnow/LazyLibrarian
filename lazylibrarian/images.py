@@ -86,8 +86,6 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         return ''
     if not path_isfile(jpeg):
         return ''
-    if os.name == 'nt':
-        jpeg = jpeg.replace('/', os.sep)
     fname, extn = os.path.splitext(jpeg)
     if not basewidth:
         outfile = fname + '_thumb' + extn

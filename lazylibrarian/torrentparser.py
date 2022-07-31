@@ -90,6 +90,7 @@ def torrent_trf(book=None, test=False):
         try:
             table = soup.find_all('table')[1]  # un-named table
         except IndexError:
+            logger.debug("No table found in results")
             table = None
 
         if table:
@@ -255,6 +256,7 @@ def torrent_tpb(book=None, test=False):
             if table:
                 rows = table.find_all('tr')
             else:
+                logger.debug("No table found in results")
                 rows = []
 
             if len(rows) > 1:
@@ -387,6 +389,7 @@ def torrent_kat(book=None, test=False):
             if table:
                 rows = table.find_all('tr')
         except IndexError:  # no results table in result page
+            logger.debug("No table found in results")
             rows = []
 
         if len(rows) > 1:
@@ -521,6 +524,7 @@ def torrent_wwt(book=None, test=False):
                 if table:
                     rows = table.find_all('tr')
             except IndexError:  # no results table in result page
+                logger.debug("No table found in results")
                 rows = []
 
             if len(rows) > 1:
