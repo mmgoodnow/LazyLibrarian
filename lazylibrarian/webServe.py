@@ -1192,7 +1192,7 @@ class WebInterface(object):
 
                 for row in filtered:
                     if lazylibrarian.CONFIG['SORT_SURNAME']:
-                        row[0] = surname_first(row[0])
+                        row[1] = surname_first(row[1])
                     have = check_int(row[6], 0)
                     total = check_int(row[7], 0)
                     if total:
