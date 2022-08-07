@@ -1176,9 +1176,7 @@ class WebInterface(object):
             # turn the sqlite rowlist into a list of lists
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
-                    entry = list(row)
-                    if lazylibrarian.CONFIG['SORT_SURNAME']:
-                        entry[1] = surname_first(entry[1])
+                    entry = list(row)  # turn sqlite objects into lists
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
@@ -1193,6 +1191,8 @@ class WebInterface(object):
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 for row in filtered:
+                    if lazylibrarian.CONFIG['SORT_SURNAME']:
+                        row[0] = surname_first(row[0])
                     have = check_int(row[6], 0)
                     total = check_int(row[7], 0)
                     if total:
@@ -3027,7 +3027,7 @@ class WebInterface(object):
                     logger.debug("Itemid %s matches ebook" % itemid)
                     if size:
                         target = createthumb(os.path.join(lazylibrarian.DATADIR, res['BookImg']), size, False)
-                    if not path_isfile(target):
+                    if not target:
                         target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
                     if path_isfile(target):
                         return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
@@ -3037,7 +3037,7 @@ class WebInterface(object):
                         logger.debug("Itemid %s matches issue" % itemid)
                         if size:
                             target = createthumb(os.path.join(lazylibrarian.DATADIR, res['Cover']), size, False)
-                        if not path_isfile(target):
+                        if not target:
                             target = os.path.join(lazylibrarian.DATADIR, res['Cover'])
                         if path_isfile(target):
                             return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
@@ -3053,7 +3053,7 @@ class WebInterface(object):
                             logger.debug("Itemid %s matches comicid" % itemid)
                             if size:
                                 target = createthumb(os.path.join(lazylibrarian.DATADIR, res['Cover']), size, False)
-                            if not path_isfile(target):
+                            if not target:
                                 target = os.path.join(lazylibrarian.DATADIR, res['Cover'])
                             if path_isfile(target):
                                 return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
@@ -3942,18 +3942,19 @@ class WebInterface(object):
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
                 this_issue = dict(issue)
-                imgfile = ''
-                if this_issue.get('Cover'):
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_issue['Cover'].replace('cache/', ''))
-                if not imgfile or not path_isfile(imgfile):
+                if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
-                    imgthumb = createthumb(imgfile, 200, False)
-                    if imgthumb:
-                        this_issue['Cover'] = "%s%s" % ('cache/',
-                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-
+                    fname, extn = os.path.splitext(this_issue['Cover'])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
+                        this_issue['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
                 count += 1
@@ -3986,18 +3987,20 @@ class WebInterface(object):
             maxcount = check_int(lazylibrarian.CONFIG['MAX_WALL'], 0)
             for issue in issues:
                 this_issue = dict(issue)
-                imgfile = ''
-                if this_issue.get('Cover'):
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_issue['Cover'].replace('cache/', ''))
-                if not imgfile or not path_isfile(imgfile):
+                if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
-                    imgthumb = createthumb(imgfile, 200, False)
-                    if imgthumb:
+                    fname, extn = os.path.splitext(this_issue['Cover'])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
                         this_issue['Cover'] = "%s%s" % ('cache/',
-                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-
+                                                        imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 mod_issues.append(this_issue)
                 count += 1
                 if maxcount and count >= maxcount:
@@ -4032,16 +4035,19 @@ class WebInterface(object):
                 item['BookLink'] = ''
             elif item['BookLink'].startswith('/works/OL'):
                 item['BookLink'] = lazylibrarian.CONFIG['OL_URL'] + item['BookLink']
-            imgfile = ''
-            if item.get('BookImg'):
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       item['BookImg'].replace('cache/', ''))
-            if not imgfile or not path_isfile(imgfile):
+
+            if not item.get('BookImg') or not item['BookImg'].startswith('cache/'):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
-                imgthumb = createthumb(imgfile, 200, False)
-                if imgthumb:
-                    item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                fname, extn = os.path.splitext(item['BookImg'])
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                if path_isfile(imgfile):
+                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                else:
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['BookImg'][6:])
+                    imgthumb = createthumb(imgfile, 200, False)
+                    if imgthumb:
+                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
@@ -4065,16 +4071,18 @@ class WebInterface(object):
         ret = []
         for result in results:
             item = dict(result)
-            imgfile = ''
-            if item.get('AuthorImg'):
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       item['AuthorImg'].replace('cache/', ''))
-            if not imgfile or not path_isfile(imgfile):
+            if not item.get('AuthorImg') or not item['AuthorImg'].startswith('cache/'):
                 item['AuthorImg'] = 'images/nocover.jpg'
             else:
-                imgthumb = createthumb(imgfile, 200, False)
-                if imgthumb:
-                    item['AuthorImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                fname, extn = os.path.splitext(item['AuthorImg'])
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                if path_isfile(imgfile):
+                    item['AuthorImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                else:
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['AuthorImg'][6:])
+                    imgthumb = createthumb(imgfile, 200, False)
+                    if imgthumb:
+                        item['AuthorImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
@@ -4096,16 +4104,18 @@ class WebInterface(object):
         ret = []
         for result in results:
             item = dict(result)
-            imgfile = ''
-            if item.get('BookImg'):
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                       item['BookImg'].replace('cache/', ''))
-            if not imgfile or not path_isfile(imgfile):
+            if not item.get('BookImg') or not item['BookImg'].startswith('cache/'):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
-                imgthumb = createthumb(imgfile, 200, False)
-                if imgthumb:
-                    item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                fname, extn = os.path.splitext(item['BookImg'])
+                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                if path_isfile(imgfile):
+                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                else:
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['BookImg'][6:])
+                    imgthumb = createthumb(imgfile, 200, False)
+                    if imgthumb:
+                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
@@ -4260,39 +4270,20 @@ class WebInterface(object):
             rowlist = db.select(cmd)
 
             if len(rowlist):
+                newrowlist = []
                 for mag in rowlist:
-                    this_mag = dict(mag)
-                    imgfile = ''
-                    if this_mag['LatestCover']:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               this_mag['LatestCover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_mag['Cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_mag['Cover'] = "%s%s" % ('cache/',
-                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                        else:
-                            this_mag['Cover'] = this_mag['LatestCover']
-                    mags.append(this_mag)
-
-                rowlist = []
-
-                if len(mags):
-                    for mag in mags:
-                        title = mag['Title']
-                        entry = [mag['ComicID'], mag['Cover'], title, mag['Iss_Cnt'], mag['LastAcquired'],
-                                 mag['LatestIssue'], mag['Status'], mag['IssueStatus'], mag['Start'],
-                                 mag['Publisher'], mag['Link']]
-                        rowlist.append(entry)  # add each rowlist to the masterlist
+                    mag = dict(mag)  # turn sqlite objects into dicts
+                    entry = [mag['ComicID'], mag['LatestCover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
+                             mag['LatestIssue'], mag['Status'], mag['IssueStatus'], mag['Start'],
+                             mag['Publisher'], mag['Link']]
+                    newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                         logger.debug("filter %s" % sSearch)
-                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
-                    filtered = rowlist
+                    filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -4314,6 +4305,18 @@ class WebInterface(object):
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
                 for row in rows:
+                    if not row[1] or not row[1].startswith('cache/'):
+                        row[1] = 'images/nocover.jpg'
+                    else:
+                        fname, extn = os.path.splitext(row[1])
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                        if path_isfile(imgfile):
+                            row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        else:
+                            imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                            imgthumb = createthumb(imgfile, 200, False)
+                            if imgthumb:
+                                row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
@@ -4463,35 +4466,19 @@ class WebInterface(object):
             title = mag_data['Title']
             rowlist = db.select('SELECT * from comicissues WHERE ComicID=? order by IssueID DESC', (comicid,))
             if len(rowlist):
-                mod_issues = []
-                for issue in rowlist:
-                    this_issue = dict(issue)
-                    imgfile = ''
-                    if this_issue.get('Cover'):
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               this_issue['Cover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_issue['Cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                    mod_issues.append(this_issue)
-
-                rowlist = []
-                if len(mod_issues):
-                    for mag in mod_issues:
-                        entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], "%s_%s" % (
-                            comicid, mag['IssueID'])]
-                        rowlist.append(entry)  # add each rowlist to the masterlist
+                newrowlist = []
+                for mag in rowlist:
+                    mag = dict(mag)  # turn sqlite objects into dicts
+                    entry = [title, mag['Cover'], mag['IssueID'], mag['IssueAcquired'], "%s_%s" % (
+                             comicid, mag['IssueID'])]
+                    newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                         logger.debug("filter %s" % sSearch)
-                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
-                    filtered = rowlist
+                    filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -4510,6 +4497,18 @@ class WebInterface(object):
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
             for row in rows:
+                if not row[1] or not row[1].startswith('cache/'):
+                    row[1] = 'images/nocover.jpg'
+                else:
+                    fname, extn = os.path.splitext(row[1])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
+                        row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
                 row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
 
@@ -4786,38 +4785,19 @@ class WebInterface(object):
             rowlist = db.select(cmd)
 
             if len(rowlist):
+                newrowlist = []
                 for mag in rowlist:
-                    this_mag = dict(mag)
-                    imgfile = ''
-                    if this_mag['LatestCover']:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               this_mag['LatestCover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_mag['Cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_mag['Cover'] = "%s%s" % ('cache/',
-                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                        else:
-                            this_mag['Cover'] = this_mag['LatestCover']
-                    temp_title = mag['Title']
-                    this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
-                    mags.append(this_mag)
-
-                rowlist = []
-                if len(mags):
-                    for mag in mags:
-                        entry = [mag['safetitle'], mag['Cover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
-                                 mag['IssueDate'], mag['Status'], mag['IssueStatus']]
-                        rowlist.append(entry)  # add each rowlist to the masterlist
+                    mag = dict(mag)  # turn sqlite objects into dicts
+                    entry = [mag['Title'], mag['LatestCover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
+                             mag['IssueDate'], mag['Status'], mag['IssueStatus']]
+                    newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                         logger.debug("filter %s" % sSearch)
-                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
-                    filtered = rowlist
+                    filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -4850,6 +4830,20 @@ class WebInterface(object):
                             row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
                     else:
                         row[5] = date_format(row[5], lazylibrarian.CONFIG['ISS_FORMAT'])
+
+                    if not row[1] or not row[1].startswith('cache/'):
+                        row[1] = 'images/nocover.jpg'
+                    else:
+                        fname, extn = os.path.splitext(row[1])
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                        if path_isfile(imgfile):
+                            row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        else:
+                            imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                            imgthumb = createthumb(imgfile, 200, False)
+                            if imgthumb:
+                                row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("get_mags returning %s to %s" % (displaystart, displaystart + displaylength))
@@ -4898,20 +4892,19 @@ class WebInterface(object):
         if magazines:
             for mag in magazines:
                 this_mag = dict(mag)
-                imgfile = ''
-                if this_mag['LatestCover']:
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_mag['LatestCover'].replace('cache/', ''))
-                if not imgfile or not path_isfile(imgfile):
+                if not this_mag['LatestCover'] or not this_mag['LatestCover'].startswith('cache/'):
                     this_mag['Cover'] = 'images/nocover.jpg'
                 else:
-                    covercount += 1
-                    imgthumb = createthumb(imgfile, 200, False)
-                    if imgthumb:
-                        this_mag['Cover'] = "%s%s" % ('cache/',
-                                                      imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    fname, extn = os.path.splitext(this_mag['LatestCover'])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
+                        this_mag['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     else:
-                        this_mag['Cover'] = this_mag['LatestCover']
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_mag['LatestCover'][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            this_mag['Cover'] = "%s%s" % ('cache/',
+                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 temp_title = mag['Title']
                 this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
                 mags.append(this_mag)
@@ -4937,35 +4930,19 @@ class WebInterface(object):
             db = database.DBConnection()
             rowlist = db.select('SELECT * from issues WHERE Title=? order by IssueDate DESC', (title,))
             if len(rowlist):
-                mod_issues = []
-                for issue in rowlist:
-                    this_issue = dict(issue)
-                    imgfile = ''
-                    if this_issue.get('Cover'):
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                               this_issue['Cover'].replace('cache/', ''))
-                    if not imgfile or not path_isfile(imgfile):
-                        this_issue['Cover'] = 'images/nocover.jpg'
-                    else:
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                    mod_issues.append(this_issue)
-
-                rowlist = []
-                if len(mod_issues):
-                    for mag in mod_issues:
-                        entry = [mag['Title'], mag['Cover'], mag['IssueDate'], mag['IssueAcquired'],
-                                 mag['IssueID']]
-                        rowlist.append(entry)  # add each rowlist to the masterlist
+                newrowlist = []
+                for mag in rowlist:
+                    mag = dict(mag)  # turn sqlite objects into dicts
+                    entry = [mag['Title'], mag['Cover'], mag['IssueDate'], mag['IssueAcquired'],
+                             mag['IssueID']]
+                    newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                         logger.debug("filter %s" % sSearch)
-                    filtered = [x for x in rowlist if sSearch.lower() in str(x).lower()]
+                    filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
-                    filtered = rowlist
+                    filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -4984,6 +4961,18 @@ class WebInterface(object):
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
             for row in rows:
+                if not row[1] or not row[1].startswith('cache/'):
+                    row[1] = 'images/nocover.jpg'
+                else:
+                    fname, extn = os.path.splitext(row[1])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
+                        row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
@@ -5060,18 +5049,19 @@ class WebInterface(object):
             covercount = 0
             for issue in issues:
                 this_issue = dict(issue)
-                imgfile = ''
-                if this_issue.get('Cover'):
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s' %
-                                           this_issue['Cover'].replace('cache/', ''))
-                if not imgfile or not path_isfile(imgfile):
+                if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
-                    covercount += 1
-                    imgthumb = createthumb(imgfile, 200, False)
-                    if imgthumb:
-                        this_issue['Cover'] = "%s%s" % ('cache/',
-                                                        imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    fname, extn = os.path.splitext(this_issue['Cover'])
+                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    if path_isfile(imgfile):
+                        this_issue['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    else:
+                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
+                        imgthumb = createthumb(imgfile, 200, False)
+                        if imgthumb:
+                            this_issue['Cover'] = "%s%s" % ('cache/',
+                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                 mod_issues.append(this_issue)
 
             if not lazylibrarian.CONFIG['MAG_IMG'] or not lazylibrarian.CONFIG['IMP_MAGCOVER']:
@@ -5118,19 +5108,8 @@ class WebInterface(object):
             rowlist = db.select(cmd, tuple(args))
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
-                    thisrow = list(row)
-                    # title needs spaces for column resizing
-                    title = thisrow[1]
-                    title = title.replace('.', ' ')
-                    thisrow[1] = title
-                    # make this shorter and with spaces for column resizing
-                    provider = thisrow[4]
-                    if len(provider) > 20:
-                        while len(provider) > 20 and '/' in provider:
-                            provider = provider.split('/', 1)[1]
-                        provider = provider.replace('/', ' ')
-                        thisrow[4] = provider
-                    rows.append(thisrow)  # add each rowlist to the masterlist
+                    entry = list(row)  # turn sqlite objects into lists
+                    rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -5150,6 +5129,19 @@ class WebInterface(object):
                     rows = filtered
                 else:
                     rows = filtered[displaystart:(displaystart + displaylength)]
+
+                for row in rows:  # iterate through the sqlite3.Row objects
+                    # title needs spaces for column resizing
+                    title = row[1]
+                    title = title.replace('.', ' ')
+                    row[1] = title
+                    # make this shorter and with spaces for column resizing
+                    provider = row[4]
+                    if len(provider) > 20:
+                        while len(provider) > 20 and '/' in provider:
+                            provider = provider.split('/', 1)[1]
+                        provider = provider.replace('/', ' ')
+                        row[4] = provider
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                 logger.debug("get_past_issues returning %s to %s" % (displaystart, displaystart + displaylength))
@@ -5961,16 +5953,6 @@ class WebInterface(object):
             else:
                 filtered = lazylibrarian.LOGLIST[::]
 
-            if lazylibrarian.CONFIG['LOGREDACT']:
-                set_redactlist()
-                redacted = []
-                for line in filtered:
-                    line = list(line)
-                    for item in lazylibrarian.REDACTLIST:
-                        line[6] = line[6].replace(item, '**********')
-                    redacted.append(line)
-                filtered = redacted
-
             sortcolumn = int(iSortCol_0)
 
             filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -5979,6 +5961,16 @@ class WebInterface(object):
                 rows = filtered
             else:
                 rows = filtered[displaystart:(displaystart + displaylength)]
+
+            if lazylibrarian.CONFIG['LOGREDACT']:
+                set_redactlist()
+                redacted = []
+                for line in rows:
+                    line = list(line)
+                    for item in lazylibrarian.REDACTLIST:
+                        line[6] = line[6].replace(item, '**********')
+                    redacted.append(line)
+                rows = redacted
 
         except Exception:
             logger.error('Unhandled exception in get_log: %s' % traceback.format_exc())
@@ -6017,17 +6009,8 @@ class WebInterface(object):
             if len(rowlist):
                 # the masterlist to be filled with the row data
                 for row in rowlist:  # iterate through the sqlite3.Row objects
-                    nrow = list(row)
-                    nrow[8] = make_unicode(nrow[8])  # delugerpc returns bytes
-                    # title needs spaces, not dots, for column resizing
-                    title = nrow[0]  # type: str
-                    if title:
-                        title = title.replace('.', ' ')
-                        nrow[0] = title
-                    # provider name needs to be shorter and with spaces for column resizing
-                    if nrow[3]:
-                        nrow[3] = disp_name(nrow[3].strip('/'))
-                        rows.append(nrow)  # add the rowlist to the masterlist
+                    entry = list(row)  # turn sqlite objects into lists
+                    rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -6059,6 +6042,16 @@ class WebInterface(object):
                 lazylibrarian.HIST_REFRESH = 0
                 rows = []
                 for row in nrows:
+                    row = list(row)
+                    row[8] = make_unicode(row[8])  # delugerpc returns bytes
+                    # title needs spaces, not dots, for column resizing
+                    title = row[0]  # type: str
+                    if title:
+                        title = title.replace('.', ' ')
+                        row[0] = title
+                    # provider name needs to be shorter and with spaces for column resizing
+                    if row[3]:
+                        row[3] = disp_name(row[3].strip('/'))
                     # separate out rowid and other additions so we don't break legacy interface
                     rowid = row[9]
                     row = row[:9]

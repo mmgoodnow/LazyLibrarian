@@ -84,8 +84,6 @@ def createthumbs(jpeg):
 def createthumb(jpeg, basewidth=None, overwrite=True):
     if not PIL:
         return ''
-    if not path_isfile(jpeg):
-        return ''
     fname, extn = os.path.splitext(jpeg)
     if not basewidth:
         outfile = fname + '_thumb' + extn
