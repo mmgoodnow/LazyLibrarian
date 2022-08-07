@@ -25,10 +25,11 @@ import lazylibrarian
 try:
     import urllib3
     import requests
-except (ImportError, ModuleNotFoundError):
+except Exception as e:
+    print(str(e))
     try:
         import lib.requests as requests
-    except (ImportError, ModuleNotFoundError) as e:
+    except Exception as e:
         print(str(e))
         print('Unable to load requests library')
         exit(1)
@@ -369,9 +370,9 @@ def get_latest_version_from_git():
                     logmsg('warn', 'Could not get the latest commit from git')
                     logmsg('debug', 'git latest version returned %s' % r.status_code)
                     latest_version = 'Not_Available_From_Git'
-            except Exception as e:
+            except Exception as err:
                 logmsg('warn', 'Could not get the latest commit from git')
-                logmsg('debug', 'git %s for %s: %s' % (type(e).__name__, url, str(e)))
+                logmsg('debug', 'git %s for %s: %s' % (type(err).__name__, url, str(err)))
                 latest_version = 'Not_Available_From_Git'
 
     return latest_version
@@ -451,8 +452,8 @@ def get_commit_difference_from_git():
                 if commits > 0:
                     for item in git['commits']:
                         commit_list = "%s\n%s" % (item['commit']['message'], commit_list)
-        except Exception as e:
-            logmsg('warn', 'Could not get difference status from git: %s' % type(e).__name__)
+        except Exception as err:
+            logmsg('warn', 'Could not get difference status from git: %s' % type(err).__name__)
 
     if commits > 1:
         logmsg('info', 'New version is available. You are %s commits behind' % commits)
@@ -486,9 +487,9 @@ def update_version_file(new_version_id):
         lazylibrarian.CONFIG['CURRENT_VERSION'] = new_version_id
         return True
 
-    except Exception as e:
+    except Exception as err:
         logmsg('error',
-               "Unable to write current version to version.txt: %s" % str(e))
+               "Unable to write current version to version.txt: %s" % str(err))
         return False
 
 
@@ -533,8 +534,8 @@ def update():
             msg = 'Saved current version to %s' % backup_file
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
-        except Exception as e:
-            msg = "Failed to create backup: %s" % str(e)
+        except Exception as err:
+            msg = "Failed to create backup: %s" % str(err)
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg("error", msg)
 
@@ -613,8 +614,8 @@ def update():
                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
-            except Exception as e:
-                errmsg = str(e)
+            except Exception as err:
+                errmsg = str(err)
                 msg = "Unable to retrieve new version from " + tar_download_url
                 msg += ", can't update: %s" % errmsg
                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
@@ -635,9 +636,9 @@ def update():
             try:
                 with tarfile.open(tar_download_path) as tar:
                     tar.extractall(update_dir)
-            except Exception as e:
-                msg = 'Failed to unpack tarfile %s (%s): %s' % (type(e).__name__,
-                                                                tar_download_path, str(e))
+            except Exception as err:
+                msg = 'Failed to unpack tarfile %s (%s): %s' % (type(err).__name__,
+                                                                tar_download_path, str(err))
                 upgradelog.write("%s %s\n" % (time.ctime(), msg))
                 logmsg('error', msg)
                 return False
