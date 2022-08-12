@@ -401,9 +401,11 @@ def safe_move(src, dst, action='move'):
             else:
                 raise
 
-        except IOError as e:
+        except (IOError, OSError) as e:  # both needed for different python versions
             if e.errno == 22:  # bad mode or filename
+                logger.debug("src=[%s] dst=[%s]" % (src, dst))
                 drive, path = os.path.splitdrive(dst)
+                logger.debug("drive=[%s] path=[%s]" % (drive, path))
                 # strip some characters windows can't handle
                 newpath = replace_all(path, namedic)
                 # windows filenames can't end in space or dot
@@ -412,6 +414,7 @@ def safe_move(src, dst, action='move'):
                 # anything left? has it changed?
                 if newpath and newpath != path:
                     dst = os.path.join(drive, newpath)
+                    logger.debug("dst=[%s]" % dst)
                 else:
                     raise
             else:
