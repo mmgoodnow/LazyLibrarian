@@ -110,9 +110,9 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
 
     wpercent = (bwidth / float(img.size[0]))
     hsize = int((float(img.size[1]) * float(wpercent)))
-    # noinspection PyUnresolvedReferences
-    img = img.resize((bwidth, hsize), PIL.Image.ANTIALIAS)
     try:
+        # noinspection PyUnresolvedReferences
+        img = img.resize((bwidth, hsize), PIL.Image.ANTIALIAS)
         img.save(outfile)
     except OSError:
         try:
