@@ -2618,13 +2618,19 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
 
+                if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                    global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                        '$IssueDate', issuedate).replace('$Title', title)
+                else:
+                    global_name = "%s - %s" % (title, issuedate)
+
                 if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                     authors = title
                 else:
                     authors = 'magazines'
-                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', authors,
-                                         '--series', title, '--title', "%s - %s" % (title, issuedate),
-                                                 '--cover', jpgfile, '--tags', 'Magazine'])
+
+                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', authors, '--series', title,
+                                         '--title', global_name, '--cover', jpgfile, '--tags', 'Magazine'])
             else:
                 if automerge:
                     res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [pp_path])
@@ -2728,12 +2734,17 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 if booktype == 'magazine':
+                    if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                        global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                            '$IssueDate', issuedate).replace('$Title', title)
+                    else:
+                        global_name = "%s - %s" % (title, issuedate)
+
                     if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                         authorname = title
                     else:
                         authorname = 'magazines'
 
-                    bookname = "%s - %s" % (title, issuedate)
                     _, _, rc = calibredb('set_metadata', ['--field', 'pubdate:%s' % issuedate], [calibre_id])
                     if rc:
                         logger.warn("calibredb unable to set pubdate")
@@ -2741,7 +2752,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                      authorname, only_ascii=False)], [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set author")
-                _, _, rc = calibredb('set_metadata', ['--field', 'title:%s' % unaccented(bookname, only_ascii=False)],
+                _, _, rc = calibredb('set_metadata', ['--field',
+                                                      'title:%s' % unaccented(global_name, only_ascii=False)],
                                      [calibre_id])
                 if rc:
                     logger.warn("calibredb unable to set title")
