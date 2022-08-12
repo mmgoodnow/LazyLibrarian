@@ -2618,16 +2618,16 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
 
-                if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
-                    global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
-                        '$IssueDate', issuedate).replace('$Title', title)
-                else:
-                    global_name = "%s - %s" % (title, issuedate)
-
                 if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                     authors = title
+                    global_name = issuedate
                 else:
                     authors = 'magazines'
+                    if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                        global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                            '$IssueDate', issuedate).replace('$Title', title)
+                    else:
+                        global_name = "%s - %s" % (title, issuedate)
 
                 res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', authors, '--series', title,
                                          '--title', global_name, '--cover', jpgfile, '--tags', 'Magazine'])
@@ -2734,16 +2734,16 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 if booktype == 'magazine':
-                    if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
-                        global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
-                            '$IssueDate', issuedate).replace('$Title', title)
-                    else:
-                        global_name = "%s - %s" % (title, issuedate)
-
                     if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                         authorname = title
+                        global_name = issuedate
                     else:
                         authorname = 'magazines'
+                        if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                            global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
+                                '$IssueDate', issuedate).replace('$Title', title)
+                        else:
+                            global_name = "%s - %s" % (title, issuedate)
 
                     _, _, rc = calibredb('set_metadata', ['--field', 'pubdate:%s' % issuedate], [calibre_id])
                     if rc:
