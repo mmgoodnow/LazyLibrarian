@@ -361,7 +361,7 @@ def syspath(path, prefix=True):
     s = path.find(lazylibrarian.CACHEDIR)
     if s >= 0 and '/' in path:
         path = path.replace('/', '\\')
-        logger.debug("cache path changed [%s] to [%s]" % (opath, path))
+        # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
 
     # Add the magic prefix if it isn't already there.
     # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
