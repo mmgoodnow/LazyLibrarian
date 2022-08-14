@@ -2618,7 +2618,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 elif comicid.startswith('CX'):
                     identifier = "Comixology:%s" % comicid[2:]
 
-            elif booktype == 'magazine':
+            if booktype == 'magazine':
                 issueid = create_id("%s %s" % (title, issuedate))
                 identifier = "lazylibrarian:%s" % issueid
                 magfile = book_file(pp_path, "magazine")
