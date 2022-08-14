@@ -2562,13 +2562,27 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
-    if (lazylibrarian.CONFIG['IMP_CALIBREDB'] and
-            (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
-            (booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']) or
-            (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
-        dest_dir = lazylibrarian.directory('eBook')
+    if lazylibrarian.CONFIG['IMP_CALIBREDB']:
+        if booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
+            dest_dir = lazylibrarian.directory('eBook')
+        elif booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+            dest_dir = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', authorname).replace(
+                '$IssueDate', bookname)
+            if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+        elif booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC']:
+            dest_dir = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
+            if authorname and '$Title' in dest_dir:
+                comic_name = unaccented(sanitize(authorname), only_ascii=False)
+                dest_dir = dest_dir.replace('$Title', comic_name)
+            while '$' in dest_dir:
+                dest_dir = os.path.dirname(dest_dir)
+            if lazylibrarian.CONFIG['COMIC_RELATIVE']:
+                dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+        else:
+            dest_dir = lazylibrarian.directory('eBook')
         try:
-            logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
+            logger.debug('Importing %s %s from %s into calibre library' % (booktype, global_name, dest_dir))
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
             # and ignores opf data if there is data embedded in the book file
             # so we send separate "set_metadata" commands after the import
@@ -2604,7 +2618,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 elif comicid.startswith('CX'):
                     identifier = "Comixology:%s" % comicid[2:]
 
-            if booktype == 'magazine':
+            elif booktype == 'magazine':
                 issueid = create_id("%s %s" % (title, issuedate))
                 identifier = "lazylibrarian:%s" % issueid
                 magfile = book_file(pp_path, "magazine")
@@ -2615,8 +2629,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
                 elif magfile:
                     jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=False)
-                    coverfile = os.path.basename(jpgfile)
-                    jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
+                    if jpgfile:
+                        coverfile = os.path.basename(jpgfile)
+                        jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
 
                 if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                     authors = title
