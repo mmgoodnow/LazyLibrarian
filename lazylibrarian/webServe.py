@@ -5183,9 +5183,9 @@ class WebInterface(object):
 
         # or we may just have a title to find magazine in issues table
         mag_data = db.select('SELECT * from issues WHERE Title=?', (bookid,))
-        if len(mag_data) == 0:
-            logger.warn("No issues for magazine %s" % bookid)
-            raise cherrypy.HTTPRedirect("magazines")
+        #if len(mag_data) == 0:
+        #    logger.warn("No issues for magazine %s" % bookid)
+        #    raise cherrypy.HTTPRedirect("magazines")
 
         if len(mag_data) == 1 and lazylibrarian.CONFIG['MAG_SINGLE']:  # we only have one issue, get it
             issue_date = mag_data[0]["IssueDate"]
