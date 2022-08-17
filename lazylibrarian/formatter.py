@@ -292,13 +292,16 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     if datestr.isdigit():  # issue number or year
         return datestr
 
+    y, m, d, hh, mm = ['1970', '01', '01', '00', '00']
     dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 6:
-        if len(dateparts[0]) == 4:  # YYYY-MM-DD HH:MM:SS
+        if check_year(dateparts[0]):  # YYYY-MM-DD HH:MM:SS
             y, m, d, hh, mm, _ = dateparts
-        else:  # 13 Nov 2014 05:01:18
+        elif check_year(dateparts[1]):  # MM-YYYY-DD HH:MM:SS
+            m, y, d, hh, mm, _ = dateparts
+        elif check_year(dateparts[2]):  # 13 Nov 2014 05:01:18
             d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 5:  # 2018-04-25 23:46
         y, m, d, hh, mm = dateparts
@@ -320,8 +323,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
         d = '01'
         hh = '00'
         mm = '00'
-    else:
-        y, m, d, hh, mm = ['1970', '01', '01', '00', '00']
+
     try:
         _ = int(m)
     except ValueError:

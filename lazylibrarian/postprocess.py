@@ -2856,8 +2856,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
 
-                if not len(listdir(pp_path)):
-                    shutil.rmtree(pp_path)
+                shutil.rmtree(target_dir.rsplit('(', 1)[0].strip(), ignore_errors=True)
                 return True, newbookfile, target_dir
             return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir), pp_path
         except Exception as e:
