@@ -127,8 +127,9 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         else:
             dest_path = make_utf8bytes(dest_path)[0]
 
-        if not make_dirs(dest_path):
-            logger.warn('Unable to create directory %s' % dest_path)
+        if not dest_path or not make_dirs(dest_path):
+            logger.error('Unable to create destination directory %s' % dest_path)
+            return False
 
         if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
             global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
@@ -1149,7 +1150,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 else:
                                     dest_path = make_utf8bytes(dest_path)[0]
 
-                                if not make_dirs(dest_path):
+                                if not dest_path or not make_dirs(dest_path):
                                     logger.warn('Unable to create directory %s' % dest_path)
 
                                 if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
@@ -2562,27 +2563,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
-    if lazylibrarian.CONFIG['IMP_CALIBREDB']:
-        if booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
-            dest_dir = lazylibrarian.directory('eBook')
-        elif booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
-            dest_dir = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', authorname).replace(
-                '$IssueDate', bookname)
-            if lazylibrarian.CONFIG['MAG_RELATIVE']:
-                dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
-        elif booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC']:
-            dest_dir = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
-            if authorname and '$Title' in dest_dir:
-                comic_name = unaccented(sanitize(authorname), only_ascii=False)
-                dest_dir = dest_dir.replace('$Title', comic_name)
-            while '$' in dest_dir:
-                dest_dir = os.path.dirname(dest_dir)
-            if lazylibrarian.CONFIG['COMIC_RELATIVE']:
-                dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
-        else:
-            dest_dir = lazylibrarian.directory('eBook')
+    if (lazylibrarian.CONFIG['IMP_CALIBREDB'] and
+            (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
+            (booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']) or
+            (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
         try:
-            logger.debug('Importing %s %s from %s into calibre library' % (booktype, global_name, dest_dir))
+            logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
             # and ignores opf data if there is data embedded in the book file
             # so we send separate "set_metadata" commands after the import
@@ -2628,6 +2614,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     coverfile = os.path.basename(jpgfile)
                     jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
                 elif magfile:
+                    if cover == 0:
+                        cover = 1  # if not set, default to page 1
                     jpgfile = create_mag_cover(magfile, pagenum=cover, refresh=False)
                     if jpgfile:
                         coverfile = os.path.basename(jpgfile)
@@ -2783,12 +2771,26 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             # Ask calibre for the author/title so we can construct the likely location
             target_dir = ''
             calibre_authorname = ''
+            dest_dir = lazylibrarian.directory('eBook')
             res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', 'id:%s' % calibre_id],
                                      ['--for-machine'])
             if not rc:
                 try:
                     res = '{ ' + res.split('{')[1].split('}')[0] + ' }'
                     res = json.loads(res)
+                    if booktype == 'magazine':
+                        dest_dir = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
+                        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                            dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+                    elif booktype == 'comic':
+                        dest_dir = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
+                        if lazylibrarian.CONFIG['COMIC_RELATIVE']:
+                            dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+
+                    while '$' in dest_dir:
+                        dest_dir = os.path.dirname(dest_dir)
+
+                    logger.debug('[%s][%s][%s][%s]' % (dest_dir, res['authors'], res['title'], res['id']))
                     target_dir = os.path.join(dest_dir, res['authors'], "%s (%d)" % (res['title'], res['id']))
                     logger.debug("Calibre target: %s" % target_dir)
                     calibre_authorname = res['authors']
@@ -2797,20 +2799,20 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     logger.debug("Unable to read json response; %s" % str(e))
                     target_dir = ''
 
-            if not target_dir or not path_isdir(target_dir) and calibre_authorname:
-                author_dir = os.path.join(dest_dir, calibre_authorname)
-                if path_isdir(author_dir):  # assumed author directory
-                    our_id = '(%s)' % calibre_id
-                    entries = listdir(author_dir)
-                    for entry in entries:
-                        if entry.endswith(our_id):
-                            target_dir = os.path.join(author_dir, entry)
-                            break
+                if not target_dir or not path_isdir(target_dir) and calibre_authorname:
+                    author_dir = os.path.join(dest_dir, calibre_authorname)
+                    if path_isdir(author_dir):  # assumed author directory
+                        our_id = '(%s)' % calibre_id
+                        entries = listdir(author_dir)
+                        for entry in entries:
+                            if entry.endswith(our_id):
+                                target_dir = os.path.join(author_dir, entry)
+                                break
 
-                    if not target_dir or not path_isdir(target_dir):
-                        logger.debug('Failed to locate calibre folder with id %s in %s' % (our_id, author_dir))
-                else:
-                    logger.debug('Failed to locate calibre author folder %s' % author_dir)
+                        if not target_dir or not path_isdir(target_dir):
+                            logger.debug('Failed to locate calibre folder with id %s in %s' % (our_id, author_dir))
+                    else:
+                        logger.debug('Failed to locate calibre author folder %s' % author_dir)
 
             if not target_dir or not path_isdir(target_dir):
                 # calibre does not like accents or quotes in names
@@ -2853,7 +2855,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
-                return True, newbookfile, pp_path
+
+                if not len(listdir(pp_path)):
+                    shutil.rmtree(pp_path)
+                return True, newbookfile, target_dir
             return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir), pp_path
         except Exception as e:
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
