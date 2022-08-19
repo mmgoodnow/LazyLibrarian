@@ -291,8 +291,6 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
 
     if datestr.isdigit():  # issue number or year
         return datestr
-
-    y, m, d, hh, mm = ['1970', '01', '01', '00', '00']
     dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
@@ -303,6 +301,8 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
             m, y, d, hh, mm, _ = dateparts
         elif check_year(dateparts[2]):  # 13 Nov 2014 05:01:18
             d, m, y, hh, mm, _ = dateparts
+        else:
+            d, m, y, hh, mm = 0, 0, 0, 0, 0
     elif len(dateparts) == 5:  # 2018-04-25 23:46
         y, m, d, hh, mm = dateparts
     elif len(dateparts) == 4:  # 04-25 23:46 (this year)
@@ -323,6 +323,12 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
         d = '01'
         hh = '00'
         mm = '00'
+    else:
+        d, m, y, hh, mm = 0, 0, 0, 0, 0
+
+    if not m:
+        lazylibrarian.logger.warn("Unrecognised datestr [%s]" % datestr)
+        return datestr
 
     try:
         _ = int(m)
@@ -345,6 +351,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
             '$B', lazylibrarian.MONTHNAMES[int(datestr[5:7])][0].title()).replace(
             '$b', lazylibrarian.MONTHNAMES[int(datestr[5:7])][1].title())
     except Exception:
+        lazylibrarian.logger.error("Invalid datestr [%s]" % datestr)
         return datestr
 
 

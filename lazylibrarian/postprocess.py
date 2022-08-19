@@ -2714,22 +2714,25 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                             logger.warn("calibredb unable to set opf")
 
                     tags = ''
-                    if booktype == 'ebook' and lazylibrarian.CONFIG['OPF_TAGS']:
-                        if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
-                            tags = data['BookGenre']
-                        if lazylibrarian.CONFIG['WISHLIST_TAGS']:
-                            if data['Requester'] is not None:
-                                tag = data['Requester'].replace(" ", ",")
-                                if tag not in tags:
-                                    if tags:
-                                        tags += ', '
-                                    tags += tag
-                            elif data['AudioRequester'] is not None:
-                                tag = data['AudioRequester'].replace(" ", ",")
-                                if tag not in tags:
-                                    if tags:
-                                        tags += ', '
-                                    tags += tag
+                    if lazylibrarian.CONFIG['OPF_TAGS']:
+                        if booktype == 'magazine':
+                            tags = 'Magazine'
+                        if booktype == 'ebook':
+                            if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
+                                tags = data['BookGenre']
+                            if lazylibrarian.CONFIG['WISHLIST_TAGS']:
+                                if data['Requester'] is not None:
+                                    tag = data['Requester'].replace(" ", ",")
+                                    if tag not in tags:
+                                        if tags:
+                                            tags += ', '
+                                        tags += tag
+                                elif data['AudioRequester'] is not None:
+                                    tag = data['AudioRequester'].replace(" ", ",")
+                                    if tag not in tags:
+                                        if tags:
+                                            tags += ', '
+                                        tags += tag
                     if tags:
                         _, _, rc = calibredb('set_metadata', ['--field', 'tags:%s' % tags], [calibre_id])
                         if rc:
