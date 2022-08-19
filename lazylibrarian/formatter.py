@@ -543,7 +543,7 @@ def make_unicode(txt):
     for encoding in _encodings:
         try:
             return txt.decode(encoding)
-        except UnicodeError:
+        except (UnicodeError, LookupError):
             pass
     lazylibrarian.logger.debug("Unable to decode name [%s]" % repr(txt))
     return txt

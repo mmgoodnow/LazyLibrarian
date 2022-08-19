@@ -1137,6 +1137,15 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
                                 # book auxinfo is a cleaned date, eg 2015-01-01
                                 iss_date = book['AuxInfo']
+                                if iss_date == '1970-01-01':
+                                    logger.debug("Looks like an invalid or missing date, retrying %s" %
+                                                 book['NZBtitle'])
+                                    dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
+                                           '[': ' ', ']': ' ', '#': '# '}
+                                    regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(
+                                        replace_all(book['NZBtitle'].lower(), dic).split())
+                                    if regex_pass:
+                                        iss_date = issuedate
                                 # suppress the "-01" day on monthly magazines
                                 if re.match(r'\d+-\d\d-01', str(iss_date)):
                                     iss_date = iss_date[:-3]
@@ -1157,7 +1166,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace(
                                         '$IssueDate', iss_date).replace('$Title', mag_name)
                                 else:
-                                    global_name = "%s %s" % (mag_name, book['AuxInfo'])
+                                    global_name = "%s %s" % (mag_name, iss_date)
                                 global_name = unaccented(global_name, only_ascii=False)
                                 global_name = sanitize(global_name)
                                 data = {'Title': mag_name, 'IssueDate': iss_date, 'BookID': book['BookID']}
