@@ -194,7 +194,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
                 authors = title
             else:
                 authors = 'magazines'
-            _ = create_mag_opf(dest_file, authors, title, issuenum, issueid)
+            _ = create_mag_opf(dest_file, authors, title, issuenum, issueid, overwrite=True)
         if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
             dest_path = os.path.dirname(dest_file)
             process_auto_add(dest_path, booktype='mag')
@@ -877,7 +877,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # torrent names might have words_separated_by_underscores
                     matchtitle = matchtitle.split(' LL.(')[0].replace('_', ' ')
                     # strip noise characters
-                    matchtitle = sanitize(matchtitle)
+                    matchtitle = sanitize(matchtitle).strip()
                     matches = []
                     logger.debug('Looking for %s %s in %s' % (booktype, matchtitle, download_dir))
 
@@ -1145,7 +1145,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(
                                         replace_all(book['NZBtitle'].lower(), dic).split())
                                     if regex_pass:
-                                        iss_date = issuedate
+                                        if regex_pass in [10, 12, 13] and year:
+                                            iss_date = "%s%04d" % (year, int(issuedate))
+                                        elif str(issuedate).isdigit():
+                                            iss_date = str(issuedate).zfill(4)
+                                        else:
+                                            iss_date = issuedate
                                 # suppress the "-01" day on monthly magazines
                                 if re.match(r'\d+-\d\d-01', str(iss_date)):
                                     iss_date = iss_date[:-3]
@@ -1324,7 +1329,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     authors = book['BookID']
                                 else:
                                     authors = 'magazines'
-                                _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid)
+                                _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid, overwrite=True)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 process_auto_add(dest_path, booktype='mag')
@@ -1383,7 +1388,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 while os.path.dirname(pp_path) != download_dir.rstrip(os.sep):
                                     pp_path = os.path.dirname(pp_path)
                             try:
-                                shutil.rmtree(pp_path)
+                                shutil.rmtree(pp_path, ignore_errors=True)
                                 logger.debug('Deleted %s for %s, %s from %s' %
                                              (pp_path, book['NZBtitle'], book['NZBmode'],
                                               book['Source']))
@@ -2711,7 +2716,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                 authors = title
                             else:
                                 authors = 'magazines'
-                            opfpath, our_opf = create_mag_opf(pp_path, authors, title, issuedate, issueid)
+                            opfpath, our_opf = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
                             # calibre likes "metadata.opf"
                             opffile = os.path.basename(opfpath)
                             if opffile != 'metadata.opf':
@@ -2868,8 +2873,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 for fname in listdir(target_dir):
                     setperm(os.path.join(target_dir, fname))
 
+                # clear up any residual non-calibre folder
                 shutil.rmtree(target_dir.rsplit('(', 1)[0].strip(), ignore_errors=True)
-                return True, newbookfile, target_dir
+                return True, newbookfile, pp_path
             return False, "Failed to find a valid %s in [%s]" % (booktype, target_dir), pp_path
         except Exception as e:
             logger.error('Unhandled exception importing to calibre: %s' % traceback.format_exc())
@@ -3011,7 +3017,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         authors = title
                     else:
                         authors = 'magazines'
-                    _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid)
+                    _, _ = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
 
         if firstfile:
             newbookfile = firstfile

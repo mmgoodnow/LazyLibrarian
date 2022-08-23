@@ -152,9 +152,20 @@ def magazine_scan(title=None):
                         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
                                '#': '# '}
 
+                        # is this magazine already in the database?
+                        cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType from magazines '
+                        cmd += 'WHERE Title=? COLLATE NOCASE'
+                        mag_entry = db.match(cmd, (title,))
+
+                        if mag_entry:
+                            datetype = mag_entry.get('DateType', '')
+                        else:
+                            datetype = ''
+
                         if issuedate:
                             exploded = replace_all(issuedate, dic).split()
-                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded)
+                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
+                                                                                                 datetype=datetype)
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if not regex_pass:
@@ -162,7 +173,8 @@ def magazine_scan(title=None):
 
                         if not issuedate:
                             exploded = replace_all(fname, dic).split()
-                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded)
+                            regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
+                                                                                                 datetype=datetype)
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if not regex_pass:
@@ -178,10 +190,6 @@ def magazine_scan(title=None):
 
                         logger.debug("Found %s Issue %s" % (title, issuedate))
 
-                        # is this magazine already in the database?
-                        cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage from magazines '
-                        cmd += 'WHERE Title=? COLLATE NOCASE'
-                        mag_entry = db.match(cmd, (title,))
                         if not mag_entry:
                             # need to add a new magazine to the database
                             # title = title.title()

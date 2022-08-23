@@ -318,12 +318,13 @@ def search_magazines(mags=None, reset=False):
                         if rejected:
                             rejects += 1
                         else:
-                            regex_pass, issuedate, year = get_issue_date(nzbtitle_exploded)
+                            datetype = book['datetype']
+                            regex_pass, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
                             if regex_pass:
                                 logger.debug('Issue %s (regex %s) for %s ' %
                                              (issuedate, regex_pass, nzbtitle_formatted))
                                 datetype_ok = True
-                                datetype = book['datetype']
+
                                 if datetype:
                                     # check all wanted parts are in the regex result
                                     # Day Month Year Vol Iss (MM needs two months)
@@ -345,7 +346,8 @@ def search_magazines(mags=None, reset=False):
                                         datetype_ok = False
                             else:
                                 datetype_ok = False
-                                logger.debug('Magazine %s not in a recognised date format.' % nzbtitle_formatted)
+                                logger.debug('Magazine %s not in a recognised date format [%s]' % (nzbtitle_formatted,
+                                                                                                   datetype))
                                 bad_date += 1
                                 # allow issues with good name but bad date to be included
                                 # so user can manually select them, incl those with issue numbers
@@ -537,7 +539,7 @@ def search_magazines(mags=None, reset=False):
         thread_name("WEBSERVER")
 
 
-def get_issue_date(nzbtitle_exploded):
+def get_issue_date(nzbtitle_exploded, datetype=''):
     regex_pass = 0
     issuedate = ''
     year = 0
@@ -762,11 +764,12 @@ def get_issue_date(nzbtitle_exploded):
         pos = 0
         while pos < len(nzbtitle_exploded):
             issue = nzbtitle_exploded[pos]
-            if issue.isdigit() and len(issue) > 2 and issue[0] == '0':
-                issuedate = issue
-                year = 0
-                regex_pass = 14
-                break
+            if issue.isdigit():
+                if (len(issue) > 2 and issue[0] == '0') or (datetype and 'I' in datetype):
+                    issuedate = issue
+                    year = 0
+                    regex_pass = 14
+                    break
             pos += 1
 
     # Annual - only a year found, year was found prior to regex 8/9
