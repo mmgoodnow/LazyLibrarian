@@ -382,7 +382,7 @@ def search_magazines(mags=None, reset=False):
 
                                 if str(control_date).isdigit() and str(issuedate).isdigit():
                                     # for issue numbers, check if later than last one we have
-                                    if regex_pass in [10, 12, 13] and year:
+                                    if regex_pass in [10, 12, 13] and year and 'Y' in datetype:
                                         issuedate = "%s%04d" % (year, int(issuedate))
                                     else:
                                         issuedate = str(issuedate).zfill(4)

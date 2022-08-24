@@ -1329,7 +1329,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     authors = book['BookID']
                                 else:
                                     authors = 'magazines'
-                                _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid, overwrite=True)
+                                _ = create_mag_opf(dest_file, authors, book['BookID'], book['AuxInfo'], issueid,
+                                                   overwrite=True)
                             if lazylibrarian.CONFIG['IMP_AUTOADDMAG']:
                                 dest_path = os.path.dirname(dest_file)
                                 process_auto_add(dest_path, booktype='mag')
@@ -2503,7 +2504,8 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
 
 # noinspection PyBroadException
-def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', automerge=False):
+def process_destination(pp_path=None, dest_path=None, global_name=None, data=None, booktype='', automerge=False,
+                        preprocess=True):
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
@@ -2552,28 +2554,29 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         shutil.copytree(pp_path, pp_path + '.unpack')
         pp_path = pp_path + '.unpack'
 
-    logger.debug("preprocess (%s) %s" % (booktype, pp_path))
-    if booktype == 'ebook':
-        preprocess_ebook(pp_path)
-    elif 'audio' in booktype:
-        preprocess_audio(pp_path, bookid, authorname, bookname)
-    elif booktype == 'magazine':
-        db = database.DBConnection()
-        res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
-        cover = 0
-        if res:
-            cover = check_int(res['CoverPage'], 0)
-        preprocess_magazine(pp_path, cover=cover)
+    if preprocess:
+        logger.debug("preprocess (%s) %s" % (booktype, pp_path))
+        if booktype == 'ebook':
+            preprocess_ebook(pp_path)
+        elif 'audio' in booktype:
+            preprocess_audio(pp_path, bookid, authorname, bookname)
+        elif booktype == 'magazine':
+            db = database.DBConnection()
+            res = db.match("SELECT CoverPage from magazines WHERE Title=?", (bookid,))
+            cover = 0
+            if res:
+                cover = check_int(res['CoverPage'], 0)
+            preprocess_magazine(pp_path, cover=cover)
 
-    # run custom pre-processing, for example remove unwanted formats
-    # or force format conversion before sending to calibre
-    if len(lazylibrarian.CONFIG['EXT_PREPROCESS']):
-        logger.debug("Running external PreProcessor: %s %s %s %s" % (booktype, pp_path, authorname, bookname))
-        params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], booktype, pp_path, authorname, bookname]
-        rc, res, err = run_script(params)
-        if rc:
-            return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err), pp_path
-        logger.debug("PreProcessor: %s" % res), pp_path
+        # run custom pre-processing, for example remove unwanted formats
+        # or force format conversion before sending to calibre
+        if len(lazylibrarian.CONFIG['EXT_PREPROCESS']):
+            logger.debug("Running external PreProcessor: %s %s %s %s" % (booktype, pp_path, authorname, bookname))
+            params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], booktype, pp_path, authorname, bookname]
+            rc, res, err = run_script(params)
+            if rc:
+                return False, "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err), pp_path
+            logger.debug("PreProcessor: %s" % res), pp_path
 
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
@@ -2671,8 +2674,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 return False, 'Calibre failed to import %s %s, no added bookids' % (authorname, bookname), pp_path
 
             if calibre_id.isdigit():
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                    logger.debug('Calibre ID: [%s]' % calibre_id)
+                logger.debug('Calibre ID: [%s]' % calibre_id)
             else:
                 logger.warn('Calibre ID looks invalid: [%s]' % calibre_id)
 
@@ -2716,7 +2718,8 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                                 authors = title
                             else:
                                 authors = 'magazines'
-                            opfpath, our_opf = create_mag_opf(pp_path, authors, title, issuedate, issueid, overwrite=True)
+                            opfpath, our_opf = create_mag_opf(pp_path, authors, title, issuedate, issueid,
+                                                              overwrite=True)
                             # calibre likes "metadata.opf"
                             opffile = os.path.basename(opfpath)
                             if opffile != 'metadata.opf':
