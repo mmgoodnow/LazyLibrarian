@@ -158,7 +158,7 @@ def magazine_scan(title=None):
                         mag_entry = db.match(cmd, (title,))
 
                         if mag_entry:
-                            datetype = mag_entry.get('DateType', '')
+                            datetype = mag_entry['DateType']
                         else:
                             datetype = ''
 
@@ -168,7 +168,12 @@ def magazine_scan(title=None):
                                                                                                  datetype=datetype)
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
-                            if not regex_pass:
+                            if regex_pass:
+                                if issuedate.isdigit() and 'I' in datetype:
+                                    issuedate = issuedate.zfill(4)
+                                    if 'Y' in datetype:
+                                        issuedate = year + issuedate
+                            else:
                                 issuedate = ''
 
                         if not issuedate:
@@ -177,7 +182,12 @@ def magazine_scan(title=None):
                                                                                                  datetype=datetype)
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
                                 logger.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
-                            if not regex_pass:
+                            if regex_pass:
+                                if issuedate.isdigit() and 'I' in datetype:
+                                    issuedate = issuedate.zfill(4)
+                                    if 'Y' in datetype:
+                                        issuedate = year + issuedate
+                            else:
                                 issuedate = ''
 
                         if not issuedate:
