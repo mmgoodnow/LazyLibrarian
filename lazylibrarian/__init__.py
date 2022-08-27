@@ -248,7 +248,8 @@ CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TA
                      'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
                      'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
                      'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT', 'DEL_DOWNLOADFAILED',
-                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT', 'MULTI_SOURCE', 'REQUESTSLOG']
+                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT', 'MULTI_SOURCE', 'REQUESTSLOG',
+                     'ISSUE_NOUNS', 'VOLUME_NOUNS', 'MAG_NOUNS']
 
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
@@ -337,6 +338,9 @@ CONFIG_DEFINITIONS = {
     'ISS_FORMAT': ('str', 'General', '$Y-$m-$d'),
     'DATE_FORMAT': ('str', 'General', '$Y-$m-$d'),
     'AUTHOR_DATE_FORMAT': ('str', 'General', '$d-$m-$Y'),
+    'ISSUE_NOUNS': ('str', 'General', 'issue, iss, no, nr, #, n'),
+    'VOLUME_NOUNS': ('str', 'General', "vol, volume"),
+    'MAG_NOUNS': ('str', 'General', "pdf, winter, spring, summer, fall, autumn, christmas, edition, special"),
     'IMP_MONTHLANG': ('str', 'General', ''),
     'IMP_AUTOADD': ('str', 'General', ''),
     'IMP_AUTOADD_COPY': ('bool', 'General', 1),
@@ -709,6 +713,12 @@ CONFIG_DEFINITIONS = {
     'SHRINK_MAG': ('int', 'Preprocess', 0),
     # 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36'),
 }
+
+FORCE_LOWER = ['EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'AUDIOBOOK_TYPE', 'MAG_TYPE',
+               'COMIC_TYPE', 'REJECT_MAGS', 'REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_COMIC',
+               'REJECT_PUBLISHER', 'BANNED_EXT', 'NAME_POSTFIX', 'NAME_DEFINITE', 'IMP_NOSPLIT',
+               'ISSUE_NOUNS', 'VOLUME_NOUNS', 'MAG_NOUNS']
+
 if os.name == 'nt':
     for k in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
         val = CONFIG_DEFINITIONS[k]
@@ -1187,9 +1197,7 @@ def config_read(reloaded=False):
         CONFIG['HTTP_PORT'] = 5299
 
     # to make matching easier/faster
-    for item in ['EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'AUDIOBOOK_TYPE', 'MAG_TYPE',
-                 'COMIC_TYPE', 'REJECT_MAGS', 'REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_COMIC',
-                 'REJECT_PUBLISHER', 'BANNED_EXT', 'NAME_POSTFIX', 'NAME_DEFINITE', 'IMP_NOSPLIT']:
+    for item in FORCE_LOWER:
         CONFIG[item] = CONFIG[item].lower()
 
     if os.name == 'nt':
@@ -1309,9 +1317,7 @@ def config_write(part=None):
             value = CONFIG[key]
             if key == 'LOGLEVEL':
                 LOGLEVEL = check_int(value, 1)
-            elif key in ['REJECT_WORDS', 'REJECT_AUDIO', 'REJECT_MAGS', 'REJECT_COMIC',
-                         'MAG_TYPE', 'EBOOK_TYPE', 'EMAIL_CONVERT_FROM', 'EMAIL_SEND_TYPE', 'COMIC_TYPE', 'BANNED_EXT',
-                         'AUDIOBOOK_TYPE', 'REJECT_PUBLISHER']:
+            elif key in FORCE_LOWER:
                 value = value.lower()
         else:
             # keep the old value

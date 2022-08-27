@@ -4334,12 +4334,25 @@
                 %endif
                 %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="col-md-6">
-                <legend>Magazine Reject List (all titles)</legend>
+                <legend>Magazine Reject/Allow Lists (all titles)</legend>
                 <div class="form-group">
                   <input type="text" id="reject_mags" name="reject_mags" value="${lazylibrarian.CONFIG['REJECT_MAGS']}" class="form-control" placeholder="Reject word list">
-                  <span class="help-block">Comma separated list of words to reject:<br/>
-                    Search results with any of these words in the title or filenames<br>
-                    (where available) will be ignored<br/>
+                  <span class="help-block">Comma separated list of words to reject in titles and filenames:<br/>
+                  </span>
+                </div>
+                <div class="form-group">
+                  <input type="text" id="issue_nouns" name="issue_nouns" value="${lazylibrarian.CONFIG['ISSUE_NOUNS']}" class="form-control" placeholder="Allowed issue identifiers">
+                  <span class="help-block">Comma separated list of words allowed for issues:<br/>
+                  </span>
+                </div>
+                <div class="form-group">
+                  <input type="text" id="volume_nouns" name="volume_nouns" value="${lazylibrarian.CONFIG['VOLUME_NOUNS']}" class="form-control" placeholder="Allowed volume identifiers">
+                  <span class="help-block">Comma separated list of words allowed for volumes:<br/>
+                  </span>
+                </div>
+                <div class="form-group">
+                  <input type="text" id="mag_nouns" name="mag_nouns" value="${lazylibrarian.CONFIG['MAG_NOUNS']}" class="form-control" placeholder="Allowed in magazine titles">
+                  <span class="help-block">Comma separated list of words allowed in magazine titles:<br/>
                   </span>
                 </div>
                 </div>
@@ -4365,7 +4378,7 @@
                   </span>
                 </div>
                 </div>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
                 <div class="col-md-6">
                 <legend>eBook Size Limits</legend>
                   <div class="input-group">

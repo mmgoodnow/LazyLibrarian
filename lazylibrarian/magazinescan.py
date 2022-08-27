@@ -151,15 +151,15 @@ def magazine_scan(title=None):
 
                         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ',
                                '#': '# '}
+                        datetype = ''
 
                         # is this magazine already in the database?
                         cmd = 'SELECT Title,LastAcquired,IssueDate,MagazineAdded,CoverPage,DateType from magazines '
                         cmd += 'WHERE Title=? COLLATE NOCASE'
                         mag_entry = db.match(cmd, (title,))
-
                         if mag_entry:
                             datetype = mag_entry['DateType']
-                        else:
+                        if not datetype:
                             datetype = ''
 
                         if issuedate:
@@ -245,8 +245,8 @@ def magazine_scan(title=None):
 
                             extn = os.path.splitext(fname)[1]
                             # suppress the "-01" day on monthly magazines
-                            if re.match(r'\d+-\d\d-01', str(filedate)):
-                                filedate = filedate[:-3]
+                            # if re.match(r'\d+-\d\d-01', str(filedate)):
+                            #    filedate = filedate[:-3]
 
                             newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
                                                                                      '$IssueDate', filedate)
@@ -260,7 +260,7 @@ def magazine_scan(title=None):
                                 new_path = new_path.encode(lazylibrarian.SYS_ENCODING)
 
                             newissuefile = os.path.join(new_path, newfname)
-                            # check for windows case insensitive
+                            # check for windows case-insensitive
                             if os.name == 'nt' and newissuefile.lower() == issuefile.lower():
                                 newissuefile = issuefile
                             if newissuefile != issuefile:
@@ -346,7 +346,7 @@ def magazine_scan(title=None):
                         else:
                             # Set magazine_issuedate to issuedate of most recent issue we have
                             # Set latestcover to most recent issue cover
-                            # Set magazine_added to acquired date of earliest issue we have
+                            # Set magazine_added to acquired date of the earliest issue we have
                             # Set magazine_lastacquired to acquired date of most recent issue we have
                             # acquired dates are read from magazine file timestamps
                             new_value_dict = {"IssueStatus": "Open"}

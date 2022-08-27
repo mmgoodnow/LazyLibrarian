@@ -273,7 +273,7 @@ def process_issues(source_dir=None, title=''):
 
         db = database.DBConnection()
         dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '', '[': ' ', ']': ' ', '#': '# '}
-        res = db.match('SELECT Reject from magazines WHERE Title=?', (title,))
+        res = db.match('SELECT Reject,DateType from magazines WHERE Title=?', (title,))
         if not res:
             logger.error("%s not found in database" % title)
             return False
@@ -306,11 +306,11 @@ def process_issues(source_dir=None, title=''):
                         found_title = False
                         break
             if found_title:
-                regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words)
+                regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words, res['DateType'])
                 if regex_pass:
                     # suppress the "-01" day on monthly magazines
-                    if re.match(r'\d+-\d\d-01', str(issuedate)):
-                        issuedate = issuedate[:-3]
+                    # if re.match(r'\d+-\d\d-01', str(issuedate)):
+                    #    issuedate = issuedate[:-3]
 
                     if process_mag_from_file(os.path.join(source_dir, f), title, issuedate):
                         logger.debug('Processed %s issue %s' % (title, issuedate))
@@ -868,6 +868,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             logger.debug("%s was completed %s %s ago" %
                                          (book['NZBtitle'], completion, plural(completion, 'second')))
 
+                    book = dict(book)  # so we can modify values later
                     booktype = book_type(book)
                     # remove accents and convert not-ascii apostrophes
                     if PY2:
@@ -1091,7 +1092,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     if match and match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
                         logger.debug('Found match (%s%%): %s for %s %s' % (
                             match, repr(pp_path), booktype, repr(book['NZBtitle'])))
-
                         cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
                         cmd += ' and books.AuthorID = authors.AuthorID'
                         data = db.match(cmd, (book['BookID'],))
@@ -1143,7 +1143,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     dic = {'.': ' ', '-': ' ', '/': ' ', '+': ' ', '_': ' ', '(': '', ')': '',
                                            '[': ' ', ']': ' ', '#': '# '}
                                     regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(
-                                        replace_all(book['NZBtitle'].lower(), dic).split())
+                                        replace_all(book['NZBtitle'].lower(), dic).split(), data['DateType'])
                                     if regex_pass:
                                         if regex_pass in [10, 12, 13] and year:
                                             iss_date = "%s%04d" % (year, int(issuedate))
@@ -1152,8 +1152,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         else:
                                             iss_date = issuedate
                                 # suppress the "-01" day on monthly magazines
-                                if re.match(r'\d+-\d\d-01', str(iss_date)):
-                                    iss_date = iss_date[:-3]
+                                # if re.match(r'\d+-\d\d-01', str(iss_date)):
+                                #    iss_date = iss_date[:-3]
+                                book['AuxInfo'] = iss_date
                                 dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
                                     '$IssueDate', iss_date).replace('$Title', mag_name)
 
@@ -2649,8 +2650,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     else:
                         global_name = "%s - %s" % (title, issuedate)
 
-                res, err, rc = calibredb('add', [magfile, '--duplicates', '--authors', authors, '--series', title,
-                                         '--title', global_name, '--cover', jpgfile, '--tags', 'Magazine'])
+                params = [magfile, '--duplicates', '--authors', authors, '--series', title,
+                          '--title', global_name, '--tags', 'Magazine']
+                if jpgfile:
+                    image = ['--cover', jpgfile]
+                    params.extend(image)
+                res, err, rc = calibredb('add', params)
             else:
                 if automerge:
                     res, err, rc = calibredb('add', ['-1', '--automerge', 'overwrite'], [pp_path])

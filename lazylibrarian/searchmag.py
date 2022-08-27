@@ -301,8 +301,8 @@ def search_magazines(mags=None, reset=False):
                         if not rejected:
                             reject_list = get_list(results['Reject'])
                             reject_list += get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
-                            lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower()
-                            lower_bookid = unaccented(bookid, only_ascii=False).lower()
+                            lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
+                            lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
                                     logger.debug('Reject: %s' % reject_list)
@@ -314,15 +314,36 @@ def search_magazines(mags=None, reset=False):
                                     rejected = True
                                     logger.debug("Rejecting %s, contains %s" % (nzbtitle_formatted, word))
                                     break
-
+                            if not rejected:
+                                reject_list = get_list(results['Reject'])
+                                if '*' in reject_list:  # strict rejection mode, no extraneous words
+                                    issuenouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
+                                    volumenouns = get_list(lazylibrarian.CONFIG['VOLUME_NOUNS'])
+                                    magnouns = get_list(lazylibrarian.CONFIG['MAG_NOUNS'])
+                                    nouns = issuenouns
+                                    nouns.extend(volumenouns)
+                                    nouns.extend(magnouns)
+                                    for word in lower_title:
+                                        if word.islower():  # contains ANY lowercase letters
+                                            if word not in lower_bookid and word not in nouns:
+                                                valid = False
+                                                for f in range(1, 13):
+                                                    if word in lazylibrarian.MONTHNAMES[f]:
+                                                        valid = True
+                                                        break
+                                                if not valid:
+                                                    rejected = True
+                                                    logger.debug("Rejecting %s, strict, contains %s" %
+                                                                 (nzbtitle_formatted, word))
+                                                    break
                         if rejected:
                             rejects += 1
                         else:
                             datetype = book['datetype']
                             regex_pass, issuedate, year = get_issue_date(nzbtitle_exploded, datetype=datetype)
                             if regex_pass:
-                                logger.debug('Issue %s (regex %s) for %s ' %
-                                             (issuedate, regex_pass, nzbtitle_formatted))
+                                logger.debug('Issue %s (regex %s) for %s, %s' %
+                                             (issuedate, regex_pass, nzbtitle_formatted, datetype))
                                 datetype_ok = True
 
                                 if datetype:
@@ -367,7 +388,7 @@ def search_magazines(mags=None, reset=False):
                                 logger.debug("Control date: [%s]" % control_date)
                                 if not control_date:  # we haven't got any copies of this magazine yet
                                     # get a rough time just over MAX_AGE days ago to compare to, in format yyyy-mm-dd
-                                    # could perhaps calc differently for weekly, biweekly etc
+                                    # could perhaps calc differently for weekly, biweekly etc.
                                     # For magazines with only an issue number use zero as we can't tell age
 
                                     if issuedate.isdigit():
@@ -421,7 +442,7 @@ def search_magazines(mags=None, reset=False):
                             elif not datetype_ok:
                                 logger.debug('This issue of %s not in a wanted date format.' % nzbtitle_formatted)
                             elif comp_date > 0:
-                                # keep track of what we're going to download so we don't download dupes
+                                # keep track of what we're going to download, so we don't download dupes
                                 new_date += 1
                                 issue = bookid + ',' + issuedate
                                 if issue not in issues:
@@ -543,6 +564,8 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
     regex_pass = 0
     issuedate = ''
     year = 0
+    if not datetype:
+        datetype = ''
     # Magazine names have many different styles of date
     # These are the ones we can currently match...
     # 1 MonthName MonthName YYYY (bi-monthly just use first month as date)
@@ -562,9 +585,10 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
     # 15 just a year (annual)
     # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
     #
-    issuenouns = ["issue", "iss", "no", "nr", '#', 'n']
-    volumenouns = ["vol", "volume"]
-    nouns = issuenouns + volumenouns
+    issuenouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
+    volumenouns = get_list(lazylibrarian.CONFIG['VOLUME_NOUNS'])
+    nouns = issuenouns
+    nouns.extend(volumenouns)
 
     pos = 0
     while pos < len(nzbtitle_exploded):
@@ -763,7 +787,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     break
             pos += 1
 
-    # issue and year as a single 6 digit string eg 222015
+    # issue and year as a single 6 digit string e.g. 222015
     if not regex_pass:
         pos = 0
         while pos < len(nzbtitle_exploded):
@@ -777,7 +801,7 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
                     break
             pos += 1
 
-    # issue as a 3 or more digit string with leading zero eg 0063
+    # issue as a 3 or more digit string with leading zero e.g. 0063
     if not regex_pass:
         pos = 0
         while pos < len(nzbtitle_exploded):
