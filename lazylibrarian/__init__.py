@@ -340,7 +340,7 @@ CONFIG_DEFINITIONS = {
     'AUTHOR_DATE_FORMAT': ('str', 'General', '$d-$m-$Y'),
     'ISSUE_NOUNS': ('str', 'General', 'issue, iss, no, nr, #, n'),
     'VOLUME_NOUNS': ('str', 'General', "vol, volume"),
-    'MAG_NOUNS': ('str', 'General', "pdf, winter, spring, summer, fall, autumn, christmas, edition, special"),
+    'MAG_NOUNS': ('str', 'General', "winter, spring, summer, fall, autumn, christmas, edition, special"),
     'IMP_MONTHLANG': ('str', 'General', ''),
     'IMP_AUTOADD': ('str', 'General', ''),
     'IMP_AUTOADD_COPY': ('bool', 'General', 1),

@@ -18,6 +18,7 @@ import os
 import random
 import re
 import subprocess
+import tempfile
 import threading
 import time
 import traceback
@@ -42,7 +43,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log, schedule_job, check_running_jobs, \
     setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, quotes, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove, set_redactlist
+    syspath, remove, set_redactlist, safe_copy
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
@@ -50,7 +51,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
 from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
     md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_with, format_author_name, \
-    check_float, thread_name
+    check_float, thread_name, sanitize
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
@@ -62,7 +63,7 @@ from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
-    create_opf, process_book_from_dir, process_issues
+    create_opf, process_book_from_dir, process_issues, process_destination
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
@@ -5183,7 +5184,7 @@ class WebInterface(object):
 
         # or we may just have a title to find magazine in issues table
         mag_data = db.select('SELECT * from issues WHERE Title=?', (bookid,))
-        #if len(mag_data) == 0:
+        # if len(mag_data) == 0:
         #    logger.warn("No issues for magazine %s" % bookid)
         #    raise cherrypy.HTTPRedirect("magazines")
 
@@ -5315,8 +5316,9 @@ class WebInterface(object):
 
         if action:
             for item in args:
-                issue = db.match('SELECT IssueFile,Title,IssueDate from issues WHERE IssueID=?', (item,))
+                issue = db.match('SELECT IssueFile,Title,IssueDate,Cover from issues WHERE IssueID=?', (item,))
                 if issue:
+                    issue = dict(issue)
                     title = issue['Title']
                     if 'reCover' in action:
                         coverfile = create_mag_cover(issue['IssueFile'], refresh=True,
@@ -5333,6 +5335,9 @@ class WebInterface(object):
                         if latest:
                             if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
                                 db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
+                        issue['Cover'] = newcover
+                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+                            self.update_calibre_issue_cover(issue)
 
                     if action == 'coverswap':
                         coverfile = None
@@ -5362,6 +5367,9 @@ class WebInterface(object):
                             if latest:
                                 if latest['IssueDate'] == issue['IssueDate'] and latest['LatestCover'] != newcover:
                                     db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
+                            issue['Cover'] = newcover
+                            if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+                                self.update_calibre_issue_cover(issue)
 
                     if action == "Delete":
                         result = self.delete_issue(issue['IssueFile'])
@@ -5407,10 +5415,66 @@ class WebInterface(object):
                                 'MagazineAdded': ''
                             }
                         db.upsert("magazines", new_value_dict, control_value_dict)
+                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+                            self.delete_issue_from_calibre(issue)
         if title:
             raise cherrypy.HTTPRedirect("issue_page?title=%s" % quote_plus(make_utf8bytes(title)[0]))
         else:
             raise cherrypy.HTTPRedirect("magazines")
+
+    @staticmethod
+    def delete_issue_from_calibre(issue):
+        try:
+            logger.debug(str(issue))
+            issuedate = issue['IssueDate']
+            # suppress the "-01" day on monthly magazines
+            if re.match(r'\d+-\d\d-01', str(issuedate)):
+                issuedate = issuedate[:-3]
+            # find calibre id for this issue
+            res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (issue['Title'], issuedate)])
+            if rc:
+                return
+
+            calibre_id = res.split(',')[0].strip()
+            logger.debug('Calibre ID [%s]' % calibre_id)
+
+            # remove this issue by id number
+            res, err, rc = calibredb('remove', ["%s" % calibre_id])
+            logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
+        except Exception as e:
+            logger.warn('delete from calibre failed %s %s' % (type(e).__name__, str(e)))
+
+    @staticmethod
+    def update_calibre_issue_cover(issue):
+        try:
+            logger.debug(str(issue))
+            issuedate = issue['IssueDate']
+            # suppress the "-01" day on monthly magazines
+            if re.match(r'\d+-\d\d-01', str(issuedate)):
+                issuedate = issuedate[:-3]
+            if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
+                global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate).replace(
+                    '$Title', issue['Title'])
+            else:
+                global_name = "%s %s" % (issue['Title'], issuedate)
+            global_name = unaccented(global_name, only_ascii=False)
+            global_name = sanitize(global_name)
+
+            # copy magazine and cover to a temp folder, don't copy opf, create a new one if required
+            tempdir = tempfile.mkdtemp()
+            _ = safe_copy(issue['IssueFile'], tempdir)
+            coverfile = os.path.join(lazylibrarian.CACHEDIR, issue['Cover'].lstrip('cache/'))
+            jpgfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
+            _ = safe_copy(coverfile, jpgfile)
+            _ = safe_copy(jpgfile, tempdir)
+            data = {"Title": issue['Title'], "IssueDate": issuedate}
+            dest_path = os.path.dirname(issue['IssueFile'])
+            success, dest_file, pp_path = process_destination(tempdir, dest_path, global_name, data,
+                                                              "magazine", preprocess=False)
+            logger.debug("Re-import %s [%s]" % (success, dest_file))
+            rmtree(tempdir, ignore_errors=True)
+        except Exception as e:
+            logger.warn('update calibre cover failed %s %s' % (type(e).__name__, str(e)))
 
     @staticmethod
     def delete_issue(issuefile):
@@ -6003,6 +6067,7 @@ class WebInterface(object):
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = displaylength
+            snatching = 0
             cmd = "SELECT NZBTitle,AuxInfo,BookID,NZBProv,NZBDate,NZBSize,Status,Source,DownloadID,rowid from wanted"
             rowlist = db.select(cmd)
             # turn the sqlite rowlist into a list of dicts
@@ -6057,10 +6122,14 @@ class WebInterface(object):
                     row = row[:9]
                     if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
                         if row[6] == 'Snatched':
-                            progress, _ = get_download_progress(row[7], row[8])
-                            row.append(progress)
-                            if progress < 100:
-                                lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG['HIST_REFRESH']
+                            snatching += 1
+                            if snatching <= 5:
+                                progress, _ = get_download_progress(row[7], row[8])
+                                row.append(progress)
+                                if progress < 100:
+                                    lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG['HIST_REFRESH']
+                            else:
+                                row.append(-1)
                         else:
                             row.append(-1)
                         row.append(rowid)
@@ -6098,7 +6167,8 @@ class WebInterface(object):
                     rows.append(row)
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
-                logger.debug("get_history returning %s to %s" % (displaystart, displaystart + displaylength))
+                logger.debug("get_history returning %s to %s, snatching %s" %
+                             (displaystart, displaystart + displaylength, snatching))
                 logger.debug("get_history filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
             logger.error('Unhandled exception in get_history: %s' % traceback.format_exc())

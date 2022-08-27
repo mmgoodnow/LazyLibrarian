@@ -317,12 +317,10 @@ def search_magazines(mags=None, reset=False):
                             if not rejected:
                                 reject_list = get_list(results['Reject'])
                                 if '*' in reject_list:  # strict rejection mode, no extraneous words
-                                    issuenouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
-                                    volumenouns = get_list(lazylibrarian.CONFIG['VOLUME_NOUNS'])
-                                    magnouns = get_list(lazylibrarian.CONFIG['MAG_NOUNS'])
-                                    nouns = issuenouns
-                                    nouns.extend(volumenouns)
-                                    nouns.extend(magnouns)
+                                    nouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
+                                    nouns.extend(get_list(lazylibrarian.CONFIG['VOLUME_NOUNS']))
+                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_NOUNS']))
+                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_TYPE']))
                                     for word in lower_title:
                                         if word.islower():  # contains ANY lowercase letters
                                             if word not in lower_bookid and word not in nouns:
