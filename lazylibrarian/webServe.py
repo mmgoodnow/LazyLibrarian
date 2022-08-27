@@ -5427,9 +5427,6 @@ class WebInterface(object):
         try:
             logger.debug(str(issue))
             issuedate = issue['IssueDate']
-            # suppress the "-01" day on monthly magazines
-            if re.match(r'\d+-\d\d-01', str(issuedate)):
-                issuedate = issuedate[:-3]
             # find calibre id for this issue
             res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (issue['Title'], issuedate)])
             if rc:
@@ -5449,9 +5446,6 @@ class WebInterface(object):
         try:
             logger.debug(str(issue))
             issuedate = issue['IssueDate']
-            # suppress the "-01" day on monthly magazines
-            if re.match(r'\d+-\d\d-01', str(issuedate)):
-                issuedate = issuedate[:-3]
             if '$IssueDate' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
                 global_name = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate).replace(
                     '$Title', issue['Title'])
