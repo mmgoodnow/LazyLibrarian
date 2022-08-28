@@ -47,7 +47,7 @@ from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_ta
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
     irc_dl_method
-from lazylibrarian.formatter import unaccented, unaccented_bytes, plural, now, today, check_int, \
+from lazylibrarian.formatter import unaccented, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
     md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_with, format_author_name, \
     check_float, thread_name
@@ -3803,8 +3803,9 @@ class WebInterface(object):
                     db.action("delete from failedsearch WHERE BookID=? AND Library=?", (bookid, library))
                     logger.debug('%s delay set to zero for %s' % (library, bookid))
                 elif action in ["Remove", "Delete"]:
-                    bookdata = db.match(
-                        'SELECT AuthorID,Bookname,BookFile,AudioFile from books WHERE BookID=?', (bookid,))
+                    cmd = 'SELECT AuthorName,Bookname,BookFile,AudioFile,books.AuthorID from books,authors '
+                    cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
+                    bookdata = db.match(cmd, (bookid,))
                     if bookdata:
                         authorid = bookdata['AuthorID']
                         bookname = bookdata['BookName']
@@ -3834,27 +3835,19 @@ class WebInterface(object):
 
                                     if deleted:
                                         logger.info('eBook %s deleted from disc' % bookname)
-                                        try:
-                                            calibreid = os.path.dirname(bookfile)
-                                            if calibreid.endswith(')'):
-                                                # noinspection PyTypeChecker
-                                                calibreid = calibreid.rsplit('(', 1)[1].split(')')[0]
-                                                if not calibreid or not calibreid.isdigit():
-                                                    calibreid = None
-                                            else:
-                                                calibreid = None
-                                        except IndexError:
-                                            calibreid = None
-
-                                        if calibreid:
-                                            res, err, rc = calibredb('remove', [calibreid], None)
-                                            if res and not rc:
-                                                logger.debug('%s reports: %s' %
-                                                             (lazylibrarian.CONFIG['IMP_CALIBREDB'],
-                                                              unaccented_bytes(res)))
-                                            else:
-                                                logger.debug('No response from %s' %
-                                                             lazylibrarian.CONFIG['IMP_CALIBREDB'])
+                                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
+                                            try:
+                                                # find calibre id for this book
+                                                res, err, rc = calibredb('search', ['author:"%s" title:"%s"' %
+                                                                                    (bookdata['AuthorName'],
+                                                                                     bookdata['BookName'])])
+                                                if not rc:
+                                                    calibre_id = res.split(',')[0].strip()
+                                                    logger.debug('Calibre ID [%s]' % calibre_id)
+                                                    res, err, rc = calibredb('remove', [calibre_id])
+                                                    logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
+                                            except Exception as e:
+                                                logger.warn('delete from calibre failed %s %s' % (type(e).__name__, str(e)))
 
                         authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                         if authorcheck:
@@ -5432,7 +5425,7 @@ class WebInterface(object):
             if not rc:
                 calibre_id = res.split(',')[0].strip()
                 logger.debug('Calibre ID [%s]' % calibre_id)
-                res, err, rc = calibredb('remove', ["%s" % calibre_id])
+                res, err, rc = calibredb('remove', [calibre_id])
                 logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
         except Exception as e:
             logger.warn('delete from calibre failed %s %s' % (type(e).__name__, str(e)))

@@ -1410,14 +1410,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE']:
                             dispname = "%s: %s" % (dispname, book['NZBtitle'])
                         if lazylibrarian.CONFIG['NOTIFY_WITH_URL']:
-                            dispname = "%s: %s" % (dispname, book['NZBUrl'])
+                            dispname = "%s: %s" % (dispname, book['NZBurl'])
                         if bookname:
                             custom_notify_download("%s %s" % (book['BookID'], booktype))
                             notify_download("%s %s from %s at %s" %
                                             (booktype, global_name, dispname, now()), book['BookID'])
                             mailing_list(booktype, global_name, book['BookID'])
                         else:
-                            custom_notify_download("%s %s" % (book['BookID'], book['NZBUrl']))
+                            custom_notify_download("%s %s" % (book['BookID'], book['NZBurl']))
                             notify_download("%s %s from %s at %s" %
                                             (booktype, global_name, dispname, now()), issueid)
                             mailing_list(booktype, global_name, issueid)
