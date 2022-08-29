@@ -630,7 +630,7 @@ class WebInterface(object):
     def user_login(self, **kwargs):
         # anti-phishing
         # block ip address if over 3 failed usernames in a row.
-        # dont count attempts older than 24 hrs
+        # don't count attempts older than 24 hrs
         self.label_thread("LOGIN")
         limit = int(time.time()) - 1 * 60 * 60
         lazylibrarian.USER_BLOCKLIST[:] = [x for x in lazylibrarian.USER_BLOCKLIST if x[1] > limit]
@@ -1133,7 +1133,7 @@ class WebInterface(object):
                 author_id = ''
 
             db = database.DBConnection()
-            # We pass series.SeriesID twice for datatables as the render function modifies it
+            # We pass series.SeriesID twice for datatables as the render function modifies it,
             # and we need it in two columns. There is probably a better way...
             cmd = 'SELECT series.SeriesID,AuthorName,SeriesName,series.Status,seriesauthors.AuthorID,series.SeriesID,'
             cmd += 'Have,Total,series.Reason from series,authors,seriesauthors,member'
@@ -1317,7 +1317,7 @@ class WebInterface(object):
                     flag = '&nbsp;<i class="fas fa-ban"></i>'
                 else:
                     flag = ''
-                if entry[10]:  # is there a sub-title
+                if entry[10]:  # is there a subtitle
                     bk_name = '%s<br><small><i>%s</i></small>' % (entry[1], entry[10])
                 else:
                     bk_name = entry[1]
@@ -1647,7 +1647,6 @@ class WebInterface(object):
                     lazylibrarian.CONFIG[key] = ''
 
         magazines = db.select('SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by upper(Title)')
-
         if magazines:
             count = 0
             for mag in magazines:
@@ -2703,7 +2702,7 @@ class WebInterface(object):
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s" target="_new"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
-                    if row[8]:  # is there a sub-title
+                    if row[8]:  # is there a subtitle
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
                     title = title + '<br>' + sitelink + ' ' + worklink
                     bookgenre = row[17]
@@ -3835,7 +3834,8 @@ class WebInterface(object):
 
                                     if deleted:
                                         logger.info('eBook %s deleted from disc' % bookname)
-                                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
+                                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and \
+                                                lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
                                             try:
                                                 # find calibre id for this book
                                                 res, err, rc = calibredb('search', ['author:"%s" title:"%s"' %
@@ -3847,7 +3847,8 @@ class WebInterface(object):
                                                     res, err, rc = calibredb('remove', [calibre_id])
                                                     logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
                                             except Exception as e:
-                                                logger.warn('delete from calibre failed %s %s' % (type(e).__name__, str(e)))
+                                                logger.warn('delete from calibre failed %s %s' %
+                                                            (type(e).__name__, str(e)))
 
                         authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                         if authorcheck:
@@ -4695,7 +4696,7 @@ class WebInterface(object):
                     # Set issuedate to issuedate of most recent issue we have
                     # Set latestcover to most recent issue cover
                     # Set lastacquired to acquired date of most recent issue we have
-                    # Set added to acquired date of earliest issue we have
+                    # Set added to acquired date of the earliest issue we have
                     cmd = 'select IssueID,IssueAcquired,IssueFile from comicissues where ComicID=?'
                     cmd += ' order by IssueID '
                     newest = db.match(cmd + 'DESC', (comicid,))
@@ -5369,14 +5370,16 @@ class WebInterface(object):
                         result = self.delete_issue(issue['IssueFile'])
                         if result:
                             logger.info('Issue %s of %s deleted from disc' % (issue['IssueDate'], issue['Title']))
+                            if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+                                self.delete_issue_from_calibre(issue)
                     if action == "Remove" or action == "Delete":
                         db.action('DELETE from issues WHERE IssueID=?', (item,))
                         logger.info('Issue %s of %s removed from database' % (issue['IssueDate'], issue['Title']))
                         # Set magazine_issuedate to issuedate of most recent issue we have
                         # Set latestcover to most recent issue cover
                         # Set magazine_lastacquired to acquired date of most recent issue we have
-                        # Set magazine_added to acquired date of earliest issue we have
-                        cmd = 'select IssueDate,IssueAcquired,IssueFile from issues where title=?'
+                        # Set magazine_added to acquired date of the earliest issue we have
+                        cmd = 'select IssueDate,IssueAcquired,IssueFile,Cover from issues where title=?'
                         cmd += ' order by IssueDate '
                         newest = db.match(cmd + 'DESC', (title,))
                         oldest = db.match(cmd + 'ASC', (title,))
@@ -5384,10 +5387,9 @@ class WebInterface(object):
                         if newest and oldest:
                             old_acquired = ''
                             new_acquired = ''
-                            cover = ''
+                            cover = newest['Cover']
                             issuefile = newest['IssueFile']
                             if path_exists(issuefile):
-                                cover = os.path.splitext(issuefile)[0] + '.jpg'
                                 mtime = os.path.getmtime(syspath(issuefile))
                                 new_acquired = datetime.date.isoformat(datetime.date.fromtimestamp(mtime))
                             issuefile = oldest['IssueFile']
@@ -5409,8 +5411,6 @@ class WebInterface(object):
                                 'MagazineAdded': ''
                             }
                         db.upsert("magazines", new_value_dict, control_value_dict)
-                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
-                            self.delete_issue_from_calibre(issue)
         if title:
             raise cherrypy.HTTPRedirect("issue_page?title=%s" % quote_plus(make_utf8bytes(title)[0]))
         else:
@@ -5477,13 +5477,15 @@ class WebInterface(object):
                 db.upsert("magazines", new_value_dict, control_value_dict)
                 logger.info('Status of magazine %s changed to %s' % (title, action))
             if action == "Delete":
-                issues = db.select('SELECT IssueFile from issues WHERE Title=?', (title,))
+                issues = db.select('SELECT * from issues WHERE Title=?', (title,))
                 logger.debug('Deleting magazine %s from disc' % title)
                 issuedir = ''
                 for issue in issues:  # delete all issues of this magazine
                     result = self.delete_issue(issue['IssueFile'])
                     if result:
                         logger.debug('Issue %s deleted from disc' % issue['IssueFile'])
+                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
+                            self.delete_issue_from_calibre(issue)
                         issuedir = os.path.dirname(issue['IssueFile'])
                     else:
                         logger.debug('Failed to delete %s' % (issue['IssueFile']))
@@ -6085,7 +6087,7 @@ class WebInterface(object):
                     # provider name needs to be shorter and with spaces for column resizing
                     if row[3]:
                         row[3] = disp_name(row[3].strip('/'))
-                    # separate out rowid and other additions so we don't break legacy interface
+                    # separate out rowid and other additions, so we don't break legacy interface
                     rowid = row[9]
                     row = row[:9]
                     if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
