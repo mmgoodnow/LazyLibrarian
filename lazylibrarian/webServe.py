@@ -5452,17 +5452,16 @@ class WebInterface(object):
             fname, extn = os.path.splitext(issuefile)
             for extn in ['.opf', '.jpg']:
                 remove(fname + extn)
-
             # if the directory is now empty, delete that too
             if lazylibrarian.CONFIG['MAG_DELFOLDER']:
                 try:
                     os.rmdir(syspath(os.path.dirname(issuefile)))
                 except OSError as e:
                     logger.debug('Directory %s not deleted: %s' % (os.path.dirname(issuefile), str(e)))
-                return True
+            return True
         except Exception as e:
             logger.warn('delete issue failed on %s, %s %s' % (issuefile, type(e).__name__, str(e)))
-        return False
+            return False
 
     @cherrypy.expose
     def mark_magazines(self, action=None, **args):
