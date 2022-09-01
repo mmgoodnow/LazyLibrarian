@@ -96,6 +96,7 @@ class OpenLibrary:
                     bookid = ''
                     if booklink:
                         bookid = booklink.split('/')[-1]
+                        booklink = '/'.join([lazylibrarian.CONFIG['OL_URL'], booklink])
                     authorid = book.get('author_key')
                     if authorid:
                         authorid = authorid[0]
