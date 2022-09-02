@@ -1473,7 +1473,7 @@ class WebInterface(object):
         mags_list = []
 
         magazines = db.select(
-            'SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by Title COLLATE NOCASE')
+            'SELECT * from magazines ORDER by Title COLLATE NOCASE')
 
         if magazines:
             for mag in magazines:
@@ -1646,7 +1646,7 @@ class WebInterface(object):
                     # print("No entry for str " + key)
                     lazylibrarian.CONFIG[key] = ''
 
-        magazines = db.select('SELECT Title,Reject,Regex,DateType,CoverPage from magazines ORDER by upper(Title)')
+        magazines = db.select('SELECT * from magazines')
         if magazines:
             count = 0
             for mag in magazines:
@@ -1671,32 +1671,24 @@ class WebInterface(object):
                             logger.warn('Unable to convert title [%s]' % repr(title))
                             title = unaccented(title, only_ascii=False)
 
+                new_value_dict = {}
                 new_reject = kwargs.get('reject_list[%s]' % title, None)
                 if not new_reject == reject:
-                    count += 1
-                    control_value_dict = {'Title': title}
-                    new_value_dict = {'Reject': new_reject}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
+                    new_value_dict['Reject'] = new_reject
                 new_regex = kwargs.get('regex[%s]' % title, None)
                 if not new_regex == regex:
-                    count += 1
-                    control_value_dict = {'Title': title}
-                    new_value_dict = {'Regex': new_regex}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
+                    new_value_dict['Regex'] = new_regex
                 new_datetype = kwargs.get('datetype[%s]' % title, None)
                 if not new_datetype == datetype:
-                    count += 1
-                    control_value_dict = {'Title': title}
-                    new_value_dict = {'DateType': new_datetype}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
+                    new_value_dict['DateType'] = new_datetype
                 new_coverpage = check_int(kwargs.get('coverpage[%s]' % title, None), 1)
                 if not new_coverpage == coverpage:
+                    new_value_dict['CoverPage'] = new_coverpage
+                if new_value_dict:
                     count += 1
-                    control_value_dict = {'Title': title}
-                    new_value_dict = {'CoverPage': new_coverpage}
-                    db.upsert("magazines", new_value_dict, control_value_dict)
+                    db.upsert("magazines", new_value_dict, {'Title': title})
             if count:
-                logger.info("Magazine filters updated")
+                logger.info("Magazine %s filters updated" % count)
 
         count = 0
         while count < len(lazylibrarian.NEWZNAB_PROV):
@@ -5586,7 +5578,7 @@ class WebInterface(object):
                     word = 'and'
                 new_title.append(word)
             title = ' '.join(new_title)
-            exists = db.match('SELECT Title from magazines WHERE Title=? COLLATE NOCASE', (title,))
+            exists = db.match('SELECT * from magazines WHERE Title=? COLLATE NOCASE', (title,))
             if exists:
                 logger.debug("Magazine %s already exists (%s)" % (title, exists['Title']))
             else:
