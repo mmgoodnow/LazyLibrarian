@@ -230,7 +230,7 @@ def initialize(options=None):
             'log.access_file': os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'cherrypy.access.log'),
             'log.error_file': os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'cherrypy.error.log'),
         })
-
+    lazylibrarian.STOPTHREADS = False
     cherrypy.engine.autoreload.subscribe()
 
     try:
