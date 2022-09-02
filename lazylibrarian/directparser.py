@@ -63,7 +63,7 @@ def bok_sleep():
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
     limit = check_float(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0.0)
-    # make sure bok leaves at least a 2 second delay between calls to prevent "Too many requests from your IP"
+    # make sure bok leaves at least a 2-second delay between calls to prevent "Too many requests from your IP"
     if limit < 2.0:
         limit = 2.0
     if delay < limit:
@@ -275,7 +275,7 @@ def direct_bfi(book=None, prov=None, test=False):
             return False
         return [], "provider_is_blocked"
 
-    host = lazylibrarian.CONFIG['prov + _HOST']
+    host = lazylibrarian.CONFIG['BFI_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
