@@ -139,7 +139,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         global_name = unaccented(global_name, only_ascii=False)
         global_name = sanitize(global_name)
         tempdir = tempfile.mkdtemp()
-        _ = safe_copy(source_file, tempdir)
+        _ = safe_copy(source_file, os.path.join(tempdir, os.path.basename(source_file)))
         data = {"IssueDate": issuenum, "Title": title}
         success, dest_file, pp_path = process_destination(tempdir, dest_path, global_name, data, "magazine")
         shutil.rmtree(tempdir, ignore_errors=True)
@@ -298,6 +298,7 @@ def process_issues(source_dir=None, title=''):
                         logger.debug('[%s] not found in %s' % (word, f))
                     found_title = False
                     break
+
             if found_title:
                 for item in rejects:
                     if item in filename_words:
@@ -305,6 +306,29 @@ def process_issues(source_dir=None, title=''):
                             logger.debug('Rejecting %s, contains %s' % (f, item))
                         found_title = False
                         break
+
+            if found_title:
+                if '*' in rejects:  # strict rejection mode, no extraneous words
+                    nouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
+                    nouns.extend(get_list(lazylibrarian.CONFIG['VOLUME_NOUNS']))
+                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_NOUNS']))
+                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_TYPE']))
+                    valid = True
+                    for word in filename_words:
+                        if word.islower():  # contains ANY lowercase letters
+                            if word not in title_words and word not in nouns:
+                                valid = False
+                                for month in range(1, 13):
+                                    if word in lazylibrarian.MONTHNAMES[month]:
+                                        valid = True
+                                        break
+                                if not valid:
+                                    logger.debug("Rejecting %s, strict, contains %s" %
+                                                 (f, word))
+                                    break
+                    if not valid:
+                        found_title = False
+
             if found_title:
                 regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(filename_words, res['DateType'])
                 if regex_pass:
@@ -354,7 +378,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             # the importer may delete the directory after importing a book,
             # depending on lazylibrarian.CONFIG['DESTINATION_COPY'] setting
             # also if multiple books in a folder and only a "metadata.opf"
-            # or "cover.jpg"" which book is it for?
+            # or "cover.jpg" which book is it for?
             reject = multibook(source_dir)
             if reject:
                 logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
@@ -855,7 +879,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
             if len(snatched):
                 for book in snatched:
-                    # check if we need to wait a while before processing, might be copying/unpacking/moving
+                    # check if we need to wait awhile before processing, might be copying/unpacking/moving
                     delay = check_int(lazylibrarian.CONFIG['PP_DELAY'], 0)
                     if delay:
                         completion = time.time() - check_int(book['Completed'], 0)
@@ -890,7 +914,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         if not extn or extn.strip('.') not in skipped_extensions:
                             # This is to get round differences in torrent filenames.
                             # Usenet is ok, but Torrents aren't always returned with the name we searched for
-                            # We ask the torrent downloader for the torrent name, but don't always get an answer
+                            # We ask the torrent downloader for the torrent name, but don't always get an answer,
                             # so we try to do a "best match" on the name, there might be a better way...
                             if PY2:
                                 matchname = unaccented_bytes(fname, only_ascii=False)
@@ -929,7 +953,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                                 if path_isfile(pp_path):
                                     # Check for single file downloads first. Book/mag file in download root.
-                                    # move the file into it's own subdirectory so we don't move/delete
+                                    # move the file into its own subdirectory, so we don't move/delete
                                     # things that aren't ours
                                     # note that epub are zipfiles so check booktype first
                                     # and don't unpack cbr/cbz comics'
@@ -1073,7 +1097,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             break
                             else:
                                 pp_path = os.path.join(download_dir, fname)
-                                matches.append([match, pp_path, book])  # so we can report closest match
+                                matches.append([match, pp_path, book])  # so we can report the closest match
                         else:
                             logger.debug('Skipping %s' % fname)
 
@@ -1135,7 +1159,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     mag_name = unaccented_bytes(sanitize(book['BookID']), only_ascii=False)
                                 else:
                                     mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
-                                # book auxinfo is a cleaned date, eg 2015-01-01
+                                # book auxinfo is a cleaned date, e.g. 2015-01-01
                                 iss_date = book['AuxInfo']
                                 if iss_date == '1970-01-01':
                                     logger.debug("Looks like an invalid or missing date, retrying %s" %
@@ -1432,14 +1456,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         control_value_dict = {"NZBurl": book['NZBurl'], "Status": "Snatched"}
                         new_value_dict = {"Status": "Failed", "DLResult": make_unicode(dest_file), "NZBDate": now()}
                         db.upsert("wanted", new_value_dict, control_value_dict)
-                        # if it's a book, reset status so we try for a different version
+                        # if it's a book, reset status, so we try for a different version
                         # if it's a magazine, user can select a different one from pastissues table
                         if booktype == 'eBook':
                             db.action('UPDATE books SET status="Wanted" WHERE BookID=?', (book['BookID'],))
                         elif booktype == 'AudioBook':
                             db.action('UPDATE books SET audiostatus="Wanted" WHERE BookID=?', (book['BookID'],))
 
-                        # at this point, as it failed we should move it or it will get postprocessed
+                        # at this point, as it failed we should move it, or it will get postprocessed
                         # again (and fail again)
                         if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED']:
                             logger.debug('Deleting %s' % pp_path)
@@ -1513,7 +1537,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # only delete the files if not in download root dir and DESTINATION_COPY not set
                     # This is for downloaders (rtorrent) that don't let us tell them to delete files
                     # NOTE it will silently fail if the torrent client downloadfolder is not local
-                    # eg in a docker or on a remote machine
+                    # e.g. in a docker or on a remote machine
                     pp_path = get_download_folder(book['Source'], book['DownloadID'])
                     if lazylibrarian.CONFIG['DESTINATION_COPY']:
                         logger.debug("Not removing original files as Keep Files is set")
@@ -1693,7 +1717,7 @@ def check_contents(source, downloadid, booktype, title):
                         break
 
             # only check size on right types of file
-            # eg dont reject cos jpg is smaller than min file size for a book
+            # e.g. don't reject cos jpg is smaller than min file size for a book
             # need to check if we have a size in K M G or just a number. If K M G could be a float.
             unit = ''
             if not rejected and filetypes:
@@ -2345,7 +2369,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
 
             namevars = name_vars(bookid)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
-            # audiobooks are usually multi part so can't be renamed this way
+            # audiobooks are usually multipart so can't be renamed this way
             global_name = namevars['BookFile']
             global_name = sanitize(global_name)
             if booktype == "AudioBook":
@@ -2588,7 +2612,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         try:
             logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
-            # and ignores opf data if there is data embedded in the book file
+            # and ignores opf data if there is data embedded in the book file,
             # so we send separate "set_metadata" commands after the import
             for fname in listdir(pp_path):
                 extn = os.path.splitext(fname)[1]
@@ -2793,7 +2817,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if booktype == 'comic':  # for now assume calibredb worked, and didn't move the file
                 return True, data['IssueFile'], pp_path
 
-            # Ask calibre for the author/title so we can construct the likely location
+            # Ask calibre for the author/title, so we can construct the likely location
             target_dir = ''
             calibre_authorname = ''
             dest_dir = lazylibrarian.directory('eBook')
@@ -2916,7 +2940,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             logger.debug("global_name was %s" % encoding)
 
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
-        firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multi-part audiobooks
+        firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks
         for fname in listdir(pp_path):
             if bestmatch and is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
                 logger.debug("Ignoring %s as not %s" % (fname, bestmatch))
@@ -2971,7 +2995,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     firstfile = preferred_type
                     break
 
-        # link to the first part of multi-part audiobooks unless there is a whole-book file
+        # link to the first part of multipart audiobooks unless there is a whole-book file
         elif booktype == 'audiobook':
             tokmatch = ''
             for f in listdir(dest_path):
@@ -3285,7 +3309,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
 
     opfinfo += '        <dc:identifier opf:scheme="%s">%s</dc:identifier>\n' % (scheme, bookid)
 
-    if "Contributors" in data:  # split into individuals and add each eg
+    if "Contributors" in data:  # split into individuals and add each e.g.
         # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
         # opf:role="aut">Das Pastoras</dc:creator>
         #
