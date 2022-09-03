@@ -216,7 +216,7 @@ def remove(name):
 
 def listdir(name):
     """
-    listdir ensuring bytestring for unix
+    listdir ensuring bytestring for unix,
     so we don't baulk if filename doesn't fit utf-8 on return
     and ensuring utf-8 and adding path requirements for windows
     All returns are unicode
@@ -303,10 +303,10 @@ def make_dirs(dest_path, new=False):
             os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
             _ = setperm(entry)  # failing to set perm might not be fatal
         except OSError as why:
-            # os.path.isdir() has some odd behaviour on windows, says the directory does NOT exist
+            # os.path.isdir() has some odd behaviour on Windows, says the directory does NOT exist
             # then when you try to mkdir complains it already exists.
             # Ignoring the error might just move the problem further on?
-            # Something similar seems to occur on google drive filestream
+            # Something similar seems to occur on Google Drive filestream
             # but that returns Error 5 Access is denied
             # Trap errno 17 (linux file exists) and 183 (windows already exists)
             if why.errno in [17, 183]:
@@ -356,8 +356,7 @@ def syspath(path, prefix=True):
     if 1 < len(path) < 4 and path[1] == ':':  # it's just a drive letter (E: or E:/)
         return path
 
-    # the html cache addressing uses forwardslash as a separator but windows file system needs backslash
-    opath = path
+    # the html cache addressing uses forwardslash as a separator but Windows file system needs backslash
     s = path.find(lazylibrarian.CACHEDIR)
     if s >= 0 and '/' in path:
         path = path.replace('/', '\\')
@@ -378,7 +377,7 @@ def safe_move(src, dst, action='move'):
     """ Move or copy src to dst
         Retry without accents if unicode error as some file systems can't handle (some) accents
         Retry with some characters stripped if bad filename
-        eg windows can't handle <>?"*:| (and maybe others) in filenames
+        e.g. Windows can't handle <>?"*:| (and maybe others) in filenames
         Return (new) dst if success """
 
     if src == dst:  # nothing to do
@@ -387,7 +386,7 @@ def safe_move(src, dst, action='move'):
     while action:  # might have more than one problem...
         try:
             if action == 'copy':
-                shutil.copy(syspath(src), syspath(dst))
+                shutil.copyfile(syspath(src), syspath(dst))
             elif path_isdir(src) and dst.startswith(src):
                 shutil.copytree(syspath(src), syspath(dst))
             else:
@@ -692,7 +691,7 @@ def is_overdue(which="author"):
 
 
 def ago(when):
-    """ Return human readable string of how long ago something happened
+    """ Return human-readable string of how long ago something happened
         when = seconds count """
 
     diff = time.time() - when
@@ -781,7 +780,7 @@ def nextrun(target=None, interval=0, action='', hours=False):
 
 
 def schedule_job(action='Start', target=None):
-    """ Start or stop or restart a cron job by name eg
+    """ Start or stop or restart a cron job by name e.g.
         target=search_magazines, target=process_dir, target=search_book """
     if target is None:
         return
@@ -909,7 +908,7 @@ def schedule_job(action='Start', target=None):
                 interval = interval / max(total, 1)
                 interval = int(interval * 0.80)  # allow some update time
 
-                if interval < 5:  # set a minimum interval of 5 minutes so we don't upset goodreads/librarything api
+                if interval < 5:  # set a minimum interval of 5 minutes, so we don't upset goodreads/librarything api
                     interval = 5
 
                 startdate = nextrun(task, interval, action)
@@ -1621,7 +1620,7 @@ def zip_audio(source, zipname, bookid):
     """ Zip up all the audiobook parts in source folder to zipname
         Check if zipfile already exists, if not create a new one
         Doesn't actually check for audiobook parts, just zips everything
-        including any .jpg etc
+        including any .jpg etc.
         Return full path to zipfile
     """
     zip_file = os.path.join(source, zipname + '.zip')
