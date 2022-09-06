@@ -42,7 +42,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log, schedule_job, check_running_jobs, \
     setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, quotes, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove, set_redactlist
+    syspath, remove, set_redactlist, get_calibre_id
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
@@ -3828,19 +3828,7 @@ class WebInterface(object):
                                         logger.info('eBook %s deleted from disc' % bookname)
                                         if lazylibrarian.CONFIG['IMP_CALIBREDB'] and \
                                                 lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
-                                            try:
-                                                # find calibre id for this book
-                                                res, err, rc = calibredb('search', ['author:"%s" title:"%s"' %
-                                                                                    (bookdata['AuthorName'],
-                                                                                     bookdata['BookName'])])
-                                                if not rc:
-                                                    calibre_id = res.split(',')[0].strip()
-                                                    logger.debug('Calibre ID [%s]' % calibre_id)
-                                                    res, err, rc = calibredb('remove', [calibre_id])
-                                                    logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
-                                            except Exception as e:
-                                                logger.warn('delete from calibre failed %s %s' %
-                                                            (type(e).__name__, str(e)))
+                                            self.delete_from_calibre(bookdata)
 
                         authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
                         if authorcheck:
@@ -5363,7 +5351,7 @@ class WebInterface(object):
                         if result:
                             logger.info('Issue %s of %s deleted from disc' % (issue['IssueDate'], issue['Title']))
                             if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
-                                self.delete_issue_from_calibre(issue)
+                                self.delete_from_calibre(issue)
                     if action == "Remove" or action == "Delete":
                         db.action('DELETE from issues WHERE IssueID=?', (item,))
                         logger.info('Issue %s of %s removed from database' % (issue['IssueDate'], issue['Title']))
@@ -5409,32 +5397,18 @@ class WebInterface(object):
             raise cherrypy.HTTPRedirect("magazines")
 
     @staticmethod
-    def delete_issue_from_calibre(issue):
-        try:
-            logger.debug(str(issue))
-            # find calibre id for this issue
-            res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (issue['Title'], issue['IssueDate'])])
-            if not rc:
-                calibre_id = res.split(',')[0].strip()
-                logger.debug('Calibre ID [%s]' % calibre_id)
-                res, err, rc = calibredb('remove', [calibre_id])
-                logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
-        except Exception as e:
-            logger.warn('delete from calibre failed %s %s' % (type(e).__name__, str(e)))
+    def delete_from_calibre(data):
+        calibre_id = get_calibre_id(data)
+        if calibre_id:
+            res, err, rc = calibredb('remove', [calibre_id])
+            logger.debug("Delete result: %s [%s] %s" % (res, err, rc))
 
     @staticmethod
     def update_calibre_issue_cover(issue):
-        try:
-            logger.debug(str(issue))
-            # find calibre id for this issue
-            res, err, rc = calibredb('search', ['author:"%s" title:"%s"' % (issue['Title'], issue['IssueDate'])])
-            if not rc:
-                calibre_id = res.split(',')[0].strip()
-                logger.debug('Calibre ID [%s]' % calibre_id)
-                res, err, rc = calibredb('set_metadata', ['--field', 'cover:%s' % issue['CoverFile']], [calibre_id])
-                logger.debug("Update result: %s [%s] %s" % (res, err, rc))
-        except Exception as e:
-            logger.warn('update calibre cover failed %s %s' % (type(e).__name__, str(e)))
+        calibre_id = get_calibre_id(issue)
+        if calibre_id:
+            res, err, rc = calibredb('set_metadata', ['--field', 'cover:%s' % issue['CoverFile']], [calibre_id])
+            logger.debug("Update result: %s [%s] %s" % (res, err, rc))
 
     @staticmethod
     def delete_issue(issuefile):
@@ -5476,7 +5450,7 @@ class WebInterface(object):
                     if result:
                         logger.debug('Issue %s deleted from disc' % issue['IssueFile'])
                         if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
-                            self.delete_issue_from_calibre(issue)
+                            self.delete_from_calibre(issue)
                         issuedir = os.path.dirname(issue['IssueFile'])
                     else:
                         logger.debug('Failed to delete %s' % (issue['IssueFile']))

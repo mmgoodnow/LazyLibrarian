@@ -1082,6 +1082,40 @@ def check_running_jobs():
     ensure_running('series_update')
 
 
+def get_calibre_id(data):
+    logger.debug(str(data))
+    fname = data.get('BookFile', '')
+    if fname:  # it's a book
+        author = data.get('AuthorName', '')
+        title = data.get('BookName', '')
+    else:
+        title = data.get('IssueDate', '')
+        if title:  # it's a magazine issue
+            author = data.get('Title', '')
+            fname = data.get('IssueFile', '')
+        else:  # assume it's a comic issue
+            title = data.get('IssueID', '')
+            author = data.get('ComicID', '')
+            fname = data.get('IssueFile', '')
+    try:
+        fname = os.path.dirname(fname)
+        calibre_id = fname.rsplit('(', 1)[1].split(')')[0]
+        if not calibre_id.isdigit():
+            calibre_id = ''
+    except IndexError:
+        calibre_id = ''
+    if not calibre_id:
+        # ask calibre for id of this issue
+        res, err, rc = lazylibrarian.calibre.calibredb('search', ['author:"%s" title:"%s"' % (author, title)])
+        if not rc:
+            try:
+                calibre_id = res.split(',')[0].strip()
+            except IndexError:
+                calibre_id = ''
+    logger.debug('Calibre ID [%s]' % calibre_id)
+    return calibre_id
+
+
 def show_stats():
     gb_status = "Active"
     for entry in lazylibrarian.PROVIDER_BLOCKLIST:
@@ -1674,9 +1708,9 @@ def calibre_prg(prgname):
     if prgname == 'ebook-convert':
         target = lazylibrarian.CONFIG['EBOOK_CONVERT']
     if not target:
-        calibredb = lazylibrarian.CONFIG['IMP_CALIBREDB']
-        if calibredb:
-            target = os.path.join(os.path.dirname(calibredb), prgname)
+        calibre = lazylibrarian.CONFIG['IMP_CALIBREDB']
+        if calibre:
+            target = os.path.join(os.path.dirname(calibre), prgname)
         else:
             logger.debug("No calibredb configured")
 
@@ -1718,5 +1752,4 @@ def only_punctuation(value):
         if c not in string.punctuation and c not in string.whitespace:
             return False
     return True
-
 

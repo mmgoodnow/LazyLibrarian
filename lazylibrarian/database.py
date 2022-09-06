@@ -44,6 +44,7 @@ class DBConnection:
             self.connection.execute("PRAGMA cache_size=-%s" % (32 * 1024))
             # for cascade deletes
             self.connection.execute("PRAGMA foreign_keys = ON")
+            self.connection.execute("PRAGMA temp_store = 2")  # memory
             self.connection.row_factory = sqlite3.Row
             self.dblog = lazylibrarian.common.syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
         except Exception as e:
@@ -245,7 +246,7 @@ class DBConnection:
 
             # This version of upsert is not thread safe, each action() is thread safe,
             # but it's possible for another thread to jump in between the
-            # UPDATE and INSERT statements so we use suppress=unique to log any conflicts
+            # UPDATE and INSERT statements, so we use suppress=unique to log any conflicts
             # -- update -- should be thread safe now, threading lock moved
 
             if self.connection.total_changes == changes_before:
