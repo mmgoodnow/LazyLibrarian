@@ -283,15 +283,37 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     # LimeTorrent 13 Nov 2014 05:01:18 +0200
     # torrent_tpb 04-25 23:46 or 2018-04-25
     # openlibrary May 1995 or June 20, 2008
+    # sometimes one "word" eg 28Dec2008
     # We could use dateutil module but it's not standard library and we only have a few formats
     # so we can roll our own. To make it simple we'll ignore timezone and seconds
 
     if not datestr:
         return ''
 
-    if datestr.isdigit():  # issue number or year
+    if datestr.isdigit():  # just issue number or year
         return datestr
-    dateparts = datestr.split(' +')[0].replace('-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
+
+    dateparts = datestr.split(' +')[0].split(';')[0].replace(
+        '-', ' ').replace(':', ' ').replace(',', ' ').replace('/', ' ').split()
+    if len(dateparts) == 1:  # one "word" might need splitting
+        dateparts = []
+        word = ''
+        digits = True
+        for c in datestr:
+            if digits and c.isdigit():
+                word += c
+            elif not digits and not c.isdigit():
+                word += c
+            elif word:
+                dateparts.append(word)
+                word = c
+                digits = not digits
+            else:
+                word = c
+                digits = c.isdigit()
+        if word:
+            dateparts.append(word)
+
     if len(dateparts) == 7:  # Tue, 23 Aug 2016 17:33:26
         _, d, m, y, hh, mm, _ = dateparts
     elif len(dateparts) == 6:
