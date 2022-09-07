@@ -547,6 +547,7 @@ def get_book_cover(bookid=None, src=None):
                 icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
                 gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
                 logger.debug(safeparams)
+                logger.debug(icrawlerdir)
                 gc.crawl(keyword=safeparams, max_num=1)
                 if os.path.exists(icrawlerdir):
                     res = len(os.listdir(icrawlerdir))

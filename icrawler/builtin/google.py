@@ -151,26 +151,16 @@ class GoogleParser(Parser):
     def parse(self, response):
         soup = BeautifulSoup(
             response.content.decode('utf-8', 'ignore'), 'html5lib')
-        #image_divs = soup.find_all('script')
-        image_divs = soup.find_all(name='script')
-        if not image_divs:
+        data = str(soup).split('img alt=')
+        if len(data) < 2:
             return []
-        for div in image_divs:
-            #txt = div.text
-            txt = str(div)
-            #if not txt.startswith('AF_initDataCallback'):
-            if 'AF_initDataCallback' not in txt:
-                continue
-            if 'ds:0' in txt or 'ds:1' not in txt:
-                continue
-            #txt = re.sub(r"^AF_initDataCallback\({.*key: 'ds:(\d)'.+data:function\(\){return (.+)}}\);?$",
-            #             "\\2", txt, 0, re.DOTALL)
-            #meta = json.loads(txt)
-            #data = meta[31][0][12][2]
-            #uris = [img[1][3][0] for img in data if img[0] == 1]
-
-            uris = re.findall(r'http[^\[]*?\.(?:jpg|png|bmp)', txt)
-            return [{'file_url': uri} for uri in uris]
+        uris = []
+        for item in data[1:]:
+            try:
+                uris.append(item.split('src="')[1].split('"')[0])
+            except IndexError:
+                pass
+        return [{'file_url': uri} for uri in uris]
 
 
 class GoogleImageCrawler(Crawler):
