@@ -172,8 +172,10 @@ cmd_dict = {'help': 'list available commands. ' +
                                ' and any subfolders',
             'includeAlternate': '[&wait] [&dir=] [&library=] Include links to ebooks/audiobooks from named or ' +
                                 ' alternate folder and any subfolders',
-            'importCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Import a CSV wishlist from named or alternate directory',
-            'exportCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Export a CSV wishlist to named or alternate directory',
+            'importCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Import a CSV wishlist from named ' +
+                                 'or alternate directory',
+            'exportCSVwishlist': '[&wait] [&status=Wanted] [&library=eBook] [&dir=] Export a CSV wishlist to named ' +
+                                 'or alternate directory',
             'grSync': '&status= &shelf= [&library=] [&reset] Sync books with given status to a goodreads shelf, ' +
                       'or reset goodreads shelf to match lazylibrarian',
             'grFollow': '&id= Follow an author on goodreads',
@@ -297,8 +299,10 @@ class Api(object):
                 self.data = json.dumps(self.data)
                 self.data = self.callback + '(' + self.data + ');'
                 return self.data
-        else:
+
+        elif isinstance(self.data, string_types):
             return self.data
+        return json.dumps(self.data)
 
     @staticmethod
     def _dic_from_query(query):
@@ -548,7 +552,7 @@ class Api(object):
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
                     if arg.upper() == 'NAME':
-                        # dont allow api to change our internal name
+                        # don't allow api to change our internal name
                         continue
                     elif arg == 'altername':
                         hit.append(arg)
