@@ -41,10 +41,13 @@ try:
     import PIL
     # noinspection PyUnresolvedReferences
     from PIL import Image as PILImage
-    from icrawler.builtin import GoogleImageCrawler
+    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
 except ImportError:
     PIL = None
     GoogleImageCrawler = None
+    BingImageCrawler = None
+    BaiduImageCrawler = None
+    FlickrImageCrawler = None
 
 try:
     # noinspection PyProtectedMember
@@ -542,53 +545,63 @@ def get_book_cover(bookid=None, src=None):
             if src:
                 return None, src
 
-        if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
-            if PIL and safeparams:
-                icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
-                gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
-                logger.debug(safeparams)
-                logger.debug(icrawlerdir)
-                gc.crawl(keyword=safeparams, max_num=1)
-                if os.path.exists(icrawlerdir):
-                    res = len(os.listdir(icrawlerdir))
-                else:
-                    res = 0
-                logger.debug("Found %d %s" % (res, plural(res, 'image')))
-                if res:
-                    img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
-                    if src:
-                        coverlink, success, _ = cache_img("book", bookid + '_gb', img)
-                    else:
-                        coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
-                    data = ''
-                    coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
-                    if path_isfile(coverfile):
-                        with open(syspath(coverfile), 'rb') as f:
-                            data = f.read()
-                    if len(data) < 50:
-                        logger.debug('Got an empty google search image for %s [%s]' % (bookid, coverlink))
-                    elif success:
-                        logger.debug("Cached google search cover for %s %s" %
-                                     (item['AuthorName'], item['BookName']))
-                        rmtree(icrawlerdir, ignore_errors=True)
-                        return coverlink, 'google image'
-                    else:
-                        logger.debug("Error getting google image %s, [%s]" % (img, coverlink))
-                else:
-                    logger.debug("No images found in google page for %s" % bookid)
-                # rmtree(icrawlerdir, ignore_errors=True)
-            else:
-                if not PIL:
-                    logger.debug("PIL not found for google image search for %s" % bookid)
-                else:
-                    logger.debug("No parameters for google image search for %s" % bookid)
-            if src:
-                return None, src
+        if PIL and safeparams:
+            if src == 'baidu' or not src:
+                return crawl_image('baidu', src, cachedir, item, bookid, safeparams)
+            if src == 'bing' or not src:
+                return crawl_image('bing', src, cachedir, item, bookid, safeparams)
+            if src == 'flickr' or not src:
+                return crawl_image('flickr', src, cachedir, item, bookid, safeparams)
+            if src == 'googleimage' or not src and lazylibrarian.CONFIG['IMP_GOOGLEIMAGE']:
+                return crawl_image('google', src, cachedir, item, bookid, safeparams)
 
         logger.debug("No image found from any configured source")
         return None, src
     except Exception:
         logger.error('Unhandled exception in get_book_cover: %s' % traceback.format_exc())
+    return None, src
+
+
+def crawl_image(crawler_name, src, cachedir, item, bookid, safeparams):
+    icrawlerdir = os.path.join(cachedir, 'icrawler', bookid)
+    if crawler_name == 'baidu':
+        crawler = BaiduImageCrawler(storage={'root_dir': icrawlerdir})
+    elif crawler_name == 'bing':
+        crawler = BingImageCrawler(storage={'root_dir': icrawlerdir})
+    elif crawler_name == 'flickr':
+        crawler = FlickrImageCrawler(storage={'root_dir': icrawlerdir})
+    else:
+        crawler = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
+
+    crawler.crawl(keyword=safeparams, max_num=1)
+    if os.path.exists(icrawlerdir):
+        res = len(os.listdir(icrawlerdir))
+    else:
+        res = 0
+    logger.debug("Found %d %s" % (res, plural(res, 'image')))
+    if res:
+        img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
+        if src:
+            coverlink, success, _ = cache_img("book", bookid + '_' + crawler_name[:2], img)
+        else:
+            coverlink, success, _ = cache_img("book", bookid, img, refresh=True)
+        data = ''
+        coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
+        if path_isfile(coverfile):
+            with open(syspath(coverfile), 'rb') as f:
+                data = f.read()
+        if len(data) < 50:
+            logger.debug('Got an empty %s search image for %s [%s]' % (crawler_name, bookid, coverlink))
+        elif success:
+            logger.debug("Cached %s search cover for %s %s" %
+                         (crawler_name, item['AuthorName'], item['BookName']))
+            rmtree(icrawlerdir, ignore_errors=True)
+            return coverlink, '%s image' % crawler_name
+        else:
+            logger.debug("Error getting %s image %s, [%s]" % (crawler_name, img, coverlink))
+    else:
+        logger.debug("No images found in %s page for %s" % (crawler_name, bookid))
+    # rmtree(icrawlerdir, ignore_errors=True)
     return None, src
 
 
@@ -619,7 +632,13 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
         if os.path.exists(icrawlerdir):
             res = len(os.listdir(icrawlerdir))
         else:
-            res = 0
+            # nothing from google, try bing
+            bc = BingImageCrawler(storage={'root_dir': icrawlerdir})
+            bc.crawl(keyword=safeparams, max_num=int(max_num))
+            if os.path.exists(icrawlerdir):
+                res = len(os.listdir(icrawlerdir))
+            else:
+                res = 0
         logger.debug("Found %d %s" % (res, plural(res, 'image')))
         if max_num == 1:
             if res:

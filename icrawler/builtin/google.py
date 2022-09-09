@@ -151,15 +151,11 @@ class GoogleParser(Parser):
     def parse(self, response):
         soup = BeautifulSoup(
             response.content.decode('utf-8', 'ignore'), 'html5lib')
-        data = str(soup).split('img alt=')
-        if len(data) < 2:
-            return []
+        images = soup.find_all(name='img')
         uris = []
-        for item in data[1:]:
-            try:
-                uris.append(item.split('src="')[1].split('"')[0])
-            except IndexError:
-                pass
+        for img in images:
+            if img.has_attr('src'):
+                uris.append(img['src'])
         return [{'file_url': uri} for uri in uris]
 
 

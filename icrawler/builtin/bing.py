@@ -128,15 +128,12 @@ class BingParser(Parser):
         soup = BeautifulSoup(
             response.content.decode('utf-8', 'ignore'), 'html5lib')
         image_divs = soup.find_all('div', class_='imgpt')
-        pattern = re.compile(r'murl\":\"(.*?)\.jpg')
         for div in image_divs:
-            href_str = html_parser.HTMLParser().unescape(div.a['m'])
-            match = pattern.search(href_str)
-            if match:
-                name = (match.group(1)
-                        if PY3 else match.group(1).encode('utf-8'))
-                img_url = '{}.jpg'.format(name)
-                yield dict(file_url=img_url)
+            try:
+                img_url = str(div).rsplit('"murl":"')[1].split('"')[0]
+            except IndexError:
+                continue
+            yield dict(file_url=img_url)
 
 
 class BingImageCrawler(Crawler):

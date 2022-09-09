@@ -3471,7 +3471,7 @@ class WebInterface(object):
                 bookdata.pop('Narrator', None)
             covers = []
             sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
-                       'googleisbn', 'googleimage']
+                       'googleisbn', 'bing', 'googleimage']  # flickr needs an apikey, baidu doesn't like bots
             if NEW_WHATWORK:
                 sources.append('whatwork')
             for source in sources:
