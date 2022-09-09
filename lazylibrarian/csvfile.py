@@ -278,7 +278,7 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-def import_csv(search_dir=None, library=''):
+def import_csv(search_dir=None, status='Wanted', library=''):
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
@@ -375,12 +375,12 @@ def import_csv(search_dir=None, library=''):
                                     (library, bookname, authorname, bookstatus))
                         imported = True
                     else:  # skipped/ignored
-                        logger.info('Found %s %s by %s, marking as "Wanted"' % (library, bookname, authorname))
+                        logger.info('Found %s %s by %s, marking as "%s"' % (library, bookname, authorname, status))
                         control_value_dict = {"BookID": bookid}
                         if library == 'eBook':
-                            new_value_dict = {"Status": "Wanted"}
+                            new_value_dict = {"Status": status}
                         else:
-                            new_value_dict = {"AudioStatus": "Wanted"}
+                            new_value_dict = {"AudioStatus": status}
                         db.upsert("books", new_value_dict, control_value_dict)
                         bookcount += 1
                 elif authorid:
@@ -407,10 +407,10 @@ def import_csv(search_dir=None, library=''):
                                     (bookmatch['book_fuzz'], bookmatch['authorname'], bookmatch['bookname'],
                                      authorname, title))
                         if library == 'eBook':
-                            import_book(bookmatch['bookid'], ebook="Wanted", wait=True,
+                            import_book(bookmatch['bookid'], ebook=status, wait=True,
                                         reason="Added by import_csv %s" % csvfile)
                         else:
-                            import_book(bookmatch['bookid'], audio="Wanted", wait=True,
+                            import_book(bookmatch['bookid'], audio=status, wait=True,
                                         reason="Added by import_csv %s" % csvfile)
                         imported = db.match('select * from books where BookID=?', (bookmatch['bookid'],))
                         if imported:
@@ -438,12 +438,12 @@ def import_csv(search_dir=None, library=''):
                         logger.warn(msg)
                     skipcount += 1
 
-        msg = "Found %i %s%s in csv file, %i already existing or wanted" % (total, library,
-                                                                            plural(total), existing)
+        msg = "Found %i %s%s in csv file, %i already existing or Wanted" % (total, library,
+                                                                        plural(total), existing)
         logger.info(msg)
-        msg = "Added %i new %s, marked %i %s as 'Wanted', %i %s not found" % \
+        msg = "Added %i new %s, marked %i %s as '%s', %i %s not found" % \
               (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
-               skipcount, plural(skipcount, library))
+               status, skipcount, plural(skipcount, library))
         logger.info(msg)
         if lazylibrarian.CONFIG['DELETE_CSV']:
             if skipcount == 0:
