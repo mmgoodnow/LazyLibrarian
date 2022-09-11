@@ -504,19 +504,21 @@ def get_book_cover(bookid=None, src=None):
 
         if not src or src == 'googleisbn':
             # try a google isbn page search...
-            # there is no image returned if google doesn't have a link for buying the book
-            if safeparams:
-                url = "http://www.google.com/search?q=ISBN+" + safeparams
+            if item['BookISBN']:
+                url = "https://www.googleapis.com/books/v1/volumes?q=isbn:" + item['BookISBN']
                 result, success = fetch_url(url)
                 if success:
                     try:
-                        img = result.split('imgurl=')[1].split('&imgrefurl')[0]
-                    except IndexError:
+                        source = json.loads(result)  # type: dict
+                    except Exception as e:
+                        logger.debug("GoogleISBN json error: %s" % e)
+                        source = {}
+                    img = ''
+                    if source:
                         try:
-                            img = result.split('img src="')[1].split('"')[0]
-                        except IndexError:
-                            img = None
-
+                            img = source["items"][0]["volumeInfo"]["imageLinks"]["thumbnail"]
+                        except (IndexError, KeyError):
+                            img = ''
                     if img and img.startswith('http'):
                         if src:
                             coverlink, success, _ = cache_img("book", bookid + '_gi', img)
@@ -535,13 +537,13 @@ def get_book_cover(bookid=None, src=None):
                                          (item['AuthorName'], item['BookName']))
                             return coverlink, 'google isbn'
                         else:
-                            logger.debug("Error caching google image %s, [%s]" % (img, coverlink))
+                            logger.debug("Error caching google isbn image %s, [%s]" % (img, coverlink))
                     else:
                         logger.debug("No image found in google isbn page for %s" % bookid)
                 else:
                     logger.debug("Failed to fetch url from google")
             else:
-                logger.debug("No parameters for google isbn search for %s" % bookid)
+                logger.debug("No isbn to search for %s" % bookid)
             if src:
                 return None, src
 

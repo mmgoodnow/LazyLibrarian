@@ -3470,8 +3470,10 @@ class WebInterface(object):
             if library != "AudioBook":
                 bookdata.pop('Narrator', None)
             covers = []
+            # flickr needs an apikey and doesn't seem to have authors or book covers
+            # baidu doesn't like bots, message: "Forbid spider access"
             sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
-                       'googleisbn', 'bing', 'googleimage']  # flickr needs an apikey, baidu doesn't like bots
+                       'googleisbn', 'bing', 'googleimage']
             if NEW_WHATWORK:
                 sources.append('whatwork')
             for source in sources:
