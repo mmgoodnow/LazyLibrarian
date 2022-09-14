@@ -279,7 +279,34 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     proxies = proxy_list()
     headers = {'Accept-encoding': 'gzip', 'User-Agent': get_user_agent()}
     dl_url = make_unicode(dl_url)
-    if provider == 'zlibrary':  # needs a referer header from a zlibrary host
+    s = requests.Session()
+    if provider == 'zlibrary':
+        # do we need to login?
+        if lazylibrarian.CONFIG.get('BOK_USER') and lazylibrarian.CONFIG.get('BOK_PASS'):
+            bok_login_url = lazylibrarian.CONFIG['BOK_LOGIN']
+            data = {
+                    "isModal": True,
+                    "email": lazylibrarian.CONFIG.get('BOK_USER'),
+                    "password": lazylibrarian.CONFIG.get('BOK_PASS'),
+                    "site_mode": "books",
+                    "action": "login",
+                    "isSingleLogin": 1,
+                    "redirectUrl": "",
+                    "gg_json_mode": 1
+                }
+            headers = {'User-Agent': get_user_agent()}
+
+            if bok_login_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+                response = s.post(bok_login_url, data=data, timeout=90, headers=headers,
+                                  verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS']
+                                  else True)
+            else:
+                response = s.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
+            # use these login cookies for all 1-lib, z-library, b-ok domains
+            for c in s.cookies:
+                c.domain = ''
+
+        # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
         count, oldest = lazylibrarian.bok_dlcount()
         if count >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
@@ -298,13 +325,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     dl_url = 'https://' + dl_url
                 else:
                     dl_url = 'http://' + dl_url
+
             if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-                r = requests.get(dl_url, headers=headers, timeout=90,
-                                 proxies=proxies,
-                                 verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG[
-                                     'SSL_CERTS'] else True)
+                r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
+                          verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
             else:
-                r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+                r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
         except requests.exceptions.Timeout:
             res = 'Timeout fetching file from url: %s' % dl_url
             logger.warn(res)
@@ -326,14 +352,15 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             # application/octet-stream, application/epub+zip, application/x-mobi8-ebook etc.
             extn = ''
             basename = ''
+            dl_title = dl_title.strip()
             if ' ' in dl_title:
                 basename, extn = dl_title.rsplit(' ', 1)  # last word is often the extension - but not always...
-            if extn and extn.lower().strip() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+            if extn and extn.lower() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
                 basename = ''
                 extn = ''
             if not basename and '.' in dl_title:
                 basename, extn = dl_title.rsplit('.', 1)
-            if extn and extn.lower().strip() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+            if extn and extn.lower() not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
                 basename = ''
                 extn = ''
             if not basename and magic:
@@ -355,10 +382,10 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     extn = 'cbz'
                 basename = dl_title
             if not extn:
-                logger.warn("Don't know the filetype for %s" % dl_title)
+                logger.warn("Don't know the filetype for [%s]" % dl_title)
                 basename = dl_title
             else:
-                extn = extn.lower().strip()
+                extn = extn.lower()
             if '/' in basename:
                 basename = basename.split('/')[0]
 
@@ -390,8 +417,8 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
                 elif library == 'AudioBook':
                     db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-                db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
-                          (source, download_id, dl_url))
+                db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, completed=? WHERE BookID=? and NZBProv=?',
+                          (source, download_id, int(time.time()), bookid, provider))
                 return True, ''
             except Exception as e:
                 res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
@@ -399,18 +426,33 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 return False, res
         else:
             res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
+            if 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
+                if b'Daily limit reached' in r.content:
+                    limit = 'unknown'
+                    try:
+                        limit = make_unicode(r.content.split(b'more than')[1].split(b'downloads')[0].strip())
+                    except IndexError:
+                        pass
+                    msg = "Daily limit (%s) reached" % limit
+                    block_provider(provider, msg, delay=seconds_to_midnight())
+                    logger.warn(msg)
+                    return False, msg
+                elif b'Too many requests' in r.content:
+                    msg = "Too many requests"
+                    block_provider(provider, msg)
+                    logger.warn(msg)
+                    return False, msg
+
             logger.debug(res)
             if redirects and 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
                 host = lazylibrarian.CONFIG['BOK_HOST']
                 headers['Referer'] = dl_url
 
                 if dl_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
-                    r = requests.get(dl_url, headers=headers, timeout=90,
-                                     proxies=proxies,
-                                     verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG[
-                                         'SSL_CERTS'] else True)
+                    r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies,
+                              verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
                 else:
-                    r = requests.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
+                    r = s.get(dl_url, headers=headers, timeout=90, proxies=proxies, verify=False)
 
                 if not str(r.status_code).startswith('2'):
                     return False, "Unable to fetch %s: %s" % (r.url, r.status_code)
@@ -420,16 +462,16 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     a = newsoup.find('a', {"class": "dlButton"})
                     if not a:
                         link = ''
-                        if b'WARNING' in res and b'24 hours' in res:
-                            msg = res.split(b'WARNING')[1].split(b'24 hours')[0]
-                            msg = 'WARNING %s 24 hours' % msg
+                        if b'Daily limit reached' in res:
+                            msg = "Daily limit reached"
                             block_provider(provider, msg, delay=seconds_to_midnight())
                             logger.warn(msg)
                             return False, msg
                         elif b'Too many requests' in res:
-                            block_provider(provider, res)
-                            logger.warn(res)
-                            return False, res
+                            msg = "Too many requests"
+                            block_provider(provider, msg)
+                            logger.warn(msg)
+                            return False, msg
                     else:
                         link = a.get('href')
                     if link and len(link) > 2:
