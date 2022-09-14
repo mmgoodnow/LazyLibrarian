@@ -302,6 +302,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                                   else True)
             else:
                 response = s.post(bok_login_url, data=data, timeout=90, headers=headers, verify=False)
+            logger.debug("b-ok login response: %s" % response.status_code)
             # use these login cookies for all 1-lib, z-library, b-ok domains
             for c in s.cookies:
                 c.domain = ''
@@ -309,8 +310,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
         count, oldest = lazylibrarian.bok_dlcount()
-        if count >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
-            res = 'Reached Daily download limit (%s)' % lazylibrarian.CONFIG['BOK_DLLIMIT']
+        limit = check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5)
+        if limit and count >= limit:
+            res = 'Reached Daily download limit (%s)' % limit
             delay = oldest + 24*60*60 - time.time()
             block_provider(provider, res, delay=delay)
             return False, res
@@ -417,8 +419,9 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     db.action('UPDATE books SET status="Snatched" WHERE BookID=?', (bookid,))
                 elif library == 'AudioBook':
                     db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
-                db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, completed=? WHERE BookID=? and NZBProv=?',
-                          (source, download_id, int(time.time()), bookid, provider))
+                cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
+                cmd += 'completed=? WHERE BookID=? and NZBProv=?'
+                db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
                 return True, ''
             except Exception as e:
                 res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
@@ -428,11 +431,13 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             res = "Got unexpected response type (%s) for %s" % (r.headers['Content-Type'], dl_title)
             if 'text/html' in r.headers['Content-Type'] and provider == 'zlibrary':
                 if b'Daily limit reached' in r.content:
-                    limit = 'unknown'
                     try:
                         limit = make_unicode(r.content.split(b'more than')[1].split(b'downloads')[0].strip())
+                        n = check_int(limit, 0)
+                        if n:
+                            lazylibrarian.CONFIG['BOK_DLLIMIT'] = n
                     except IndexError:
-                        pass
+                        limit = 'unknown'
                     msg = "Daily limit (%s) reached" % limit
                     block_provider(provider, msg, delay=seconds_to_midnight())
                     logger.warn(msg)

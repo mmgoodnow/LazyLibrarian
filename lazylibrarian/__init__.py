@@ -2131,6 +2131,7 @@ def daemonize():
     """
     # active_count in python 3.9 but camelCase name still supported
     if 'activeCount' in dir(threading):
+        # noinspection PyDeprecation
         threadcount = threading.activeCount()
     else:
         threadcount = threading.active_count()

@@ -439,7 +439,8 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     skipcount += 1
 
         msg = "Found %i %s%s in csv file, %i already existing or Wanted" % (total, library,
-                                                                        plural(total), existing)
+                                                                            plural(total),
+                                                                            existing)
         logger.info(msg)
         msg = "Added %i new %s, marked %i %s as '%s', %i %s not found" % \
               (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
