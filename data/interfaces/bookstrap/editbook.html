@@ -33,6 +33,10 @@
     </div>
 </%def>
 <%def name="body()">
+<style>
+.input-group-addon { width: 150px; text-align:left;}
+.input-group { width: 90%; }
+</style>
 <form accept-charset="UTF-8" action="book_update" method="post">
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
@@ -157,6 +161,15 @@
             %endfor
             </select>
         </div>
+        %if replaces:
+          <legend>OPF Fields</legend>
+          %for item in replaces:
+            <div class="input-group">
+            <span class="input-group-addon">${item[0]}</span>
+            <input type="text" id="${item[0]}" name="${item[0]}" class="form-control" value="${item[1]}">
+            </div>
+          %endfor
+        %endif
         <div class="checkbox">
             <%
                 if config['Manual'] == "1":

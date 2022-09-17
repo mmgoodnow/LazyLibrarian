@@ -42,7 +42,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log, schedule_job, check_running_jobs, \
     setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, quotes, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove, set_redactlist, get_calibre_id
+    syspath, remove, set_redactlist, get_calibre_id, safe_move, opf_file, safe_copy
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
@@ -68,6 +68,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines
 from lazylibrarian.searchrss import search_wishlist
+from lazylibrarian.opfedit import opf_read, opf_write
 
 try:
     from deluge_client import DelugeRPCClient
@@ -3459,7 +3460,7 @@ class WebInterface(object):
         authors = db.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")
         cmd = 'SELECT BookName,BookID,BookSub,BookGenre,BookLang,BookDesc,books.Manual,AuthorName,'
-        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator '
+        cmd += 'books.AuthorID,BookDate,ScanResult,BookAdded,BookIsbn,WorkID,LT_WorkID,Narrator,BookFile '
         cmd += 'from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
         bookdata = db.match(cmd, (bookid,))
         cmd = 'SELECT SeriesName, SeriesNum from member,series '
@@ -3481,8 +3482,23 @@ class WebInterface(object):
                 if cover:
                     covers.append([source, cover])
 
-            return serve_template(templatename="editbook.html", title="Edit Book",
-                                  config=bookdata, seriesdict=seriesdict, authors=authors, covers=covers)
+            bookfile = bookdata['BookFile']
+            opffile = opf_file(os.path.dirname(bookfile))
+
+            if os.path.exists(opffile):
+                opf_template, replaces = opf_read(opffile)
+                remove(opf_template)  # we don't need the template file yet
+            else:
+                replaces = []
+            subs = []
+
+            for item in replaces:
+                # remove ones that are duplicated in bookdata, don't want two fields editing the same item
+                # can't modify replaces list while iterating so make a new list
+                if item[0] not in ['title', 'creator', 'ISBN', 'date', 'description']:
+                    subs.append(item)
+            return serve_template(templatename="editbook.html", title="Edit Book", config=bookdata,
+                                  seriesdict=seriesdict, authors=authors, covers=covers, replaces=subs)
         else:
             logger.info('Missing book %s' % bookid)
 
@@ -3519,7 +3535,7 @@ class WebInterface(object):
                     logger.debug("No %s found in %s" % (library, source))
 
             cmd = 'SELECT BookName,BookSub,BookGenre,BookLang,BookImg,BookDate,BookDesc,books.Manual,AuthorName,'
-            cmd += 'books.AuthorID, BookIsbn, WorkID, ScanResult'
+            cmd += 'books.AuthorID, BookIsbn, WorkID, ScanResult, BookFile'
             cmd += ' from books,authors WHERE books.AuthorID = authors.AuthorID and BookID=?'
             bookdata = db.match(cmd, (bookid,))
             if bookdata:
@@ -3667,6 +3683,42 @@ class WebInterface(object):
                     delete_empty_series()
                     edited += "Series "
 
+                bookfile = bookdata['BookFile']
+                opffile = opf_file(os.path.dirname(bookfile))
+
+                if os.path.exists(opffile):
+                    opf_template, replaces = opf_read(opffile)
+                else:
+                    opf_template = ''
+                    replaces = []
+
+                if opf_template:
+                    subs = []
+                    for item in replaces:
+                        if item[0] == 'title':
+                            subs.append((item[0], bookname))
+                        elif item[0] == 'creator':
+                            subs.append((item[0], authorname))
+                        elif item[0] == 'ISBN':
+                            subs.append((item[0], bookisbn))
+                        elif item[0] == 'date':
+                            subs.append((item[0], bookdate))
+                        elif item[0] == 'description':
+                            subs.append((item[0], editordata))
+                        elif item[0] in kwargs:
+                            if item[1] != kwargs[item[0]]:
+                                edited += item[0] + ' '
+                                subs.append((item[0], kwargs[item[0]]))
+                            else:
+                                subs.append((item[0], item[1]))
+                        else:
+                            subs.append((item[0], item[1]))
+
+                    if edited:
+                        new_opf = opf_write(opf_template, subs)
+                        remove(opf_template)
+                        remove(opffile)
+                        safe_move(new_opf, opffile)
                 if edited:
                     logger.info('Updated [ %s] for %s' % (edited, bookname))
                 else:
@@ -3690,7 +3742,12 @@ class WebInterface(object):
                     if data['BookFile'] and path_isfile(data['BookFile']):
                         dest_path = os.path.dirname(data['BookFile'])
                         global_name = os.path.splitext(os.path.basename(data['BookFile']))[0]
-                        create_opf(dest_path, data, global_name, overwrite=True)
+                        if opf_template:  # we already have a valid (new) opffile
+                            dest_opf = os.path.join(dest_path, global_name + '.opf')
+                            if opffile != dest_opf:
+                                safe_copy(opffile, dest_opf)
+                        else:
+                            create_opf(dest_path, data, global_name, overwrite=True)
 
                 raise cherrypy.HTTPRedirect("edit_book?bookid=%s" % bookid)
 
