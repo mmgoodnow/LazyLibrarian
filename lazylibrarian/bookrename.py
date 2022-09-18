@@ -17,9 +17,11 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook, listdir, path_isdir, only_punctuation, syspath
+from lazylibrarian.common import safe_move, multibook, listdir, path_isdir, only_punctuation, syspath, \
+    opf_file, remove
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, make_utf8bytes, sort_definite, surname_first, sanitize
+from lazylibrarian.opfedit import opf_read
 from six import PY2
 
 try:
@@ -103,8 +105,19 @@ def id3read(filename):
             author = artist
             narrator = composer
 
+        # finally override with any opf values found
+        opffile = opf_file(os.path.dirname(filename))
+        if os.path.exists(opffile):
+            opf_template, replaces = opf_read(opffile)
+            remove(opf_template)
+            for item in replaces:
+                if item[0] == 'author':
+                    author = item[1]
+                elif item[0] == 'narrator':
+                    narrator = item[1]
+
         if not author:
-            # if artist exists in library, should be author. Unlikely to get one author narrating anothers books?
+            # if artist exists in library, probably author, though might get one author narrating anothers books?
             if artist and db.match("select * from authors where authorname=?", (artist,)):
                 author = artist
             elif albumartist and db.match("select * from authors where authorname=?", (albumartist,)):
@@ -351,7 +364,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     dest_path = seriesinfo['AudioFolderName']
     dest_dir = lazylibrarian.directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
-    # check for windows case insensitive
+    # check for windows case-insensitive
     if os.name == 'nt' and r.lower() == dest_path.lower():
         dest_path = r
     if rename and r != dest_path:
@@ -397,7 +410,7 @@ def audio_rename(bookid, rename=False, playlist=False):
         if rename:
             n = os.path.join(make_unicode(r), make_unicode(outfile))
             o = os.path.join(make_unicode(r), make_unicode(part[3]))
-            # check for windows case insensitive
+            # check for windows case-insensitive
             if os.name == 'nt' and n.lower() == o.lower():
                 n = o
             if o != n:
@@ -432,7 +445,7 @@ def audio_rename(bookid, rename=False, playlist=False):
             if rename:
                 n = os.path.join(make_unicode(r), make_unicode(pattern))
                 o = os.path.join(make_unicode(r), make_unicode(part[3]))
-                # check for windows case insensitive
+                # check for windows case-insensitive
                 if os.name == 'nt' and n.lower() == o.lower():
                     n = o
                 if o != n:
@@ -450,7 +463,7 @@ def audio_rename(bookid, rename=False, playlist=False):
 
 def stripspaces(pathname):
     # windows doesn't allow directory names to end in a space or a period
-    # but allows starting with a period (not sure about starting with a space but it looks messy anyway)
+    # but allows starting with a period (not sure about starting with a space, but it looks messy anyway)
     parts = pathname.split(os.sep)
     new_parts = []
     for part in parts:
@@ -545,7 +558,7 @@ def book_rename(bookid):
             if extn:
                 ofname = os.path.join(dest_path, fname)
                 nfname = os.path.join(dest_path, new_basename + extn)
-                # check for windows case insensitive
+                # check for windows case-insensitive
                 if os.name == 'nt' and nfname.lower() == ofname.lower():
                     nfname = ofname
                 if ofname != nfname:

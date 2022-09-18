@@ -12,47 +12,96 @@
 
 #  basic opf editor, only edit "our" fields, leave everything else unchanged
 
+import os
+import lazylibrarian
+from lazylibrarian import logger
+
+try:
+    from html import escape  # python 3.x
+except ImportError:
+    from cgi import escape  # python 2.x
+
 
 def opf_read(filename):
-    keys = ['<dc:title>', '<dc:language>', '<dc:publisher>', '<dc:date>', '<dc:description>']
-    schemes = ['<dc:identifier']
-    creators = ['<dc:creator']
-    contents = ['<meta content="']
-    with open(filename, 'r') as i:
-        data = i.readlines()
-
+    if not os.path.exists(filename):
+        return '', []
+    keys = ['<dc:title>', '<dc:language>', '<dc:publisher>', '<dc:date>']
+    subject = '<dc:subject>'
+    scheme = '<dc:identifier'
+    creator = '<dc:creator'
+    content = '<meta content="'
+    description = '<dc:description>'
+    enddesc = description.replace('<', '</')
+    desc = ''
+    subjects = 0
+    creators = 0
     replaces = []
     outfile = filename + '_mod'
     f = open(outfile, 'w')
-    for lyne in data:
-        new_lyne = ''
-        for key in keys:
-            if key in lyne:
-                new_lyne, token, value = extract_key(key, lyne)
+    with open(filename, 'r') as i:
+        data = i.readlines()
+    try:
+        for lyne in data:
+            if description in lyne:
+                desc = lyne
+            elif desc:
+                desc += lyne
+            if enddesc in lyne:
+                new_lyne, token, value = extract_key(description, desc)
                 replaces.append((token, value))
-                break
-        for scheme in schemes:
-            if scheme in lyne:
-                new_lyne, token, value = extract_scheme(lyne)
-                replaces.append((token, value))
-                break
-        for creator in creators:
-            if creator in lyne:
-                new_lyne, role, fileas, value = extract_creator(lyne)
-                replaces.append(('role', role))
-                replaces.append(('fileas', fileas))
-                replaces.append(('creator', value))
-                break
-        for content in contents:
-            if content in lyne:
-                new_lyne, token, value = extract_content(content, lyne)
-                replaces.append((token, value))
-                break
-        if not new_lyne:
-            new_lyne = lyne
-        f.write(new_lyne)
+                f.write(new_lyne)
+                desc = ''
+            elif not desc:
+                new_lyne = ''
+                for key in keys:
+                    if key in lyne:
+                        new_lyne, token, value = extract_key(key, lyne)
+                        replaces.append((token, value))
+                        break
 
-    return outfile, replaces
+                if subject in lyne:
+                    new_lyne, token, value = extract_key(subject, lyne)
+                    indexed = "subject_%02d" % subjects
+                    subjects += 1
+                    new_lyne = new_lyne.replace('$$subject$$', '$$%s$$' % indexed)
+                    replaces.append((indexed, value))
+
+                if scheme in lyne:
+                    new_lyne, token, value = extract_scheme(lyne)
+                    replaces.append((token, value))
+
+                if creator in lyne:
+                    indexed = "_%02d" % creators
+                    creators += 1
+                    new_lyne, role, fileas, value = extract_creator(lyne)
+                    replaces.append(('role' + indexed, role))
+                    replaces.append(('creator' + indexed, value))
+                    found = False
+                    for item in replaces:
+                        if item[0] == 'fileas':
+                            found = True
+                            break
+                    if not found:
+                        replaces.append(('fileas', fileas))
+                    new_lyne = new_lyne.replace('$$role$$', '$$role%s$$' % indexed).replace(
+                                                '$$creator$$', '$$creator%s$$' % indexed)
+
+                if content in lyne:
+                    new_lyne, token, value = extract_content(content, lyne)
+                    replaces.append((token, value))
+
+                if not new_lyne:
+                    new_lyne = lyne
+                f.write(new_lyne)
+        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            items = []
+            for item in replaces:
+                items.append(item[0])
+            logger.debug(','.join(items))
+    except Exception as e:
+        logger.debug(str(e))
+    finally:
+        return outfile, replaces
 
 
 def extract_key(key, data):
@@ -84,12 +133,14 @@ def extract_creator(data):
 
 
 def opf_write(filename, replaces):
+    if not os.path.exists(filename):
+        return ''
     with open(filename, 'r') as i:
         data = i.readlines()
         outfile = filename + '_mod'
         f = open(outfile, 'w')
         for lyne in data:
             for item in replaces:
-                lyne = lyne.replace('$$%s$$' % item[0], item[1])
+                lyne = lyne.replace('$$%s$$' % item[0], escape(item[1]))
             f.write(lyne)
     return outfile

@@ -3309,9 +3309,14 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
 
     opfinfo += '        <dc:identifier opf:scheme="%s">%s</dc:identifier>\n' % (scheme, bookid)
 
-    if "Contributors" in data:  # split into individuals and add each e.g.
+    if "Contributors" in data:
+        # what calibre does is split into individuals and add a line for each, e.g.
         # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
         # opf:role="aut">Das Pastoras</dc:creator>
+        # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
+        # opf:role="aut">Esad Ribic</dc:creator>
+        # <dc:creator opf:file-as="Pastoras, Das &amp; Ribic, Esad &amp; Aaron, Jason"
+        # opf:role="aut">Jason Aaron</dc:creator>
         #
         entries = []
         names = ''
@@ -3335,9 +3340,6 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
                    (surname_first(data['AuthorName']), data['AuthorName'])
-    if data.get('Narrator', ''):
-        opfinfo += '        <dc:creator opf:file-as="%s" opf:role="narrator">%s</dc:creator>\n' % \
-                       (surname_first(data['Narrator']), data['Narrator'])
     if data.get('BookIsbn', ''):
         opfinfo += '        <dc:identifier opf:scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 
@@ -3368,6 +3370,8 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
         opfinfo += '        <meta content="%s" name="calibre:series_index"/>\n' % seriesnum
     elif 'Series_index' in data:
         opfinfo += '        <meta content="%s" name="calibre:series_index"/>\n' % data['Series_index']
+    if data.get('Narrator', ''):
+        opfinfo += '        <meta content="%s" name="lazylibrarian:narrator"/>\n' % data['Narrator']
 
     coverfile = jpg_file(dest_path)
     if coverfile:
