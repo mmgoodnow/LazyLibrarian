@@ -108,8 +108,9 @@ from lazylibrarian.common import path_exists
 # 74 Add Theme to users table
 # 75 Add ol_id to author table
 # 76 Add Label to wanted table
+# 77 Add Genres to magazines and comics
 
-db_current_version = 76
+db_current_version = 77
 
 
 def upgrade_needed():
@@ -1094,8 +1095,15 @@ def update_schema(db, upgradelog):
     if not has_column(db, "wanted", "Label"):
         changes += 1
         lazylibrarian.UPDATE_MSG = 'Adding Label to wanted table'
-        upgradelog.write("%s v75: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        upgradelog.write("%s v76: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
         db.action('ALTER TABLE wanted ADD COLUMN Label TEXT')
+
+    if not has_column(db, "magazines", "Genre"):
+        changes += 1
+        lazylibrarian.UPDATE_MSG = 'Adding Genre to magazine/comic tables'
+        upgradelog.write("%s v77: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
+        db.action('ALTER TABLE magazines ADD COLUMN Genre TEXT')
+        db.action('ALTER TABLE comics ADD COLUMN Genre TEXT')
 
     if changes:
         upgradelog.write("%s Changed: %s\n" % (time.ctime(), changes))

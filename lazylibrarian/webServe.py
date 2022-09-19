@@ -1472,14 +1472,29 @@ class WebInterface(object):
 
         db = database.DBConnection()
         mags_list = []
+        comics_list = []
+        comics = db.select(
+            'SELECT * from comics ORDER by Title COLLATE NOCASE')
+        if comics:
+            for mag in comics:
+                title = mag['Title']
+                genre = mag['Genre']
+                if not genre:
+                    genre = ""
+                comics_list.append({
+                    'Title': title,
+                    'Genre': genre
+                })
 
         magazines = db.select(
             'SELECT * from magazines ORDER by Title COLLATE NOCASE')
-
         if magazines:
             for mag in magazines:
                 title = mag['Title']
                 regex = mag['Regex']
+                genre = mag['Genre']
+                if not genre:
+                    genre = ""
                 if not regex:
                     regex = ""
                 reject = mag['Reject']
@@ -1493,6 +1508,7 @@ class WebInterface(object):
                     'Title': title,
                     'Reject': reject,
                     'Regex': regex,
+                    'Genre': genre,
                     'DateType': datetype,
                     'CoverPage': coverpage
                 })
@@ -1516,6 +1532,7 @@ class WebInterface(object):
             "apprise_list": apprise_list,
             "status_list": status_list,
             "magazines_list": mags_list,
+            "comics_list": comics_list,
             "namevars": testvars,
             "updated": time.ctime(check_int(lazylibrarian.CONFIG['GIT_UPDATED'], 0))
         }
@@ -1654,6 +1671,7 @@ class WebInterface(object):
                 title = mag['Title']
                 reject = mag['Reject']
                 regex = mag['Regex']
+                genres = mag['Genre']
                 datetype = mag['DateType']
                 coverpage = check_int(mag['CoverPage'], 1)
                 # seems kwargs parameters from cherrypy are sometimes passed as latin-1,
@@ -1679,6 +1697,9 @@ class WebInterface(object):
                 new_regex = kwargs.get('regex[%s]' % title, None)
                 if not new_regex == regex:
                     new_value_dict['Regex'] = new_regex
+                new_genres = kwargs.get('genre_list[%s]' % title, None)
+                if not new_genres == genres:
+                    new_value_dict['Genre'] = new_genres
                 new_datetype = kwargs.get('datetype[%s]' % title, None)
                 if not new_datetype == datetype:
                     new_value_dict['DateType'] = new_datetype
@@ -3483,9 +3504,11 @@ class WebInterface(object):
                     covers.append([source, cover])
 
             bookfile = bookdata['BookFile']
-            opffile = opf_file(os.path.dirname(bookfile))
-
-            if os.path.exists(opffile):
+            if bookfile and path_isfile(bookfile):
+                opffile = opf_file(os.path.dirname(bookfile))
+            else:
+                opffile = ''
+            if opffile and path_isfile(opffile):
                 opf_template, replaces = opf_read(opffile)
                 remove(opf_template)  # we don't need the template file yet
             else:
@@ -3684,9 +3707,11 @@ class WebInterface(object):
                     edited += "Series "
 
                 bookfile = bookdata['BookFile']
-                opffile = opf_file(os.path.dirname(bookfile))
-
-                if os.path.exists(opffile):
+                if bookfile and path_isfile(bookfile):
+                    opffile = opf_file(os.path.dirname(bookfile))
+                else:
+                    opffile = ''
+                if opffile and path_isfile(opffile):
                     opf_template, replaces = opf_read(opffile)
                 else:
                     opf_template = ''
@@ -4308,7 +4333,7 @@ class WebInterface(object):
                     mag = dict(mag)  # turn sqlite objects into dicts
                     entry = [mag['ComicID'], mag['LatestCover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
                              mag['LatestIssue'], mag['Status'], mag['IssueStatus'], mag['Start'],
-                             mag['Publisher'], mag['Link']]
+                             mag['Publisher'], mag['Link'], mag['Genre']]
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
@@ -4822,7 +4847,8 @@ class WebInterface(object):
                 for mag in rowlist:
                     mag = dict(mag)  # turn sqlite objects into dicts
                     entry = [mag['Title'], mag['LatestCover'], mag['Title'], mag['Iss_Cnt'], mag['LastAcquired'],
-                             mag['IssueDate'], mag['Status'], mag['IssueStatus']]
+                             mag['IssueDate'], mag['Status'], mag['IssueStatus'], mag['Genre']]
+
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
@@ -5620,6 +5646,7 @@ class WebInterface(object):
                 new_value_dict = {
                     "Regex": None,
                     "Reject": reject,
+                    "Genre": "",
                     "DateType": "",
                     "Status": "Active",
                     "MagazineAdded": today(),

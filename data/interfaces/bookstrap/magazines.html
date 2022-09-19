@@ -143,7 +143,9 @@
                     { targets: [2],
                         'class': 'text-center',
                         'render': function(data, type, row) {
-                            return '<a href=\'open_mag?bookid=' + row[0] + '\'">' + row[2] + '</a>'
+                            btn='<a href=\'open_mag?bookid=' + row[0] + '\'">' + row[2] + '</a>'
+                            if ( row[8]) { btn = btn + '<br><i><small>[' + row[8] + ']</i></small>' }
+                            return btn
                         ;} },
                     { targets: [3, 4, 5, 6],
                         'class': 'text-center'},

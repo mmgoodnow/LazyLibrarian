@@ -4414,6 +4414,19 @@
                     <span class="input-group-addon">Mb</span>
                   </div>
                 </div>
+                <div class="col-md-12">
+                <br>
+                <legend>Comic Options (per title)</legend>
+                </div>
+                %for mag in config['comics_list']:
+                <div class="col-md-6">
+                <label>${mag['Title']}</label>
+                  <div class="input-group">
+                    <label for="genre_list[${mag['Title']}]" class="input-group-addon">Genres&nbsp;</label>
+                    <input type="text" id="genre_list[${mag['Title']}]" name="genre_list[${mag['Title']}]" value="${mag['Genre']}" class="form-control" placeholder="Genre list">
+                  </div>
+                </div>
+                %endfor
                 %endif
                 %if lazylibrarian.CONFIG['MAG_TAB'] == True:
                 <div class="col-md-6">
@@ -4441,6 +4454,10 @@
                   <div class="input-group">
                     <label for="regex[${mag['Title']}]" class="input-group-addon">Search</label>
                     <input type="text" id="regex[${mag['Title']}]" name="regex[${mag['Title']}]" value="${mag['Regex']}" class="form-control" placeholder="Search expression">
+                  </div>
+                  <div class="input-group">
+                    <label for="genre_list[${mag['Title']}]" class="input-group-addon">Genres</label>
+                    <input type="text" id="genre_list[${mag['Title']}]" name="genre_list[${mag['Title']}]" value="${mag['Genre']}" class="form-control" placeholder="Genre list">
                   </div>
                   <div class="input-group">
                     <label for="datetype[${mag['Title']}]" class="input-group-addon">Date Style</label>

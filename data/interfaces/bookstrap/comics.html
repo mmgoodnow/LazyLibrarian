@@ -143,6 +143,7 @@
                         'render': function(data, type, row) {
                             btn = '<button onclick="bookinfo(\'' + row[0] + '\')" class="button btn-link text-left" type="button" ' + '>' + row[2] + '</button>'
                             if ( row[8]) { btn = btn + ' (' + row[8] + ')' }
+                            if ( row[11]) { btn = btn + '<br><i><small>[' + row[11] + ']</i></small>' }
                             if ( row[10]) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
                                 if ( row[10].indexOf('comicvine') >= 0) { btn = btn + 'ComicVine</a></small>'}
                                 if ( row[10].indexOf('comixology') >= 0) { btn = btn + 'ComiXology</a></small>'}
