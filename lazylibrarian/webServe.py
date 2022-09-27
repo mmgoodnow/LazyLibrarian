@@ -1951,7 +1951,7 @@ class WebInterface(object):
         for arg in ['author_table_length', 'ignored']:
             args.pop(arg, None)
         if not redirect:
-            redirect = "home"
+            redirect = "authors"
         if action:
             for authorid in args:
                 check = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (authorid,))
@@ -2031,7 +2031,7 @@ class WebInterface(object):
         if not types:
             library = None
         if not author:
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPRedirect("authors")
 
         # if we've changed author, reset to first page of new authors books
         if authorid == lastauthor:
@@ -2042,7 +2042,7 @@ class WebInterface(object):
 
         authorname = author['AuthorName']
         if not authorname:  # still loading?
-            raise cherrypy.HTTPRedirect("home")
+            raise cherrypy.HTTPRedirect("authors")
 
         author['AuthorBorn'] = date_format(author['AuthorBorn'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
         author['AuthorDeath'] = date_format(author['AuthorDeath'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
@@ -2099,7 +2099,7 @@ class WebInterface(object):
             orphans = db.select('select seriesid from series except select seriesid from seriesauthors')
             for orphan in orphans:
                 db.action('DELETE from series where seriesid=?', (orphan[0],))
-        raise cherrypy.HTTPRedirect("home")
+        raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def refresh_author(self, authorid):
@@ -2189,7 +2189,7 @@ class WebInterface(object):
             if lazylibrarian.SHOW_AUDIO:
                 types.append('AudioBook')
             if not types:
-                raise cherrypy.HTTPRedirect('home')
+                raise cherrypy.HTTPRedirect('authors')
             library = types[0]
             if 'library' in kwargs and kwargs['library'] in types:
                 library = kwargs['library']
@@ -2254,7 +2254,7 @@ class WebInterface(object):
         threading.Thread(target=add_author_name_to_db, name='ADDAUTHOR',
                          args=[authorname, False, True, 'WebServer add_author %s' % authorname]).start()
         time.sleep(2)  # so we get some data before going to authorpage
-        raise cherrypy.HTTPRedirect("home")
+        raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def add_author_id(self, authorid):
@@ -2269,7 +2269,7 @@ class WebInterface(object):
             lazylibrarian.IGNORED_AUTHORS = False
         else:
             lazylibrarian.IGNORED_AUTHORS = True
-        raise cherrypy.HTTPRedirect("home")
+        raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def toggle_my_auth(self):
@@ -2279,7 +2279,7 @@ class WebInterface(object):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
         userprefs = userprefs ^ lazylibrarian.pref_myauthors
         cherrypy.response.cookie['ll_prefs'] = userprefs
-        raise cherrypy.HTTPRedirect("home")
+        raise cherrypy.HTTPRedirect("authors")
 
     @cherrypy.expose
     def toggle_my_series(self):
@@ -2497,8 +2497,10 @@ class WebInterface(object):
 
             cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
             cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-            cmd += ' group_concat(series.seriesid || "~" || series.seriesname, "^") as series,bookgenre,'
-            cmd += 'bookadded,scanresult,lt_workid FROM books, authors'
+            cmd += ' group_concat(series.seriesid || "~" || series.seriesname || " #" || member.seriesnum, "^") as series,'
+            cmd += ' bookgenre,bookadded,scanresult,lt_workid,'
+            cmd += ' group_concat(series.seriesname || " #" || member.seriesnum, "; ") as altsub'
+            cmd += ' FROM books, authors'
             cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
             cmd += ' LEFT OUTER JOIN series ON (member.SeriesID = series.SeriesID)'
             cmd += ' WHERE books.AuthorID = authors.AuthorID'
@@ -2590,7 +2592,7 @@ class WebInterface(object):
                     cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in mybooks) + ')'
 
             cmd += ' GROUP BY bookimg, authorname, bookname, bookrate, bookdate, books.status, books.bookid,'
-            cmd += ' booklang, booksub, booklink, workpage, books.authorid, seriesdisplay, booklibrary, '
+            cmd += ' booklang, booksub, booklink, workpage, books.authorid, booklibrary, '
             cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult, lt_workid'
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -2621,7 +2623,7 @@ class WebInterface(object):
                         logger.debug("filter [%s]" % sSearch)
                     if library is not None:
                         search_fields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
-                                         'BookLang', 'BookSub', 'AuthorID', 'SeriesDisplay', 'BookGenre',
+                                         'BookLang', 'BookSub', 'AuthorID', 'BookGenre',
                                          'ScanResult']
                         if library == 'AudioBook':
                             search_fields[3] = 'AudioStatus'
@@ -2716,8 +2718,10 @@ class WebInterface(object):
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s" target="_new"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
-                    if row[8]:  # is there a subtitle
+                    if row[8] and not ' #' in row[8]:  # is there a subtitle that's not series info
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
+                    # elif row[20]:  # series info
+                    #     title = '%s<br><small><i>(%s)</i></small>' % (title, row[20])
                     title = title + '<br>' + sitelink + ' ' + worklink
                     bookgenre = row[17]
 
@@ -3980,7 +3984,7 @@ class WebInterface(object):
     # WALL #########################################################
 
     @cherrypy.expose
-    def mag_wall(self, title=None):
+    def mag_wall(self, title=''):
         self.label_thread('MAGWALL')
         db = database.DBConnection()
         cmd = 'SELECT IssueFile,IssueID,IssueDate,Title,Cover from issues'
@@ -3991,7 +3995,6 @@ class WebInterface(object):
             args = (title,)
         cmd += ' order by IssueAcquired DESC'
         issues = db.select(cmd, args)
-        title = "Recent Issues"
         if not len(issues):
             raise cherrypy.HTTPRedirect("magazines")
         else:
@@ -4036,7 +4039,7 @@ class WebInterface(object):
             args = (comicid,)
         cmd += ' order by IssueAcquired DESC'
         issues = db.select(cmd, args)
-        title = "Recent Issues"
+        title = ''
         if not len(issues):
             raise cherrypy.HTTPRedirect("comics")
         else:
@@ -4180,7 +4183,8 @@ class WebInterface(object):
             columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
-    def wall_columns(self, redirect=None, count=None, have=0):
+    def wall_columns(self, redirect=None, count=None, have=0, title=''):
+        title = title.split(' (')[0].replace(' ', '+')
         columns = check_int(lazylibrarian.CONFIG['WALL_COLUMNS'], 6)
         if count == 'up' and columns <= 12:
             columns += 1
@@ -4192,9 +4196,15 @@ class WebInterface(object):
         elif redirect == 'books':
             raise cherrypy.HTTPRedirect('book_wall?have=%s' % have)
         elif redirect == 'magazines':
-            raise cherrypy.HTTPRedirect('mag_wall')
+            if title:
+                raise cherrypy.HTTPRedirect('mag_wall?title=%s' % title)
+            else:
+                raise cherrypy.HTTPRedirect('mag_wall')
         elif redirect == 'comic':
-            raise cherrypy.HTTPRedirect('comic_wall')
+            if title:
+                raise cherrypy.HTTPRedirect('comic_wall?comicid=%s' % title)
+            else:
+                raise cherrypy.HTTPRedirect('comic_wall')
         elif redirect == 'authors':
             raise cherrypy.HTTPRedirect('author_wall?have=%s' % have)
         else:
@@ -5720,7 +5730,7 @@ class WebInterface(object):
         if lazylibrarian.SHOW_AUDIO:
             types.append('AudioBook')
         if not types:
-            raise cherrypy.HTTPRedirect('home')
+            raise cherrypy.HTTPRedirect('authors')
         library = types[0]
         if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
@@ -6814,7 +6824,7 @@ class WebInterface(object):
         if lazylibrarian.SHOW_AUDIO:
             types.append('AudioBook')
         if not types:
-            raise cherrypy.HTTPRedirect('home')
+            raise cherrypy.HTTPRedirect('authors')
         library = types[0]
         if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
