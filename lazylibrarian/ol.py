@@ -775,7 +775,6 @@ class OpenLibrary:
                     else:
                         cover = 'http://covers.openlibrary.org/b/id/%s-M.jpg' % cover
                     rating = 0
-                    seriesdisplay = ''
                     # If we have a librarything ID we can look up series info as openlibrary doesn't
                     # include any. Sadly librarything have disabled whatwork and thingtitle apis
                     # so we can't look up missing IDs and their web pages are not scrapable for the info
@@ -899,9 +898,6 @@ class OpenLibrary:
                                 for series in serieslist:
                                     newseries = "%s %s" % (series[0], series[1])
                                     newseries.strip()
-                                    if seriesdisplay and newseries:
-                                        seriesdisplay += '<br>'
-                                    seriesdisplay += newseries
                                     seriesid = series[2]
                                     exists = db.match("SELECT * from series WHERE seriesid=?", (seriesid,))
                                     if not exists:
@@ -1159,8 +1155,6 @@ class OpenLibrary:
                             if cover and cover.startswith('http'):
                                 cache_cover(key, cover)
 
-                    if seriesdisplay:
-                        db.action("UPDATE books SET SeriesDisplay=? WHERE BookID=?", (seriesdisplay, key))
                     added_count += 1
 
             if authorbooks and authorbooks.get("docs"):

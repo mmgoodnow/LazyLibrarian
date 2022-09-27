@@ -210,14 +210,6 @@ def set_series(serieslist=None, bookid=None, reason=""):
             db.action('INSERT INTO seriesauthors ("SeriesID", "AuthorID") VALUES (?, ?)',
                       (seriesid, authorid), suppress='UNIQUE')
 
-        series = ''
-        for item in newserieslist:
-            newseries = "%s %s" % (item[2], item[1])
-            newseries.strip()
-            if series and newseries:
-                series += '<br>'
-            series += newseries
-        db.action('UPDATE books SET SeriesDisplay=? WHERE BookID=?', (series, bookid))
         return api_hits, originalpubdate
 
 
