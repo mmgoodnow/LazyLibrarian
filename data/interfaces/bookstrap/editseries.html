@@ -70,6 +70,7 @@
                 callback: function (result) {
                   if (result) { $.get("remove_series", {'seriesid': '${config['SeriesID']}' },
                       function (data) { }); }
+                    window.location = "series"
                 }
             });
         });    });
