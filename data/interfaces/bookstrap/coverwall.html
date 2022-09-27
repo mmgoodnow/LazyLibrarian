@@ -6,12 +6,22 @@
     <div id="subhead_container">
         <div id="subhead_menu">
             <label class="">&nbsp;&nbsp;Columns&nbsp;</label>
-            %if redirect == 'books':
-            <a href="wall_columns?count=up&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
-            <a href="wall_columns?count=down&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+            %if title:
+              %if redirect == 'books':
+                <a href="wall_columns?count=up&redirect=books&have=${have}&title=${title}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+                <a href="wall_columns?count=down&redirect=books&have=${have}&title=${title}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+              %else:
+                <a href="wall_columns?count=up&redirect=${redirect}&title=${title}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+                <a href="wall_columns?count=down&redirect=${redirect}&title=${title}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+              %endif
             %else:
-            <a href="wall_columns?count=up&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
-            <a href="wall_columns?count=down&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+              %if redirect == 'books':
+                <a href="wall_columns?count=up&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+                <a href="wall_columns?count=down&redirect=books&have=${have}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+              %else:
+                <a href="wall_columns?count=up&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-up"></i></a>
+                <a href="wall_columns?count=down&redirect=${redirect}" class="button btn btn-sm btn-primary"><i class="fa fa-chevron-down"></i></a>
+              %endif
             %endif
         </div>
     </div>
