@@ -5,6 +5,7 @@
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
     <form action="find_comic" method="get">
+      <input type="hidden" name="comicfilter" id="comicfilter" value=''>
       <div id="subhead_menu" class="col-xs-12 col-md-8">
         %if perm&lazylibrarian.perm_force:
         <a href="force_search?source=comics" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
@@ -114,6 +115,7 @@
     {
         var selected = [];
         var intjob = 0;
+        $('#comicfilter').val(getUrlVars()['comic_filter']);
 
         var show = ""+${lazylibrarian.CONFIG['COMIC_IMG']};
             if ( show != '1' ) { showimg = false }
@@ -143,7 +145,14 @@
                         'render': function(data, type, row) {
                             btn = '<button onclick="bookinfo(\'' + row[0] + '\')" class="button btn-link text-left" type="button" ' + '>' + row[2] + '</button>'
                             if ( row[8]) { btn = btn + ' (' + row[8] + ')' }
-                            if ( row[11]) { btn = btn + '<br><i><small>[' + row[11] + ']</i></small>' }
+                            if ( row[11]) {
+                              let arr = row[11].split(',');
+                              let genres = ''
+                              arr.forEach(function (item, index) {
+                                genres = genres + ' <a href=\'comics?comic_filter=' + item.trim() + '\'">' + item.trim() + '</a>';
+                                });
+                              btn = btn + '<br><i><small>[' + genres + ']</i></small>'
+                            }
                             if ( row[10]) { btn = btn + '<br><small><a href="' + row[10] + '" target="_blank" rel="noreferrer">'
                                 if ( row[10].indexOf('comicvine') >= 0) { btn = btn + 'ComicVine</a></small>'}
                                 if ( row[10].indexOf('comixology') >= 0) { btn = btn + 'ComiXology</a></small>'}
@@ -231,6 +240,8 @@
                 $('#myAlert').addClass('hidden');
               };
             });
+
+            oTable.search(decodeURI(document.getElementById("comicfilter").value)).draw()
 
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {

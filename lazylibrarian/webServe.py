@@ -2000,7 +2000,7 @@ class WebInterface(object):
 
     # noinspection PyGlobalUndefined
     @cherrypy.expose
-    def author_page(self, authorid, book_lang=None, library='eBook', ignored=False):
+    def author_page(self, authorid, book_lang=None, library='eBook', ignored=False, book_filter=''):
         global lastauthor
         db = database.DBConnection()
         user = 0
@@ -2050,7 +2050,7 @@ class WebInterface(object):
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
             author=author, languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
-            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user, email=email)
+            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
     def set_author(self, authorid, status):
@@ -2418,7 +2418,7 @@ class WebInterface(object):
             raise cherrypy.HTTPError(404, "BookID %s not found" % bookid)
 
     @cherrypy.expose
-    def audio(self, booklang=None):
+    def audio(self, booklang=None, book_filter=''):
         user = 0
         email = ''
         db = database.DBConnection()
@@ -2433,10 +2433,10 @@ class WebInterface(object):
         languages = db.select(
             'SELECT DISTINCT BookLang from books WHERE AUDIOSTATUS !="Skipped" AND AUDIOSTATUS !="Ignored"')
         return serve_template(templatename="audio.html", title='AudioBooks', books=[],
-                              languages=languages, booklang=booklang, user=user, email=email)
+                              languages=languages, booklang=booklang, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
-    def books(self, booklang=None):
+    def books(self, booklang=None, book_filter=''):
         user = 0
         email = ''
         db = database.DBConnection()
@@ -2450,7 +2450,7 @@ class WebInterface(object):
             booklang = None
         languages = db.select('SELECT DISTINCT BookLang from books WHERE STATUS !="Skipped" AND STATUS !="Ignored"')
         return serve_template(templatename="books.html", title='eBooks', books=[],
-                              languages=languages, booklang=booklang, user=user, email=email)
+                              languages=languages, booklang=booklang, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
@@ -2729,7 +2729,20 @@ class WebInterface(object):
                         title = title + ' ' + editpage
 
                     if lazylibrarian.CONFIG['SHOW_GENRES'] and bookgenre and bookgenre != 'Unknown':
-                        title += ' [' + bookgenre + ']'
+                        arr = bookgenre.split(',')
+                        genres=''
+                        for a in arr:
+                            if kwargs['source'] == "Audio":
+                                genres = genres + ' <a href=\'audio?book_filter=' + a.strip() + '\'">' + a.strip() + '</a>'
+                            elif kwargs['source'] == "Books":
+                                genres = genres + ' <a href=\'books?book_filter=' + a.strip() + '\'">' + a.strip() + '</a>'
+                            elif kwargs['source'] == "Author":
+                                genres = genres + ' <a href=\'author_page?authorid=' + row[11] + '&book_filter=' + \
+                                                    a.strip() + '\'">' + a.strip() + '</a>'
+                            else:
+                                genres + genres + ' ' + a.strip()
+                        genres = genres.strip()
+                        title += ' [' + genres + ']'
 
                     if row[6] in to_read:
                         flag = '&nbsp;<i class="far fa-bookmark"></i>'
@@ -4289,7 +4302,7 @@ class WebInterface(object):
             logger.debug("ComicSearch called with no comic ID")
 
     @cherrypy.expose
-    def comics(self):
+    def comics(self, comic_filter = ''):
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
@@ -4300,7 +4313,7 @@ class WebInterface(object):
         if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['COMIC_IMG']:
             covers = 0
         return serve_template(templatename="comics.html", title="Comics", comics=[],
-                              covercount=covers, user=user)
+                              covercount=covers, user=user, comic_filter=comic_filter)
 
     # noinspection PyUnusedLocal
     @cherrypy.expose
@@ -4933,7 +4946,7 @@ class WebInterface(object):
             return mydict
 
     @cherrypy.expose
-    def magazines(self):
+    def magazines(self, mag_filter=''):
         if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
             user = 0
             email = ''
@@ -4949,7 +4962,7 @@ class WebInterface(object):
             if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
                 covers = 0
             return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
-                                  covercount=covers, user=user, email=email)
+                                  covercount=covers, user=user, email=email, mag_filter=mag_filter)
 
         db = database.DBConnection()
 

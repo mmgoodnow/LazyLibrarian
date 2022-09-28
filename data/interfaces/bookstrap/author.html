@@ -5,6 +5,7 @@
 <%def name="headerIncludes()">
     <div id="subhead_container">
         <form id="subhead_menu" class="form-inline">
+        <input type="hidden" name="bookfilter" id="bookfilter" value=''>
         %if perm&lazylibrarian.perm_force:
             %if author['Status'] == 'Paused':
                 <a href="resume_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-pause"></i> Paused</a>
@@ -239,6 +240,8 @@
     {
       var selected = [];
       var intjob = 0;
+
+      $('#bookfilter').val(getUrlVars()['book_filter']);
 
         $('#removeme').click(function () {
             bootbox.confirm({
@@ -478,6 +481,7 @@
             if (${firstpage}) { oTable.page( 'first' ).draw( 'page' ); }
         }
 
+        oTable.search(decodeURI(document.getElementById("bookfilter").value)).draw()
         $('.dataTables_filter input').attr("placeholder", "Results Filter");
         //$(window).resize(function() {oTable.draw(false)});
         $('a.toggle-vis').click(function (e) {

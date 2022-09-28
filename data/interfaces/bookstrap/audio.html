@@ -5,6 +5,7 @@
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
     <form id="subhead_menu" class="form-inline">
+      <input type="hidden" name="bookfilter" id="bookfilter" value=''>
       <div class="col-xs-10">
         %if perm&lazylibrarian.perm_force:
         <a id="forcesearch" class="btn btn-sm btn-primary" href="force_search?source=audio"><i class="fa fa-search"></i> Search</a>
@@ -112,13 +113,14 @@
         var selected = [];
         var intjob = 0;
 
+        $('#bookfilter').val(getUrlVars()['book_filter']);
         $('#chooselanguage').val(getUrlVars()['book_lang']);
 
         var show = ""+${lazylibrarian.CONFIG['BOOK_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
-        var table = $('#book_table').DataTable({
+        var oTable = $('#book_table').DataTable({
             "dom": "<'row'<'col-xs-6'l><'col-xs-6'f>><'row'<'col-sm-12'tr>><'row'<'col-sm-5'i><'col-sm-7'p>>",
             "bAutoWidth": false,
             "stateSave": true,
@@ -249,12 +251,12 @@
               $(this).toggleClass('selected');
           } );
 
-            table.on( 'xhr', function () {
-              var json = table.ajax.json();
+            oTable.on( 'xhr', function () {
+              var json = oTable.ajax.json();
               if (json.loading) {
                 if (intjob === 0) {
                   intjob = setInterval( function () {
-                    table.ajax.reload( null, false );
+                    oTable.ajax.reload( null, false );
                     }, 10000 );
                 }
               }
@@ -264,12 +266,13 @@
               };
             });
 
+        oTable.search(decodeURI(document.getElementById("bookfilter").value)).draw()
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {table.draw('page')});
 
         $('a.toggle-vis').click(function (e) {
             e.preventDefault();
-            var column = table.column( $(this).attr('data-column') );
+            var column = oTable.column( $(this).attr('data-column') );
             column.visible( ! column.visible() );
         } );
         //enable datatables console logging

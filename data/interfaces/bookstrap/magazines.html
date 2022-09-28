@@ -5,6 +5,7 @@
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
     <form action="add_magazine" method="get">
+      <input type="hidden" name="magfilter" id="magfilter" value=''>
       <div id="subhead_menu" class="col-xs-12 col-md-8">
         %if perm&lazylibrarian.perm_force:
         <a href="force_search?source=magazines" class="button btn btn-sm btn-primary"><i class="fa fa-search"></i> Search</a>
@@ -115,6 +116,7 @@
     {
         var selected = [];
         var intjob = 0;
+        $('#magfilter').val(getUrlVars()['mag_filter']);
 
         var show = ""+${lazylibrarian.CONFIG['MAG_IMG']};
             if ( show != '1' ) { showimg = false }
@@ -144,7 +146,14 @@
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             btn='<a href=\'open_mag?bookid=' + row[0] + '\'">' + row[2] + '</a>'
-                            if ( row[8]) { btn = btn + '<br><i><small>[' + row[8] + ']</i></small>' }
+                            if ( row[8]) {
+                                let arr = row[8].split(',');
+                                let genres = ''
+                                arr.forEach(function (item, index) {
+                                    genres = genres + ' <a href=\'magazines?mag_filter=' + item.trim() + '\'">' + item.trim() + '</a>';
+                                    });
+                                btn = btn + '<br><i><small>[' + genres + ']</i></small>'
+                            }
                             return btn
                         ;} },
                     { targets: [3, 4, 5, 6],
@@ -230,6 +239,8 @@
                 $('#myAlert').addClass('hidden');
               };
             });
+
+            oTable.search(decodeURI(document.getElementById("magfilter").value)).draw()
 
             $('.dataTables_filter input').attr("placeholder", "Results filter");
             $('a.toggle-vis').click(function (e) {
