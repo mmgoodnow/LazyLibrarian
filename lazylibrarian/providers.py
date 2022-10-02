@@ -964,35 +964,39 @@ def iterate_over_wishlists():
 def iterate_over_irc_sites(book=None, search_type=None):
     resultslist = []
     providers = 0
-    for provider in lazylibrarian.IRC_PROV:
-        logger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
-        if provider['ENABLED']:
-            ignored = False
-            if provider_is_blocked(provider['SERVER']):
-                logger.debug('%s is BLOCKED' % provider['SERVER'])
-                ignored = True
-            elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
-                ignored = True
-            elif "audio" in search_type and 'A' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for AudioBook" % provider['DISPNAME'])
-                ignored = True
-            elif "mag" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Magazine" % provider['DISPNAME'])
-                ignored = True
-            elif "comic" in search_type and 'M' not in provider['DLTYPES']:
-                logger.debug("Ignoring %s for Comic" % provider['DISPNAME'])
-                ignored = True
-            elif not search_type or 'general' in search_type:
-                logger.debug("Ignoring %s for General search" % provider['DISPNAME'])
-                ignored = True
-            if not ignored:
-                providers += 1
-                logger.debug('[iterate_over_irc_sites] - %s' % provider['SERVER'])
-                success, results = ircsearch(book, provider, search_type)
-                if success:
-                    resultslist += results
-    return resultslist, providers
+    try:
+        for provider in lazylibrarian.IRC_PROV:
+            logger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
+            if provider['ENABLED']:
+                ignored = False
+                if provider_is_blocked(provider['SERVER']):
+                    logger.debug('%s is BLOCKED' % provider['SERVER'])
+                    ignored = True
+                elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
+                    logger.debug("Ignoring %s for eBook" % provider['DISPNAME'])
+                    ignored = True
+                elif "audio" in search_type and 'A' not in provider['DLTYPES']:
+                    logger.debug("Ignoring %s for AudioBook" % provider['DISPNAME'])
+                    ignored = True
+                elif "mag" in search_type and 'M' not in provider['DLTYPES']:
+                    logger.debug("Ignoring %s for Magazine" % provider['DISPNAME'])
+                    ignored = True
+                elif "comic" in search_type and 'M' not in provider['DLTYPES']:
+                    logger.debug("Ignoring %s for Comic" % provider['DISPNAME'])
+                    ignored = True
+                elif not search_type or 'general' in search_type:
+                    logger.debug("Ignoring %s for General search" % provider['DISPNAME'])
+                    ignored = True
+                if not ignored:
+                    providers += 1
+                    logger.debug('[iterate_over_irc_sites] - %s' % provider['SERVER'])
+                    success, results = ircsearch(book, provider, search_type)
+                    if success:
+                        resultslist += results
+    except Exception as e:
+        logger-error(str(e))
+    finally:
+        return resultslist, providers
 
 
 def ircsearch(book, provider, search_type, test=False):
