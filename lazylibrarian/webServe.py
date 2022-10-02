@@ -5972,8 +5972,12 @@ class WebInterface(object):
         # show the available notifiers
         apprise_list = lazylibrarian.notifiers.apprise_notify.AppriseNotifier.notify_types()
         result = ''
-        for line in apprise_list:
-            result = result + line + '\n'
+        try:
+            for entry in apprise_list:
+                if isinstance(entry, str):
+                    result = result + entry + '\n'
+        except Exception as e:
+            logger.debug(str(e))
         return result
 
     @cherrypy.expose
