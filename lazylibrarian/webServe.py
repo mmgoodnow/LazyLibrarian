@@ -2497,8 +2497,8 @@ class WebInterface(object):
 
             cmd = 'SELECT bookimg,authorname,bookname,bookrate,bookdate,books.status,books.bookid,booklang,'
             cmd += ' booksub,booklink,workpage,books.authorid,seriesdisplay,booklibrary,audiostatus,audiolibrary,'
-            cmd += ' group_concat(series.seriesid || "~" || series.seriesname || " #" || member.seriesnum, "^") as series,'
-            cmd += ' bookgenre,bookadded,scanresult,lt_workid,'
+            cmd += ' group_concat(series.seriesid || "~" || series.seriesname || " #" || member.seriesnum, "^")'
+            cmd += ' as series, bookgenre,bookadded,scanresult,lt_workid,'
             cmd += ' group_concat(series.seriesname || " #" || member.seriesnum, "; ") as altsub'
             cmd += ' FROM books, authors'
             cmd += ' LEFT OUTER JOIN member ON (books.BookID = member.BookID)'
@@ -2718,7 +2718,7 @@ class WebInterface(object):
                     elif 'books.google.com' in row[9] or 'market.android.com' in row[9]:
                         sitelink = '<a href="%s" target="_new"><small><i>GoogleBooks</i></small></a>' % row[9]
                     title = row[2]
-                    if row[8] and not ' #' in row[8]:  # is there a subtitle that's not series info
+                    if row[8] and ' #' not in row[8]:  # is there a subtitle that's not series info
                         title = '%s<br><small><i>%s</i></small>' % (title, row[8])
                     # elif row[20]:  # series info
                     #     title = '%s<br><small><i>(%s)</i></small>' % (title, row[20])
@@ -2730,15 +2730,17 @@ class WebInterface(object):
 
                     if lazylibrarian.CONFIG['SHOW_GENRES'] and bookgenre and bookgenre != 'Unknown':
                         arr = bookgenre.split(',')
-                        genres=''
+                        genres = ''
                         for a in arr:
                             if kwargs['source'] == "Audio":
-                                genres = genres + ' <a href=\'audio?book_filter=' + a.strip() + '\'">' + a.strip() + '</a>'
+                                genres = genres + ' <a href=\'audio?book_filter=' + a.strip() + '\'">' + \
+                                         a.strip() + '</a>'
                             elif kwargs['source'] == "Books":
-                                genres = genres + ' <a href=\'books?book_filter=' + a.strip() + '\'">' + a.strip() + '</a>'
+                                genres = genres + ' <a href=\'books?book_filter=' + a.strip() + '\'">' + \
+                                         a.strip() + '</a>'
                             elif kwargs['source'] == "Author":
                                 genres = genres + ' <a href=\'author_page?authorid=' + row[11] + '&book_filter=' + \
-                                                    a.strip() + '\'">' + a.strip() + '</a>'
+                                         a.strip() + '\'">' + a.strip() + '</a>'
                             else:
                                 genres + genres + ' ' + a.strip()
                         genres = genres.strip()
@@ -4302,7 +4304,7 @@ class WebInterface(object):
             logger.debug("ComicSearch called with no comic ID")
 
     @cherrypy.expose
-    def comics(self, comic_filter = ''):
+    def comics(self, comic_filter=''):
         cookie = cherrypy.request.cookie
         if cookie and 'll_uid' in list(cookie.keys()):
             user = cookie['ll_uid'].value
@@ -4334,7 +4336,6 @@ class WebInterface(object):
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = displaylength
-            mags = []
             db = database.DBConnection()
             cmd = 'select comics.*,(select count(*) as counter from comicissues '
             cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics'
@@ -4611,8 +4612,10 @@ class WebInterface(object):
                 logger.debug(str(mydict))
             return mydict
 
+    # noinspection PyUnusedLocal
     @cherrypy.expose
-    def find_comic(self, title=None):
+    def find_comic(self, title=None, **kwargs):
+        # search for a comic title and produce a list of likely matches
         # noinspection PyGlobalUndefined
         global comicresults
         comicresults = []
@@ -4650,8 +4653,10 @@ class WebInterface(object):
 
             raise cherrypy.HTTPRedirect("comics")
 
+    # noinspection PyUnusedLocal
     @cherrypy.expose
-    def add_comic(self, comicid=None):
+    def add_comic(self, comicid=None, **kwargs):
+        # add a comic from a list in comicresults.html
         global comicresults
         apikey = lazylibrarian.CONFIG['CV_APIKEY']
         if not comicid or comicid == 'None':
@@ -4843,7 +4848,6 @@ class WebInterface(object):
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
             lazylibrarian.CONFIG['DISPLAYLENGTH'] = displaylength
-            mags = []
             db = database.DBConnection()
             cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
             cmd += ' as Iss_Cnt from magazines'
@@ -5637,8 +5641,9 @@ class WebInterface(object):
         else:
             logger.debug("MagazineSearch called with no magazines")
 
+    # noinspection PyUnusedLocal
     @cherrypy.expose
-    def add_magazine(self, title=None):
+    def add_magazine(self, title=None, **kwargs):
         db = database.DBConnection()
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("magazines")
