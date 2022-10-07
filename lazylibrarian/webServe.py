@@ -66,7 +66,7 @@ from lazylibrarian.postprocess import process_alternate, process_dir, delete_tas
 from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
-from lazylibrarian.searchmag import search_magazines
+from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.opfedit import opf_read, opf_write
 
@@ -131,7 +131,7 @@ def serve_template(templatename, **kwargs):
         if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
             try:
                 template = _hplookup.get_template(templatename)
-            except AttributeError:
+            except (AttributeError, KeyError):
                 clear_mako_cache()
                 template = _hplookup.get_template(templatename)
             if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
@@ -245,7 +245,7 @@ def serve_template(templatename, **kwargs):
                                        module_directory=module_directory)
         try:
             template = _hplookup.get_template(templatename)
-        except AttributeError:
+        except (AttributeError, KeyError):
             clear_mako_cache(userid)
             template = _hplookup.get_template(templatename)
 
@@ -4612,7 +4612,6 @@ class WebInterface(object):
                 logger.debug(str(mydict))
             return mydict
 
-    # noinspection PyUnusedLocal
     @cherrypy.expose
     def find_comic(self, title=None, **kwargs):
         # search for a comic title and produce a list of likely matches
@@ -4651,9 +4650,11 @@ class WebInterface(object):
                 return serve_template(templatename="comicresults.html", title="Comics",
                                       results=comicresults, comicids=comiclist)
 
-            raise cherrypy.HTTPRedirect("comics")
+            if kwargs.get('comicfilter'):
+                raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
+            else:
+                raise cherrypy.HTTPRedirect("comics")
 
-    # noinspection PyUnusedLocal
     @cherrypy.expose
     def add_comic(self, comicid=None, **kwargs):
         # add a comic from a list in comicresults.html
@@ -4696,7 +4697,10 @@ class WebInterface(object):
                     msg = "Failed to get data for %s" % comicid
                     logger.warn(msg)
                     raise cherrypy.HTTPError(404, msg)
-        raise cherrypy.HTTPRedirect("comics")
+        if kwargs.get('comicfilter'):
+            raise cherrypy.HTTPRedirect("comics?comic_filter=" + kwargs.get('comicfilter'))
+        else:
+            raise cherrypy.HTTPRedirect("comics")
 
     @cherrypy.expose
     def mark_comics(self, action=None, **args):
@@ -5356,41 +5360,7 @@ class WebInterface(object):
             logger.info('Status set to %s for %s past %s' % (action, len(maglist), plural(len(maglist), "issue")))
         # start searchthreads
         if action == 'Wanted':
-            for items in maglist:
-                logger.debug('Snatching %s, %s from %s' % (items['nzbtitle'], items['nzbmode'], items['nzbprov']))
-                db.action('UPDATE pastissues set status=? WHERE NZBurl=?', (action, items['nzburl']))
-                if items['nzbmode'] == 'direct':
-                    snatch, res = direct_dl_method(
-                        items['bookid'],
-                        items['nzbtitle'],
-                        items['nzburl'],
-                        'magazine',
-                        items['nzbprov'])
-                elif items['nzbmode'] in ['torznab', 'torrent', 'magnet']:
-                    snatch, res = tor_dl_method(
-                        items['bookid'],
-                        items['nzbtitle'],
-                        items['nzburl'],
-                        'magazine')
-                elif items['nzbmode'] == 'nzb':
-                    snatch, res = nzb_dl_method(
-                        items['bookid'],
-                        items['nzbtitle'],
-                        items['nzburl'],
-                        'magazine')
-                else:
-                    res = 'Unhandled NZBmode [%s] for %s' % (items['nzbmode'], items["nzburl"])
-                    logger.error(res)
-                    snatch = 0
-                if snatch:
-                    db.action('UPDATE pastissues set status=? WHERE NZBurl=?', ("Snatched", items['nzburl']))
-                    logger.info('Downloading %s from %s' % (items['nzbtitle'], items['nzbprov']))
-                    custom_notify_snatch("%s %s" % (items['bookid'], 'Magazine'))
-                    notifiers.notify_snatch(items['nzbtitle'] + ' at ' + now())
-                    schedule_job(action='Start', target='PostProcessor')
-                else:
-                    db.action('UPDATE pastissues SET status="Failed",DLResult=? WHERE NZBurl=?',
-                              (res, items["nzburl"]))
+            threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'wanted']).start()
         raise cherrypy.HTTPRedirect("past_issues")
 
     @cherrypy.expose
@@ -5641,7 +5611,6 @@ class WebInterface(object):
         else:
             logger.debug("MagazineSearch called with no magazines")
 
-    # noinspection PyUnusedLocal
     @cherrypy.expose
     def add_magazine(self, title=None, **kwargs):
         db = database.DBConnection()
@@ -5684,7 +5653,10 @@ class WebInterface(object):
                 mags = [{"bookid": title}]
                 if lazylibrarian.CONFIG['IMP_AUTOSEARCH']:
                     self.start_magazine_search(mags)
-            raise cherrypy.HTTPRedirect("magazines")
+            if kwargs.get('magfilter'):
+                raise cherrypy.HTTPRedirect("magazines?mag_filter=" + kwargs.get('magfilter'))
+            else:
+                raise cherrypy.HTTPRedirect("magazines")
 
     # UPDATES ###########################################################
 

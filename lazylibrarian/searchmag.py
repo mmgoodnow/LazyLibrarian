@@ -509,41 +509,7 @@ def search_magazines(mags=None, reset=False):
                 msg += ' %i rejected: %i to download' % (rejects, len(maglist))
                 logger.info(msg)
 
-                for magazine in maglist:
-                    if magazine['nzbmode'] in ["torznab", "torrent", "magnet"]:
-                        snatch, res = tor_dl_method(
-                            magazine['bookid'],
-                            magazine['nzbtitle'],
-                            magazine['nzburl'],
-                            'magazine')
-                    elif magazine['nzbmode'] == 'direct':
-                        snatch, res = direct_dl_method(
-                            magazine['bookid'],
-                            magazine['nzbtitle'],
-                            magazine['nzburl'],
-                            'magazine',
-                            magazine['nzbprov'])
-                    elif magazine['nzbmode'] == 'nzb':
-                        snatch, res = nzb_dl_method(
-                            magazine['bookid'],
-                            magazine['nzbtitle'],
-                            magazine['nzburl'],
-                            'magazine')
-                    else:
-                        res = 'Unhandled NZBmode [%s] for %s' % (magazine['nzbmode'], magazine["nzburl"])
-                        logger.error(res)
-                        snatch = 0
-
-                    if snatch:
-                        logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
-                        custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
-                        notify_snatch("Magazine %s from %s at %s" %
-                                      (unaccented(magazine['nzbtitle'], only_ascii=False),
-                                       disp_name(magazine["nzbprov"]), now()))
-                        schedule_job(action='Start', target='PostProcessor')
-                    else:
-                        db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
-                                  (res, magazine["nzburl"]))
+                threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'pastissues']).start()
 
             time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
 
@@ -556,6 +522,52 @@ def search_magazines(mags=None, reset=False):
     finally:
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         thread_name("WEBSERVER")
+
+
+def download_maglist(maglist, table='wanted'):
+    snatched = 0
+    try:
+        db = database.DBConnection()
+        for magazine in maglist:
+            if magazine['nzbmode'] in ["torznab", "torrent", "magnet"]:
+                snatch, res = tor_dl_method(
+                    magazine['bookid'],
+                    magazine['nzbtitle'],
+                    magazine['nzburl'],
+                    'magazine')
+            elif magazine['nzbmode'] == 'direct':
+                snatch, res = direct_dl_method(
+                    magazine['bookid'],
+                    magazine['nzbtitle'],
+                    magazine['nzburl'],
+                    'magazine',
+                    magazine['nzbprov'])
+            elif magazine['nzbmode'] == 'nzb':
+                snatch, res = nzb_dl_method(
+                    magazine['bookid'],
+                    magazine['nzbtitle'],
+                    magazine['nzburl'],
+                    'magazine')
+            else:
+                res = 'Unhandled NZBmode [%s] for %s' % (magazine['nzbmode'], magazine["nzburl"])
+                logger.error(res)
+                snatch = 0
+            if snatch:
+                snatched += 1
+                if table == 'pastissues':
+                    db.action('UPDATE pastissues set status=? WHERE NZBurl=?', ("Snatched", magazine['nzburl']))
+                logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
+                custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
+                notify_snatch("Magazine %s from %s at %s" % (unaccented(magazine['nzbtitle'], only_ascii=False),
+                              disp_name(magazine["nzbprov"]), now()))
+            else:
+                db.action('UPDATE ' + table + ' SET status="Failed",DLResult=? WHERE NZBurl=?',
+                          (res, magazine["nzburl"]))
+    except Exception as e:
+        logger.error(str(e))
+    finally:
+        if snatched:
+            schedule_job(action='Start', target='PostProcessor')
 
 
 def get_issue_date(nzbtitle_exploded, datetype=''):
