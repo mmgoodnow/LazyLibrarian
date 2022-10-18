@@ -865,11 +865,7 @@ class WebInterface(object):
             else:
                 perm_msg = 'Custom %s' % perms
 
-            msg_template = "Your lazylibrarian username is {username}\n"
-            msg_template += "Your password is {password}\n"
-            msg_template += "You can log in to lazylibrarian and change these to something more memorable\n"
-            msg_template += "You have been given {permission} access\n"
-            msg = msg_template.replace('{username}', kwargs['username']).replace(
+            msg = lazylibrarian.NEWUSER_MSG.replace('{username}', kwargs['username']).replace(
                 '{password}', kwargs['password']).replace(
                 '{permission}', perm_msg)
 
@@ -7134,7 +7130,8 @@ class WebInterface(object):
                 if res and res['SendTo']:
                     logger.debug("Emailing %s to %s" % (myfile, res['SendTo']))
                     if name:
-                        msg = name
+                        msg = lazylibrarian.NEWFILE_MSG.replace('{name}', name).replace(
+                            '{method}', ' is attached').replace('{link}', '')
                     result = notifiers.email_notifier.email_file(subject="Message from LazyLibrarian",
                                                                  message=msg, to_addr=res['SendTo'],
                                                                  files=[myfile])

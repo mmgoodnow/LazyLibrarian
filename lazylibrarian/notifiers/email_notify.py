@@ -48,9 +48,15 @@ class EmailNotifier:
 
         if files:
             message = MIMEMultipart()
-            message.attach(MIMEText(text, 'plain', "utf-8"))
+            if text[:15].lower() == '<!doctype html>':
+                message = MIMEText(text, 'html')
+            else:
+                message.attach(MIMEText(text, 'plain', "utf-8"))
         else:
-            message = MIMEText(text, 'plain', "utf-8")
+            if text[:15].lower() == '<!doctype html>':
+                message = MIMEText(text, 'html')
+            else:
+                message = MIMEText(text, 'plain', "utf-8")
 
         message['Subject'] = subject
 
@@ -78,7 +84,10 @@ class EmailNotifier:
         logger.debug('Email from: %s' % message['From'])
         logger.debug('Email to: %s' % message['To'])
         logger.debug('Email ID: %s' % message['Message-ID'])
-        logger.debug('Email text: %s' % text)
+        if text[:15].lower() == '<!doctype html>':
+            logger.debug('Email text: %s' % text[:15])
+        else:
+            logger.debug('Email text: %s' % text)
         logger.debug('Files: %s' % files)
 
         if files:
@@ -261,7 +270,16 @@ class EmailNotifier:
                                     logger.debug('Preferred filetype %s not found, sending %s' % (preftype, types[0]))
                                     filename = basename + '.' + types[0]
 
-                        title = data['BookName']
+                        if force:
+                            event = title
+                            if filename:
+                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                    '{method}', ' is attached').replace('{link}', '')
+                            else:
+                                title = lazylibrarian.NEWFILE_MSG.replace('{name}', data['BookName']).replace(
+                                    '{method}', ' is not available').replace('{link}', '')
+                        else:
+                            title = data['BookName']
                         logger.debug('Found %s for bookid %s' % (filename, bookid))
                     else:
                         logger.debug('[%s] is not a valid bookid' % bookid)

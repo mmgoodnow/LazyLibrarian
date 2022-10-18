@@ -146,6 +146,8 @@ REDACTLIST = []
 FFMPEGVER = ''
 FFMPEGAAC = ''
 SAB_VER = (0, 0, 0)
+NEWUSER_MSG = ''
+NEWFILE_MSG = ''
 
 # extended loglevels
 log_matching = 1 << 2  # 4 magazine/comic date/name matching
@@ -834,7 +836,8 @@ def initialize():
         UPDATE_MSG, CURRENT_TAB, CACHE_HIT, CACHE_MISS, SHOW_SERIES, SHOW_MAGS, SHOW_AUDIO, SHOW_COMICS, \
         CACHEDIR, TIMERS, BOOKSTRAP_THEMELIST, MONTHNAMES, CONFIG_DEFINITIONS, isbn_979_dict, isbn_978_dict, \
         CONFIG_NONWEB, CONFIG_NONDEFAULT, CONFIG_GIT, MAG_UPDATE, AUDIO_UPDATE, EBOOK_UPDATE, COMIC_UPDATE, \
-        GB_CALLS, GRGENRES, SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE, LOGINUSER
+        GB_CALLS, GRGENRES, SERIES_UPDATE, SHOW_EBOOK, UNRARLIB, RARFILE, SUPPRESS_UPDATE, LOGINUSER, \
+        NEWUSER_MSG, NEWFILE_MSG
 
     with INIT_LOCK:
 
@@ -1015,6 +1018,8 @@ def initialize():
 
         GRGENRES = build_genres()
         MONTHNAMES = build_monthtable()
+        NEWUSER_MSG = build_logintemplate()
+        NEWFILE_MSG = build_filetemplate()
 
         try:  # optional module, check database health, could also be upgraded to modify/repair db or run other code
             # noinspection PyUnresolvedReferences
@@ -2002,6 +2007,56 @@ def build_bookstrap_themes(prog_dir):
 
     logger.info("Bookstrap found %i themes" % len(themelist))
     return themelist
+
+
+def build_logintemplate():
+    default_msg = "Your lazylibrarian username is {username}\nYour password is {password}\n"
+    default_msg += "You can log in to lazylibrarian and change these to something more memorable\n"
+    default_msg += "You have been given {permission} access\n"
+    msg_file = os.path.join(DATADIR, 'logintemplate.text')
+    if path_isfile(msg_file):
+        try:
+            if PY2:
+                with open(syspath(msg_file), 'r') as msg_data:
+                    res = msg_data.read()
+            else:
+                # noinspection PyArgumentList
+                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                    res = msg_data.read()
+            for item in ["{username}", "{password}", "{permission}"]:
+                if item not in res:
+                    logger.warn("Invalid login template in %s, no %s" % (msg_file, item))
+                    return default_msg
+            logger.info("Loaded login template from %s" % msg_file)
+            return res
+        except Exception as e:
+            logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+    logger.debug("Using default login template")
+    return default_msg
+
+
+def build_filetemplate():
+    default_msg = "{name}{method}{link}"
+    msg_file = os.path.join(DATADIR, 'filetemplate.text')
+    if path_isfile(msg_file):
+        try:
+            if PY2:
+                with open(syspath(msg_file), 'r') as msg_data:
+                    res = msg_data.read()
+            else:
+                # noinspection PyArgumentList
+                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                    res = msg_data.read()
+            for item in ["{name}", "{method}", "{link}"]:
+                if item not in res:
+                    logger.warn("Invalid attachment template in %s, no %s" % (msg_file, item))
+                    return default_msg
+            logger.info("Loaded attachment template from %s" % msg_file)
+            return res
+        except Exception as e:
+            logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+    logger.debug("Using default attachment template")
+    return default_msg
 
 
 def build_genres():

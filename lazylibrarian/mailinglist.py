@@ -153,23 +153,25 @@ def mailing_list(book_type, global_name, book_id):
                 if path_exists(prefname):
                     filename = prefname
                 else:
-                    msg = global_name + ' is available for download, but not as ' + pref
+                    msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace('{link}', '').replace(
+                        '{method}', ' is available for download, but not as ' + pref)
                     filename = ''
 
+            if not link:
+                link = ''
             if filename:
                 logger.debug("Emailing %s to %s" % (filename, res['SendTo']))
-                msg = global_name + ' is attached'
+                msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
+                    '{method}', ' is attached').replace('{link}', '')
                 result = email_notifier.email_file(subject="Message from LazyLibrarian",
                                                    message=msg, to_addr=res['SendTo'], files=[filename])
             else:
                 logger.debug("Notifying %s available to %s" % (global_name, res['SendTo']))
                 if not msg:
-                    msg = global_name + ' is available for download'
-                    if link:
-                        msg += ' %s ' % link
+                    msg = lazylibrarian.NEWFILE_MSG.replace('{name}', global_name).replace(
+                        '{link}', link).replace('{method}', ' is available for download ')
                 result = email_notifier.email_file(subject="Message from LazyLibrarian",
                                                    message=msg, to_addr=res['SendTo'], files=[])
-
             if result:
                 count += 1
                 db.action("DELETE from subscribers WHERE UserID=? and Type=? and WantID=?",
