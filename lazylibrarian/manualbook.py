@@ -20,7 +20,7 @@ from lib.thefuzz import fuzz
 
 from six import PY2
 # noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus
+from six.moves.urllib_parse import quote_plus, quote
 
 
 def search_item(item=None, bookid=None, cat=None):
@@ -144,7 +144,7 @@ def search_item(item=None, bookid=None, cat=None):
             score -= abs(words)
             if score >= 40:  # ignore wildly wrong results?
                 result = {'score': score, 'title': title, 'provider': provider, 'size': size, 'date': date,
-                          'url': quote_plus(url), 'mode': mode}
+                          'url': quote_plus(url), 'mode': mode, 'url_title': quote(title)}
 
                 searchresults.append(result)
 
