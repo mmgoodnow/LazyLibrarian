@@ -21,6 +21,7 @@ from email.utils import formatdate, formataddr
 from email.mime.text import MIMEText
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
+from email.mime.image import MIMEImage
 
 import lazylibrarian
 import os
@@ -47,10 +48,17 @@ class EmailNotifier:
         oversize = False
 
         if files:
-            message = MIMEMultipart()
             if text[:15].lower() == '<!doctype html>':
+                message = MIMEMultipart("related")
                 message.attach(MIMEText(text, 'html'))
+                if 'cid:logo' in text:
+                    image_location = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
+                    with open(image_location, "rb") as fp:
+                        img = MIMEImage(fp.read())
+                    img.add_header("Content-ID", "<logo>")
+                    message.attach(img)
             else:
+                message = MIMEMultipart()
                 message.attach(MIMEText(text, 'plain', "utf-8"))
         else:
             if text[:15].lower() == '<!doctype html>':
