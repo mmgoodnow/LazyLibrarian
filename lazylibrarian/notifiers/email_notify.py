@@ -49,7 +49,7 @@ class EmailNotifier:
         if files:
             message = MIMEMultipart()
             if text[:15].lower() == '<!doctype html>':
-                message = MIMEText(text, 'html')
+                message.attach(MIMEText(text, 'html'))
             else:
                 message.attach(MIMEText(text, 'plain', "utf-8"))
         else:

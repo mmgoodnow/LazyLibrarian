@@ -3330,9 +3330,10 @@ class WebInterface(object):
                         if len(types) and bookfile and path_isfile(bookfile):
                             if email:
                                 logger.debug('Emailing %s %s' % (library, bookfile))
+                                return self.send_file(bookfile, name=book_name, email=email)
                             else:
                                 logger.debug('Opening %s %s' % (library, bookfile))
-                            return self.send_file(bookfile, email=email)
+                                return self.send_file(bookfile, email=email)
                         else:
                             logger.debug('Unable to send %s %s, no valid types?' % (library, book_name))
 
