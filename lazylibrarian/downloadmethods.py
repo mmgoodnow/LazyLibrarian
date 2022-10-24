@@ -18,12 +18,6 @@ import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
 
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-
 # noinspection PyBroadException
 try:
     # noinspection PyUnresolvedReferences
@@ -40,7 +34,7 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
     deluge, rtorrent, synology
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
-    path_isdir, syspath, remove
+    path_isdir, syspath, remove, module_available
 from lazylibrarian.formatter import clean_name, unaccented, unaccented_bytes, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -55,14 +49,21 @@ from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
 from six import PY2, text_type
 
-try:
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+elif PY2:
+    from lib.bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 
 def use_label(source, library):
@@ -851,7 +852,7 @@ def calculate_torrent_hash(link, data=None):
     when it cannot create a torrent hash given the input data.
     """
     try:
-        torrent_hash = re.findall(r"urn:btih:([\w]{32,40})", link)[0]
+        torrent_hash = re.findall(r"urn:btih:(\w{32,40})", link)[0]
         if len(torrent_hash) == 32:
             torrent_hash = b16encode(b32decode(torrent_hash)).lower()
     except (re.error, IndexError, TypeError):

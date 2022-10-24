@@ -48,14 +48,6 @@ try:
 except ImportError:
     PSUTIL = False
 
-# some mac versions include requests _without_ urllib3, our copy bundles it
-try:
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-
 import lazylibrarian
 from lazylibrarian import logger, database, version
 from lazylibrarian.formatter import plural, next_run_time, is_valid_booktype, check_int, \
@@ -711,6 +703,31 @@ def ago(when):
         return "%i seconds ago" % seconds
     else:
         return "just now"
+
+
+def module_available(module_name):
+    if sys.version_info < (3, 0):
+        import importlib
+        # noinspection PyDeprecation
+        loader = importlib.find_loader(module_name)
+    elif sys.version_info <= (3, 3):
+        import pkgutil
+        loader = pkgutil.find_loader(module_name)
+    elif sys.version_info >= (3, 4):
+        import importlib
+        loader = importlib.util.find_spec(module_name)
+    else:
+        loader = None
+    return loader is not None
+
+
+# some mac versions include requests _without_ urllib3, our copy bundles it
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 
 def nextrun(target=None, interval=0, action='', hours=False):
@@ -1427,6 +1444,27 @@ def log_header():
             header += "unrar dll: %s\n" % vers
     else:
         header += "unrar: library missing\n"
+
+    if module_available("bs4") and module_available("html5lib"):
+        import bs4
+        vers = getattr(bs4, '__version__', None)
+        header += "bs4: %s\n" % vers
+        import html5lib
+        vers = getattr(html5lib, '__version__', None)
+        header += "html5lib: %s\n" % vers
+    else:
+        if PY2:
+            import lib.bs4
+            bs4vers = getattr(lib.bs4, '__version__', None)
+            # noinspection PyProtectedMember
+            h5vers = getattr(lib.bs4.builder._html5lib.html5lib, '__version__', None)
+        else:
+            import lib3.bs4
+            bs4vers = getattr(lib3.bs4, '__version__', None)
+            # noinspection PyProtectedMember
+            h5vers = getattr(lib3.bs4.builder._html5lib.html5lib, '__version__', None)
+        header += "local bs4: %s\n" % bs4vers
+        header += "local html5lib: %s\n" % h5vers
 
     try:
         import PIL

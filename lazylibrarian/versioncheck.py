@@ -22,21 +22,17 @@ import time
 from shutil import rmtree
 
 import lazylibrarian
-try:
-    import urllib3
-    import requests
-except Exception as e:
-    print(str(e))
-    try:
-        import lib.requests as requests
-    except Exception as e:
-        print(str(e))
-        print('Unable to load requests library')
-        exit(1)
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
+from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath, module_available
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 
 def logmsg(level, msg):

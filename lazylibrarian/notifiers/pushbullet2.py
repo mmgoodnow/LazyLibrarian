@@ -12,14 +12,16 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
+from lazylibrarian.common import module_available
 # We use system version if available for pushbullet, as there was a report that
 # lazylibrarian version of requests was not working with pushbullet.
 # Not clear why, see as issue #675
-try:
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
     import urllib3
     import requests
     from requests.auth import HTTPBasicAuth
-except ImportError:
+else:
     import lib.requests as requests
     from lib.requests.auth import HTTPBasicAuth
 
@@ -153,9 +155,17 @@ class PushBullet:
             try:
                 # noinspection PyUnresolvedReferences
                 import magic
+            except Exception:  # magic might fail for multiple reasons
+                # noinspection PyBroadException
+                try:
+                    import lib.magic as magic
+                except Exception:
+                    magic = None
+
+            if magic:
                 file_type = magic.from_buffer(fobj.read(1024))
                 fobj.seek(0)
-            except Exception:
+            else:
                 file_type = ""
 
         data = {"file_name": file_name,

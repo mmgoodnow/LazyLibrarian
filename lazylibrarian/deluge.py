@@ -27,17 +27,18 @@ import time
 import traceback
 from base64 import b64encode, b64decode
 
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, make_unicode
-from lazylibrarian.common import make_dirs, path_isdir, syspath
+from lazylibrarian.common import make_dirs, path_isdir, syspath, module_available
 from six import PY2
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 delugeweb_authtime = 0
 delugeweb_auth = {}

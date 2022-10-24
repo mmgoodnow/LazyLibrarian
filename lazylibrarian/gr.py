@@ -15,12 +15,6 @@ import time
 import traceback
 import unicodedata
 
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \

@@ -16,6 +16,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import module_available
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
     replace_all, get_list, month2num, check_year, make_utf8bytes
 from six import PY2
@@ -24,14 +25,14 @@ from six.moves.urllib_parse import quote, urlencode, quote_plus
 
 from lib.thefuzz import fuzz
 
-try:
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+elif PY2:
+    from lib.bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
 
 if PY2:
     import lib.feedparser as feedparser

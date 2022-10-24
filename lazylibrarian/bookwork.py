@@ -21,17 +21,18 @@ from six.moves.urllib_parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
-from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remove
+from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remove, module_available
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 
 from lib.thefuzz import fuzz
 from six import PY2
 
-try:
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
     import urllib3
     import requests
-except ImportError:
+else:
     import lib.requests as requests
 
 
@@ -1426,7 +1427,7 @@ def isbn_from_words(words):
                }
     content, _ = fetch_url(search_url, headers=headers)
     # noinspection Annotator
-    re_isbn13 = re.compile(r'97[89]{1}(?:-?\d){10,16}|97[89]{1}[- 0-9]{10,16}')
+    re_isbn13 = re.compile(r'97[89](?:-?\d){10,16}|97[89][- 0-9]{10,16}')
     re_isbn10 = re.compile(r'ISBN\x20(?=.{13}$)\d{1,5}([- ])\d{1,7}\1\d{1,6}\1(\d|X)$|[- 0-9X]{10,16}')
 
     # take the first valid looking answer

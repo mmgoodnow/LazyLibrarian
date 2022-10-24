@@ -20,25 +20,20 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural
-from lazylibrarian.common import quotes, path_isfile
+from lazylibrarian.common import quotes, path_isfile, module_available
 # noinspection PyUnresolvedReferences
 from six.moves.urllib_parse import quote_plus
-
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-
 from six import PY2
-try:
+
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+elif PY2:
+    from lib.bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
+
 try:
     import zipfile
 except ImportError:
@@ -78,11 +73,12 @@ def get_issue_num(words, skipped):
 def name_words(name):
     # sanitize for better matching
     # allow #num and word! or word? but strip other punctuation, allow '&' as a word
-    punct = re.compile('[%s]' % re.escape(string.punctuation.replace('#', '').replace('!', '').
-                                          replace('?', '').replace('&', '').replace(':', '')))
+    punct = re.compile('[{}]'.format(re.escape(string.punctuation.replace('#', '').replace('!', '').
+                                               replace('?', '').replace('&', '').replace(':', ''))))
+
     name = punct.sub(' ', name)
     # strip all ascii and non-ascii quotes/apostrophes
-    strip = re.compile('[%s]' % re.escape(''.join(quotes)))
+    strip = re.compile('[{}]'.format(re.escape(''.join(quotes))))
     name = strip.sub('', name)
     # special cases, probably need a configurable translation table like we do for genres
     name = name.replace('40 000', '40,000').replace("X Men", "X-Men").replace("X Factor", "X-Factor")

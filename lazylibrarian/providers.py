@@ -21,7 +21,7 @@ from six.moves.urllib_parse import urlencode, urlparse
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.common import syspath
+from lazylibrarian.common import syspath, module_available
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, make_bytestr, no_umlauts, month2num
@@ -35,14 +35,14 @@ if PY2:
 else:
     import lib3.feedparser as feedparser
 
-try:
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+elif PY2:
+    from lib.bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
 
 
 def test_provider(name, host=None, api=None):
@@ -994,7 +994,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
                     if success:
                         resultslist += results
     except Exception as e:
-        logger-error(str(e))
+        logger.error(str(e))
     finally:
         return resultslist, providers
 

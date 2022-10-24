@@ -32,7 +32,7 @@ from lazylibrarian import logger, database, versioncheck, postprocess, searchboo
     importer, grsync, comicscan, bookrename
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import restart_jobs, log_header, schedule_job, listdir, \
-    path_isdir, path_isfile, path_exists, syspath
+    path_isdir, path_isfile, path_exists, syspath, module_available
 from lazylibrarian.formatter import get_list, book_series, unaccented, check_int, unaccented_bytes, \
     make_unicode, make_bytestr, thread_name
 from lazylibrarian.dbupgrade import check_db, db_current_version
@@ -43,11 +43,13 @@ from six import PY2, text_type
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
 
-try:
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
     import urllib3
     import requests
-except ImportError:
+else:
     import lib.requests as requests
+
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read

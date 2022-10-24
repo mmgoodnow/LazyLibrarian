@@ -6179,7 +6179,7 @@ class WebInterface(object):
                         else:
                             # noinspection PyBroadException
                             try:
-                                if re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
+                                if row[1] and re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
                                     safetitle = quote_plus(make_utf8bytes(row[2])[0])
                                     btn = '<a href=\'open_mag?bookid=' + safetitle + '\'">' + row[2] + '</a>'
                                     row[2] = btn
