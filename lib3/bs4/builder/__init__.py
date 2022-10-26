@@ -298,7 +298,7 @@ def register_treebuilders_from(module):
     this_module = sys.modules['lib3.bs4.builder']
     # for item in sys.modules:
         # if 'bs4' in item or 'html5' in item:
-        #     print item, sys.modules[item]
+            # print(item, sys.modules[item])
     for name in module.__all__:
         obj = getattr(module, name)
 
@@ -322,6 +322,7 @@ try:
     register_treebuilders_from(_html5lib)
 except ImportError:
     # They don't have html5lib installed.
+    print("**** no html5lib")
     pass
 try:
     from . import _lxml

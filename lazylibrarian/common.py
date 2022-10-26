@@ -195,14 +195,14 @@ def path_islink(name):
 def remove(name):
     try:
         os.remove(syspath(name))
-    except OSError as e:
-        if e.errno == 2:  # does not exist is ok
+    except OSError as err:
+        if err.errno == 2:  # does not exist is ok
             pass
         else:
-            logger.warn("Failed to remove %s : %s" % (name, e.strerror))
+            logger.warn("Failed to remove %s : %s" % (name, err.strerror))
             pass
-    except Exception as e:
-        logger.warn("Failed to remove %s : %s" % (name, str(e)))
+    except Exception as err:
+        logger.warn("Failed to remove %s : %s" % (name, str(err)))
         pass
 
 
@@ -219,8 +219,8 @@ def listdir(name):
             dname = dname + '\\'
         try:
             return os.listdir(dname)
-        except Exception as e:
-            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(e)))
+        except Exception as err:
+            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
             return []
 
     return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
@@ -252,8 +252,8 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
                 dirs.append(name)
             else:
                 nondirs.append(name)
-        except Exception as e:
-            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(e)))
+        except Exception as err:
+            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
     if topdown:
         yield top, dirs, nondirs
     for name in dirs:
@@ -392,8 +392,8 @@ def safe_move(src, dst, action='move'):
             else:
                 raise
 
-        except (IOError, OSError) as e:  # both needed for different python versions
-            if e.errno == 22:  # bad mode or filename
+        except (IOError, OSError) as err:  # both needed for different python versions
+            if err.errno == 22:  # bad mode or filename
                 logger.debug("src=[%s] dst=[%s]" % (src, dst))
                 drive, path = os.path.splitdrive(dst)
                 logger.debug("drive=[%s] path=[%s]" % (drive, path))
@@ -500,8 +500,9 @@ def setperm(file_or_dir):
 
     try:
         os.chmod(syspath(file_or_dir), perm)
-    except Exception as e:
-        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir, type(e).__name__, str(e)))
+    except Exception as err:
+        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
+                                                                    type(err).__name__, str(err)))
         return False
 
     st = os.stat(syspath(file_or_dir))
@@ -565,8 +566,8 @@ def csv_file(search_dir=None, library=None):
                 if fname.endswith('.csv'):
                     if not library or library in fname:
                         return os.path.join(search_dir, fname)
-        except Exception as e:
-            logger.warn('Listdir error [%s]: %s %s' % (search_dir, type(e).__name__, str(e)))
+        except Exception as err:
+            logger.warn('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
     return ''
 
 
@@ -727,7 +728,12 @@ if module_available("urllib3") and module_available("requests"):
     import urllib3
     import requests
 else:
-    import lib.requests as requests
+    try:
+        import lib.requests as requests
+    except ModuleNotFoundError as e:
+        print(str(e))
+        print("Unable to continue, please install missing modules")
+        exit(0)
 
 
 def nextrun(target=None, interval=0, action='', hours=False):
@@ -1353,8 +1359,8 @@ def clear_log():
     for f in glob.glob(lazylibrarian.CONFIG['LOGDIR'] + "/*.log*"):
         try:
             os.remove(syspath(f))
-        except OSError as e:
-            error = e.strerror
+        except OSError as err:
+            error = err.strerror
             logger.debug("Failed to remove %s : %s" % (f, error))
 
     logger.lazylibrarian_log.init_logger(loglevel=lazylibrarian.LOGLEVEL)
@@ -1422,8 +1428,8 @@ def log_header():
                                        verify=False).json()['tls_version']
         if '1.2' not in tls_version and '1.3' not in tls_version:
             header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
-    except Exception as e:
-        tls_version = str(e)
+    except Exception as err:
+        tls_version = str(err)
     header += "tls: %s\n" % tls_version
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
@@ -1454,15 +1460,19 @@ def log_header():
         header += "html5lib: %s\n" % vers
     else:
         if PY2:
-            import lib.bs4
-            bs4vers = getattr(lib.bs4, '__version__', None)
+            import lib.bs4 as bs4
+            bs4vers = getattr(bs4, '__version__', None)
             # noinspection PyProtectedMember
-            h5vers = getattr(lib.bs4.builder._html5lib.html5lib, '__version__', None)
+            h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
         else:
-            import lib3.bs4
-            bs4vers = getattr(lib3.bs4, '__version__', None)
+            import lib3.bs4 as bs4
+            bs4vers = getattr(bs4, '__version__', None)
             # noinspection PyProtectedMember
-            h5vers = getattr(lib3.bs4.builder._html5lib.html5lib, '__version__', None)
+            try:
+                # noinspection PyProtectedMember
+                h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
+            except AttributeError:
+                h5vers = "library missing"
         header += "local bs4: %s\n" % bs4vers
         header += "local html5lib: %s\n" % h5vers
 
@@ -1502,8 +1512,8 @@ def log_header():
     if OpenSSL:
         try:
             import OpenSSL.SSL
-        except (ImportError, AttributeError) as e:
-            header += 'pyOpenSSL missing SSL module/attribute: %s\n' % e
+        except (ImportError, AttributeError) as err:
+            header += 'pyOpenSSL missing SSL module/attribute: %s\n' % err
 
     if OpenSSL:
         try:
@@ -1732,8 +1742,8 @@ def run_script(params):
             logger.debug(make_unicode(res))
             logger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)
-    except Exception as e:
-        err = "run_script exception: %s %s" % (type(e).__name__, str(e))
+    except Exception as er:
+        err = "run_script exception: %s %s" % (type(er).__name__, str(er))
         logger.error(err)
         return 1, '', err
 
@@ -1761,16 +1771,16 @@ def calibre_prg(prgname):
                     params = ["where", prgname]
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                     target = make_unicode(res).strip()
-                except Exception as e:
-                    logger.debug("where %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
+                except Exception as err:
+                    logger.debug("where %s failed: %s %s" % (prgname, type(err).__name__, str(err)))
                     target = ''
             else:
                 try:
                     params = ["which", prgname]
                     res = subprocess.check_output(params, stderr=subprocess.STDOUT)
                     target = make_unicode(res).strip()
-                except Exception as e:
-                    logger.debug("which %s failed: %s %s" % (prgname, type(e).__name__, str(e)))
+                except Exception as err:
+                    logger.debug("which %s failed: %s %s" % (prgname, type(err).__name__, str(err)))
                     target = ''
     if target:
         logger.debug("Using %s" % target)
@@ -1779,8 +1789,8 @@ def calibre_prg(prgname):
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
             res = make_unicode(res).strip().split("(")[1].split(")")[0]
             logger.debug("Found %s version %s" % (prgname, res))
-        except Exception as e:
-            logger.debug("%s --version failed: %s %s" % (prgname, type(e).__name__, str(e)))
+        except Exception as err:
+            logger.debug("%s --version failed: %s %s" % (prgname, type(err).__name__, str(err)))
             target = ''
     return target
 
