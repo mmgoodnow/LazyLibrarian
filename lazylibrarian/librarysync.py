@@ -401,7 +401,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             if aratio > abest_ratio:
                 use_it = True
             elif aratio == abest_ratio:
-                use_it = status == 'Have'
+                use_it = astatus == 'Have'
                 if not use_it:
                     want_words = get_list(book_lower)
                     best_words = get_list(aratio_name.lower())
