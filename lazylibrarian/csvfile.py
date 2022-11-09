@@ -286,10 +286,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
     """
     msg = 'Import CSV'
     if not library:
-        if lazylibrarian.SHOW_AUDIO:
-            library = 'audio'
-        else:
-            library = 'eBook'
+        library = 'audio' if lazylibrarian.SHOW_AUDIO else 'eBook'
     # noinspection PyBroadException
     try:
         if not search_dir:
@@ -365,10 +362,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     authorname = bookmatch['AuthorName']
                     bookname = bookmatch['BookName']
                     bookid = bookmatch['BookID']
-                    if library == 'eBook':
-                        bookstatus = bookmatch['Status']
-                    else:
-                        bookstatus = bookmatch['AudioStatus']
+                    bookstatus = bookmatch['Status'] if library == 'eBook' else bookmatch['AudioStatus']
                     if bookstatus in ['Open', 'Wanted', 'Have']:
                         existing += 1
                         logger.info('Found %s %s by %s, already marked as "%s"' %
@@ -377,10 +371,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     else:  # skipped/ignored
                         logger.info('Found %s %s by %s, marking as "%s"' % (library, bookname, authorname, status))
                         control_value_dict = {"BookID": bookid}
-                        if library == 'eBook':
-                            new_value_dict = {"Status": status}
-                        else:
-                            new_value_dict = {"AudioStatus": status}
+                        new_value_dict = {"Status": status} if library == 'eBook' else {"AudioStatus": status}
                         db.upsert("books", new_value_dict, control_value_dict)
                         bookcount += 1
                 elif authorid:

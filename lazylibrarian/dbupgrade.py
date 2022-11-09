@@ -124,27 +124,30 @@ def upgrade_needed():
     # Had a report of "index out of range", can't replicate it.
     # Maybe on some versions of sqlite an unset user_version
     # or unsupported pragma gives an empty result?
+
+    if get_db_version(db) < db_current_version:
+        return db_current_version
+    return 0
+
+
+def get_db_version(db):
+    """
+    Returns the current DB version as a numnber
+    """
     db_version = 0
     result = db.match('PRAGMA user_version')
     if result and result[0]:
         value = str(result[0])
         if value.isdigit():
             db_version = int(value)
-
-    if db_version < db_current_version:
-        return db_current_version
-    return 0
+    return db_version
 
 
 def has_column(db, table, column):
     columns = db.select('PRAGMA table_info(%s)' % table)
     if not columns:  # no such table
         return False
-    for item in columns:
-        if item[1] == column:
-            return True
-    # no such column
-    return False
+    return any(item[1] == column for item in columns)
 
 
 def dbupgrade(current_version):
@@ -152,12 +155,7 @@ def dbupgrade(current_version):
         # noinspection PyBroadException
         try:
             db = database.DBConnection()
-            db_version = 0
-            result = db.match('PRAGMA user_version')
-            if result and result[0]:
-                value = str(result[0])
-                if value.isdigit():
-                    db_version = int(value)
+            db_version = get_db_version(db)
 
             check = db.match('PRAGMA integrity_check')
             if check and check[0]:
@@ -937,14 +935,9 @@ def db_v60(db, upgradelog):
 
 
 def update_schema(db, upgradelog):
-    db_version = 0
+    db_version = get_db_version(db)
     changes = 0
 
-    result = db.match('PRAGMA user_version')
-    if result and result[0]:
-        value = str(result[0])
-        if value.isdigit():
-            db_version = int(value)
     logger.debug("Schema check v%s, database is v%s" % (db_current_version, db_version))
     if db_current_version != db_version:
         changes += 1

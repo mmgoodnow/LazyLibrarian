@@ -141,3 +141,14 @@ def warn(message):
 
 def error(message):
     lazylibrarian_log.log(message, level='ERROR')
+
+
+def logmessage(message, level):
+    if level == "DEBUG" and lazylibrarian.LOGLEVEL <= 1:
+        return
+
+    if level == "INFO" and lazylibrarian.LOGLEVEL <= 0:
+        return
+        
+    lazylibrarian_log.log(message, level)
+

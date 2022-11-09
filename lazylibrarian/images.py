@@ -88,17 +88,12 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
     if not PIL:
         return ''
     fname, extn = os.path.splitext(jpeg)
-    if not basewidth:
-        outfile = fname + '_thumb' + extn
-    else:
-        outfile = "%s_w%s%s" % (fname, basewidth, extn)
+    outfile = "%s_w%s%s" % (fname, basewidth, extn) if basewidth else fname + '_thumb' + extn
+        
     if not overwrite and path_isfile(outfile):
         return outfile
 
-    if basewidth:
-        bwidth = basewidth
-    else:
-        bwidth = 300
+    bwidth = basewidth if basewidth else 300
     try:
         img = PILImage.open(jpeg)
     except Exception as e:
@@ -155,7 +150,7 @@ def coverswap(sourcefile):
             while p < cnt:
                 output.addPage(input1.getPage(p))
                 # logger.debug("Added page %s" % p)
-                p = p + 1
+                p+=1
             with open(srcfile + 'new', "wb") as outputStream:
                 output.write(outputStream)
         logger.debug("Writing new output file")
