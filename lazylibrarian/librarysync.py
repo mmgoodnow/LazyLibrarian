@@ -266,13 +266,26 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         for item in res:
             logger.debug("%s [%s]" % (book, item[whichstatus]))
 
-    match = any(item[whichstatus] == 'Have' for item in res)
+    match = None
+    for item in res:
+        if item[whichstatus] == 'Have':
+            match = item
+            break
     if not match:
-        match = any(item[whichstatus] == 'Open' for item in res)
+        for item in res:
+            if item[whichstatus] == 'Open':
+                match = item
+                break
     if not match:
-        match = any(item[whichstatus] != 'Ignored' for item in res)
+        for item in res:
+            if item[whichstatus] != 'Ignored':
+                match = item
+                break
     if not match:
-        match = any(item[whichstatus] == 'Ignored' for item in res)
+        for item in res:
+            if item[whichstatus] == 'Ignored':
+                match = item
+                break
     if match:
         logger.debug('Exact match [%s] %s' % (book, match[whichstatus]))
         return match['BookID'], match[whichstatus]
