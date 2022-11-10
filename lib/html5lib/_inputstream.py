@@ -7,7 +7,7 @@ import codecs
 import re
 from io import BytesIO, StringIO
 
-import webencodings
+import lib.webencodings as webencodings
 
 from .constants import EOF, spaceCharacters, asciiLetters, asciiUppercase
 from .constants import _ReparseException
