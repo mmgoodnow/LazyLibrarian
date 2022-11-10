@@ -259,10 +259,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     cmd += ' and authors.AuthorID=? and BookName=? COLLATE NOCASE'
     res = db.select(cmd, (authorid, book))
 
-    if library == 'eBook':
-        whichstatus = 'Status'
-    else:
-        whichstatus = 'AudioStatus'
+    whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
 
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
         logger.debug("Found %s exact match" % len(res))
@@ -412,117 +409,50 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             partial -= abs(words)
             partname -= abs(words)
 
-        use_it = False
-        if ratio > best_ratio:
-            use_it = True
-        elif ratio == best_ratio:
-            if library == 'eBook' and a_book['Status'] == 'Have':
+        def isitbest(aratio, abest_ratio, aratio_name, abest_type, astatus):
+            use_it = False
+            if aratio > abest_ratio:
                 use_it = True
-            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                use_it = True
-            if not use_it:
-                want_words = get_list(book_lower)
-                best_words = get_list(ratio_name.lower())
-                new_words = get_list(a_bookname.lower())
-                best_cnt = 0
-                new_cnt = 0
-                for word in want_words:
-                    if word in best_words:
-                        best_cnt += 1
-                    if word in new_words:
-                        new_cnt += 1
-                if new_cnt > best_cnt:
-                    use_it = True
-            if not use_it and best_type == 'Ignored':
-                if library == 'eBook' and a_book['Status'] != 'Ignored':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                    use_it = True
-        if use_it:
+            elif aratio == abest_ratio:
+                use_it = astatus == 'Have'
+                if not use_it:
+                    want_words = get_list(book_lower)
+                    best_words = get_list(aratio_name.lower())
+                    new_words = get_list(a_bookname.lower())
+                    best_cnt = 0
+                    new_cnt = 0
+                    for word in want_words:
+                        if word in best_words:
+                            best_cnt += 1
+                        if word in new_words:
+                            new_cnt += 1
+                    if new_cnt > best_cnt:
+                        use_it = True
+                if not use_it and abest_type == 'Ignored':
+                    use_it = astatus != 'Ignored'
+            return use_it
+
+        if isitbest(ratio, best_ratio, ratio_name, best_type, a_book[whichstatus]):
             best_ratio = ratio
-            if library == 'eBook':
-                best_type = a_book['Status']
-            else:
-                best_type = a_book['AudioStatus']
+            best_type = a_book[whichstatus]
             ratio_name = a_book['BookName']
             ratio_id = a_book['BookID']
 
-        use_it = False
-        if partial > best_partial:
-            use_it = True
-        elif partial == best_partial:
-            if library == 'eBook' and a_book['Status'] == 'Have':
-                use_it = True
-            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                use_it = True
-            if not use_it:
-                want_words = get_list(book_lower)
-                best_words = get_list(partial_name.lower())
-                new_words = get_list(a_bookname.lower())
-                best_cnt = 0
-                new_cnt = 0
-                for word in want_words:
-                    if word in best_words:
-                        best_cnt += 1
-                    if word in new_words:
-                        new_cnt += 1
-                if new_cnt > best_cnt:
-                    use_it = True
-            if not use_it and partial_type == 'Ignored':
-                if library == 'eBook' and a_book['Status'] != 'Ignored':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                    use_it = True
-        if use_it:
+        if isitbest(partial, best_partial, partial_name, partial_type, a_book[whichstatus]):
             best_partial = partial
-            if library == 'eBook':
-                partial_type = a_book['Status']
-            else:
-                partial_type = a_book['AudioStatus']
+            partial_type = a_book[whichstatus]
             partial_name = a_book['BookName']
             partial_id = a_book['BookID']
 
-        use_it = False
-        if partname > best_partname:
-            use_it = True
-        elif partname == best_partname:
-            if library == 'eBook' and a_book['Status'] == 'Have':
-                use_it = True
-            if library != 'eBook' and a_book['AudioStatus'] == 'Have':
-                use_it = True
-            if not use_it:
-                want_words = get_list(book_lower)
-                best_words = get_list(partname_name.lower())
-                new_words = get_list(a_bookname.lower())
-                best_cnt = 0
-                new_cnt = 0
-                for word in want_words:
-                    if word in best_words:
-                        best_cnt += 1
-                    if word in new_words:
-                        new_cnt += 1
-                if new_cnt > best_cnt:
-                    use_it = True
-            if not use_it and partname_type == 'Ignored':
-                if library == 'eBook' and a_book['Status'] != 'Ignored':
-                    use_it = True
-                if library != 'eBook' and a_book['AudioStatus'] != 'Ignored':
-                    use_it = True
-        if use_it:
+        if isitbest(partname, best_partname, partname_name, partname_type, a_book[whichstatus]):
             best_partname = partname
-            if library == 'eBook':
-                partname_type = a_book['Status']
-            else:
-                partname_type = a_book['AudioStatus']
+            partname_type = a_book[whichstatus]
             partname_name = a_book['BookName']
             partname_id = a_book['BookID']
 
         if a_book_lower == book_partname and has_clean_subtitle:
             have_prefix = True
-            if library == 'eBook':
-                prefix_type = a_book['Status']
-            else:
-                prefix_type = a_book['Status']
+            prefix_type = a_book[whichstatus]
             prefix_name = a_book['BookName']
             prefix_id = a_book['BookID']
 
