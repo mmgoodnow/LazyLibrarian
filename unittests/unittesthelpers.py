@@ -12,13 +12,19 @@ def removetestDB():
     # Delete the database that was created for unit testing
     if len(lazylibrarian.DBFILE):
         logger.debug("Deleting unit test database")
-        remove(lazylibrarian.DBFILE)
-        remove(lazylibrarian.DBFILE + "-shm")
-        remove(lazylibrarian.DBFILE + "-wal")
+        try:
+            remove(lazylibrarian.DBFILE)
+            remove(lazylibrarian.DBFILE + "-shm")
+            remove(lazylibrarian.DBFILE + "-wal")
+        except:
+            pass
 
 def removetestCache():
     # Delete the database that was created for unit testing
     if len(lazylibrarian.CACHEDIR):
         logger.debug("Deleting unit test cache directory")
-        rmtree(lazylibrarian.CACHEDIR)
+        try:
+            rmtree(lazylibrarian.CACHEDIR)
+        except:
+            pass
 

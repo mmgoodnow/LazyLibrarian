@@ -21,6 +21,12 @@ from six import PY2
 
 # Simple rotating log handler that uses RotatingFileHandler
 class RotatingLogger(object):
+    # Class variable
+    __LOGGER_INITIALIZED__ = False
+
+    @classmethod
+    def is_initialized(cls):
+        return cls.__LOGGER_INITIALIZED__
 
     def __init__(self, filename):
 
@@ -78,6 +84,8 @@ class RotatingLogger(object):
             consolehandler.setFormatter(consoleformatter)
             lg.addHandler(consolehandler)
             self.consolehandler = consolehandler
+
+        RotatingLogger.__LOGGER_INITIALIZED__ = True
 
     @staticmethod
     def log(message, level):

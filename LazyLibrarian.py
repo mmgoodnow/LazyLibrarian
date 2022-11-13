@@ -1,10 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
-#
+
+#  This file is part of Lazylibrarian.
+#  Lazylibrarian is free software':'you can redistribute it and/or modify
+#  it under the terms of the GNU General Public License as published by
+#  the Free Software Foundation, either version 3 of the License, or
+#  (at your option) any later version.
+#  Lazylibrarian is distributed in the hope that it will be useful,
+#  but WITHOUT ANY WARRANTY; without even the implied warranty of
+#  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#  GNU General Public License for more details.
+#  You should have received a copy of the GNU General Public License
+#  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
+
+# Purpose:
+#   Main file for starting LazyLibrarian
+
 from __future__ import print_function
 
-import locale
-import os
 import sys
 import time
 
@@ -29,7 +42,6 @@ if opt_out_of_certificate_verification:
     except Exception:
         pass
 
-
 # ==== end block (should be configurable at settings level)
 
 
@@ -39,84 +51,15 @@ def main():
 
     options = startup.startup_parsecommandline(__file__, args = sys.argv[1:], seconds_to_sleep = 2)
 
-    # REMINDER ############ NO LOGGING BEFORE HERE ###############
-    # There is no point putting in any logging above this line, as its not set till after initialize.
-    startup.initialize(options)
+    startup.init_logs()
+    startup.init_config()
+    startup.init_caches()
+    startup.init_database()
+    startup.init_build_debug_header(online = True)
+    startup.init_build_lists()
 
-    # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
-    old_file = os.path.join(lazylibrarian.PROG_DIR, 'version.txt')
-    version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
-    if path_isfile(old_file):
-        if not path_isfile(version_file):
-            try:
-                with open(syspath(old_file), 'r') as s:
-                    with open(syspath(version_file), 'w') as d:
-                        d.write(s.read())
-            except OSError:
-                logger.warn("Unable to copy version.txt")
-        try:
-            os.remove(old_file)
-        except OSError:
-            pass
-
-    if lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'] == 0:
-        logger.debug('Automatic update checks are disabled')
-        # pretend we're up to date so we don't keep warning the user
-        # version check button will still override this if you want to
-        lazylibrarian.CONFIG['LATEST_VERSION'] = lazylibrarian.CONFIG['CURRENT_VERSION']
-        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
-    else:
-        # Set the install type (win,git,source) &
-        # check the version when the application starts
-        versioncheck.check_for_updates()
-
-        logger.debug('Current Version [%s] - Latest remote version [%s] - Install type [%s]' % (
-            lazylibrarian.CONFIG['CURRENT_VERSION'], lazylibrarian.CONFIG['LATEST_VERSION'],
-            lazylibrarian.CONFIG['INSTALL_TYPE']))
-
-        if check_int(lazylibrarian.CONFIG['GIT_UPDATED'], 0) == 0:
-            if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
-                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
-                    lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
-                    logger.debug('Setting update timestamp to now')
-
-    # if gitlab doesn't recognise a hash it returns 0 commits
-    if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
-            and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
-        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-            res, _ = run_git('remote -v')
-            if 'gitlab.com' in res:
-                logger.warn('Unrecognised version, LazyLibrarian may have local changes')
-            else:  # upgrading from github
-                logger.warn("Upgrading git origin")
-                run_git('remote rm origin')
-                run_git('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
-                run_git('config master.remote origin')
-                run_git('config master.merge refs/heads/master')
-                res, _ = run_git('pull origin master')
-                if 'CONFLICT' in res:
-                    logger.warn("Forcing reset to fix merge conflicts")
-                    run_git('reset --hard origin/master')
-                run_git('branch --set-upstream-to=origin/master master')
-                lazylibrarian.SIGNAL = 'restart'
-        elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
-            logger.warn('Unrecognised version [%s] to force upgrade delete %s' % (
-                        lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
-
-    if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
-        # User may be running an old source zip, so try to force update
-        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
-        lazylibrarian.SIGNAL = 'update'
-        # but only once in case the update fails, don't loop
-        with open(syspath(version_file), 'w') as f:
-            f.write("UNKNOWN SOURCE")
-
-    if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0 and lazylibrarian.SIGNAL == 'update':
-        lazylibrarian.SIGNAL = None
-        if lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
-            logger.debug('Not updating, LazyLibrarian is already up to date')
-        else:
-            logger.debug('Not updating, LazyLibrarian has local changes')
+    version_file = startup.create_version_file('version.txt')
+    startup.init_version_checks(version_file)
 
     if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
         logger.info("Apprise library (%s) installed" % lazylibrarian.APPRISE)
@@ -166,12 +109,13 @@ def main():
                                      lazylibrarian.CONFIG['HTTP_PORT'],
                                      lazylibrarian.CONFIG['HTTP_ROOT'])
 
+    # QQ: Why do we upgrade the DB here? init_database seems more logical.
     curr_ver = dbupgrade.upgrade_needed()
     if curr_ver:
         lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
         dbupgrade.dbupgrade(curr_ver)
 
-    startup.start()
+    startup.start_schedulers()
 
     while True:
         if not lazylibrarian.SIGNAL:

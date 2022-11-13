@@ -19,8 +19,8 @@ import threading
 import time
 from shutil import rmtree
 
-from lazylibrarian import logger, database, versioncheck, notifiers
-from lazylibrarian.common import restart_jobs, path_isdir, syspath, module_available
+from lazylibrarian import logger, database, notifiers # Must keep notifiers here
+from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
 
@@ -58,9 +58,6 @@ CHERRYPYLOG = 0
 REQUESTSLOG = 0
 DOCKER = False
 STOPTHREADS = False
-
-# Used only during startup
-__INITIALIZED__ = False
 
 # APPRISE not defined here, but in notifiers
 

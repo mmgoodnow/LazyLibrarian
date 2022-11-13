@@ -19,7 +19,6 @@ import locale
 import os
 import sys
 import time
-import threading
 import sqlite3
 import calendar
 import json
@@ -31,14 +30,14 @@ import cherrypy
 
 from shutil import rmtree
 
-from lazylibrarian.common import path_isfile, path_isdir, remove, logger, listdir, log_header, syspath, restart_jobs, \
+from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_header, syspath, restart_jobs, \
     initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import config, database, versioncheck
-from lazylibrarian import CONFIG, __INITIALIZED__
+from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
-from lazylibrarian.versioncheck import run_git
 from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 from six import PY2
 
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
@@ -205,13 +204,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
 
     return options
 
-def initialize(options, online=True):
-    global CONFIG, __INITIALIZED__
-    if __INITIALIZED__:
-        return False
-
-    initscheduler()
-
+def init_logs():
+    global CONFIG
+    # Initialized log files. Until this is done, do not use the 
     config.check_ini_section('General')
     # False to silence logging until logger initialised
     for key in ['LOGLIMIT', 'LOGFILES', 'LOGSIZE', 'LOGDIR']:
@@ -237,20 +232,27 @@ def initialize(options, online=True):
             lazylibrarian.LOGLEVEL = cfgloglevel  # Config setting picked up
 
     CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
-    logger.lazylibrarian_log.init_logger(loglevel=CONFIG['LOGLEVEL'])
-    logger.info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
+    lazylibrarian_log.init_logger(loglevel=CONFIG['LOGLEVEL'])
+    info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
         lazylibrarian.LOGTYPE, CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], cfgloglevel))
     if CONFIG['LOGLEVEL'] > 2:
-        logger.info("Screen Log set to EXTENDED DEBUG")
+        info("Screen Log set to EXTENDED DEBUG")
     elif CONFIG['LOGLEVEL'] == 2:
-        logger.info("Screen Log set to DEBUG")
+        info("Screen Log set to DEBUG")
     elif CONFIG['LOGLEVEL'] == 1:
-        logger.info("Screen Log set to INFO")
+        info("Screen Log set to INFO")
     else:
-        logger.info("Screen Log set to WARN/ERROR")
+        info("Screen Log set to WARN/ERROR")
 
+
+def init_config():
+    initscheduler()
     config.config_read()
+    lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
+
+def init_caches():
+    global CONFIG
     # override detected encoding if required
     if CONFIG['SYS_ENCODING']:
         lazylibrarian.SYS_ENCODING = CONFIG['SYS_ENCODING']
@@ -261,7 +263,7 @@ def initialize(options, online=True):
         try:
             os.makedirs(lazylibrarian.CACHEDIR)
         except OSError as e:
-            logger.error('Could not create cachedir; %s' % e)
+            error('Could not create cachedir; %s' % e)
 
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
@@ -270,7 +272,7 @@ def initialize(options, online=True):
             os.makedirs(cachelocation)
         except OSError as e:
             if not path_isdir(cachelocation):
-                logger.error('Could not create %s: %s' % (cachelocation, e))
+                error('Could not create %s: %s' % (cachelocation, e))
 
     # nest these caches 2 levels to make smaller/faster directory lists
     caches = ["XMLCache", "JSONCache", "WorkCache", "HTMLCache"]
@@ -283,12 +285,11 @@ def initialize(options, online=True):
                     os.makedirs(cachelocation)
                 except OSError as e:
                     if not path_isdir(cachelocation):
-                        logger.error('Could not create %s: %s' % (cachelocation, e))
+                        error('Could not create %s: %s' % (cachelocation, e))
         for itm in listdir(pth):
             if len(itm) > 2:
                 os.rename(syspath(os.path.join(pth, itm)),
                             syspath(os.path.join(pth, itm[0], itm[1], itm)))
-
     last_run_version = None
     last_run_interface = None
     makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
@@ -305,18 +306,18 @@ def initialize(options, online=True):
     clean_cache = False
     if last_run_version != sys.version.split()[0]:
         if last_run_version:
-            logger.debug("Python version change (%s to %s)" % (last_run_version, sys.version.split()[0]))
+            debug("Python version change (%s to %s)" % (last_run_version, sys.version.split()[0]))
         else:
-            logger.debug("Previous python version unknown, now %s" % sys.version.split()[0])
+            debug("Previous python version unknown, now %s" % sys.version.split()[0])
         clean_cache = True
     if last_run_interface != CONFIG['HTTP_LOOK']:
         if last_run_interface:
-            logger.debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
+            debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
         else:
-            logger.debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
+            debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
         clean_cache = True
     if clean_cache:
-        logger.debug("Clearing mako cache")
+        debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
         with open(version_file, 'w') as fp:
@@ -341,8 +342,8 @@ def initialize(options, online=True):
         lazylibrarian.CONFIG['GR_FOLLOW'] = 0
         lazylibrarian.CONFIG['GR_FOLLOWNEW'] = 0
 
-    lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
+def init_database():
     # Initialize the database
     try:
         db = database.DBConnection()
@@ -352,9 +353,9 @@ def initialize(options, online=True):
             version = result[0]
         else:
             version = 0
-        logger.info("Database is v%s, integrity check: %s" % (version, check[0]))
+        info("Database is v%s, integrity check: %s" % (version, check[0]))
     except Exception as e:
-        logger.error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
+        error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
         sys.exit(0)
 
     if version:
@@ -362,7 +363,7 @@ def initialize(options, online=True):
         if db_changes:
             db.action('PRAGMA user_version=%s' % db_current_version)
             db.action('vacuum')
-            logger.debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
+            debug("Upgraded database schema to v%s with %s changes" % (db_current_version, db_changes))
 
     db.close()
     # group_concat needs sqlite3 >= 3.5.4
@@ -372,33 +373,24 @@ def initialize(options, online=True):
         parts = sqlv.split('.')
         if int(parts[0]) == 3:
             if int(parts[1]) < 6 or int(parts[1]) == 6 and int(parts[2]) < 19:
-                logger.error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
+                error("Your version of sqlite3 is too old, please upgrade to at least v3.6.19")
                 sys.exit(0)
     except Exception as e:
-        logger.warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
+        warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
 
+def init_build_debug_header(online):
     debuginfo = log_header(online)
     for item in debuginfo.splitlines():
         if 'missing' in item:
-            logger.warn(item)
+            warn(item)
 
+
+def init_build_lists():
     lazylibrarian.GRGENRES = build_genres()
     lazylibrarian.MONTHNAMES = build_monthtable()
     lazylibrarian.NEWUSER_MSG = build_logintemplate()
     lazylibrarian.NEWFILE_MSG = build_filetemplate()
-
-    try:  # optional module, check database health, could also be upgraded to modify/repair db or run other code
-        # noinspection PyUnresolvedReferences
-        from lazylibrarian import dbcheck
-        dbcheck.dbcheck()
-    except ImportError:
-        pass
-
     lazylibrarian.BOOKSTRAP_THEMELIST = build_bookstrap_themes(lazylibrarian.PROG_DIR)
-
-    lazylibrarian.__INITIALIZED__ = True
-    # Return the things the rest of the startup sequence needs
-    return True
 
 
 def get_unrarlib():
@@ -440,7 +432,7 @@ def build_bookstrap_themes(prog_dir):
     url = 'http://bootswatch.com/api/3.json'
     result, success = fetch_url(url, headers=None, retry=False)
     if not success:
-        logger.debug("Error getting bookstrap themes : %s" % result)
+        debug("Error getting bookstrap themes : %s" % result)
         return themelist
 
     try:
@@ -449,9 +441,9 @@ def build_bookstrap_themes(prog_dir):
             themelist.append(theme['name'].lower())
     except Exception as e:
         # error reading results
-        logger.warn('JSON Error reading bookstrap themes, %s %s' % (type(e).__name__, str(e)))
+        warn('JSON Error reading bookstrap themes, %s %s' % (type(e).__name__, str(e)))
 
-    logger.info("Bookstrap found %i themes" % len(themelist))
+    info("Bookstrap found %i themes" % len(themelist))
     return themelist
 
 
@@ -471,13 +463,13 @@ def build_logintemplate():
                     res = msg_data.read()
             for item in ["{username}", "{password}", "{permission}"]:
                 if item not in res:
-                    logger.warn("Invalid login template in %s, no %s" % (msg_file, item))
+                    warn("Invalid login template in %s, no %s" % (msg_file, item))
                     return default_msg
-            logger.info("Loaded login template from %s" % msg_file)
+            info("Loaded login template from %s" % msg_file)
             return res
         except Exception as e:
-            logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
-    logger.debug("Using default login template")
+            error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+    debug("Using default login template")
     return default_msg
 
 
@@ -495,13 +487,13 @@ def build_filetemplate():
                     res = msg_data.read()
             for item in ["{name}", "{method}", "{link}"]:
                 if item not in res:
-                    logger.warn("Invalid attachment template in %s, no %s" % (msg_file, item))
+                    warn("Invalid attachment template in %s, no %s" % (msg_file, item))
                     return default_msg
-            logger.info("Loaded attachment template from %s" % msg_file)
+            info("Loaded attachment template from %s" % msg_file)
             return res
         except Exception as e:
-            logger.error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
-    logger.debug("Using default attachment template")
+            error('Failed to load %s, %s %s' % (msg_file, type(e).__name__, str(e)))
+    debug("Using default attachment template")
     return default_msg
 
 
@@ -516,11 +508,11 @@ def build_genres():
                     # noinspection PyArgumentList
                     with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
                         res = json.load(json_data)
-                logger.info("Loaded genres from %s" % json_file)
+                info("Loaded genres from %s" % json_file)
                 return res
             except Exception as e:
-                logger.error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
-    logger.error('No valid genres.json file found')
+                error('Failed to load %s, %s %s' % (json_file, type(e).__name__, str(e)))
+    error('No valid genres.json file found')
     return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
 
 
@@ -535,9 +527,9 @@ def build_monthtable():
             # list alternate entries as each language is in twice (long and short month names)
             for item in table[0][::2]:
                 mlist += item + ' '
-            logger.debug('Loaded monthnames.json : %s' % mlist)
+            debug('Loaded monthnames.json : %s' % mlist)
         except Exception as e:
-            logger.error('Failed to load monthnames.json, %s %s' % (type(e).__name__, str(e)))
+            error('Failed to load monthnames.json, %s %s' % (type(e).__name__, str(e)))
 
     if not table:
         # Default Month names table to hold long/short month names for multiple languages
@@ -565,33 +557,33 @@ def build_monthtable():
         if 'LC_CTYPE' in current_locale:
             current_locale = locale.setlocale(locale.LC_CTYPE, '')
         # getdefaultlocale() doesnt seem to work as expected on windows, returns 'None'
-        logger.debug('Current locale is %s' % current_locale)
+        debug('Current locale is %s' % current_locale)
     except locale.Error as e:
-        logger.debug("Error getting current locale : %s" % str(e))
+        debug("Error getting current locale : %s" % str(e))
         return table
 
     lang = str(current_locale)
     # check not already loaded, also all english variants and 'C' use the same month names
     if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-        logger.debug('Month names for %s already loaded' % lang)
+        debug('Month names for %s already loaded' % lang)
     else:
-        logger.debug('Loading month names for %s' % lang)
+        debug('Loading month names for %s' % lang)
         table[0].append(lang)
         for f in range(1, 13):
             table[f].append(unaccented(calendar.month_name[f]).lower())
         table[0].append(lang)
         for f in range(1, 13):
             table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
-        logger.info("Added month names for locale [%s], %s, %s ..." % (
+        info("Added month names for locale [%s], %s, %s ..." % (
             lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
 
     for lang in get_list(CONFIG['IMP_MONTHLANG']):
         try:
             if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
-                logger.debug('Month names for %s already loaded' % lang)
+                debug('Month names for %s already loaded' % lang)
             else:
                 locale.setlocale(locale.LC_ALL, lang)
-                logger.debug('Loading month names for %s' % lang)
+                debug('Loading month names for %s' % lang)
                 table[0].append(lang)
                 for f in range(1, 13):
                     table[f].append(unaccented(calendar.month_name[f]).lower())
@@ -599,11 +591,11 @@ def build_monthtable():
                 for f in range(1, 13):
                     table[f].append(unaccented(calendar.month_abbr[f]).lower().strip('.'))
                 locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-                logger.info("Added month names for locale [%s], %s, %s ..." % (
+                info("Added month names for locale [%s], %s, %s ..." % (
                     lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
         except Exception as e:
             locale.setlocale(locale.LC_ALL, current_locale)  # restore entry state
-            logger.warn("Unable to load requested locale [%s] %s %s" % (lang, type(e).__name__, str(e)))
+            warn("Unable to load requested locale [%s] %s %s" % (lang, type(e).__name__, str(e)))
             try:
                 wanted_lang = lang.split('_')[0]
                 params = ['locale', '-a']
@@ -614,16 +606,96 @@ def build_monthtable():
                     if a_locale.startswith(wanted_lang):
                         locale_list.append(a_locale)
                 if locale_list:
-                    logger.warn("Found these alternatives: " + str(locale_list))
+                    warn("Found these alternatives: " + str(locale_list))
                 else:
-                    logger.warn("Unable to find an alternative")
+                    warn("Unable to find an alternative")
             except Exception as e:
-                logger.warn("Unable to get a list of alternatives, %s %s" % (type(e).__name__, str(e)))
-            logger.debug("Set locale back to entry state %s" % current_locale)
+                warn("Unable to get a list of alternatives, %s %s" % (type(e).__name__, str(e)))
+            debug("Set locale back to entry state %s" % current_locale)
 
     # with open(json_file, 'w') as f:
     #    json.dump(table, f)
     return table
+
+def create_version_file(filename):
+    # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
+    old_file = os.path.join(lazylibrarian.PROG_DIR, filename)
+    version_file = os.path.join(lazylibrarian.CACHEDIR, filename)
+    if path_isfile(old_file):
+        if not path_isfile(version_file):
+            try:
+                with open(syspath(old_file), 'r') as s:
+                    with open(syspath(version_file), 'w') as d:
+                        d.write(s.read())
+            except OSError:
+                warn("Unable to copy ", filename)
+        try:
+            os.remove(old_file)
+        except OSError:
+            pass
+
+    return version_file
+
+def init_version_checks(version_file):
+    if lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'] == 0:
+        debug('Automatic update checks are disabled')
+        # pretend we're up to date so we don't keep warning the user
+        # version check button will still override this if you want to
+        lazylibrarian.CONFIG['LATEST_VERSION'] = lazylibrarian.CONFIG['CURRENT_VERSION']
+        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
+    else:
+        # Set the install type (win,git,source) &
+        # check the version when the application starts
+        versioncheck.check_for_updates()
+
+        debug('Current Version [%s] - Latest remote version [%s] - Install type [%s]' % (
+            lazylibrarian.CONFIG['CURRENT_VERSION'], lazylibrarian.CONFIG['LATEST_VERSION'],
+            lazylibrarian.CONFIG['INSTALL_TYPE']))
+
+        if check_int(lazylibrarian.CONFIG['GIT_UPDATED'], 0) == 0:
+            if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
+                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
+                    lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                    debug('Setting update timestamp to now')
+
+    # if gitlab doesn't recognise a hash it returns 0 commits
+    if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
+            and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
+        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+            res, _ = versioncheck.run_git('remote -v')
+            if 'gitlab.com' in res:
+                warn('Unrecognised version, LazyLibrarian may have local changes')
+            else:  # upgrading from github
+                warn("Upgrading git origin")
+                versioncheck.run_git('remote rm origin')
+                versioncheck.run_git('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
+                versioncheck.run_git('config master.remote origin')
+                versioncheck.run_git('config master.merge refs/heads/master')
+                res, _ = versioncheck.run_git('pull origin master')
+                if 'CONFLICT' in res:
+                    warn("Forcing reset to fix merge conflicts")
+                    versioncheck.run_git('reset --hard origin/master')
+                versioncheck.run_git('branch --set-upstream-to=origin/master master')
+                lazylibrarian.SIGNAL = 'restart'
+        elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+            warn('Unrecognised version [%s] to force upgrade delete %s' % (
+                        lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
+
+    if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+        # User may be running an old source zip, so try to force update
+        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
+        lazylibrarian.SIGNAL = 'update'
+        # but only once in case the update fails, don't loop
+        with open(syspath(version_file), 'w') as f:
+            f.write("UNKNOWN SOURCE")
+
+    if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0 and lazylibrarian.SIGNAL == 'update':
+        lazylibrarian.SIGNAL = None
+        if lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
+            debug('Not updating, LazyLibrarian is already up to date')
+        else:
+            debug('Not updating, LazyLibrarian has local changes')
+
 
 def launch_browser(host, port, root):
     import webbrowser
@@ -639,55 +711,50 @@ def launch_browser(host, port, root):
     try:
         webbrowser.open('%s://%s:%i%s/home' % (protocol, host, port, root))
     except Exception as e:
-        logger.error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
+        error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
 
+def start_schedulers():
+    if not lazylibrarian.UPDATE_MSG:
+        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
+            lazylibrarian.SHOW_EBOOK = 1
+            lazylibrarian.SHOW_AUDIO = 0
+            lazylibrarian.SHOW_COMICS = 0
+            lazylibrarian.SHOW_SERIES = 0
+        else:
+            lazylibrarian.SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
+            lazylibrarian.SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
+            lazylibrarian.SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
+            lazylibrarian.SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
 
-def start():
-    global __INITIALIZED__
-
-    if __INITIALIZED__:
-        if not lazylibrarian.UPDATE_MSG:
-            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-                lazylibrarian.SHOW_EBOOK = 1
-                lazylibrarian.SHOW_AUDIO = 0
-                lazylibrarian.SHOW_COMICS = 0
+            if lazylibrarian.CONFIG['ADD_SERIES']:
+                lazylibrarian.SHOW_SERIES = 1
+            if not lazylibrarian.CONFIG['SERIES_TAB']:
                 lazylibrarian.SHOW_SERIES = 0
-            else:
-                lazylibrarian.SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
-                lazylibrarian.SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
-                lazylibrarian.SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
-                lazylibrarian.SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
 
-                if lazylibrarian.CONFIG['ADD_SERIES']:
-                    lazylibrarian.SHOW_SERIES = 1
-                if not lazylibrarian.CONFIG['SERIES_TAB']:
-                    lazylibrarian.SHOW_SERIES = 0
-
-        if lazylibrarian.CONFIG['GR_URL'] == 'https://goodreads.org':
-            lazylibrarian.CONFIG['GR_URL'] = 'https://www.goodreads.com'
-        # Crons and scheduled jobs started here
-        # noinspection PyUnresolvedReferences
-        startscheduler()
-        if not lazylibrarian.STOPTHREADS:
-            restart_jobs(start='Start')
+    if lazylibrarian.CONFIG['GR_URL'] == 'https://goodreads.org':
+        lazylibrarian.CONFIG['GR_URL'] = 'https://www.goodreads.com'
+    # Crons and scheduled jobs started here
+    # noinspection PyUnresolvedReferences
+    startscheduler()
+    if not lazylibrarian.STOPTHREADS:
+        restart_jobs(start='Start')
 
 
 def logmsg(level, msg):
     # log messages to logger if initialised, or print if not.
-    if __INITIALIZED__:
+    if RotatingLogger.is_initialized():
         if level == 'error':
-            logger.error(msg)
+            error(msg)
         elif level == 'debug':
-            logger.debug(msg)
+            debug(msg)
         elif level == 'warn':
-            logger.warn(msg)
+            warn(msg)
         else:
-            logger.info(msg)
+            info(msg)
     else:
         print(level.upper(), msg)
 
 def shutdown(restart=False, update=False, exit=True):
-    global __INITIALIZED__
     cherrypy.engine.exit()
     logmsg('info', 'cherrypy server exit')
     shutdownscheduler()
@@ -710,9 +777,8 @@ def shutdown(restart=False, update=False, exit=True):
                 makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
-                if __INITIALIZED__:
-                    CONFIG['GIT_UPDATED'] = str(int(time.time()))
-                    config.config_write('Git')
+                CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                config.config_write('Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))
@@ -739,14 +805,14 @@ def shutdown(restart=False, update=False, exit=True):
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         executable = make_unicode(executable).strip()
                     except Exception as e:
-                        logger.debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                        debug("where %s failed: %s %s" % (prg, type(e).__name__, str(e)))
                 else:
                     params = ["which", prg]
                     try:
                         executable = subprocess.check_output(params, stderr=subprocess.STDOUT)
                         executable = make_unicode(executable).strip()
                     except Exception as e:
-                        logger.debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
+                        debug("which %s failed: %s %s" % (prg, type(e).__name__, str(e)))
 
             if not executable:
                 executable = 'python'  # default if not found

@@ -17,7 +17,12 @@ class SetupTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Run startup code without command line arguments and no forced sleep
         options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        startup.initialize(options, online=False)
+        startup.init_logs()
+        startup.init_config()
+        startup.init_caches()
+        startup.init_database()
+        startup.init_build_debug_header(online = False)
+        startup.init_build_lists()
         return super().setUpClass()
 
     @classmethod
