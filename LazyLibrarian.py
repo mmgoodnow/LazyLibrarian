@@ -9,10 +9,10 @@ import sys
 import time
 
 import lazylibrarian
-from lazylibrarian import webStart, logger, versioncheck, dbupgrade
+from lazylibrarian import startup, webStart, logger, versioncheck, dbupgrade, notifiers
 from lazylibrarian.formatter import check_int, thread_name
 from lazylibrarian.versioncheck import run_git
-from lazylibrarian.common import path_isfile, path_isdir, syspath, remove
+from lazylibrarian.common import path_isfile, syspath
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
 
@@ -34,173 +34,14 @@ if opt_out_of_certificate_verification:
 
 
 def main():
-    # rename this thread
+   # rename this thread
     thread_name("MAIN")
 
-    # Set paths
-    if hasattr(sys, 'frozen'):
-        lazylibrarian.FULL_PATH = os.path.abspath(sys.executable)
-    else:
-        lazylibrarian.FULL_PATH = os.path.abspath(__file__)
-
-    lazylibrarian.PROG_DIR = os.path.dirname(lazylibrarian.FULL_PATH)
-    lazylibrarian.ARGS = sys.argv[1:]
-    lazylibrarian.DOCKER = '/config' in lazylibrarian.ARGS and lazylibrarian.FULL_PATH.startswith('/app/')
-
-    lazylibrarian.SYS_ENCODING = None
-
-    try:
-        locale.setlocale(locale.LC_ALL, "")
-        lazylibrarian.SYS_ENCODING = locale.getpreferredencoding()
-    except (locale.Error, IOError):
-        pass
-
-    # for OSes that are poorly configured I'll just force UTF-8
-    # windows cp1252 can't handle some accented author names,
-    # eg "Marie Kondō" U+014D: LATIN SMALL LETTER O WITH MACRON, but utf-8 does
-    if not lazylibrarian.SYS_ENCODING or lazylibrarian.SYS_ENCODING in (
-            'ANSI_X3.4-1968', 'US-ASCII', 'ASCII') or '1252' in lazylibrarian.SYS_ENCODING:
-        lazylibrarian.SYS_ENCODING = 'UTF-8'
-
-    # Set arguments
-    from optparse import OptionParser
-
-    p = OptionParser()
-    p.add_option('-d', '--daemon', action="store_true",
-                 dest='daemon', help="Run the server as a daemon")
-    p.add_option('-q', '--quiet', action="store_true",
-                 dest='quiet', help="Don't log to console")
-    p.add_option('-j', '--nojobs', action="store_true",
-                 dest='nojobs', help="Don't start background tasks")
-    p.add_option('--debug', action="store_true",
-                 dest='debug', help="Show debuglog messages")
-    p.add_option('--nolaunch', action="store_true",
-                 dest='nolaunch', help="Don't start browser")
-    p.add_option('--update', action="store_true",
-                 dest='update', help="Update to latest version (only git or source installs)")
-    p.add_option('--upgrade', action="store_true",
-                 dest='update', help="Update to latest version (only git or source installs)")
-    p.add_option('--port',
-                 dest='port', default=None,
-                 help="Force webinterface to listen on this port")
-    p.add_option('--datadir',
-                 dest='datadir', default=None,
-                 help="Path to the data directory")
-    p.add_option('--config',
-                 dest='config', default=None,
-                 help="Path to config.ini file")
-    p.add_option('-p', '--pidfile',
-                 dest='pidfile', default=None,
-                 help="Store the process id in the given file")
-    p.add_option('-u', '--userid',
-                 dest='userid', default=None,
-                 help="Login as this userid")
-    p.add_option('--loglevel',
-                 dest='loglevel', default=None,
-                 help="Debug loglevel")
-
-    options, _ = p.parse_args()
-
-    lazylibrarian.LOGLEVEL = 1
-    if options.debug:
-        lazylibrarian.LOGLEVEL = 2
-
-    if options.quiet:
-        lazylibrarian.LOGLEVEL = 0
-
-    if options.daemon:
-        if os.name != 'nt':
-            lazylibrarian.DAEMON = True
-            # lazylibrarian.daemonize()
-        else:
-            print("Daemonize not supported under Windows, starting normally")
-
-    if options.nolaunch:
-        lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
-
-    if options.nojobs:
-        lazylibrarian.STOPTHREADS = True
-    else:
-        lazylibrarian.STOPTHREADS = False
-
-    if options.datadir:
-        lazylibrarian.DATADIR = str(options.datadir)
-    else:
-        lazylibrarian.DATADIR = lazylibrarian.PROG_DIR
-
-    if not path_isdir(lazylibrarian.DATADIR):
-        try:
-            os.makedirs(lazylibrarian.DATADIR)
-        except OSError:
-            raise SystemExit('Could not create data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
-
-    if not os.access(lazylibrarian.DATADIR, os.W_OK):
-        raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
-
-    if options.update:
-        lazylibrarian.SIGNAL = 'update'
-        # This is the "emergency recovery" update in case lazylibrarian won't start.
-        # Set up some dummy values for the update as we have not read the config file yet
-        lazylibrarian.CONFIG['GIT_PROGRAM'] = ''
-        lazylibrarian.CONFIG['GIT_USER'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['GIT_REPO'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['GIT_HOST'] = 'gitlab'
-        lazylibrarian.CONFIG['USER_AGENT'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
-        lazylibrarian.CONFIG['PROXY_HOST'] = ''
-        lazylibrarian.CONFIG['SSL_CERTS'] = ''
-        lazylibrarian.CONFIG['SSL_VERIFY'] = False
-        if lazylibrarian.CACHEDIR == '':
-            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
-        lazylibrarian.CONFIG['LOGLIMIT'] = 2000
-        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
-        if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
-            try:
-                os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
-            except OSError:
-                raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
-
-        versioncheck.get_install_type()
-        if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
-            lazylibrarian.SIGNAL = None
-            print('Cannot update, not a git or source installation')
-        else:
-            lazylibrarian.shutdown(restart=True, update=True)
-
-    if options.loglevel:
-        try:
-            lazylibrarian.LOGLEVEL = int(options.loglevel)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cherrypy:
-                lazylibrarian.CHERRYPYLOG = 1
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_requests:
-                lazylibrarian.REQUESTSLOG = 1
-        except ValueError:
-            lazylibrarian.LOGLEVEL = 2
-
-    if options.config:
-        lazylibrarian.CONFIGFILE = str(options.config)
-    else:
-        lazylibrarian.CONFIGFILE = os.path.join(lazylibrarian.DATADIR, "config.ini")
-
-    if options.pidfile:
-        if lazylibrarian.DAEMON:
-            lazylibrarian.PIDFILE = str(options.pidfile)
-
-    print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
-    time.sleep(4)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
-
-    icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
-    if path_isfile(icon):
-        remove(icon)
-
-    # create database and config
-    lazylibrarian.DBFILE = os.path.join(lazylibrarian.DATADIR, 'lazylibrarian.db')
-    lazylibrarian.CFG = configparser.RawConfigParser()
-    lazylibrarian.CFG.read(lazylibrarian.CONFIGFILE)
+    options = startup.startup_parsecommandline(__file__, args = sys.argv[1:], seconds_to_sleep = 2)
 
     # REMINDER ############ NO LOGGING BEFORE HERE ###############
     # There is no point putting in any logging above this line, as its not set till after initialize.
-    lazylibrarian.initialize()
+    startup.initialize(options)
 
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
     old_file = os.path.join(lazylibrarian.PROG_DIR, 'version.txt')
@@ -289,7 +130,7 @@ def main():
 
     # Try to start the server.
     if options.port:
-        lazylibrarian.CONFIG['HTTP_PORT'] = int(options.port)
+        lazylibrarian.CONFIG['HTTP_PORT'] = options.port
         logger.info('Starting LazyLibrarian on forced port: %s, webroot "%s"' %
                     (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
     else:
@@ -321,7 +162,7 @@ def main():
         lazylibrarian.LOGINUSER = None
 
     if lazylibrarian.CONFIG['LAUNCH_BROWSER'] and not options.nolaunch:
-        lazylibrarian.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
+        startup.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
                                      lazylibrarian.CONFIG['HTTP_PORT'],
                                      lazylibrarian.CONFIG['HTTP_ROOT'])
 
@@ -330,21 +171,21 @@ def main():
         lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
         dbupgrade.dbupgrade(curr_ver)
 
-    lazylibrarian.start()
+    startup.start()
 
     while True:
         if not lazylibrarian.SIGNAL:
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                lazylibrarian.shutdown()
+                startup.shutdown()
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                lazylibrarian.shutdown()
+                startup.shutdown()
             elif lazylibrarian.SIGNAL == 'restart':
-                lazylibrarian.shutdown(restart=True)
+                startup.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':
-                lazylibrarian.shutdown(restart=True, update=True)
+                startup.shutdown(restart=True, update=True)
             lazylibrarian.SIGNAL = None
 
 

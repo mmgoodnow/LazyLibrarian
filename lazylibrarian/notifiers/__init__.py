@@ -62,7 +62,6 @@ notifiers = [
     apprise_notifier,
 ]
 
-
 def custom_notify_download(bookid):
     try:
         custom_notifier.notify_download(bookid)

@@ -3,6 +3,7 @@ from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import plural
 
+
 try:
     # noinspection PyUnresolvedReferences
     import apprise

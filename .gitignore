@@ -15,6 +15,10 @@ client*
 git_helper.sh
 update-version.sh
 startlazy.sh
+*.code-workspace
+unittests/Logs/*
+unittests/cache/*
+python_version.txt
 
 #  Bookstrap related  #
 #######################

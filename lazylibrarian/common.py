@@ -12,6 +12,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+# Purpose:
+#   Common, basic functions for LazyLibrary
+
 import datetime
 import glob
 import os
@@ -23,6 +26,7 @@ import sys
 import time
 import traceback
 import subprocess
+from lib.apscheduler.scheduler import Scheduler
 
 from six import PY2, text_type
 
@@ -49,7 +53,7 @@ except ImportError:
     PSUTIL = False
 
 import lazylibrarian
-from lazylibrarian import logger, database, version
+from lazylibrarian import logger, database
 from lazylibrarian.formatter import plural, next_run_time, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic, thread_name
 
@@ -59,6 +63,9 @@ NOTIFY_DOWNLOAD = 2
 NOTIFY_FAIL = 3
 
 notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to Library", NOTIFY_FAIL: "Download failed"}
+
+# Scheduler
+SCHED = None
 
 
 # list of all ascii and non-ascii quotes/apostrophes
@@ -764,7 +771,7 @@ def nextrun(target=None, interval=0, action='', hours=False):
         newtarget = target
 
     nextruntime = ''
-    for job in lazylibrarian.SCHED.get_jobs():
+    for job in SCHED.get_jobs():
         if newtarget in str(job):
             nextruntime = job.split('at: ')[1].split('.')[0].strip(')')
             break
@@ -801,6 +808,17 @@ def nextrun(target=None, interval=0, action='', hours=False):
 
     return startdate
 
+def initscheduler():
+    global SCHED
+    SCHED = Scheduler(misfire_grace_time=30)
+
+def startscheduler():
+    SCHED.start()
+
+def shutdownscheduler():
+    if SCHED:
+        # noinspection PyUnresolvedReferences
+        SCHED.shutdown(wait=False)
 
 def schedule_job(action='Start', target=None):
     """ Start or stop or restart a cron job by name e.g.
@@ -816,14 +834,14 @@ def schedule_job(action='Start', target=None):
         newtarget = target
 
     if action in ['Stop', 'Restart']:
-        for job in lazylibrarian.SCHED.get_jobs():
+        for job in SCHED.get_jobs():
             if newtarget in str(job):
-                lazylibrarian.SCHED.unschedule_job(job)
+                SCHED.unschedule_job(job)
                 logger.debug("Stop %s job" % target)
                 break
 
     if action in ['Start', 'Restart', 'StartNow']:
-        for job in lazylibrarian.SCHED.get_jobs():
+        for job in SCHED.get_jobs():
             if newtarget in str(job):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
@@ -832,7 +850,7 @@ def schedule_job(action='Start', target=None):
             interval = check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("POSTPROCESS", interval, action)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.postprocess.cron_process_dir,
+                SCHED.add_interval_job(lazylibrarian.postprocess.cron_process_dir,
                                                      minutes=interval, start_date=startdate)
 
         elif 'search_magazines' in newtarget:
@@ -842,11 +860,11 @@ def schedule_job(action='Start', target=None):
                              or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLMAG", interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
+                    SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
                                                          minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
+                    SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
                                                          hours=hours, start_date=startdate)
         elif 'search_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
@@ -854,28 +872,28 @@ def schedule_job(action='Start', target=None):
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLBOOKS", interval, action)
                 if interval <= 600:
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
+                    SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
                                                          minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
+                    SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
                                                          hours=hours, start_date=startdate)
         elif 'search_rss_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
             if interval and lazylibrarian.use_rss():
                 startdate = nextrun("SEARCHALLRSS", interval, action)
                 if interval <= 600:
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
+                    SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
                                                          minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
-                    lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
+                    SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
                                                          hours=hours, start_date=startdate)
         elif 'search_wishlist' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
             if interval and lazylibrarian.use_wishlist():
                 startdate = nextrun("SEARCHWISHLIST", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
+                SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
                                                      hours=interval, start_date=startdate)
 
         elif 'search_comics' in newtarget:
@@ -883,21 +901,21 @@ def schedule_job(action='Start', target=None):
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLCOMICS", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
+                SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
                                                      hours=interval, start_date=startdate)
 
         elif 'check_for_updates' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("VERSIONCHECK", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.versioncheck.check_for_updates,
+                SCHED.add_interval_job(lazylibrarian.versioncheck.check_for_updates,
                                                      hours=interval, start_date=startdate)
 
         elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG['GR_SYNC']:
             interval = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("GRSYNC", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr,
+                SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr,
                                                      hours=interval, start_date=startdate)
 
         elif 'clean_cache' in newtarget:
@@ -905,7 +923,7 @@ def schedule_job(action='Start', target=None):
             if days:
                 interval = 8
                 startdate = nextrun("CLEANCACHE", interval, action, True)
-                lazylibrarian.SCHED.add_interval_job(lazylibrarian.cache.clean_cache,
+                SCHED.add_interval_job(lazylibrarian.cache.clean_cache,
                                                      hours=interval, start_date=startdate)
 
         elif 'author_update' in newtarget or 'series_update' in newtarget:
@@ -937,15 +955,15 @@ def schedule_job(action='Start', target=None):
                 startdate = nextrun(task, interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
                     if typ == 'author':
-                        lazylibrarian.SCHED.add_interval_job(author_update, minutes=interval, start_date=startdate)
+                        SCHED.add_interval_job(author_update, minutes=interval, start_date=startdate)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(series_update, minutes=interval, start_date=startdate)
+                        SCHED.add_interval_job(series_update, minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
                     if typ == 'author':
-                        lazylibrarian.SCHED.add_interval_job(author_update, hours=hours, start_date=startdate)
+                        SCHED.add_interval_job(author_update, hours=hours, start_date=startdate)
                     else:
-                        lazylibrarian.SCHED.add_interval_job(series_update, hours=hours, start_date=startdate)
+                        SCHED.add_interval_job(series_update, hours=hours, start_date=startdate)
         else:
             logger.debug("No %s scheduled" % target)
 
@@ -1055,7 +1073,7 @@ def restart_jobs(start='Restart'):
 def ensure_running(jobname):
     lazylibrarian.STOPTHREADS = False
     found = False
-    for job in lazylibrarian.SCHED.get_jobs():
+    for job in SCHED.get_jobs():
         if jobname in str(job):
             found = True
             break
@@ -1268,7 +1286,7 @@ def show_stats():
 def show_jobs():
     result = []
     db = database.DBConnection()
-    for job in lazylibrarian.SCHED.get_jobs():
+    for job in SCHED.get_jobs():
         job = str(job)
         if "search_magazines" in job:
             jobname = "Magazine search"
@@ -1373,7 +1391,9 @@ def clear_log():
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
-def log_header():
+def log_header(online=True):
+    from lazylibrarian.config import CONFIG_GIT
+
     popen_list = [sys.executable, lazylibrarian.FULL_PATH]
     popen_list += lazylibrarian.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
@@ -1381,7 +1401,7 @@ def log_header():
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
-    for item in lazylibrarian.CONFIG_GIT:
+    for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
             timestamp = check_int(lazylibrarian.CONFIG[item], 0)
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
@@ -1417,20 +1437,22 @@ def log_header():
     else:
         header += "urllib3: missing\n"
     header += "requests: %s\n" % getattr(requests, '__version__', None)
-    try:
-        if lazylibrarian.CONFIG['SSL_VERIFY']:
-            tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                       verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                       if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
-        else:
-            logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
-            tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                       verify=False).json()['tls_version']
-        if '1.2' not in tls_version and '1.3' not in tls_version:
-            header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
-    except Exception as err:
-        tls_version = str(err)
-    header += "tls: %s\n" % tls_version
+    if online:
+        try:
+            if lazylibrarian.CONFIG['SSL_VERIFY']:
+                tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
+                                        verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                        if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
+            else:
+                logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
+                tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
+                                        verify=False).json()['tls_version']
+            if '1.2' not in tls_version and '1.3' not in tls_version:
+                header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
+        except Exception as err:
+            tls_version = str(err)
+        header += "tls: %s\n" % tls_version
+
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
 
