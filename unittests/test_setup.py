@@ -41,3 +41,33 @@ class SetupTest(unittest.TestCase):
     def testApprise(self):
         # Validate that APPRISE is defined properly; it's set up uniquely
         self.assertIsNotNone(lazylibrarian.APPRISE)
+
+    def assertEndsWith(self, teststr, end):
+        self.assertEqual(teststr[-len(end):],end)
+
+    def testDirectory(self):
+        # Test the directory() function
+        # The directories should all have values from unittest/config.ini, and differ from the default
+        bookdir = lazylibrarian.directory("eBook")
+        self.assertNotEqual(bookdir, lazylibrarian.DATADIR)
+        self.assertEndsWith(bookdir, "eBooks")
+
+        audiobookdir = lazylibrarian.directory("AudioBook")
+        audiodir = lazylibrarian.directory("Audio")
+        self.assertEqual(audiobookdir, audiodir)
+        self.assertNotEqual(audiobookdir, lazylibrarian.DATADIR)
+        self.assertEndsWith(audiobookdir, "Audiobooks")
+
+        downloaddir = lazylibrarian.directory("Download")
+        self.assertNotEqual(downloaddir, lazylibrarian.DATADIR)
+        self.assertEndsWith(downloaddir, "Downloads")
+
+        altdir = lazylibrarian.directory("Alternate")
+        self.assertNotEqual(altdir, lazylibrarian.DATADIR)
+        self.assertEndsWith(altdir, "Alternative")
+
+        faultydir = lazylibrarian.directory("This is invalid")
+        self.assertEqual(faultydir, "")
+        
+
+        

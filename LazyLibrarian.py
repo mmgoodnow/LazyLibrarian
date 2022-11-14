@@ -22,10 +22,8 @@ import sys
 import time
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, logger, versioncheck, dbupgrade, notifiers
-from lazylibrarian.formatter import check_int, thread_name
-from lazylibrarian.versioncheck import run_git
-from lazylibrarian.common import path_isfile, syspath
+from lazylibrarian import startup, webStart, logger, dbupgrade, notifiers
+from lazylibrarian.formatter import thread_name
 # noinspection PyUnresolvedReferences
 from six.moves import configparser
 

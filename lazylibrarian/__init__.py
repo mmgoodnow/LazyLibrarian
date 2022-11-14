@@ -215,8 +215,16 @@ def directory(dirname):
             usedir = ''
     elif dirname == "Alternate":
         usedir = CONFIG['ALTERNATE_DIR']
+    elif dirname == "Testdata":
+        usedir = CONFIG['TESTDATA_DIR']
     else:
         return usedir
+    # ./ and .\ denotes relative to program path, useful for testing
+    if usedir and len(usedir) >= 2 and usedir[0] == ".":
+        if usedir[1] == "/" or usedir[1] == "\\":
+           usedir = PROG_DIR + "/" + usedir[2:]
+           if os.path.__name__ == 'ntpath': 
+               usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))

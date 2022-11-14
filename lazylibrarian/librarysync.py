@@ -10,6 +10,9 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
+# Purpose:
+#   Look up book metadata or information, find it in the DB or add from dir
+
 import os
 import re
 import traceback

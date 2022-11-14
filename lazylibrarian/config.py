@@ -223,6 +223,7 @@ CONFIG_DEFINITIONS = {
     'EBOOK_DIR': ('str', 'General', ''),
     'AUDIO_DIR': ('str', 'General', ''),
     'ALTERNATE_DIR': ('str', 'General', ''),
+    'TESTDATA_DIR': ('str', 'General', ''),
     'DELETE_CSV': ('bool', 'General', 0),
     'DOWNLOAD_DIR': ('str', 'General', ''),
     'NZB_DOWNLOADER_SABNZBD': ('bool', 'USENET', 0),

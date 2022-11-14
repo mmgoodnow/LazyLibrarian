@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<package xmlns="http://www.idpf.org/2007/opf" unique-identifier="uuid_id" version="2.0">
+    <metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
+        <dc:identifier opf:scheme="calibre" id="calibre_id">1</dc:identifier>
+        <dc:identifier opf:scheme="uuid" id="uuid_id">b38ccc25-2b81-4b20-90cd-7e834c466340</dc:identifier>
+        <dc:title>Test Title</dc:title>
+        <dc:creator opf:file-as="Builder, Bob" opf:role="aut">Bob Builder</dc:creator>
+        <dc:contributor opf:file-as="calibre" opf:role="bkp">calibre (6.8.0) [https://calibre-ebook.com]</dc:contributor>
+        <dc:date>0101-02-01T00:01:15+00:00</dc:date>
+        <dc:description>&lt;div&gt;
+&lt;p&gt;This is a very exciting book!&lt;/p&gt;&lt;/div&gt;</dc:description>
+        <dc:publisher>Testing, Inc</dc:publisher>
+        <dc:identifier opf:scheme="ISBN">9782123456803</dc:identifier>
+        <dc:identifier opf:scheme="AMAZON">123456789</dc:identifier>
+        <dc:identifier opf:scheme="GOOGLE">9876542</dc:identifier>
+        <dc:language>eng</dc:language>
+        <meta name="calibre:author_link_map" content="{&quot;Bob Builder&quot;: &quot;&quot;}"/>
+        <meta name="calibre:series" content="The Testers"/>
+        <meta name="calibre:series_index" content="1"/>
+        <meta name="calibre:timestamp" content="2022-11-13T23:39:35.233248+00:00"/>
+        <meta name="calibre:title_sort" content="Test Title"/>
+    </metadata>
+    <guide>
+        <reference type="cover" title="Cover" href="cover.jpg"/>
+    </guide>
+</package>
