@@ -34,8 +34,8 @@ from six.moves import queue
 
 
 def is_valid_authorid(authorid):
-    if not authorid:
-        return False
+    if not authorid or not isinstance(authorid, str):
+        return False # Reject blank, or non-string
     # GoogleBooks doesn't provide authorid so we use one of the other sources
     if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True
@@ -195,6 +195,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     """
     Add an author to the database by name or id, and optionally get a list of all their books
     If author already exists in database, refresh their details and optionally booklist
+    Returns the author ID
     """
     if not reason:
         if len(inspect.stack()) > 2:

@@ -7,6 +7,7 @@ import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
+from lazylibrarian import dbupgrade
 
 def removetestDB():
     # Delete the database that was created for unit testing
@@ -58,3 +59,7 @@ def clearGlobals():
     lazylibrarian.GEN_PROV = []
     lazylibrarian.APPRISE_PROV = []
 
+def prepareTestDB():
+    curr_ver = dbupgrade.upgrade_needed()
+    if curr_ver:
+        dbupgrade.dbupgrade(curr_ver)

@@ -27,6 +27,7 @@ import signal
 import traceback
 import tarfile
 import cherrypy
+import requests
 
 from shutil import rmtree
 
@@ -39,6 +40,7 @@ from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 from six import PY2
+
 
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     # All initializartion that needs to happen before logging starts
