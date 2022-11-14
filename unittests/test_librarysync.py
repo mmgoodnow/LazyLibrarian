@@ -28,6 +28,7 @@ class LibrarySyncTest(unittest.TestCase):
         startup.shutdown(restart=False, update=False, exit=False)
         unittesthelpers.removetestDB()
         unittesthelpers.removetestCache()
+        unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
     def testGetBookInfo_NoExtension(self):
@@ -62,7 +63,7 @@ class LibrarySyncTest(unittest.TestCase):
         self.assertEqual(librarysync.get_book_info(bookfile), expected_meta)
 
     def testLibraryScan(self):
-        # Attempts to test library_scan
+        # Test library_scan, first with an invalid dir:
         self.assertEqual(librarysync.library_scan("Invalid Start Dir"), 0)
 
 

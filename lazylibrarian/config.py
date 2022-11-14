@@ -767,78 +767,78 @@ def config_read(reloaded=False):
 
     for key in list(CONFIG_DEFINITIONS.keys()):
         item_type, section, default = CONFIG_DEFINITIONS[key]
-        CONFIG[key.upper()] = check_setting(item_type, section, key.lower(), default)
+        lazylibrarian.CONFIG[key.upper()] = check_setting(item_type, section, key.lower(), default)
 
     # new config options...
-    if CONFIG['AUDIOBOOK_DEST_FOLDER'] == 'None':
+    if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] == 'None':
         lazylibrarian.CFG.set('PostProcess', 'audiobook_dest_folder', CONFIG['EBOOK_DEST_FOLDER'])
-        CONFIG['AUDIOBOOK_DEST_FOLDER'] = CONFIG['EBOOK_DEST_FOLDER']
+        lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = CONFIG['EBOOK_DEST_FOLDER']
 
-    if not CONFIG['LOGDIR']:
-        CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
-    if CONFIG['HTTP_PORT'] < 21 or CONFIG['HTTP_PORT'] > 65535:
-        CONFIG['HTTP_PORT'] = 5299
+    if not lazylibrarian.CONFIG['LOGDIR']:
+        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+    if lazylibrarian.CONFIG['HTTP_PORT'] < 21 or CONFIG['HTTP_PORT'] > 65535:
+        lazylibrarian.CONFIG['HTTP_PORT'] = 5299
 
     # to make matching easier/faster
     for item in FORCE_LOWER:
-        CONFIG[item] = CONFIG[item].lower()
+        lazylibrarian.CONFIG[item] = lazylibrarian.CONFIG[item].lower()
 
     if os.name == 'nt':
         for fname in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
             if '/' in CONFIG[fname]:
                 logger.warn('Please check your %s setting' % fname)
-                CONFIG[fname] = CONFIG[fname].replace('/', '\\')
+                lazylibrarian.CONFIG[fname] = lazylibrarian.CONFIG[fname].replace('/', '\\')
 
     for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
-        if os.sep in CONFIG[fname]:
+        if os.sep in lazylibrarian.CONFIG[fname]:
             logger.warn('Please check your %s setting, contains "%s"' % (fname, os.sep))
-    if CONFIG['HTTP_LOOK'] == 'default':
+    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'default':
         logger.warn('default interface is deprecated, new features are in bookstrap')
-        CONFIG['HTTP_LOOK'] = 'legacy'
+        lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
 
     for item in ['OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']:
-        url = CONFIG[item].rstrip('/')
+        url = lazylibrarian.CONFIG[item].rstrip('/')
         if not url.startswith('http'):
             url = 'http://' + url
-        CONFIG[item] = url
+        lazylibrarian.CONFIG[item] = url
 
     ###################################################################
     # ensure all these are boolean 1 0, not True False for javascript #
     ###################################################################
     # Suppress series tab if there are none and user doesn't want to add any
-    if CONFIG['ADD_SERIES']:
+    if lazylibrarian.CONFIG['ADD_SERIES']:
         lazylibrarian.SHOW_SERIES = 1
     # Or suppress if tab is disabled
-    if not CONFIG['SERIES_TAB']:
+    if not lazylibrarian.CONFIG['SERIES_TAB']:
         lazylibrarian.SHOW_SERIES = 0
     # Suppress tabs if disabled
-    lazylibrarian.SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
-    lazylibrarian.SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
-    lazylibrarian.SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
-    lazylibrarian.SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
+    lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
+    lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
+    lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
+    lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
     # Suppress audio/comic tabs if on legacy interface
-    if CONFIG['HTTP_LOOK'] == 'legacy':
+    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
         lazylibrarian.SHOW_AUDIO = 0
         lazylibrarian.SHOW_COMICS = 0
         lazylibrarian.SHOW_EBOOK = 1
     else:
-        if CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
-            CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
 
     for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
-        CONFIG[item] = 1 if CONFIG[item] else 0
+        lazylibrarian.CONFIG[item] = 1 if lazylibrarian.CONFIG[item] else 0
 
-    if CONFIG['SSL_CERTS'] and not path_exists(CONFIG['SSL_CERTS']):
-        logger.warn("SSL_CERTS [%s] not found" % CONFIG['SSL_CERTS'])
-        CONFIG['SSL_CERTS'] = ''
+    if lazylibrarian.CONFIG['SSL_CERTS'] and not path_exists(lazylibrarian.CONFIG['SSL_CERTS']):
+        logger.warn("SSL_CERTS [%s] not found" % lazylibrarian.CONFIG['SSL_CERTS'])
+        lazylibrarian.CONFIG['SSL_CERTS'] = ''
 
     if reloaded:
         logger.info('Config file reloaded')
@@ -1260,6 +1260,7 @@ def config_write(part=None):
 # noinspection PyUnresolvedReferences
 def add_newz_slot():
     count = len(lazylibrarian.NEWZNAB_PROV)
+
     if count == 0 or len(lazylibrarian.CFG.get('Newznab%i' % int(count - 1), 'HOST')):
         prov_name = 'Newznab%i' % count
         empty = {"NAME": prov_name,

@@ -177,7 +177,11 @@ def get_book_info(fname):
         txt = zipdata.read(cfname)
 
     elif res['type'] == "opf":
-        txt = open(fname, 'rb').read()
+        f = open(fname, 'rb')
+        try:
+            txt = f.read()
+        finally:
+            f.close()
         if not PY2:
             txt = make_unicode(txt)
         # sanitize any unmatched html tags or ElementTree won't parse

@@ -52,7 +52,7 @@ class ProvidersTest(unittest.TestCase):
         nzb = list(resultxml.findall("./channel/item//"))
 
         result = providers.return_results_by_search_type(book, nzb, search_mode='book', host='hostname')
-        self.assertEquals({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
+        self.assertEqual({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
                           'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http', 
                           'nzbprov': 'hostname', 'nzbmode': 'book', 'priority': 0}, result)
 
@@ -108,7 +108,7 @@ class ProvidersTest(unittest.TestCase):
         resultxml = ElementTree.fromstring(newsnabplus_resp)
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', 'mag')
-        self.assertEquals(
+        self.assertEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
              'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
              'nzbprov': 'hostname', 'nzbmode': 'mag', 'priority': 0}, result)
@@ -165,7 +165,7 @@ class ProvidersTest(unittest.TestCase):
         resultxml = ElementTree.fromstring(newsnabplus_resp)
         nzb = list(resultxml.findall("./channel/item//"))
         result = providers.return_results_by_search_type(book, nzb, 'hostname', None)
-        self.assertEquals(
+        self.assertEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
              'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
              'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0}, result)

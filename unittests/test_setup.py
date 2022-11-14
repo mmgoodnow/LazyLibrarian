@@ -30,6 +30,7 @@ class SetupTest(unittest.TestCase):
         startup.shutdown(restart=False, update=False, exit=False)
         unittesthelpers.removetestDB()
         unittesthelpers.removetestCache()
+        unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
     def testConfig(self):

@@ -205,23 +205,22 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     return options
 
 def init_logs():
-    global CONFIG
     # Initialized log files. Until this is done, do not use the 
     config.check_ini_section('General')
     # False to silence logging until logger initialised
     for key in ['LOGLIMIT', 'LOGFILES', 'LOGSIZE', 'LOGDIR']:
         item_type, section, default = config.CONFIG_DEFINITIONS[key]
-        CONFIG[key.upper()] = config.check_setting(item_type, section, key.lower(), default, log=False)
+        lazylibrarian.CONFIG[key.upper()] = config.check_setting(item_type, section, key.lower(), default, log=False)
 
-    if not CONFIG['LOGDIR']:
-        CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+    if not lazylibrarian.CONFIG['LOGDIR']:
+        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
 
     # Create logdir
-    if not path_isdir(CONFIG['LOGDIR']):
+    if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
         try:
-            os.makedirs(CONFIG['LOGDIR'])
+            os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
         except OSError as e:
-            print('%s : Unable to create folder for logs: %s' % (CONFIG['LOGDIR'], str(e)))
+            print('%s : Unable to create folder for logs: %s' % (lazylibrarian.CONFIG['LOGDIR'], str(e)))
 
     # Start the logger, silence console logging if we need to
     cfgloglevel = check_int(config.check_setting('int', 'General', 'loglevel', 1, log=False), 9)
@@ -230,16 +229,17 @@ def init_logs():
             lazylibrarian.LOGLEVEL = 1  # If not set in Config or cmdline, then lets set to NORMAL
         else:
             lazylibrarian.LOGLEVEL = cfgloglevel  # Config setting picked up
-
-    CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
-    lazylibrarian_log.init_logger(loglevel=CONFIG['LOGLEVEL'])
+ 
+    lazylibrarian.CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
+    lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG['LOGLEVEL'])
     info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
-        lazylibrarian.LOGTYPE, CONFIG['LOGLEVEL'], CONFIG['LOGDIR'], cfgloglevel))
-    if CONFIG['LOGLEVEL'] > 2:
+        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'], 
+        lazylibrarian.CONFIG['LOGDIR'], cfgloglevel))
+    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
         info("Screen Log set to EXTENDED DEBUG")
-    elif CONFIG['LOGLEVEL'] == 2:
+    elif lazylibrarian.CONFIG['LOGLEVEL'] == 2:
         info("Screen Log set to DEBUG")
-    elif CONFIG['LOGLEVEL'] == 1:
+    elif lazylibrarian.CONFIG['LOGLEVEL'] == 1:
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
@@ -252,10 +252,9 @@ def init_config():
 
 
 def init_caches():
-    global CONFIG
     # override detected encoding if required
-    if CONFIG['SYS_ENCODING']:
-        lazylibrarian.SYS_ENCODING = CONFIG['SYS_ENCODING']
+    if lazylibrarian.CONFIG['SYS_ENCODING']:
+        lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
 
     # Put the cache dir in the data dir for now
     lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.DATADIR, 'cache')

@@ -181,6 +181,10 @@ class Mobi:
       raise e;
     self.offset = 0;
 
+  def __del__(self):
+    if self.f:
+      self.f.close()
+
   def __iter__(self):
     if not self.config: return;
     for record in range(1, self.config['mobi']['First Non-book index'] - 1):

@@ -29,7 +29,6 @@ class RotatingLogger(object):
         return cls.__LOGGER_INITIALIZED__
 
     def __init__(self, filename):
-
         self.filename = filename
         self.filehandler = None
         self.consolehandler = None
@@ -40,6 +39,7 @@ class RotatingLogger(object):
         lg.removeHandler(self.consolehandler)
         self.filehandler = None
         self.consolehandler = None
+        RotatingLogger.__LOGGER_INITIALIZED__ = False
 
     def init_logger(self, loglevel=1):
 
