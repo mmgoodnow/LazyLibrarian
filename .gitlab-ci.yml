@@ -64,7 +64,7 @@ before_script:
 
 test:
   script:
-    - python -m unittest discover -s unittests
+    - python -m pip install urllib3 charset_normalizer certifi idna
 
 deploy:
   stage: deploy
