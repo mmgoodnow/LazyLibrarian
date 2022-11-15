@@ -27,7 +27,7 @@ class SetupTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False)
+        startup.shutdown(restart=False, update=False, exit=False, testing=True)
         unittesthelpers.removetestDB()
         unittesthelpers.removetestCache()
         unittesthelpers.clearGlobals()
@@ -35,7 +35,7 @@ class SetupTest(unittest.TestCase):
 
     def testConfig(self):
         # Validate that basic global objects and configs have run
-        self.assertEqual(lazylibrarian.LOGLEVEL, 1)
+        self.assertEqual(lazylibrarian.LOGLEVEL, 0)
         self.assertIsNotNone(lazylibrarian.CONFIG)
         self.assertIsInstance(lazylibrarian.CONFIG['LOGLIMIT'], int)
 

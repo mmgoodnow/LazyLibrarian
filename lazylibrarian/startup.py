@@ -755,9 +755,10 @@ def logmsg(level, msg):
     else:
         print(level.upper(), msg)
 
-def shutdown(restart=False, update=False, exit=True):
-    cherrypy.engine.exit()
-    logmsg('info', 'cherrypy server exit')
+def shutdown(restart=False, update=False, exit=True, testing=False):
+    if not testing:
+        cherrypy.engine.exit()
+        logmsg('info', 'cherrypy server exit')
     shutdownscheduler()
     # config_write() don't automatically rewrite config on exit
 

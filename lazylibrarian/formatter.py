@@ -112,6 +112,7 @@ def book_series(bookname):
     See if book is in multiple series first, if so return first one
     eg "The Shepherds Crown (Discworld, #41; Tiffany Aching, #5)"
     if no match, try single series, eg Mrs Bradshaws Handbook (Discworld, #40.5)
+    Returns seriesname, number if a series, otherwise "", ""
     """
     # \(            Must have (
     # ([\S\s]+      followed by a group of one or more non whitespace
@@ -130,15 +131,17 @@ def book_series(bookname):
     # First handle things like "(Book 3: series name)"
     if ':' in bookname:
         # change to "(series name, Book 3)"
-        parts = bookname[1:-1].split(':', 1)
-        if parts[0][-1].isdigit():
-            bookname = '(%s, %s)' % (parts[1], parts[0])
+        if bookname[0] == "(" and bookname[-1] == ")":
+            parts = bookname[1:-1].split(':', 1)
+            if parts[0][-1].isdigit():
+                bookname = '(%s, %s)' % (parts[1], parts[0])
 
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
                         'the first', 'includes', 'paperback', 'first', 'books', 'large print', 'of',
                         'rrp', '2 in', '&', 'v.']
 
+    # First look for multi series
     result = re.search(r"\(([\S\s]+[^)]),? #?(\d+\.?-?\d*[;,])", bookname)
     if result:
         series = result.group(1)

@@ -24,7 +24,7 @@ class ProvidersTest(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False)
+        startup.shutdown(restart=False, update=False, exit=False, testing=True)
         unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
