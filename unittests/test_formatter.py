@@ -29,6 +29,7 @@ class FormatterTest(unittest.TestCase):
         # unittesthelpers.removetestDB()
         # unittesthelpers.removetestCache()
         # unittesthelpers.clearGlobals()
+        unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
     def test_format_author_name(self):

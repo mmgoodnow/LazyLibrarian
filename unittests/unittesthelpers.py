@@ -59,6 +59,10 @@ def clearGlobals():
     lazylibrarian.GEN_PROV = []
     lazylibrarian.APPRISE_PROV = []
 
+def disableHTTPSWarnings():
+    import urllib3
+    urllib3.disable_warnings()
+
 def prepareTestDB():
     curr_ver = dbupgrade.upgrade_needed()
     if curr_ver:

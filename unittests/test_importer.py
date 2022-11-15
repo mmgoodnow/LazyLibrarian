@@ -5,7 +5,9 @@
 
 import unittest
 import unittesthelpers
-from lazylibrarian import directory, startup, CONFIG
+import warnings
+import lazylibrarian
+from lazylibrarian import startup
 from lazylibrarian.importer import is_valid_authorid, get_preferred_author_name,  \
   add_author_name_to_db, add_author_to_db
 
@@ -16,7 +18,9 @@ class LibrarySyncTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         # Run startup code without command line arguments and no forced sleep
+        warnings.simplefilter("ignore", ResourceWarning)
         options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
+        unittesthelpers.disableHTTPSWarnings()
         startup.init_logs()
         startup.init_config()
         startup.init_caches()
@@ -24,12 +28,12 @@ class LibrarySyncTest(unittest.TestCase):
         unittesthelpers.prepareTestDB()
         startup.init_build_debug_header(online = False)
         startup.init_build_lists()
-        cls.bookapi = CONFIG['BOOK_API']
+        cls.bookapi = lazylibrarian.CONFIG['BOOK_API']
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
-        CONFIG['BOOK_API'] = cls.bookapi
+        lazylibrarian.CONFIG['BOOK_API'] = cls.bookapi
         startup.shutdown(restart=False, update=False, exit=False)
         unittesthelpers.removetestDB()
         unittesthelpers.removetestCache()
@@ -45,19 +49,19 @@ class LibrarySyncTest(unittest.TestCase):
 
     def test_is_valid_authorid_GoogleBooks(self):
         # Test potentially valid Google Books IDs
-        CONFIG['BOOK_API'] = 'GoogleBooks'
+        lazylibrarian.CONFIG['BOOK_API'] = 'GoogleBooks'
         self.assertEqual(is_valid_authorid('123'), True)
         self.assertEqual(is_valid_authorid('OLrandomA'), True)
 
     def test_is_valid_authorid_Goodreads(self):
         # Test potentially valid Goodreads Books IDs
-        CONFIG['BOOK_API'] = 'GoodReads'
+        lazylibrarian.CONFIG['BOOK_API'] = 'GoodReads'
         self.assertEqual(is_valid_authorid('123'), True)
         self.assertEqual(is_valid_authorid('OLrandomA'), False)
 
     def test_is_valid_authorid_OpenLibrary(self):
         # Test potentially valid Goodreads Books IDs
-        CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
         self.assertEqual(is_valid_authorid('123'), False)
         self.assertEqual(is_valid_authorid('OLrandomA'), True)
 
@@ -81,7 +85,7 @@ class LibrarySyncTest(unittest.TestCase):
         self.assertEqual(authorname, '')
 
     def test_add_author_name_to_db_KnownAuthor_OL(self):
-        CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
         testname = 'Douglas Adams'
         authorname, authorid, new = add_author_name_to_db(author=testname, refresh=False, addbooks=False, reason='Testing', title=False)
         self.assertEqual(new, True)
@@ -97,7 +101,7 @@ class LibrarySyncTest(unittest.TestCase):
 
     def test_add_author_to_db_JustByID(self):
         testid = 'OL2219179A' # Maud D. Davies
-        CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
         id = add_author_to_db(authorname=None, refresh=False, addbooks=False, reason='Testing', authorid=testid)
         self.assertEqual(id, testid)
 

@@ -15,6 +15,7 @@ class LibrarySyncTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         # Run startup code without command line arguments and no forced sleep
         options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
+        unittesthelpers.disableHTTPSWarnings()
         startup.init_logs()
         startup.init_config()
         startup.init_caches()

@@ -48,6 +48,9 @@ class RotatingLogger(object):
 
         self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
 
+        if RotatingLogger.__LOGGER_INITIALIZED__:
+            return # Do not set handlers again
+
         # concurrentLogHandler/0.8.7 (to deal with windows locks)
         # since this only happens on windows boxes, if it's nix/mac use the default logger.
         if os.name == 'nt':

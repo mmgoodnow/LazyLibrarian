@@ -304,8 +304,10 @@ def check_db(upgradelog=None):
     db = database.DBConnection()
     cnt = 0
 
+    closeFile = False
     if not upgradelog:
         upgradelog = open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a')
+        closefile = True
     db_changes = update_schema(db, upgradelog)
 
     lazylibrarian.UPDATE_MSG = 'Checking unique authors'
@@ -663,6 +665,8 @@ def check_db(upgradelog=None):
         msg = 'Error: %s %s' % (type(e).__name__, str(e))
         logger.error(msg)
 
+    if closefile:
+        upgradelog.close()
     logger.info("Database check found %s %s" % (cnt, plural(cnt, "error")))
     lazylibrarian.UPDATE_MSG = ''
     return db_changes

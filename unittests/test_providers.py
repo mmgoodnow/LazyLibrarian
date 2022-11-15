@@ -4,12 +4,29 @@
 #   Testing parsing XML from providers
 
 import unittest
+import unittesthelpers
 from xml.etree import ElementTree
 
-from lazylibrarian import providers
+from lazylibrarian import providers, startup
 
 
 class ProvidersTest(unittest.TestCase):
+ 
+    # Initialisation code that needs to run only once
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Run startup code without command line arguments and no forced sleep
+        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
+        unittesthelpers.disableHTTPSWarnings()
+        startup.init_logs()
+        startup.init_config()
+        return super().setUpClass()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        startup.shutdown(restart=False, update=False, exit=False)
+        unittesthelpers.clearGlobals()
+        return super().tearDownClass()
 
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
