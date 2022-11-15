@@ -18,6 +18,6 @@ before_script:
 
 test:
   script:
-    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein
-    - python -m unittest discover -s unittests
+    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise
+    - python -m unittest discover -s unittests/
 
