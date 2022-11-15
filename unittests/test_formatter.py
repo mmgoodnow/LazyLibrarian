@@ -6,6 +6,7 @@
 import unittest
 import unittesthelpers
 
+import lazylibrarian
 from lazylibrarian import startup, formatter
 
 
@@ -20,7 +21,7 @@ class FormatterTest(unittest.TestCase):
         # startup.init_caches()
         # startup.init_database()
         # startup.init_build_debug_header(online = False)
-        # startup.init_build_lists()
+        startup.init_build_lists()
         return super().setUpClass()
 
     @classmethod
@@ -28,7 +29,6 @@ class FormatterTest(unittest.TestCase):
         startup.shutdown(restart=False, update=False, exit=False, testing=True)
         # unittesthelpers.removetestDB()
         # unittesthelpers.removetestCache()
-        # unittesthelpers.clearGlobals()
         unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
@@ -154,3 +154,66 @@ class FormatterTest(unittest.TestCase):
         ]
         for value in values:
             self.assertEqual(formatter.plural(value[0], value[1]), value[2])
+
+    def test_datecompare(self):
+        datepairs = [ # Note all dates must be yyyy-mm-dd or yy-mm-dd
+            # Valid datepairs
+            ("2000-01-02", "2000-01-01", 1),
+            ("2000-1-3", "2000-1-1", 2),
+            ("99-01-04", "99-01-01", 3),
+            ("1999-01-05", "99-01-01", 4),
+            ("99-01-01", "1999-01-05", -4),
+            ("2000-01-01", "2022-01-01", -8036),
+            ("2003-3-1", "2003-2-28", 1),
+            ("2004-3-1", "2004-2-28", 2),
+            # If one date is invalid, returns 0
+            ("Bob is", "your uncle", 0),
+            ("2003-2-29", "2003-3-1", 0),
+        ]
+        for dates in datepairs:
+            self.assertEqual(formatter.datecompare(dates[0], dates[1]), dates[2])
+
+    def test_age(self):
+        dates = [
+            ("2000-01-02"),
+            ("2000-1-3"),
+            ("99-01-04"),
+            ("99-01-01"),
+        ]
+        for date in dates:
+            self.assertEqual(formatter.age(date), formatter.datecompare(formatter.today(), date))
+
+    def test_month2num(self):
+        mnum = 0
+        for m in lazylibrarian.MONTHNAMES:
+            # Try both the short and the long versions
+            self.assertEqual(formatter.month2num(m[0]), mnum)
+            self.assertEqual(formatter.month2num(m[1]), mnum)
+            mnum += 1
+
+        specialmonths = [
+            ("winter", 1),
+            ("spring", 4),
+            ("summer", 7),
+            ("fall", 10),
+            ("autumn", 10),
+            ("christmas", 12),
+            ("Not A Month", 0)
+        ]
+        for special in specialmonths:
+            self.assertEqual(formatter.month2num(special[0]), special[1])
+
+    def test_date_format(self):
+        dates = [
+            ("Tue, 23 Aug 2016 17:33:26 +0100", "2016-08-23"),  # Newznab/Torznab 
+            ("13 Nov 2014 05:01:18 +0200", "2014-11-13"),       # LimeTorrent 
+            ("04-25 23:46", formatter.now()[:4] + "-04-25"),    # torrent_tpb - use current year
+            ("2018-04-25", "2018-04-25"), 
+            ("May 1995", "1995-05-01"),                         # openlibrary 
+            ("June 20, 2008", "2008-06-20"),
+            ("28Dec2008", "2008-12-28"),                        # Compressed into one string
+            ("XYZ is not a date", "XYZ-00-not a:date:00"),      # Error, but seen as a date
+            ("XYZ", "XYZ"),                                     # Error, just a string
+        ]
+        for d in dates:
+            self.assertEqual(formatter.date_format(d[0]), d[1])

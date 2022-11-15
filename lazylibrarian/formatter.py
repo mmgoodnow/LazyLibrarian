@@ -237,15 +237,7 @@ def age(histdate):
     histdate = yyyy-mm-dd
     return 0 for today, or if invalid histdate
     """
-    try:
-        y1, m1, d1 = (int(x) for x in now().split()[0].split('-'))
-        y2, m2, d2 = (int(x) for x in histdate.split('-'))
-        date1 = datetime.date(y1, m1, d1)
-        date2 = datetime.date(y2, m2, d2)
-        dtage = date1 - date2
-        return dtage.days
-    except ValueError:
-        return 0
+    return datecompare(today(), histdate)
 
 
 def check_year(num, past=1850, future=1):
@@ -381,8 +373,11 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
 
 
 def month2num(month):
-    # return month number given month name (long or short) in requested locales
-    # or season name (only in English currently)
+    """ 
+    Return a month number
+     - given a month name (long or short) in requested locales
+     - or given a season name (only in English)
+    """
 
     month = unaccented(month).lower()
     for f in range(1, 13):
@@ -411,6 +406,10 @@ def datecompare(nzbdate, control_date):
     try:
         y1, m1, d1 = (int(x) for x in nzbdate.split('-'))
         y2, m2, d2 = (int(x) for x in control_date.split('-'))
+        if y1 < 100: 
+            y1 += 1900
+        if y2 < 100:
+            y2 += 1900
         date1 = datetime.date(y1, m1, d1)
         date2 = datetime.date(y2, m2, d2)
         dtage = date1 - date2
