@@ -1,0 +1,4 @@
+# Config file for pytest
+
+[tool.pytest.ini_options]
+pythonpath = "."

@@ -214,6 +214,87 @@ class FormatterTest(unittest.TestCase):
             ("28Dec2008", "2008-12-28"),                        # Compressed into one string
             ("XYZ is not a date", "XYZ-00-not a:date:00"),      # Error, but seen as a date
             ("XYZ", "XYZ"),                                     # Error, just a string
+            ("", ""), 
         ]
         for d in dates:
             self.assertEqual(formatter.date_format(d[0]), d[1])
+
+    def test_versiontuple(self):
+        versions = [
+            ("1.2", (1,2,0)),
+            ("2.3.4", (2,3,4)),
+            ("1.2.3-beta4", (1,2,3)),
+            ("gibberish", (0,0,0)),
+            ("8.x.y", (8,0,0)),
+        ]
+        for v in versions:
+            self.assertEqual(formatter.versiontuple(v[0]), v[1])
+
+    def test_human_size(self):
+        sizes = [
+            (100, "100.00B"),
+            (2000, "1.95KiB"),
+            (32*1024**2+8, "32.00MiB"),
+            (12*1024**3, "12.00GiB"),
+            (3*1024**4, "3.00TiB"),
+            (81*1024**5.2+10*1024**4, "324.01PiB"),
+            ("bob", "0.00B"),
+        ]
+        for s in sizes:
+            self.assertEqual(formatter.human_size(s[0]), s[1])
+
+    def test_size_in_bytes(self):
+        sizes = [
+            (100, "100"),
+            (1996, "1.95KiB"),
+            (33554432, "32.00MiB"),
+            (12*1024**3, "12.00GiB"),
+            (0, "bob"),
+        ]
+        for s in sizes:
+            self.assertEqual(formatter.size_in_bytes(s[1]), s[0])
+
+    def test_md5_utf8(self):
+        strings = [
+            ("", "d41d8cd98f00b204e9800998ecf8427e"),
+            ("This is a test", "ce114e4501d2f4e2dcea3e17b546f339"),
+            ("Using ÆØÅ, æøå and ½é", "93addf1c05adc126200c25b512a3cdbd"),
+        ]
+        for str in strings:
+            self.assertEqual(formatter.md5_utf8(str[0]), str[1])
+
+    def test_make_utf8bytes(self):
+        strings = [
+            ("", b'', ""),
+            ("This is a test", b'This is a test', ""),
+            ("ÆØÅ, æøå and ½é", b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', "ISO-8859-15"),
+        ]
+        for str in strings:
+            encoded, name = formatter.make_utf8bytes(str[0])
+            self.assertEqual((encoded, name), (str[1], str[2]))
+
+    # def test_make_unicode(self):
+    #     strings = [
+    #         (b'', b''),
+    #         (b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5'),
+    #     ]
+    #     for str in strings:
+    #         uni = formatter.make_unicode(str[0])
+    #         print(uni, uni==str[1])
+            #self.assertEqual((encoded, name), (str[1], str[2]))
+
+    
+    def test_is_valid_isbn(self):
+        isbns = [
+            ("0123456789", True),
+            ("0123456789123", True),
+            ("012345678X123", False),
+            ("0136091814", True),
+            ("013609181X", False),
+            ("1616550416", False),
+            ("155404295X", True),
+            ("", False),
+            (None, False),
+        ]
+        for isbn in isbns:
+            self.assertEqual(formatter.is_valid_isbn(isbn[0]), isbn[1])

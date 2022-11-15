@@ -51,6 +51,12 @@ packages
 *.tmproj
 *.tmproject
 
+# Pytest specific    #
+######################
+*.lcov
+cov.xml
+.coverage
+
 # OS generated files #
 ######################
 .Spotlight-V100

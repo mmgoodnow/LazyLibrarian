@@ -475,11 +475,11 @@ def check_float(var, default):
 
 def human_size(num):
     num = check_int(num, 0)
-    for unit in ['B', 'KiB', 'MiB', 'GiB']:
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
         if abs(num) < 1024.0:
             return "%3.2f%s" % (num, unit)
         num /= 1024.0
-    return "%.2f%s" % (num, 'TiB')
+    return "%.2f%s" % (num, 'PiB')
 
 
 def size_in_bytes(size):
@@ -598,15 +598,22 @@ def is_valid_isbn(isbn):
     Return True if parameter looks like a valid isbn
     either 13 digits, 10 digits, or 9 digits followed by 'x'
     """
+    if not isbn:
+        return False
     isbn = isbn.replace('-', '').replace(' ', '')
     if len(isbn) == 13:
         if isbn.isdigit():
             return True
-    elif len(isbn) == 10:
-        if isbn[:9].isdigit():
-            return True
-        elif isbn[9] in ["Xx"] and isbn[:8].isdigit():
-            return True
+    elif len(isbn) == 10: # Validate checksum
+        xsum = 0
+        for i in range(9):
+            xsum += int(isbn[i]) * (10-i) 
+        if isbn[9] in "Xx":
+            xsum += 10
+        else:
+            xsum += int(isbn[9])
+        return xsum % 11 == 0
+
     return False
 
 
