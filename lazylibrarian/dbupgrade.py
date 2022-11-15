@@ -304,7 +304,7 @@ def check_db(upgradelog=None):
     db = database.DBConnection()
     cnt = 0
 
-    closeFile = False
+    closefile = False
     if not upgradelog:
         upgradelog = open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a')
         closefile = True
