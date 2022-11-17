@@ -341,7 +341,7 @@ CONFIG_DEFINITIONS = {
     'NEWZBIN_PASS': ('str', 'Newzbin', ''),
     'NEWZBIN': ('bool', 'Newzbin', 0),
     'EBOOK_TYPE': ('str', 'General', 'epub, mobi, pdf'),
-    'AUDIOBOOK_TYPE': ('str', 'General', 'mp3'),
+    'AUDIOBOOK_TYPE': ('str', 'General', 'mp3, m4b'),
     'MAG_TYPE': ('str', 'General', 'pdf'),
     'REJECT_PUBLISHER': ('str', 'General', ''),
     'REJECT_WORDS': ('str', 'General', 'audiobook, mp3'),
@@ -607,7 +607,9 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
     return my_val
 
 def readConfigFile():
-    # TODO: How is this different from config_read? Are both needed?
+    """
+    Read the config.ini file, but do not yet process it - that happens in config_read
+    """
     lazylibrarian.CFG = configparser.RawConfigParser()
     lazylibrarian.CFG.read(lazylibrarian.CONFIGFILE)
 

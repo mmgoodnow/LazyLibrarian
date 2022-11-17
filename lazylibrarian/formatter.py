@@ -618,6 +618,10 @@ def is_valid_isbn(isbn):
 
 
 def is_valid_type(filename, extras='jpg, opf'):
+    """
+    Check if filename has an extension we can process.
+    returns True or False
+    """
     type_list = list(set(get_list(lazylibrarian.CONFIG['MAG_TYPE']) +
                          get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
                          get_list(lazylibrarian.CONFIG['EBOOK_TYPE']) +

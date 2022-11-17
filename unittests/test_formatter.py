@@ -297,4 +297,25 @@ class FormatterTest(unittest.TestCase):
             (None, False),
         ]
         for isbn in isbns:
-            self.assertEqual(formatter.is_valid_isbn(isbn[0]), isbn[1])
+            self.assertEqual(formatter.is_valid_isbn(isbn[0]), isbn[1], isbn[0])
+
+    def test_is_valid_type(self):
+        filenames = [
+            ("book.opf", True),      # Book metadata
+            ("cover.jpg", True),     # Cover images
+            ("A volume.pdf", True),  # Magazines and ebooks
+            ("Audio.mp3", True),     # Audiobook 
+            ("Adio.m4b", True),      # Modern audiobook
+            ("TEST.EPUB", True),     # eBook
+            ("Book 2.mobi", True),   # eBook
+            ("Marvel.Cbr", True),    # Comic
+            ("DC.cbZ", True),        # Comic
+            # Not valid extensions:
+            ("", False),
+            ("Hello", False),
+            ("jpg", False),
+            (".mobi", False),        # eBook without a name
+            ("Allan.test", False),
+         ]
+        for name in filenames:
+            self.assertEqual(formatter.is_valid_type(name[0]), name[1], name[0])
