@@ -32,22 +32,6 @@ class FormatterTest(unittest.TestCase):
         unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
-    def test_format_author_name(self):
-        testnames = [
-            ("Allan Mertner", "Allan Mertner"),
-            ("Allan & Mamta Mertner", "Allan"),
-            ("Allan Mertner, Jr.", "Allan Mertner Jr."),
-            ("Mertner, Allan", "Allan Mertner"),
-            ("MERTNER, Allan", "Allan MERTNER"),
-            ("ALLAN MERTNER", "Allan Mertner"),
-            ("allan mertner", "Allan Mertner"),
-            ("aLLaN mErtNer", "aLLaN mErtNer"),
-            ("A Mertner", "A. Mertner"),
-            ("A. Mertner", "A. Mertner")
-        ]
-        for names in testnames:
-            self.assertEqual(formatter.format_author_name(names[0]), names[1])
-
     def test_book_series(self):
         testseries =[
             # Single-series
@@ -96,6 +80,36 @@ class FormatterTest(unittest.TestCase):
             self.assertEqual(seriesname, book[1])
             self.assertEqual(num, book[2])
 
+    def test_split_title(self):
+        testdata = [
+            # "Normal" books
+            ("Author Name", "Author Name: The Book Title", ("The Book Title", "", "")),
+            ("Author Name", "The Book Title", ("The Book Title", "", "")),
+            # Titles with a "subtitle"
+            ("Author", "Book: An explanation", ("Book", "An explanation", "")),
+            ("Author", "Author: Book: An explanation", ("Book", "An explanation", "")),
+            # Title with a "series" but no subtitle
+            ("Author", "My Book (Toot, #40)", ("My Book", "", "Toot, #40)")), 
+            ("Author", "Author: Some series (Book 3)", ("Some series", "", "Book 3)")),
+            ("Author", "Test book (The Series: Book 6)", ("Test book", "", "The Series: Book 6)")),
+            ("Author", "Author: Test book (The Series, 6)", ("Test book", "", "The Series, 6)")),
+            ("Author Name", "Author Name: Book (Series: Subseries 1)", ("Book", "", "Series: Subseries 1)")),
+            # Titles with "commentary" in the title
+            ("Author Name", "Author Name: Book (Unabridged)", ("Book", "(Unabridged)", "")),
+            ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
+            # Books with a subtitle in a series
+            ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2)")),
+            ("Abraham Lincoln", "Abraham Lincoln: Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2)")),
+        ]
+        lazylibrarian.CONFIG['IMP_NOSPLIT'] = ''
+        for data in testdata:
+            name, sub, series = formatter.split_title(data[0], data[1])
+            self.assertEqual((name, sub, series), data[2], f"No split: {data}")
+        # TODO/AM: Fix this test once splitlist functionality works
+        #lazylibrarian.CONFIG['IMP_NOSPLIT'] = "unabridged","tm","annotated"
+        #for data in testdata:
+        #    name, sub, series = formatter.split_title(data[0], data[1])
+        #    self.assertEqual((name, sub, series), data[2], f"Split: {data}")
     def test_checkint(self):
         values = [
             ('17', 0, True, 17),
@@ -319,3 +333,96 @@ class FormatterTest(unittest.TestCase):
          ]
         for name in filenames:
             self.assertEqual(formatter.is_valid_type(name[0]), name[1], name[0])
+
+    def test_is_valid_booktype(self):
+        types = ["book", "mag", "audio", "comic"]
+        filenames_ok = [
+            # Books: 'epub, mobi, pdf'
+            ("A volume.pdf", ("book", "mag")),  
+            ("TEST.EPUB", ("book")),     
+            ("Book 2.mobi", ("book")),   
+            # Audiobooks: mp3, m4b
+            ("Audio.mp3", ("audio")),
+            ("Adio.m4b", ("audio")),     
+            # Comics: cbr, cbz
+            ("Marvel.Cbr", ("comic")),    
+            ("DC.cbZ", ("comic")),       
+            # Magazines: .pdf
+            ("My mag.pdf", ("mag", "book"))
+        ]
+        for name in filenames_ok:
+            fn = name[0]
+            valid_types = name[1]
+            for t in types:
+                self.assertEqual(formatter.is_valid_booktype(fn, t), t in valid_types, f"{fn} ({valid_types}, {t})")
+
+    def test_get_list(self):
+        lists = [
+            # Standard separations
+            ("A few items, and some more", None, ["A", "few", "items", "and", "some", "more"]),
+            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            # Separate just on comma
+            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
+            # Tricky: Tell it to separate on comma and space, and it separates on the default
+            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            # The empy list
+            ("", ' ', []),
+            (" ,   ", '', []),
+        ]
+        for string in lists:
+            self.assertEqual(formatter.get_list(string[0], string[1]), string[2])
+
+    def test_sort_definite(self):
+        strings = [
+            ("The Test Case", "Test Case, The"),
+            ("A case of testing", "case of testing, A"),
+            ("This is just a book", "This is just a book"),
+            ("", ""),
+            ("A", "A"),
+        ]
+        for s in strings:
+            self.assertEqual(formatter.sort_definite(s[0]), s[1])
+
+    def test_surname_first(self):
+        testnames = [
+            # Passing through case
+            ("Allan Mertner", "Mertner, Allan"),
+            ("Allan & Mamta Mertner", "Mertner, Allan & Mamta"),
+            ("ALLAN MERTNER", "MERTNER, ALLAN"),
+            ("allan mertner", "mertner, allan"),
+            ("aLLaN mErtNer", "mErtNer, aLLaN"),
+            # Testing with initials, with or without .
+            ("A Mertner", "Mertner, A"),
+            ("A. Mertner", "Mertner, A."),
+            # Testing with middle names
+            ("Allan Douglas Mertner", "Mertner, Allan Douglas"),
+            # It doesn't reverse strings already in order
+            ("Mertner, Allan", "Allan, Mertner"),
+            ("MERTNER, Allan", "Allan, MERTNER"),
+            # Test with postfixes
+            ("Allan Mertner, Jr.", "Mertner Jr., Allan"),
+            ("Allan Mertner JNR", "Mertner JNR, Allan"),
+            ("Allan Mertner, PhD", "Mertner PhD, Allan"),
+            ("Allan Testing Mertner Snr", "Mertner Snr, Allan Testing"),
+        ]
+        for name in testnames:
+            self.assertEqual(formatter.surname_first(name[0]), name[1])
+
+    def test_format_author_name(self):
+        testnames = [
+            ("Allan Mertner", "Allan Mertner"),
+            ("Allan & Mamta Mertner", "Allan"),
+            ("Mertner, Allan", "Allan Mertner"),
+            ("MERTNER, Allan", "Allan MERTNER"),
+            ("ALLAN MERTNER", "Allan Mertner"),
+            ("allan mertner", "Allan Mertner"),
+            ("aLLaN mErtNer", "aLLaN mErtNer"),
+            ("A Mertner", "A. Mertner"),
+            ("A. Mertner", "A. Mertner"),
+            # With suffix
+            ("Allan Mertner, Jr.", "Allan Mertner Jr."),
+            ("Allan Mertner PhD", "Allan Mertner PhD"),
+            ("Allan Mertner, General", "General Allan Mertner"),
+        ]
+        for names in testnames:
+            self.assertEqual(formatter.format_author_name(names[0]), names[1])

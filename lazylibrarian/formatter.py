@@ -652,9 +652,11 @@ def is_valid_booktype(filename, booktype=None):
 
 
 def get_list(st, c=None):
-    # split a string/unicode into a list on whitespace or plus or comma
-    # or single character split eg filenames with spaces split on comma only
-    # Returns list of same type as st
+    """
+    Split a string/unicode into a list on whitespace or plus or comma
+    or single character split eg filenames with spaces split on comma only
+    Returns list of same type as st
+    """
     lst = []
     if st:
         if c is not None and len(c) == 1:
@@ -683,6 +685,12 @@ def safe_unicode(obj, *args):
 
 
 def split_title(author, book):
+    """
+    Strips the author name from book title and 
+    returns the book name part split into (name, subtitle and series)
+    """
+    ## TODO/AM: Fix this routine so it works better. Bracket handling is wonky
+    ## TODO/AM: The Splitlist functionality seems not to work
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
@@ -783,6 +791,10 @@ def format_author_name(author):
 
 
 def sort_definite(title):
+    """
+    Return the sort string for a title, moving prefixes 
+    we want to ignore to the end, like The or A
+    """
     words = get_list(title)
     if len(words) < 2:
         return title
@@ -799,7 +811,7 @@ def surname_first(authorname):
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower() in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
