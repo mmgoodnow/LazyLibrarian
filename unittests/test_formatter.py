@@ -217,6 +217,17 @@ class FormatterTest(unittest.TestCase):
         for special in specialmonths:
             self.assertEqual(formatter.month2num(special[0]), special[1])
 
+    def test_nzbdate2format(self):
+        nzbdates = [
+            ("mon 22 oct 1998", "1998-10-22"),
+            ("Sun 23 Jan 2001", "2001-01-23"),
+            ("Whatever 2 nov 1994", "1994-11-2"),
+            ("Not a date", "1970-01-01"),
+            ("2000-01-01", "1970-01-01"),
+        ]
+        for nzbdate in nzbdates:
+            self.assertEqual(formatter.nzbdate2format(nzbdate[0]), nzbdate[1])
+
     def test_date_format(self):
         dates = [
             ("Tue, 23 Aug 2016 17:33:26 +0100", "2016-08-23"),  # Newznab/Torznab 

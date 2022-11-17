@@ -250,6 +250,10 @@ def check_year(num, past=1850, future=1):
 
 
 def nzbdate2format(nzbdate):
+    """
+    Returns an "nzb date" in yyyy-mm-dd format
+    Returns 1970-01-01 if the date can't be parsed
+    """
     try:
         mmname = nzbdate.split()[2].zfill(2)
         day = nzbdate.split()[1]
