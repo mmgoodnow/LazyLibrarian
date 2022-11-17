@@ -899,14 +899,23 @@ def replace_all(text, dic):
     return text
 
 
-def replace_with(text, lst, char):
+def replace_quotes_with(text, char):
+    """
+    Replaces every occurrence of quote characters in "text" 
+    with char - which can be blank to remove them
+    """
     if not text:
         return ''
-    replaces = re.compile('[%s]' % re.escape(''.join(lst)))
+    replaces = re.compile('[%s]' % re.escape(''.join(lazylibrarian.common.quotes)))
     return replaces.sub(char, text)
 
 
 def disp_name(provider):
+    """
+    Strange function. Returns the display name of a provider that
+    matches the host name provided as parameter, if any.
+    If not, returns the host name provided, shortened if too long.
+    """
     provname = ''
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['HOST'].strip('/') == provider:

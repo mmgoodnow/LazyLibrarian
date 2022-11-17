@@ -426,3 +426,47 @@ class FormatterTest(unittest.TestCase):
         ]
         for names in testnames:
             self.assertEqual(formatter.format_author_name(names[0]), names[1])
+
+    def test_no_umlauts(self):
+        teststrings = [
+            ('Test ' + u'\xe4', 'Test ae'),
+            ('Test ' + u'\xf6', 'Test oe'),
+            ('Test ' + u'\xfc', 'Test ue'),
+            ('Test ' + u'\xc4', 'Test Ae'),
+            ('Test ' + u'\xd6', 'Test Oe'),
+            ('Test ' + u'\xdc', 'Test Ue'),
+            ('Test ' + u'\xdf', 'Test ss'),
+        ]
+        # no_umlauts only does something if German is a language used
+        lang = lazylibrarian.CONFIG['IMP_PREFLANG']
+        lazylibrarian.CONFIG['IMP_PREFLANG'] = 'eng'
+        # First test that nothing changes without German
+        for s in teststrings:
+            self.assertEqual(formatter.no_umlauts(s[0]), s[0])
+        lazylibrarian.CONFIG['IMP_PREFLANG'] = 'de'
+        for s in teststrings:
+            self.assertEqual(formatter.no_umlauts(s[0]), s[1])
+        lazylibrarian.CONFIG['IMP_PREFLANG'] = lang
+
+    def test_disp_name(self):
+        providers = [
+            ('test', 'test'),
+            ('quite/short/item', 'quite/short/item'),
+            ('test/hello/world/veryvery/long/item', 'veryvery long item'),
+            ('', 'Newznab0'),
+        ]
+        for p in providers:
+            self.assertEqual(formatter.disp_name(p[0]), p[1])
+
+    def test_replace_quotes_with(self):
+        allchars = ''
+        for ch in range(32, 255):
+            allchars += chr(ch)
+        allchars += u'\uff02' # Add a single non-ascii quote to the test
+        self.assertEqual(len(allchars), 255-32+1)
+
+        newstr = formatter.replace_quotes_with(allchars, 'x')
+        self.assertEqual(newstr.count('x'), 7)
+        newstr = formatter.replace_quotes_with(allchars, '')
+        self.assertEqual(len(newstr), 218)
+

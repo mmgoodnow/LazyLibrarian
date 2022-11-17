@@ -25,10 +25,10 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file, any_file, walk, listdir, quotes, \
+from lazylibrarian.common import opf_file, any_file, walk, listdir, \
     path_isdir, path_isfile, path_exists
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
-    clean_name, replace_all, replace_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
+    clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -344,7 +344,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
     prefix_type = ''
 
     book_lower = unaccented(book.lower(), only_ascii=False)
-    book_lower = replace_with(book_lower, quotes, '')
+    book_lower = replace_quotes_with(book_lower, '')
     book_partname, book_sub, _ = split_title(author, book_lower)
 
     # We want to match a book on disk with a subtitle to a shorter book in the DB
@@ -375,7 +375,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
         a_book_lower = unaccented(a_bookname.lower(), only_ascii=False)
-        a_book_lower = replace_with(a_book_lower, quotes, '')
+        a_book_lower = replace_quotes_with(a_book_lower, '')
 
         for entry in translates:
             if entry[0] in a_book_lower and entry[0] not in book_lower and entry[1] in book_lower:
@@ -859,7 +859,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # some books might be stored under a different author name
                                 # eg books by multiple authors, books where author is "writing as"
                                 # or books we moved to "merge" authors
-                                book = replace_with(book, quotes, '')
+                                book = replace_quotes_with(book, '')
 
                                 # If we have a valid ID, use that
                                 bookid = ''
@@ -991,13 +991,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 logger.warn("Error requesting GoodReads for %s" % searchname)
                                             else:
                                                 book, _, _ = split_title(author, book)
-                                                book = replace_with(book, quotes, '')
+                                                book = replace_quotes_with(book, '')
                                                 resultxml = rootxml.iter('work')
                                                 for item in resultxml:
                                                     try:
                                                         booktitle = item.find('./best_book/title').text
                                                         booktitle, _, _ = split_title(author, booktitle)
-                                                        booktitle = replace_with(booktitle, quotes, '')
+                                                        booktitle = replace_quotes_with(booktitle, '')
                                                     except (KeyError, AttributeError):
                                                         booktitle = ""
                                                     try:
@@ -1045,7 +1045,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                         try:
                                                             booktitle = item.find('./best_book/title').text
                                                             booktitle, _, _ = split_title(author, booktitle)
-                                                            booktitle = replace_with(booktitle, quotes, '')
+                                                            booktitle = replace_quotes_with(booktitle, '')
                                                         except (KeyError, AttributeError):
                                                             booktitle = ""
                                                         try:
