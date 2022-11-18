@@ -169,27 +169,34 @@ class FormatterTest(unittest.TestCase):
             ("Author", "Book: An explanation", ("Book", "An explanation", "")),
             ("Author", "Author: Book: An explanation", ("Book", "An explanation", "")),
             # Title with a "series" but no subtitle
-            ("Author", "My Book (Toot, #40)", ("My Book", "", "Toot, #40)")), 
-            ("Author", "Author: Some series (Book 3)", ("Some series", "", "Book 3)")),
-            ("Author", "Test book (The Series: Book 6)", ("Test book", "", "The Series: Book 6)")),
-            ("Author", "Author: Test book (The Series, 6)", ("Test book", "", "The Series, 6)")),
-            ("Author Name", "Author Name: Book (Series: Subseries 1)", ("Book", "", "Series: Subseries 1)")),
+            ("Author", "My Book (Toot, #40)", ("My Book", "", "Toot, #40")), 
+            ("Author", "Author: Some series (Book 3)", ("Some series", "", "Book 3")),
+            ("Author", "Test book (The Series: Book 6)", ("Test book", "", "The Series: Book 6")),
+            ("Author", "Author: Test book (The Series, 6)", ("Test book", "", "The Series, 6")),
+            ("Author Name", "Author Name: Book (Series: Subseries 1)", ("Book", "", "Series: Subseries 1")),
             # Titles with "commentary" in the title
             ("Author Name", "Author Name: Book (Unabridged)", ("Book", "(Unabridged)", "")),
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
+            ("Author Name", "Author Name: Book (TM)", ("Book", "(TM)", "")),
             # Books with a subtitle in a series
-            ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2)")),
-            ("Abraham Lincoln", "Abraham Lincoln: Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2)")),
+            ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
+            ("Abraham Lincoln", "Abraham Lincoln: Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
+        ]
+        testcommentarydata = [
+            # Titles with "commentary" in the title
+            ("Author Name", "Author Name: Book (Unabridged)", ("Book", "", "")),
+            ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
+            ("Author Name", "Author Name: Book (TM)", ("Book", "", "")),
         ]
         lazylibrarian.CONFIG['IMP_NOSPLIT'] = ''
         for data in testdata:
             name, sub, series = formatter.split_title(data[0], data[1])
-            self.assertEqual((name, sub, series), data[2], f"No split: {data}")
-        # TODO/AM: Fix this test once splitlist functionality works
-        #lazylibrarian.CONFIG['IMP_NOSPLIT'] = "unabridged","tm","annotated"
-        #for data in testdata:
-        #    name, sub, series = formatter.split_title(data[0], data[1])
-        #    self.assertEqual((name, sub, series), data[2], f"Split: {data}")
+            self.assertEqual((name, sub, series), data[2], f"Testdata: {data}")
+
+        lazylibrarian.CONFIG['IMP_NOSPLIT'] = "unabridged,tm,annotated"
+        for data in testcommentarydata:
+            name, sub, series = formatter.split_title(data[0], data[1])
+            self.assertEqual((name, sub, series), data[2], f"Testcommentarydata: {data}")
 
     def test_checkint(self):
         values = [

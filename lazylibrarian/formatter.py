@@ -727,23 +727,20 @@ def split_title(author, book):
         if book[-2].isdigit():
             # separate out the series part
             book, bookseries = book.rsplit('(', 1)
+            bookseries = bookseries.strip(')')
             book = book.strip().rstrip(':').strip()
         else:
             parts = book.rsplit('(', 1)
             parts[1] = '(' + parts[1]
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
-            endbrace = booksub.find(')') + 1
-            if endbrace and ' ' in booksub:
-                braced_words = book[brace:endbrace - 1].lower()
-                # check for any we don't want to split...
+            if booksub.find(')'):
                 for item in splitlist:
-                    if item in braced_words:
-                        brace = 0
-            if brace:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-                    lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
-                return bookname, booksub, bookseries
+                    if f"({item})" == booksub.lower():
+                        booksub = ""
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+            return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
     # split subtitle on first ':'
