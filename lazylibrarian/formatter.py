@@ -52,6 +52,10 @@ def thread_name(name=None):
 
 
 def sanitize(name):
+    """
+    Sanitizes a string so it can be used as a file name, normalized as Unicode
+    Returns a sanitized string
+    """
     if not name:
         return ''
     filename = make_unicode(name)
@@ -69,12 +73,14 @@ def sanitize(name):
 
 
 def versiontuple(versionstring):
-    # convert a version string into 3 part tuple without using packaging.version.parse
-    # as we can't be sure that's installed
-    # NOTE this assumes bugfix component starts with a digit eg 1.2.3-beta4
-    # and drops any extension part, eg 1.2.3-beta4 becomes (1, 2, 3)
-    # which is not strictly correct so we need to check for version > too_low
-    # rather than >= lowest acceptable
+    """
+    Convert a version string into 3 part tuple without using packaging.version.parse
+    as we can't be sure that's installed
+    Note this assumes bugfix component starts with a digit eg 1.2.3-beta4
+    and drops any extension part, eg 1.2.3-beta4 becomes (1, 2, 3)
+    which is not strictly correct so we need to check for version > too_low
+    rather than >= lowest acceptable
+    """
     major = 0
     minor = 0
     bugfix = 0
@@ -96,6 +102,9 @@ def versiontuple(versionstring):
 
 
 def url_fix(s, charset='utf-8'):
+    """
+    Return the argument so it's valid in a web context
+    """
     if PY2 and isinstance(s, text_type):
         s = s.encode(charset, 'ignore')
     elif not PY2 and not isinstance(s, text_type):
@@ -578,6 +587,9 @@ def make_unicode(txt):
 
 
 def make_bytestr(txt):
+    """
+    Turn text into a binary byte string
+    """
     if isinstance(txt, binary_type):  # nothing to do if already bytestring
         return txt
     if txt is None:

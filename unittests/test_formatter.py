@@ -32,6 +32,65 @@ class FormatterTest(unittest.TestCase):
         unittesthelpers.clearGlobals()
         return super().tearDownClass()
 
+    def test_sanitize(self):
+        import unicodedata
+        strings = [
+            ("", ""),
+            ("C:\\My eBooks\\book.epub", 'C\\My eBooks\\book.epub'),
+            ("My oddly named ÆØÅ ebook...", 'My oddly named AOÅ ebook'),
+            ("Stuff here "+chr(2)+">< |&!?-\\$|+`~=*", 'Stuff here  &!-\\s+~='),
+            ("Not C:\\\\// usable [as a] file name.jpg", 'Not C\\/ usable [as a] file name.jpg'),
+            (u'\2160'+u'\0049', '\x8e09'),
+            ('Hello Über', 'Hello Über'), # Unicode-string in NFKD->NFC format
+            ("\\\\Server\\Test An odd one:2131", '\\Server\\Test An odd one2131'),
+        ]
+        for s in strings:
+            sn = formatter.sanitize(s[0])
+            self.assertEqual(sn, s[1])
+            self.assertTrue(unicodedata.is_normalized("NFC", sn))
+
+    def test_url_fix(self):
+        URLs = [
+            ("http://www.random.com/query?test=123", 'http://www.random.com/query?test=123'),
+            ("https://10.11.12.13:1234/query?test=I am :a pup/py:&x y", 'https://10.11.12.13:1234/query?test=I+am+:a+pup%2Fpy:&x+y'),
+            ("I am not an Über URL '+chr(8)", 'I%20am%20not%20an%20U%CC%88ber%20URL%20%27%2Bchr%288%29'),
+        ]
+        for url in URLs:
+            self.assertEqual(formatter.url_fix(url[0]), url[1])
+
+    def test_make_bytestr(self):
+        data = [
+            ("This is a string", b'This is a string'),
+            ("This is an Über Über string", b'This is an U\xcc\x88ber \xc3\x9cber string'),
+            (b'123', b'123'),
+            (None, None),
+            (231, b'231'),
+            (["abc", 123], b"['abc', 123]")
+        ]
+        for d in data:
+            self.assertEqual(formatter.make_bytestr(d[0]), d[1])
+        pass
+
+    def test_safe_unicode(self):
+        strings = [
+            ("", ""),
+            ("Stuff here "+chr(2)+">< |&!?-\\$|+`~=*", "Stuff here "+chr(2)+">< |&!?-\\$|+`~=*"),
+            (u'\2160'+u'\0049', u'\2160'+u'\0049'),
+            (u'\x8e09', u'\x8e09'),
+            ('Hello Über', 'Hello Über'),
+            (b'\xc3\x28', "b'\\xc3('" ), # Invalid 2-byte sequence
+            (b"\xf0\x28\x8c\xbc", "b'\\xf0(\\x8c\\xbc'"), # Invalid 4-byte sequence
+        ]
+        for s in strings:
+            self.assertEqual(formatter.safe_unicode(s[0]), s[1])
+
+    def test_next_run_time(self):
+        # Need to add now() replacement parameter for this to work
+        pass
+
+    def test_seconds_to_midnight(self):
+        pass
+
     def test_book_series(self):
         testseries =[
             # Single-series
@@ -298,16 +357,19 @@ class FormatterTest(unittest.TestCase):
             encoded, name = formatter.make_utf8bytes(str[0])
             self.assertEqual((encoded, name), (str[1], str[2]))
 
-    # def test_make_unicode(self):
-    #     strings = [
-    #         (b'', b''),
-    #         (b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5'),
-    #     ]
-    #     for str in strings:
-    #         uni = formatter.make_unicode(str[0])
-    #         print(uni, uni==str[1])
-            #self.assertEqual((encoded, name), (str[1], str[2]))
+    def test_make_unicode(self):
+        strings = [
+            (None, None),
+            (b'', ''),
+            (b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85', 'Ã\x86Ã\x98Ã\x85'),
+            ('Hello Über', 'Hello Über'),
+            (123, "123"),
+            ([False, None, "Allan"], "[False, None, 'Allan']"),
+            (b'\xc3\x28', 'Ã(' ), # Invalid 2-byte sequence
 
+        ]
+        for str in strings:
+            self.assertEqual(formatter.make_unicode(str[0]), str[1])
     
     def test_is_valid_isbn(self):
         isbns = [
