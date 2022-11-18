@@ -186,13 +186,14 @@ def book_series(bookname):
     return series, seriesnum
 
 
-def next_run_time(when_run):
+def next_run_time(when_run, test_now: datetime = None):
     """
-    Give a readable approximation of how long until a job will be run
+    Returns a readable approximation of how long until a job will be run, 
+    given a string representing the last time it was run
     """
     try:
         when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
-        timenow = datetime.datetime.now()
+        timenow = datetime.datetime.now() if not test_now else test_now
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
     except ValueError as e:
@@ -201,9 +202,9 @@ def next_run_time(when_run):
         td = ''
 
     td = str(td)
-    if 's,' in td:
+    if 'days,' in td: # > 1 day, just return days
         return td.split('s,')[0] + 's'
-    elif 'y,' in td:
+    elif 'day,' in td and not "0:00:00" in td: # 1 day and change, or 1 day?
         diff += 86400
 
     # calculate whole units, plus round up by adding 1(true) if remainder >= half
@@ -218,6 +219,8 @@ def next_run_time(when_run):
         return "%i hours" % hours
     elif minutes > 1:
         return "%i minutes" % minutes
+    elif seconds == 1:
+        return "1 second"
     else:
         return "%i seconds" % seconds
 
