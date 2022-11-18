@@ -708,8 +708,6 @@ def split_title(author, book):
     Strips the author name from book title and 
     returns the book name part split into (name, subtitle and series)
     """
-    ## TODO/AM: Fix this routine so it works better. Bracket handling is wonky
-    ## TODO/AM: The Splitlist functionality seems not to work
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''

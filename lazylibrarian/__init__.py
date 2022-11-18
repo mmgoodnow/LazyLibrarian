@@ -261,7 +261,10 @@ def directory(dirname):
 
 
 def wishlist_type(host):
-    """ Return type of wishlist or empty string if not a wishlist """
+    """ 
+    Return type of wishlist at host, or empty string if host is not a wishlist 
+    (Quite fragile, take care)
+    """
     # GoodReads rss feeds
     if 'goodreads' in host and 'list_rss' in host:
         return 'goodreads'
@@ -303,6 +306,9 @@ def bok_dlcount():
 
 
 def use_rss():
+    """
+    Returns number of RSS providers that are not wishlists, and are not blocked
+    """
     count = 0
     for provider in RSS_PROV:
         if bool(provider['ENABLED']) and not wishlist_type(provider['HOST']) and not \
@@ -312,6 +318,9 @@ def use_rss():
 
 
 def use_irc():
+    """
+    Returns number of IRC active providers that are not blocked
+    """
     count = 0
     for provider in IRC_PROV:
         if bool(provider['ENABLED']) and not provider_is_blocked(provider['SERVER']):
@@ -320,6 +329,9 @@ def use_irc():
 
 
 def use_wishlist():
+    """
+    Returns number of RSS providers that are wishlists and not blocked
+    """
     count = 0
     for provider in RSS_PROV:
         if bool(provider['ENABLED']) and wishlist_type(provider['HOST']) and not provider_is_blocked(provider['HOST']):
@@ -328,7 +340,10 @@ def use_wishlist():
 
 
 def use_nzb():
-    # Count how many nzb providers are active and not blocked
+    """
+    Returns number of nzb active providers that are not blocked
+    (Includes Newznab and Torznab providers)
+    """
     count = 0
     for provider in NEWZNAB_PROV:
         if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
@@ -340,6 +355,9 @@ def use_nzb():
 
 
 def use_tor():
+    """
+    Returns number of TOR providers that are not blocked
+    """
     count = 0
     for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
         if bool(CONFIG[provider]) and not provider_is_blocked(provider):
@@ -348,6 +366,9 @@ def use_tor():
 
 
 def use_direct():
+    """
+    Returns number of enabled direct book providers
+    """
     count = 0
     for provider in GEN_PROV:
         if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
