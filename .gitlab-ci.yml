@@ -19,7 +19,7 @@ before_script:
 test:
   script:
     - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest
-    - pytest --cov=lazylibrarian --junitxml=lltest.xml unittests 
+    - pytest --junitxml=lltest.xml unittests 
     #- python -m unittest discover -s unittests/
   artifacts:
     when: always
