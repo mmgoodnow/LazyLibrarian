@@ -293,7 +293,6 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             if item[whichstatus] == 'Ignored':
                 match = item
                 break
-
     if match:
         logger.debug('Exact match [%s] %s' % (book, match))
         return match['BookID'], match

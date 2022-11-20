@@ -56,12 +56,13 @@ from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, \
-    get_preferred_author_name, is_valid_authorid
+    get_preferred_author_name
 from lazylibrarian.librarysync import library_scan
 from lazylibrarian.manualbook import search_item
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.opds import OPDS
+from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
     create_opf, process_book_from_dir, process_issues
 from lazylibrarian.providers import test_provider
@@ -69,7 +70,6 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
-from lazylibrarian.opfedit import opf_read, opf_write
 
 try:
     from deluge_client import DelugeRPCClient
@@ -3369,126 +3369,122 @@ class WebInterface(object):
     def author_update(self, authorid='', authorname='', authorborn='', authordeath='', authorimg='',
                       editordata='', manual='0', **kwargs):
         db = database.DBConnection()
-        if is_valid_authorid(authorid):
-            authdata = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
-            if authdata:
-                edited = ""
-                if not authorborn or authorborn == 'None':
-                    authorborn = None
-                if not authordeath or authordeath == 'None':
-                    authordeath = None
-                if authorimg == 'None':
-                    authorimg = ''
-                manual = bool(check_int(manual, 0))
+        authdata = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
+        if authdata:
+            edited = ""
+            if not authorborn or authorborn == 'None':
+                authorborn = None
+            if not authordeath or authordeath == 'None':
+                authordeath = None
+            if authorimg == 'None':
+                authorimg = ''
+            manual = bool(check_int(manual, 0))
 
-                if authdata["AuthorBorn"] != authorborn:
-                    edited += "Born "
-                if authdata["AuthorDeath"] != authordeath:
-                    edited += "Died "
-                if 'cover' in kwargs:
-                    if kwargs['cover'] == "manual":
-                        if authorimg and (authdata["AuthorImg"] != authorimg):
-                            edited += "Image manual"
-                    elif kwargs['cover'] != "current":
-                        authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
-                        edited += "Image %s " % kwargs['cover']
+            if authdata["AuthorBorn"] != authorborn:
+                edited += "Born "
+            if authdata["AuthorDeath"] != authordeath:
+                edited += "Died "
+            if 'cover' in kwargs:
+                if kwargs['cover'] == "manual":
+                    if authorimg and (authdata["AuthorImg"] != authorimg):
+                        edited += "Image manual"
+                elif kwargs['cover'] != "current":
+                    authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
+                    edited += "Image %s " % kwargs['cover']
 
-                if authdata["About"] != editordata:
-                    edited += "Description "
-                if not (bool(check_int(authdata["Manual"], 0)) == manual):
-                    edited += "Manual "
+            if authdata["About"] != editordata:
+                edited += "Description "
+            if not (bool(check_int(authdata["Manual"], 0)) == manual):
+                edited += "Manual "
 
-                if authdata["AuthorName"] != authorname:
-                    match = db.match('SELECT AuthorName from authors where AuthorName=?', (authorname,))
-                    if match:
-                        logger.debug("Unable to rename, new author name %s already exists" % authorname)
-                        authorname = authdata["AuthorName"]
-                    else:
-                        edited += "Name "
-
-                if edited:
-                    # Check dates, format to yyyy/mm/dd
-                    # use None to clear date
-                    # Leave unchanged if fails datecheck
-                    if authorborn is not None:
-                        ab = date_format(authorborn)
-                        if len(ab) == 10:
-                            authorborn = ab
-                        else:
-                            logger.warn("Author Born date [%s] rejected" % authorborn)
-                            authorborn = authdata["AuthorBorn"]  # leave unchanged
-                            edited = edited.replace('Born ', '')
-
-                    if authordeath is not None:
-                        ab = date_format(authordeath)
-                        if len(ab) == 10:
-                            authordeath = ab
-                        else:
-                            logger.warn("Author Died date [%s] rejected" % authordeath)
-                            authordeath = authdata["AuthorDeath"]  # leave unchanged
-                            edited = edited.replace('Died ', '')
-
-                    if not authorimg:
-                        authorimg = authdata["AuthorImg"]
-                    else:
-                        if authorimg == 'none':
-                            authorimg = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nophoto.png')
-
-                        rejected = True
-
-                        # Cache file image
-                        if not path_isfile(authorimg):
-                            logger.warn("Failed to find file %s" % authorimg)
-                        else:
-                            extn = os.path.splitext(authorimg)[1].lower()
-                            if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                                destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
-                                try:
-                                    copyfile(authorimg, destfile)
-                                    logger.debug("%s->%s" % (authorimg, destfile))
-                                    setperm(destfile)
-                                    authorimg = 'cache/author/' + authorid + '.jpg'
-                                    rejected = False
-                                except Exception as why:
-                                    logger.warn("Failed to copy file %s, %s %s" %
-                                                (authorimg, type(why).__name__, str(why)))
-                            else:
-                                logger.warn("Invalid extension on [%s]" % authorimg)
-
-                        if authorimg.startswith('http'):
-                            # cache image from url
-                            # extn = os.path.splitext(authorimg)[1].lower()
-                            # if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                            authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
-                            if success:
-                                rejected = False
-
-                        if rejected:
-                            logger.warn("Author Image [%s] rejected" % authorimg)
-                            authorimg = authdata["AuthorImg"]
-                            edited = edited.replace('Image ', '')
-
-                    control_value_dict = {'AuthorID': authorid}
-                    new_value_dict = {
-                        'AuthorName': authorname,
-                        'AuthorBorn': authorborn,
-                        'AuthorDeath': authordeath,
-                        'AuthorImg': authorimg,
-                        'About': editordata,
-                        'Manual': bool(manual)
-                    }
-                    db.upsert("authors", new_value_dict, control_value_dict)
-                    logger.info('Updated [ %s] for %s' % (edited, authorname))
-
+            if authdata["AuthorName"] != authorname:
+                match = db.match('SELECT AuthorName from authors where AuthorName=?', (authorname,))
+                if match:
+                    logger.debug("Unable to rename, new author name %s already exists" % authorname)
+                    authorname = authdata["AuthorName"]
                 else:
-                    logger.debug('Author [%s] has not been changed' % authorname)
+                    edited += "Name "
 
-            icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', authorid)
-            rmtree(icrawlerdir, ignore_errors=True)
-            raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
-        else:
-            logger.warn("Invalid authorid [%s] for %s" % (authorid, authorname))
-            raise cherrypy.HTTPError(404, "AuthorID %s not found for %s" % (authorid, authorname))
+            if edited:
+                # Check dates, format to yyyy/mm/dd
+                # use None to clear date
+                # Leave unchanged if fails datecheck
+                if authorborn is not None:
+                    ab = date_format(authorborn)
+                    if len(ab) == 10:
+                        authorborn = ab
+                    else:
+                        logger.warn("Author Born date [%s] rejected" % authorborn)
+                        authorborn = authdata["AuthorBorn"]  # leave unchanged
+                        edited = edited.replace('Born ', '')
+
+                if authordeath is not None:
+                    ab = date_format(authordeath)
+                    if len(ab) == 10:
+                        authordeath = ab
+                    else:
+                        logger.warn("Author Died date [%s] rejected" % authordeath)
+                        authordeath = authdata["AuthorDeath"]  # leave unchanged
+                        edited = edited.replace('Died ', '')
+
+                if not authorimg:
+                    authorimg = authdata["AuthorImg"]
+                else:
+                    if authorimg == 'none':
+                        authorimg = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nophoto.png')
+
+                    rejected = True
+
+                    # Cache file image
+                    if not path_isfile(authorimg):
+                        logger.warn("Failed to find file %s" % authorimg)
+                    else:
+                        extn = os.path.splitext(authorimg)[1].lower()
+                        if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
+                            destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
+                            try:
+                                copyfile(authorimg, destfile)
+                                logger.debug("%s->%s" % (authorimg, destfile))
+                                setperm(destfile)
+                                authorimg = 'cache/author/' + authorid + '.jpg'
+                                rejected = False
+                            except Exception as why:
+                                logger.warn("Failed to copy file %s, %s %s" %
+                                            (authorimg, type(why).__name__, str(why)))
+                        else:
+                            logger.warn("Invalid extension on [%s]" % authorimg)
+
+                    if authorimg.startswith('http'):
+                        # cache image from url
+                        # extn = os.path.splitext(authorimg)[1].lower()
+                        # if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
+                        authorimg, success, _ = cache_img("author", authorid, authorimg, refresh=True)
+                        if success:
+                            rejected = False
+
+                    if rejected:
+                        logger.warn("Author Image [%s] rejected" % authorimg)
+                        authorimg = authdata["AuthorImg"]
+                        edited = edited.replace('Image ', '')
+
+                control_value_dict = {'AuthorID': authorid}
+                new_value_dict = {
+                    'AuthorName': authorname,
+                    'AuthorBorn': authorborn,
+                    'AuthorDeath': authordeath,
+                    'AuthorImg': authorimg,
+                    'About': editordata,
+                    'Manual': bool(manual)
+                }
+                db.upsert("authors", new_value_dict, control_value_dict)
+                logger.info('Updated [ %s] for %s' % (edited, authorname))
+
+            else:
+                logger.debug('Author [%s] has not been changed' % authorname)
+
+        icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', authorid)
+        rmtree(icrawlerdir, ignore_errors=True)
+        raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 
     @cherrypy.expose
     def edit_book(self, bookid=None, library='eBook'):

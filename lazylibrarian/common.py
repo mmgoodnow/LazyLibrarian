@@ -1435,7 +1435,7 @@ def log_header(online=True):
     if 'urllib3' in globals():
         header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
     else:
-        header += "urllib3: missing\n"
+        header += "urllib3: not found\n"
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     if online:
         try:
@@ -1459,7 +1459,7 @@ def log_header(online=True):
     if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
         header += "apprise: %s\n" % lazylibrarian.APPRISE
     else:
-        header += "apprise: library missing\n"
+        header += "apprise: not found\n"
     if lazylibrarian.UNRARLIB == 1:
         vers = lazylibrarian.RARFILE.unrarlib.RARGetDllVersion()
         header += "unrar: %s\n" % vers
@@ -1471,39 +1471,36 @@ def log_header(online=True):
             vers = UnRAR2.windows.RARGetDllVersion()
             header += "unrar dll: %s\n" % vers
     else:
-        header += "unrar: library missing\n"
+        header += "unrar: not found\n"
 
     if module_available("bs4") and module_available("html5lib"):
         import bs4
-        vers = getattr(bs4, '__version__', None)
-        header += "bs4: %s\n" % vers
+        header += "bs4: %s\n" % getattr(bs4, '__version__', None)
         import html5lib
-        vers = getattr(html5lib, '__version__', None)
-        header += "html5lib: %s\n" % vers
+        header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
     else:
         if PY2:
             import lib.bs4 as bs4
             bs4vers = getattr(bs4, '__version__', None)
-            # noinspection PyProtectedMember
-            h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
         else:
             import lib3.bs4 as bs4
             bs4vers = getattr(bs4, '__version__', None)
-            # noinspection PyProtectedMember
+        h5vers = None
+        if bs4vers:
             try:
                 # noinspection PyProtectedMember
                 h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
             except AttributeError:
-                h5vers = "library missing"
-        header += "local bs4: %s\n" % bs4vers
-        header += "local html5lib: %s\n" % h5vers
+                h5vers = "not found"
+        header += "bundled bs4: %s\n" % bs4vers
+        header += "bundled html5lib: %s\n" % h5vers
 
     try:
         import PIL
         vers = getattr(PIL, '__version__', None)
         header += "python imaging: %s\n" % vers
     except ImportError:
-        header += "python imaging: library missing\n"
+        header += "python imaging: not found\n"
 
     header += "openssl: %s\n" % getattr(ssl, 'OPENSSL_VERSION', None)
     X509 = None
@@ -1514,7 +1511,7 @@ def log_header(online=True):
         # noinspection PyUnresolvedReferences
         import OpenSSL
     except ImportError:
-        header += "pyOpenSSL: module missing\n"
+        header += "pyOpenSSL: not found\n"
         OpenSSL = None
 
     if OpenSSL:
@@ -1522,7 +1519,7 @@ def log_header(online=True):
             # noinspection PyUnresolvedReferences
             from OpenSSL.crypto import X509
         except ImportError:
-            header += "pyOpenSSL.crypto X509: module missing\n"
+            header += "pyOpenSSL.crypto X509: not found\n"
 
     if X509:
         # noinspection PyCallingNonCallable
@@ -1544,7 +1541,7 @@ def log_header(online=True):
             # noinspection PyUnresolvedReferences
             import cryptography
         except ImportError:
-            header += "cryptography: module missing\n"
+            header += "cryptography: not found\n"
 
     if cryptography:
         try:
@@ -1555,42 +1552,50 @@ def log_header(online=True):
                 header += " Try upgrading to v1.3.4 or newer. You have "
             header += "cryptography: %s\n" % getattr(cryptography, '__version__', None)
         except ImportError:
-            header += "cryptography Extensions: module missing\n"
+            header += "cryptography Extensions: not found\n"
 
     # noinspection PyBroadException
     try:
         import lib.thefuzz as fuzz
-        vers = fuzz.__dict__['__version__']
+        vers = getattr(fuzz, '__version__', None)
     except Exception:
-        vers = 'None'
+        vers = None
+    header += "fuzz: %s\n" % vers if vers else 'not found'
     if vers:
-        header += "fuzz: %s\n" % vers
         # noinspection PyBroadException
         try:
             import Levenshtein
-            vers = "installed"
+            vers = getattr(Levenshtein, "__version__", None)
+            if not vers:
+                vers = "installed"
         except Exception:
-            vers = "None"
+            vers = "not found"
         header += "Levenshtein: %s\n" % vers
+
     # noinspection PyBroadException
     try:
         import magic
+        bundled = False
     except Exception:
         # noinspection PyBroadException
         try:
             import lib.magic as magic
+            bundled = True
         except Exception:
             magic = None
-
-    if magic:
+            bundled = False
+    if magic is None:
+        vers = 'not found'
+    else: 
         try:
-            # noinspection PyProtectedMember
-            ver = magic.libmagic._name
+            if hasattr(magic, "magic_version"):
+                vers = magic.magic_version()
+            else:
+                # noinspection PyProtectedMember
+                vers = magic.libmagic._name
         except AttributeError:
-            ver = 'missing'
-        header += "magic: %s\n" % ver
-    else:
-        header += "magic: missing\n"
+            vers = 'not found'
+    header += "%smagic: %s\n" % ('bundled ' if bundled else '', vers)
 
     return header
 
