@@ -2,7 +2,6 @@
 ######################
 cache/*
 cache.db*
-config.ini
 Logs/*
 lazylibrarian.db*
 version.txt
@@ -15,6 +14,10 @@ client*
 git_helper.sh
 update-version.sh
 startlazy.sh
+*.code-workspace
+unittests/Logs/*
+unittests/cache/*
+python_version.txt
 
 #  Bookstrap related  #
 #######################
@@ -47,6 +50,12 @@ packages
 *.cproject
 *.tmproj
 *.tmproject
+
+# Pytest specific    #
+######################
+*.lcov
+cov.xml
+.coverage
 
 # OS generated files #
 ######################

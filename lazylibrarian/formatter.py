@@ -52,6 +52,10 @@ def thread_name(name=None):
 
 
 def sanitize(name):
+    """
+    Sanitizes a string so it can be used as a file name, normalized as Unicode
+    Returns a sanitized string
+    """
     if not name:
         return ''
     filename = make_unicode(name)
@@ -69,12 +73,14 @@ def sanitize(name):
 
 
 def versiontuple(versionstring):
-    # convert a version string into 3 part tuple without using packaging.version.parse
-    # as we can't be sure that's installed
-    # NOTE this assumes bugfix component starts with a digit eg 1.2.3-beta4
-    # and drops any extension part, eg 1.2.3-beta4 becomes (1, 2, 3)
-    # which is not strictly correct so we need to check for version > too_low
-    # rather than >= lowest acceptable
+    """
+    Convert a version string into 3 part tuple without using packaging.version.parse
+    as we can't be sure that's installed
+    Note this assumes bugfix component starts with a digit eg 1.2.3-beta4
+    and drops any extension part, eg 1.2.3-beta4 becomes (1, 2, 3)
+    which is not strictly correct so we need to check for version > too_low
+    rather than >= lowest acceptable
+    """
     major = 0
     minor = 0
     bugfix = 0
@@ -96,6 +102,9 @@ def versiontuple(versionstring):
 
 
 def url_fix(s, charset='utf-8'):
+    """
+    Return the argument so it's valid in a web context
+    """
     if PY2 and isinstance(s, text_type):
         s = s.encode(charset, 'ignore')
     elif not PY2 and not isinstance(s, text_type):
@@ -112,6 +121,7 @@ def book_series(bookname):
     See if book is in multiple series first, if so return first one
     eg "The Shepherds Crown (Discworld, #41; Tiffany Aching, #5)"
     if no match, try single series, eg Mrs Bradshaws Handbook (Discworld, #40.5)
+    Returns seriesname, number if a series, otherwise "", ""
     """
     # \(            Must have (
     # ([\S\s]+      followed by a group of one or more non whitespace
@@ -130,15 +140,17 @@ def book_series(bookname):
     # First handle things like "(Book 3: series name)"
     if ':' in bookname:
         # change to "(series name, Book 3)"
-        parts = bookname[1:-1].split(':', 1)
-        if parts[0][-1].isdigit():
-            bookname = '(%s, %s)' % (parts[1], parts[0])
+        if bookname[0] == "(" and bookname[-1] == ")":
+            parts = bookname[1:-1].split(':', 1)
+            if parts[0][-1].isdigit():
+                bookname = '(%s, %s)' % (parts[1], parts[0])
 
     # These are words that don't indicate a following series name/number eg "FIRST 3 chapters"
     non_series_words = ['series', 'unabridged', 'volume', 'phrase', 'from', 'chapters', 'season',
                         'the first', 'includes', 'paperback', 'first', 'books', 'large print', 'of',
                         'rrp', '2 in', '&', 'v.']
 
+    # First look for multi series
     result = re.search(r"\(([\S\s]+[^)]),? #?(\d+\.?-?\d*[;,])", bookname)
     if result:
         series = result.group(1)
@@ -174,13 +186,14 @@ def book_series(bookname):
     return series, seriesnum
 
 
-def next_run_time(when_run):
+def next_run_time(when_run, test_now: datetime = None):
     """
-    Give a readable approximation of how long until a job will be run
+    Returns a readable approximation of how long until a job will be run, 
+    given a string representing the last time it was run
     """
     try:
         when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
-        timenow = datetime.datetime.now()
+        timenow = datetime.datetime.now() if not test_now else test_now
         td = when_run - timenow
         diff = td.total_seconds()  # time difference in seconds
     except ValueError as e:
@@ -189,9 +202,9 @@ def next_run_time(when_run):
         td = ''
 
     td = str(td)
-    if 's,' in td:
+    if 'days,' in td: # > 1 day, just return days
         return td.split('s,')[0] + 's'
-    elif 'y,' in td:
+    elif 'day,' in td and not "0:00:00" in td: # 1 day and change, or 1 day?
         diff += 86400
 
     # calculate whole units, plus round up by adding 1(true) if remainder >= half
@@ -206,6 +219,8 @@ def next_run_time(when_run):
         return "%i hours" % hours
     elif minutes > 1:
         return "%i minutes" % minutes
+    elif seconds == 1:
+        return "1 second"
     else:
         return "%i seconds" % seconds
 
@@ -234,15 +249,7 @@ def age(histdate):
     histdate = yyyy-mm-dd
     return 0 for today, or if invalid histdate
     """
-    try:
-        y1, m1, d1 = (int(x) for x in now().split()[0].split('-'))
-        y2, m2, d2 = (int(x) for x in histdate.split('-'))
-        date1 = datetime.date(y1, m1, d1)
-        date2 = datetime.date(y2, m2, d2)
-        dtage = date1 - date2
-        return dtage.days
-    except ValueError:
-        return 0
+    return datecompare(today(), histdate)
 
 
 def check_year(num, past=1850, future=1):
@@ -255,6 +262,10 @@ def check_year(num, past=1850, future=1):
 
 
 def nzbdate2format(nzbdate):
+    """
+    Returns an "nzb date" in yyyy-mm-dd format
+    Returns 1970-01-01 if the date can't be parsed
+    """
     try:
         mmname = nzbdate.split()[2].zfill(2)
         day = nzbdate.split()[1]
@@ -378,8 +389,11 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
 
 
 def month2num(month):
-    # return month number given month name (long or short) in requested locales
-    # or season name (only in English currently)
+    """ 
+    Return a month number
+     - given a month name (long or short) in requested locales
+     - or given a season name (only in English)
+    """
 
     month = unaccented(month).lower()
     for f in range(1, 13):
@@ -408,6 +422,10 @@ def datecompare(nzbdate, control_date):
     try:
         y1, m1, d1 = (int(x) for x in nzbdate.split('-'))
         y2, m2, d2 = (int(x) for x in control_date.split('-'))
+        if y1 < 100: 
+            y1 += 1900
+        if y2 < 100:
+            y2 += 1900
         date1 = datetime.date(y1, m1, d1)
         date2 = datetime.date(y2, m2, d2)
         dtage = date1 - date2
@@ -473,11 +491,11 @@ def check_float(var, default):
 
 def human_size(num):
     num = check_int(num, 0)
-    for unit in ['B', 'KiB', 'MiB', 'GiB']:
+    for unit in ['B', 'KiB', 'MiB', 'GiB', 'TiB']:
         if abs(num) < 1024.0:
             return "%3.2f%s" % (num, unit)
         num /= 1024.0
-    return "%.2f%s" % (num, 'TiB')
+    return "%.2f%s" % (num, 'PiB')
 
 
 def size_in_bytes(size):
@@ -572,6 +590,9 @@ def make_unicode(txt):
 
 
 def make_bytestr(txt):
+    """
+    Turn text into a binary byte string
+    """
     if isinstance(txt, binary_type):  # nothing to do if already bytestring
         return txt
     if txt is None:
@@ -596,19 +617,30 @@ def is_valid_isbn(isbn):
     Return True if parameter looks like a valid isbn
     either 13 digits, 10 digits, or 9 digits followed by 'x'
     """
+    if not isbn:
+        return False
     isbn = isbn.replace('-', '').replace(' ', '')
     if len(isbn) == 13:
         if isbn.isdigit():
             return True
-    elif len(isbn) == 10:
-        if isbn[:9].isdigit():
-            return True
-        elif isbn[9] in ["Xx"] and isbn[:8].isdigit():
-            return True
+    elif len(isbn) == 10: # Validate checksum
+        xsum = 0
+        for i in range(9):
+            xsum += int(isbn[i]) * (10-i) 
+        if isbn[9] in "Xx":
+            xsum += 10
+        else:
+            xsum += int(isbn[9])
+        return xsum % 11 == 0
+
     return False
 
 
 def is_valid_type(filename, extras='jpg, opf'):
+    """
+    Check if filename has an extension we can process.
+    returns True or False
+    """
     type_list = list(set(get_list(lazylibrarian.CONFIG['MAG_TYPE']) +
                          get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
                          get_list(lazylibrarian.CONFIG['EBOOK_TYPE']) +
@@ -639,9 +671,11 @@ def is_valid_booktype(filename, booktype=None):
 
 
 def get_list(st, c=None):
-    # split a string/unicode into a list on whitespace or plus or comma
-    # or single character split eg filenames with spaces split on comma only
-    # Returns list of same type as st
+    """
+    Split a string/unicode into a list on whitespace or plus or comma
+    or single character split eg filenames with spaces split on comma only
+    Returns list of same type as st
+    """
     lst = []
     if st:
         if c is not None and len(c) == 1:
@@ -670,6 +704,10 @@ def safe_unicode(obj, *args):
 
 
 def split_title(author, book):
+    """
+    Strips the author name from book title and 
+    returns the book name part split into (name, subtitle and series)
+    """
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
@@ -687,23 +725,20 @@ def split_title(author, book):
         if book[-2].isdigit():
             # separate out the series part
             book, bookseries = book.rsplit('(', 1)
+            bookseries = bookseries.strip(')')
             book = book.strip().rstrip(':').strip()
         else:
             parts = book.rsplit('(', 1)
             parts[1] = '(' + parts[1]
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
-            endbrace = booksub.find(')') + 1
-            if endbrace and ' ' in booksub:
-                braced_words = book[brace:endbrace - 1].lower()
-                # check for any we don't want to split...
+            if booksub.find(')'):
                 for item in splitlist:
-                    if item in braced_words:
-                        brace = 0
-            if brace:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
-                    lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
-                return bookname, booksub, bookseries
+                    if f"({item})" == booksub.lower():
+                        booksub = ""
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+                lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
+            return bookname, booksub, bookseries
 
     # if not (words in braces at end of string)
     # split subtitle on first ':'
@@ -770,6 +805,10 @@ def format_author_name(author):
 
 
 def sort_definite(title):
+    """
+    Return the sort string for a title, moving prefixes 
+    we want to ignore to the end, like The or A
+    """
     words = get_list(title)
     if len(words) < 2:
         return title
@@ -786,7 +825,7 @@ def surname_first(authorname):
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower() in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
@@ -874,14 +913,23 @@ def replace_all(text, dic):
     return text
 
 
-def replace_with(text, lst, char):
+def replace_quotes_with(text, char):
+    """
+    Replaces every occurrence of quote characters in "text" 
+    with char - which can be blank to remove them
+    """
     if not text:
         return ''
-    replaces = re.compile('[%s]' % re.escape(''.join(lst)))
+    replaces = re.compile('[%s]' % re.escape(''.join(lazylibrarian.common.quotes)))
     return replaces.sub(char, text)
 
 
 def disp_name(provider):
+    """
+    Strange function. Returns the display name of a provider that
+    matches the host name provided as parameter, if any.
+    If not, returns the host name provided, shortened if too long.
+    """
     provname = ''
     for item in lazylibrarian.NEWZNAB_PROV:
         if item['HOST'].strip('/') == provider:

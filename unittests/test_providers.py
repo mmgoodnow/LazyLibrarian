@@ -1,26 +1,32 @@
+#  This file is part of Lazylibrarian.
+#
+# Purpose:
+#   Testing parsing XML from providers
+
 import unittest
+import unittesthelpers
 from xml.etree import ElementTree
 
-from lazylibrarian import providers
+from lazylibrarian import providers, startup
 
 
 class ProvidersTest(unittest.TestCase):
+ 
+    # Initialisation code that needs to run only once
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Run startup code without command line arguments and no forced sleep
+        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
+        unittesthelpers.disableHTTPSWarnings()
+        startup.init_logs()
+        startup.init_config()
+        return super().setUpClass()
 
-    def test_ReturnSearchTypeStructureForBook(self):
-        result = providers.ReturnSearchTypeStructure(
-            'api_key', {"bookid": 'bookid', "bookName": 'bookname', "authorName": 'author', "searchterm": 'term'}, 'book')
-        self.assertEquals(
-            {'author': 'author', 'apikey': 'api_key', 't': 'book', 'cat': 7020, 'title': 'bookname'}, result)
-
-    def test_ReturnSearchTypeStructureForMag(self):
-        result = providers.ReturnSearchTypeStructure(
-            'api_key', {"bookid": 'bookid', "bookName": 'bookname', "authorName": 'author', "searchterm": 'term'}, 'mag')
-        self.assertEquals({'q': 'term', 'apikey': 'api_key', 't': 'search', 'extended': 1, 'cat': 7020}, result)
-
-    def test_ReturnSearchTypeStructureForGeneral(self):
-        result = providers.ReturnSearchTypeStructure(
-            'api_key', {"bookid": 'bookid', "bookName": 'bookname', "authorName": 'author', "searchterm": 'term'}, None)
-        self.assertEquals({'q': 'term', 'apikey': 'api_key', 't': 'search', 'extended': 1, 'cat': 7020}, result)
+    @classmethod
+    def tearDownClass(cls) -> None:
+        startup.shutdown(restart=False, update=False, exit=False, testing=True)
+        unittesthelpers.clearGlobals()
+        return super().tearDownClass()
 
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
@@ -59,12 +65,13 @@ class ProvidersTest(unittest.TestCase):
                                  </item>
                           </channel>
                    </rss>                '''
-        resultxml = ElementTree.fromstring(newsnabplus_resp).getiterator('item')
-        nzb = iter(resultxml).next()
-        result = providers.ReturnResultsFieldsBySearchType(book, nzb, 'mag', 'hostname')
-        # self.maxDiff = None
-        self.assertEquals({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
-                          'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http', 'nzbprov': 'hostname'}, result)
+        resultxml = ElementTree.fromstring(newsnabplus_resp)
+        nzb = list(resultxml.findall("./channel/item//"))
+
+        result = providers.return_results_by_search_type(book, nzb, search_mode='book', host='hostname')
+        self.assertEqual({'bookid': 'input_bookid', 'nzbdate': 'Sat, 02 Mar 2013 06:51:28 +0100', 'nzbtitle':
+                          'Debbie Macomber - When First They Met (html)', 'nzbsize': '192447', 'nzburl': 'http', 
+                          'nzbprov': 'hostname', 'nzbmode': 'book', 'priority': 0}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForMag(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
@@ -115,12 +122,13 @@ class ProvidersTest(unittest.TestCase):
             </rss>                '''
         # Take the above xml, parse it into element tree, extract the item from it
         # could have just put in item text, but took live example
-        resultxml = ElementTree.fromstring(newsnabplus_resp).getiterator('item')
-        nzb = iter(resultxml).next()
-        result = providers.ReturnResultsFieldsBySearchType(book, nzb, 'mag', 'hostname')
-        self.assertEquals(
+        resultxml = ElementTree.fromstring(newsnabplus_resp)
+        nzb = list(resultxml.findall("./channel/item//"))
+        result = providers.return_results_by_search_type(book, nzb, 'hostname', 'mag')
+        self.assertEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
-             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 'nzbprov': 'hostname'}, result)
+             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
+             'nzbprov': 'hostname', 'nzbmode': 'mag', 'priority': 0}, result)
 
     def test_ReturnResultsFieldsBySearchTypeForGeneral(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
@@ -171,12 +179,13 @@ class ProvidersTest(unittest.TestCase):
             </rss>                '''
         # Take the above xml, parse it into element tree, extract the item from it
         # could have just put in item text, but took live example
-        resultxml = ElementTree.fromstring(newsnabplus_resp).getiterator('item')
-        nzb = iter(resultxml).next()
-        result = providers.ReturnResultsFieldsBySearchType(book, nzb, None, 'hostname')
-        self.assertEquals(
+        resultxml = ElementTree.fromstring(newsnabplus_resp)
+        nzb = list(resultxml.findall("./channel/item//"))
+        result = providers.return_results_by_search_type(book, nzb, 'hostname', None)
+        self.assertEqual(
             {'bookid': 'input_bookid', 'nzbdate': 'Thu, 21 Nov 2013 16:13:52 +0100', 'nzbtitle': 'Scientific.American.SCIAM.November.20.3', 'nzbsize': '20811405',
-             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 'nzbprov': 'hostname'}, result)
+             'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
+             'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0}, result)
 
 
 if __name__ == '__main__':

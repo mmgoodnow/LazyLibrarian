@@ -21,9 +21,14 @@ from six import PY2
 
 # Simple rotating log handler that uses RotatingFileHandler
 class RotatingLogger(object):
+    # Class variable
+    __LOGGER_INITIALIZED__ = False
+
+    @classmethod
+    def is_initialized(cls):
+        return cls.__LOGGER_INITIALIZED__
 
     def __init__(self, filename):
-
         self.filename = filename
         self.filehandler = None
         self.consolehandler = None
@@ -34,6 +39,7 @@ class RotatingLogger(object):
         lg.removeHandler(self.consolehandler)
         self.filehandler = None
         self.consolehandler = None
+        RotatingLogger.__LOGGER_INITIALIZED__ = False
 
     def init_logger(self, loglevel=1):
 
@@ -41,6 +47,9 @@ class RotatingLogger(object):
         lg.setLevel(logging.DEBUG)
 
         self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
+
+        if RotatingLogger.__LOGGER_INITIALIZED__:
+            return # Do not set handlers again
 
         # concurrentLogHandler/0.8.7 (to deal with windows locks)
         # since this only happens on windows boxes, if it's nix/mac use the default logger.
@@ -78,6 +87,8 @@ class RotatingLogger(object):
             consolehandler.setFormatter(consoleformatter)
             lg.addHandler(consolehandler)
             self.consolehandler = consolehandler
+
+        RotatingLogger.__LOGGER_INITIALIZED__ = True
 
     @staticmethod
     def log(message, level):
@@ -141,3 +152,14 @@ def warn(message):
 
 def error(message):
     lazylibrarian_log.log(message, level='ERROR')
+
+
+def logmessage(message, level):
+    if level == "DEBUG" and lazylibrarian.LOGLEVEL <= 1:
+        return
+
+    if level == "INFO" and lazylibrarian.LOGLEVEL <= 0:
+        return
+        
+    lazylibrarian_log.log(message, level)
+

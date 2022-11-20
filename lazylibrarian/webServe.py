@@ -31,7 +31,8 @@ from six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlunspli
 
 import lazylibrarian
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
-    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
+    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, \
+    config
 from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
@@ -41,7 +42,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_wo
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log, schedule_job, check_running_jobs, \
     setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
-    mime_type, zip_audio, run_script, walk, quotes, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
+    mime_type, zip_audio, run_script, walk, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
     syspath, remove, set_redactlist, get_calibre_id, safe_move, opf_file, safe_copy
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
@@ -49,7 +50,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
     irc_dl_method
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_with, format_author_name, \
+    md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_quotes_with, format_author_name, \
     check_float, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -424,7 +425,7 @@ class WebInterface(object):
                     else:
                         css = 'success'
 
-                    arow[12] = replace_with(arow[12], quotes, '')
+                    arow[12] = replace_quotes_with(arow[12], '')
                     nrow.append(percent)
                     nrow.extend(arow[4:-2])
                     if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
@@ -1629,8 +1630,8 @@ class WebInterface(object):
 
         interface = lazylibrarian.CFG.get('General', 'http_look')
         # now the config file entries
-        for key in list(lazylibrarian.CONFIG_DEFINITIONS.keys()):
-            item_type, section, default = lazylibrarian.CONFIG_DEFINITIONS[key]
+        for key in list(config.CONFIG_DEFINITIONS.keys()):
+            item_type, section, default = config.CONFIG_DEFINITIONS[key]
             if key.lower() in kwargs:
                 value = kwargs[key.lower()]
                 if item_type == 'bool':
@@ -1643,10 +1644,10 @@ class WebInterface(object):
                 lazylibrarian.CONFIG[key] = value
             else:
                 # no key is returned for strings not available in config html page so leave these unchanged
-                if key in lazylibrarian.CONFIG_NONWEB or key in lazylibrarian.CONFIG_GIT:
+                if key in config.CONFIG_NONWEB or key in config.CONFIG_GIT:
                     pass
                 # default interface doesn't know about other interfaces variables
-                elif interface == 'legacy' and key in lazylibrarian.CONFIG_NONDEFAULT:
+                elif interface == 'legacy' and key in config.CONFIG_NONDEFAULT:
                     pass
                 # default interface doesn't know about download priorities or displaynames
                 elif interface == 'legacy' and ('dlpriority' in key.lower() or 'dispname' in key.lower()):
@@ -1896,7 +1897,7 @@ class WebInterface(object):
 
         lazylibrarian.LOGLEVEL = newloglevel
         lazylibrarian.CONFIG['LOGLEVEL'] = newloglevel
-        lazylibrarian.config_write()
+        config.config_write()
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
 
@@ -4615,7 +4616,7 @@ class WebInterface(object):
         if not title or title == 'None':
             raise cherrypy.HTTPRedirect("comics")
         else:
-            title = replace_with(title, quotes, '')
+            title = replace_quotes_with(title, '')
             exists = db.match('SELECT Title from comics WHERE Title=?', (title,))
             if exists:
                 logger.debug("Comic %s already exists (%s)" % (title, exists['Title']))
@@ -5616,7 +5617,7 @@ class WebInterface(object):
                 title = title.split('~', 1)[0].strip()
 
             # replace any non-ascii quotes/apostrophes with ascii ones eg "Collector's"
-            title = replace_with(title, quotes, "'")
+            title = replace_quotes_with(title, "'")
             title_exploded = title.split()
             # replace symbols by words
             new_title = []

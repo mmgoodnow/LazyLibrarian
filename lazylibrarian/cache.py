@@ -85,10 +85,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
-    if lazylibrarian.REQUESTSLOG:
-        http_client.HTTPConnection.debuglevel = 1
-    else:
-        http_client.HTTPConnection.debuglevel = 0
+    http_client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
 
     url = make_unicode(url)
     if 'googleapis' in url:

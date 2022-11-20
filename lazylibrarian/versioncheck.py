@@ -37,7 +37,7 @@ else:
 
 def logmsg(level, msg):
     # log messages to logger if initialised, or print if not.
-    if lazylibrarian.__INITIALIZED__:
+    if logger.RotatingLogger.is_initialized():
         if level == 'error':
             logger.error(msg)
         elif level == 'info':
