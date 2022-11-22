@@ -16,27 +16,14 @@ class ImporterTest(unittest.TestCase):
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        warnings.simplefilter("ignore", ResourceWarning)
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        unittesthelpers.disableHTTPSWarnings()
-        startup.init_logs()
-        startup.init_config()
-        startup.init_caches()
-        startup.init_database()
-        unittesthelpers.prepareTestDB()
-        startup.init_build_debug_header(online = False)
-        startup.init_build_lists()
+        unittesthelpers.testSetUp(all=True)
         cls.bookapi = lazylibrarian.CONFIG['BOOK_API']
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
         lazylibrarian.CONFIG['BOOK_API'] = cls.bookapi
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.removetestDB()
-        unittesthelpers.removetestCache()
-        unittesthelpers.clearGlobals()
+        unittesthelpers.testTearDown()
         return super().tearDownClass()
 
     def test_is_valid_authorid_InvalidIDs(self):

@@ -7,7 +7,35 @@ import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
-from lazylibrarian import dbupgrade
+from lazylibrarian import dbupgrade, startup
+
+ALLSETUP = None
+
+def testSetUp(all=None, config_override='./unittests/testdata/testconfig-defaults.ini'):
+    """ Standard startup sequence for unit tests """
+    global ALLSETUP
+    # Run startup code without command line arguments and no forced sleep
+    startup.startup_parsecommandline(__file__, args = [''],
+        seconds_to_sleep = 0, config_override=config_override)
+    startup.init_logs()
+    startup.init_config()
+    ALLSETUP = all
+    if all:
+        disableHTTPSWarnings()
+        startup.init_caches()
+        startup.init_database()
+        prepareTestDB()
+        startup.init_build_debug_header(online = False)
+    startup.init_build_lists()
+
+def testTearDown():
+    global ALLSETUP
+    startup.shutdown(restart=False, update=False, exit=False, testing=True)
+    if ALLSETUP:
+        removetestDB()
+        removetestCache()
+        ALLSETUP = None
+    clearGlobals()
 
 def removetestDB():
     # Delete the database that was created for unit testing

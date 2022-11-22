@@ -42,7 +42,7 @@ from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug
 from six import PY2
 
 
-def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
+def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
         lazylibrarian.FULL_PATH = os.path.abspath(sys.executable)
@@ -183,7 +183,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
         except ValueError:
             lazylibrarian.LOGLEVEL = 2
 
-    if options.config:
+    if config_override:
+        lazylibrarian.CONFIGFILE = config_override
+    elif options.config:
         lazylibrarian.CONFIGFILE = str(options.config)
     else:
         lazylibrarian.CONFIGFILE = os.path.join(lazylibrarian.DATADIR, "config.ini")
@@ -192,7 +194,8 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
         if lazylibrarian.DAEMON:
             lazylibrarian.PIDFILE = str(options.pidfile)
 
-    print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
+    if not config_override:
+        print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
     time.sleep(seconds_to_sleep)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
 
     icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
@@ -760,7 +763,8 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
         cherrypy.engine.exit()
         logmsg('info', 'cherrypy server exit')
     shutdownscheduler()
-    # config_write() don't automatically rewrite config on exit
+    if not testing:
+        config.config_write() 
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())

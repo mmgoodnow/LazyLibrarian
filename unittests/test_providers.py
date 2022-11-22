@@ -15,17 +15,12 @@ class ProvidersTest(unittest.TestCase):
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        unittesthelpers.disableHTTPSWarnings()
-        startup.init_logs()
-        startup.init_config()
+        unittesthelpers.testSetUp(all=False)
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.clearGlobals()
+        unittesthelpers.testTearDown()
         return super().tearDownClass()
 
     def test_ReturnResultsFieldsBySearchTypeForBook(self):

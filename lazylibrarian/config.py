@@ -194,6 +194,7 @@ CONFIG_DEFINITIONS = {
     'WISHLIST_GENRES': ('bool', 'General', 1),
     'NOTIFY_WITH_TITLE': ('bool', 'General', 0),
     'NOTIFY_WITH_URL': ('bool', 'General', 0),
+    'SERVER_ID': ('str', 'Telemetry', ''),
     'GIT_HOST': ('str', 'Git', 'gitlab.com'),
     'GIT_USER': ('str', 'Git', 'LazyLibrarian'),
     'GIT_REPO': ('str', 'Git', 'lazylibrarian'),
