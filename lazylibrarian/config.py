@@ -607,11 +607,55 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
 
     return my_val
 
+class LLConfigParser(configparser.RawConfigParser):
+
+    def _is_modified(self, section, key, value):
+        if key.upper() in CONFIG_DEFINITIONS.keys():
+            dtype, dsection, default = CONFIG_DEFINITIONS[key.upper()]
+            if dsection != section:
+                return True
+
+            if dtype == 'int':
+                try:
+                    # Some of these are represented as '1', so convert first
+                    default = int(default)
+                    return value != default
+                except:
+                    pass
+
+            return value != '' and value != default
+        else:
+            # Don't store empty values
+            return value != '' 
+
+    # Override _write_section, to not write non-default values
+    def _write_section(self, fp, section_name, section_items, delimiter):
+        """Write a single section to the specified `fp'."""
+        towrite = []
+        for key, value in section_items:
+            value = self._interpolation.before_write(self, section_name, key,
+                                                     value)
+            if self._is_modified(section_name, key, value):
+                if value is not None or not self._allow_no_value:
+                    value = delimiter + str(value).replace('\n', '\n\t')
+                else:
+                    value = ""
+
+                towrite.append((key, value))
+
+        if len(towrite):
+            # Only write the section if anything is non-default
+            fp.write("[{}]\n".format(section_name))
+            for key, value in towrite:
+                fp.write(f"{key}{value}\n")
+            fp.write("\n")
+
+
 def readConfigFile():
     """
     Read the config.ini file, but do not yet process it - that happens in config_read
     """
-    lazylibrarian.CFG = configparser.RawConfigParser()
+    lazylibrarian.CFG = LLConfigParser()
     lazylibrarian.CFG.read(lazylibrarian.CONFIGFILE)
 
 
