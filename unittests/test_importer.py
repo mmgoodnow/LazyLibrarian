@@ -3,27 +3,25 @@
 # Purpose:
 #   Testing functionality in importer.py
 
-import unittest
 import unittesthelpers
-import warnings
 import lazylibrarian
 from lazylibrarian import startup, importer
 
 
-class ImporterTest(unittest.TestCase):
+class ImporterTest(unittesthelpers.LLTestCase):
     bookapi = None
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=True)
+        super().setDoAll(all=True)
+        rc = super().setUpClass()
         cls.bookapi = lazylibrarian.CONFIG['BOOK_API']
-        return super().setUpClass()
+        return rc
 
     @classmethod
     def tearDownClass(cls) -> None:
         lazylibrarian.CONFIG['BOOK_API'] = cls.bookapi
-        unittesthelpers.testTearDown()
         return super().tearDownClass()
 
     def test_is_valid_authorid_InvalidIDs(self):

@@ -3,25 +3,16 @@
 # Purpose:
 #   Testing the startup sequence
 
-import unittest
 import unittesthelpers
-
 import lazylibrarian
-from lazylibrarian import startup
 
-
-class SetupTest(unittest.TestCase):
+class SetupTest(unittesthelpers.LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=True)
+        super().setDoAll(True)
         return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        unittesthelpers.testTearDown()
-        return super().tearDownClass()
 
     def testConfig(self):
         # Validate that basic global objects and configs have run

@@ -3,7 +3,6 @@
 # Purpose:
 #   Test functions in formatter.py
 
-import unittest
 import unittesthelpers
 
 import lazylibrarian
@@ -11,18 +10,7 @@ from lazylibrarian import startup, formatter
 import datetime
 
 
-class FormatterTest(unittest.TestCase):
-    # Initialisation code that needs to run only once
-    @classmethod
-    def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=False)
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.clearGlobals()
-        return super().tearDownClass()
+class FormatterTest(unittesthelpers.LLTestCase):
 
     def test_sanitize(self):
         import unicodedata

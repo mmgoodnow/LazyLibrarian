@@ -3,95 +3,111 @@
 # Purpose:
 #   Hold helper functions only needed for testing
 
+import unittest
 import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
 from lazylibrarian import dbupgrade, startup
 
-ALLSETUP = None
+class LLTestCase(unittest.TestCase):
+    ALLSETUP = None
+    CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
 
-def testSetUp(all=None, config_override='./unittests/testdata/testconfig-defaults.ini'):
-    """ Standard startup sequence for unit tests """
-    global ALLSETUP
-    # Run startup code without command line arguments and no forced sleep
-    startup.startup_parsecommandline(__file__, args = [''],
-        seconds_to_sleep = 0, config_override=config_override)
-    startup.init_logs()
-    startup.init_config()
-    ALLSETUP = all
-    if all:
-        disableHTTPSWarnings()
-        startup.init_caches()
-        startup.init_database()
-        prepareTestDB()
-        startup.init_build_debug_header(online = False)
-    startup.init_build_lists()
+    @classmethod
+    def setUpClass(cls) -> None:
+        # Run startup code without command line arguments and no forced sleep
+        startup.startup_parsecommandline(__file__, args = [''],
+            seconds_to_sleep = 0, config_override=cls.CONFIGFILE)
+        startup.init_logs()
+        startup.init_config()
+        if cls.ALLSETUP:
+            LLTestCase.disableHTTPSWarnings()
+            startup.init_caches()
+            startup.init_database()
+            cls.prepareTestDB()
+            startup.init_build_debug_header(online = False)
+        startup.init_build_lists()
+        return super().setUpClass()
 
-def testTearDown():
-    global ALLSETUP
-    startup.shutdown(restart=False, update=False, exit=False, testing=True)
-    if ALLSETUP:
-        removetestDB()
-        removetestCache()
-        ALLSETUP = None
-    clearGlobals()
+    @classmethod
+    def tearDownClass(cls) -> None:
+        startup.shutdown(restart=False, update=False, exit=False, testing=True)
+        if cls.ALLSETUP:
+            cls.removetestDB()
+            cls.removetestCache()
+            cls.ALLSETUP = None
+        cls.clearGlobals()
+        return super().tearDownClass()
 
-def removetestDB():
-    # Delete the database that was created for unit testing
-    if len(lazylibrarian.DBFILE):
-        logger.debug("Deleting unit test database")
-        try:
-            remove(lazylibrarian.DBFILE)
-            remove(lazylibrarian.DBFILE + "-shm")
-            remove(lazylibrarian.DBFILE + "-wal")
-        except:
-            pass
+    @classmethod
+    def setDoAll(cls, all=None):
+        cls.ALLSETUP = all
 
-def removetestCache():
-    # Delete the database that was created for unit testing
-    if len(lazylibrarian.CACHEDIR):
-        logger.debug("Deleting unit test cache directory")
-        try:
-            rmtree(lazylibrarian.CACHEDIR)
-        except:
-            pass
+    @classmethod
+    def setConfigFile(cls, configfile):
+        cls.CONFIGFILE = configfile
 
-def clearGlobals():
-    # Clear configuration variables to ahve a clean slate for any further test runs
-    lazylibrarian.FULL_PATH = None
-    lazylibrarian.PROG_DIR = ''
-    lazylibrarian.ARGS = None
-    lazylibrarian.DAEMON = False
-    lazylibrarian.SIGNAL = None
-    lazylibrarian.PIDFILE = ''
-    lazylibrarian.DATADIR = ''
-    lazylibrarian.CONFIGFILE = ''
-    lazylibrarian.SYS_ENCODING = ''
-    lazylibrarian.LOGLEVEL = 1
-    lazylibrarian.LOGINUSER = None
-    lazylibrarian.CONFIG = {}
-    lazylibrarian.CFG = None
-    lazylibrarian.DBFILE = None
-    lazylibrarian.COMMIT_LIST = None
-    lazylibrarian.SHOWLOGOUT = 1
-    lazylibrarian.CHERRYPYLOG = 0
-    lazylibrarian.REQUESTSLOG = 0
-    lazylibrarian.DOCKER = False
-    lazylibrarian.STOPTHREADS = False
+    @classmethod
+    def removetestDB(cls):
+        # Delete the database that was created for unit testing
+        if len(lazylibrarian.DBFILE):
+            logger.debug("Deleting unit test database")
+            try:
+                remove(lazylibrarian.DBFILE)
+                remove(lazylibrarian.DBFILE + "-shm")
+                remove(lazylibrarian.DBFILE + "-wal")
+            except:
+                pass
 
-    lazylibrarian.NEWZNAB_PROV = []
-    lazylibrarian.TORZNAB_PROV = []
-    lazylibrarian.RSS_PROV = []
-    lazylibrarian.IRC_PROV = []
-    lazylibrarian.GEN_PROV = []
-    lazylibrarian.APPRISE_PROV = []
+    @classmethod
+    def removetestCache(cls):
+        # Delete the database that was created for unit testing
+        if len(lazylibrarian.CACHEDIR):
+            logger.debug("Deleting unit test cache directory")
+            try:
+                rmtree(lazylibrarian.CACHEDIR)
+            except:
+                pass
 
-def disableHTTPSWarnings():
-    import urllib3
-    urllib3.disable_warnings()
+    @classmethod
+    def clearGlobals(cls):
+        # Clear configuration variables to ahve a clean slate for any further test runs
+        lazylibrarian.FULL_PATH = None
+        lazylibrarian.PROG_DIR = ''
+        lazylibrarian.ARGS = None
+        lazylibrarian.DAEMON = False
+        lazylibrarian.SIGNAL = None
+        lazylibrarian.PIDFILE = ''
+        lazylibrarian.DATADIR = ''
+        lazylibrarian.CONFIGFILE = ''
+        lazylibrarian.SYS_ENCODING = ''
+        lazylibrarian.LOGLEVEL = 1
+        lazylibrarian.LOGINUSER = None
+        lazylibrarian.CONFIG = {}
+        lazylibrarian.CFG = None
+        lazylibrarian.DBFILE = None
+        lazylibrarian.COMMIT_LIST = None
+        lazylibrarian.SHOWLOGOUT = 1
+        lazylibrarian.CHERRYPYLOG = 0
+        lazylibrarian.REQUESTSLOG = 0
+        lazylibrarian.DOCKER = False
+        lazylibrarian.STOPTHREADS = False
 
-def prepareTestDB():
-    curr_ver = dbupgrade.upgrade_needed()
-    if curr_ver:
-        dbupgrade.dbupgrade(curr_ver)
+        lazylibrarian.NEWZNAB_PROV = []
+        lazylibrarian.TORZNAB_PROV = []
+        lazylibrarian.RSS_PROV = []
+        lazylibrarian.IRC_PROV = []
+        lazylibrarian.GEN_PROV = []
+        lazylibrarian.APPRISE_PROV = []
+
+    @classmethod
+    def disableHTTPSWarnings(cls):
+        import urllib3
+        urllib3.disable_warnings()
+
+    @classmethod
+    def prepareTestDB(cls):
+        curr_ver = dbupgrade.upgrade_needed()
+        if curr_ver:
+            dbupgrade.dbupgrade(curr_ver)

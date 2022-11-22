@@ -7,22 +7,11 @@ import unittest
 import unittesthelpers
 from xml.etree import ElementTree
 
-from lazylibrarian import providers, startup
+from lazylibrarian import providers
 
 
-class ProvidersTest(unittest.TestCase):
+class ProvidersTest(unittesthelpers.LLTestCase):
  
-    # Initialisation code that needs to run only once
-    @classmethod
-    def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=False)
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        unittesthelpers.testTearDown()
-        return super().tearDownClass()
-
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
                 "authorName": 'input_authorname', "searchterm": 'safe_searchterm'}

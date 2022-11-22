@@ -3,23 +3,17 @@
 # Purpose:
 #   Testing functionality in librarysync.py
 
-import unittest
 import unittesthelpers
 import os
-from lazylibrarian import directory, startup, librarysync
+from lazylibrarian import directory, librarysync
 
-class LibrarySyncTest(unittest.TestCase):
+class LibrarySyncTest(unittesthelpers.LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=True)
+        super().setDoAll(True)
         return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        unittesthelpers.testTearDown()
-        return super().tearDownClass()
 
     def testGetBookInfo_NoExtension(self):
         # Test reading metadata from book files

@@ -3,27 +3,21 @@
 # Purpose:
 #   Testing the anaonymous telemetry collection
 
-import unittest
 import unittesthelpers
 import json
 
 import lazylibrarian
-from lazylibrarian import startup, config, telemetry
+from lazylibrarian import config, telemetry
 
 
-class TelemetryTest(unittest.TestCase):
+class TelemetryTest(unittesthelpers.LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        unittesthelpers.testSetUp(all=False, config_override='./unittests/testdata/testconfig-nondefault.ini')
+        super().setDoAll(all=False)
+        super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
         return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        #print(telemetry.LazyTelemetry().get_json(pretty=True))
-        unittesthelpers.testTearDown()
-        return super().tearDownClass()
 
     def _do_ids_match(self):
         t = telemetry.LazyTelemetry()
