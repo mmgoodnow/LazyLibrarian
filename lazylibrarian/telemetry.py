@@ -136,7 +136,6 @@ class LazyTelemetry(object):
 
     def record_usage_data(self, counter):
         usg = self.get_usage_telemetry()
-        assert(counter, "Must supply a usage counter name")
         assert(not any([c in counter for c in ' "=']), "Counter must be plain text")
         usg[counter] += 1
 

@@ -27,7 +27,7 @@ import signal
 import traceback
 import tarfile
 import cherrypy
-import requests
+import lib.requests as requests
 
 from shutil import rmtree
 
