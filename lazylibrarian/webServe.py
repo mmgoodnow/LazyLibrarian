@@ -6723,7 +6723,7 @@ class WebInterface(object):
         raise cherrypy.HTTPRedirect(source)
 
     @cherrypy.expose
-    def manage(self, which_status=None, **kwargs):
+    def manage(self, **kwargs):
         types = []
         if lazylibrarian.SHOW_EBOOK:
             types.append('eBook')
@@ -6732,9 +6732,12 @@ class WebInterface(object):
         if not types:
             raise cherrypy.HTTPRedirect('authors')
         library = types[0]
+        which_status = 'Wanted'
         if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
-        if not which_status or which_status == 'None':
+        if 'whichStatus' in kwargs and kwargs['whichStatus']:
+            which_status = kwargs['whichStatus']
+        if which_status == 'None':
             which_status = "Wanted"
         return serve_template(templatename="managebooks.html", title="Manage %ss" % library,
                               books=[], types=types, library=library, whichStatus=which_status)
