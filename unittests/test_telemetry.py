@@ -104,3 +104,40 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         self.assertEqual(usg["API/getHelp"], 2)
         self.assertEqual(usg["web/test"], 1)
         jsoncfg = json.dumps(obj=usg)
+
+class TelemetryTestSubmit(unittesthelpers.LLTestCase):
+    """ Class for testing the final JSON and sending of data """
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setDoAll(all=False)
+        super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
+        rc = super().setUpClass()
+
+        t = telemetry.LazyTelemetry()
+        t.set_config_data(lazylibrarian.CONFIG)
+        t.record_usage_data("API/getHelp")
+        t.record_usage_data("web/test")
+        t.record_usage_data("API/getHelp")
+        t.record_usage_data("Download/NZB")
+
+        return rc
+
+    def test_get_json(self):
+        t = telemetry.LazyTelemetry()
+        t.set_install_data(lazylibrarian.CONFIG)
+        datastr = t.get_json()
+
+        f = open('./unittests/testdata/telemetry-sample.json')
+        try:
+            loadedjson = json.load(f)
+            loadedstr = json.dumps(loadedjson)
+        finally:
+            f.close()
+
+        self.assertEqual(datastr, loadedstr, "The telemetry data is not as expected")
+
+    def test_submit_data(self):
+        t = telemetry.LazyTelemetry()
+        pass
+
