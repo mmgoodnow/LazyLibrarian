@@ -794,9 +794,9 @@ def config_read(reloaded=False):
     for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
         if os.sep in lazylibrarian.CONFIG[fname]:
             logger.warn('Please check your %s setting, contains "%s"' % (fname, os.sep))
-    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'default':
-        logger.warn('default interface is deprecated, new features are in bookstrap')
-        lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
+    if lazylibrarian.CONFIG['HTTP_LOOK'] in ['legacy', 'default']:
+        logger.warn('configured interface is deprecated, new features are in bookstrap')
+        lazylibrarian.CONFIG['HTTP_LOOK'] = 'bookstrap'
 
     for item in ['OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']:
         url = lazylibrarian.CONFIG[item].rstrip('/')

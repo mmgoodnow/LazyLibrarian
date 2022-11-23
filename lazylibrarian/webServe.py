@@ -106,8 +106,8 @@ def serve_template(templatename, **kwargs):
     interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
-        logger.error("Unable to locate template [%s], reverting to legacy" % template_dir)
-        lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
+        logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
+        lazylibrarian.CONFIG['HTTP_LOOK'] = 'bookstrap'
         template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
     if templatename in ['logs.html', 'history.html']:
@@ -122,23 +122,16 @@ def serve_template(templatename, **kwargs):
         style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
         if lazylibrarian.UPDATE_MSG:
             template = _hplookup.get_template("dbupdate.html")
-            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-                return template.render(message="Database upgrade in progress, please wait...",
-                                       title="Database Upgrade", timer=5)
-            else:
-                return template.render(perm=0, message="Database upgrade in progress, please wait...",
-                                       title="Database Upgrade", timer=5, style=style)
+            return template.render(perm=0, message="Database upgrade in progress, please wait...",
+                                   title="Database Upgrade", timer=5, style=style)
 
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
             try:
                 template = _hplookup.get_template(templatename)
             except (AttributeError, KeyError):
                 clear_mako_cache()
                 template = _hplookup.get_template(templatename)
-            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-                return template.render(**kwargs)
-            else:
-                return template.render(perm=lazylibrarian.perm_admin, style=style, **kwargs)
+            return template.render(perm=lazylibrarian.perm_admin, style=style, **kwargs)
 
         username = ''  # anyone logged in yet?
         userid = 0
@@ -233,13 +226,9 @@ def serve_template(templatename, **kwargs):
         if theme and theme != lazylibrarian.CONFIG['HTTP_LOOK']:
             template_dir = os.path.join(str(interface_dir), theme)
             if not path_isdir(template_dir):
-                logger.error("Unable to locate template [%s], reverting to default" % template_dir)
-
+                logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
+                lazylibrarian.CONFIG['HTTP_LOOK'] = 'bookstrap'
                 template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
-                if not path_isdir(template_dir):
-                    logger.error("Unable to locate template [%s], reverting to legacy" % template_dir)
-                    lazylibrarian.CONFIG['HTTP_LOOK'] = 'legacy'
-                    template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
             module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
             _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
@@ -428,15 +417,9 @@ class WebInterface(object):
                     arow[12] = replace_quotes_with(arow[12], '')
                     nrow.append(percent)
                     nrow.extend(arow[4:-2])
-                    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-                        bar = '<div class="progress-container %s">' % css
-                        bar += '<div style="width:%s%%"><span class="progressbar-front-text">' % percent
-                        bar += '%s/%s</span></div>' % (havebooks, totalbooks)
-                    else:
-                        bar = ''
+                    bar = ''
                     nrow.append(bar)
-                    if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
-                        nrow.extend(arow[11:])
+                    nrow.extend(arow[11:])
                     rows.append(nrow)  # add each rowlist to the masterlist
                 if sSearch:
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
@@ -445,14 +428,11 @@ class WebInterface(object):
                 else:
                     filtered = rows
 
-                if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-                    sortcolumn = int(iSortCol_0)
-                else:
-                    sortcolumn = int(iSortCol_0) - 1
-                    if sortcolumn == 2:
-                        sortcolumn = 13
-                    elif sortcolumn > 2:
-                        sortcolumn = sortcolumn - 1
+                sortcolumn = int(iSortCol_0) - 1
+                if sortcolumn == 2:
+                    sortcolumn = 13
+                elif sortcolumn > 2:
+                    sortcolumn = sortcolumn - 1
 
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
@@ -2471,7 +2451,7 @@ class WebInterface(object):
             flag_have = 0
             userid = None
             userprefs = 0
-            if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+            if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
                 perm = lazylibrarian.perm_admin
             else:
                 perm = 0
@@ -3174,7 +3154,7 @@ class WebInterface(object):
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         db = database.DBConnection()
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
             perm = lazylibrarian.perm_admin
             preftype = ''
         else:
@@ -4949,25 +4929,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
-        if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
-            user = 0
-            email = ''
-            db = database.DBConnection()
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                user = cookie['ll_uid'].value
-                res = db.match('SELECT SendTo from users where UserID=?', (user,))
-                if res and res['SendTo']:
-                    email = res['SendTo']
-            # use server-side processing
-            covers = 1
-            if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
-                covers = 0
-            return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
-                                  covercount=covers, user=user, email=email, mag_filter=mag_filter)
-
         db = database.DBConnection()
-
         cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
         cmd += ' as Iss_Cnt from magazines order by Title'
         magazines = db.select(cmd)
@@ -5103,56 +5065,24 @@ class WebInterface(object):
             lastmagazine = title
             firstpage = 'true'
 
-        if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
-            # use server-side processing
-            if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
-                covercount = 0
-            else:
-                covercount = 1
-
-            user = 0
-            email = ''
-            db = database.DBConnection()
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                user = cookie['ll_uid'].value
-                res = db.match('SELECT SendTo from users where UserID=?', (user,))
-                if res and res['SendTo']:
-                    email = res['SendTo']
-            return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
-                                  user=user, email=email, firstpage=firstpage)
-
-        db = database.DBConnection()
-
-        issues = db.select('SELECT * from issues WHERE Title=? order by IssueDate DESC', (title,))
-
-        if not len(issues):
-            raise cherrypy.HTTPRedirect("magazines")
-        else:
-            mod_issues = []
+        # use server-side processing
+        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
             covercount = 0
-            for issue in issues:
-                this_issue = dict(issue)
-                if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
-                    this_issue['Cover'] = 'images/nocover.jpg'
-                else:
-                    fname, extn = os.path.splitext(this_issue['Cover'])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
-                    if path_isfile(imgfile):
-                        this_issue['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                    else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                mod_issues.append(this_issue)
+        else:
+            covercount = 1
 
-            if not lazylibrarian.CONFIG['MAG_IMG'] or not lazylibrarian.CONFIG['IMP_MAGCOVER']:
-                covercount = 0
+        user = 0
+        email = ''
+        db = database.DBConnection()
+        cookie = cherrypy.request.cookie
+        if cookie and 'll_uid' in list(cookie.keys()):
+            user = cookie['ll_uid'].value
+            res = db.match('SELECT SendTo from users where UserID=?', (user,))
+            if res and res['SendTo']:
+                email = res['SendTo']
+        return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
+                              user=user, email=email, firstpage=firstpage)
 
-        return serve_template(templatename="issues.html", title=safetitle, issues=mod_issues, covercount=covercount,
-                              firstpage=firstpage)
 
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
@@ -5677,11 +5607,7 @@ class WebInterface(object):
                 lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
             message = message + '<br><small>' + messages
 
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-            return serve_template(templatename="response.html", prefix='LazyLibrarian is ',
-                                  title="Version Check", message=message, timer=5)
-        else:
-            return "LazyLibrarian is %s" % message
+        return "LazyLibrarian is %s" % message
 
     @cherrypy.expose
     def force_update(self):
@@ -5884,21 +5810,14 @@ class WebInterface(object):
         else:
             message = 'IMPORTCSV already running'
             logger.debug(message)
-
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-            raise cherrypy.HTTPRedirect("manage")
-        else:
-            return message
+        return message
 
     @cherrypy.expose
     def export_csv(self, library=''):
         self.label_thread('EXPORTCSV')
         message = export_csv(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
         message = message.replace('\n', '<br>')
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-            raise cherrypy.HTTPRedirect("manage")
-        else:
-            return message
+        return message
 
     # JOB CONTROL #######################################################
 
@@ -6139,50 +6058,49 @@ class WebInterface(object):
                     # separate out rowid and other additions, so we don't break legacy interface
                     rowid = row[9]
                     row = row[:9]
-                    if lazylibrarian.CONFIG['HTTP_LOOK'] != 'legacy':
-                        if row[6] == 'Snatched':
-                            snatching += 1
-                            if snatching <= 5:
-                                progress, _ = get_download_progress(row[7], row[8])
-                                row.append(progress)
-                                if progress < 100:
-                                    lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG['HIST_REFRESH']
-                            else:
-                                row.append(-1)
+                    if row[6] == 'Snatched':
+                        snatching += 1
+                        if snatching <= 5:
+                            progress, _ = get_download_progress(row[7], row[8])
+                            row.append(progress)
+                            if progress < 100:
+                                lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG['HIST_REFRESH']
                         else:
                             row.append(-1)
-                        row.append(rowid)
-                        row.append(row[4])  # keep full datetime for tooltip
-                        row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+                    else:
+                        row.append(-1)
+                    row.append(rowid)
+                    row.append(row[4])  # keep full datetime for tooltip
+                    row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
 
-                        if row[1] in ['eBook', 'AudioBook']:
-                            btn = '<button onclick="bookinfo(\'' + row[2]
-                            btn += '\')" class="button btn-link text-left" type="button" '
-                            btn += '>' + row[1] + '</button>'
-                            row[1] = btn
-                            auth = db.match('SELECT authorid from books where bookid=?', (row[2],))
-                            if auth:
-                                # noinspection PyBroadException
-                                try:
-                                    btn = '<a href=\'author_page?authorid='
-                                    btn += auth['authorid']
-                                    btn += '\'">' + row[2] + '</a>'
-                                    row[2] = btn
-                                except Exception:
-                                    logger.debug("Unexpected authorid [%s]" % repr(auth))
-                        elif row[1] == 'comic':
-                            btn = '<a href=\'open_comic?comicid=' + row[2].split('_')[0] + '\'">' + row[2] + '</a>'
-                            row[2] = btn
-                        else:
+                    if row[1] in ['eBook', 'AudioBook']:
+                        btn = '<button onclick="bookinfo(\'' + row[2]
+                        btn += '\')" class="button btn-link text-left" type="button" '
+                        btn += '>' + row[1] + '</button>'
+                        row[1] = btn
+                        auth = db.match('SELECT authorid from books where bookid=?', (row[2],))
+                        if auth:
                             # noinspection PyBroadException
                             try:
-                                if row[1] and re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
-                                    safetitle = quote_plus(make_utf8bytes(row[2])[0])
-                                    btn = '<a href=\'open_mag?bookid=' + safetitle + '\'">' + row[2] + '</a>'
-                                    row[2] = btn
+                                btn = '<a href=\'author_page?authorid='
+                                btn += auth['authorid']
+                                btn += '\'">' + row[2] + '</a>'
+                                row[2] = btn
                             except Exception:
-                                logger.debug("Unexpected auxinfo [%s] %s" % (row[1], row[2]))
-                                continue
+                                logger.debug("Unexpected authorid [%s]" % repr(auth))
+                    elif row[1] == 'comic':
+                        btn = '<a href=\'open_comic?comicid=' + row[2].split('_')[0] + '\'">' + row[2] + '</a>'
+                        row[2] = btn
+                    else:
+                        # noinspection PyBroadException
+                        try:
+                            if row[1] and re.match(r"^[0-9.-]+$", row[1]) is not None:  # Magazine
+                                safetitle = quote_plus(make_utf8bytes(row[2])[0])
+                                btn = '<a href=\'open_mag?bookid=' + safetitle + '\'">' + row[2] + '</a>'
+                                row[2] = btn
+                        except Exception:
+                            logger.debug("Unexpected auxinfo [%s] %s" % (row[1], row[2]))
+                            continue
                     rows.append(row)
 
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_serverside:

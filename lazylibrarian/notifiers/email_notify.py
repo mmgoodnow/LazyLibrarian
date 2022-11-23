@@ -210,7 +210,7 @@ class EmailNotifier:
                     custom_typelist = get_list(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
                     typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
-                    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy' or not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+                    if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)
