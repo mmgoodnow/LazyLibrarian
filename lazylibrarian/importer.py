@@ -29,8 +29,7 @@ from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
 
 from lib.thefuzz import fuzz
-# noinspection PyUnresolvedReferences
-from six.moves import queue
+from queue import Queue
 
 
 def is_valid_authorid(authorid):
@@ -703,16 +702,16 @@ def search_for(searchterm):
     """
     if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
         gb = GoogleBooks(searchterm)
-        myqueue = queue.Queue()
+        myqueue = Queue()
         search_api = threading.Thread(target=gb.find_results, name='GB-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
-        myqueue = queue.Queue()
+        myqueue = Queue()
         gr = GoodReads(searchterm)
         search_api = threading.Thread(target=gr.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
         search_api.start()
     elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
-        myqueue = queue.Queue()
+        myqueue = Queue()
         ol = OpenLibrary(searchterm)
         search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])
         search_api.start()

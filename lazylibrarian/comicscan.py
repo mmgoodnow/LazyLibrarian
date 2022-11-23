@@ -24,9 +24,6 @@ from lazylibrarian.common import walk, setperm, path_isfile, syspath
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
-from six import PY2
-if PY2:
-    from io import open
 
 
 def comic_scan(comicid=None):
@@ -52,9 +49,7 @@ def comic_scan(comicid=None):
 
         if lazylibrarian.CONFIG['COMIC_RELATIVE']:
             mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
-        if PY2:
-            mag_path = mag_path.encode(lazylibrarian.SYS_ENCODING)
-
+        
         if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
             cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '
             cmd += 'WHERE comics.ComicID = comicissues.ComicID'

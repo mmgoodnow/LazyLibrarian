@@ -29,9 +29,7 @@ from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
 
-from six import PY2, text_type
-# noinspection PyUnresolvedReferences
-from six.moves import configparser
+import configparser
 
 if module_available("urllib3") and module_available("requests"):
     # noinspection PyUnresolvedReferences

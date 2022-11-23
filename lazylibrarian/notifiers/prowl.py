@@ -1,11 +1,8 @@
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode
-# noinspection PyUnresolvedReferences
-from six.moves.http_client import HTTPSConnection
+from urllib.parse import urlencode
+from http.client import HTTPSConnection
 
 
 class ProwlNotifier:
@@ -26,9 +23,6 @@ class ProwlNotifier:
 
         if prowl_priority is None:
             prowl_priority = lazylibrarian.CONFIG['PROWL_PRIORITY']
-
-        if PY2:
-            message = message.encode(lazylibrarian.SYS_ENCODING)
 
         logger.debug(u"Prowl: title: " + title)
         logger.debug(u"Prowl: event: " + event)

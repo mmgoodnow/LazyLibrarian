@@ -2,7 +2,6 @@ import os
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, syspath
-from six import PY2
 
 try:
     import gntp.notifier as gntp_notifier
@@ -28,9 +27,6 @@ class GrowlNotifier:
 
         if growl_password is None:
             growl_password = lazylibrarian.CONFIG['GROWL_PASSWORD']
-
-        if PY2:
-            message = message.encode(lazylibrarian.SYS_ENCODING)
 
         logger.debug(u"Growl: title: " + title)
         logger.debug(u"Growl: event: " + event)

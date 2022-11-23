@@ -27,8 +27,7 @@ from lazylibrarian.formatter import plural, today, replace_all, book_series, una
     make_utf8bytes, thread_name
 
 from lib.thefuzz import fuzz
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote, quote_plus, urlencode
+from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoodReads:

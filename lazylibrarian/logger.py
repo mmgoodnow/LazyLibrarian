@@ -16,7 +16,6 @@ import os
 
 import lazylibrarian
 from lazylibrarian import formatter
-from six import PY2
 
 
 # Simple rotating log handler that uses RotatingFileHandler
@@ -110,9 +109,7 @@ class RotatingLogger(object):
 
         if os.name == 'nt':  # windows cp1252 can't handle some accents
             message = formatter.unaccented(message)
-        elif PY2:
-            message = formatter.safe_unicode(message).encode(lazylibrarian.SYS_ENCODING)
-        elif not PY2:
+        else:
             message = message.replace('\x98', '')  # invalid utf-8 eg La mosai\x98que Parsifal
 
         if level != 'DEBUG' or lazylibrarian.LOGLEVEL >= 2:

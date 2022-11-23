@@ -16,7 +16,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
-from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -59,9 +58,6 @@ class BoxcarNotifier:
 
         # build up the URL and parameters
         msg = msg.strip()
-        if PY2:
-            msg = msg.encode(lazylibrarian.SYS_ENCODING)
-            title = title.encode(lazylibrarian.SYS_ENCODING)
         cur_url = API_URL
 
         # if this is a subscription notification then act accordingly

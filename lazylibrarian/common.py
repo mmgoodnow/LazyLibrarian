@@ -28,18 +28,7 @@ import traceback
 import subprocess
 from lib.apscheduler.scheduler import Scheduler
 
-from six import PY2, text_type
-
-try:
-    import zipfile
-except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
-
-if PY2:
-    from io import open
+import zipfile
 import re
 import ssl
 import sqlite3
@@ -333,14 +322,12 @@ def syspath(path, prefix=True):
     *really* know what you're doing.
     """
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, text_type)))
+        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
-        if PY2:
-            return make_bytestr(path)
         return path
 
-    if not isinstance(path, text_type):
+    if not isinstance(path, str):
         # Beets currently represents Windows paths internally with UTF-8
         # arbitrarily. But earlier versions used MBCS because it is
         # reported as the FS encoding by Windows. Try both.
@@ -1479,12 +1466,8 @@ def log_header(online=True):
         import html5lib
         header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
     else:
-        if PY2:
-            import lib.bs4 as bs4
-            bs4vers = getattr(bs4, '__version__', None)
-        else:
-            import lib3.bs4 as bs4
-            bs4vers = getattr(bs4, '__version__', None)
+        import lib3.bs4 as bs4
+        bs4vers = getattr(bs4, '__version__', None)
         h5vers = None
         if bs4vers:
             try:
@@ -1663,11 +1646,7 @@ def save_log():
         else:
             logger.debug('Processing logfile [%s]' % fname)
             linecount = 0
-            if PY2:
-                lines = reversed(open(syspath(fname), 'r', encoding="utf-8").readlines())
-                lines = [make_unicode(lyne) for lyne in lines]
-            else:
-                lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
+            lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
                 for item in lazylibrarian.REDACTLIST:
                     if item in line:
@@ -1692,11 +1671,7 @@ def save_log():
 
     if path_exists(lazylibrarian.CONFIGFILE):
         out.write(u'---END-CONFIG---------------------------------\n')
-        if PY2:
-            lines = reversed(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8").readlines())
-            lines = [make_unicode(lyne) for lyne in lines]
-        else:
-            lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
+        lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
         for line in lines:
             for item in lazylibrarian.REDACTLIST:
                 if item in line:
@@ -1708,11 +1683,7 @@ def save_log():
     logfile = open(syspath(outfile + '.log'), 'w', encoding='utf-8')
     logfile.write(log_header())
     linecount = 0
-    if PY2:
-        lines = reversed(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8").readlines())
-        lines = [make_unicode(lyne) for lyne in lines]
-    else:
-        lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
+    lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
     for line in lines:
         logfile.write(line)
         linecount += 1

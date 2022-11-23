@@ -2,16 +2,11 @@
 
 import re
 
-from six.moves import html_parser
-from six import PY2, PY3
 try:
     import html5lib
     from bs4 import BeautifulSoup
 except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+    from lib3.bs4 import BeautifulSoup
 
 
 from icrawler import Crawler, Parser, Feeder, ImageDownloader

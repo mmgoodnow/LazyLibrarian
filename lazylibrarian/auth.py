@@ -22,13 +22,9 @@
 import cherrypy
 import lazylibrarian
 from lazylibrarian import logger
-from six import PY2
-if PY2:
-    from cgi import escape
-else:
-    from html import escape
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote
+from html import escape
+
+from urllib.parse import quote
 
 SESSION_KEY = '_cp_username'
 

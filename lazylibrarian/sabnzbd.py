@@ -15,8 +15,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import proxy_list, module_available
 from lazylibrarian.formatter import check_int, make_utf8bytes, versiontuple
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode
+from urllib.parse import urlencode
 
 if module_available("urllib3") and module_available("requests"):
     # noinspection PyUnresolvedReferences

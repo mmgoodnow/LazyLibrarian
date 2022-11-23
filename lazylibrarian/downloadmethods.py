@@ -47,14 +47,11 @@ except ImportError:
     from lib.deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
-from six import PY2, text_type
 
 if module_available("bs4") and module_available("html5lib"):
     # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
 else:
     from lib3.bs4 import BeautifulSoup
 
@@ -241,7 +238,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
             nzbpath = os.path.join(lazylibrarian.CONFIG['NZB_BLACKHOLEDIR'], nzbname)
             try:
                 with open(syspath(nzbpath), 'wb') as f:
-                    if isinstance(nzbfile, text_type):
+                    if isinstance(nzbfile, str):
                         nzbfile = nzbfile.encode('iso-8859-1')
                     f.write(nzbfile)
                 logger.debug('NZB file saved to: ' + nzbpath)
@@ -605,7 +602,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                     msg = 'Opening '
                     with open(syspath(tor_path), 'wb') as torrent_file:
                         msg += 'Writing '
-                        if isinstance(torrent, text_type):
+                        if isinstance(torrent, str):
                             torrent = torrent.encode('iso-8859-1')
                         torrent_file.write(torrent)
                     msg += 'SettingPerm '
@@ -626,7 +623,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 msg = 'Opening '
                 with open(syspath(tor_path), 'wb') as torrent_file:
                     msg += 'Writing '
-                    if isinstance(torrent, text_type):
+                    if isinstance(torrent, str):
                         torrent = torrent.encode('iso-8859-1')
                     torrent_file.write(torrent)
                 msg += 'SettingPerm '
@@ -795,10 +792,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             if make_unicode(download_id).upper() in make_unicode(tor_title).upper():
                 logger.warn('%s: name contains hash, probably unresolved magnet' % source)
             else:
-                if PY2:
-                    tor_title = unaccented_bytes(tor_title, only_ascii=False)
-                else:
-                    tor_title = unaccented(tor_title, only_ascii=False)
+                tor_title = unaccented(tor_title, only_ascii=False)
                 # need to check against reject words list again as the name may have changed
                 # library = magazine eBook AudioBook to determine which reject list
                 # but we can't easily do the per-magazine rejects

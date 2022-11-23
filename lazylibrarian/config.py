@@ -23,10 +23,7 @@ from lazylibrarian.formatter import make_unicode, thread_name, check_int, unacce
 from lazylibrarian.common import logger, path_exists, schedule_job, syspath
 from lazylibrarian import database 
 from shutil import rmtree
-
-# noinspection PyUnresolvedReferences
-from six.moves import configparser
-from six import PY2, text_type
+import configparser
 
 # These are the items in config.ini
 # Not all are accessible from the web ui
@@ -907,16 +904,7 @@ def config_write(part=None):
             # if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
             #    logger.debug("Leaving %s unchanged (%s)" % (key, value))
 
-        if isinstance(value, text_type):
-            if PY2:
-                try:
-                    value = value.encode(lazylibrarian.SYS_ENCODING)
-                except UnicodeError:
-                    logger.debug("Unable to convert value of %s (%s) to SYS_ENCODING" % (key, repr(value)))
-                    if PY2:
-                        value = unaccented_bytes(value)
-                    else:
-                        value = unaccented(value)
+        if isinstance(value, str):
             value = value.strip()
             if 'DLTYPES' in key:
                 value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
@@ -993,7 +981,7 @@ def config_write(part=None):
                 check_ini_section(provider['NAME'])
                 for item in nab_items + entry[2]:
                     value = provider[item]
-                    if isinstance(value, text_type):
+                    if isinstance(value, str):
                         value = value.strip()
                     if item == 'DLTYPES':
                         value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
@@ -1044,7 +1032,7 @@ def config_write(part=None):
             check_ini_section(provider['NAME'])
             for item in rss_items:
                 value = provider[item]
-                if isinstance(value, text_type):
+                if isinstance(value, str):
                     value = value.strip()
                 if item == 'DLTYPES':
                     value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
@@ -1090,7 +1078,7 @@ def config_write(part=None):
             check_ini_section(provider['NAME'])
             for item in gen_items:
                 value = provider[item]
-                if isinstance(value, text_type):
+                if isinstance(value, str):
                     value = value.strip()
                 if item == 'DLTYPES':
                     value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
@@ -1137,7 +1125,7 @@ def config_write(part=None):
             check_ini_section(provider['NAME'])
             for item in irc_items:
                 value = provider[item]
-                if isinstance(value, text_type):
+                if isinstance(value, str):
                     value = value.strip()
                 if item == 'DLTYPES':
                     value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
@@ -1183,7 +1171,7 @@ def config_write(part=None):
             check_ini_section(provider['NAME'])
             for item in apprise_items:
                 value = provider[item]
-                if isinstance(value, text_type):
+                if isinstance(value, str):
                     value = value.strip()
                 lazylibrarian.CFG.set(provider['NAME'], item, value)
         lazylibrarian.APPRISE_PROV = new_list
@@ -1222,11 +1210,7 @@ def config_write(part=None):
         db.close()
     msg = None
     try:
-        if PY2:
-            fmode = 'wb'
-        else:
-            fmode = 'w'
-        with open(syspath(lazylibrarian.CONFIGFILE + '.new'), fmode) as configfile:
+        with open(syspath(lazylibrarian.CONFIGFILE + '.new'), "w") as configfile:
             lazylibrarian.CFG.write(configfile)
     except Exception as e:
         msg = '{} {} {} {}'.format('Unable to create new config file:', lazylibrarian.CONFIGFILE, type(e).__name__, str(e))

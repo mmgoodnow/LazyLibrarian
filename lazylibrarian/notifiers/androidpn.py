@@ -23,7 +23,6 @@ from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
     proxy_list, module_available
 from lazylibrarian.formatter import check_int
-from six import PY2
 
 if module_available("urllib3") and module_available("requests"):
     # noinspection PyUnresolvedReferences
@@ -41,9 +40,7 @@ class AndroidPNNotifier:
 
         # build up the URL and parameters
         msg = msg.strip()
-        if PY2:
-            msg = msg.encode(lazylibrarian.SYS_ENCODING)
-
+        
         data = {
             'action': "send",
             'broadcast': broadcast,

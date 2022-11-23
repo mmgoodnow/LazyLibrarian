@@ -26,8 +26,7 @@ from shutil import copyfile, rmtree
 
 import cherrypy
 from cherrypy.lib.static import serve_file
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus, unquote_plus, urlsplit, urlunsplit
+from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import lazylibrarian
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
@@ -75,7 +74,7 @@ try:
     from deluge_client import DelugeRPCClient
 except ImportError:
     from lib.deluge_client import DelugeRPCClient
-from six import PY2, text_type
+
 from mako import exceptions
 from mako.lookup import TemplateLookup
 
@@ -1657,7 +1656,7 @@ class WebInterface(object):
                 # e-acute is \xe9 in latin-1  but  \xc3\xa9 in utf-8
                 # otherwise the comparison fails, but sometimes accented characters won't
                 # fit latin-1 but fit utf-8 how can we tell ???
-                if not isinstance(title, text_type):
+                if not isinstance(title, str):
                     try:
                         title = title.encode('latin-1')
                     except UnicodeEncodeError:
@@ -5788,8 +5787,6 @@ class WebInterface(object):
         cherrypy.response.headers["Content-Type"] = 'application/rss+xml'
         cherrypy.response.headers["Content-Disposition"] = 'attachment; filename="%s"' % filename
         res = gen_feed(ftype, limit=limit, user=userid, baseurl=baseurl, authorid=authorid, onetitle=onetitle)
-        if PY2:
-            return make_utf8bytes(res)[0]
         return res.encode('UTF-8')
 
     @cherrypy.expose
@@ -6793,8 +6790,7 @@ class WebInterface(object):
                     if mylabel != lazylibrarian.CONFIG['DELUGE_LABEL']:
                         lazylibrarian.CONFIG['DELUGE_LABEL'] = mylabel
 
-                    if not PY2:
-                        labels = [make_unicode(s) for s in labels]
+                    labels = [make_unicode(s) for s in labels]
                     if mylabel not in labels:
                         res = client.call('label.add', mylabel)
                         if not res:

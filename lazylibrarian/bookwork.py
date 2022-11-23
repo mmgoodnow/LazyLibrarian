@@ -16,8 +16,8 @@ import os
 import re
 import time
 import traceback
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus, quote, urlencode
+
+from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
@@ -25,8 +25,7 @@ from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remov
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 
-from lib.thefuzz import fuzz
-from six import PY2
+from thefuzz import fuzz
 
 if module_available("urllib3") and module_available("requests"):
     # noinspection PyUnresolvedReferences
@@ -414,13 +413,8 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             else:
                 logger.debug("get_bookwork: Returning Cached seriespage for %s" % item['seriesName'])
 
-            if PY2:
-                with open(syspath(workfile), "r") as cachefile:
-                    source = cachefile.read()
-            else:
-                # noinspection PyArgumentList
-                with open(syspath(workfile), "r", errors="backslashreplace") as cachefile:
-                    source = cachefile.read()
+            with open(syspath(workfile), "r", errors="backslashreplace") as cachefile:
+                source = cachefile.read()
             return source
         else:
             lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
@@ -434,15 +428,10 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             if bookid:
                 title = safe_unicode(item['BookName'])
                 author = safe_unicode(item['AuthorName'])
-                if PY2:
-                    title = title.encode(lazylibrarian.SYS_ENCODING)
-                    author = author.encode(lazylibrarian.SYS_ENCODING)
                 url = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'api/whatwork.php?author=%s&title=%s' %
                                (quote_plus(author), quote_plus(title))])
             else:
                 seriesname = safe_unicode(item['seriesName'])
-                if PY2:
-                    seriesname = seriesname.encode(lazylibrarian.SYS_ENCODING)
                 url = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/%s' % quote_plus(seriesname)])
 
             librarything_wait()
@@ -977,10 +966,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
 
     author = clean_name(author)
     title = clean_name(title)
-    if PY2:
-        author = author.encode(lazylibrarian.SYS_ENCODING)
-        title = title.encode(lazylibrarian.SYS_ENCODING)
-
+    
     baseurl = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
 
     urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
@@ -1416,11 +1402,8 @@ def isbn_from_words(words):
         return res['ISBN']
 
     baseurl = "http://www.google.com/search?q=ISBN+"
-    if not PY2:
-        search_url = baseurl + quote(words.replace(' ', '+'))
-    else:
-        search_url = baseurl + words.replace(' ', '+')
-
+    search_url = baseurl + quote(words.replace(' ', '+'))
+    
     headers = {'User-Agent': 'w3m/0.5.3',
                'Content-Type': 'text/plain; charset="UTF-8"',
                'Content-Transfer-Encoding': 'Quoted-Printable',

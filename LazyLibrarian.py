@@ -24,8 +24,7 @@ import time
 import lazylibrarian
 from lazylibrarian import startup, webStart, logger, dbupgrade, notifiers
 from lazylibrarian.formatter import thread_name
-# noinspection PyUnresolvedReferences
-from six.moves import configparser
+import configparser
 
 
 # The following should probably be made configurable at the settings level
@@ -42,7 +41,10 @@ if opt_out_of_certificate_verification:
 
 # ==== end block (should be configurable at settings level)
 
-
+if sys.version[0] != '3':
+    sys.stderr.write("This version of lazylibrarian requires python 3\n")
+    exit(0)
+    
 def main():
    # rename this thread
     thread_name("MAIN")

@@ -4,8 +4,8 @@ import logging
 import time
 from threading import current_thread
 
-from six.moves import queue
-from six.moves.urllib.parse import urlsplit
+import queue
+from urllib.parse import urlsplit
 
 from icrawler.utils import ThreadPool
 from lazylibrarian.common import get_user_agent

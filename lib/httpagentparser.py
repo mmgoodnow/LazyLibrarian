@@ -10,8 +10,6 @@ Tries to
 
 __version__ = '1.8.1'
 
-from six import PY2
-
 
 class DetectorsHub(dict):
     _known_types = ['os', 'dist', 'flavor', 'browser']
@@ -33,10 +31,7 @@ class DetectorsHub(dict):
         return iter(self._known_types)
 
     def registerDetectors(self):
-        if PY2:
-            detectors = [v() for v in globals().values() if DetectorBase in getattr(v, '__mro__', [])]
-        else:
-            detectors = [v() for v in list(globals().values()) if DetectorBase in getattr(v, '__mro__', [])]
+        detectors = [v() for v in list(globals().values()) if DetectorBase in getattr(v, '__mro__', [])]
         for d in detectors:
             if d.can_register:
                 self.register(d)

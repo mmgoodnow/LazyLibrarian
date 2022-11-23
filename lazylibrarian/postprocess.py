@@ -30,18 +30,11 @@ import lazylibrarian
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
-from six import PY2
-
-if PY2:
-    from io import open
 
 try:
     import zipfile
 except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
+    import lib3.zipfile as zipfile
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
@@ -96,10 +89,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         if not extn or extn not in get_list(lazylibrarian.CONFIG['MAG_TYPE']):
             logger.warn("%s is not a valid issue file" % source_file)
             return False
-        if PY2:
-            title = unaccented_bytes(sanitize(title), only_ascii=False)
-        else:
-            title = unaccented(sanitize(title), only_ascii=False)
+        title = unaccented(sanitize(title), only_ascii=False)
         if not title:
             logger.warn("No title for %s, rejecting" % source_file)
             return False
@@ -416,8 +406,6 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 # if not got both, try to get metadata from the book file
                 extn = os.path.splitext(new_book)[1]
                 if extn.lower() in [".epub", ".mobi"]:
-                    if PY2:
-                        new_book = make_utf8bytes(new_book)[0]
                     try:
                         metadata = get_book_info(new_book)
                     except Exception as e:
@@ -815,10 +803,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 # see if we can get current status from the downloader as the name
                 # may have been changed once magnet resolved, or download started or completed
                 # depending on torrent downloader. Usenet doesn't change the name. We like usenet.
-                if PY2:
-                    matchtitle = unaccented_bytes(book['NZBtitle'], only_ascii=False)
-                else:
-                    matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
+                matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
                 dlname = get_download_name(matchtitle, book['Source'], book['DownloadID'])
 
                 if dlname and dlname != matchtitle:
@@ -895,10 +880,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     book = dict(book)  # so we can modify values later
                     booktype = book_type(book)
                     # remove accents and convert not-ascii apostrophes
-                    if PY2:
-                        matchtitle = unaccented_bytes(book['NZBtitle'], only_ascii=False)
-                    else:
-                        matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
+                    matchtitle = unaccented(book['NZBtitle'], only_ascii=False)
                     # torrent names might have words_separated_by_underscores
                     matchtitle = matchtitle.split(' LL.(')[0].replace('_', ' ')
                     # strip noise characters
@@ -916,10 +898,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             # Usenet is ok, but Torrents aren't always returned with the name we searched for
                             # We ask the torrent downloader for the torrent name, but don't always get an answer,
                             # so we try to do a "best match" on the name, there might be a better way...
-                            if PY2:
-                                matchname = unaccented_bytes(fname, only_ascii=False)
-                            else:
-                                matchname = unaccented(fname, only_ascii=False)
+                            matchname = unaccented(fname, only_ascii=False)
                             matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
@@ -933,10 +912,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 # obfuscated folder might contain our file
                                 for f in listdir(os.path.join(download_dir, fname)):
                                     if is_valid_type(f, extras='cbr, cbz'):
-                                        if PY2:
-                                            matchname = unaccented_bytes(f, only_ascii=False)
-                                        else:
-                                            matchname = unaccented(f, only_ascii=False)
+                                        matchname = unaccented(f, only_ascii=False)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
@@ -1155,10 +1131,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 # but if multiple files are downloading, there will be an error in post-processing
                                 # trying to go to the same directory.
                                 mostrecentissue = data['IssueDate']  # keep for processing issues arriving out of order
-                                if PY2:
-                                    mag_name = unaccented_bytes(sanitize(book['BookID']), only_ascii=False)
-                                else:
-                                    mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
+                                mag_name = unaccented(sanitize(book['BookID']), only_ascii=False)
                                 # book auxinfo is a cleaned date, e.g. 2015-01-01
                                 iss_date = book['AuxInfo']
                                 if iss_date == '1970-01-01':
@@ -1212,10 +1185,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     booktype = 'comic'
                                     logger.debug('Processing %s issue %s' % (data['Title'], issueid))
                                     mostrecentissue = data['LatestIssue']
-                                    if PY2:
-                                        comic_name = unaccented_bytes(sanitize(data['Title']), only_ascii=False)
-                                    else:
-                                        comic_name = unaccented(sanitize(data['Title']), only_ascii=False)
+                                    comic_name = unaccented(sanitize(data['Title']), only_ascii=False)
                                     dest_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER'].replace(
                                         '$Issue', issueid).replace(
                                         '$Publisher', data['Publisher']).replace(
@@ -1839,10 +1809,7 @@ def get_download_name(title, source, downloadid):
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
-                    if PY2:
-                        dlname = unaccented_bytes(result['name'], only_ascii=False)
-                    else:
-                        dlname = unaccented(result['name'], only_ascii=False)
+                    dlname = unaccented(result['name'], only_ascii=False)
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         elif source == 'SABNZBD':
@@ -2867,11 +2834,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 # calibre does not like accents or quotes in names
                 if authorname.endswith('.'):  # calibre replaces trailing dot with underscore eg Jr. becomes Jr_
                     authorname = authorname[:-1] + '_'
-                if PY2:
-                    author_dir = os.path.join(dest_dir, unaccented_bytes(authorname.replace('"', '_'),
-                                                                         only_ascii=False), '')
-                else:
-                    author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
+                author_dir = os.path.join(dest_dir, unaccented(authorname.replace('"', '_'), only_ascii=False), '')
                 if path_isdir(author_dir):  # assumed author directory
                     our_id = '(%s)' % calibre_id
                     entries = listdir(author_dir)

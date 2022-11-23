@@ -31,7 +31,6 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, make_unicode
 from lazylibrarian.common import make_dirs, path_isdir, syspath, module_available
-from six import PY2
 
 if module_available("urllib3") and module_available("requests"):
     # noinspection PyUnresolvedReferences
@@ -478,8 +477,7 @@ def _add_torrent_file(result):
         # content is torrent file contents (bytes) that needs to be encoded to base64
         # b64encode input/output is bytes, and python3 json serialiser doesnt like bytes
         content = b64encode(result['content'])
-        if not PY2:
-            content = make_unicode(content)
+        content = make_unicode(content)
         post_json = {"method": "core.add_torrent_file",
                      "params": [result['name'] + '.torrent', content, {}],
                      "id": 2}

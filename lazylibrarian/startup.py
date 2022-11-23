@@ -39,7 +39,6 @@ from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicod
 from lazylibrarian.dbupgrade import check_db, db_current_version
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
-from six import PY2
 
 
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
@@ -455,13 +454,9 @@ def build_logintemplate():
     msg_file = os.path.join(lazylibrarian.DATADIR, 'logintemplate.text')
     if path_isfile(msg_file):
         try:
-            if PY2:
-                with open(syspath(msg_file), 'r') as msg_data:
-                    res = msg_data.read()
-            else:
-                # noinspection PyArgumentList
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
-                    res = msg_data.read()
+            # noinspection PyArgumentList
+            with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                res = msg_data.read()
             for item in ["{username}", "{password}", "{permission}"]:
                 if item not in res:
                     warn("Invalid login template in %s, no %s" % (msg_file, item))
@@ -479,13 +474,8 @@ def build_filetemplate():
     msg_file = os.path.join(lazylibrarian.DATADIR, 'filetemplate.text')
     if path_isfile(msg_file):
         try:
-            if PY2:
-                with open(syspath(msg_file), 'r') as msg_data:
-                    res = msg_data.read()
-            else:
-                # noinspection PyArgumentList
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
-                    res = msg_data.read()
+            with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                res = msg_data.read()
             for item in ["{name}", "{method}", "{link}"]:
                 if item not in res:
                     warn("Invalid attachment template in %s, no %s" % (msg_file, item))
@@ -502,13 +492,8 @@ def build_genres():
     for json_file in [os.path.join(lazylibrarian.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
         if path_isfile(json_file):
             try:
-                if PY2:
-                    with open(syspath(json_file), 'r') as json_data:
-                        res = json.load(json_data)
-                else:
-                    # noinspection PyArgumentList
-                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
-                        res = json.load(json_data)
+                with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
+                    res = json.load(json_data)
                 info("Loaded genres from %s" % json_file)
                 return res
             except Exception as e:
@@ -791,10 +776,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
             executable = sys.executable
 
             if not executable:
-                if PY2:
-                    prg = "python2"
-                else:
-                    prg = "python3"
+                prg = "python3"
                 if os.name == 'nt':
                     params = ["where", prg]
                     try:

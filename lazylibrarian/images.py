@@ -24,18 +24,13 @@ from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_uni
 from lazylibrarian.common import safe_copy, setperm, path_isfile, syspath, jpg_file
 from lazylibrarian.cache import cache_img, fetch_url
 from lazylibrarian.providers import provider_is_blocked, block_provider
-from six import PY2, text_type
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus
+from urllib.parse import quote_plus
 from shutil import rmtree
 
 try:
     import zipfile
 except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
+    import lib3.zipfile as zipfile
 
 try:
     import PIL
@@ -860,9 +855,9 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                     generator = "pythonmagick interface"
                     img = PythonMagick.Image()
                     # PythonMagick requires filenames to be bytestr, not unicode
-                    if type(issuefile) is text_type:
+                    if type(issuefile) is str:
                         issuefile = make_bytestr(issuefile)
-                    if type(coverfile) is text_type:
+                    if type(coverfile) is str:
                         coverfile = make_bytestr(coverfile)
                     img.read(issuefile + '[' + str(check_int(pagenum, 1) - 1) + ']')
                     img.write(coverfile)

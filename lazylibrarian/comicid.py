@@ -21,26 +21,19 @@ from lazylibrarian import logger
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural
 from lazylibrarian.common import quotes, path_isfile, module_available
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus
-from six import PY2
+from urllib.parse import quote_plus
 
 if module_available("bs4") and module_available("html5lib"):
     # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
 else:
     from lib3.bs4 import BeautifulSoup
 
 try:
     import zipfile
 except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
+    import lib3.zipfile as zipfile
 
 
 def get_issue_num(words, skipped):

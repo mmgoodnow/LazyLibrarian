@@ -3,10 +3,9 @@
 from threading import current_thread
 
 from PIL import Image
-from six import BytesIO
-from six.moves import queue
-from six.moves.urllib.parse import urlparse
-
+from io import BytesIO
+import queue
+from urllib.parse import urlparse
 from icrawler.utils import ThreadPool
 
 

@@ -30,7 +30,6 @@ from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
     is_valid_email, path_isfile, syspath, run_script, mime_type
 from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
-from six import PY2
 
 
 class EmailNotifier:
@@ -132,33 +131,21 @@ class EmailNotifier:
                 context.verify_mode = ssl.CERT_NONE
 
             if lazylibrarian.CONFIG['EMAIL_SSL']:
-                if PY2:
-                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465))
-                else:
-                    mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                                  check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
-                                                  context=context)
+                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
+                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+                                              context=context)
             else:
                 mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                           check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
 
             if lazylibrarian.CONFIG['EMAIL_TLS']:
-                if PY2:
-                    mailserver.starttls()
-                else:
-                    # noinspection PyArgumentList
-                    mailserver.starttls(context=context)
+                mailserver.starttls(context=context)
             else:
                 mailserver.ehlo()
 
             if lazylibrarian.CONFIG['EMAIL_SMTP_USER']:
-                if PY2:
-                    mailserver.login(make_utf8bytes(lazylibrarian.CONFIG['EMAIL_SMTP_USER'])[0],
-                                     make_utf8bytes(lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])[0])
-                else:
-                    mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
-                                     lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
+                mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
+                                 lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
 
             logger.debug("Sending email to %s" % to_addr)
             mailserver.sendmail(from_addr, to_addr, message.as_string())

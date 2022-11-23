@@ -29,10 +29,7 @@ from lazylibrarian.formatter import plural, today, replace_all, unaccented, unac
 from lazylibrarian.ol import OpenLibrary
 
 from lib.thefuzz import fuzz
-
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote, quote_plus, urlencode
+from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoogleBooks:
@@ -240,10 +237,7 @@ class GoogleBooks:
         try:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
             # google doesnt like accents in author names
-            if PY2:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname, only_ascii=False))
-            else:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
+            set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
             entryreason = reason
             api_hits = 0
             gr_lang_hits = 0

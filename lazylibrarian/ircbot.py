@@ -17,7 +17,6 @@ import socket
 import time
 import struct
 import os
-from six import PY2
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
@@ -25,10 +24,7 @@ from lazylibrarian.common import path_isfile, syspath, remove
 try:
     import zipfile
 except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
+    import lib3.zipfile as zipfile
 
 
 def ip_numstr_to_quad(num):

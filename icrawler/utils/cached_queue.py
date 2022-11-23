@@ -1,7 +1,7 @@
 import json
 from collections import OrderedDict
 
-from six.moves.queue import Queue
+from queue import Queue
 
 
 class CachedQueue(Queue, object):

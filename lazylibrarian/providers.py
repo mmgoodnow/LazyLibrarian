@@ -15,8 +15,7 @@ import re
 import time
 from xml.etree import ElementTree
 
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -28,19 +27,12 @@ from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, 
 from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
-from six import PY2
-
-if PY2:
-    import lib.feedparser as feedparser
-else:
-    import lib3.feedparser as feedparser
+import lib3.feedparser as feedparser
 
 if module_available("bs4") and module_available("html5lib"):
     # noinspection PyUnresolvedReferences
     import html5lib
     from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
 else:
     from lib3.bs4 import BeautifulSoup
 
@@ -1937,9 +1929,6 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
 
         if success:
             try:
-                if PY2:
-                    result = make_bytestr(result)
-
                 rootxml = ElementTree.fromstring(result)
             except Exception as e:
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))
