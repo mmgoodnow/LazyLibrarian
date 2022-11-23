@@ -5,6 +5,7 @@
 
 import unittesthelpers
 import json
+import pytest
 
 import lazylibrarian
 from lazylibrarian import config, telemetry
@@ -105,24 +106,10 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         self.assertEqual(usg["web/test"], 1)
         jsoncfg = json.dumps(obj=usg)
 
-class TelemetryTestSubmit(unittesthelpers.LLTestCase):
-    """ Class for testing the final JSON and sending of data """
-
-    @classmethod
-    def setUpClass(cls) -> None:
-        super().setDoAll(all=False)
-        super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
-        rc = super().setUpClass()
-
-        t = telemetry.LazyTelemetry()
-        t.set_config_data(lazylibrarian.CONFIG)
-        t.record_usage_data("API/getHelp")
-        t.record_usage_data("web/test")
-        t.record_usage_data("API/getHelp")
-        t.record_usage_data("Download/NZB")
-
-        return rc
-
+    @pytest.mark.order(after="test_ensure_server_id_generation")
+    @pytest.mark.order(after="test_ensure_server_id_persistence")
+    @pytest.mark.order(after="test_set_config_data")
+    @pytest.mark.order(after="test_record_usage_data")
     def test_get_json(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG)
