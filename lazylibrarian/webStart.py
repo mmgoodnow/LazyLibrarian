@@ -15,10 +15,7 @@ import os
 import sys
 
 import cherrypy
-try:
-    import cherrypy_cors
-except ImportError:
-    import lib.cherrypy_cors as cherrypy_cors
+import cherrypy_cors
 from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger

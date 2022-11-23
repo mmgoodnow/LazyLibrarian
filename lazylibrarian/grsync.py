@@ -25,11 +25,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
-
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
+import oauth2 as oauth
 
 client = ''
 request_token = ''
@@ -122,7 +118,7 @@ class GrAuth:
             logger.debug("oauth2: %s" % str(access_token))
         lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] = access_token['oauth_token']
         lazylibrarian.CONFIG['GR_OAUTH_SECRET'] = access_token['oauth_token_secret']
-        lazylibrarian.config_write('API')
+        lazylibrarian.config.config_write('API')
         return "Authorisation complete"
 
     def get_user_id(self):

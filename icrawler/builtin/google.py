@@ -1,16 +1,9 @@
 # -*- coding: utf-8 -*-
 
 import datetime
-import json
-import re
-try:
-    import html5lib
-    from bs4 import BeautifulSoup
-except ImportError:
-    from lib3.bs4 import BeautifulSoup
-
+import html5lib
+from bs4 import BeautifulSoup
 from urllib.parse import urlencode
-
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
 from icrawler.builtin.filter import Filter
 

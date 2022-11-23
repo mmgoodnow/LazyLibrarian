@@ -20,20 +20,12 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
 from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural
-from lazylibrarian.common import quotes, path_isfile, module_available
+from lazylibrarian.common import quotes, path_isfile
 from urllib.parse import quote_plus
 
-if module_available("bs4") and module_available("html5lib"):
-    # noinspection PyUnresolvedReferences
-    import html5lib
-    from bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
-
-try:
-    import zipfile
-except ImportError:
-    import lib3.zipfile as zipfile
+import html5lib
+from bs4 import BeautifulSoup
+import zipfile
 
 
 def get_issue_num(words, skipped):

@@ -22,10 +22,9 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_genres
-from lazylibrarian.common import restart_jobs, pwd_generator, setperm, syspath
+from lazylibrarian.common import restart_jobs, pwd_generator, setperm, syspath, path_exists
 from lazylibrarian.formatter import plural, md5_utf8, get_list, check_int
 from lazylibrarian.importer import update_totals
-from lazylibrarian.common import path_exists
 
 # database version history:
 # 0 original version or new empty database
@@ -925,7 +924,7 @@ def db_v59(db, upgradelog):
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
             lazylibrarian.CONFIG[item] = seeders
     lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
-    lazylibrarian.config_write()
+    lazylibrarian.config.config_write()
     upgradelog.write("%s v59: complete\n" % time.ctime())
 
 

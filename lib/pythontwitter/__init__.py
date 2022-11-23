@@ -55,12 +55,8 @@ except ImportError:
         except ImportError:
             raise ImportError("Unable to load a json library")
 
-# lazylibrarian changes
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
-
+import oauth2 as oauth
+from urllib.parse import urlencode
 
 def longint(x):
     return int(x)
@@ -95,16 +91,16 @@ SIGNIN_URL = 'https://api.twitter.com/oauth/authenticate'
 
 
 class TwitterError(Exception):
-    '''Base class for Twitter errors'''
+    """Base class for Twitter errors"""
 
     @property
     def message(self):
-        '''Returns the first argument used to construct this error.'''
+        """Returns the first argument used to construct this error."""
         return self.args[0]
 
 
 class Status(object):
-    '''A class representing the Status structure used by the twitter API.
+    """A class representing the Status structure used by the twitter API.
 
   The Status structure exposes the following properties:
 
@@ -129,7 +125,7 @@ class Status(object):
     status.place
     status.coordinates
     status.contributors
-  '''
+  """
 
     def __init__(self,
                  created_at=None,
@@ -162,7 +158,7 @@ class Status(object):
                  withheld_copyright=None,
                  withheld_in_countries=None,
                  withheld_scope=None):
-        '''An object to hold a Twitter status message.
+        """An object to hold a Twitter status message.
 
     This class is normally instantiated by the twitter.Api class and
     returned in a sequence.
@@ -206,7 +202,7 @@ class Status(object):
       withheld_copyright:
       withheld_in_countries:
       withheld_scope:
-    '''
+    """
         self.created_at = created_at
         self.favorited = favorited
         self.favorite_count = favorite_count
@@ -239,31 +235,31 @@ class Status(object):
         self.withheld_scope = withheld_scope
 
     def GetCreatedAt(self):
-        '''Get the time this status message was posted.
+        """Get the time this status message was posted.
 
     Returns:
       The time this status message was posted
-    '''
+    """
         return self._created_at
 
     def SetCreatedAt(self, created_at):
-        '''Set the time this status message was posted.
+        """Set the time this status message was posted.
 
     Args:
       created_at:
         The time this status message was created
-    '''
+    """
         self._created_at = created_at
 
     created_at = property(GetCreatedAt, SetCreatedAt,
                           doc='The time this status message was posted.')
 
     def GetCreatedAtInSeconds(self):
-        '''Get the time this status message was posted, in seconds since the epoch.
+        """Get the time this status message was posted, in seconds since the epoch.
 
     Returns:
       The time this status message was posted, in seconds since the epoch.
-    '''
+    """
         return calendar.timegm(email.utils.parsedate(self.created_at))
 
     created_at_in_seconds = property(GetCreatedAtInSeconds,
@@ -271,60 +267,60 @@ class Status(object):
                                          "posted, in seconds since the epoch")
 
     def GetFavorited(self):
-        '''Get the favorited setting of this status message.
+        """Get the favorited setting of this status message.
 
     Returns:
       True if this status message is favorited; False otherwise
-    '''
+    """
         return self._favorited
 
     def SetFavorited(self, favorited):
-        '''Set the favorited state of this status message.
+        """Set the favorited state of this status message.
 
     Args:
       favorited:
         boolean True/False favorited state of this status message
-    '''
+    """
         self._favorited = favorited
 
     favorited = property(GetFavorited, SetFavorited,
                          doc='The favorited state of this status message.')
 
     def GetFavoriteCount(self):
-        '''Get the favorite count of this status message.
+        """Get the favorite count of this status message.
 
     Returns:
       number of times this status message has been favorited
-    '''
+    """
         return self._favorite_count
 
     def SetFavoriteCount(self, favorite_count):
-        '''Set the favorited state of this status message.
+        """Set the favorited state of this status message.
 
     Args:
       favorite_count:
         int number of favorites for this status message
-    '''
+    """
         self._favorite_count = favorite_count
 
     favorite_count = property(GetFavoriteCount, SetFavoriteCount,
                               doc='The number of favorites for this status message.')
 
     def GetId(self):
-        '''Get the unique id of this status message.
+        """Get the unique id of this status message.
 
     Returns:
       The unique id of this status message
-    '''
+    """
         return self._id
 
     def SetId(self, id):
-        '''Set the unique id of this status message.
+        """Set the unique id of this status message.
 
     Args:
       id:
         The unique id of this status message
-    '''
+    """
         self._id = id
 
     id = property(GetId, SetId,
@@ -385,51 +381,51 @@ class Status(object):
                       doc='')
 
     def GetText(self):
-        '''Get the text of this status message.
+        """Get the text of this status message.
 
     Returns:
       The text of this status message.
-    '''
+    """
         return self._text
 
     def SetText(self, text):
-        '''Set the text of this status message.
+        """Set the text of this status message.
 
     Args:
       text:
         The text of this status message
-    '''
+    """
         self._text = text
 
     text = property(GetText, SetText,
                     doc='The text of this status message')
 
     def GetLocation(self):
-        '''Get the geolocation associated with this status message
+        """Get the geolocation associated with this status message
 
     Returns:
       The geolocation string of this status message.
-    '''
+    """
         return self._location
 
     def SetLocation(self, location):
-        '''Set the geolocation associated with this status message
+        """Set the geolocation associated with this status message
 
     Args:
       location:
         The geolocation string of this status message
-    '''
+    """
         self._location = location
 
     location = property(GetLocation, SetLocation,
                         doc='The geolocation string of this status message')
 
     def GetRelativeCreatedAt(self):
-        '''Get a human readable string representing the posting time
+        """Get a human readable string representing the posting time
 
     Returns:
       A human readable string representing the posting time
-    '''
+    """
         fudge = 1.25
         delta = longint(self.now) - longint(self.created_at_in_seconds)
 
@@ -455,20 +451,20 @@ class Status(object):
                                        'the posting time')
 
     def GetUser(self):
-        '''Get a twitter.User representing the entity posting this status message.
+        """Get a twitter.User representing the entity posting this status message.
 
     Returns:
       A twitter.User representing the entity posting this status message
-    '''
+    """
         return self._user
 
     def SetUser(self, user):
-        '''Set a twitter.User representing the entity posting this status message.
+        """Set a twitter.User representing the entity posting this status message.
 
     Args:
       user:
         A twitter.User representing the entity posting this status message
-    '''
+    """
         self._user = user
 
     user = property(GetUser, SetUser,
@@ -476,7 +472,7 @@ class Status(object):
                         'status message')
 
     def GetNow(self):
-        '''Get the wallclock time for this status message.
+        """Get the wallclock time for this status message.
 
     Used to calculate relative_created_at.  Defaults to the time
     the object was instantiated.
@@ -484,13 +480,13 @@ class Status(object):
     Returns:
       Whatever the status instance believes the current time to be,
       in seconds since the epoch.
-    '''
+    """
         if self._now is None:
             self._now = time.time()
         return self._now
 
     def SetNow(self, now):
-        '''Set the wallclock time for this status message.
+        """Set the wallclock time for this status message.
 
     Used to calculate relative_created_at.  Defaults to the time
     the object was instantiated.
@@ -498,7 +494,7 @@ class Status(object):
     Args:
       now:
         The wallclock time for this instance.
-    '''
+    """
         self._now = now
 
     now = property(GetNow, SetNow,
@@ -646,31 +642,31 @@ class Status(object):
             return False
 
     def __str__(self):
-        '''A string representation of this twitter.Status instance.
+        """A string representation of this twitter.Status instance.
 
     The return value is the same as the JSON string representation.
 
     Returns:
       A string representation of this twitter.Status instance.
-    '''
+    """
         return self.AsJsonString()
 
     def AsJsonString(self):
-        '''A JSON string representation of this twitter.Status instance.
+        """A JSON string representation of this twitter.Status instance.
 
     Returns:
       A JSON string representation of this twitter.Status instance
-   '''
+   """
         return simplejson.dumps(self.AsDict(), sort_keys=True)
 
     def AsDict(self):
-        '''A dict representation of this twitter.Status instance.
+        """A dict representation of this twitter.Status instance.
 
     The return value uses the same key names as the JSON representation.
 
     Return:
       A dict representing this twitter.Status instance
-    '''
+    """
         data = {}
         if self.created_at:
             data['created_at'] = self.created_at
@@ -734,13 +730,13 @@ class Status(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data: A JSON dict, as converted from the JSON in the twitter API
     Returns:
       A twitter.Status instance
-    '''
+    """
         if 'user' in data:
             user = User.NewFromJsonDict(data['user'])
         else:
@@ -802,7 +798,7 @@ class Status(object):
 
 
 class User(object):
-    '''A class representing the User structure used by the twitter API.
+    """A class representing the User structure used by the twitter API.
 
   The User structure exposes the following properties:
 
@@ -834,7 +830,7 @@ class User(object):
     user.contributors_enabled
     user.created_at
     user.listed_count
-  '''
+  """
 
     def __init__(self,
                  id=None,
@@ -895,152 +891,152 @@ class User(object):
         self.listed_count = listed_count
 
     def GetId(self):
-        '''Get the unique id of this user.
+        """Get the unique id of this user.
 
     Returns:
       The unique id of this user
-    '''
+    """
         return self._id
 
     def SetId(self, id):
-        '''Set the unique id of this user.
+        """Set the unique id of this user.
 
     Args:
       id: The unique id of this user.
-    '''
+    """
         self._id = id
 
     id = property(GetId, SetId,
                   doc='The unique id of this user.')
 
     def GetName(self):
-        '''Get the real name of this user.
+        """Get the real name of this user.
 
     Returns:
       The real name of this user
-    '''
+    """
         return self._name
 
     def SetName(self, name):
-        '''Set the real name of this user.
+        """Set the real name of this user.
 
     Args:
       name: The real name of this user
-    '''
+    """
         self._name = name
 
     name = property(GetName, SetName,
                     doc='The real name of this user.')
 
     def GetScreenName(self):
-        '''Get the short twitter name of this user.
+        """Get the short twitter name of this user.
 
     Returns:
       The short twitter name of this user
-    '''
+    """
         return self._screen_name
 
     def SetScreenName(self, screen_name):
-        '''Set the short twitter name of this user.
+        """Set the short twitter name of this user.
 
     Args:
       screen_name: the short twitter name of this user
-    '''
+    """
         self._screen_name = screen_name
 
     screen_name = property(GetScreenName, SetScreenName,
                            doc='The short twitter name of this user.')
 
     def GetLocation(self):
-        '''Get the geographic location of this user.
+        """Get the geographic location of this user.
 
     Returns:
       The geographic location of this user
-    '''
+    """
         return self._location
 
     def SetLocation(self, location):
-        '''Set the geographic location of this user.
+        """Set the geographic location of this user.
 
     Args:
       location: The geographic location of this user
-    '''
+    """
         self._location = location
 
     location = property(GetLocation, SetLocation,
                         doc='The geographic location of this user.')
 
     def GetDescription(self):
-        '''Get the short text description of this user.
+        """Get the short text description of this user.
 
     Returns:
       The short text description of this user
-    '''
+    """
         return self._description
 
     def SetDescription(self, description):
-        '''Set the short text description of this user.
+        """Set the short text description of this user.
 
     Args:
       description: The short text description of this user
-    '''
+    """
         self._description = description
 
     description = property(GetDescription, SetDescription,
                            doc='The short text description of this user.')
 
     def GetUrl(self):
-        '''Get the homepage url of this user.
+        """Get the homepage url of this user.
 
     Returns:
       The homepage url of this user
-    '''
+    """
         return self._url
 
     def SetUrl(self, url):
-        '''Set the homepage url of this user.
+        """Set the homepage url of this user.
 
     Args:
       url: The homepage url of this user
-    '''
+    """
         self._url = url
 
     url = property(GetUrl, SetUrl,
                    doc='The homepage url of this user.')
 
     def GetProfileImageUrl(self):
-        '''Get the url of the thumbnail of this user.
+        """Get the url of the thumbnail of this user.
 
     Returns:
       The url of the thumbnail of this user
-    '''
+    """
         return self._profile_image_url
 
     def SetProfileImageUrl(self, profile_image_url):
-        '''Set the url of the thumbnail of this user.
+        """Set the url of the thumbnail of this user.
 
     Args:
       profile_image_url: The url of the thumbnail of this user
-    '''
+    """
         self._profile_image_url = profile_image_url
 
     profile_image_url = property(GetProfileImageUrl, SetProfileImageUrl,
                                  doc='The url of the thumbnail of this user.')
 
     def GetProfileBackgroundTile(self):
-        '''Boolean for whether to tile the profile background image.
+        """Boolean for whether to tile the profile background image.
 
     Returns:
       True if the background is to be tiled, False if not, None if unset.
-    '''
+    """
         return self._profile_background_tile
 
     def SetProfileBackgroundTile(self, profile_background_tile):
-        '''Set the boolean flag for whether to tile the profile background image.
+        """Set the boolean flag for whether to tile the profile background image.
 
     Args:
       profile_background_tile: Boolean flag for whether to tile or not.
-    '''
+    """
         self._profile_background_tile = profile_background_tile
 
     profile_background_tile = property(GetProfileBackgroundTile, SetProfileBackgroundTile,
@@ -1104,259 +1100,259 @@ class User(object):
     utc_offset = property(GetUtcOffset, SetUtcOffset)
 
     def GetTimeZone(self):
-        '''Returns the current time zone string for the user.
+        """Returns the current time zone string for the user.
 
     Returns:
       The descriptive time zone string for the user.
-    '''
+    """
         return self._time_zone
 
     def SetTimeZone(self, time_zone):
-        '''Sets the user's time zone string.
+        """Sets the user's time zone string.
 
     Args:
       time_zone:
         The descriptive time zone to assign for the user.
-    '''
+    """
         self._time_zone = time_zone
 
     time_zone = property(GetTimeZone, SetTimeZone)
 
     def GetStatus(self):
-        '''Get the latest twitter.Status of this user.
+        """Get the latest twitter.Status of this user.
 
     Returns:
       The latest twitter.Status of this user
-    '''
+    """
         return self._status
 
     def SetStatus(self, status):
-        '''Set the latest twitter.Status of this user.
+        """Set the latest twitter.Status of this user.
 
     Args:
       status:
         The latest twitter.Status of this user
-    '''
+    """
         self._status = status
 
     status = property(GetStatus, SetStatus,
                       doc='The latest twitter.Status of this user.')
 
     def GetFriendsCount(self):
-        '''Get the friend count for this user.
+        """Get the friend count for this user.
 
     Returns:
       The number of users this user has befriended.
-    '''
+    """
         return self._friends_count
 
     def SetFriendsCount(self, count):
-        '''Set the friend count for this user.
+        """Set the friend count for this user.
 
     Args:
       count:
         The number of users this user has befriended.
-    '''
+    """
         self._friends_count = count
 
     friends_count = property(GetFriendsCount, SetFriendsCount,
                              doc='The number of friends for this user.')
 
     def GetListedCount(self):
-        '''Get the listed count for this user.
+        """Get the listed count for this user.
 
     Returns:
       The number of lists this user belongs to.
-    '''
+    """
         return self._listed_count
 
     def SetListedCount(self, count):
-        '''Set the listed count for this user.
+        """Set the listed count for this user.
 
     Args:
       count:
         The number of lists this user belongs to.
-    '''
+    """
         self._listed_count = count
 
     listed_count = property(GetListedCount, SetListedCount,
                             doc='The number of lists this user belongs to.')
 
     def GetFollowersCount(self):
-        '''Get the follower count for this user.
+        """Get the follower count for this user.
 
     Returns:
       The number of users following this user.
-    '''
+    """
         return self._followers_count
 
     def SetFollowersCount(self, count):
-        '''Set the follower count for this user.
+        """Set the follower count for this user.
 
     Args:
       count:
         The number of users following this user.
-    '''
+    """
         self._followers_count = count
 
     followers_count = property(GetFollowersCount, SetFollowersCount,
                                doc='The number of users following this user.')
 
     def GetStatusesCount(self):
-        '''Get the number of status updates for this user.
+        """Get the number of status updates for this user.
 
     Returns:
       The number of status updates for this user.
-    '''
+    """
         return self._statuses_count
 
     def SetStatusesCount(self, count):
-        '''Set the status update count for this user.
+        """Set the status update count for this user.
 
     Args:
       count:
         The number of updates for this user.
-    '''
+    """
         self._statuses_count = count
 
     statuses_count = property(GetStatusesCount, SetStatusesCount,
                               doc='The number of updates for this user.')
 
     def GetFavouritesCount(self):
-        '''Get the number of favourites for this user.
+        """Get the number of favourites for this user.
 
     Returns:
       The number of favourites for this user.
-    '''
+    """
         return self._favourites_count
 
     def SetFavouritesCount(self, count):
-        '''Set the favourite count for this user.
+        """Set the favourite count for this user.
 
     Args:
       count:
         The number of favourites for this user.
-    '''
+    """
         self._favourites_count = count
 
     favourites_count = property(GetFavouritesCount, SetFavouritesCount,
                                 doc='The number of favourites for this user.')
 
     def GetGeoEnabled(self):
-        '''Get the setting of geo_enabled for this user.
+        """Get the setting of geo_enabled for this user.
 
     Returns:
       True/False if Geo tagging is enabled
-    '''
+    """
         return self._geo_enabled
 
     def SetGeoEnabled(self, geo_enabled):
-        '''Set the latest twitter.geo_enabled of this user.
+        """Set the latest twitter.geo_enabled of this user.
 
     Args:
       geo_enabled:
         True/False if Geo tagging is to be enabled
-    '''
+    """
         self._geo_enabled = geo_enabled
 
     geo_enabled = property(GetGeoEnabled, SetGeoEnabled,
                            doc='The value of twitter.geo_enabled for this user.')
 
     def GetVerified(self):
-        '''Get the setting of verified for this user.
+        """Get the setting of verified for this user.
 
     Returns:
       True/False if user is a verified account
-    '''
+    """
         return self._verified
 
     def SetVerified(self, verified):
-        '''Set twitter.verified for this user.
+        """Set twitter.verified for this user.
 
     Args:
       verified:
         True/False if user is a verified account
-    '''
+    """
         self._verified = verified
 
     verified = property(GetVerified, SetVerified,
                         doc='The value of twitter.verified for this user.')
 
     def GetLang(self):
-        '''Get the setting of lang for this user.
+        """Get the setting of lang for this user.
 
     Returns:
       language code of the user
-    '''
+    """
         return self._lang
 
     def SetLang(self, lang):
-        '''Set twitter.lang for this user.
+        """Set twitter.lang for this user.
 
     Args:
       lang:
         language code for the user
-    '''
+    """
         self._lang = lang
 
     lang = property(GetLang, SetLang,
                     doc='The value of twitter.lang for this user.')
 
     def GetNotifications(self):
-        '''Get the setting of notifications for this user.
+        """Get the setting of notifications for this user.
 
     Returns:
       True/False for the notifications setting of the user
-    '''
+    """
         return self._notifications
 
     def SetNotifications(self, notifications):
-        '''Set twitter.notifications for this user.
+        """Set twitter.notifications for this user.
 
     Args:
       notifications:
         True/False notifications setting for the user
-    '''
+    """
         self._notifications = notifications
 
     notifications = property(GetNotifications, SetNotifications,
                              doc='The value of twitter.notifications for this user.')
 
     def GetContributorsEnabled(self):
-        '''Get the setting of contributors_enabled for this user.
+        """Get the setting of contributors_enabled for this user.
 
     Returns:
       True/False contributors_enabled of the user
-    '''
+    """
         return self._contributors_enabled
 
     def SetContributorsEnabled(self, contributors_enabled):
-        '''Set twitter.contributors_enabled for this user.
+        """Set twitter.contributors_enabled for this user.
 
     Args:
       contributors_enabled:
         True/False contributors_enabled setting for the user
-    '''
+    """
         self._contributors_enabled = contributors_enabled
 
     contributors_enabled = property(GetContributorsEnabled, SetContributorsEnabled,
                                     doc='The value of twitter.contributors_enabled for this user.')
 
     def GetCreatedAt(self):
-        '''Get the setting of created_at for this user.
+        """Get the setting of created_at for this user.
 
     Returns:
       created_at value of the user
-    '''
+    """
         return self._created_at
 
     def SetCreatedAt(self, created_at):
-        '''Set twitter.created_at for this user.
+        """Set twitter.created_at for this user.
 
     Args:
       created_at:
         created_at value for the user
-    '''
+    """
         self._created_at = created_at
 
     created_at = property(GetCreatedAt, SetCreatedAt,
@@ -1401,31 +1397,31 @@ class User(object):
             return False
 
     def __str__(self):
-        '''A string representation of this twitter.User instance.
+        """A string representation of this twitter.User instance.
 
     The return value is the same as the JSON string representation.
 
     Returns:
       A string representation of this twitter.User instance.
-    '''
+    """
         return self.AsJsonString()
 
     def AsJsonString(self):
-        '''A JSON string representation of this twitter.User instance.
+        """A JSON string representation of this twitter.User instance.
 
     Returns:
       A JSON string representation of this twitter.User instance
-   '''
+   """
         return simplejson.dumps(self.AsDict(), sort_keys=True)
 
     def AsDict(self):
-        '''A dict representation of this twitter.User instance.
+        """A dict representation of this twitter.User instance.
 
     The return value uses the same key names as the JSON representation.
 
     Return:
       A dict representing this twitter.User instance
-    '''
+    """
         data = {}
         if self.id:
             data['id'] = self.id
@@ -1486,7 +1482,7 @@ class User(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data:
@@ -1494,7 +1490,7 @@ class User(object):
 
     Returns:
       A twitter.User instance
-    '''
+    """
         if 'status' in data:
             status = Status.NewFromJsonDict(data['status'])
         else:
@@ -1530,7 +1526,7 @@ class User(object):
 
 
 class List(object):
-    '''A class representing the List structure used by the twitter API.
+    """A class representing the List structure used by the twitter API.
 
   The List structure exposes the following properties:
 
@@ -1544,7 +1540,7 @@ class List(object):
     list.member_count
     list.subscriber_count
     list.following
-  '''
+  """
 
     def __init__(self,
                  id=None,
@@ -1571,220 +1567,220 @@ class List(object):
         self.user = user
 
     def GetId(self):
-        '''Get the unique id of this list.
+        """Get the unique id of this list.
 
     Returns:
       The unique id of this list
-    '''
+    """
         return self._id
 
     def SetId(self, id):
-        '''Set the unique id of this list.
+        """Set the unique id of this list.
 
     Args:
       id:
         The unique id of this list.
-    '''
+    """
         self._id = id
 
     id = property(GetId, SetId,
                   doc='The unique id of this list.')
 
     def GetName(self):
-        '''Get the real name of this list.
+        """Get the real name of this list.
 
     Returns:
       The real name of this list
-    '''
+    """
         return self._name
 
     def SetName(self, name):
-        '''Set the real name of this list.
+        """Set the real name of this list.
 
     Args:
       name:
         The real name of this list
-    '''
+    """
         self._name = name
 
     name = property(GetName, SetName,
                     doc='The real name of this list.')
 
     def GetSlug(self):
-        '''Get the slug of this list.
+        """Get the slug of this list.
 
     Returns:
       The slug of this list
-    '''
+    """
         return self._slug
 
     def SetSlug(self, slug):
-        '''Set the slug of this list.
+        """Set the slug of this list.
 
     Args:
       slug:
         The slug of this list.
-    '''
+    """
         self._slug = slug
 
     slug = property(GetSlug, SetSlug,
                     doc='The slug of this list.')
 
     def GetDescription(self):
-        '''Get the description of this list.
+        """Get the description of this list.
 
     Returns:
       The description of this list
-    '''
+    """
         return self._description
 
     def SetDescription(self, description):
-        '''Set the description of this list.
+        """Set the description of this list.
 
     Args:
       description:
         The description of this list.
-    '''
+    """
         self._description = description
 
     description = property(GetDescription, SetDescription,
                            doc='The description of this list.')
 
     def GetFull_name(self):
-        '''Get the full_name of this list.
+        """Get the full_name of this list.
 
     Returns:
       The full_name of this list
-    '''
+    """
         return self._full_name
 
     def SetFull_name(self, full_name):
-        '''Set the full_name of this list.
+        """Set the full_name of this list.
 
     Args:
       full_name:
         The full_name of this list.
-    '''
+    """
         self._full_name = full_name
 
     full_name = property(GetFull_name, SetFull_name,
                          doc='The full_name of this list.')
 
     def GetMode(self):
-        '''Get the mode of this list.
+        """Get the mode of this list.
 
     Returns:
       The mode of this list
-    '''
+    """
         return self._mode
 
     def SetMode(self, mode):
-        '''Set the mode of this list.
+        """Set the mode of this list.
 
     Args:
       mode:
         The mode of this list.
-    '''
+    """
         self._mode = mode
 
     mode = property(GetMode, SetMode,
                     doc='The mode of this list.')
 
     def GetUri(self):
-        '''Get the uri of this list.
+        """Get the uri of this list.
 
     Returns:
       The uri of this list
-    '''
+    """
         return self._uri
 
     def SetUri(self, uri):
-        '''Set the uri of this list.
+        """Set the uri of this list.
 
     Args:
       uri:
         The uri of this list.
-    '''
+    """
         self._uri = uri
 
     uri = property(GetUri, SetUri,
                    doc='The uri of this list.')
 
     def GetMember_count(self):
-        '''Get the member_count of this list.
+        """Get the member_count of this list.
 
     Returns:
       The member_count of this list
-    '''
+    """
         return self._member_count
 
     def SetMember_count(self, member_count):
-        '''Set the member_count of this list.
+        """Set the member_count of this list.
 
     Args:
       member_count:
         The member_count of this list.
-    '''
+    """
         self._member_count = member_count
 
     member_count = property(GetMember_count, SetMember_count,
                             doc='The member_count of this list.')
 
     def GetSubscriber_count(self):
-        '''Get the subscriber_count of this list.
+        """Get the subscriber_count of this list.
 
     Returns:
       The subscriber_count of this list
-    '''
+    """
         return self._subscriber_count
 
     def SetSubscriber_count(self, subscriber_count):
-        '''Set the subscriber_count of this list.
+        """Set the subscriber_count of this list.
 
     Args:
       subscriber_count:
         The subscriber_count of this list.
-    '''
+    """
         self._subscriber_count = subscriber_count
 
     subscriber_count = property(GetSubscriber_count, SetSubscriber_count,
                                 doc='The subscriber_count of this list.')
 
     def GetFollowing(self):
-        '''Get the following status of this list.
+        """Get the following status of this list.
 
     Returns:
       The following status of this list
-    '''
+    """
         return self._following
 
     def SetFollowing(self, following):
-        '''Set the following status of this list.
+        """Set the following status of this list.
 
     Args:
       following:
         The following of this list.
-    '''
+    """
         self._following = following
 
     following = property(GetFollowing, SetFollowing,
                          doc='The following status of this list.')
 
     def GetUser(self):
-        '''Get the user of this list.
+        """Get the user of this list.
 
     Returns:
       The owner of this list
-    '''
+    """
         return self._user
 
     def SetUser(self, user):
-        '''Set the user of this list.
+        """Set the user of this list.
 
     Args:
       user:
         The owner of this list.
-    '''
+    """
         self._user = user
 
     user = property(GetUser, SetUser,
@@ -1812,31 +1808,31 @@ class List(object):
             return False
 
     def __str__(self):
-        '''A string representation of this twitter.List instance.
+        """A string representation of this twitter.List instance.
 
     The return value is the same as the JSON string representation.
 
     Returns:
       A string representation of this twitter.List instance.
-    '''
+    """
         return self.AsJsonString()
 
     def AsJsonString(self):
-        '''A JSON string representation of this twitter.List instance.
+        """A JSON string representation of this twitter.List instance.
 
     Returns:
       A JSON string representation of this twitter.List instance
-   '''
+   """
         return simplejson.dumps(self.AsDict(), sort_keys=True)
 
     def AsDict(self):
-        '''A dict representation of this twitter.List instance.
+        """A dict representation of this twitter.List instance.
 
     The return value uses the same key names as the JSON representation.
 
     Return:
       A dict representing this twitter.List instance
-    '''
+    """
         data = {}
         if self.id:
             data['id'] = self.id
@@ -1864,7 +1860,7 @@ class List(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data:
@@ -1872,7 +1868,7 @@ class List(object):
 
     Returns:
       A twitter.List instance
-    '''
+    """
         if 'user' in data:
             user = User.NewFromJsonDict(data['user'])
         else:
@@ -1891,7 +1887,7 @@ class List(object):
 
 
 class DirectMessage(object):
-    '''A class representing the DirectMessage structure used by the twitter API.
+    """A class representing the DirectMessage structure used by the twitter API.
 
   The DirectMessage structure exposes the following properties:
 
@@ -1903,7 +1899,7 @@ class DirectMessage(object):
     direct_message.recipient_id
     direct_message.recipient_screen_name
     direct_message.text
-  '''
+  """
 
     def __init__(self,
                  id=None,
@@ -1913,7 +1909,7 @@ class DirectMessage(object):
                  recipient_id=None,
                  recipient_screen_name=None,
                  text=None):
-        '''An object to hold a Twitter direct message.
+        """An object to hold a Twitter direct message.
 
     This class is normally instantiated by the twitter.Api class and
     returned in a sequence.
@@ -1935,7 +1931,7 @@ class DirectMessage(object):
         The name of the twitter that received this message. [Optional]
       text:
         The text of this direct message. [Optional]
-    '''
+    """
         self.id = id
         self.created_at = created_at
         self.sender_id = sender_id
@@ -1945,51 +1941,51 @@ class DirectMessage(object):
         self.text = text
 
     def GetId(self):
-        '''Get the unique id of this direct message.
+        """Get the unique id of this direct message.
 
     Returns:
       The unique id of this direct message
-    '''
+    """
         return self._id
 
     def SetId(self, id):
-        '''Set the unique id of this direct message.
+        """Set the unique id of this direct message.
 
     Args:
       id:
         The unique id of this direct message
-    '''
+    """
         self._id = id
 
     id = property(GetId, SetId,
                   doc='The unique id of this direct message.')
 
     def GetCreatedAt(self):
-        '''Get the time this direct message was posted.
+        """Get the time this direct message was posted.
 
     Returns:
       The time this direct message was posted
-    '''
+    """
         return self._created_at
 
     def SetCreatedAt(self, created_at):
-        '''Set the time this direct message was posted.
+        """Set the time this direct message was posted.
 
     Args:
       created_at:
         The time this direct message was created
-    '''
+    """
         self._created_at = created_at
 
     created_at = property(GetCreatedAt, SetCreatedAt,
                           doc='The time this direct message was posted.')
 
     def GetCreatedAtInSeconds(self):
-        '''Get the time this direct message was posted, in seconds since the epoch.
+        """Get the time this direct message was posted, in seconds since the epoch.
 
     Returns:
       The time this direct message was posted, in seconds since the epoch.
-    '''
+    """
         return calendar.timegm(email.utils.parsedate(self.created_at))
 
     created_at_in_seconds = property(GetCreatedAtInSeconds,
@@ -1997,100 +1993,100 @@ class DirectMessage(object):
                                          "posted, in seconds since the epoch")
 
     def GetSenderId(self):
-        '''Get the unique sender id of this direct message.
+        """Get the unique sender id of this direct message.
 
     Returns:
       The unique sender id of this direct message
-    '''
+    """
         return self._sender_id
 
     def SetSenderId(self, sender_id):
-        '''Set the unique sender id of this direct message.
+        """Set the unique sender id of this direct message.
 
     Args:
       sender_id:
         The unique sender id of this direct message
-    '''
+    """
         self._sender_id = sender_id
 
     sender_id = property(GetSenderId, SetSenderId,
                          doc='The unique sender id of this direct message.')
 
     def GetSenderScreenName(self):
-        '''Get the unique sender screen name of this direct message.
+        """Get the unique sender screen name of this direct message.
 
     Returns:
       The unique sender screen name of this direct message
-    '''
+    """
         return self._sender_screen_name
 
     def SetSenderScreenName(self, sender_screen_name):
-        '''Set the unique sender screen name of this direct message.
+        """Set the unique sender screen name of this direct message.
 
     Args:
       sender_screen_name:
         The unique sender screen name of this direct message
-    '''
+    """
         self._sender_screen_name = sender_screen_name
 
     sender_screen_name = property(GetSenderScreenName, SetSenderScreenName,
                                   doc='The unique sender screen name of this direct message.')
 
     def GetRecipientId(self):
-        '''Get the unique recipient id of this direct message.
+        """Get the unique recipient id of this direct message.
 
     Returns:
       The unique recipient id of this direct message
-    '''
+    """
         return self._recipient_id
 
     def SetRecipientId(self, recipient_id):
-        '''Set the unique recipient id of this direct message.
+        """Set the unique recipient id of this direct message.
 
     Args:
       recipient_id:
         The unique recipient id of this direct message
-    '''
+    """
         self._recipient_id = recipient_id
 
     recipient_id = property(GetRecipientId, SetRecipientId,
                             doc='The unique recipient id of this direct message.')
 
     def GetRecipientScreenName(self):
-        '''Get the unique recipient screen name of this direct message.
+        """Get the unique recipient screen name of this direct message.
 
     Returns:
       The unique recipient screen name of this direct message
-    '''
+    """
         return self._recipient_screen_name
 
     def SetRecipientScreenName(self, recipient_screen_name):
-        '''Set the unique recipient screen name of this direct message.
+        """Set the unique recipient screen name of this direct message.
 
     Args:
       recipient_screen_name:
         The unique recipient screen name of this direct message
-    '''
+    """
         self._recipient_screen_name = recipient_screen_name
 
     recipient_screen_name = property(GetRecipientScreenName, SetRecipientScreenName,
                                      doc='The unique recipient screen name of this direct message.')
 
     def GetText(self):
-        '''Get the text of this direct message.
+        """Get the text of this direct message.
 
     Returns:
       The text of this direct message.
-    '''
+    """
         return self._text
 
     def SetText(self, text):
-        '''Set the text of this direct message.
+        """Set the text of this direct message.
 
     Args:
       text:
         The text of this direct message
-    '''
+    """
         self._text = text
 
     text = property(GetText, SetText,
@@ -2113,31 +2109,31 @@ class DirectMessage(object):
             return False
 
     def __str__(self):
-        '''A string representation of this twitter.DirectMessage instance.
+        """A string representation of this twitter.DirectMessage instance.
 
     The return value is the same as the JSON string representation.
 
     Returns:
       A string representation of this twitter.DirectMessage instance.
-    '''
+    """
         return self.AsJsonString()
 
     def AsJsonString(self):
-        '''A JSON string representation of this twitter.DirectMessage instance.
+        """A JSON string representation of this twitter.DirectMessage instance.
 
     Returns:
       A JSON string representation of this twitter.DirectMessage instance
-   '''
+   """
         return simplejson.dumps(self.AsDict(), sort_keys=True)
 
     def AsDict(self):
-        '''A dict representation of this twitter.DirectMessage instance.
+        """A dict representation of this twitter.DirectMessage instance.
 
     The return value uses the same key names as the JSON representation.
 
     Return:
       A dict representing this twitter.DirectMessage instance
-    '''
+    """
         data = {}
         if self.id:
             data['id'] = self.id
@@ -2157,7 +2153,7 @@ class DirectMessage(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data:
@@ -2165,7 +2161,7 @@ class DirectMessage(object):
 
     Returns:
       A twitter.DirectMessage instance
-    '''
+    """
         return DirectMessage(created_at=data.get('created_at', None),
                              recipient_id=data.get('recipient_id', None),
                              sender_id=data.get('sender_id', None),
@@ -2176,8 +2172,8 @@ class DirectMessage(object):
 
 
 class Hashtag(object):
-    ''' A class representing a twitter hashtag
-  '''
+    """ A class representing a twitter hashtag
+  """
 
     def __init__(self,
                  text=None):
@@ -2185,7 +2181,7 @@ class Hashtag(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data:
@@ -2193,13 +2189,13 @@ class Hashtag(object):
 
     Returns:
       A twitter.Hashtag instance
-    '''
+    """
         return Hashtag(text=data.get('text', None))
 
 
 class Trend(object):
-    ''' A class representing a trending topic
-  '''
+    """ A class representing a trending topic
+  """
 
     def __init__(self, name=None, query=None, timestamp=None, url=None):
         self.name = name
@@ -2226,7 +2222,7 @@ class Trend(object):
 
     @staticmethod
     def NewFromJsonDict(data, timestamp=None):
-        '''Create a new instance based on a JSON dict
+        """Create a new instance based on a JSON dict
 
     Args:
       data:
@@ -2236,7 +2232,7 @@ class Trend(object):
 
     Returns:
       A twitter.Trend object
-    '''
+    """
         return Trend(name=data.get('name', None),
                      query=data.get('query', None),
                      url=data.get('url', None),
@@ -2244,7 +2240,7 @@ class Trend(object):
 
 
 class Url(object):
-    '''A class representing an URL contained in a tweet'''
+    """A class representing an URL contained in a tweet"""
 
     def __init__(self,
                  url=None,
@@ -2254,7 +2250,7 @@ class Url(object):
 
     @staticmethod
     def NewFromJsonDict(data):
-        '''Create a new instance based on a JSON dict.
+        """Create a new instance based on a JSON dict.
 
     Args:
       data:
@@ -2262,13 +2258,13 @@ class Url(object):
 
     Returns:
       A twitter.Url instance
-    '''
+    """
         return Url(url=data.get('url', None),
                    expanded_url=data.get('expanded_url', None))
 
 
 class Api(object):
-    '''A python interface into the Twitter API
+    """A python interface into the Twitter API
 
   By default, the Api caches results for 1 minute.
 
@@ -2332,7 +2328,7 @@ class Api(object):
       >>> api.CreateFriendship(user)
       >>> api.GetUserByEmail(email)
       >>> api.VerifyCredentials()
-  '''
+  """
 
     DEFAULT_CACHE_TIMEOUT = 60  # cache for 1 minute
     _API_REALM = 'Twitter API'
@@ -2349,7 +2345,7 @@ class Api(object):
                  base_url=None,
                  use_gzip_compression=False,
                  debugHTTP=False):
-        '''Instantiate a new twitter.Api object.
+        """Instantiate a new twitter.Api object.
 
     Args:
       consumer_key:
@@ -2381,7 +2377,7 @@ class Api(object):
       debugHTTP:
         Set to True to enable debug output from urllib2 when performing
         any HTTP requests.  Defaults to False. [Optional]
-    '''
+    """
 
         self.SetCache(cache)
         self._urllib = urllib.request
@@ -2415,7 +2411,7 @@ class Api(object):
                        consumer_secret,
                        access_token_key=None,
                        access_token_secret=None):
-        '''Set the consumer_key and consumer_secret for this instance
+        """Set the consumer_key and consumer_secret for this instance
 
     Args:
       consumer_key:
@@ -2428,7 +2424,7 @@ class Api(object):
       access_token_secret:
         The oAuth access token's secret, also retrieved
         from the get_access_token.py run.
-    '''
+    """
         self._consumer_key = consumer_key
         self._consumer_secret = consumer_secret
         self._access_token_key = access_token_key
@@ -2444,8 +2440,8 @@ class Api(object):
             self._oauth_consumer = oauth.Consumer(key=consumer_key, secret=consumer_secret)
 
     def ClearCredentials(self):
-        '''Clear the any credentials for this instance
-    '''
+        """Clear the any credentials for this instance
+    """
         self._consumer_key = None
         self._consumer_secret = None
         self._access_token_key = None
@@ -2463,7 +2459,7 @@ class Api(object):
                   locale=None,
                   result_type="mixed",
                   include_entities=None):
-        '''Return twitter search results for a given term.
+        """Return twitter search results for a given term.
 
     Args:
       term:
@@ -2504,7 +2500,7 @@ class Api(object):
     Returns:
       A sequence of twitter.Status instances, one for each message containing
       the term
-    '''
+    """
         # Build request parameters
         parameters = {}
 
@@ -2562,7 +2558,7 @@ class Api(object):
                        page=1,
                        count=20,
                        include_entities=None):
-        '''Return twitter user search results for a given term.
+        """Return twitter user search results for a given term.
 
     Args:
       term:
@@ -2582,7 +2578,7 @@ class Api(object):
     Returns:
       A sequence of twitter.User instances, one for each message containing
       the term
-    '''
+    """
         # Build request parameters
         parameters = {}
 
@@ -2604,7 +2600,7 @@ class Api(object):
         return [User.NewFromJsonDict(x) for x in data]
 
     def GetTrendsCurrent(self, exclude=None):
-        '''Get the current top trending topics (global)
+        """Get the current top trending topics (global)
 
     Args:
       exclude:
@@ -2613,11 +2609,11 @@ class Api(object):
 
     Returns:
       A list with 10 entries. Each entry contains a trend.
-    '''
+    """
         return self.GetTrendsWoeid(id=1, exclude=exclude)
 
     def GetTrendsWoeid(self, id, exclude=None):
-        '''Return the top 10 trending topics for a specific WOEID, if trending
+        """Return the top 10 trending topics for a specific WOEID, if trending
     information is available for it.
 
     Args:
@@ -2629,7 +2625,7 @@ class Api(object):
 
     Returns:
       A list with 10 entries. Each entry contains a trend.
-    '''
+    """
         url = '%s/trends/place.json' % (self.base_url)
         parameters = {'id': id}
 
@@ -2654,7 +2650,7 @@ class Api(object):
                         exclude_replies=False,
                         contributor_details=False,
                         include_entities=True):
-        '''
+        """
     Fetch a collection of the most recent Tweets and retweets posted by the
     authenticating user and the users they follow.
 
@@ -2700,7 +2696,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.Status instances, one for each message
-    '''
+    """
         url = '%s/statuses/home_timeline.json' % self.base_url
 
         if not self._oauth_consumer:
@@ -2744,7 +2740,7 @@ class Api(object):
                         include_rts=None,
                         trim_user=None,
                         exclude_replies=None):
-        '''Fetch the sequence of public Status messages for a single user.
+        """Fetch the sequence of public Status messages for a single user.
 
     The twitter.Api instance must be authenticated if the user is private.
 
@@ -2785,7 +2781,7 @@ class Api(object):
 
     Returns:
       A sequence of Status instances, one for each message up to count
-    '''
+    """
         parameters = {}
 
         url = '%s/statuses/user_timeline.json' % (self.base_url)
@@ -2831,7 +2827,7 @@ class Api(object):
                   trim_user=False,
                   include_my_retweet=True,
                   include_entities=True):
-        '''Returns a single status message, specified by the id parameter.
+        """Returns a single status message, specified by the id parameter.
 
     The twitter.Api instance must be authenticated.
 
@@ -2855,7 +2851,7 @@ class Api(object):
         hashtags. [Optional]
     Returns:
       A twitter.Status instance representing that status message
-    '''
+    """
         url = '%s/statuses/show.json' % (self.base_url)
 
         if not self._oauth_consumer:
@@ -2880,7 +2876,7 @@ class Api(object):
         return Status.NewFromJsonDict(data)
 
     def DestroyStatus(self, id, trim_user=False):
-        '''Destroys the status specified by the required ID parameter.
+        """Destroys the status specified by the required ID parameter.
 
     The twitter.Api instance must be authenticated and the
     authenticating user must be the author of the specified status.
@@ -2891,7 +2887,7 @@ class Api(object):
 
     Returns:
       A twitter.Status instance representing the destroyed status message
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("API must be authenticated.")
 
@@ -2918,7 +2914,7 @@ class Api(object):
 
     def PostUpdate(self, status, in_reply_to_status_id=None, latitude=None, longitude=None, place_id=None,
                    display_coordinates=False, trim_user=False):
-        '''Post a twitter status message from the authenticated user.
+        """Post a twitter status message from the authenticated user.
 
     The twitter.Api instance must be authenticated.
 
@@ -2956,7 +2952,7 @@ class Api(object):
         [Optional]
     Returns:
       A twitter.Status instance representing the message posted.
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
 
@@ -2989,7 +2985,7 @@ class Api(object):
         return Status.NewFromJsonDict(data)
 
     def PostUpdates(self, status, continuation=None, **kwargs):
-        '''Post one or more twitter status messages from the authenticated user.
+        """Post one or more twitter status messages from the authenticated user.
 
     Unlike api.PostUpdate, this method will post multiple status updates
     if the message is longer than 140 characters.
@@ -3010,7 +3006,7 @@ class Api(object):
 
     Returns:
       A of list twitter.Status instance representing the messages posted.
-    '''
+    """
         results = list()
         if continuation is None:
             continuation = ''
@@ -3022,7 +3018,7 @@ class Api(object):
         return results
 
     def PostRetweet(self, original_id, trim_user=False):
-        '''Retweet a tweet with the Retweet API.
+        """Retweet a tweet with the Retweet API.
 
     The twitter.Api instance must be authenticated.
 
@@ -3036,7 +3032,7 @@ class Api(object):
 
     Returns:
       A twitter.Status instance representing the original tweet with retweet details embedded.
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
 
@@ -3056,7 +3052,7 @@ class Api(object):
         return Status.NewFromJsonDict(data)
 
     def GetUserRetweets(self, count=None, since_id=None, max_id=None, trim_user=False):
-        '''Fetch the sequence of retweets made by the authenticated user.
+        """Fetch the sequence of retweets made by the authenticated user.
 
     The twitter.Api instance must be authenticated.
 
@@ -3079,12 +3075,12 @@ class Api(object):
 
     Returns:
       A sequence of twitter.Status instances, one for each message up to count
-    '''
+    """
         return self.GetUserTimeline(since_id=since_id, count=count, max_id=max_id, trim_user=trim_user,
                                     exclude_replies=True, include_rts=True)
 
     def GetReplies(self, since_id=None, count=None, max_id=None, trim_user=False):
-        '''Get a sequence of status messages representing the 20 most
+        """Get a sequence of status messages representing the 20 most
     recent replies (status updates prefixed with @twitterID) to the
     authenticating user.
 
@@ -3105,12 +3101,12 @@ class Api(object):
 
     Returns:
       A sequence of twitter.Status instances, one for each reply to the user.
-    '''
+    """
         return self.GetUserTimeline(since_id=since_id, count=count, max_id=max_id, trim_user=trim_user,
                                     exclude_replies=False, include_rts=False)
 
     def GetRetweets(self, statusid, count=None, trim_user=False):
-        '''Returns up to 100 of the first retweets of the tweet identified
+        """Returns up to 100 of the first retweets of the tweet identified
     by statusid
 
     Args:
@@ -3125,7 +3121,7 @@ class Api(object):
 
     Returns:
       A list of twitter.Status instances, which are retweets of statusid
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instsance must be authenticated.")
         url = '%s/statuses/retweets/%s.json' % (self.base_url, statusid)
@@ -3148,7 +3144,7 @@ class Api(object):
                         trim_user=False,
                         include_entities=True,
                         include_user_entities=True):
-        '''Returns up to 100 of the most recent tweets of the user that have been
+        """Returns up to 100 of the most recent tweets of the user that have been
     retweeted by others.
 
     Args:
@@ -3165,7 +3161,7 @@ class Api(object):
         When True, the tweet entities will be included.
       include_user_entities:
         When True, the user entities will be included.
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
         url = '%s/statuses/retweets_of_me.json' % self.base_url
@@ -3193,7 +3189,7 @@ class Api(object):
         return [Status.NewFromJsonDict(s) for s in data]
 
     def GetFriends(self, user_id=None, screen_name=None, cursor=-1, skip_status=False, include_user_entities=False):
-        '''Fetch the sequence of twitter.User instances, one for each friend.
+        """Fetch the sequence of twitter.User instances, one for each friend.
 
     The twitter.Api instance must be authenticated.
 
@@ -3215,7 +3211,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.User instances, one for each friend
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
         url = '%s/friends/list.json' % self.base_url
@@ -3244,7 +3240,7 @@ class Api(object):
         return result
 
     def GetFriendIDs(self, user_id=None, screen_name=None, cursor=-1, stringify_ids=False, count=None):
-        '''Returns a list of twitter user id's for every person
+        """Returns a list of twitter user id's for every person
       the specified user is following.
 
       Args:
@@ -3266,7 +3262,7 @@ class Api(object):
 
       Returns:
         A list of integers, one for each user id.
-      '''
+      """
         url = '%s/friends/ids.json' % self.base_url
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
@@ -3296,7 +3292,7 @@ class Api(object):
 
     def GetFollowerIDs(self, user_id=None, screen_name=None, cursor=-1, stringify_ids=False, count=None,
                        total_count=None):
-        '''Returns a list of twitter user id's for every person
+        """Returns a list of twitter user id's for every person
       that is following the specified user.
 
       Args:
@@ -3327,7 +3323,7 @@ class Api(object):
 
       Returns:
         A list of integers, one for each user id.
-      '''
+      """
         url = '%s/followers/ids.json' % self.base_url
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
@@ -3361,7 +3357,7 @@ class Api(object):
         return result
 
     def GetFollowers(self, user_id=None, screen_name=None, cursor=-1, skip_status=False, include_user_entities=False):
-        '''Fetch the sequence of twitter.User instances, one for each follower
+        """Fetch the sequence of twitter.User instances, one for each follower
 
     The twitter.Api instance must be authenticated.
 
@@ -3383,7 +3379,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.User instances, one for each follower
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
         url = '%s/followers/list.json' % self.base_url
@@ -3412,7 +3408,7 @@ class Api(object):
         return result
 
     def UsersLookup(self, user_id=None, screen_name=None, users=None, include_entities=True):
-        '''Fetch extended information for the specified users.
+        """Fetch extended information for the specified users.
 
     Users may be specified either as lists of either user_ids,
     screen_names, or twitter.User objects. The list of users that
@@ -3437,7 +3433,7 @@ class Api(object):
 
     Returns:
       A list of twitter.User objects for the requested users
-    '''
+    """
 
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
@@ -3470,7 +3466,7 @@ class Api(object):
         return [User.NewFromJsonDict(u) for u in data]
 
     def GetUser(self, user_id=None, screen_name=None, include_entities=True):
-        '''Returns a single user.
+        """Returns a single user.
 
     The twitter.Api instance must be authenticated.
 
@@ -3489,7 +3485,7 @@ class Api(object):
 
     Returns:
       A twitter.User instance representing that user
-    '''
+    """
         url = '%s/users/show.json' % (self.base_url)
         parameters = {}
 
@@ -3511,7 +3507,7 @@ class Api(object):
         return User.NewFromJsonDict(data)
 
     def GetDirectMessages(self, since_id=None, max_id=None, count=None, include_entities=True, skip_status=False):
-        '''Returns a list of the direct messages sent to the authenticating user.
+        """Returns a list of the direct messages sent to the authenticating user.
 
     The twitter.Api instance must be authenticated.
 
@@ -3539,7 +3535,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.DirectMessage instances
-    '''
+    """
         url = '%s/direct_messages.json' % self.base_url
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
@@ -3562,7 +3558,7 @@ class Api(object):
         return [DirectMessage.NewFromJsonDict(x) for x in data]
 
     def GetSentDirectMessages(self, since_id=None, max_id=None, count=None, page=None, include_entities=True):
-        '''Returns a list of the direct messages sent by the authenticating user.
+        """Returns a list of the direct messages sent by the authenticating user.
 
     The twitter.Api instance must be authenticated.
 
@@ -3590,7 +3586,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.DirectMessage instances
-    '''
+    """
         url = '%s/direct_messages/sent.json' % self.base_url
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
@@ -3613,7 +3609,7 @@ class Api(object):
         return [DirectMessage.NewFromJsonDict(x) for x in data]
 
     def PostDirectMessage(self, text, user_id=None, screen_name=None):
-        '''Post a twitter direct message from the authenticated user
+        """Post a twitter direct message from the authenticated user
 
     The twitter.Api instance must be authenticated. user_id or screen_name
     must be specified.
@@ -3629,7 +3625,7 @@ class Api(object):
 
     Returns:
       A twitter.DirectMessage instance representing the message posted
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
         url = '%s/direct_messages/new.json' % self.base_url
@@ -3645,7 +3641,7 @@ class Api(object):
         return DirectMessage.NewFromJsonDict(data)
 
     def DestroyDirectMessage(self, id, include_entities=True):
-        '''Destroys the direct message specified in the required ID parameter.
+        """Destroys the direct message specified in the required ID parameter.
 
     The twitter.Api instance must be authenticated, and the
     authenticating user must be the recipient of the specified direct
@@ -3656,7 +3652,7 @@ class Api(object):
 
     Returns:
       A twitter.DirectMessage instance representing the message destroyed
-    '''
+    """
         url = '%s/direct_messages/destroy.json' % self.base_url
         data = {'id': id}
         if not include_entities:
@@ -3666,7 +3662,7 @@ class Api(object):
         return DirectMessage.NewFromJsonDict(data)
 
     def CreateFriendship(self, user_id=None, screen_name=None, follow=True):
-        '''Befriends the user specified by the user_id or screen_name.
+        """Befriends the user specified by the user_id or screen_name.
 
     The twitter.Api instance must be authenticated.
 
@@ -3679,7 +3675,7 @@ class Api(object):
         Set to False to disable notifications for the target user
     Returns:
       A twitter.User instance representing the befriended user.
-    '''
+    """
         url = '%s/friendships/create.json' % (self.base_url)
         data = {}
         if user_id:
@@ -3697,7 +3693,7 @@ class Api(object):
         return User.NewFromJsonDict(data)
 
     def DestroyFriendship(self, user_id=None, screen_name=None):
-        '''Discontinues friendship with a user_id or screen_name.
+        """Discontinues friendship with a user_id or screen_name.
 
     The twitter.Api instance must be authenticated.
 
@@ -3708,7 +3704,7 @@ class Api(object):
         A screen_name to unfollow [Optional]
     Returns:
       A twitter.User instance representing the discontinued friend.
-    '''
+    """
         url = '%s/friendships/destroy.json' % self.base_url
         data = {}
         if user_id:
@@ -3722,7 +3718,7 @@ class Api(object):
         return User.NewFromJsonDict(data)
 
     def CreateFavorite(self, status=None, id=None, include_entities=True):
-        '''Favorites the specified status object or id as the authenticating user.
+        """Favorites the specified status object or id as the authenticating user.
     Returns the favorite status when successful.
 
     The twitter.Api instance must be authenticated.
@@ -3738,7 +3734,7 @@ class Api(object):
         The entities node will be omitted when set to False.
     Returns:
       A twitter.Status instance representing the newly-marked favorite.
-    '''
+    """
         url = '%s/favorites/create.json' % self.base_url
         data = {}
         if id:
@@ -3754,7 +3750,7 @@ class Api(object):
         return Status.NewFromJsonDict(data)
 
     def DestroyFavorite(self, status=None, id=None, include_entities=True):
-        '''Un-Favorites the specified status object or id as the authenticating user.
+        """Un-Favorites the specified status object or id as the authenticating user.
     Returns the un-favorited status when successful.
 
     The twitter.Api instance must be authenticated.
@@ -3770,7 +3766,7 @@ class Api(object):
         The entities node will be omitted when set to False.
     Returns:
       A twitter.Status instance representing the newly-unmarked favorite.
-    '''
+    """
         url = '%s/favorites/destroy.json' % self.base_url
         data = {}
         if id:
@@ -3792,18 +3788,18 @@ class Api(object):
                      since_id=None,
                      max_id=None,
                      include_entities=True):
-        '''Return a list of Status objects representing favorited tweets.
-    By default, returns the (up to) 20 most recent tweets for the
-    authenticated user.
+        """Return a list of Status objects representing favorited tweets.
+        By default, returns the (up to) 20 most recent tweets for the
+        authenticated user.
 
-    Args:
-      user:
-        The twitter name or id of the user whose favorites you are fetching.
-        If not specified, defaults to the authenticated user. [Optional]
-      page:
-        Specifies the page of results to retrieve.
-        Note: there are pagination limits. [Optional]
-    '''
+        Args:
+        user:
+            The twitter name or id of the user whose favorites you are fetching.
+            If not specified, defaults to the authenticated user. [Optional]
+        page:
+            Specifies the page of results to retrieve.
+            Note: there are pagination limits. [Optional]
+        """
         parameters = {}
 
         url = '%s/favorites/list.json' % self.base_url
@@ -3845,7 +3841,7 @@ class Api(object):
                     trim_user=False,
                     contributor_details=False,
                     include_entities=True):
-        '''Returns the 20 most recent mentions (status containing @screen_name)
+        """Returns the 20 most recent mentions (status containing @screen_name)
     for the authenticating user.
 
     Args:
@@ -3876,7 +3872,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.Status instances, one for each mention of the user.
-    '''
+    """
 
         url = '%s/statuses/mentions_timeline.json' % self.base_url
 
@@ -3912,7 +3908,7 @@ class Api(object):
         return [Status.NewFromJsonDict(x) for x in data]
 
     def CreateList(self, name, mode=None, description=None):
-        '''Creates a new list with the give name for the authenticated user.
+        """Creates a new list with the give name for the authenticated user.
 
     The twitter.Api instance must be authenticated.
 
@@ -3927,7 +3923,7 @@ class Api(object):
 
     Returns:
       A twitter.List instance representing the new list
-    '''
+    """
         url = '%s/lists/create.json' % self.base_url
 
         if not self._oauth_consumer:
@@ -3946,7 +3942,7 @@ class Api(object):
                     owner_id=False,
                     list_id=None,
                     slug=None):
-        '''
+        """
     Destroys the list identified by list_id or owner_screen_name/owner_id and
     slug.
 
@@ -3965,7 +3961,7 @@ class Api(object):
         using the owner_id or owner_screen_name parameters.
     Returns:
       A twitter.List instance representing the removed list.
-    '''
+    """
         url = '%s/lists/destroy.json' % self.base_url
         data = {}
         if list_id:
@@ -3996,7 +3992,7 @@ class Api(object):
                            owner_id=False,
                            list_id=None,
                            slug=None):
-        '''Creates a subscription to a list by the authenticated user
+        """Creates a subscription to a list by the authenticated user
 
     The twitter.Api instance must be authenticated.
 
@@ -4013,7 +4009,7 @@ class Api(object):
         using the owner_id or owner_screen_name parameters.
     Returns:
       A twitter.List instance representing the list subscribed to
-    '''
+    """
         url = '%s/lists/subscribers/create.json' % (self.base_url)
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
@@ -4045,7 +4041,7 @@ class Api(object):
                             owner_id=False,
                             list_id=None,
                             slug=None):
-        '''Destroys the subscription to a list for the authenticated user
+        """Destroys the subscription to a list for the authenticated user
 
     The twitter.Api instance must be authenticated.
 
@@ -4062,7 +4058,7 @@ class Api(object):
         using the owner_id or owner_screen_name parameters.
     Returns:
       A twitter.List instance representing the removed list.
-    '''
+    """
         url = '%s/lists/subscribers/destroy.json' % (self.base_url)
         if not self._oauth_consumer:
             raise TwitterError("The twitter.Api instance must be authenticated.")
@@ -4090,7 +4086,7 @@ class Api(object):
         return List.NewFromJsonDict(data)
 
     def GetSubscriptions(self, user_id=None, screen_name=None, count=20, cursor=-1):
-        '''
+        """
     Obtain a collection of the lists the specified user is subscribed to, 20
     lists per page by default. Does not include the user's own lists.
 
@@ -4113,7 +4109,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.List instances, one for each list
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
 
@@ -4145,7 +4141,7 @@ class Api(object):
         return [List.NewFromJsonDict(x) for x in data['lists']]
 
     def GetLists(self, user_id=None, screen_name=None, count=None, cursor=-1):
-        '''Fetch the sequence of lists for a user.
+        """Fetch the sequence of lists for a user.
 
     The twitter.Api instance must be authenticated.
 
@@ -4167,7 +4163,7 @@ class Api(object):
 
     Returns:
       A sequence of twitter.List instances, one for each list
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("twitter.Api instance must be authenticated")
 
@@ -4201,12 +4197,12 @@ class Api(object):
         return result
 
     def VerifyCredentials(self):
-        '''Returns a twitter.User instance if the authenticating user is valid.
+        """Returns a twitter.User instance if the authenticating user is valid.
 
     Returns:
       A twitter.User instance representing that user if the
       credentials are valid, None otherwise.
-    '''
+    """
         if not self._oauth_consumer:
             raise TwitterError("Api instance must first be given user credentials.")
         url = '%s/account/verify_credentials.json' % self.base_url
@@ -4221,46 +4217,46 @@ class Api(object):
         return User.NewFromJsonDict(data)
 
     def SetCache(self, cache):
-        '''Override the default cache.  Set to None to prevent caching.
+        """Override the default cache.  Set to None to prevent caching.
 
     Args:
       cache:
         An instance that supports the same API as the twitter._FileCache
-    '''
+    """
         if cache == DEFAULT_CACHE:
             self._cache = _FileCache()
         else:
             self._cache = cache
 
     def SetUrllib(self, urllib):
-        '''Override the default urllib implementation.
+        """Override the default urllib implementation.
 
     Args:
       urllib:
         An instance that supports the same API as the urllib2 module
-    '''
+    """
         self._urllib = urllib
 
     def SetCacheTimeout(self, cache_timeout):
-        '''Override the default cache timeout.
+        """Override the default cache timeout.
 
     Args:
       cache_timeout:
         Time, in seconds, that responses should be reused.
-    '''
+    """
         self._cache_timeout = cache_timeout
 
     def SetUserAgent(self, user_agent):
-        '''Override the default user agent
+        """Override the default user agent
 
     Args:
       user_agent:
         A string that should be send to the server as the User-agent
-    '''
+    """
         self._request_headers['User-Agent'] = user_agent
 
     def SetXTwitterHeaders(self, client, url, version):
-        '''Set the X-Twitter HTTP headers that will be sent to the server.
+        """Set the X-Twitter HTTP headers that will be sent to the server.
 
     Args:
       client:
@@ -4272,13 +4268,13 @@ class Api(object):
       version:
          The client version as a string.  Will be sent to the server
          as the 'X-Twitter-Client-Version' header.
-    '''
+    """
         self._request_headers['X-Twitter-Client'] = client
         self._request_headers['X-Twitter-Client-URL'] = url
         self._request_headers['X-Twitter-Client-Version'] = version
 
     def SetSource(self, source):
-        '''Suggest the "from source" value to be displayed on the Twitter web site.
+        """Suggest the "from source" value to be displayed on the Twitter web site.
 
     The value of the 'source' parameter must be first recognized by
     the Twitter server.  New source values are authorized on a case by
@@ -4288,11 +4284,11 @@ class Api(object):
       source:
         The source name as a string.  Will be sent to the server as
         the 'source' parameter.
-    '''
+    """
         self._default_params['source'] = source
 
     def GetRateLimitStatus(self, resources=None):
-        '''Fetch the rate limit status for the currently authorized user.
+        """Fetch the rate limit status for the currently authorized user.
 
     Args:
       resources:
@@ -4305,7 +4301,7 @@ class Api(object):
       the number of remaining hits allowed before the reset (remaining_hits),
       the number of hits allowed in a 60-minute period (hourly_limit), and
       the time of the reset in seconds since The Epoch (reset_time_in_seconds).
-    '''
+    """
         parameters = {}
         if resources is not None:
             parameters['resources'] = resources
@@ -4316,14 +4312,14 @@ class Api(object):
         return data
 
     def MaximumHitFrequency(self):
-        '''Determines the minimum number of seconds that a program must wait
+        """Determines the minimum number of seconds that a program must wait
     before hitting the server again without exceeding the rate_limit
     imposed for the currently authenticated user.
 
     Returns:
       The minimum second interval that a program must use so as to not
       exceed the rate_limit imposed for the user.
-    '''
+    """
         rate_status = self.GetRateLimitStatus()
         reset_time = rate_status.get('reset_time', None)
         limit = rate_status.get('remaining_hits', None)
@@ -4399,7 +4395,7 @@ class Api(object):
             return str(s).encode('utf-8')
 
     def _EncodeParameters(self, parameters):
-        '''Return a string in key=value&key=value form
+        """Return a string in key=value&key=value form
 
     Values of None are not included in the output string.
 
@@ -4410,14 +4406,14 @@ class Api(object):
 
     Returns:
       A URL-encoded string in "key=value&key=value" form
-    '''
+    """
         if parameters is None:
             return None
         else:
             return urlencode(dict([(k, self._Encode(v)) for k, v in list(parameters.items()) if v is not None]))
 
     def _EncodePostData(self, post_data):
-        '''Return a string in key=value&key=value form
+        """Return a string in key=value&key=value form
 
     Values are assumed to be encoded in the format specified by self._encoding,
     and are subsequently URL encoded.
@@ -4429,7 +4425,7 @@ class Api(object):
 
     Returns:
       A URL-encoded string in "key=value&key=value" form
-    '''
+    """
         if post_data is None:
             return None
         else:
@@ -4475,7 +4471,7 @@ class Api(object):
                   parameters=None,
                   no_cache=None,
                   use_gzip_compression=None):
-        '''Fetch a URL, optionally caching for a specified time.
+        """Fetch a URL, optionally caching for a specified time.
 
     Args:
       url:
@@ -4496,7 +4492,7 @@ class Api(object):
 
     Returns:
       A string containing the body of the response.
-    '''
+    """
         # Build the extra parameters dict
         extra_params = {}
         if self._default_params:
@@ -4598,7 +4594,7 @@ class Api(object):
 
 
 class _FileCacheError(Exception):
-    '''Base exception class for FileCache related errors'''
+    """Base exception class for FileCache related errors"""
 
 
 class _FileCache(object):
@@ -4648,7 +4644,7 @@ class _FileCache(object):
             return None
 
     def _GetUsername(self):
-        '''Attempt to find the username in a cross-platform fashion.'''
+        """Attempt to find the username in a cross-platform fashion."""
         try:
             return os.getenv('USER') or \
                    os.getenv('LOGNAME') or \

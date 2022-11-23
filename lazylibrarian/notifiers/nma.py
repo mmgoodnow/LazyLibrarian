@@ -1,11 +1,7 @@
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-
-try:
-    from pynma import pynma
-except ImportError:
-    from lib.pynma import pynma
+from pynma import pynma
 
 
 class NmaNotifier:

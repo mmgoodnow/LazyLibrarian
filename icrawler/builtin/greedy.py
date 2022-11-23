@@ -2,15 +2,9 @@
 
 import re
 import time
-
-try:
-    import html5lib
-    from bs4 import BeautifulSoup
-except ImportError:
-    from lib3.bs4 import BeautifulSoup
-
+import html5lib
+from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit
-
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
 
 

@@ -41,7 +41,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 
 
-def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
+def startup_parsecommandline(mainfile, args, seconds_to_sleep=4):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
         lazylibrarian.FULL_PATH = os.path.abspath(sys.executable)
@@ -170,7 +170,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
-            lazylibrarian.shutdown(restart=True, update=True)
+            lazylibrarian.startup.shutdown(restart=True, update=True)
 
     if options.loglevel:
         try:
@@ -192,7 +192,8 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
             lazylibrarian.PIDFILE = str(options.pidfile)
 
     print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
-    time.sleep(seconds_to_sleep)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+    time.sleep(
+        seconds_to_sleep)  # allow time for old task to exit if restarting. Needs to free logfile and server port.
 
     icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
     if path_isfile(icon):
@@ -204,6 +205,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     config.readConfigFile()
 
     return options
+
 
 def init_logs():
     # Initialized log files. Until this is done, do not use the 
@@ -230,11 +232,11 @@ def init_logs():
             lazylibrarian.LOGLEVEL = 1  # If not set in Config or cmdline, then lets set to NORMAL
         else:
             lazylibrarian.LOGLEVEL = cfgloglevel  # Config setting picked up
- 
+
     lazylibrarian.CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
     lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG['LOGLEVEL'])
     info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
-        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'], 
+        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'],
         lazylibrarian.CONFIG['LOGDIR'], cfgloglevel))
     if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
         info("Screen Log set to EXTENDED DEBUG")
@@ -266,7 +268,7 @@ def init_caches():
             error('Could not create cachedir; %s' % e)
 
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
-                    'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
+                 'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
         cachelocation = os.path.join(lazylibrarian.CACHEDIR, item)
         try:
             os.makedirs(cachelocation)
@@ -289,7 +291,7 @@ def init_caches():
         for itm in listdir(pth):
             if len(itm) > 2:
                 os.rename(syspath(os.path.join(pth, itm)),
-                            syspath(os.path.join(pth, itm[0], itm[1], itm)))
+                          syspath(os.path.join(pth, itm[0], itm[1], itm)))
     last_run_version = None
     last_run_interface = None
     makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
@@ -378,6 +380,7 @@ def init_database():
     except Exception as e:
         warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
 
+
 def init_build_debug_header(online):
     debuginfo = log_header(online)
     for item in debuginfo.splitlines():
@@ -397,21 +400,10 @@ def get_unrarlib():
     """ Detect presence of unrar library
         Return type of library and rarfile()
     """
-    rarfile = None
     # noinspection PyBroadException
-    try:
-        # noinspection PyUnresolvedReferences
-        from unrar import rarfile
-        if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
-            return 1, rarfile
-    except Exception:
-        # noinspection PyBroadException
-        try:
-            from lib.unrar import rarfile
-            if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
-                return 1, rarfile
-        except Exception:
-            pass
+    from unrar import rarfile
+    if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
+        return 1, rarfile
 
     if not rarfile or lazylibrarian.CONFIG['PREF_UNRARLIB'] == 2:
         # noinspection PyBroadException
@@ -489,7 +481,8 @@ def build_filetemplate():
 
 
 def build_genres():
-    for json_file in [os.path.join(lazylibrarian.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
+    for json_file in [os.path.join(lazylibrarian.DATADIR, 'genres.json'),
+                      os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
         if path_isfile(json_file):
             try:
                 with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
@@ -603,6 +596,7 @@ def build_monthtable():
     #    json.dump(table, f)
     return table
 
+
 def create_version_file(filename):
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
     old_file = os.path.join(lazylibrarian.PROG_DIR, filename)
@@ -614,13 +608,14 @@ def create_version_file(filename):
                     with open(syspath(version_file), 'w') as d:
                         d.write(s.read())
             except OSError:
-                warn("Unable to copy ", filename)
+                warn("Unable to copy %s" % filename)
         try:
             os.remove(old_file)
         except OSError:
             pass
 
     return version_file
+
 
 def init_version_checks(version_file):
     if lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'] == 0:
@@ -665,7 +660,7 @@ def init_version_checks(version_file):
                 lazylibrarian.SIGNAL = 'restart'
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
             warn('Unrecognised version [%s] to force upgrade delete %s' % (
-                        lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
+                lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
 
     if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
         # User may be running an old source zip, so try to force update
@@ -698,6 +693,7 @@ def launch_browser(host, port, root):
         webbrowser.open('%s://%s:%i%s/home' % (protocol, host, port, root))
     except Exception as e:
         error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
+
 
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
@@ -734,7 +730,8 @@ def logmsg(level, msg):
     else:
         print(level.upper(), msg)
 
-def shutdown(restart=False, update=False, exit=True, testing=False):
+
+def shutdown(restart=False, update=False, quit=True, testing=False):
     if not testing:
         cherrypy.engine.exit()
         logmsg('info', 'cherrypy server exit')
@@ -811,7 +808,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
             with open(syspath(os.path.join(CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
                 if updated:
                     upgradelog.write("%s %s\n" % (time.ctime(),
-                                     'Restarting LazyLibrarian with ' + str(popen_list)))
+                                                  'Restarting LazyLibrarian with ' + str(popen_list)))
                 subprocess.Popen(popen_list, cwd=os.getcwd())
 
                 if 'HTTP_HOST' in CONFIG:
@@ -902,6 +899,6 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
                                 logmsg("info", msg)
                                 subprocess.Popen(popen_list, cwd=os.getcwd())
 
-    if exit:
+    if quit:
         logmsg('info', 'Lazylibrarian (pid %s) is exiting now' % os.getpid())
         sys.exit(0)

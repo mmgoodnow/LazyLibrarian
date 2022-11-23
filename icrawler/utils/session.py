@@ -1,10 +1,6 @@
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-    
 from urllib.parse import urlsplit
+
+import requests
 
 
 class Session(requests.Session):

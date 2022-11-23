@@ -30,23 +30,12 @@ import shutil
 import tempfile
 from time import sleep
 
-import lazylibrarian
 from lazylibrarian import logger
 
 
 # noinspection PyArgumentList
 def magnet2torrent(magnet, output_name=None):
-    try:
-        import libtorrent as lt
-    except ImportError:
-        try:
-            # noinspection PyUnresolvedReferences
-            from lib.libtorrent import libtorrent as lt
-        except ImportError:
-            logger.error("Unable to import libtorrent, disabling magnet conversion")
-            lazylibrarian.CONFIG['TOR_CONVERT_MAGNET'] = False
-            return False
-
+    import libtorrent as lt
     if output_name and \
             not os.path.isdir(output_name) and \
             not os.path.isdir(os.path.dirname(os.path.abspath(output_name))):

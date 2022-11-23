@@ -11,18 +11,14 @@
 #  along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
-import lazylibrarian
-from lazylibrarian import logger
-from lazylibrarian.formatter import check_int
-from lazylibrarian.common import proxy_list, module_available
 from urllib.parse import urlparse, urlunparse
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import requests
+
+import lazylibrarian
+from lazylibrarian import logger
+from lazylibrarian.common import proxy_list
+from lazylibrarian.formatter import check_int
 
 # This is just a simple script to send torrents to transmission. The
 # intention is to turn this into a class where we can check the state

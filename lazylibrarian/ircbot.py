@@ -21,10 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import path_isfile, syspath, remove
-try:
-    import zipfile
-except ImportError:
-    import lib3.zipfile as zipfile
+import zipfile
 
 
 def ip_numstr_to_quad(num):

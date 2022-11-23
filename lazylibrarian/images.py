@@ -26,11 +26,7 @@ from lazylibrarian.cache import cache_img, fetch_url
 from lazylibrarian.providers import provider_is_blocked, block_provider
 from urllib.parse import quote_plus
 from shutil import rmtree
-
-try:
-    import zipfile
-except ImportError:
-    import lib3.zipfile as zipfile
+import zipfile
 
 try:
     import PIL
@@ -44,27 +40,8 @@ except ImportError:
     BaiduImageCrawler = None
     FlickrImageCrawler = None
 
-try:
-    # noinspection PyProtectedMember
-    from PyPDF3 import PdfFileWriter, PdfFileReader
-except ImportError:
-    try:
-        # noinspection PyProtectedMember
-        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
-    except ImportError:
-        PdfFileWriter = None
-        PdfFileReader = None
-
-# noinspection PyBroadException
-try:
-    # noinspection PyUnresolvedReferences
-    import magic
-except Exception:  # magic might fail for multiple reasons
-    # noinspection PyBroadException
-    try:
-        import lib.magic as magic
-    except Exception:
-        magic = None
+from PyPDF3 import PdfFileWriter, PdfFileReader
+import magic
 
 
 GS = ''
@@ -145,7 +122,7 @@ def coverswap(sourcefile):
             while p < cnt:
                 output.addPage(input1.getPage(p))
                 # logger.debug("Added page %s" % p)
-                p+=1
+                p += 1
             with open(srcfile + 'new', "wb") as outputStream:
                 output.write(outputStream)
         logger.debug("Writing new output file")
@@ -838,6 +815,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
                 from wand.image import Image
                 interface = "wand"
             except ImportError:
+                Image = None
                 try:
                     # No PythonMagick in python3
                     # noinspection PyUnresolvedReferences
