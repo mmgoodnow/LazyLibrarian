@@ -2,3 +2,11 @@
 
 [tool.pytest.ini_options]
 pythonpath = "."
+filterwarnings = [
+    # Ignore all "insecure request warnings" during testing
+    "ignore::urllib3.exceptions.InsecureRequestWarning",
+    # Ignore warning about CGI being deprecated in cherrypy
+    '''ignore:'cgi' is deprecated''',
+    # Ignore numerous warnings from cherrypy
+    "ignore::DeprecationWarning: invalid escape sequence"
+]    

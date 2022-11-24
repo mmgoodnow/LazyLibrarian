@@ -442,11 +442,11 @@ class FormatterTest(unittesthelpers.LLTestCase):
         lists = [
             # Standard separations
             ("A few items, and some more", None, ["A", "few", "items", "and", "some", "more"]),
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # Separate just on comma
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
             # Tricky: Tell it to separate on comma and space, and it separates on the default
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # The empy list
             ("", ' ', []),
             (" ,   ", '', []),
