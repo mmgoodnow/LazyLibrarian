@@ -21,6 +21,10 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
         return super().setUpClass()
 
+    @classmethod
+    def tearDownClass(cls) -> None:
+        return super().tearDownClass()
+
     def _do_ids_match(self):
         t = telemetry.LazyTelemetry()
         loaded_id = lazylibrarian.CONFIG['SERVER_ID'] if 'SERVER_ID' in lazylibrarian.CONFIG else None

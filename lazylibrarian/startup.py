@@ -217,7 +217,7 @@ def init_logs():
         item_type, section, default = config.CONFIG_DEFINITIONS[key]
         lazylibrarian.CONFIG[key.upper()] = config.check_setting(item_type, section, key.lower(), default, log=False)
 
-    if not lazylibrarian.CONFIG['LOGDIR']:
+    if not lazylibrarian.CONFIG['LOGDIR'] or lazylibrarian.CONFIG['LOGDIR'][0] == '.':
         lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
 
     # Create logdir

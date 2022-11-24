@@ -37,6 +37,8 @@ class LLTestCase(unittest.TestCase):
             cls.removetestDB()
             cls.removetestCache()
             cls.ALLSETUP = None
+        logger.lazylibrarian_log.stop_logger()
+        cls.delete_test_logs()
         cls.clearGlobals()
         return super().tearDownClass()
 
@@ -69,6 +71,16 @@ class LLTestCase(unittest.TestCase):
                 rmtree(lazylibrarian.CACHEDIR)
             except:
                 pass
+
+    @classmethod
+    def delete_test_logs(cls):
+        from lazylibrarian.common import path_isdir
+        if path_isdir(lazylibrarian.CONFIG['LOGDIR']) and len(lazylibrarian.CONFIG['LOGDIR']) > 3:
+            try: # Do not delete if there is a risk that it's the root of somewhere important
+#                logger.debug("Deleting Logs")
+                rmtree(lazylibrarian.CONFIG['LOGDIR'], ignore_errors=False)
+            except Exception as e:
+                print(str(e))
 
     @classmethod
     def clearGlobals(cls):

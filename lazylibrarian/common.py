@@ -361,13 +361,14 @@ def syspath(path, prefix=True):
         path = path.replace('/', '\\')
         # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
 
-    # Add the magic prefix if it isn't already there.
-    # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
-    if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
-        if path.startswith(u'\\\\'):
-            # UNC path. Final path should look like \\?\UNC\...
-            path = u'UNC' + path[1:]
-        path = WINDOWS_MAGIC_PREFIX + path
+    if not path.startswith('.'): # Don't affect relative paths
+        # Add the magic prefix if it isn't already there.
+        # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
+        if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
+            if path.startswith(u'\\\\'):
+                # UNC path. Final path should look like \\?\UNC\...
+                path = u'UNC' + path[1:]
+            path = WINDOWS_MAGIC_PREFIX + path
 
     return path
 
