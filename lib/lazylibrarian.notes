@@ -18,3 +18,5 @@
 #
 # icrawler is patched as the upstream version doesn't work (at the time of writing)
 # and hasn't been updated for ages, pull requests ignored
+#
+# rfeed has been modified to include atom/media/webfeeds and thumbnails added to Feed and Item

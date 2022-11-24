@@ -23,10 +23,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.common import mime_type, path_exists
 from urllib.parse import unquote_plus
 
-try:
-    from rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure
-except ImportError:
-    from lib.rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure
+from lib.rfeed import Item, Guid, Feed, iTunes, iTunesItem, iTunesOwner, iTunesCategory, Enclosure
 try:
     from lib.tinytag import TinyTag
 except ImportError:
