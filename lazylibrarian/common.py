@@ -35,6 +35,7 @@ import sqlite3
 import cherrypy
 import urllib3
 import requests
+import mako
 
 
 try:
@@ -1412,6 +1413,7 @@ def log_header(online=True):
         header += "mac_ver: %s\n" % str(platform.mac_ver())
     elif uname[0] == 'Windows':
         header += "win_ver: %s\n" % str(platform.win32_ver())
+    header += "mako: %s\n" % getattr(mako, '__version__', None)
     header += "urllib3: %s\n" % getattr(urllib3, '__version__', None)
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     if online:

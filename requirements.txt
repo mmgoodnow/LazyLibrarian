@@ -10,6 +10,7 @@ html5lib==1.1
 httpagentparser==1.9.5
 httplib2==0.21.0
 libtorrent==2.0.7
+Mako==1.2.3
 oauth2==1.9.0.post1
 Pillow==9.3.0
 PyNMA==1.0
