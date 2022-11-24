@@ -29,7 +29,17 @@ class LazyTelemetry(object):
     _instance = None
     _data = {
         "server": {},
-        "config": {},
+        "config": {
+            "switches": '',
+            "params": '',
+            "BOOK_API": '',
+            "NEWZNAB": 0,
+            "TORZNAB": 0,
+            "RSS": 0,
+            "IRC": 0,
+            "GEN": 0,
+            "APPRISE": 0,
+        },
         "usage": defaultdict(int),
     }
 
@@ -82,7 +92,6 @@ class LazyTelemetry(object):
         import lazylibrarian # To get access to the _PROV objects
 
         cfg_telemetry = self.get_config_telemetry()
-        ## Idea: Could add Telemetry Type column to each config item
 
         # Record whether particular on/off features are configured
         for key in [
@@ -105,7 +114,8 @@ class LazyTelemetry(object):
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
             'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL', 
             ]:
-            cfg_telemetry[key] = _config[key] > 0
+            if _config[key]:
+                cfg_telemetry['switches'] += f"{key} "
 
         # Record the actual config of these features
         for key in ['BOOK_API']:
@@ -116,7 +126,8 @@ class LazyTelemetry(object):
         for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG', 
             'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
             _, _, default = config.CONFIG_DEFINITIONS[key]
-            cfg_telemetry[key] = _config[key] != default
+            if _config[key] != default:
+                cfg_telemetry["params"] += f"{key} "
 
         # Count how many of each provider are configured
         for provider in [(lazylibrarian.NEWZNAB_PROV, "NEWZNAB"), 
@@ -140,7 +151,7 @@ class LazyTelemetry(object):
         usg[counter] += 1
 
     def get_json(self, pretty=False):
-        return json.dumps(obj=self._data, indent = 4 if pretty else None)
+        return json.dumps(obj=self._data, indent = 2 if pretty else None)
 
     def submit_data(self, config):
         pass

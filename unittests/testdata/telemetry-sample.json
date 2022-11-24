@@ -1,1 +1,24 @@
-{"server": {"id": "5f6300cc949542f0bcde1ea110ba46a8", "uptime_seconds": 0, "install_type": "", "version": ""}, "config": {"USER_ACCOUNTS": false, "EBOOK_TAB": true, "COMIC_TAB": true, "SERIES_TAB": true, "AUDIO_TAB": false, "MAG_TAB": false, "SHOW_GENRES": false, "BOOK_IMG": true, "MAG_IMG": true, "COMIC_IMG": true, "AUTHOR_IMG": true, "API_ENABLED": true, "NZB_DOWNLOADER_SABNZBD": false, "NZB_DOWNLOADER_NZBGET": false, "USE_SYNOLOGY": false, "NZB_DOWNLOADER_BLACKHOLE": false, "TOR_DOWNLOADER_DELUGE": false, "TOR_DOWNLOADER_TRANSMISSION": false, "TOR_DOWNLOADER_RTORRENT": false, "TOR_DOWNLOADER_UTORRENT": false, "TOR_DOWNLOADER_QBITTORRENT": false, "TOR_DOWNLOADER_BLACKHOLE": false, "CALIBRE_USE_SERVER": true, "OPF_TAGS": true, "USE_TWITTER": false, "USE_BOXCAR": false, "USE_PUSHBULLET": false, "USE_PUSHOVER": false, "USE_ANDROIDPN": false, "USE_TELEGRAM": false, "USE_PROWL": false, "USE_GROWL": false, "USE_SLACK": false, "USE_CUSTOM": false, "USE_EMAIL": false, "BOOK_API": "OpenLibrary", "GR_API": false, "GB_API": false, "LT_DEVKEY": false, "IMP_PREFLANG": false, "IMP_CALIBREDB": true, "DOWNLOAD_DIR": true, "ONE_FORMAT": false, "API_KEY": true, "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 0}, "usage": {"API/getHelp": 2, "web/test": 1, "Download/NZB": 1}}
+{
+"server": {
+    "id": "5f6300cc949542f0bcde1ea110ba46a8",
+    "uptime_seconds": 0,
+    "install_type": "",
+    "version": ""
+},
+"config": {
+    "switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
+    "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
+    "BOOK_API": "OpenLibrary",
+    "NEWZNAB": 1,
+    "TORZNAB": 0,
+    "RSS": 0,
+    "IRC": 0,
+    "GEN": 0,
+    "APPRISE": 0
+},
+"usage": {
+    "API/getHelp": 2,
+    "web/test": 1,
+    "Download/NZB": 1
+}
+}

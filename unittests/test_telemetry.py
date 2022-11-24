@@ -77,20 +77,10 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         # json_fromcfg = json.dumps(obj=cfg)
         # print(json_fromcfg) 
         json_good = json.loads("""
-            {"USER_ACCOUNTS": false, "EBOOK_TAB": true, "COMIC_TAB": true, "SERIES_TAB": true, 
-            "AUDIO_TAB": false, "MAG_TAB": false, "SHOW_GENRES": false, "BOOK_IMG": true, 
-            "MAG_IMG": true, "COMIC_IMG": true, "AUTHOR_IMG": true, "API_ENABLED": true, 
-            "NZB_DOWNLOADER_SABNZBD": false, "NZB_DOWNLOADER_NZBGET": false, 
-            "USE_SYNOLOGY": false, "NZB_DOWNLOADER_BLACKHOLE": false, "TOR_DOWNLOADER_DELUGE": false, 
-            "TOR_DOWNLOADER_TRANSMISSION": false, "TOR_DOWNLOADER_RTORRENT": false, 
-            "TOR_DOWNLOADER_UTORRENT": false, "TOR_DOWNLOADER_QBITTORRENT": false, 
-            "TOR_DOWNLOADER_BLACKHOLE": false, "CALIBRE_USE_SERVER": true, "OPF_TAGS": true, 
-            "USE_TWITTER": false, "USE_BOXCAR": false, "USE_PUSHBULLET": false, 
-            "USE_PUSHOVER": false, "USE_ANDROIDPN": false, "USE_TELEGRAM": false, "USE_PROWL": false, 
-            "USE_GROWL": false, "USE_SLACK": false, "USE_CUSTOM": false, "USE_EMAIL": false, 
-            "BOOK_API": "OpenLibrary", "GR_API": false, "GB_API": false, "LT_DEVKEY": false, 
-            "IMP_PREFLANG": false, "IMP_CALIBREDB": true, "DOWNLOAD_DIR": true, "ONE_FORMAT": false, 
-            "API_KEY": true, "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 0}
+            {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ", 
+            "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ", 
+            "BOOK_API": "OpenLibrary", 
+            "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 0}
         """)
         self.assertEqual(cfg, json_good, "Config not as expected. Check that ini file has not changed")
 
@@ -114,16 +104,17 @@ class TelemetryTest(unittesthelpers.LLTestCase):
     def test_get_json(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG)
-        datastr = t.get_json()
+        # Uncomment to generate new test data:
+        # datastr = t.get_json(pretty=True)
+        # print(datastr)
 
         f = open('./unittests/testdata/telemetry-sample.json')
         try:
             loadedjson = json.load(f)
-            loadedstr = json.dumps(loadedjson)
         finally:
             f.close()
 
-        self.assertEqual(datastr, loadedstr, "The telemetry data is not as expected")
+        self.assertEqual(t._data, loadedjson, "The JSON telemetry data is not as expected")
 
     def test_submit_data(self):
         t = telemetry.LazyTelemetry()
