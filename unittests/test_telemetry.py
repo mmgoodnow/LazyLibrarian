@@ -6,6 +6,7 @@
 import unittesthelpers
 import json
 import pytest
+import pytest_order
 
 import lazylibrarian
 from lazylibrarian import config, telemetry
