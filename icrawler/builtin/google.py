@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 
 import datetime
-import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
@@ -139,7 +138,7 @@ class GoogleFeeder(Feeder):
 class GoogleParser(Parser):
     def parse(self, response):
         soup = BeautifulSoup(
-            response.content.decode('utf-8', 'ignore'), 'html5lib')
+            response.content.decode('utf-8', 'ignore'), 'lxml')
         images = soup.find_all(name='img')
         uris = []
         for img in images:
