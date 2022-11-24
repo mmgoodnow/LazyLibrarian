@@ -348,6 +348,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                                       (authorid, authorid, dbauthor['authorid']), suppress='UNIQUE')
                         db.action("PRAGMA foreign_keys = ON")
                         entry_status = dbauthor['Status']
+                        dbauthor = db.match("SELECT * from authors WHERE AuthorName=?", (authorname,))
                     logger.debug("Updating author %s (%s) %s" % (authorid, authorname, entry_status))
                     new_author = False
                 else:
