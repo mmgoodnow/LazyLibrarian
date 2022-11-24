@@ -4924,36 +4924,21 @@ class WebInterface(object):
 
     @cherrypy.expose
     def magazines(self, mag_filter=''):
-        db = database.DBConnection()
-        cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
-        cmd += ' as Iss_Cnt from magazines order by Title'
-        magazines = db.select(cmd)
-        mags = []
-        covercount = 0
-        if magazines:
-            for mag in magazines:
-                this_mag = dict(mag)
-                if not this_mag['LatestCover'] or not this_mag['LatestCover'].startswith('cache/'):
-                    this_mag['Cover'] = 'images/nocover.jpg'
-                else:
-                    fname, extn = os.path.splitext(this_mag['LatestCover'])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
-                    if path_isfile(imgfile):
-                        this_mag['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                    else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_mag['LatestCover'][6:])
-                        imgthumb = createthumb(imgfile, 200, False)
-                        if imgthumb:
-                            this_mag['Cover'] = "%s%s" % ('cache/',
-                                                          imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
-                temp_title = mag['Title']
-                this_mag['safetitle'] = quote_plus(make_utf8bytes(temp_title)[0])
-                mags.append(this_mag)
-
-            if not lazylibrarian.CONFIG['MAG_IMG']:
-                covercount = 0
-
-        return serve_template(templatename="magazines.html", title="Magazines", magazines=mags, covercount=covercount)
+            user = 0
+            email = ''
+            db = database.DBConnection()
+            cookie = cherrypy.request.cookie
+            if cookie and 'll_uid' in list(cookie.keys()):
+                user = cookie['ll_uid'].value
+                res = db.match('SELECT SendTo from users where UserID=?', (user,))
+                if res and res['SendTo']:
+                    email = res['SendTo']
+            # use server-side processing
+            covers = 1
+            if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG['MAG_IMG']:
+                covers = 0
+            return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
+                                  covercount=covers, user=user, email=email, mag_filter=mag_filter)
 
     @cherrypy.expose
     @cherrypy.tools.json_out()
