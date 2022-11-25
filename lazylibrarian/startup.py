@@ -36,7 +36,7 @@ from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_h
 from lazylibrarian import config, database, versioncheck
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
-from lazylibrarian.dbupgrade import check_db, db_current_version
+from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 
@@ -359,6 +359,11 @@ def init_database():
     except Exception as e:
         error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
         sys.exit(0)
+
+    curr_ver = upgrade_needed()
+    if curr_ver:
+        lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
+        db_upgrade(curr_ver)
 
     if version:
         db_changes = check_db()
@@ -734,7 +739,9 @@ def logmsg(level, msg):
 def shutdown(restart=False, update=False, quit=True, testing=False):
     if not testing:
         cherrypy.engine.exit()
-        logmsg('info', 'cherrypy server exit')
+        time.sleep(2)
+        state = str(cherrypy.engine.state)
+        logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     # config_write() don't automatically rewrite config on exit
 

@@ -22,7 +22,7 @@ import sys
 import time
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, logger, dbupgrade, notifiers
+from lazylibrarian import startup, webStart, logger, notifiers
 from lazylibrarian.formatter import thread_name
 import configparser
 
@@ -108,12 +108,6 @@ def main():
         startup.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
                                      lazylibrarian.CONFIG['HTTP_PORT'],
                                      lazylibrarian.CONFIG['HTTP_ROOT'])
-
-    # QQ: Why do we upgrade the DB here? init_database seems more logical.
-    curr_ver = dbupgrade.upgrade_needed()
-    if curr_ver:
-        lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
-        dbupgrade.dbupgrade(curr_ver)
 
     startup.start_schedulers()
 
