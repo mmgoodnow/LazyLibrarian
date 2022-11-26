@@ -124,6 +124,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     if options.nolaunch:
         lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
 
+    if options.port:
+        options.port = check_int(options.port, 0) 
+
     if options.nojobs:
         lazylibrarian.STOPTHREADS = True
     else:
@@ -245,6 +248,7 @@ def init_logs():
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
+    debug("%s %s" % (lazylibrarian.FULL_PATH, str(lazylibrarian.ARGS)))
 
 
 def init_config():
