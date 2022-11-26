@@ -408,7 +408,7 @@ def get_capabilities(provider, force=False):
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
                 provider['RATELIMIT'] = 0
-                lazylibrarian.config_write(provider['NAME'])
+                lazylibrarian.config.config_write(provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
             #
@@ -520,7 +520,7 @@ def get_capabilities(provider, force=False):
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
-            lazylibrarian.config_write(provider['NAME'])
+            lazylibrarian.config.config_write(provider['NAME'])
     return provider
 
 
@@ -1880,7 +1880,7 @@ def cancel_search_type(search_type, error_msg, provider):
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
-                                lazylibrarian.config_write(provider['NAME'])
+                                lazylibrarian.config.config_write(provider['NAME'])
                                 return True
                         count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
