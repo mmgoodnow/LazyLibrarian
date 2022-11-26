@@ -13,7 +13,10 @@
 from __future__ import print_function
 import os
 import sys
-import psutil
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 import cherrypy
 try:
@@ -246,14 +249,17 @@ def initialize(options=None):
         cherrypy.server.start()
     except Exception as e:
         msg = 'CherryPy failed to start on port %i' % (options['http_port'])
-        for item in psutil.net_connections():
-            txt = str(item)
-            if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
-                user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
-                if user_pid:
-                    process = psutil.Process(user_pid)
-                    process_cmd = process.cmdline()
-                    msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
+        if psutil:
+            for item in psutil.net_connections():
+                txt = str(item)
+                if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
+                    user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
+                    if user_pid:
+                        process = psutil.Process(user_pid)
+                        process_cmd = process.cmdline()
+                        msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
+        else:
+            msg += ' Please install psutil to get more info'
         logger.warn(msg)
         logger.warn(str(e))
         print(msg)
