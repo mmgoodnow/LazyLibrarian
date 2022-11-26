@@ -13,6 +13,7 @@
 from __future__ import print_function
 import os
 import sys
+import psutil
 
 import cherrypy
 try:
@@ -67,7 +68,7 @@ def initialize(options=None):
     else:
         protocol = "http"
 
-    logger.info("Starting LazyLibrarian web server on %s://%s:%d%s" %
+    logger.info("Starting LazyLibrarian web server on %s://%s:%s%s" %
                 (protocol, options['http_host'], options['http_port'], options['http_root']))
     cherrypy_cors.install()
     cherrypy.config.update(options_dict)
@@ -244,7 +245,15 @@ def initialize(options=None):
             cherrypy.engine.timeout_monitor.unsubscribe()
         cherrypy.server.start()
     except Exception as e:
-        msg = 'Failed to start on port: %i. Is something else running?' % (options['http_port'])
+        msg = 'CherryPy failed to start on port %i' % (options['http_port'])
+        for item in psutil.net_connections():
+            txt = str(item)
+            if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
+                user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
+                if user_pid:
+                    process = psutil.Process(user_pid)
+                    process_cmd = process.cmdline()
+                    msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
         logger.warn(msg)
         logger.warn(str(e))
         print(msg)
