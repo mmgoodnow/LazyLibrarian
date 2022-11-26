@@ -925,7 +925,7 @@ def db_v59(db, upgradelog):
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
             lazylibrarian.CONFIG[item] = seeders
     lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
-    lazylibrarian.config_write()
+    lazylibrarian.config.config_write()
     upgradelog.write("%s v59: complete\n" % time.ctime())
 
 
