@@ -1,11 +1,12 @@
 {
-"server": {
+  "server": {
     "id": "5f6300cc949542f0bcde1ea110ba46a8",
-    "uptime_seconds": 0,
+    "uptime_seconds": 16,
     "install_type": "",
-    "version": ""
-},
-"config": {
+    "version": "",
+    "os": "nt"
+  },
+  "config": {
     "switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
     "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
     "BOOK_API": "OpenLibrary",
@@ -15,10 +16,10 @@
     "IRC": 0,
     "GEN": 0,
     "APPRISE": 0
-},
-"usage": {
-    "API/getHelp": 2,
-    "web/test": 1,
-    "Download/NZB": 1
-}
+  },
+  "usage": {
+    "APIgetHelp": 20,
+    "web-test": 10,
+    "Download!NZB": 1
+  }
 }

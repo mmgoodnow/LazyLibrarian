@@ -19,6 +19,7 @@
 
 import datetime
 import json
+import os
 from collections import defaultdict
 from lazylibrarian import config
 
@@ -87,6 +88,7 @@ class LazyTelemetry(object):
         server["uptime_seconds"] = round(up.total_seconds())
         server["install_type"] = _config['INSTALL_TYPE']
         server["version"] = _config['CURRENT_VERSION']
+        server["os"] = os.name
 
     def set_config_data(self, _config):
         import lazylibrarian # To get access to the _PROV objects
@@ -152,6 +154,15 @@ class LazyTelemetry(object):
 
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
+    
+    def construct_data_string(this):
+        """ Returns a data string to send to telemetry server """
+        # TODO: Add config option for types of telemetry data to include
+        datastr = f"server={json.dumps(obj=this.get_server_telemetry(),separators=(',', ':'))}"
+        datastr += f"&config={json.dumps(obj=this.get_config_telemetry(),separators=(',', ':'))}"
+        datastr += f"&usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}"
+        return datastr
+
 
     def submit_data(self, config):
         pass
