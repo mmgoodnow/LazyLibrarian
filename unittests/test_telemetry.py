@@ -6,7 +6,8 @@
 import unittesthelpers
 import json
 import pytest
-import pytest_order
+import pytest_order # Needed to force unit test order
+import mock
 
 import lazylibrarian
 from lazylibrarian import config, telemetry
@@ -105,28 +106,52 @@ class TelemetryTest(unittesthelpers.LLTestCase):
     @pytest.mark.order(after="test_ensure_server_id_persistence")
     @pytest.mark.order(after="test_set_config_data")
     @pytest.mark.order(after="test_record_usage_data")
-    def test_get_json(self):
+    def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG)
-        # Uncomment to generate new test data:
-        # datastr = t.get_json(pretty=True)
-        # print(datastr)
+        sGot = dict()
+        for cfg in ['server', 'config', 'usage']:
+            sGot[cfg] = t.construct_data_string(cfg)
+        sExpect = [
+            ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt"}'],
+            ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":0}'],
+            ['usage',  'usage={"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
+        ]
+        # Test individual strings
+        for expect in sExpect:
+            self.assertEqual(sGot[expect[0]], expect[1])
 
-        f = open('./unittests/testdata/telemetry-sample.json')
-        try:
-            loadedjson = json.load(f)
-        finally:
-            f.close()
+        # Test they are concatenated correctly
+        sAll = t.construct_data_string(['usage', 'config', 'server'])
+        self.assertEqual(sAll, f"{sExpect[0][1]}&{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
 
-        #self.assertEqual(t._data, loadedjson, "The JSON telemetry data is not as expected")
+        # Test that components = None also works
+        sAllNone = t.construct_data_string()
+        self.assertEqual(sAll, sAllNone)
+           
 
-    def test_submit_data(self):
+    @pytest.mark.order(after="test_ensure_server_id_generation")
+    @pytest.mark.order(after="test_ensure_server_id_persistence")
+    @pytest.mark.order(after="test_set_config_data")
+    @pytest.mark.order(after="test_record_usage_data")
+    @mock.patch('lazylibrarian.telemetry.requests')
+    def test_submit_data(self, mock_requests):
+        import requests
+
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG)
-#        t.set_config_data(lazylibrarian.CONFIG)
+
+        # Pretend to submit data and experience a timeout
+        mock.side_effect = requests.exceptions.Timeout
         msg, status = t.submit_data(lazylibrarian.CONFIG)
-        self.assertTrue(status)
+        mock_requests.get.assert_called_once()
+        self.assertFalse(status)
 
-if __name__ == "__main__":
-    test = TelemetryTest()
-    test.test_submit_data()
+        # Pretend to submit data to the server successfully
+        mock_requests.get.return_value.status_code = 200
+        msg, status = t.submit_data(lazylibrarian.CONFIG)
+        self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called") 
+        URLarg = mock_requests.get.call_args[0][0]
+        ExpectedURL = t.get_data_url()
+        self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")
+        self.assertTrue(status, "Request call did not succeed")

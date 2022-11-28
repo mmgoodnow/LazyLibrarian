@@ -20,8 +20,9 @@
 import datetime
 import json
 import os
+import requests
 from collections import defaultdict
-from lazylibrarian import config
+from lazylibrarian import config, common, logger
 
 class LazyTelemetry(object):
     """Handles basic telemetry gathering for LazyLibrarian, helping
@@ -155,27 +156,32 @@ class LazyTelemetry(object):
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
     
-    def construct_data_string(this):
-        """ Returns a data string to send to telemetry server """
-        # TODO: Add config option for types of telemetry data to include
-        datastr = f"server={json.dumps(obj=this.get_server_telemetry(),separators=(',', ':'))}"
-        datastr += f"&config={json.dumps(obj=this.get_config_telemetry(),separators=(',', ':'))}"
-        datastr += f"&usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}"
+    def construct_data_string(this, components=None):
+        """ Returns a data string to send to telemetry server.
+        If components = None, includes all parts. Otherwise, includes specified parts only """
+        data = []
+        if not components or 'server' in components:
+            data.append(f"server={json.dumps(obj=this.get_server_telemetry(),separators=(',', ':'))}")
+        if not components or 'config' in components:
+            data.append(f"config={json.dumps(obj=this.get_config_telemetry(),separators=(',', ':'))}")
+        if not components or 'usage' in components:
+            data.append(f"usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}")
+
+        datastr = '&'.join(data)
         return datastr
 
+    def get_data_url(self, server='localhost', port=9174, config=None):
+        return f"http://{server}:{port}/send?{self.construct_data_string()}"        
+    
     def submit_data(self, _config):
         """ Submits LL telemetry data
         Returns status message and true/false depending on whether it was successful"""
-        import requests
-        from lazylibrarian import common, logger
 
-        server = 'localhost'
-        port = 9174
         proxies = common.proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}
         payload = {"timeout": timeout, "proxies": proxies}
-        url = f"http://{server}:{port}/send?{self.construct_data_string()}"
+        url = self.get_data_url(config=_config)
         try:
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
