@@ -1,0 +1,12 @@
+This is v3.6.0 of cherrypy slightly modified for lazylibrarian.
+Later versions of cherrypy need additional libaries that we can't 
+be sure are installed on all systems (eg NAS devices)
+
+This version has a small change to _cpreqbody.py  line 1006
+key = key.encode('ISO-8859-1')
+changed to also allow
+key = key.encode('utf-8')
+as not all entries in POST forms are encodable in latin-1
+eg accented magazine titles. 
+Without this change, saving Lazylibrarian config page can cause an exception.
+There is probably a better way of doing this...

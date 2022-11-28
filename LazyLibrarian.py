@@ -43,7 +43,7 @@ if opt_out_of_certificate_verification:
 
 if sys.version[0] != '3':
     sys.stderr.write("This version of lazylibrarian requires python 3\n")
-    sys.exit(1)
+    exit(0)
     
 def main():
    # rename this thread
