@@ -1,5 +1,9 @@
 image: python:latest
 
+stages:
+  - unittest
+  - telemetry-test
+
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
@@ -16,12 +20,15 @@ before_script:
   - virtualenv venv
   - source venv/bin/activate
 
-test:
+unittest:
   script:
-    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein pyopenssl apprise pytest pytest-order
-    #- python -m pip uninstall requests # Use the one we ship
-    - pytest --junitxml=lltest.xml unittests 
+    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest
+    - pytest --junitxml=lltest.xml unittests/test_formatter.py
   artifacts:
     when: always
     reports:
        junit: lltest.xml
+
+telemetry-test:
+  script:
+    - pytest --junitxml=lltest.xml unittests/test_telemetry.py
