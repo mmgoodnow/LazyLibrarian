@@ -21,6 +21,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import syspath
+from lazylibrarian.config import config_write
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num
@@ -396,7 +397,7 @@ def get_capabilities(provider, force=False):
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
                 provider['RATELIMIT'] = 0
-                lazylibrarian.config.config_write(provider['NAME'])
+                config_write(provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
             #
@@ -508,7 +509,7 @@ def get_capabilities(provider, force=False):
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
-            lazylibrarian.config.config_write(provider['NAME'])
+            config_write(provider['NAME'])
     return provider
 
 
@@ -1868,7 +1869,7 @@ def cancel_search_type(search_type, error_msg, provider):
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
-                                lazylibrarian.config.config_write(provider['NAME'])
+                                config_write(provider['NAME'])
                                 return True
                         count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
