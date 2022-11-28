@@ -89,6 +89,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     p.add_option('--port',
                  dest='port', default=None,
                  help="Force webinterface to listen on this port")
+    p.add_option('--noipv6',
+                 dest='noipv6', default=None,
+                 help="Do not attempt to use IPv6")
     p.add_option('--datadir',
                  dest='datadir', default=None,
                  help="Path to the data directory")
@@ -114,6 +117,10 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     if options.quiet:
         lazylibrarian.LOGLEVEL = 0
 
+    if options.noipv6:
+        # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+    
     if options.daemon:
         if os.name != 'nt':
             lazylibrarian.DAEMON = True
@@ -259,6 +266,9 @@ def init_config():
     config.config_read()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
+    if lazylibrarian.CONFIG['NO_IPV6']:        
+        # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
+        requests.packages.urllib3.util.connection.HAS_IPV6 = False
 
 def init_caches():
     # override detected encoding if required
