@@ -12,12 +12,17 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
-import requests
-
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, module_available
 from lazylibrarian.formatter import unaccented
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 
 class SlackNotifier:

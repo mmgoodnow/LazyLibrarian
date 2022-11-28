@@ -25,12 +25,17 @@ import threading
 import time
 import traceback
 import uuid
-import zipfile
-
-from deluge_client import DelugeRPCClient
-from thefuzz import fuzz
 
 import lazylibrarian
+from lazylibrarian.gb import GoogleBooks
+from lazylibrarian.gr import GoodReads
+from lazylibrarian.ol import OpenLibrary
+
+try:
+    import zipfile
+except ImportError:
+    import lib3.zipfile as zipfile
+
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
@@ -39,20 +44,24 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
-from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
+from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
-from lazylibrarian.gb import GoogleBooks
-from lazylibrarian.gr import GoodReads
-from lazylibrarian.images import create_mag_cover
 from lazylibrarian.images import createthumbs
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
 from lazylibrarian.magazinescan import create_id
 from lazylibrarian.mailinglist import mailing_list
-from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch, custom_notify_snatch
-from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.images import create_mag_cover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
+from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
+
+try:
+    from deluge_client import DelugeRPCClient
+except ImportError:
+    from lib.deluge_client import DelugeRPCClient
+
+from lib.thefuzz import fuzz
 
 
 def update_downloads(provider):

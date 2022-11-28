@@ -11,15 +11,13 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from urllib.parse import quote_plus, quote
-
-from thefuzz import fuzz
-
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import get_list, unaccented, plural, date_format
+from lazylibrarian.formatter import get_list, unaccented_bytes, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
+from lib.thefuzz import fuzz
+from urllib.parse import quote_plus, quote
 
 
 def search_item(item=None, bookid=None, cat=None):

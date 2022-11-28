@@ -10,21 +10,27 @@
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
-import http.client
 import json
 import os
 import shutil
 import time
 from xml.etree import ElementTree
 
-import requests
-
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, \
-    remove
+    remove, module_available
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
+
+import http.client
 
 
 def redirect_url(url, times):

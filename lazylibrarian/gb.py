@@ -15,21 +15,21 @@
 # https://www.googleapis.com/books/v1/volumes?q=+inauthor:george+martin+intitle:song+ice+fire
 
 import re
-import time
 import traceback
-from urllib.parse import quote, quote_plus, urlencode
-
-from thefuzz import fuzz
+import time
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, thinglang, google_book_dict
-from lazylibrarian.cache import json_request, cache_img
-from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
-    get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
 from lazylibrarian.images import get_book_cover
+from lazylibrarian.cache import json_request, cache_img
+from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
+    get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
 from lazylibrarian.ol import OpenLibrary
+
+from lib.thefuzz import fuzz
+from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoogleBooks:

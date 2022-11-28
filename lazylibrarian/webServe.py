@@ -43,7 +43,6 @@ from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log,
     setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
     syspath, remove, set_redactlist, get_calibre_id, safe_move, opf_file, safe_copy
-from lazylibrarian.config import config_write
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
@@ -71,10 +70,15 @@ from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
 
-from deluge_client import DelugeRPCClient
+try:
+    from deluge_client import DelugeRPCClient
+except ImportError:
+    from lib.deluge_client import DelugeRPCClient
+
 from mako import exceptions
 from mako.lookup import TemplateLookup
-from thefuzz import fuzz
+
+from lib.thefuzz import fuzz
 
 lastauthor = ''
 lastmagazine = ''
@@ -1499,7 +1503,7 @@ class WebInterface(object):
         testvars = {}
         for item in namevars:
             testvars[item] = namevars[item].replace(' ', '&nbsp;')
-        configvars = {
+        config = {
             "http_look_list": http_look_list,
             "apprise_list": apprise_list,
             "status_list": status_list,
@@ -1508,7 +1512,7 @@ class WebInterface(object):
             "namevars": testvars,
             "updated": time.ctime(check_int(lazylibrarian.CONFIG['GIT_UPDATED'], 0))
         }
-        return serve_template(templatename="config.html", title="Settings", config=configvars)
+        return serve_template(templatename="config.html", title="Settings", config=config)
 
     @cherrypy.expose
     def config_update(self, **kwargs):
@@ -1872,7 +1876,7 @@ class WebInterface(object):
 
         lazylibrarian.LOGLEVEL = newloglevel
         lazylibrarian.CONFIG['LOGLEVEL'] = newloglevel
-        config_write()
+        config.config_write()
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
 
@@ -5063,6 +5067,7 @@ class WebInterface(object):
         return serve_template(templatename="issues.html", title=safetitle, issues=[], covercount=covercount,
                               user=user, email=email, firstpage=firstpage)
 
+
     @cherrypy.expose
     def past_issues(self, mag=None, **kwargs):
         if not mag or mag == 'None':
@@ -5801,7 +5806,7 @@ class WebInterface(object):
     @cherrypy.expose
     def shutdown(self):
         self.label_thread('SHUTDOWN')
-        # config_write()
+        # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closing ...'
         icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
@@ -6272,10 +6277,10 @@ class WebInterface(object):
                 msg = "%s test FAILED, check debug log" % name
             elif result is True:
                 msg = "%s test PASSED" % name
-                config_write(kwargs['name'])
+                lazylibrarian.config_write(kwargs['name'])
             else:
                 msg = "%s test PASSED, found %s" % (name, result)
-                config_write(kwargs['name'])
+                lazylibrarian.config_write(kwargs['name'])
         else:
             msg = "Invalid or missing name in testprovider"
         return msg
@@ -6402,7 +6407,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['GR_OAUTH_SECRET'] = kwargs['gr_oauth_secret']
         res = grsync.test_auth()
         if res.startswith('Pass:'):
-            config_write('API')
+            lazylibrarian.config_write('API')
         return res
 
     # NOTIFIERS #########################################################
@@ -6418,7 +6423,7 @@ class WebInterface(object):
         if key:
             result = notifiers.twitter_notifier._get_credentials(key)
             if result:
-                config_write('Twitter')
+                lazylibrarian.config_write('Twitter')
                 return "Key verification successful"
             else:
                 return "Unable to verify key"
@@ -6450,7 +6455,7 @@ class WebInterface(object):
                 lazylibrarian.CONFIG['ANDROIDPN_BROADCAST'] = False
         result = notifiers.androidpn_notifier.test_notify()
         if result:
-            config_write('AndroidPN')
+            lazylibrarian.config_write('AndroidPN')
             return "Test AndroidPN notice sent successfully"
         else:
             return "Test AndroidPN notice failed"
@@ -6463,7 +6468,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['BOXCAR_TOKEN'] = kwargs['token']
         result = notifiers.boxcar_notifier.test_notify()
         if result:
-            config_write('Boxcar')
+            lazylibrarian.config_write('Boxcar')
             return "Boxcar notification successful,\n%s" % result
         else:
             return "Boxcar notification failed"
@@ -6478,7 +6483,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['PUSHBULLET_DEVICEID'] = kwargs['device']
         result = notifiers.pushbullet_notifier.test_notify()
         if result:
-            config_write('PushBullet')
+            lazylibrarian.config_write('PushBullet')
             return "Pushbullet notification successful,\n%s" % result
         else:
             return "Pushbullet notification failed"
@@ -6501,7 +6506,7 @@ class WebInterface(object):
 
         result = notifiers.pushover_notifier.test_notify()
         if result:
-            config_write('Pushover')
+            lazylibrarian.config_write('Pushover')
             return "Pushover notification successful,\n%s" % result
         else:
             return "Pushover notification failed"
@@ -6517,7 +6522,7 @@ class WebInterface(object):
 
         result = notifiers.telegram_notifier.test_notify()
         if result:
-            config_write('Telegram')
+            lazylibrarian.config_write('Telegram')
             return "Test Telegram notice sent successfully"
         else:
             return "Test Telegram notice failed"
@@ -6533,7 +6538,7 @@ class WebInterface(object):
 
         result = notifiers.prowl_notifier.test_notify()
         if result:
-            config_write('Prowl')
+            lazylibrarian.config_write('Prowl')
             return "Test Prowl notice sent successfully"
         else:
             return "Test Prowl notice failed"
@@ -6549,7 +6554,7 @@ class WebInterface(object):
 
         result = notifiers.growl_notifier.test_notify()
         if result:
-            config_write('Growl')
+            lazylibrarian.config_write('Growl')
             return "Test Growl notice sent successfully"
         else:
             return "Test Growl notice failed"
@@ -6567,7 +6572,7 @@ class WebInterface(object):
         if result != "ok":
             return "Slack notification failed,\n%s" % result
         else:
-            config_write('Slack')
+            lazylibrarian.config_write('Slack')
             return "Slack notification successful"
 
     @cherrypy.expose
@@ -6580,7 +6585,7 @@ class WebInterface(object):
         if result is False:
             return "Custom notification failed"
         else:
-            config_write('Custom')
+            lazylibrarian.config_write('Custom')
             return "Custom notification successful"
 
     @cherrypy.expose
@@ -6619,7 +6624,7 @@ class WebInterface(object):
         if not result:
             return "Email notification failed"
         else:
-            config_write('Email')
+            lazylibrarian.config_write('Email')
             return "Email notification successful, check your email"
 
     # API ###############################################################
@@ -6780,7 +6785,7 @@ class WebInterface(object):
                     else:
                         msg += 'Label [%s] is valid' % lazylibrarian.CONFIG['DELUGE_LABEL']
             # success, save settings
-            config_write('DELUGE')
+            lazylibrarian.config_write('DELUGE')
             return msg
 
         except Exception as e:
@@ -6814,7 +6819,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['SAB_SUBDIR'] = kwargs['subdir']
         msg = sabnzbd.check_link()
         if 'success' in msg:
-            config_write('sab_nzbd')
+            lazylibrarian.config_write('sab_nzbd')
         return msg
 
     @cherrypy.expose
@@ -6835,7 +6840,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['NZBGET_PRIORITY'] = check_int(kwargs['pri'], 0)
         msg = nzbget.check_link()
         if 'success' in msg:
-            config_write('NZBGet')
+            lazylibrarian.config_write('NZBGet')
         return msg
 
     @cherrypy.expose
@@ -6854,7 +6859,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['TRANSMISSION_PASS'] = kwargs['pwd']
         msg = transmission.check_link()
         if 'success' in msg:
-            config_write('TRANSMISSION')
+            lazylibrarian.config_write('TRANSMISSION')
         return msg
 
     @cherrypy.expose
@@ -6875,7 +6880,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['QBITTORRENT_LABEL'] = kwargs['label']
         msg = qbittorrent.check_link()
         if 'success' in msg:
-            config_write('QBITTORRENT')
+            lazylibrarian.config_write('QBITTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6896,7 +6901,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['UTORRENT_LABEL'] = kwargs['label']
         msg = utorrent.check_link()
         if 'success' in msg:
-            config_write('UTORRENT')
+            lazylibrarian.config_write('UTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6915,7 +6920,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['RTORRENT_LABEL'] = kwargs['label']
         msg = rtorrent.check_link()
         if 'success' in msg:
-            config_write('RTORRENT')
+            lazylibrarian.config_write('RTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6934,7 +6939,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG['SYNOLOGY_DIR'] = kwargs['dir']
         msg = synology.check_link()
         if 'success' in msg:
-            config_write('SYNOLOGY')
+            lazylibrarian.config_write('SYNOLOGY')
         return msg
 
     @cherrypy.expose

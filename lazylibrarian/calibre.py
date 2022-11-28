@@ -20,7 +20,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
-from thefuzz import fuzz
+from lib.thefuzz import fuzz
 from lazylibrarian.common import run_script
 
 # calibredb custom_columns

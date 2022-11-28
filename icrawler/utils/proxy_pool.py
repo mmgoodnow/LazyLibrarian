@@ -5,9 +5,18 @@ import logging
 import random
 import threading
 import time
-import urllib3
-import requests
-from bs4 import BeautifulSoup
+
+try:
+    import urllib3
+    import requests
+except ImportError:
+    import lib.requests as requests
+    
+try:
+    from bs4 import BeautifulSoup
+except ImportError:
+    from lib3.bs4 import BeautifulSoup
+
 import queue
 
 
@@ -230,7 +239,7 @@ class ProxyPool(object):
             raise
         except requests.exceptions.Timeout:
             return {'valid': False, 'msg': 'timeout'}
-        except Exception:
+        except:
             return {'valid': False, 'msg': 'exception'}
         else:
             if r.status_code == 200:
@@ -357,9 +366,9 @@ class ProxyPool(object):
             src_files: A list of file names to scan
         """
         if expected_num > 30:
-            self.logger.warning('The more proxy you expect, the more time it '
-                                'will take. It is highly recommended to limit the'
-                                ' expected num under 30.')
+            self.logger.warn('The more proxy you expect, the more time it '
+                             'will take. It is highly recommended to limit the'
+                             ' expected num under 30.')
         proxy_scanner = ProxyScanner()
         if src_files is None:
             src_files = []

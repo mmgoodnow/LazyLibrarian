@@ -2,7 +2,11 @@ import os
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, syspath
-import gntp.notifier
+
+try:
+    import gntp.notifier as gntp_notifier
+except ImportError:
+    import lib.gntp.notifier as gntp_notifier
 
 
 class GrowlNotifier:
@@ -42,7 +46,7 @@ class GrowlNotifier:
 
         try:
             # Register notification
-            growl = gntp.notifier.GrowlNotifier(
+            growl = gntp_notifier.GrowlNotifier(
                 applicationName='LazyLibrarian',
                 notifications=['New Event'],
                 defaultNotifications=['New Event'],
@@ -56,11 +60,11 @@ class GrowlNotifier:
 
         try:
             growl.register()
-        except gntp.notifier.errors.NetworkError:
+        except gntp_notifier.errors.NetworkError:
             logger.warn(u'Growl notification failed: network error')
             return False
 
-        except gntp.notifier.errors.AuthError:
+        except gntp_notifier.errors.AuthError:
             logger.warn(u'Growl notification failed: authentication error')
             return False
 
@@ -80,7 +84,7 @@ class GrowlNotifier:
                 description=message,
                 icon=image
             )
-        except gntp.notifier.errors.NetworkError:
+        except gntp_notifier.errors.NetworkError:
             logger.warn(u'Growl notification failed: network error')
             return False
 

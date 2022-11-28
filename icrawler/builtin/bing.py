@@ -1,8 +1,14 @@
 # -*- coding: utf-8 -*-
 
+import re
 
-import html5lib
-from bs4 import BeautifulSoup
+try:
+    import html5lib
+    from bs4 import BeautifulSoup
+except ImportError:
+    from lib3.bs4 import BeautifulSoup
+
+
 from icrawler import Crawler, Parser, Feeder, ImageDownloader
 from icrawler.builtin.filter import Filter
 

@@ -18,14 +18,14 @@ import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath, remove
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
-    make_unicode, split_title
+    make_unicode, split_title, make_bytestr
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
 from lazylibrarian.librarysync import find_book_in_db
 
 try:
     from csv import writer, reader, QUOTE_MINIMAL
-except ImportError:  # incompatible version, use our local one
-    from lib.csv import writer, reader, QUOTE_MINIMAL
+except ImportError:
+    from lib3.csv import writer, reader, QUOTE_MINIMAL
 
 
 # noinspection PyArgumentList

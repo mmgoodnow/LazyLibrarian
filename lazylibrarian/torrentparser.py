@@ -16,13 +16,21 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.common import module_available
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
     replace_all, get_list, month2num, check_year, make_utf8bytes
 from urllib.parse import quote, urlencode, quote_plus
-from thefuzz import fuzz
-import html5lib
-from bs4 import BeautifulSoup
-import lib.feedparser as feedparser
+
+from lib.thefuzz import fuzz
+
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
+    import html5lib
+    from bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
+
+import lib3.feedparser as feedparser
 
 
 def torrent_trf(book=None, test=False):
@@ -67,7 +75,7 @@ def torrent_trf(book=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
-        result = ''
+        result = False
 
     if result:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
@@ -232,7 +240,7 @@ def torrent_tpb(book=None, test=False):
                 logger.debug(search_url)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
-            result = ''
+            result = False
 
         if result:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
@@ -361,7 +369,7 @@ def torrent_kat(book=None, test=False):
             logger.debug(search_url)
             logger.debug('Error fetching data from %s: %s' % (provider, result))
             errmsg = result
-        result = ''
+        result = False
 
     results = []
 
@@ -498,7 +506,7 @@ def torrent_wwt(book=None, test=False):
                 logger.debug(search_url)
                 logger.debug('Error fetching data from %s: %s' % (provider, result))
                 errmsg = result
-            result = ''
+            result = False
 
         if result:
             logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))

@@ -28,13 +28,13 @@ from lazylibrarian.grsync import grfollow
 from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
 
-from thefuzz import fuzz
+from lib.thefuzz import fuzz
 from queue import Queue
 
 
 def is_valid_authorid(authorid):
     if not authorid or not isinstance(authorid, str):
-        return False  # Reject blank, or non-string
+        return False # Reject blank, or non-string
     # GoogleBooks doesn't provide authorid so we use one of the other sources
     if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True

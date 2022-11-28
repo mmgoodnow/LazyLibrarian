@@ -15,8 +15,16 @@ import os
 import sys
 
 import cherrypy
-import cherrypy_cors
 import psutil
+try:
+    import cherrypy_cors
+except ImportError:
+    import lib.cherrypy_cors as cherrypy_cors
+try: 
+    import psutil
+except ImportError:
+    psutil = None
+
 from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger
@@ -243,14 +251,15 @@ def initialize(options=None):
         cherrypy.server.start()
     except Exception as e:
         msg = 'CherryPy failed to start on port %i' % (options['http_port'])
-        for item in psutil.net_connections():
-            txt = str(item)
-            if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
-                user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
-                if user_pid:
-                    process = psutil.Process(user_pid)
-                    process_name = process.cmdline()
-                    msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_name))
+        if psutil:
+            for item in psutil.net_connections():
+                txt = str(item)
+                if 'port=%s' % options['http_port'] in txt and "status='LISTEN'" in txt:
+                    user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
+                    if user_pid:
+                        process = psutil.Process(user_pid)
+                        process_name = process.cmdline()
+                        msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_name))
         logger.warn(msg)
         logger.warn(str(e))
         print(msg)

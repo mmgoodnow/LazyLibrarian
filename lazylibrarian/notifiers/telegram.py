@@ -1,8 +1,13 @@
-import requests
-
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, module_available
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
 
 
 class TelegramNotifier:

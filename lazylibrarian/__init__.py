@@ -22,11 +22,22 @@ import os
 import sys
 import threading
 import time
+from shutil import rmtree
 
-from lazylibrarian import logger, database, notifiers  # Must keep notifiers here
+from lazylibrarian import logger, database, notifiers # Must keep notifiers here
 from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
+
+import configparser
+
+if module_available("urllib3") and module_available("requests"):
+    # noinspection PyUnresolvedReferences
+    import urllib3
+    import requests
+else:
+    import lib.requests as requests
+
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
@@ -41,8 +52,8 @@ CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGLEVEL = 1
 LOGINUSER = None
-CONFIG = {}  # The configuration used, read from config.ini
-CFG = None  # A ConfigParser used to read the .ini file
+CONFIG = {} # The configuration used, read from config.ini
+CFG = None # A ConfigParser used to read the .ini file
 DBFILE = None
 COMMIT_LIST = None
 SHOWLOGOUT = 1
@@ -214,9 +225,9 @@ def directory(dirname):
     # ./ and .\ denotes relative to program path, useful for testing
     if usedir and len(usedir) >= 2 and usedir[0] == ".":
         if usedir[1] == "/" or usedir[1] == "\\":
-            usedir = PROG_DIR + "/" + usedir[2:]
-            if os.path.__name__ == 'ntpath':
-                usedir = usedir.replace('/', '\\')
+           usedir = PROG_DIR + "/" + usedir[2:]
+           if os.path.__name__ == 'ntpath': 
+               usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
             os.makedirs(syspath(usedir))
@@ -244,6 +255,7 @@ def directory(dirname):
         usedir = DATADIR
 
     return make_unicode(usedir)
+
 
 
 def wishlist_type(host):
