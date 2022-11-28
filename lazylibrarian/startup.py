@@ -406,9 +406,12 @@ def get_unrarlib():
         Return type of library and rarfile()
     """
     # noinspection PyBroadException
-    from unrar import rarfile
-    if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
-        return 1, rarfile
+    try:
+        from unrar import rarfile
+        if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
+            return 1, rarfile
+    except (ImportError, LookupError):
+        rarfile = None
 
     if not rarfile or lazylibrarian.CONFIG['PREF_UNRARLIB'] == 2:
         # noinspection PyBroadException
