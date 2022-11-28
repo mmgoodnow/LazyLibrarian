@@ -626,11 +626,11 @@ def is_valid_isbn(isbn):
     elif len(isbn) == 10: # Validate checksum
         xsum = 0
         for i in range(9):
-            xsum += int(isbn[i]) * (10-i) 
+            xsum += check_int(isbn[i], 0) * (10-i) 
         if isbn[9] in "Xx":
             xsum += 10
         else:
-            xsum += int(isbn[9])
+            xsum += check_int(isbn[9], 0)
         return xsum % 11 == 0
 
     return False
