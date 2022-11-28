@@ -35,7 +35,12 @@ from lazylibrarian import logger
 
 # noinspection PyArgumentList
 def magnet2torrent(magnet, output_name=None):
-    import libtorrent as lt
+    try:
+        # libtorrent not currently available on arm?
+        import libtorrent as lt
+    except ImportError:
+        logger.error("Unable to load libtorrent")
+        return False
     if output_name and \
             not os.path.isdir(output_name) and \
             not os.path.isdir(os.path.dirname(os.path.abspath(output_name))):
