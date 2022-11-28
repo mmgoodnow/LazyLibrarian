@@ -18,7 +18,6 @@ import os
 import sys
 
 import lazylibrarian
-from lazylibrarian import CONFIG, CONFIGFILE
 from lazylibrarian.formatter import make_unicode, thread_name, check_int, unaccented_bytes, unaccented
 from lazylibrarian.common import logger, path_exists, schedule_job, syspath
 from lazylibrarian import database 
