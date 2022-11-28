@@ -122,8 +122,11 @@ class TelemetryTest(unittesthelpers.LLTestCase):
 
     def test_submit_data(self):
         t = telemetry.LazyTelemetry()
-        datastr = t.construct_data_string()
-        # TODO: Now send the data to the server.
-        print(datastr)
-        pass
+        t.set_install_data(lazylibrarian.CONFIG)
+#        t.set_config_data(lazylibrarian.CONFIG)
+        msg, status = t.submit_data(lazylibrarian.CONFIG)
+        self.assertTrue(status)
 
+if __name__ == "__main__":
+    test = TelemetryTest()
+    test.test_submit_data()

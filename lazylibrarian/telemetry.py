@@ -163,7 +163,34 @@ class LazyTelemetry(object):
         datastr += f"&usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}"
         return datastr
 
+    def submit_data(self, _config):
+        """ Submits LL telemetry data
+        Returns status message and true/false depending on whether it was successful"""
+        import requests
+        from lazylibrarian import common, logger
 
-    def submit_data(self, config):
-        pass
+        server = 'localhost'
+        port = 9174
+        proxies = common.proxy_list()
+        timeout = 5
+        headers = {'User-Agent': 'LazyLibrarian'}
+        payload = {"timeout": timeout, "proxies": proxies}
+        url = f"http://{server}:{port}/send?{self.construct_data_string()}"
+        try:
+            r = requests.get(url, verify=False, params=payload, headers=headers)
+        except requests.exceptions.Timeout as e:
+            logger.error("submit_data: Timeout sending telemetry %s" % url)
+            return "Timeout %s" % str(e), False
+        except Exception as e:
+            return "Exception %s: %s" % (type(e).__name__, str(e)), False
+        
+        if str(r.status_code).startswith('2'):  # (200 OK etc)
+            return r.text, True # Success
+
+        try:
+            # noinspection PyProtectedMember
+            msg = requests.status_codes._codes[r.status_code][0]
+        except Exception:
+            msg = r.text
+        return "Response status %s: %s" % (r.status_code, msg), False        
 
