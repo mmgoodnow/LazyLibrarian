@@ -109,6 +109,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG)
+        t.get_server_telemetry()["os"] = 'nt' # Ignore actual value
         sGot = dict()
         for cfg in ['server', 'config', 'usage']:
             sGot[cfg] = t.construct_data_string(cfg)
@@ -130,16 +131,12 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         self.assertEqual(sAll, sAllNone)
            
 
-    @pytest.mark.order(after="test_ensure_server_id_generation")
-    @pytest.mark.order(after="test_ensure_server_id_persistence")
-    @pytest.mark.order(after="test_set_config_data")
-    @pytest.mark.order(after="test_record_usage_data")
+    @pytest.mark.order(after="test_construct_data_string")
     @mock.patch('lazylibrarian.telemetry.requests')
     def test_submit_data(self, mock_requests):
         import requests
 
         t = telemetry.LazyTelemetry()
-        t.set_install_data(lazylibrarian.CONFIG)
 
         # Pretend to submit data and experience a timeout
         mock.side_effect = requests.exceptions.Timeout
