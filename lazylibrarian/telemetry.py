@@ -81,15 +81,19 @@ class LazyTelemetry(object):
     def get_usage_telemetry(self):
         return self._data["usage"]
 
-    def set_install_data(self, _config):
+    def set_install_data(self, _config, testing=False):
         """ Update telemetry with data bout the installation """
         self.ensure_server_id(_config) # Make sure it has an ID
         server = self.get_server_telemetry()
         up = datetime.datetime.now() - self._boottime
-        server["uptime_seconds"] = round(up.total_seconds())
         server["install_type"] = _config['INSTALL_TYPE']
         server["version"] = _config['CURRENT_VERSION']
-        server["os"] = os.name
+        if testing:
+            server["os"] = 'nt'
+            server["uptime_seconds"] = 0
+        else:
+            server["os"] = os.name
+            server["uptime_seconds"] = round(up.total_seconds())
 
     def set_config_data(self, _config):
         import lazylibrarian # To get access to the _PROV objects

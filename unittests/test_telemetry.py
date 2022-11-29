@@ -8,9 +8,10 @@ import json
 import pytest
 import pytest_order # Needed to force unit test order
 import mock
+import configparser
 
 import lazylibrarian
-from lazylibrarian import config, telemetry
+from lazylibrarian import config, telemetry, common
 
 
 class TelemetryTest(unittesthelpers.LLTestCase):
@@ -56,11 +57,19 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         check_id = self._do_ids_match()
         self.assertEqual(saved_id, check_id, 'Test logic is broken')
 
+    @pytest.mark.order(after="test_ensure_server_id_generation")
     def test_ensure_server_id_persistence(self):
         my_id = self._do_ids_match()
 
         # Check we can read the new ID and test again
         config.config_write('Telemetry')
+
+        # Test that writing went right
+        cp = configparser.ConfigParser()
+        cp.read(common.syspath(lazylibrarian.CONFIGFILE))
+        id_from_file = cp.get('Telemetry', 'SERVER_ID')
+        self.assertEqual(my_id, id_from_file, 'ID written to config.ini does not match')
+
         self._do_ids_match()
 
     def test_set_install_data(self):
@@ -119,15 +128,20 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         ]
         # Test individual strings
         for expect in sExpect:
-            self.assertEqual(sGot[expect[0]], expect[1])
+            key = expect[0]
+            self.assertEqual(key, sGot[key][:len(key)], 'Data string does not start with key')
+            # Remove the key prefix before converting
+            gotstr = sGot[key][len(key)+1:]
+            expstr = expect[1][len(key)+1:]
+            # Don't just compare strings, compare if they are equivalent 
+            # even if order of elements is different
+            gotdata = json.loads(gotstr)
+            expdata = json.loads(expstr)
+            self.assertEqual(gotdata, expdata)
 
-        # Test they are concatenated correctly
-        sAll = t.construct_data_string(['usage', 'config', 'server'])
-        self.assertEqual(sAll, f"{sExpect[0][1]}&{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
-
-        # Test that components = None also works
-        sAllNone = t.construct_data_string()
-        self.assertEqual(sAll, sAllNone)
+        # Test they are concatenated correctly, excluding server key
+        sUC = t.construct_data_string(['usage', 'config'])
+        self.assertEqual(sUC, f"{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
            
 
     @pytest.mark.order(after="test_construct_data_string")
