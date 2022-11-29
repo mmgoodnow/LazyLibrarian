@@ -819,12 +819,12 @@ def config_read(reloaded=False):
 
     # new config options...
     if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] == 'None':
-        lazylibrarian.CFG.set('PostProcess', 'audiobook_dest_folder', CONFIG['EBOOK_DEST_FOLDER'])
-        lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = CONFIG['EBOOK_DEST_FOLDER']
+        lazylibrarian.CFG.set('PostProcess', 'audiobook_dest_folder', lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'])
+        lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']
 
     if not lazylibrarian.CONFIG['LOGDIR']:
         lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
-    if lazylibrarian.CONFIG['HTTP_PORT'] < 21 or CONFIG['HTTP_PORT'] > 65535:
+    if lazylibrarian.CONFIG['HTTP_PORT'] < 21 or lazylibrarian.CONFIG['HTTP_PORT'] > 65535:
         lazylibrarian.CONFIG['HTTP_PORT'] = 5299
 
     # to make matching easier/faster
@@ -833,7 +833,7 @@ def config_read(reloaded=False):
 
     if os.name == 'nt':
         for fname in ['EBOOK_DEST_FOLDER', 'MAG_DEST_FOLDER', 'COMIC_DEST_FOLDER']:
-            if '/' in CONFIG[fname]:
+            if '/' in lazylibrarian.CONFIG[fname]:
                 logger.warn('Please check your %s setting' % fname)
                 lazylibrarian.CONFIG[fname] = lazylibrarian.CONFIG[fname].replace('/', '\\')
 
@@ -904,14 +904,14 @@ def config_write(part=None):
     thread_name("CONFIG_WRITE")
 
     interface = lazylibrarian.CFG.get('General', 'http_look')
-    if CONFIG['HTTP_LOOK'] != interface:
+    if lazylibrarian.CONFIG['HTTP_LOOK'] != interface:
         makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
         logger.debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
         version_file = os.path.join(makocache, 'python_version.txt')
         with open(version_file, 'w') as fp:
-            fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
+            fp.write(sys.version.split()[0] + ':' + lazylibrarian.CONFIG['HTTP_LOOK'])
 
     for key in list(CONFIG_DEFINITIONS.keys()):
         _, section, _ = CONFIG_DEFINITIONS[key]
@@ -920,7 +920,7 @@ def config_write(part=None):
                 def_val = '644'
             else:
                 def_val = '755'
-            value = CONFIG[key]
+            value = lazylibrarian.CONFIG[key]
             if len(value) in [5, 6]:
                 value = value[2:]
             if len(value) in [3, 4]:
@@ -931,7 +931,7 @@ def config_write(part=None):
             else:
                 value = def_val
             value = '0o' + value
-            CONFIG[key] = value
+            lazylibrarian.CONFIG[key] = value
 
         elif key in ['WALL_COLUMNS', 'DISPLAY_LENGTH']:  # may be modified by user interface but not on config page
             value = check_int(CONFIG[key], 5)
@@ -941,7 +941,7 @@ def config_write(part=None):
                 logger.debug("Leaving %s unchanged (%s)" % (key, value))
         elif key not in CONFIG_NONWEB and not (interface == 'legacy' and key in CONFIG_NONDEFAULT):
             check_ini_section(section)
-            value = CONFIG[key]
+            value = lazylibrarian.CONFIG[key]
             if key == 'LOGLEVEL':
                 lazylibrarian.LOGLEVEL = check_int(value, 1)
             elif key in FORCE_LOWER:
@@ -949,7 +949,7 @@ def config_write(part=None):
         else:
             # keep the old value
             value = lazylibrarian.CFG.get(section, key.lower())
-            CONFIG[key] = value
+            lazylibrarian.CONFIG[key] = value
             # if CONFIG['LOGLEVEL'] > 2:
             #    logger.debug("Leaving %s unchanged (%s)" % (key, value))
 
@@ -968,7 +968,7 @@ def config_write(part=None):
                 value = ','.join(sorted(set([i for i in value.upper() if i in 'ACEM'])))
                 if not value:
                     value = 'E'
-                CONFIG[key] = value
+                lazylibrarian.CONFIG[key] = value
 
         if key in ['SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'VERSIONCHECK_INTERVAL',
                    'SEARCHRSS_INTERVAL', 'GOODREADS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL']:
@@ -988,7 +988,7 @@ def config_write(part=None):
                     schedule_job('Restart', 'PostProcessor')
                 elif key == 'VERSIONCHECK_INTERVAL':
                     schedule_job('Restart', 'check_for_updates')
-                elif key == 'GOODREADS_INTERVAL' and CONFIG['GR_SYNC']:
+                elif key == 'GOODREADS_INTERVAL' and lazylibrarian.CONFIG['GR_SYNC']:
                     schedule_job('Restart', 'sync_to_gr')
 
         lazylibrarian.CFG.set(section, key.lower(), value)
@@ -1013,7 +1013,7 @@ def config_write(part=None):
                 part = part.replace('nab_', 'nab')
                 for provider in new_list:
                     if provider['NAME'].lower() != part.lower():  # keep old values
-                        if CONFIG['LOGLEVEL'] > 2:
+                        if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
                             logger.debug("Keep %s" % provider['NAME'])
                         for item in nab_items + entry[2]:
                             try:
@@ -1067,7 +1067,7 @@ def config_write(part=None):
         if part:  # only update the named provider
             for provider in new_list:
                 if provider['NAME'].lower() != part:  # keep old values
-                    if CONFIG['LOGLEVEL'] > 2:
+                    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in rss_items:
                         try:
@@ -1113,7 +1113,7 @@ def config_write(part=None):
         if part:  # only update the named provider
             for provider in new_list:
                 if provider['NAME'].upper() != part:  # keep old values
-                    if CONFIG['LOGLEVEL'] > 2:
+                    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in gen_items:
                         try:
@@ -1160,7 +1160,7 @@ def config_write(part=None):
         if part:  # only update the named provider
             for provider in new_list:
                 if provider['NAME'].upper() != part:  # keep old values
-                    if CONFIG['LOGLEVEL'] > 2:
+                    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in irc_items:
                         try:
@@ -1206,7 +1206,7 @@ def config_write(part=None):
         if part:  # only update the named provider
             for provider in new_list:
                 if provider['NAME'].lower() != part:  # keep old values
-                    if CONFIG['LOGLEVEL'] > 2:
+                    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
                         logger.debug("Keep %s" % provider['NAME'])
                     for item in apprise_items:
                         try:
@@ -1236,33 +1236,33 @@ def config_write(part=None):
 
         add_apprise_slot()
     #
-    if CONFIG['ADD_SERIES']:
+    if lazylibrarian.CONFIG['ADD_SERIES']:
         lazylibrarian.SHOW_SERIES = 1
-    if not CONFIG['SERIES_TAB']:
+    if not lazylibrarian.CONFIG['SERIES_TAB']:
         lazylibrarian.SHOW_SERIES = 0
 
-    lazylibrarian.SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
-    lazylibrarian.SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
-    lazylibrarian.SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
-    lazylibrarian.SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
+    lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
+    lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
+    lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
+    lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
 
-    if CONFIG['HTTP_LOOK'] == 'legacy':
+    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
         lazylibrarian.SHOW_AUDIO = 0
         lazylibrarian.SHOW_COMICS = 0
         lazylibrarian.SHOW_EBOOK = 1
     else:
-        if CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
-            CONFIG['HOMEPAGE'] = ''
-        if CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
-            CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
+            lazylibrarian.CONFIG['HOMEPAGE'] = ''
 
-    if CONFIG['NO_SINGLE_BOOK_SERIES']:
+    if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
         db = database.DBConnection()
         db.action('DELETE from series where total=1')
         db.close()
