@@ -15,11 +15,7 @@ import os
 import sys
 
 import cherrypy
-import psutil
-try:
-    import cherrypy_cors
-except ImportError:
-    import lib.cherrypy_cors as cherrypy_cors
+import cherrypy_cors
 try: 
     import psutil
 except ImportError:

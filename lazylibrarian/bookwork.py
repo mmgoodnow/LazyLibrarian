@@ -21,18 +21,14 @@ from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
-from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remove, module_available
+from lazylibrarian.common import proxy_list, quotes, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 
-from thefuzz import fuzz
+from lib.thefuzz import fuzz
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 
 def set_all_book_authors():

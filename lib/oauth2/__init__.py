@@ -27,7 +27,7 @@ import random
 import hmac
 import binascii
 from urllib.parse import parse_qs, parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
-import lib3.httplib2 as httplib2
+import httplib2
 
 
 VERSION = '1.0'  # Hi Blaine!
@@ -708,7 +708,7 @@ class SignatureMethod_PLAINTEXT(SignatureMethod):
         sig = '%s&' % escape(consumer.secret)
         if token:
             sig = sig + escape(token.secret)
-        if and isinstance(sig, str):
+        if isinstance(sig, str):
             sig = sig.encode('utf-8')
         return sig, sig
 

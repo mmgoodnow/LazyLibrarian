@@ -24,15 +24,11 @@ from shutil import rmtree
 import lazylibrarian
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath, module_available
+from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 
 def logmsg(level, msg):
@@ -486,7 +482,7 @@ def update():
             logmsg('info', msg)
             zf = tarfile.open(backup_file, mode='w:gz')
             for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                           'lib', 'lib3', 'mako']:
+                           'lib', 'mako']:
                 path = os.path.join(lazylibrarian.PROG_DIR, folder)
                 for root, _, files in walk(path):
                     for item in files:

@@ -26,10 +26,7 @@ from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
 
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
+import lib.oauth2 as oauth
 
 client = ''
 request_token = ''

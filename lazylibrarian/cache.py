@@ -19,17 +19,12 @@ from xml.etree import ElementTree
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, \
-    remove, module_available
+    remove
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
-
+import urllib3
+import requests
 import http.client
 
 

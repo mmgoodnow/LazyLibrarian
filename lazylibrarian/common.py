@@ -17,6 +17,7 @@
 
 import datetime
 import glob
+import mako
 import os
 import platform
 import random
@@ -33,6 +34,12 @@ import re
 import ssl
 import sqlite3
 import cherrypy
+import urllib3
+import requests
+import icrawler
+import webencodings
+import bs4
+import html5lib
 
 try:
     # noinspection PyUnresolvedReferences
@@ -714,20 +721,6 @@ def module_available(module_name):
     else:
         loader = None
     return loader is not None
-
-
-# some mac versions include requests _without_ urllib3, our copy bundles it
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    try:
-        import lib.requests as requests
-    except ModuleNotFoundError as e:
-        print(str(e))
-        print("Unable to continue, please install missing modules")
-        exit(0)
 
 
 def nextrun(target=None, interval=0, action='', hours=False):
@@ -1442,7 +1435,10 @@ def log_header(online=True):
 
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
-
+    header += "mako: %s\n" % getattr(mako, '__version__', None)
+    header += "icrawler: %s\n" % getattr(icrawler, '__version__', None)
+    header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
+    
     if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
         header += "apprise: %s\n" % lazylibrarian.APPRISE
     else:
@@ -1460,24 +1456,9 @@ def log_header(online=True):
     else:
         header += "unrar: not found\n"
 
-    if module_available("bs4") and module_available("html5lib"):
-        import bs4
-        header += "bs4: %s\n" % getattr(bs4, '__version__', None)
-        import html5lib
-        header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
-    else:
-        import lib3.bs4 as bs4
-        bs4vers = getattr(bs4, '__version__', None)
-        h5vers = None
-        if bs4vers:
-            try:
-                # noinspection PyProtectedMember
-                h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
-            except AttributeError:
-                h5vers = "not found"
-        header += "bundled bs4: %s\n" % bs4vers
-        header += "bundled html5lib: %s\n" % h5vers
-
+    header += "bs4: %s\n" % getattr(bs4, '__version__', None)
+    header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
+    
     try:
         import PIL
         vers = getattr(PIL, '__version__', None)

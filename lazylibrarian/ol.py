@@ -16,23 +16,15 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import json_request, html_request, cache_img
-from lazylibrarian.common import module_available
 from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, make_unicode, format_author_name, \
     get_list, make_utf8bytes, plural, unaccented, replace_all, check_year, today, date_format, thread_name
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     thinglang
 
-if module_available("bs4") and module_available("html5lib"):
-    # noinspection PyUnresolvedReferences
-    import html5lib
-    from bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
-
+import html5lib
+from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
-
 from lazylibrarian.images import get_book_cover
-
 from lib.thefuzz import fuzz
 
 

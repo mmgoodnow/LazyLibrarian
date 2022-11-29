@@ -3,12 +3,7 @@
 import re
 import time
 
-try:
-    import html5lib
-    from bs4 import BeautifulSoup
-except ImportError:
-    from lib3.bs4 import BeautifulSoup
-
+from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit
 
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
@@ -38,7 +33,7 @@ class GreedyParser(Parser):
 
     def parse(self, response, domains):
         soup = BeautifulSoup(
-            response.content.decode('utf-8', 'ignore'), 'html5lib')
+            response.content.decode('utf-8', 'ignore'), 'lxml')
         tags = soup.find_all('img', src=True)
         for tag in tags:
             if re.match(self.pattern, tag['src']):

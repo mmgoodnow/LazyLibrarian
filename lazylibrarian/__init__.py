@@ -28,15 +28,9 @@ from lazylibrarian import logger, database, notifiers # Must keep notifiers here
 from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
-
 import configparser
-
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 
 # Transient globals NOT stored in config

@@ -3,12 +3,11 @@
 import logging
 import time
 from threading import current_thread
-
+import lazylibrarian
 import queue
 from urllib.parse import urlsplit
 
 from icrawler.utils import ThreadPool
-from lazylibrarian.common import get_user_agent
 
 
 class Parser(ThreadPool):
@@ -94,7 +93,7 @@ class Parser(ThreadPool):
                     base_url = '{0.scheme}://{0.netloc}'.format(urlsplit(url))
                     response = self.session.get(url,
                                                 timeout=req_timeout,
-                                                headers={'Referer': base_url, 'User-Agent': get_user_agent()})
+                                                headers={'Referer': base_url, 'User-Agent': lazylibrarian.common.get_user_agent()})
                 except Exception as e:
                     self.logger.error(
                         'Exception caught when fetching page %s, '

@@ -13,16 +13,12 @@
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import proxy_list, module_available
+from lazylibrarian.common import proxy_list
 from lazylibrarian.formatter import check_int, make_utf8bytes, versiontuple
 from urllib.parse import urlencode
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 
 def check_link():

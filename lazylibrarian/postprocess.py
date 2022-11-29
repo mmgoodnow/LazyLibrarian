@@ -34,7 +34,7 @@ from lazylibrarian.ol import OpenLibrary
 try:
     import zipfile
 except ImportError:
-    import lib3.zipfile as zipfile
+    import lib.zipfile as zipfile
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
@@ -44,7 +44,7 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
-from lazylibrarian.formatter import unaccented_bytes, unaccented, plural, now, today, is_valid_booktype, \
+from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
 from lazylibrarian.images import createthumbs

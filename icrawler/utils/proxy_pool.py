@@ -6,16 +6,9 @@ import random
 import threading
 import time
 
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-    
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    from lib3.bs4 import BeautifulSoup
+import urllib3
+import requests
+from bs4 import BeautifulSoup
 
 import queue
 

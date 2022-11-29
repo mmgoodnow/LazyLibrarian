@@ -1,13 +1,6 @@
 # -*- coding: utf-8 -*-
 
-import re
-
-try:
-    import html5lib
-    from bs4 import BeautifulSoup
-except ImportError:
-    from lib3.bs4 import BeautifulSoup
-
+from bs4 import BeautifulSoup
 
 from icrawler import Crawler, Parser, Feeder, ImageDownloader
 from icrawler.builtin.filter import Filter
@@ -121,7 +114,7 @@ class BingParser(Parser):
 
     def parse(self, response):
         soup = BeautifulSoup(
-            response.content.decode('utf-8', 'ignore'), 'html5lib')
+            response.content.decode('utf-8', 'ignore'), 'lxml')
         image_divs = soup.find_all('div', class_='imgpt')
         for div in image_divs:
             try:

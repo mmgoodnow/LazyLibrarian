@@ -41,7 +41,7 @@ from urllib.parse import quote_plus, urlencode
 try:
     import zipfile
 except ImportError:
-    import lib3.zipfile as zipfile
+    import lib.zipfile as zipfile
 
 
 # noinspection PyBroadException

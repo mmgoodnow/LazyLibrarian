@@ -21,10 +21,7 @@ import lib.pythontwitter as twitter
 from lazylibrarian import logger, common, formatter
 from urllib.parse import parse_qsl
 
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
+import lib.oauth2 as oauth
 
 
 class TwitterNotifier:

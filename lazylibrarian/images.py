@@ -30,7 +30,7 @@ from shutil import rmtree
 try:
     import zipfile
 except ImportError:
-    import lib3.zipfile as zipfile
+    import lib.zipfile as zipfile
 
 try:
     import PIL
