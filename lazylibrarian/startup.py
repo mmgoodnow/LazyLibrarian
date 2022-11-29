@@ -328,18 +328,18 @@ def init_caches():
         else:
             debug("Previous python version unknown, now %s" % sys.version.split()[0])
         clean_cache = True
-    if last_run_interface != CONFIG['HTTP_LOOK']:
+    if last_run_interface != lazylibrarian.CONFIG['HTTP_LOOK']:
         if last_run_interface:
-            debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
+            debug("Interface change (%s to %s)" % (last_run_interface, lazylibrarian.CONFIG['HTTP_LOOK']))
         else:
-            debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
+            debug("Previous interface unknown, now %s" % lazylibrarian.CONFIG['HTTP_LOOK'])
         clean_cache = True
     if clean_cache:
         debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
         with open(version_file, 'w') as fp:
-            fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
+            fp.write(sys.version.split()[0] + ':' + lazylibrarian.CONFIG['HTTP_LOOK'])
 
     # keep track of last api calls so we don't call more than once per second
     # to respect api terms, but don't wait un-necessarily either
@@ -420,18 +420,18 @@ def get_unrarlib():
     try:
         # noinspection PyUnresolvedReferences
         from unrar import rarfile
-        if CONFIG['PREF_UNRARLIB'] == 1:
+        if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
             return 1, rarfile
     except Exception:
         # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
-            if CONFIG['PREF_UNRARLIB'] == 1:
+            if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
                 return 1, rarfile
         except Exception:
             pass
 
-    if not rarfile or CONFIG['PREF_UNRARLIB'] == 2:
+    if not rarfile or lazylibrarian.CONFIG['PREF_UNRARLIB'] == 2:
         # noinspection PyBroadException
         try:
             from lib.UnRAR2 import RarFile
@@ -720,7 +720,7 @@ def launch_browser(host, port, root):
     if host == '0.0.0.0':
         host = 'localhost'
 
-    if CONFIG['HTTPS_ENABLED']:
+    if lazylibrarian.CONFIG['HTTPS_ENABLED']:
         protocol = 'https'
     else:
         protocol = 'http'
@@ -739,10 +739,10 @@ def start_schedulers():
             lazylibrarian.SHOW_COMICS = 0
             lazylibrarian.SHOW_SERIES = 0
         else:
-            lazylibrarian.SHOW_EBOOK = 1 if CONFIG['EBOOK_TAB'] else 0
-            lazylibrarian.SHOW_AUDIO = 1 if CONFIG['AUDIO_TAB'] else 0
-            lazylibrarian.SHOW_MAGS = 1 if CONFIG['MAG_TAB'] else 0
-            lazylibrarian.SHOW_COMICS = 1 if CONFIG['COMIC_TAB'] else 0
+            lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
+            lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
+            lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
+            lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
 
             if lazylibrarian.CONFIG['ADD_SERIES']:
                 lazylibrarian.SHOW_SERIES = 1
@@ -797,7 +797,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
                 makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
-                CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
                 config.config_write('Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
@@ -859,7 +859,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
                 if 'HTTP_HOST' in CONFIG:
                     # updating a running instance, not an --update
                     # wait for it to open the httpserver
-                    host = CONFIG['HTTP_HOST']
+                    host = lazylibrarian.CONFIG['HTTP_HOST']
                     if '0.0.0.0' in host:
                         host = 'localhost'  # windows doesn't like 0.0.0.0
 
@@ -867,12 +867,12 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
                         host = 'http://' + host
 
                     # depending on proxy might need host:port/root or just host/root
-                    if CONFIG['HTTP_ROOT']:
-                        server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
-                                                CONFIG['HTTP_ROOT'].lstrip('/'))
-                        server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
+                    if lazylibrarian.CONFIG['HTTP_ROOT']:
+                        server1 = "%s:%s/%s" % (host, lazylibrarian.CONFIG['HTTP_PORT'],
+                                                lazylibrarian.CONFIG['HTTP_ROOT'].lstrip('/'))
+                        server2 = "%s/%s" % (host, lazylibrarian.CONFIG['HTTP_ROOT'].lstrip('/'))
                     else:
-                        server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
+                        server1 = "%s:%s" % (host, lazylibrarian.CONFIG['HTTP_PORT'])
                         server2 = ''
 
                     msg = "Waiting for %s to start" % server1
