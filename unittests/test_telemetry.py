@@ -65,7 +65,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
 
     def test_set_install_data(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(lazylibrarian.CONFIG)
+        t.set_install_data(lazylibrarian.CONFIG, testing=True)
         srv = t.get_server_telemetry()
         self.assertIsInstance(srv, dict)
         self.assertEqual(srv['id'], lazylibrarian.CONFIG['SERVER_ID'])
@@ -108,8 +108,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
     @pytest.mark.order(after="test_record_usage_data")
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(lazylibrarian.CONFIG)
-        t.get_server_telemetry()["os"] = 'nt' # Ignore actual value
+        t.set_install_data(lazylibrarian.CONFIG, testing=True)
         sGot = dict()
         for cfg in ['server', 'config', 'usage']:
             sGot[cfg] = t.construct_data_string(cfg)

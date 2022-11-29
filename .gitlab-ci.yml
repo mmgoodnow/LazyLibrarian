@@ -1,4 +1,16 @@
-image: python:latest
+default:
+  image: python:latest
+
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+
+  before_script:
+    - python --version  # For debugging
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
 
 stages:
   - test
@@ -6,23 +18,11 @@ stages:
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-# Pip's cache doesn't store the python packages
-# https://pip.pypa.io/en/stable/topics/caching/
-cache:
-  paths:
-    - .cache/pip
-    - venv/
-
-before_script:
-  - python --version  # For debugging
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
 
 unittest:
   stage: test
   script:
-    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest mock
+    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest mock pytest_order
     - pytest --junitxml=lltest.xml unittests/test*.py
   artifacts:
     when: always
