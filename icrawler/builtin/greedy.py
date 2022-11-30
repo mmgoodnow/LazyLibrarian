@@ -2,7 +2,7 @@
 
 import re
 import time
-
+import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlsplit
 
@@ -33,7 +33,7 @@ class GreedyParser(Parser):
 
     def parse(self, response, domains):
         soup = BeautifulSoup(
-            response.content.decode('utf-8', 'ignore'), 'lxml')
+            response.content.decode('utf-8', 'ignore'), 'html5lib')
         tags = soup.find_all('img', src=True)
         for tag in tags:
             if re.match(self.pattern, tag['src']):

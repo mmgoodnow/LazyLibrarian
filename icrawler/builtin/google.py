@@ -4,6 +4,7 @@ import datetime
 
 import json
 import re
+import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import urlencode
 
@@ -142,7 +143,7 @@ class GoogleFeeder(Feeder):
 class GoogleParser(Parser):
     def parse(self, response):
         soup = BeautifulSoup(
-            response.content.decode('utf-8', 'ignore'), 'lxml')
+            response.content.decode('utf-8', 'ignore'), 'html5lib')
         images = soup.find_all(name='img')
         uris = []
         for img in images:
