@@ -119,7 +119,7 @@ class GrAuth:
             logger.debug("oauth2: %s" % str(access_token))
         lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] = access_token['oauth_token']
         lazylibrarian.CONFIG['GR_OAUTH_SECRET'] = access_token['oauth_token_secret']
-        lazylibrarian.config_write('API')
+        lazylibrarian.config.config_write('API')
         return "Authorisation complete"
 
     def get_user_id(self):

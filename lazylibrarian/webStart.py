@@ -13,14 +13,16 @@
 from __future__ import print_function
 import os
 import sys
-
-import cherrypy
-import cherrypy_cors
-try: 
+try:
     import psutil
 except ImportError:
     psutil = None
 
+import cherrypy
+try:
+    import cherrypy_cors
+except ImportError:
+    import lib.cherrypy_cors as cherrypy_cors
 from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger
@@ -69,7 +71,7 @@ def initialize(options=None):
     else:
         protocol = "http"
 
-    logger.info("Starting LazyLibrarian web server on %s://%s:%d%s" %
+    logger.info("Starting LazyLibrarian web server on %s://%s:%s%s" %
                 (protocol, options['http_host'], options['http_port'], options['http_root']))
     cherrypy_cors.install()
     cherrypy.config.update(options_dict)
@@ -254,8 +256,10 @@ def initialize(options=None):
                     user_pid = int(txt.split('pid=')[1].split(')')[0].split(',')[0])
                     if user_pid:
                         process = psutil.Process(user_pid)
-                        process_name = process.cmdline()
-                        msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_name))
+                        process_cmd = process.cmdline()
+                        msg += ', port appears to be used by pid %i, %s' % (user_pid, str(process_cmd))
+        else:
+            msg += ' Please install psutil to get more info'
         logger.warn(msg)
         logger.warn(str(e))
         print(msg)

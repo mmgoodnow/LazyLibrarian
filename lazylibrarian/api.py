@@ -490,7 +490,7 @@ class Api(object):
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
-                lazylibrarian.config_write(section)
+                lazylibrarian.config.config_write(section)
                 self.data = {'Success': True, 'Data': 'Deleted %s' % name,
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 return
@@ -536,7 +536,7 @@ class Api(object):
                     lazylibrarian.CONFIG[name] = val
                 else:
                     miss.append(arg)
-            lazylibrarian.config_write(name)
+            lazylibrarian.config.config_write(name)
             self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
                          'Error':  {'Code': 200, 'Message': 'OK'}}
             if miss:
@@ -587,7 +587,7 @@ class Api(object):
                         providers[-1]['AUDIOCAT'] = audiocat
                     else:
                         miss.append(arg)
-                lazylibrarian.config_write(item['NAME'])
+                lazylibrarian.config.config_write(item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
@@ -682,7 +682,7 @@ class Api(object):
                 providers[-1][arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
-        lazylibrarian.config_write(section)
+        lazylibrarian.config.config_write(section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
         if miss:

@@ -15,23 +15,34 @@ import re
 import time
 from xml.etree import ElementTree
 
-from urllib.parse import urlencode, urlparse
+# noinspection PyUnresolvedReferences
+from six.moves.urllib_parse import urlencode, urlparse
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.config import config_write
-from lazylibrarian.common import syspath
+from lazylibrarian.common import syspath, module_available
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
-    make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num
+    make_unicode, seconds_to_midnight, make_utf8bytes, make_bytestr, no_umlauts, month2num
 from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
-import lib.feedparser as feedparser
+from six import PY2
 
-import html5lib
-from bs4 import BeautifulSoup
+if PY2:
+    import lib.feedparser as feedparser
+else:
+    import lib3.feedparser as feedparser
+
+if module_available("bs4") and module_available("html5lib"):
+    # noinspection PyUnresolvedReferences
+    import html5lib
+    from bs4 import BeautifulSoup
+elif PY2:
+    from lib.bs4 import BeautifulSoup
+else:
+    from lib3.bs4 import BeautifulSoup
 
 
 def test_provider(name, host=None, api=None):
@@ -397,7 +408,7 @@ def get_capabilities(provider, force=False):
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
                 provider['RATELIMIT'] = 0
-                config_write(provider['NAME'])
+                lazylibrarian.config.config_write(provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
             #
@@ -509,7 +520,7 @@ def get_capabilities(provider, force=False):
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
-            config_write(provider['NAME'])
+            lazylibrarian.config.config_write(provider['NAME'])
     return provider
 
 
@@ -1869,7 +1880,7 @@ def cancel_search_type(search_type, error_msg, provider):
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
-                                config_write(provider['NAME'])
+                                lazylibrarian.config.config_write(provider['NAME'])
                                 return True
                         count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
@@ -1926,6 +1937,9 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
 
         if success:
             try:
+                if PY2:
+                    result = make_bytestr(result)
+
                 rootxml = ElementTree.fromstring(result)
             except Exception as e:
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))
