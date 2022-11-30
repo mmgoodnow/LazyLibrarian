@@ -5,11 +5,20 @@
 import mysql.connector
 import datetime
 import json
+import logging
+import configparser
 
 class TelemetryDB():
     """ Handler for the LL telemetry database """
     DBName = 'lazytelemetry'
     connection = None
+
+    def __init__(this, config: configparser.ConfigParser):
+        this.host = config.get('database', 'host', fallback='localhost')
+        this.user = config.get('database', 'user', fallback='LazyTelemetry')
+        this.password = config.get('database', 'password', fallback='secret789')
+
+        this.logger = logging.getLogger(__name__)
 
     def __del__(this):
         if this.connection:
@@ -19,12 +28,11 @@ class TelemetryDB():
 
     def _connect(this):
         """ Connect to the database, return cursor """
-        # TODO: Use config options for the database connection
         if not this.connection:
             this.connection = mysql.connector.connect(
-            host="localhost",
-            user="LazyTelemetry", 
-            password="secret789",
+            host=this.host,
+            user=this.user, 
+            password=this.password,
             database=this.DBName
             )
 
@@ -32,6 +40,7 @@ class TelemetryDB():
 
     def ensure_db_exists(this):
         cursor = this._connect()
+        this.logger.debug('Ensuring database exists')
         try:
             try:
                 cursor.execute(f"CREATE DATABASE {this.DBName};")
@@ -49,9 +58,9 @@ class TelemetryDB():
             if e.errno == mysql.connector.errorcode.ER_DUP_FIELDNAME:
                 pass # We expect this most of the time
             else:
-                print(f"Unexpected error creating column: {e.errno}")
+                this.logger.error(f"Unexpected error creating column: {e.errno}")
         except Exception as e:
-            print(f"Unexpected exception creating column: {str(e)}")
+            this.logger.error(f"Unexpected exception creating column: {str(e)}")
 
     def ensure_table(this, tablename, columns):
         cursor = this._connect()
@@ -75,6 +84,7 @@ class TelemetryDB():
 
 
     def ensure_db_schema(this):
+        this.logger.info('Ensuring database schema is correct')
         this.ensure_table("ll_servers",[
             "serverid       VARCHAR(50) NOT NULL PRIMARY KEY",
             "os             VARCHAR(50)",
@@ -105,6 +115,7 @@ class TelemetryDB():
 
     def _update_server_data(this, server):
         """ Returns current datetime string """
+        this.logger.debug(f'Store server data {server}')
         try:
             nowstr = f"'{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'"
             cursor = this._connect()
@@ -138,6 +149,7 @@ class TelemetryDB():
         return nowstr
 
     def _add_config_data(this, serverid, nowstr, config):
+        this.logger.debug(f'Store config data {config}')
         try:
             cursor = this._connect()
             try:
@@ -153,7 +165,8 @@ class TelemetryDB():
         except Exception as e:
             raise Exception(f"Error updating config data: {str(e)}")
 
-    def _add_usage_data(this, serverid, nowstr, config):
+    def _add_usage_data(this, serverid, nowstr, usage):
+        this.logger.debug(f'Store usage data {usage}')
         try:
             cursor = this._connect()
             try:
@@ -161,12 +174,12 @@ class TelemetryDB():
                 params = f"'{serverid}', {nowstr}"
 
                 # Create a column for each usage data provided
-                for key in config.keys():
+                for key in usage.keys():
                     columnname = "".join(c for c in key if c.isalpha())
                     columnspec = f"{columnname} INT"
                     this.ensure_column(cursor, "ll_telemetry", columnspec)
                     keys += ", " + columnname
-                    params += ", " + str(config[key])
+                    params += ", " + str(usage[key])
 
                 stmt = f"INSERT INTO ll_telemetry ({keys}) VALUES ({params})"
                 cursor.execute(stmt)
@@ -178,6 +191,7 @@ class TelemetryDB():
     def add_telemetry(this, telemetry_data):
         """ Add telemetry received from LL to the database
         Returns status string """
+        this.logger.debug(f'Parsing telemetry data {telemetry_data}')
         try:
             server = list2dict(telemetry_data['server'])
             serverid = server["id"] if 'id' in server.keys() else None
@@ -200,19 +214,22 @@ class TelemetryDB():
                 processed.append('usage')
 
             this.connection.commit()
+            this.logger.debug('Processed data ok')
             return f"ok. Processed {processed}"
         except Exception as e:
+            this.logger.error(f'Error processing data {str(e)}')
             return str(e)
 
     def initialize(this):
         """ Initialize the database.
         Returns True if all is well. """
+        this.logger.info('Initializing database')
         try:
             this.ensure_db_exists()
             this.ensure_db_schema()
             return True
         except mysql.connector.Error as e:
-            print(f"Database error: {e}")
+            this.logger.error(f"Database error: {e}")
         return False
 
 # Helper functions
@@ -223,3 +240,4 @@ def list2dict(obj):
         return json.loads(obj[0])
     else:
         return obj
+
