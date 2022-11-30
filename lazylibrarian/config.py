@@ -37,29 +37,6 @@ CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMN
                  'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'BOK_LOGIN',
                  'DELUGE_TIMEOUT', 'OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']
 
-# default interface does not know about these items, so leaves them unchanged
-CONFIG_NONDEFAULT = ['BOOKSTRAP_THEME', 'AUDIOBOOK_TYPE', 'AUDIO_DIR', 'AUDIO_TAB', 'REJECT_AUDIO',
-                     'REJECT_MAXAUDIO', 'REJECT_MINAUDIO', 'NEWAUDIO_STATUS', 'TOGGLES', 'FOUND_STATUS',
-                     'USER_ACCOUNTS', 'GR_SYNC', 'GR_SECRET', 'GR_OAUTH_TOKEN', 'GR_OAUTH_SECRET',
-                     'GR_OWNED', 'GR_WANTED', 'GR_UNIQUE', 'GR_FOLLOW', 'GR_FOLLOWNEW', 'GOODREADS_INTERVAL',
-                     'AUDIOBOOK_DEST_FILE', 'SINGLE_USER', 'FMT_SERNAME', 'FMT_SERNUM', 'FMT_SERIES',
-                     'AUTOADDMAG', 'AUTOADD_MAGONLY', 'TRANSMISSION_DIR', 'DELUGE_DIR', 'QBITTORRENT_DIR',
-                     'BANNED_EXT', 'MAG_RENAME', 'LOGFILES', 'LOGSIZE', 'ISS_FORMAT', 'DATE_FORMAT',
-                     'NO_ISBN', 'NO_SETS', 'NO_LANG', 'NO_PUBDATE', 'IMP_IGNORE', 'DELETE_CSV',
-                     'BLACKLIST_FAILED', 'BLACKLIST_PROCESSED', 'WISHLIST_INTERVAL', 'EXT_PREPROCESS',
-                     'OPDS_ENABLED', 'OPDS_AUTHENTICATION', 'OPDS_USERNAME', 'OPDS_PASSWORD', 'OPDS_METAINFO',
-                     'OPDS_PAGE', 'DELAYSEARCH', 'SEED_WAIT', 'GR_AOWNED', 'GR_AWANTED', 'MAG_DELFOLDER',
-                     'ADMIN_EMAIL', 'RSS_ENABLED', 'RSS_HOST', 'RSS_PODCAST', 'COMIC_TAB', 'COMIC_DEST_FOLDER',
-                     'COMIC_RELATIVE', 'COMIC_DELFOLDER', 'COMIC_TYPE', 'WISHLIST_GENRES', 'DIR_PERM', 'FILE_PERM',
-                     'SEARCH_COMICINTERVAL', 'CV_APIKEY', 'CV_WEBSEARCH', 'HIDE_OLD_NOTIFIERS', 'EBOOK_TAB',
-                     'REJECT_PUBLISHER', 'SAB_EXTERNAL_HOST', 'MAG_COVERSWAP', 'IGNORE_PAUSED', 'HOMEPAGE',
-                     'NAME_POSTFIX', 'NEWSERIES_STATUS', 'NO_SINGLE_BOOK_SERIES', 'NOTIFY_WITH_TITLE',
-                     'NOTIFY_WITH_URL', 'USER_AGENT', 'RATESTARS', 'NO_NONINTEGER_SERIES', 'IMP_NOSPLIT',
-                     'NAME_DEFINITE', 'PP_DELAY', 'DEL_FAILED', 'DEL_COMPLETED', 'AUDIOBOOK_SINGLE_FILE',
-                     'AUTH_TYPE', 'CREATE_LINK', 'LOGREDACT', 'HOSTREDACT', 'DEL_DOWNLOADFAILED',
-                     'TORRENT_PAUSED', 'AUTHOR_DATE_FORMAT', 'MULTI_SOURCE', 'REQUESTSLOG',
-                     'ISSUE_NOUNS', 'VOLUME_NOUNS', 'MAG_NOUNS']
-
 CONFIG_DEFINITIONS = {
     # Name      Type   Section   Default
     'OL_URL': ('str', 'General', 'https://www.openlibrary.org'),
@@ -889,7 +866,7 @@ def config_write(part=None):
             value = lazylibrarian.CFG.get(section, key.lower())  # keep the old value
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
                 logger.debug("Leaving %s unchanged (%s)" % (key, value))
-        elif key not in CONFIG_NONWEB and not (interface == 'legacy' and key in CONFIG_NONDEFAULT):
+        elif key not in CONFIG_NONWEB:
             check_ini_section(section)
             value = lazylibrarian.CONFIG[key]
             if key == 'LOGLEVEL':
