@@ -18,7 +18,6 @@ import os
 import sys
 
 import lazylibrarian
-from lazylibrarian import CONFIG, CONFIGFILE
 from lazylibrarian.formatter import make_unicode, thread_name, check_int, unaccented_bytes, unaccented
 from lazylibrarian.common import logger, path_exists, schedule_job, syspath
 from lazylibrarian import database 
@@ -934,7 +933,7 @@ def config_write(part=None):
             lazylibrarian.CONFIG[key] = value
 
         elif key in ['WALL_COLUMNS', 'DISPLAY_LENGTH']:  # may be modified by user interface but not on config page
-            value = check_int(CONFIG[key], 5)
+            value = check_int(lazylibrarian.CONFIG[key], 5)
         elif part and section != part:
             value = lazylibrarian.CFG.get(section, key.lower())  # keep the old value
             if lazylibrarian.LOGLEVEL & lazylibrarian.log_admin:
