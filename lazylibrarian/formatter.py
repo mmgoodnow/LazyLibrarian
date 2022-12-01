@@ -603,10 +603,9 @@ def is_valid_isbn(isbn):
     if not isbn:
         return False
     isbn = isbn.replace('-', '').replace(' ', '')
-    if len(isbn) == 13:
-        if isbn.isdigit():
-            return True
-    elif len(isbn) == 10: # Validate checksum
+    if len(isbn) in [10, 13] and isbn.isdigit():
+         return True
+    if len(isbn) == 10 and isbn[:9].isdigit(): # Validate checksum
         xsum = 0
         for i in range(9):
             xsum += int(isbn[i]) * (10-i) 
@@ -615,7 +614,6 @@ def is_valid_isbn(isbn):
         else:
             xsum += int(isbn[9])
         return xsum % 11 == 0
-
     return False
 
 
