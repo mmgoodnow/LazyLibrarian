@@ -230,8 +230,8 @@ except ImportError:
 # names, and the compiled code objects of several sgmllib.SGMLParser
 # methods are copied into _BaseHTMLProcessor so that they execute in
 # feedparser's scope instead of sgmllib's scope.
-charref = re.compile('&#(\d+|[xX][0-9a-fA-F]+);')
-tagfind = re.compile('[a-zA-Z][-_.:a-zA-Z0-9]*')
+charref = re.compile(r'&#(\d+|[xX][0-9a-fA-F]+);')
+tagfind = re.compile(r'[a-zA-Z][-_.:a-zA-Z0-9]*')
 attrfind = re.compile(
     r'\s*([a-zA-Z_][-:.a-zA-Z_0-9]*)[$]?(\s*=\s*'
     r'(\'[^\']*\'|"[^"]*"|[][\-a-zA-Z0-9./,:;+*%?!&$\(\)_#=~\'"@]*))?'
@@ -250,7 +250,7 @@ class _EndBracketRegEx:
     def __init__(self):
         # Overriding the built-in sgmllib.endbracket regex allows the
         # parser to find angle brackets embedded in element attributes.
-        self.endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
+        self.endbracket = re.compile(r'''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
 
     def search(self, target, index=0):
         match = self.endbracket.match(target, index)
@@ -1000,7 +1000,7 @@ class _FeedParserMixin:
                     # converted from `?a=1&b=2` to `?a=1&b;=2` as if they're
                     # unhandled character references. fix this special case.
                     output = output.replace('&amp;', '&')
-                    output = re.sub("&([A-Za-z0-9_]+);", "&\g<1>", output)
+                    output = re.sub(r"&([A-Za-z0-9_]+);", "&\g<1>", output)
                     self.entries[-1][element] = output
                     if output:
                         self.entries[-1]['links'][-1]['href'] = output
@@ -1022,7 +1022,7 @@ class _FeedParserMixin:
             context[element] = output
             if element == 'link':
                 # fix query variables; see above for the explanation
-                output = re.sub("&([A-Za-z0-9_]+);", "&\g<1>", output)
+                output = re.sub(r"&([A-Za-z0-9_]+);", "&\g<1>", output)
                 context[element] = output
                 context['links'][-1]['href'] = output
             elif self.incontent:
@@ -1055,7 +1055,7 @@ class _FeedParserMixin:
     @staticmethod
     def lookslikehtml(s):
         # must have a close tag or an entity reference to qualify
-        if not (re.search(r'</(\w+)>', s) or re.search("&#?\w+;", s)):
+        if not (re.search(r'</(\w+)>', s) or re.search(r"&#?\w+;", s)):
             return
 
         # all tags must be in a restricted subset of valid HTML tags
@@ -2158,7 +2158,7 @@ if _XML_AVAILABLE:
 
 class _BaseHTMLProcessor(sgmllib.SGMLParser):
     special = re.compile('''[<>'"]''')
-    bare_ampersand = re.compile("&(?!#\d+;|#x[0-9a-fA-F]+;|\w+;)")
+    bare_ampersand = re.compile(r"&(?!#\d+;|#x[0-9a-fA-F]+;|\w+;)")
     elements_no_end_tag = set([
         'area', 'base', 'basefont', 'br', 'col', 'command', 'embed', 'frame',
         'hr', 'img', 'input', 'isindex', 'keygen', 'link', 'meta', 'param',
@@ -2513,8 +2513,8 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
                                    'pointer', 'purple', 'red', 'right', 'solid', 'silver', 'teal', 'top',
                                    'transparent', 'underline', 'white', 'yellow'])
 
-    valid_css_values = re.compile('^(#[0-9a-f]+|rgb\(\d+%?,\d*%?,?\d*%?\)?|' +
-                                  '\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$')
+    valid_css_values = re.compile(r'^(#[0-9a-f]+|rgb\(\d+%?,\d*%?,?\d*%?\)?|' +
+                                  r'\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$')
 
     mathml_elements = set([
         'annotation',
@@ -2805,17 +2805,17 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
 
     def sanitize_style(self, style):
         # disallow urls
-        style = re.compile('url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ', style)
+        style = re.compile(r'url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ', style)
 
         # gauntlet
-        if not re.match("""^([:,;#%.\sa-zA-Z0-9!]|\w-\w|'[\s\w]+'|"[\s\w]+"|\([\d,\s]+\))*$""", style):
+        if not re.match(r"""^([:,;#%.\sa-zA-Z0-9!]|\w-\w|'[\s\w]+'|"[\s\w]+"|\([\d,\s]+\))*$""", style):
             return ''
         # This replaced a regexp that used re.match and was prone to pathological back-tracking.
-        if re.sub("\s*[-\w]+\s*:\s*[^:;]*;?", '', style).strip():
+        if re.sub(r"\s*[-\w]+\s*:\s*[^:;]*;?", '', style).strip():
             return ''
 
         clean = []
-        for prop, value in re.findall("([-\w]+)\s*:\s*([^:;]*)", style):
+        for prop, value in re.findall(r"([-\w]+)\s*:\s*([^:;]*)", style):
             if not value:
                 continue
             if prop.lower() in self.acceptable_css_properties:
@@ -3206,10 +3206,10 @@ _korean_am = '\uc624\uc804'  # bfc0 c0fc in euc-kr
 _korean_pm = '\uc624\ud6c4'  # bfc0 c8c4 in euc-kr
 
 _korean_onblog_date_re = \
-    re.compile('(\d{4})%s\s+(\d{2})%s\s+(\d{2})%s\s+(\d{2}):(\d{2}):(\d{2})' % \
+    re.compile(r'(\d{4})%s\s+(\d{2})%s\s+(\d{2})%s\s+(\d{2}):(\d{2}):(\d{2})' % \
                (_korean_year, _korean_month, _korean_day))
 _korean_nate_date_re = \
-    re.compile('(\d{4})-(\d{2})-(\d{2})\s+(%s|%s)\s+(\d{,2}):(\d{,2}):(\d{,2})' % \
+    re.compile(r'(\d{4})-(\d{2})-(\d{2})\s+(%s|%s)\s+(\d{,2}):(\d{,2}):(\d{,2})' % \
                (_korean_am, _korean_pm))
 
 
@@ -3285,7 +3285,7 @@ _greek_wdays = \
     }
 
 _greek_date_format_re = \
-    re.compile('([^,]+),\s+(\d{2})\s+([^\s]+)\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+([^\s]+)')
+    re.compile(r'([^,]+),\s+(\d{2})\s+([^\s]+)\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+([^\s]+)')
 
 
 def _parse_date_greek(dateString):
@@ -3322,7 +3322,7 @@ _hungarian_months = \
     }
 
 _hungarian_date_format_re = \
-    re.compile('(\d{4})-([^-]+)-(\d{,2})T(\d{,2}):(\d{2})((\+|-)(\d{,2}:\d{2}))')
+    re.compile(r'(\d{4})-([^-]+)-(\d{,2})T(\d{,2}):(\d{2})((\+|-)(\d{,2}:\d{2}))')
 
 
 def _parse_date_hungarian(dateString):
@@ -3617,11 +3617,11 @@ ZERO_BYTES = _l2bytes([0x00, 0x00])
 
 # Match the opening XML declaration.
 # Example: <?xml version="1.0" encoding="utf-8"?>
-RE_XML_DECLARATION = re.compile('^<\?xml[^>]*?>')
+RE_XML_DECLARATION = re.compile(r'^<\?xml[^>]*?>')
 
 # Capture the value of the XML processing instruction's encoding attribute.
 # Example: <?xml version="1.0" encoding="utf-8"?>
-RE_XML_PI_ENCODING = re.compile(_s2bytes('^<\?.*encoding=[\'"](.*?)[\'"].*\?>'))
+RE_XML_PI_ENCODING = re.compile(_s2bytes(r'^<\?.*encoding=[\'"](.*?)[\'"].*\?>'))
 
 
 def convert_to_utf8(http_headers, data):
@@ -3850,7 +3850,7 @@ RE_DOCTYPE_PATTERN = re.compile(_s2bytes(r'^\s*<!DOCTYPE([^>]*?)>'), re.MULTILIN
 # Example: cubed "&#179;"
 # Example: copyright "(C)"
 # Forbidden: explode1 "&explode2;&explode2;"
-RE_SAFE_ENTITY_PATTERN = re.compile(_s2bytes('\s+(\w+)\s+"(&#\w+;|[^&"]*)"'))
+RE_SAFE_ENTITY_PATTERN = re.compile(_s2bytes(r'\s+(\w+)\s+"(&#\w+;|[^&"]*)"'))
 
 
 def replace_doctype(data):
@@ -3862,7 +3862,7 @@ def replace_doctype(data):
 
     # Divide the document into two groups by finding the location
     # of the first element that doesn't begin with '<?' or '<!'.
-    start = re.search(_s2bytes('<\w'), data)
+    start = re.search(_s2bytes(r'<\w'), data)
     start = start and start.start() or -1
     head, data = data[:start + 1], data[start + 1:]
 
