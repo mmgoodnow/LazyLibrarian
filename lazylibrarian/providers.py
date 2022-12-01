@@ -1518,7 +1518,7 @@ def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
         logger.debug('Parsing results from %s' % url)
         api = 'https://www.chapters.indigo.ca/en-ca/api/v1/merchandising/GetCmsProductList/?sortDirection=0'
         api += '&sortKey=Default&rangeLength=0&rangeStart=0&pageSize=12'
-        list_id = re.findall('(?<="productLists":\[{"ContentID":).*?,', result)[0].split(',')[0]
+        list_id = re.findall(r'(?<="productLists":\[{"ContentID":).*?,', result)[0].split(',')[0]
         list_id = "&id=" + str(list_id)
         while next_page:
             time.sleep(1)

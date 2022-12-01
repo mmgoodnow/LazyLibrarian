@@ -1000,7 +1000,7 @@ class _FeedParserMixin:
                     # converted from `?a=1&b=2` to `?a=1&b;=2` as if they're
                     # unhandled character references. fix this special case.
                     output = output.replace('&amp;', '&')
-                    output = re.sub(r"&([A-Za-z0-9_]+);", "&\g<1>", output)
+                    output = re.sub(r"&([A-Za-z0-9_]+);", r"&\g<1>", output)
                     self.entries[-1][element] = output
                     if output:
                         self.entries[-1]['links'][-1]['href'] = output
@@ -1022,7 +1022,7 @@ class _FeedParserMixin:
             context[element] = output
             if element == 'link':
                 # fix query variables; see above for the explanation
-                output = re.sub(r"&([A-Za-z0-9_]+);", "&\g<1>", output)
+                output = re.sub(r"&([A-Za-z0-9_]+);", r"&\g<1>", output)
                 context[element] = output
                 context['links'][-1]['href'] = output
             elif self.incontent:

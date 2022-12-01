@@ -154,7 +154,7 @@ class LazyTelemetry(object):
 
     def record_usage_data(self, counter):
         usg = self.get_usage_telemetry()
-        assert(not any([c in counter for c in ' "=']), "Counter must be plain text")
+        assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
 
     def get_json(self, pretty=False):
