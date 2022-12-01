@@ -19,12 +19,33 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
 
-unittest:
+unittest_allmodules:
   stage: test
   script:
-    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest mock pytest_order
+    # Minimal modules
+    - python -m pip install charset_normalizer certifi idna
+    # Optional modules
+    - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
+    # Testing modules
+    - python -m pip install pytest mock pytest_order 
+    # Run the test
     - pytest --junitxml=lltest.xml unittests/test*.py
   artifacts:
     when: always
     reports:
-       junit: lltest.xml
+       junit: llalltest.xml
+
+unittest_minimalmodules:
+  stage: test
+  script:
+    # Minimal modules
+    - python -m pip install charset_normalizer certifi idna
+    # Remove optional modules if they are there
+    - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
+    # Testing modules
+    - python -m pip install pytest mock pytest_order
+    - pytest --junitxml=lltest.xml unittests/test*.py
+  artifacts:
+    when: always
+    reports:
+       junit: llmintest.xml

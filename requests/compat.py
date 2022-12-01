@@ -10,7 +10,10 @@ compatibility until the next major version.
 try:
     import chardet
 except ImportError:
-    import charset_normalizer as chardet
+    try:
+        import charset_normalizer as chardet
+    except ImportError:
+        chardet = None
 
 import sys
 

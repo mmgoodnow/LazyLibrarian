@@ -28,7 +28,7 @@ import traceback
 import tarfile
 import cherrypy
 import urllib3
-import lib.requests as requests
+import requests
 
 from shutil import rmtree
 
