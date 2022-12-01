@@ -17,6 +17,7 @@
 
 import datetime
 import glob
+import mako
 import os
 import platform
 import random
@@ -28,22 +29,16 @@ import traceback
 import subprocess
 from lib.apscheduler.scheduler import Scheduler
 
-from six import PY2, text_type
-
-try:
-    import zipfile
-except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
-
-if PY2:
-    from io import open
+import zipfile
 import re
 import ssl
 import sqlite3
 import cherrypy
+import urllib3
+import requests
+import webencodings
+import bs4
+import html5lib
 
 try:
     # noinspection PyUnresolvedReferences
@@ -333,14 +328,12 @@ def syspath(path, prefix=True):
     *really* know what you're doing.
     """
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
-        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, text_type)))
+        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
-        if PY2:
-            return make_bytestr(path)
         return path
 
-    if not isinstance(path, text_type):
+    if not isinstance(path, str):
         # Beets currently represents Windows paths internally with UTF-8
         # arbitrarily. But earlier versions used MBCS because it is
         # reported as the FS encoding by Windows. Try both.
@@ -730,20 +723,6 @@ def module_available(module_name):
     return loader is not None
 
 
-# some mac versions include requests _without_ urllib3, our copy bundles it
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    try:
-        import lib.requests as requests
-    except ModuleNotFoundError as e:
-        print(str(e))
-        print("Unable to continue, please install missing modules")
-        exit(0)
-
-
 def nextrun(target=None, interval=0, action='', hours=False):
     """ Check when a job is next due to run and log it
         Return startdate for the job """
@@ -809,17 +788,21 @@ def nextrun(target=None, interval=0, action='', hours=False):
 
     return startdate
 
+
 def initscheduler():
     global SCHED
     SCHED = Scheduler(misfire_grace_time=30)
 
+
 def startscheduler():
     SCHED.start()
+
 
 def shutdownscheduler():
     if SCHED:
         # noinspection PyUnresolvedReferences
         SCHED.shutdown(wait=False)
+
 
 def schedule_job(action='Start', target=None):
     """ Start or stop or restart a cron job by name e.g.
@@ -852,7 +835,7 @@ def schedule_job(action='Start', target=None):
             if interval:
                 startdate = nextrun("POSTPROCESS", interval, action)
                 SCHED.add_interval_job(lazylibrarian.postprocess.cron_process_dir,
-                                                     minutes=interval, start_date=startdate)
+                                       minutes=interval, start_date=startdate)
 
         elif 'search_magazines' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
@@ -862,11 +845,11 @@ def schedule_job(action='Start', target=None):
                 startdate = nextrun("SEARCHALLMAG", interval, action)
                 if interval <= 600:  # for bigger intervals switch to hours
                     SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
-                                                         minutes=interval, start_date=startdate)
+                                           minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
                     SCHED.add_interval_job(lazylibrarian.searchmag.cron_search_magazines,
-                                                         hours=hours, start_date=startdate)
+                                           hours=hours, start_date=startdate)
         elif 'search_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
@@ -874,28 +857,28 @@ def schedule_job(action='Start', target=None):
                 startdate = nextrun("SEARCHALLBOOKS", interval, action)
                 if interval <= 600:
                     SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
-                                                         minutes=interval, start_date=startdate)
+                                           minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
                     SCHED.add_interval_job(lazylibrarian.searchbook.cron_search_book,
-                                                         hours=hours, start_date=startdate)
+                                           hours=hours, start_date=startdate)
         elif 'search_rss_book' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
             if interval and lazylibrarian.use_rss():
                 startdate = nextrun("SEARCHALLRSS", interval, action)
                 if interval <= 600:
                     SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
-                                                         minutes=interval, start_date=startdate)
+                                           minutes=interval, start_date=startdate)
                 else:
                     hours = int(interval / 60)
                     SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_rss_book,
-                                                         hours=hours, start_date=startdate)
+                                           hours=hours, start_date=startdate)
         elif 'search_wishlist' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
             if interval and lazylibrarian.use_wishlist():
                 startdate = nextrun("SEARCHWISHLIST", interval, action, True)
                 SCHED.add_interval_job(lazylibrarian.searchrss.cron_search_wishlist,
-                                                     hours=interval, start_date=startdate)
+                                       hours=interval, start_date=startdate)
 
         elif 'search_comics' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
@@ -903,21 +886,21 @@ def schedule_job(action='Start', target=None):
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLCOMICS", interval, action, True)
                 SCHED.add_interval_job(lazylibrarian.comicsearch.cron_search_comics,
-                                                     hours=interval, start_date=startdate)
+                                       hours=interval, start_date=startdate)
 
         elif 'check_for_updates' in newtarget:
             interval = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("VERSIONCHECK", interval, action, True)
                 SCHED.add_interval_job(lazylibrarian.versioncheck.check_for_updates,
-                                                     hours=interval, start_date=startdate)
+                                       hours=interval, start_date=startdate)
 
         elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG['GR_SYNC']:
             interval = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("GRSYNC", interval, action, True)
                 SCHED.add_interval_job(lazylibrarian.grsync.cron_sync_to_gr,
-                                                     hours=interval, start_date=startdate)
+                                       hours=interval, start_date=startdate)
 
         elif 'clean_cache' in newtarget:
             days = lazylibrarian.CONFIG['CACHE_AGE']
@@ -925,7 +908,7 @@ def schedule_job(action='Start', target=None):
                 interval = 8
                 startdate = nextrun("CLEANCACHE", interval, action, True)
                 SCHED.add_interval_job(lazylibrarian.cache.clean_cache,
-                                                     hours=interval, start_date=startdate)
+                                       hours=interval, start_date=startdate)
 
         elif 'author_update' in newtarget or 'series_update' in newtarget:
             # Try to get all authors/series scanned evenly inside the cache age
@@ -1442,12 +1425,12 @@ def log_header(online=True):
         try:
             if lazylibrarian.CONFIG['SSL_VERIFY']:
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                        verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                        if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
+                                            verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                            if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
             else:
                 logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                        verify=False).json()['tls_version']
+                                            verify=False).json()['tls_version']
             if '1.2' not in tls_version and '1.3' not in tls_version:
                 header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
         except Exception as err:
@@ -1456,6 +1439,8 @@ def log_header(online=True):
 
     header += "cherrypy: %s\n" % getattr(cherrypy, '__version__', None)
     header += "sqlite3: %s\n" % getattr(sqlite3, 'sqlite_version', None)
+    header += "mako: %s\n" % getattr(mako, '__version__', None)
+    header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
 
     if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
         header += "apprise: %s\n" % lazylibrarian.APPRISE
@@ -1474,34 +1459,17 @@ def log_header(online=True):
     else:
         header += "unrar: not found\n"
 
-    if module_available("bs4") and module_available("html5lib"):
-        import bs4
-        header += "bs4: %s\n" % getattr(bs4, '__version__', None)
-        import html5lib
-        header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
-    else:
-        if PY2:
-            import lib.bs4 as bs4
-            bs4vers = getattr(bs4, '__version__', None)
-        else:
-            import lib3.bs4 as bs4
-            bs4vers = getattr(bs4, '__version__', None)
-        h5vers = None
-        if bs4vers:
-            try:
-                # noinspection PyProtectedMember
-                h5vers = getattr(bs4.builder._html5lib.html5lib, '__version__', None)
-            except AttributeError:
-                h5vers = "not found"
-        header += "bundled bs4: %s\n" % bs4vers
-        header += "bundled html5lib: %s\n" % h5vers
-
+    header += "bs4: %s\n" % getattr(bs4, '__version__', None)
+    header += "html5lib: %s\n" % getattr(html5lib, '__version__', None)
+    
     try:
         import PIL
         vers = getattr(PIL, '__version__', None)
         header += "python imaging: %s\n" % vers
+        import icrawler
+        header += "icrawler: %s\n" % getattr(icrawler, '__version__', None)
     except ImportError:
-        header += "python imaging: not found\n"
+        header += "python imaging: not found, unable to use icrawler\n"
 
     header += "openssl: %s\n" % getattr(ssl, 'OPENSSL_VERSION', None)
     X509 = None
@@ -1664,11 +1632,7 @@ def save_log():
         else:
             logger.debug('Processing logfile [%s]' % fname)
             linecount = 0
-            if PY2:
-                lines = reversed(open(syspath(fname), 'r', encoding="utf-8").readlines())
-                lines = [make_unicode(lyne) for lyne in lines]
-            else:
-                lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
+            lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
                 for item in lazylibrarian.REDACTLIST:
                     if item in line:
@@ -1693,11 +1657,7 @@ def save_log():
 
     if path_exists(lazylibrarian.CONFIGFILE):
         out.write(u'---END-CONFIG---------------------------------\n')
-        if PY2:
-            lines = reversed(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8").readlines())
-            lines = [make_unicode(lyne) for lyne in lines]
-        else:
-            lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
+        lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
         for line in lines:
             for item in lazylibrarian.REDACTLIST:
                 if item in line:
@@ -1709,11 +1669,7 @@ def save_log():
     logfile = open(syspath(outfile + '.log'), 'w', encoding='utf-8')
     logfile.write(log_header())
     linecount = 0
-    if PY2:
-        lines = reversed(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8").readlines())
-        lines = [make_unicode(lyne) for lyne in lines]
-    else:
-        lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
+    lines = reversed(list(open(syspath(outfile + '.tmp'), 'r', encoding="utf-8")))
     for line in lines:
         logfile.write(line)
         linecount += 1

@@ -15,26 +15,17 @@ import os
 import shutil
 import time
 from xml.etree import ElementTree
-from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, \
-    remove, module_available
+    remove
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
-
-if PY2:
-    import httplib as http_client
-else:
-    import http.client as http_client
+import urllib3
+import requests
+import http.client
 
 
 def redirect_url(url, times):
@@ -85,7 +76,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
         Return data as raw/bytes in python2 or if raw == True
         On python3 default to unicode, need to set raw=True for images/data
         Allow one retry on timeout by default"""
-    http_client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
+    http.client.HTTPConnection.debuglevel = 1 if lazylibrarian.REQUESTSLOG else 0
 
     url = make_unicode(url)
     if 'googleapis' in url:
@@ -99,10 +90,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
                     lazylibrarian.GB_CALLS = 0
 
     if raw is None:
-        if PY2:
-            raw = True
-        else:
-            raw = False
+        raw = False
 
     if headers is None:
         # some sites insist on having a user-agent, default is to add one

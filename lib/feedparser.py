@@ -45,7 +45,7 @@ __contributors__ = ["Jason Diamond <http://injektilo.org/>",
                     "Ade Oshineye <http://blog.oshineye.com/>",
                     "Martin Pool <http://sourcefrog.net/>",
                     "Kurt McKee <http://kurtmckee.org/>",
-                    "Bernd Schlapsi <https://github.com/brot>",]
+                    "Bernd Schlapsi <https://github.com/brot>", ]
 
 # HTTP "User-Agent" header to send to servers when downloading feeds.
 # If you are embedding feedparser in a larger application, you should
@@ -81,6 +81,7 @@ try:
     _maketrans = bytes.maketrans
 except (NameError, AttributeError):
     import string
+
     _maketrans = string.maketrans
 
 # base64 support for Atom feeds that contain embedded binary data
@@ -90,7 +91,11 @@ except ImportError:
     base64 = binascii = None
 else:
     # Python 3.1 deprecates decodestring in favor of decodebytes
-    _base64decode = getattr(base64, 'decodebytes', base64.decodestring)
+    try:
+        _base64decode = getattr(base64, 'decodestring', base64.decodebytes)
+    except AttributeError:
+        # python 3.9 removes decodestring
+        _base64decode = base64.decodebytes
 
 # _s2bytes: convert a UTF-8 str to bytes if the interpreter is Python 3
 # _l2bytes: convert a list of ints to bytes if the interpreter is Python 3
@@ -103,12 +108,16 @@ except NameError:
     # Python 2
     def _s2bytes(s):
         return s
+
+
     def _l2bytes(l):
         return ''.join(map(chr, l))
 else:
     # Python 3
     def _s2bytes(s):
         return bytes(s, 'utf8')
+
+
     def _l2bytes(l):
         return bytes(l)
 
@@ -127,7 +136,7 @@ ACCEPTABLE_URI_SCHEMES = (
     'aim', 'callto', 'cvs', 'facetime', 'feed', 'git', 'gtalk', 'irc', 'ircs',
     'irc6', 'itms', 'mms', 'msnim', 'skype', 'ssh', 'smb', 'svn', 'ymsg',
 )
-#ACCEPTABLE_URI_SCHEMES = ()
+# ACCEPTABLE_URI_SCHEMES = ()
 
 # ---------- required modules (should come with any Python distribution) ----------
 import cgi
@@ -139,20 +148,20 @@ import re
 import struct
 import time
 import types
-import urllib
-import urllib2
-import urlparse
+import urllib.request
+import urllib.error
+import urllib.parse
 import warnings
 
-from htmlentitydefs import name2codepoint, codepoint2name, entitydefs
+from html.entities import name2codepoint, codepoint2name, entitydefs
 
 try:
     from io import BytesIO as _StringIO
 except ImportError:
     try:
-        from cStringIO import StringIO as _StringIO
+        from io import StringIO as _StringIO
     except ImportError:
-        from StringIO import StringIO as _StringIO
+        from io import StringIO as _StringIO
 
 # ---------- optional modules (feedparser will work without these, but with reduced functionality) ----------
 
@@ -175,7 +184,9 @@ try:
     from xml.sax.saxutils import escape as _xmlescape
 except ImportError:
     _XML_AVAILABLE = 0
-    def _xmlescape(data,entities={}):
+
+
+    def _xmlescape(data, entities={}):
         data = data.replace('&', '&amp;')
         data = data.replace('>', '&gt;')
         data = data.replace('<', '&lt;')
@@ -184,7 +195,7 @@ except ImportError:
         return data
 else:
     try:
-        xml.sax.make_parser(PREFERRED_XML_PARSERS) # test for valid parsers
+        xml.sax.make_parser(PREFERRED_XML_PARSERS)  # test for valid parsers
     except xml.sax.SAXReaderNotAvailable:
         _XML_AVAILABLE = 0
     else:
@@ -195,10 +206,13 @@ else:
 _SGML_AVAILABLE = 0
 try:
     import sgmllib
+
     _SGML_AVAILABLE = 1
 except ImportError:
+    # This is probably Python 3, which doesn't include sgmllib anymore
     try:
-        import lib.sgmllib3 as sgmllib
+        import lib.sgmllib as sgmllib
+
         _SGML_AVAILABLE = 1
     except ImportError:
         # Mock sgmllib enough to allow subclassing later on
@@ -206,6 +220,7 @@ except ImportError:
             class SGMLParser(object):
                 def goahead(self, i):
                     pass
+
                 def parse_starttag(self, i):
                     pass
 
@@ -230,11 +245,13 @@ shorttag = sgmllib.shorttag
 shorttagopen = sgmllib.shorttagopen
 starttagopen = sgmllib.starttagopen
 
+
 class _EndBracketRegEx:
     def __init__(self):
         # Overriding the built-in sgmllib.endbracket regex allows the
         # parser to find angle brackets embedded in element attributes.
         self.endbracket = re.compile('''([^'"<>]|"[^"]*"(?=>|/|\s|\w+=)|'[^']*'(?=>|/|\s|\w+=))*(?=[<>])|.*?(?=[<>])''')
+
     def search(self, target, index=0):
         match = self.endbracket.match(target, index)
         if match is not None:
@@ -242,13 +259,17 @@ class _EndBracketRegEx:
             # resolves a thread-safety.
             return EndBracketMatch(match)
         return None
+
+
 class EndBracketMatch:
     def __init__(self, match):
-            self.match = match
+        self.match = match
+
     def start(self, n):
         return self.match.end(n)
-endbracket = _EndBracketRegEx()
 
+
+endbracket = _EndBracketRegEx()
 
 # iconv_codec provides support for more character encodings.
 # It's available from http://cjkpython.i18n.org/
@@ -264,30 +285,41 @@ try:
 except ImportError:
     chardet = None
 
+
 # ---------- don't touch these ----------
 class ThingsNobodyCaresAboutButMe(Exception): pass
+
+
 class CharacterEncodingOverride(ThingsNobodyCaresAboutButMe): pass
+
+
 class CharacterEncodingUnknown(ThingsNobodyCaresAboutButMe): pass
+
+
 class NonXMLContentType(ThingsNobodyCaresAboutButMe): pass
+
+
 class UndeclaredNamespace(Exception): pass
 
-SUPPORTED_VERSIONS = {'': u'unknown',
-                      'rss090': u'RSS 0.90',
-                      'rss091n': u'RSS 0.91 (Netscape)',
-                      'rss091u': u'RSS 0.91 (Userland)',
-                      'rss092': u'RSS 0.92',
-                      'rss093': u'RSS 0.93',
-                      'rss094': u'RSS 0.94',
-                      'rss20': u'RSS 2.0',
-                      'rss10': u'RSS 1.0',
-                      'rss': u'RSS (unknown version)',
-                      'atom01': u'Atom 0.1',
-                      'atom02': u'Atom 0.2',
-                      'atom03': u'Atom 0.3',
-                      'atom10': u'Atom 1.0',
-                      'atom': u'Atom (unknown version)',
-                      'cdf': u'CDF',
+
+SUPPORTED_VERSIONS = {'': 'unknown',
+                      'rss090': 'RSS 0.90',
+                      'rss091n': 'RSS 0.91 (Netscape)',
+                      'rss091u': 'RSS 0.91 (Userland)',
+                      'rss092': 'RSS 0.92',
+                      'rss093': 'RSS 0.93',
+                      'rss094': 'RSS 0.94',
+                      'rss20': 'RSS 2.0',
+                      'rss10': 'RSS 1.0',
+                      'rss': 'RSS (unknown version)',
+                      'atom01': 'Atom 0.1',
+                      'atom02': 'Atom 0.2',
+                      'atom03': 'Atom 0.3',
+                      'atom10': 'Atom 1.0',
+                      'atom': 'Atom (unknown version)',
+                      'cdf': 'CDF',
                       }
+
 
 class FeedParserDict(dict):
     keymap = {'channel': 'feed',
@@ -306,44 +338,46 @@ class FeedParserDict(dict):
               'copyright_detail': 'rights_detail',
               'tagline': 'subtitle',
               'tagline_detail': 'subtitle_detail'}
+
     def __getitem__(self, key):
         '''
-        :return: A :class:`FeedParserDict`.
-        '''
+		:return: A :class:`FeedParserDict`.
+		'''
         if key == 'category':
             try:
                 return dict.__getitem__(self, 'tags')[0]['term']
             except IndexError:
-                raise KeyError, "object doesn't have key 'category'"
+                raise KeyError("object doesn't have key 'category'")
         elif key == 'enclosures':
-            norel = lambda link: FeedParserDict([(name,value) for (name,value) in link.items() if name!='rel'])
-            return [norel(link) for link in dict.__getitem__(self, 'links') if link['rel']==u'enclosure']
+            norel = lambda link: FeedParserDict(
+                [(name, value) for (name, value) in list(link.items()) if name != 'rel'])
+            return [norel(link) for link in dict.__getitem__(self, 'links') if link['rel'] == 'enclosure']
         elif key == 'license':
             for link in dict.__getitem__(self, 'links'):
-                if link['rel']==u'license' and 'href' in link:
+                if link['rel'] == 'license' and 'href' in link:
                     return link['href']
         elif key == 'updated':
             # Temporarily help developers out by keeping the old
             # broken behavior that was reported in issue 310.
             # This fix was proposed in issue 328.
             if not dict.__contains__(self, 'updated') and \
-                dict.__contains__(self, 'published'):
+                    dict.__contains__(self, 'published'):
                 warnings.warn("To avoid breaking existing software while "
-                    "fixing issue 310, a temporary mapping has been created "
-                    "from `updated` to `published` if `updated` doesn't "
-                    "exist. This fallback will be removed in a future version "
-                    "of feedparser.", DeprecationWarning)
+                              "fixing issue 310, a temporary mapping has been created "
+                              "from `updated` to `published` if `updated` doesn't "
+                              "exist. This fallback will be removed in a future version "
+                              "of feedparser.", DeprecationWarning)
                 return dict.__getitem__(self, 'published')
             return dict.__getitem__(self, 'updated')
         elif key == 'updated_parsed':
             if not dict.__contains__(self, 'updated_parsed') and \
-                dict.__contains__(self, 'published_parsed'):
+                    dict.__contains__(self, 'published_parsed'):
                 warnings.warn("To avoid breaking existing software while "
-                    "fixing issue 310, a temporary mapping has been created "
-                    "from `updated_parsed` to `published_parsed` if "
-                    "`updated_parsed` doesn't exist. This fallback will be "
-                    "removed in a future version of feedparser.",
-                    DeprecationWarning)
+                              "fixing issue 310, a temporary mapping has been created "
+                              "from `updated_parsed` to `published_parsed` if "
+                              "`updated_parsed` doesn't exist. This fallback will be "
+                              "removed in a future version of feedparser.",
+                              DeprecationWarning)
                 return dict.__getitem__(self, 'published_parsed')
             return dict.__getitem__(self, 'updated_parsed')
         else:
@@ -373,8 +407,8 @@ class FeedParserDict(dict):
 
     def get(self, key, default=None):
         '''
-        :return: A :class:`FeedParserDict`.
-        '''
+		:return: A :class:`FeedParserDict`.
+		'''
         try:
             return self.__getitem__(key)
         except KeyError:
@@ -398,53 +432,57 @@ class FeedParserDict(dict):
         try:
             return self.__getitem__(key)
         except KeyError:
-            raise AttributeError, "object has no attribute '%s'" % key
+            raise AttributeError("object has no attribute '%s'" % key)
 
     def __hash__(self):
         return id(self)
 
+
 _cp1252 = {
-    128: unichr(8364), # euro sign
-    130: unichr(8218), # single low-9 quotation mark
-    131: unichr( 402), # latin small letter f with hook
-    132: unichr(8222), # double low-9 quotation mark
-    133: unichr(8230), # horizontal ellipsis
-    134: unichr(8224), # dagger
-    135: unichr(8225), # double dagger
-    136: unichr( 710), # modifier letter circumflex accent
-    137: unichr(8240), # per mille sign
-    138: unichr( 352), # latin capital letter s with caron
-    139: unichr(8249), # single left-pointing angle quotation mark
-    140: unichr( 338), # latin capital ligature oe
-    142: unichr( 381), # latin capital letter z with caron
-    145: unichr(8216), # left single quotation mark
-    146: unichr(8217), # right single quotation mark
-    147: unichr(8220), # left double quotation mark
-    148: unichr(8221), # right double quotation mark
-    149: unichr(8226), # bullet
-    150: unichr(8211), # en dash
-    151: unichr(8212), # em dash
-    152: unichr( 732), # small tilde
-    153: unichr(8482), # trade mark sign
-    154: unichr( 353), # latin small letter s with caron
-    155: unichr(8250), # single right-pointing angle quotation mark
-    156: unichr( 339), # latin small ligature oe
-    158: unichr( 382), # latin small letter z with caron
-    159: unichr( 376), # latin capital letter y with diaeresis
+    128: chr(8364),  # euro sign
+    130: chr(8218),  # single low-9 quotation mark
+    131: chr(402),  # latin small letter f with hook
+    132: chr(8222),  # double low-9 quotation mark
+    133: chr(8230),  # horizontal ellipsis
+    134: chr(8224),  # dagger
+    135: chr(8225),  # double dagger
+    136: chr(710),  # modifier letter circumflex accent
+    137: chr(8240),  # per mille sign
+    138: chr(352),  # latin capital letter s with caron
+    139: chr(8249),  # single left-pointing angle quotation mark
+    140: chr(338),  # latin capital ligature oe
+    142: chr(381),  # latin capital letter z with caron
+    145: chr(8216),  # left single quotation mark
+    146: chr(8217),  # right single quotation mark
+    147: chr(8220),  # left double quotation mark
+    148: chr(8221),  # right double quotation mark
+    149: chr(8226),  # bullet
+    150: chr(8211),  # en dash
+    151: chr(8212),  # em dash
+    152: chr(732),  # small tilde
+    153: chr(8482),  # trade mark sign
+    154: chr(353),  # latin small letter s with caron
+    155: chr(8250),  # single right-pointing angle quotation mark
+    156: chr(339),  # latin small ligature oe
+    158: chr(382),  # latin small letter z with caron
+    159: chr(376),  # latin capital letter y with diaeresis
 }
 
 _urifixer = re.compile('^([A-Za-z][A-Za-z0-9+-.]*://)(/*)(.*?)')
+
+
 def _urljoin(base, uri):
     uri = _urifixer.sub(r'\1\3', uri)
-    if not isinstance(uri, unicode):
+    if not isinstance(uri, str):
         uri = uri.decode('utf-8', 'ignore')
     try:
-        uri = urlparse.urljoin(base, uri)
+        uri = urllib.parse.urljoin(base, uri)
     except ValueError:
-        uri = u''
-    if not isinstance(uri, unicode):
+        uri = ''
+    if not isinstance(uri, str):
         return uri.decode('utf-8', 'ignore')
     return uri
+
 
 class _FeedParserMixin:
     namespaces = {
@@ -462,75 +500,78 @@ class _FeedParserMixin:
         'http://www.w3.org/2005/Atom': '',
         'http://purl.org/rss/1.0/modules/rss091#': '',
 
-        'http://webns.net/mvcb/':                                'admin',
-        'http://purl.org/rss/1.0/modules/aggregation/':          'ag',
-        'http://purl.org/rss/1.0/modules/annotate/':             'annotate',
-        'http://media.tangent.org/rss/1.0/':                     'audio',
-        'http://backend.userland.com/blogChannelModule':         'blogChannel',
-        'http://web.resource.org/cc/':                           'cc',
-        'http://backend.userland.com/creativeCommonsRssModule':  'creativeCommons',
-        'http://purl.org/rss/1.0/modules/company':               'co',
-        'http://purl.org/rss/1.0/modules/content/':              'content',
-        'http://my.theinfo.org/changed/1.0/rss/':                'cp',
-        'http://purl.org/dc/elements/1.1/':                      'dc',
-        'http://purl.org/dc/terms/':                             'dcterms',
-        'http://purl.org/rss/1.0/modules/email/':                'email',
-        'http://purl.org/rss/1.0/modules/event/':                'ev',
-        'http://rssnamespace.org/feedburner/ext/1.0':            'feedburner',
-        'http://freshmeat.net/rss/fm/':                          'fm',
-        'http://xmlns.com/foaf/0.1/':                            'foaf',
-        'http://www.w3.org/2003/01/geo/wgs84_pos#':              'geo',
-        'http://www.georss.org/georss':                          'georss',
-        'http://www.opengis.net/gml':                            'gml',
-        'http://postneo.com/icbm/':                              'icbm',
-        'http://purl.org/rss/1.0/modules/image/':                'image',
-        'http://www.itunes.com/DTDs/PodCast-1.0.dtd':            'itunes',
-        'http://example.com/DTDs/PodCast-1.0.dtd':               'itunes',
-        'http://purl.org/rss/1.0/modules/link/':                 'l',
-        'http://search.yahoo.com/mrss':                          'media',
+        'http://webns.net/mvcb/': 'admin',
+        'http://purl.org/rss/1.0/modules/aggregation/': 'ag',
+        'http://purl.org/rss/1.0/modules/annotate/': 'annotate',
+        'http://media.tangent.org/rss/1.0/': 'audio',
+        'http://backend.userland.com/blogChannelModule': 'blogChannel',
+        'http://web.resource.org/cc/': 'cc',
+        'http://backend.userland.com/creativeCommonsRssModule': 'creativeCommons',
+        'http://purl.org/rss/1.0/modules/company': 'co',
+        'http://purl.org/rss/1.0/modules/content/': 'content',
+        'http://my.theinfo.org/changed/1.0/rss/': 'cp',
+        'http://purl.org/dc/elements/1.1/': 'dc',
+        'http://purl.org/dc/terms/': 'dcterms',
+        'http://purl.org/rss/1.0/modules/email/': 'email',
+        'http://purl.org/rss/1.0/modules/event/': 'ev',
+        'http://rssnamespace.org/feedburner/ext/1.0': 'feedburner',
+        'http://freshmeat.net/rss/fm/': 'fm',
+        'http://xmlns.com/foaf/0.1/': 'foaf',
+        'http://www.w3.org/2003/01/geo/wgs84_pos#': 'geo',
+        'http://www.georss.org/georss': 'georss',
+        'http://www.opengis.net/gml': 'gml',
+        'http://postneo.com/icbm/': 'icbm',
+        'http://purl.org/rss/1.0/modules/image/': 'image',
+        'http://www.itunes.com/DTDs/PodCast-1.0.dtd': 'itunes',
+        'http://example.com/DTDs/PodCast-1.0.dtd': 'itunes',
+        'http://purl.org/rss/1.0/modules/link/': 'l',
+        'http://search.yahoo.com/mrss': 'media',
         # Version 1.1.2 of the Media RSS spec added the trailing slash on the namespace
-        'http://search.yahoo.com/mrss/':                         'media',
-        'http://madskills.com/public/xml/rss/module/pingback/':  'pingback',
-        'http://prismstandard.org/namespaces/1.2/basic/':        'prism',
-        'http://www.w3.org/1999/02/22-rdf-syntax-ns#':           'rdf',
-        'http://www.w3.org/2000/01/rdf-schema#':                 'rdfs',
-        'http://purl.org/rss/1.0/modules/reference/':            'ref',
-        'http://purl.org/rss/1.0/modules/richequiv/':            'reqv',
-        'http://purl.org/rss/1.0/modules/search/':               'search',
-        'http://purl.org/rss/1.0/modules/slash/':                'slash',
-        'http://schemas.xmlsoap.org/soap/envelope/':             'soap',
-        'http://purl.org/rss/1.0/modules/servicestatus/':        'ss',
-        'http://hacks.benhammersley.com/rss/streaming/':         'str',
-        'http://purl.org/rss/1.0/modules/subscription/':         'sub',
-        'http://purl.org/rss/1.0/modules/syndication/':          'sy',
-        'http://schemas.pocketsoap.com/rss/myDescModule/':       'szf',
-        'http://purl.org/rss/1.0/modules/taxonomy/':             'taxo',
-        'http://purl.org/rss/1.0/modules/threading/':            'thr',
-        'http://purl.org/rss/1.0/modules/textinput/':            'ti',
+        'http://search.yahoo.com/mrss/': 'media',
+        'http://madskills.com/public/xml/rss/module/pingback/': 'pingback',
+        'http://prismstandard.org/namespaces/1.2/basic/': 'prism',
+        'http://www.w3.org/1999/02/22-rdf-syntax-ns#': 'rdf',
+        'http://www.w3.org/2000/01/rdf-schema#': 'rdfs',
+        'http://purl.org/rss/1.0/modules/reference/': 'ref',
+        'http://purl.org/rss/1.0/modules/richequiv/': 'reqv',
+        'http://purl.org/rss/1.0/modules/search/': 'search',
+        'http://purl.org/rss/1.0/modules/slash/': 'slash',
+        'http://schemas.xmlsoap.org/soap/envelope/': 'soap',
+        'http://purl.org/rss/1.0/modules/servicestatus/': 'ss',
+        'http://hacks.benhammersley.com/rss/streaming/': 'str',
+        'http://purl.org/rss/1.0/modules/subscription/': 'sub',
+        'http://purl.org/rss/1.0/modules/syndication/': 'sy',
+        'http://schemas.pocketsoap.com/rss/myDescModule/': 'szf',
+        'http://purl.org/rss/1.0/modules/taxonomy/': 'taxo',
+        'http://purl.org/rss/1.0/modules/threading/': 'thr',
+        'http://purl.org/rss/1.0/modules/textinput/': 'ti',
         'http://madskills.com/public/xml/rss/module/trackback/': 'trackback',
-        'http://wellformedweb.org/commentAPI/':                  'wfw',
-        'http://purl.org/rss/1.0/modules/wiki/':                 'wiki',
-        'http://www.w3.org/1999/xhtml':                          'xhtml',
-        'http://www.w3.org/1999/xlink':                          'xlink',
-        'http://www.w3.org/XML/1998/namespace':                  'xml',
-        'http://podlove.org/simple-chapters':                    'psc',
+        'http://wellformedweb.org/commentAPI/': 'wfw',
+        'http://purl.org/rss/1.0/modules/wiki/': 'wiki',
+        'http://www.w3.org/1999/xhtml': 'xhtml',
+        'http://www.w3.org/1999/xlink': 'xlink',
+        'http://www.w3.org/XML/1998/namespace': 'xml',
+        'http://podlove.org/simple-chapters': 'psc',
     }
     _matchnamespaces = {}
 
-    can_be_relative_uri = set(['link', 'id', 'wfw_comment', 'wfw_commentrss', 'docs', 'url', 'href', 'comments', 'icon', 'logo'])
-    can_contain_relative_uris = set(['content', 'title', 'summary', 'info', 'tagline', 'subtitle', 'copyright', 'rights', 'description'])
-    can_contain_dangerous_markup = set(['content', 'title', 'summary', 'info', 'tagline', 'subtitle', 'copyright', 'rights', 'description'])
-    html_types = [u'text/html', u'application/xhtml+xml']
+    can_be_relative_uri = set(
+        ['link', 'id', 'wfw_comment', 'wfw_commentrss', 'docs', 'url', 'href', 'comments', 'icon', 'logo'])
+    can_contain_relative_uris = set(
+        ['content', 'title', 'summary', 'info', 'tagline', 'subtitle', 'copyright', 'rights', 'description'])
+    can_contain_dangerous_markup = set(
+        ['content', 'title', 'summary', 'info', 'tagline', 'subtitle', 'copyright', 'rights', 'description'])
+    html_types = ['text/html', 'application/xhtml+xml']
 
-    def __init__(self, baseuri=None, baselang=None, encoding=u'utf-8'):
+    def __init__(self, baseuri=None, baselang=None, encoding='utf-8'):
         if not self._matchnamespaces:
-            for k, v in self.namespaces.items():
+            for k, v in list(self.namespaces.items()):
                 self._matchnamespaces[k.lower()] = v
-        self.feeddata = FeedParserDict() # feed-level data
-        self.encoding = encoding # character encoding
-        self.entries = [] # list of entry-level data
-        self.version = u'' # feed type/version, see SUPPORTED_VERSIONS
-        self.namespacesInUse = {} # dictionary of namespaces defined by the feed
+        self.feeddata = FeedParserDict()  # feed-level data
+        self.encoding = encoding  # character encoding
+        self.entries = []  # list of entry-level data
+        self.version = ''  # feed type/version, see SUPPORTED_VERSIONS
+        self.namespacesInUse = {}  # dictionary of namespaces defined by the feed
 
         # the following are used internally to track state;
         # this is really out of control and should be refactored
@@ -554,7 +595,7 @@ class _FeedParserMixin:
         self.elementstack = []
         self.basestack = []
         self.langstack = []
-        self.baseuri = baseuri or u''
+        self.baseuri = baseuri or ''
         self.lang = baselang or None
         self.svgOK = 0
         self.title_depth = -1
@@ -565,7 +606,7 @@ class _FeedParserMixin:
         # captured while it is True.
         self.psc_chapters_flag = None
         if baselang:
-            self.feeddata['language'] = baselang.replace('_','-')
+            self.feeddata['language'] = baselang.replace('_', '-')
 
         # A map of the following form:
         #     {
@@ -584,7 +625,7 @@ class _FeedParserMixin:
         # strict xml parsers do -- account for this difference
         if isinstance(self, _LooseFeedParser):
             v = v.replace('&amp;', '&')
-            if not isinstance(v, unicode):
+            if not isinstance(v, str):
                 v = v.decode('utf-8')
         return (k, v)
 
@@ -593,12 +634,12 @@ class _FeedParserMixin:
         self.depth += 1
 
         # normalize attrs
-        attrs = map(self._normalize_attributes, attrs)
+        attrs = list(map(self._normalize_attributes, attrs))
 
         # track xml:base and xml:lang
         attrsD = dict(attrs)
         baseuri = attrsD.get('xml:base', attrsD.get('base')) or self.baseuri
-        if not isinstance(baseuri, unicode):
+        if not isinstance(baseuri, str):
             baseuri = baseuri.decode(self.encoding, 'ignore')
         # ensure that self.baseuri is always an absolute URI that
         # uses a whitelisted URI scheme (e.g. not `javscript:`)
@@ -615,7 +656,7 @@ class _FeedParserMixin:
             lang = self.lang
         if lang:
             if tag in ('feed', 'rss', 'rdf:RDF'):
-                self.feeddata['language'] = lang.replace('_','-')
+                self.feeddata['language'] = lang.replace('_', '-')
         self.lang = lang
         self.basestack.append(self.baseuri)
         self.langstack.append(lang)
@@ -628,25 +669,25 @@ class _FeedParserMixin:
                 self.trackNamespace(None, uri)
 
         # track inline content
-        if self.incontent and not self.contentparams.get('type', u'xml').endswith(u'xml'):
+        if self.incontent and not self.contentparams.get('type', 'xml').endswith('xml'):
             if tag in ('xhtml:div', 'div'):
-                return # typepad does this 10/2007
+                return  # typepad does this 10/2007
             # element declared itself as escaped markup, but it isn't really
-            self.contentparams['type'] = u'application/xhtml+xml'
-        if self.incontent and self.contentparams.get('type') == u'application/xhtml+xml':
-            if tag.find(':') <> -1:
+            self.contentparams['type'] = 'application/xhtml+xml'
+        if self.incontent and self.contentparams.get('type') == 'application/xhtml+xml':
+            if tag.find(':') != -1:
                 prefix, tag = tag.split(':', 1)
                 namespace = self.namespacesInUse.get(prefix, '')
-                if tag=='math' and namespace=='http://www.w3.org/1998/Math/MathML':
-                    attrs.append(('xmlns',namespace))
-                if tag=='svg' and namespace=='http://www.w3.org/2000/svg':
-                    attrs.append(('xmlns',namespace))
+                if tag == 'math' and namespace == 'http://www.w3.org/1998/Math/MathML':
+                    attrs.append(('xmlns', namespace))
+                if tag == 'svg' and namespace == 'http://www.w3.org/2000/svg':
+                    attrs.append(('xmlns', namespace))
             if tag == 'svg':
                 self.svgOK += 1
             return self.handle_data('<%s%s>' % (tag, self.strattrs(attrs)), escape=0)
 
         # match namespaces
-        if tag.find(':') <> -1:
+        if tag.find(':') != -1:
             prefix, suffix = tag.split(':', 1)
         else:
             prefix, suffix = '', tag
@@ -678,7 +719,7 @@ class _FeedParserMixin:
 
     def unknown_endtag(self, tag):
         # match namespaces
-        if tag.find(':') <> -1:
+        if tag.find(':') != -1:
             prefix, suffix = tag.split(':', 1)
         else:
             prefix, suffix = '', tag
@@ -699,12 +740,12 @@ class _FeedParserMixin:
             self.pop(prefix + suffix)
 
         # track inline content
-        if self.incontent and not self.contentparams.get('type', u'xml').endswith(u'xml'):
+        if self.incontent and not self.contentparams.get('type', 'xml').endswith('xml'):
             # element declared itself as escaped markup, but it isn't really
             if tag in ('xhtml:div', 'div'):
-                return # typepad does this 10/2007
-            self.contentparams['type'] = u'application/xhtml+xml'
-        if self.incontent and self.contentparams.get('type') == u'application/xhtml+xml':
+                return  # typepad does this 10/2007
+            self.contentparams['type'] = 'application/xhtml+xml'
+        if self.incontent and self.contentparams.get('type') == 'application/xhtml+xml':
             tag = tag.split(':')[-1]
             self.handle_data('</%s>' % tag, escape=0)
 
@@ -715,7 +756,7 @@ class _FeedParserMixin:
                 self.baseuri = self.basestack[-1]
         if self.langstack:
             self.langstack.pop()
-            if self.langstack: # and (self.langstack[-1] is not None):
+            if self.langstack:  # and (self.langstack[-1] is not None):
                 self.lang = self.langstack[-1]
 
         self.depth -= 1
@@ -732,7 +773,7 @@ class _FeedParserMixin:
                 c = int(ref[1:], 16)
             else:
                 c = int(ref)
-            text = unichr(c).encode('utf-8')
+            text = chr(c).encode('utf-8')
         self.elementstack[-1][2].append(text)
 
     def handle_entityref(self, ref):
@@ -751,7 +792,7 @@ class _FeedParserMixin:
             except KeyError:
                 text = '&%s;' % ref
             else:
-                text = unichr(name2codepoint[ref]).encode('utf-8')
+                text = chr(name2codepoint[ref]).encode('utf-8')
         self.elementstack[-1][2].append(text)
 
     def handle_data(self, text, escape=1):
@@ -759,7 +800,7 @@ class _FeedParserMixin:
         # not containing any character or entity references
         if not self.elementstack:
             return
-        if escape and self.contentparams.get('type') == u'application/xhtml+xml':
+        if escape and self.contentparams.get('type') == 'application/xhtml+xml':
             text = _xmlescape(text)
         self.elementstack[-1][2].append(text)
 
@@ -776,18 +817,18 @@ class _FeedParserMixin:
 
     def parse_declaration(self, i):
         # override internal declaration handler to handle CDATA blocks
-        if self.rawdata[i:i+9] == '<![CDATA[':
+        if self.rawdata[i:i + 9] == '<![CDATA[':
             k = self.rawdata.find(']]>', i)
             if k == -1:
                 # CDATA block began but didn't finish
                 k = len(self.rawdata)
                 return k
-            self.handle_data(_xmlescape(self.rawdata[i+9:k]), 0)
-            return k+3
+            self.handle_data(_xmlescape(self.rawdata[i + 9:k]), 0)
+            return k + 3
         else:
             k = self.rawdata.find('>', i)
             if k >= 0:
-                return k+1
+                return k + 1
             else:
                 # We have an incomplete CDATA block.
                 return k
@@ -795,25 +836,25 @@ class _FeedParserMixin:
     def mapContentType(self, contentType):
         contentType = contentType.lower()
         if contentType == 'text' or contentType == 'plain':
-            contentType = u'text/plain'
+            contentType = 'text/plain'
         elif contentType == 'html':
-            contentType = u'text/html'
+            contentType = 'text/html'
         elif contentType == 'xhtml':
-            contentType = u'application/xhtml+xml'
+            contentType = 'application/xhtml+xml'
         return contentType
 
     def trackNamespace(self, prefix, uri):
         loweruri = uri.lower()
         if not self.version:
             if (prefix, loweruri) == (None, 'http://my.netscape.com/rdf/simple/0.9/'):
-                self.version = u'rss090'
+                self.version = 'rss090'
             elif loweruri == 'http://purl.org/rss/1.0/':
-                self.version = u'rss10'
+                self.version = 'rss10'
             elif loweruri == 'http://www.w3.org/2005/atom':
-                self.version = u'atom10'
-        if loweruri.find(u'backend.userland.com/rss') <> -1:
+                self.version = 'atom10'
+        if loweruri.find('backend.userland.com/rss') != -1:
             # match any backend.userland.com namespace
-            uri = u'http://backend.userland.com/rss'
+            uri = 'http://backend.userland.com/rss'
             loweruri = uri
         if loweruri in self._matchnamespaces:
             self.namespacemap[prefix] = self._matchnamespaces[loweruri]
@@ -822,13 +863,13 @@ class _FeedParserMixin:
             self.namespacesInUse[prefix or ''] = uri
 
     def resolveURI(self, uri):
-        return _urljoin(self.baseuri or u'', uri)
+        return _urljoin(self.baseuri or '', uri)
 
     def decodeEntities(self, element, data):
         return data
 
     def strattrs(self, attrs):
-        return ''.join([' %s="%s"' % (t[0],_xmlescape(t[1],{'"':'&quot;'})) for t in attrs])
+        return ''.join([' %s="%s"' % (t[0], _xmlescape(t[1], {'"': '&quot;'})) for t in attrs])
 
     def push(self, element, expectingText):
         self.elementstack.append([element, expectingText, []])
@@ -841,16 +882,16 @@ class _FeedParserMixin:
 
         element, expectingText, pieces = self.elementstack.pop()
 
-        if self.version == u'atom10' and self.contentparams.get('type', u'text') == u'application/xhtml+xml':
+        if self.version == 'atom10' and self.contentparams.get('type', 'text') == 'application/xhtml+xml':
             # remove enclosing child element, but only if it is a <div> and
             # only if all the remaining content is nested underneath it.
             # This means that the divs would be retained in the following:
             #    <div>foo</div><div>bar</div>
-            while pieces and len(pieces)>1 and not pieces[-1].strip():
+            while pieces and len(pieces) > 1 and not pieces[-1].strip():
                 del pieces[-1]
-            while pieces and len(pieces)>1 and not pieces[0].strip():
+            while pieces and len(pieces) > 1 and not pieces[0].strip():
                 del pieces[0]
-            if pieces and (pieces[0] == '<div>' or pieces[0].startswith('<div ')) and pieces[-1]=='</div>':
+            if pieces and (pieces[0] == '<div>' or pieces[0].startswith('<div ')) and pieces[-1] == '</div>':
                 depth = 0
                 for piece in pieces[:-1]:
                     if piece.startswith('</'):
@@ -864,10 +905,10 @@ class _FeedParserMixin:
 
         # Ensure each piece is a str for Python 3
         for (i, v) in enumerate(pieces):
-            if not isinstance(v, unicode):
+            if not isinstance(v, str):
                 pieces[i] = v.decode('utf-8')
 
-        output = u''.join(pieces)
+        output = ''.join(pieces)
         if stripWhitespace:
             output = output.strip()
         if not expectingText:
@@ -898,9 +939,9 @@ class _FeedParserMixin:
 
         # some feed formats require consumers to guess
         # whether the content is html or plain text
-        if not self.version.startswith(u'atom') and self.contentparams.get('type') == u'text/plain':
+        if not self.version.startswith('atom') and self.contentparams.get('type') == 'text/plain':
             if self.lookslikehtml(output):
-                self.contentparams['type'] = u'text/html'
+                self.contentparams['type'] = 'text/html'
 
         # remove temporary cruft from contentparams
         try:
@@ -912,30 +953,31 @@ class _FeedParserMixin:
         except KeyError:
             pass
 
-        is_htmlish = self.mapContentType(self.contentparams.get('type', u'text/html')) in self.html_types
+        is_htmlish = self.mapContentType(self.contentparams.get('type', 'text/html')) in self.html_types
         # resolve relative URIs within embedded markup
         if is_htmlish and RESOLVE_RELATIVE_URIS:
             if element in self.can_contain_relative_uris:
-                output = _resolveRelativeURIs(output, self.baseuri, self.encoding, self.contentparams.get('type', u'text/html'))
+                output = _resolveRelativeURIs(output, self.baseuri, self.encoding,
+                                              self.contentparams.get('type', 'text/html'))
 
         # sanitize embedded markup
         if is_htmlish and SANITIZE_HTML:
             if element in self.can_contain_dangerous_markup:
-                output = _sanitizeHTML(output, self.encoding, self.contentparams.get('type', u'text/html'))
+                output = _sanitizeHTML(output, self.encoding, self.contentparams.get('type', 'text/html'))
 
-        if self.encoding and not isinstance(output, unicode):
+        if self.encoding and not isinstance(output, str):
             output = output.decode(self.encoding, 'ignore')
 
         # address common error where people take data that is already
         # utf-8, presume that it is iso-8859-1, and re-encode it.
-        if self.encoding in (u'utf-8', u'utf-8_INVALID_PYTHON_3') and isinstance(output, unicode):
+        if self.encoding in ('utf-8', 'utf-8_INVALID_PYTHON_3') and isinstance(output, str):
             try:
                 output = output.encode('iso-8859-1').decode('utf-8')
             except (UnicodeEncodeError, UnicodeDecodeError):
                 pass
 
         # map win-1252 extensions to the proper code points
-        if isinstance(output, unicode):
+        if isinstance(output, str):
             output = output.translate(_cp1252)
 
         # categories/tags/keywords/whatever are handled in _end_category or _end_tags or _end_itunes_keywords
@@ -973,7 +1015,7 @@ class _FeedParserMixin:
                     contentparams = copy.deepcopy(self.contentparams)
                     contentparams['value'] = output
                     self.entries[-1][element + '_detail'] = contentparams
-        elif (self.infeed or self.insource):# and (not self.intextinput) and (not self.inimage):
+        elif (self.infeed or self.insource):  # and (not self.intextinput) and (not self.inimage):
             context = self._getContext()
             if element == 'description':
                 element = 'subtitle'
@@ -992,7 +1034,7 @@ class _FeedParserMixin:
     def pushContent(self, tag, attrsD, defaultContentType, expectingText):
         self.incontent += 1
         if self.lang:
-            self.lang=self.lang.replace('_','-')
+            self.lang = self.lang.replace('_', '-')
         self.contentparams = FeedParserDict({
             'type': self.mapContentType(attrsD.get('type', defaultContentType)),
             'language': self.lang,
@@ -1013,25 +1055,24 @@ class _FeedParserMixin:
     @staticmethod
     def lookslikehtml(s):
         # must have a close tag or an entity reference to qualify
-        if not (re.search(r'</(\w+)>',s) or re.search("&#?\w+;",s)):
+        if not (re.search(r'</(\w+)>', s) or re.search("&#?\w+;", s)):
             return
 
         # all tags must be in a restricted subset of valid HTML tags
-        if filter(lambda t: t.lower() not in _HTMLSanitizer.acceptable_elements,
-            re.findall(r'</?(\w+)',s)):
+        if [t for t in re.findall(r'</?(\w+)', s) if t.lower() not in _HTMLSanitizer.acceptable_elements]:
             return
 
         # all entities must have been defined as valid HTML entities
-        if filter(lambda e: e not in entitydefs.keys(), re.findall(r'&(\w+);', s)):
+        if [e for e in re.findall(r'&(\w+);', s) if e not in list(entitydefs.keys())]:
             return
 
         return 1
 
     def _mapToStandardPrefix(self, name):
         colonpos = name.find(':')
-        if colonpos <> -1:
+        if colonpos != -1:
             prefix = name[:colonpos]
-            suffix = name[colonpos+1:]
+            suffix = name[colonpos + 1:]
             prefix = self.namespacemap.get(prefix, prefix)
             name = prefix + ':' + suffix
         return name
@@ -1042,11 +1083,11 @@ class _FeedParserMixin:
     def _isBase64(self, attrsD, contentparams):
         if attrsD.get('mode', '') == 'base64':
             return 1
-        if self.contentparams['type'].startswith(u'text/'):
+        if self.contentparams['type'].startswith('text/'):
             return 0
-        if self.contentparams['type'].endswith(u'+xml'):
+        if self.contentparams['type'].endswith('+xml'):
             return 0
-        if self.contentparams['type'].endswith(u'/xml'):
+        if self.contentparams['type'].endswith('/xml'):
             return 0
         return 1
 
@@ -1072,22 +1113,22 @@ class _FeedParserMixin:
             context.setdefault(key, value)
 
     def _start_rss(self, attrsD):
-        versionmap = {'0.91': u'rss091u',
-                      '0.92': u'rss092',
-                      '0.93': u'rss093',
-                      '0.94': u'rss094'}
-        #If we're here then this is an RSS feed.
-        #If we don't have a version or have a version that starts with something
-        #other than RSS then there's been a mistake. Correct it.
-        if not self.version or not self.version.startswith(u'rss'):
+        versionmap = {'0.91': 'rss091u',
+                      '0.92': 'rss092',
+                      '0.93': 'rss093',
+                      '0.94': 'rss094'}
+        # If we're here then this is an RSS feed.
+        # If we don't have a version or have a version that starts with something
+        # other than RSS then there's been a mistake. Correct it.
+        if not self.version or not self.version.startswith('rss'):
             attr_version = attrsD.get('version', '')
             version = versionmap.get(attr_version)
             if version:
                 self.version = version
             elif attr_version.startswith('2.'):
-                self.version = u'rss20'
+                self.version = 'rss20'
             else:
-                self.version = u'rss'
+                self.version = 'rss'
 
     def _start_channel(self, attrsD):
         self.infeed = 1
@@ -1105,19 +1146,20 @@ class _FeedParserMixin:
 
     def _start_feed(self, attrsD):
         self.infeed = 1
-        versionmap = {'0.1': u'atom01',
-                      '0.2': u'atom02',
-                      '0.3': u'atom03'}
+        versionmap = {'0.1': 'atom01',
+                      '0.2': 'atom02',
+                      '0.3': 'atom03'}
         if not self.version:
             attr_version = attrsD.get('version')
             version = versionmap.get(attr_version)
             if version:
                 self.version = version
             else:
-                self.version = u'atom'
+                self.version = 'atom'
 
     def _end_channel(self):
         self.infeed = 0
+
     _end_feed = _end_channel
 
     def _start_image(self, attrsD):
@@ -1138,11 +1180,13 @@ class _FeedParserMixin:
         self.intextinput = 1
         self.title_depth = -1
         self.push('textinput', 0)
+
     _start_textInput = _start_textinput
 
     def _end_textinput(self):
         self.pop('textinput')
         self.intextinput = 0
+
     _end_textInput = _end_textinput
 
     def _start_author(self, attrsD):
@@ -1152,6 +1196,7 @@ class _FeedParserMixin:
         context = self._getContext()
         context.setdefault('authors', [])
         context['authors'].append(FeedParserDict())
+
     _start_managingeditor = _start_author
     _start_dc_author = _start_author
     _start_dc_creator = _start_author
@@ -1161,6 +1206,7 @@ class _FeedParserMixin:
         self.pop('author')
         self.inauthor = 0
         self._sync_author_detail()
+
     _end_managingeditor = _end_author
     _end_dc_author = _end_author
     _end_dc_creator = _end_author
@@ -1199,6 +1245,7 @@ class _FeedParserMixin:
 
     def _start_name(self, attrsD):
         self.push('name', 0)
+
     _start_itunes_name = _start_name
 
     def _end_name(self):
@@ -1212,6 +1259,7 @@ class _FeedParserMixin:
         elif self.intextinput:
             context = self._getContext()
             context['name'] = value
+
     _end_itunes_name = _end_name
 
     def _start_width(self, attrsD):
@@ -1242,6 +1290,7 @@ class _FeedParserMixin:
 
     def _start_url(self, attrsD):
         self.push('href', 1)
+
     _start_homepage = _start_url
     _start_uri = _start_url
 
@@ -1251,11 +1300,13 @@ class _FeedParserMixin:
             self._save_author('href', value)
         elif self.incontributor:
             self._save_contributor('href', value)
+
     _end_homepage = _end_url
     _end_uri = _end_url
 
     def _start_email(self, attrsD):
         self.push('email', 0)
+
     _start_itunes_email = _start_email
 
     def _end_email(self):
@@ -1266,6 +1317,7 @@ class _FeedParserMixin:
             self._save_author('email', value)
         elif self.incontributor:
             self._save_contributor('email', value)
+
     _end_itunes_email = _end_email
 
     def _getContext(self):
@@ -1301,7 +1353,7 @@ class _FeedParserMixin:
             name = detail.get('name')
             email = detail.get('email')
             if name and email:
-                context[key] = u'%s (%s)' % (name, email)
+                context[key] = '%s (%s)' % (name, email)
             elif name:
                 context[key] = name
             elif email:
@@ -1310,18 +1362,20 @@ class _FeedParserMixin:
             author, email = context.get(key), None
             if not author:
                 return
-            emailmatch = re.search(ur'''(([a-zA-Z0-9\_\-\.\+]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?))(\?subject=\S+)?''', author)
+            emailmatch = re.search(
+                r'''(([a-zA-Z0-9\_\-\.\+]+)@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.)|(([a-zA-Z0-9\-]+\.)+))([a-zA-Z]{2,4}|[0-9]{1,3})(\]?))(\?subject=\S+)?''',
+                author)
             if emailmatch:
                 email = emailmatch.group(0)
                 # probably a better way to do the following, but it passes all the tests
-                author = author.replace(email, u'')
-                author = author.replace(u'()', u'')
-                author = author.replace(u'<>', u'')
-                author = author.replace(u'&lt;&gt;', u'')
+                author = author.replace(email, '')
+                author = author.replace('()', '')
+                author = author.replace('<>', '')
+                author = author.replace('&lt;&gt;', '')
                 author = author.strip()
-                if author and (author[0] == u'('):
+                if author and (author[0] == '('):
                     author = author[1:]
-                if author and (author[-1] == u')'):
+                if author and (author[-1] == ')'):
                     author = author[:-1]
                 author = author.strip()
             if author or email:
@@ -1332,22 +1386,26 @@ class _FeedParserMixin:
                 detail['email'] = email
 
     def _start_subtitle(self, attrsD):
-        self.pushContent('subtitle', attrsD, u'text/plain', 1)
+        self.pushContent('subtitle', attrsD, 'text/plain', 1)
+
     _start_tagline = _start_subtitle
     _start_itunes_subtitle = _start_subtitle
 
     def _end_subtitle(self):
         self.popContent('subtitle')
+
     _end_tagline = _end_subtitle
     _end_itunes_subtitle = _end_subtitle
 
     def _start_rights(self, attrsD):
-        self.pushContent('rights', attrsD, u'text/plain', 1)
+        self.pushContent('rights', attrsD, 'text/plain', 1)
+
     _start_dc_rights = _start_rights
     _start_copyright = _start_rights
 
     def _end_rights(self):
         self.popContent('rights')
+
     _end_dc_rights = _end_rights
     _end_copyright = _end_rights
 
@@ -1363,28 +1421,34 @@ class _FeedParserMixin:
             context = self._getContext()
             context['id'] = id
         self._cdf_common(attrsD)
+
     _start_entry = _start_item
 
     def _end_item(self):
         self.pop('item')
         self.inentry = 0
+
     _end_entry = _end_item
 
     def _start_dc_language(self, attrsD):
         self.push('language', 1)
+
     _start_language = _start_dc_language
 
     def _end_dc_language(self):
         self.lang = self.pop('language')
+
     _end_language = _end_dc_language
 
     def _start_dc_publisher(self, attrsD):
         self.push('publisher', 1)
+
     _start_webmaster = _start_dc_publisher
 
     def _end_dc_publisher(self):
         self.pop('publisher')
         self._sync_author_detail('publisher')
+
     _end_webmaster = _end_dc_publisher
 
     def _start_dcterms_valid(self, attrsD):
@@ -1403,6 +1467,7 @@ class _FeedParserMixin:
 
     def _start_published(self, attrsD):
         self.push('published', 1)
+
     _start_dcterms_issued = _start_published
     _start_issued = _start_published
     _start_pubdate = _start_published
@@ -1410,12 +1475,14 @@ class _FeedParserMixin:
     def _end_published(self):
         value = self.pop('published')
         self._save('published_parsed', _parse_date(value), overwrite=True)
+
     _end_dcterms_issued = _end_published
     _end_issued = _end_published
     _end_pubdate = _end_published
 
     def _start_updated(self, attrsD):
         self.push('updated', 1)
+
     _start_modified = _start_updated
     _start_dcterms_modified = _start_updated
     _start_dc_date = _start_updated
@@ -1425,6 +1492,7 @@ class _FeedParserMixin:
         value = self.pop('updated')
         parsed_value = _parse_date(value)
         self._save('updated_parsed', parsed_value, overwrite=True)
+
     _end_modified = _end_updated
     _end_dcterms_modified = _end_updated
     _end_dc_date = _end_updated
@@ -1432,11 +1500,13 @@ class _FeedParserMixin:
 
     def _start_created(self, attrsD):
         self.push('created', 1)
+
     _start_dcterms_created = _start_created
 
     def _end_created(self):
         value = self.pop('created')
         self._save('created_parsed', _parse_date(value), overwrite=True)
+
     _end_dcterms_created = _end_created
 
     def _start_expirationdate(self, attrsD):
@@ -1486,6 +1556,7 @@ class _FeedParserMixin:
         self.push('where', 0)
         context = self._getContext()
         context['where'] = FeedParserDict()
+
     _start_georss_where = _start_where
 
     def _parse_srs_attrs(self, attrsD):
@@ -1555,6 +1626,7 @@ class _FeedParserMixin:
     def _end_geom(self):
         self.ingeometry = 0
         self.pop('geometry')
+
     _end_gml_point = _end_geom
     _end_gml_linestring = _end_geom
     _end_gml_linearring = _end_geom
@@ -1563,6 +1635,7 @@ class _FeedParserMixin:
 
     def _end_where(self):
         self.pop('where')
+
     _end_georss_where = _end_where
 
     # end geospatial
@@ -1571,24 +1644,26 @@ class _FeedParserMixin:
         context = self._getContext()
         value = self._getAttribute(attrsD, 'rdf:resource')
         attrsD = FeedParserDict()
-        attrsD['rel'] = u'license'
+        attrsD['rel'] = 'license'
         if value:
-            attrsD['href']=value
+            attrsD['href'] = value
         context.setdefault('links', []).append(attrsD)
 
     def _start_creativecommons_license(self, attrsD):
         self.push('license', 1)
+
     _start_creativeCommons_license = _start_creativecommons_license
 
     def _end_creativecommons_license(self):
         value = self.pop('license')
         context = self._getContext()
         attrsD = FeedParserDict()
-        attrsD['rel'] = u'license'
+        attrsD['rel'] = 'license'
         if value:
             attrsD['href'] = value
         context.setdefault('links', []).append(attrsD)
         del context['license']
+
     _end_creativeCommons_license = _end_creativecommons_license
 
     def _addTag(self, term, scheme, label):
@@ -1616,17 +1691,18 @@ class _FeedParserMixin:
         label = attrsD.get('label')
         self._addTag(term, scheme, label)
         self.push('category', 1)
+
     _start_dc_subject = _start_category
     _start_keywords = _start_category
 
     def _start_media_category(self, attrsD):
-        attrsD.setdefault('scheme', u'http://search.yahoo.com/mrss/category_schema')
+        attrsD.setdefault('scheme', 'http://search.yahoo.com/mrss/category_schema')
         self._start_category(attrsD)
 
     def _end_itunes_keywords(self):
         for term in self.pop('itunes_keywords').split(','):
             if term.strip():
-                self._addTag(term.strip(), u'http://www.itunes.com/', None)
+                self._addTag(term.strip(), 'http://www.itunes.com/', None)
 
     def _end_media_keywords(self):
         for term in self.pop('media_keywords').split(','):
@@ -1634,7 +1710,7 @@ class _FeedParserMixin:
                 self._addTag(term.strip(), None, None)
 
     def _start_itunes_category(self, attrsD):
-        self._addTag(attrsD.get('text'), u'http://www.itunes.com/', None)
+        self._addTag(attrsD.get('text'), 'http://www.itunes.com/', None)
         self.push('category', 1)
 
     def _end_category(self):
@@ -1647,6 +1723,7 @@ class _FeedParserMixin:
             tags[-1]['term'] = value
         else:
             self._addTag(value, None, None)
+
     _end_dc_subject = _end_category
     _end_keywords = _end_category
     _end_itunes_category = _end_category
@@ -1656,11 +1733,11 @@ class _FeedParserMixin:
         self._getContext()['cloud'] = FeedParserDict(attrsD)
 
     def _start_link(self, attrsD):
-        attrsD.setdefault('rel', u'alternate')
-        if attrsD['rel'] == u'self':
-            attrsD.setdefault('type', u'application/atom+xml')
+        attrsD.setdefault('rel', 'alternate')
+        if attrsD['rel'] == 'self':
+            attrsD.setdefault('type', 'application/atom+xml')
         else:
-            attrsD.setdefault('type', u'text/html')
+            attrsD.setdefault('type', 'text/html')
         context = self._getContext()
         attrsD = self._itsAnHrefDamnIt(attrsD)
         if 'href' in attrsD:
@@ -1671,7 +1748,7 @@ class _FeedParserMixin:
             context['links'].append(FeedParserDict(attrsD))
         if 'href' in attrsD:
             expectingText = 0
-            if (attrsD.get('rel') == u'alternate') and (self.mapContentType(attrsD.get('type')) in self.html_types):
+            if (attrsD.get('rel') == 'alternate') and (self.mapContentType(attrsD.get('type')) in self.html_types):
                 context['link'] = attrsD['href']
         else:
             self.push('link', expectingText)
@@ -1682,6 +1759,7 @@ class _FeedParserMixin:
     def _start_guid(self, attrsD):
         self.guidislink = (attrsD.get('ispermalink', 'true') == 'true')
         self.push('id', 1)
+
     _start_id = _start_guid
 
     def _end_guid(self):
@@ -1691,12 +1769,14 @@ class _FeedParserMixin:
             # guid acts as link, but only if 'ispermalink' is not present or is 'true',
             # and only if the item doesn't already have a link element
             self._save('link', value)
+
     _end_id = _end_guid
 
     def _start_title(self, attrsD):
         if self.svgOK:
-            return self.unknown_starttag('title', attrsD.items())
-        self.pushContent('title', attrsD, u'text/plain', self.infeed or self.inentry or self.insource)
+            return self.unknown_starttag('title', list(attrsD.items()))
+        self.pushContent('title', attrsD, 'text/plain', self.infeed or self.inentry or self.insource)
+
     _start_dc_title = _start_title
     _start_media_title = _start_title
 
@@ -1707,6 +1787,7 @@ class _FeedParserMixin:
         if not value:
             return
         self.title_depth = self.depth
+
     _end_dc_title = _end_title
 
     def _end_media_title(self):
@@ -1720,12 +1801,13 @@ class _FeedParserMixin:
             self._summaryKey = 'content'
             self._start_content(attrsD)
         else:
-            self.pushContent('description', attrsD, u'text/html', self.infeed or self.inentry or self.insource)
+            self.pushContent('description', attrsD, 'text/html', self.infeed or self.inentry or self.insource)
+
     _start_dc_description = _start_description
     _start_media_description = _start_description
 
     def _start_abstract(self, attrsD):
-        self.pushContent('description', attrsD, u'text/plain', self.infeed or self.inentry or self.insource)
+        self.pushContent('description', attrsD, 'text/plain', self.infeed or self.inentry or self.insource)
 
     def _end_description(self):
         if self._summaryKey == 'content':
@@ -1733,16 +1815,19 @@ class _FeedParserMixin:
         else:
             value = self.popContent('description')
         self._summaryKey = None
+
     _end_abstract = _end_description
     _end_dc_description = _end_description
     _end_media_description = _end_description
 
     def _start_info(self, attrsD):
-        self.pushContent('info', attrsD, u'text/plain', 1)
+        self.pushContent('info', attrsD, 'text/plain', 1)
+
     _start_feedburner_browserfriendly = _start_info
 
     def _end_info(self):
         self.popContent('info')
+
     _end_feedburner_browserfriendly = _end_info
 
     def _start_generator(self, attrsD):
@@ -1781,7 +1866,8 @@ class _FeedParserMixin:
             self._start_content(attrsD)
         else:
             self._summaryKey = 'summary'
-            self.pushContent(self._summaryKey, attrsD, u'text/plain', 1)
+            self.pushContent(self._summaryKey, attrsD, 'text/plain', 1)
+
     _start_itunes_summary = _start_summary
 
     def _end_summary(self):
@@ -1790,18 +1876,19 @@ class _FeedParserMixin:
         else:
             self.popContent(self._summaryKey or 'summary')
         self._summaryKey = None
+
     _end_itunes_summary = _end_summary
 
     def _start_enclosure(self, attrsD):
         attrsD = self._itsAnHrefDamnIt(attrsD)
         context = self._getContext()
-        attrsD['rel'] = u'enclosure'
+        attrsD['rel'] = 'enclosure'
         context.setdefault('links', []).append(FeedParserDict(attrsD))
 
     def _start_source(self, attrsD):
         if 'url' in attrsD:
             # This means that we're processing a source element from an RSS 2.0 feed
-            self.sourcedata['href'] = attrsD[u'url']
+            self.sourcedata['href'] = attrsD['url']
         self.push('source', 1)
         self.insource = 1
         self.title_depth = -1
@@ -1815,22 +1902,24 @@ class _FeedParserMixin:
         self.sourcedata.clear()
 
     def _start_content(self, attrsD):
-        self.pushContent('content', attrsD, u'text/plain', 1)
+        self.pushContent('content', attrsD, 'text/plain', 1)
         src = attrsD.get('src')
         if src:
             self.contentparams['src'] = src
         self.push('content', 1)
 
     def _start_body(self, attrsD):
-        self.pushContent('content', attrsD, u'application/xhtml+xml', 1)
+        self.pushContent('content', attrsD, 'application/xhtml+xml', 1)
+
     _start_xhtml_body = _start_body
 
     def _start_content_encoded(self, attrsD):
-        self.pushContent('content', attrsD, u'text/html', 1)
+        self.pushContent('content', attrsD, 'text/html', 1)
+
     _start_fullitem = _start_content_encoded
 
     def _end_content(self):
-        copyToSummary = self.mapContentType(self.contentparams.get('type')) in ([u'text/plain'] + self.html_types)
+        copyToSummary = self.mapContentType(self.contentparams.get('type')) in (['text/plain'] + self.html_types)
         value = self.popContent('content')
         if copyToSummary:
             self._save('summary', value)
@@ -1846,6 +1935,7 @@ class _FeedParserMixin:
             self._getContext()['image'] = FeedParserDict({'href': attrsD.get('href')})
         elif attrsD.get('url'):
             self._getContext()['image'] = FeedParserDict({'href': attrsD.get('url')})
+
     _start_itunes_link = _start_itunes_image
 
     def _end_itunes_block(self):
@@ -1916,7 +2006,7 @@ class _FeedParserMixin:
     def _start_media_thumbnail(self, attrsD):
         context = self._getContext()
         context.setdefault('media_thumbnail', [])
-        self.push('url', 1) # new
+        self.push('url', 1)  # new
         context['media_thumbnail'].append(attrsD)
 
     def _end_media_thumbnail(self):
@@ -1948,7 +2038,7 @@ class _FeedParserMixin:
 
     def _start_psc_chapters(self, attrsD):
         if self.psc_chapters_flag is None:
-	    # Transition from None -> True
+            # Transition from None -> True
             self.psc_chapters_flag = True
             attrsD['chapters'] = []
             self._getContext()['psc_chapters'] = FeedParserDict(attrsD)
@@ -1987,17 +2077,18 @@ if _XML_AVAILABLE:
         def startElementNS(self, name, qname, attrs):
             namespace, localname = name
             lowernamespace = str(namespace or '').lower()
-            if lowernamespace.find(u'backend.userland.com/rss') <> -1:
+            if lowernamespace.find('backend.userland.com/rss') != -1:
                 # match any backend.userland.com namespace
-                namespace = u'http://backend.userland.com/rss'
+                namespace = 'http://backend.userland.com/rss'
                 lowernamespace = namespace
             if qname and qname.find(':') > 0:
                 givenprefix = qname.split(':')[0]
             else:
                 givenprefix = None
             prefix = self._matchnamespaces.get(lowernamespace, givenprefix)
-            if givenprefix and (prefix == None or (prefix == '' and lowernamespace == '')) and givenprefix not in self.namespacesInUse:
-                raise UndeclaredNamespace, "'%s' is not associated with a namespace" % givenprefix
+            if givenprefix and (prefix == None or (
+                    prefix == '' and lowernamespace == '')) and givenprefix not in self.namespacesInUse:
+                raise UndeclaredNamespace("'%s' is not associated with a namespace" % givenprefix)
             localname = str(localname).lower()
 
             # qname implementation is horribly broken in Python 2.1 (it
@@ -2008,20 +2099,20 @@ if _XML_AVAILABLE:
             # at all).  Thanks to MatejC for helping me test this and
             # tirelessly telling me that it didn't work yet.
             attrsD, self.decls = self.decls, {}
-            if localname=='math' and namespace=='http://www.w3.org/1998/Math/MathML':
-                attrsD['xmlns']=namespace
-            if localname=='svg' and namespace=='http://www.w3.org/2000/svg':
-                attrsD['xmlns']=namespace
+            if localname == 'math' and namespace == 'http://www.w3.org/1998/Math/MathML':
+                attrsD['xmlns'] = namespace
+            if localname == 'svg' and namespace == 'http://www.w3.org/2000/svg':
+                attrsD['xmlns'] = namespace
 
             if prefix:
                 localname = prefix.lower() + ':' + localname
-            elif namespace and not qname: #Expat
-                for name,value in self.namespacesInUse.items():
+            elif namespace and not qname:  # Expat
+                for name, value in list(self.namespacesInUse.items()):
                     if name and value == namespace:
                         localname = name + ':' + localname
                         break
 
-            for (namespace, attrlocalname), attrvalue in attrs.items():
+            for (namespace, attrlocalname), attrvalue in list(attrs.items()):
                 lowernamespace = (namespace or '').lower()
                 prefix = self._matchnamespaces.get(lowernamespace, '')
                 if prefix:
@@ -2030,7 +2121,7 @@ if _XML_AVAILABLE:
             for qname in attrs.getQNames():
                 attrsD[str(qname).lower()] = attrs.getValueByQName(qname)
             localname = str(localname).lower()
-            self.unknown_starttag(localname, attrsD.items())
+            self.unknown_starttag(localname, list(attrsD.items()))
 
         def characters(self, text):
             self.handle_data(text)
@@ -2045,8 +2136,8 @@ if _XML_AVAILABLE:
             prefix = self._matchnamespaces.get(lowernamespace, givenprefix)
             if prefix:
                 localname = prefix + ':' + localname
-            elif namespace and not qname: #Expat
-                for name,value in self.namespacesInUse.items():
+            elif namespace and not qname:  # Expat
+                for name, value in list(self.namespacesInUse.items()):
                     if name and value == namespace:
                         localname = name + ':' + localname
                         break
@@ -2064,13 +2155,14 @@ if _XML_AVAILABLE:
             self.error(exc)
             raise exc
 
+
 class _BaseHTMLProcessor(sgmllib.SGMLParser):
     special = re.compile('''[<>'"]''')
     bare_ampersand = re.compile("&(?!#\d+;|#x[0-9a-fA-F]+;|\w+;)")
     elements_no_end_tag = set([
-      'area', 'base', 'basefont', 'br', 'col', 'command', 'embed', 'frame',
-      'hr', 'img', 'input', 'isindex', 'keygen', 'link', 'meta', 'param',
-      'source', 'track', 'wbr'
+        'area', 'base', 'basefont', 'br', 'col', 'command', 'embed', 'frame',
+        'hr', 'img', 'input', 'isindex', 'keygen', 'link', 'meta', 'param',
+        'source', 'track', 'wbr'
     ])
 
     def __init__(self, encoding, _type):
@@ -2096,16 +2188,18 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
     # they're declared above, not as they're declared in sgmllib.
     def goahead(self, i):
         pass
-    goahead.func_code = sgmllib.SGMLParser.goahead.func_code
+
+    goahead.__code__ = sgmllib.SGMLParser.goahead.__code__
 
     def __parse_starttag(self, i):
         pass
-    __parse_starttag.func_code = sgmllib.SGMLParser.parse_starttag.func_code
 
-    def parse_starttag(self,i):
+    __parse_starttag.__code__ = sgmllib.SGMLParser.parse_starttag.__code__
+
+    def parse_starttag(self, i):
         j = self.__parse_starttag(i)
         if self._type == 'application/xhtml+xml':
-            if j>2 and self.rawdata[j-2:j]=='/>':
+            if j > 2 and self.rawdata[j - 2:j] == '/>':
                 self.unknown_endtag(self.lasttag)
         return j
 
@@ -2118,9 +2212,9 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
             bytes
             if bytes is str:
                 raise NameError
-            self.encoding = self.encoding + u'_INVALID_PYTHON_3'
+            self.encoding = self.encoding + '_INVALID_PYTHON_3'
         except NameError:
-            if self.encoding and isinstance(data, unicode):
+            if self.encoding and isinstance(data, str):
                 data = data.encode(self.encoding)
         sgmllib.SGMLParser.feed(self, data)
         sgmllib.SGMLParser.close(self)
@@ -2129,7 +2223,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         if not attrs:
             return attrs
         # utility method to be called by descendants
-        attrs = dict([(k.lower(), v) for k, v in attrs]).items()
+        attrs = list(dict([(k.lower(), v) for k, v in attrs]).items())
         attrs = [(k, k in ('rel', 'type') and v.lower() or v) for k, v in attrs]
         attrs.sort()
         return attrs
@@ -2139,20 +2233,20 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         # attrs is a list of (attr, value) tuples
         # e.g. for <pre class='screen'>, tag='pre', attrs=[('class', 'screen')]
         uattrs = []
-        strattrs=''
+        strattrs = ''
         if attrs:
             for key, value in attrs:
-                value=value.replace('>','&gt;').replace('<','&lt;').replace('"','&quot;')
+                value = value.replace('>', '&gt;').replace('<', '&lt;').replace('"', '&quot;')
                 value = self.bare_ampersand.sub("&amp;", value)
                 # thanks to Kevin Marks for this breathtaking hack to deal with (valid) high-bit attribute values in UTF-8 feeds
-                if not isinstance(value, unicode):
+                if not isinstance(value, str):
                     value = value.decode(self.encoding, 'ignore')
                 try:
                     # Currently, in Python 3 the key is already a str, and cannot be decoded again
-                    uattrs.append((unicode(key, self.encoding), value))
+                    uattrs.append((str(key, self.encoding), value))
                 except TypeError:
                     uattrs.append((key, value))
-            strattrs = u''.join([u' %s="%s"' % (key, value) for key, value in uattrs])
+            strattrs = ''.join([' %s="%s"' % (key, value) for key, value in uattrs])
             if self.encoding:
                 try:
                     strattrs = strattrs.encode(self.encoding)
@@ -2215,6 +2309,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         self.pieces.append('<!%s>' % text)
 
     _new_declname_match = re.compile(r'[a-zA-Z][-_.a-zA-Z0-9:]*\s*').match
+
     def _scan_name(self, i, declstartpos):
         rawdata = self.rawdata
         n = len(rawdata)
@@ -2229,7 +2324,7 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
             return name.lower(), m.end()
         else:
             self.handle_data(rawdata)
-#            self.updatepos(declstartpos, i)
+            #            self.updatepos(declstartpos, i)
             return None, -1
 
     def convert_charref(self, name):
@@ -2248,14 +2343,15 @@ class _BaseHTMLProcessor(sgmllib.SGMLParser):
         except sgmllib.SGMLParseError:
             # escape the doctype declaration and continue parsing
             self.handle_data('&lt;')
-            return i+1
+            return i + 1
+
 
 class _LooseFeedParser(_FeedParserMixin, _BaseHTMLProcessor):
     def __init__(self, baseuri, baselang, encoding, entities):
         sgmllib.SGMLParser.__init__(self)
         _FeedParserMixin.__init__(self, baseuri, baselang, encoding)
         _BaseHTMLProcessor.__init__(self, encoding, 'application/xhtml+xml')
-        self.entities=entities
+        self.entities = entities
 
     def decodeEntities(self, element, data):
         data = data.replace('&#60;', '&lt;')
@@ -2270,7 +2366,7 @@ class _LooseFeedParser(_FeedParserMixin, _BaseHTMLProcessor):
         data = data.replace('&#x22;', '&quot;')
         data = data.replace('&#39;', '&apos;')
         data = data.replace('&#x27;', '&apos;')
-        if not self.contentparams.get('type', u'xml').endswith(u'xml'):
+        if not self.contentparams.get('type', 'xml').endswith('xml'):
             data = data.replace('&lt;', '<')
             data = data.replace('&gt;', '>')
             data = data.replace('&amp;', '&')
@@ -2281,38 +2377,39 @@ class _LooseFeedParser(_FeedParserMixin, _BaseHTMLProcessor):
         return data
 
     def strattrs(self, attrs):
-        return ''.join([' %s="%s"' % (n,v.replace('"','&quot;')) for n,v in attrs])
+        return ''.join([' %s="%s"' % (n, v.replace('"', '&quot;')) for n, v in attrs])
+
 
 class _RelativeURIResolver(_BaseHTMLProcessor):
     relative_uris = set([('a', 'href'),
-                     ('applet', 'codebase'),
-                     ('area', 'href'),
-                     ('audio', 'src'),
-                     ('blockquote', 'cite'),
-                     ('body', 'background'),
-                     ('del', 'cite'),
-                     ('form', 'action'),
-                     ('frame', 'longdesc'),
-                     ('frame', 'src'),
-                     ('iframe', 'longdesc'),
-                     ('iframe', 'src'),
-                     ('head', 'profile'),
-                     ('img', 'longdesc'),
-                     ('img', 'src'),
-                     ('img', 'usemap'),
-                     ('input', 'src'),
-                     ('input', 'usemap'),
-                     ('ins', 'cite'),
-                     ('link', 'href'),
-                     ('object', 'classid'),
-                     ('object', 'codebase'),
-                     ('object', 'data'),
-                     ('object', 'usemap'),
-                     ('q', 'cite'),
-                     ('script', 'src'),
-                     ('source', 'src'),
-                     ('video', 'poster'),
-                     ('video', 'src')])
+                         ('applet', 'codebase'),
+                         ('area', 'href'),
+                         ('audio', 'src'),
+                         ('blockquote', 'cite'),
+                         ('body', 'background'),
+                         ('del', 'cite'),
+                         ('form', 'action'),
+                         ('frame', 'longdesc'),
+                         ('frame', 'src'),
+                         ('iframe', 'longdesc'),
+                         ('iframe', 'src'),
+                         ('head', 'profile'),
+                         ('img', 'longdesc'),
+                         ('img', 'src'),
+                         ('img', 'usemap'),
+                         ('input', 'src'),
+                         ('input', 'usemap'),
+                         ('ins', 'cite'),
+                         ('link', 'href'),
+                         ('object', 'classid'),
+                         ('object', 'codebase'),
+                         ('object', 'data'),
+                         ('object', 'usemap'),
+                         ('q', 'cite'),
+                         ('script', 'src'),
+                         ('source', 'src'),
+                         ('video', 'poster'),
+                         ('video', 'src')])
 
     def __init__(self, baseuri, encoding, _type):
         _BaseHTMLProcessor.__init__(self, encoding, _type)
@@ -2326,6 +2423,7 @@ class _RelativeURIResolver(_BaseHTMLProcessor):
         attrs = [(key, ((tag, key) in self.relative_uris) and self.resolveURI(value) or value) for key, value in attrs]
         _BaseHTMLProcessor.unknown_starttag(self, tag, attrs)
 
+
 def _resolveRelativeURIs(htmlSource, baseURI, encoding, _type):
     if not _SGML_AVAILABLE:
         return htmlSource
@@ -2334,87 +2432,89 @@ def _resolveRelativeURIs(htmlSource, baseURI, encoding, _type):
     p.feed(htmlSource)
     return p.output()
 
+
 def _makeSafeAbsoluteURI(base, rel=None):
     # bail if ACCEPTABLE_URI_SCHEMES is empty
     if not ACCEPTABLE_URI_SCHEMES:
-        return _urljoin(base, rel or u'')
+        return _urljoin(base, rel or '')
     if not base:
-        return rel or u''
+        return rel or ''
     if not rel:
         try:
-            scheme = urlparse.urlparse(base)[0]
+            scheme = urllib.parse.urlparse(base)[0]
         except ValueError:
-            return u''
+            return ''
         if not scheme or scheme in ACCEPTABLE_URI_SCHEMES:
             return base
-        return u''
+        return ''
     uri = _urljoin(base, rel)
     if uri.strip().split(':', 1)[0] not in ACCEPTABLE_URI_SCHEMES:
-        return u''
+        return ''
     return uri
+
 
 class _HTMLSanitizer(_BaseHTMLProcessor):
     acceptable_elements = set(['a', 'abbr', 'acronym', 'address', 'area',
-        'article', 'aside', 'audio', 'b', 'big', 'blockquote', 'br', 'button',
-        'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup',
-        'command', 'datagrid', 'datalist', 'dd', 'del', 'details', 'dfn',
-        'dialog', 'dir', 'div', 'dl', 'dt', 'em', 'event-source', 'fieldset',
-        'figcaption', 'figure', 'footer', 'font', 'form', 'header', 'h1',
-        'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'input', 'ins',
-        'keygen', 'kbd', 'label', 'legend', 'li', 'm', 'map', 'menu', 'meter',
-        'multicol', 'nav', 'nextid', 'ol', 'output', 'optgroup', 'option',
-        'p', 'pre', 'progress', 'q', 's', 'samp', 'section', 'select',
-        'small', 'sound', 'source', 'spacer', 'span', 'strike', 'strong',
-        'sub', 'sup', 'table', 'tbody', 'td', 'textarea', 'time', 'tfoot',
-        'th', 'thead', 'tr', 'tt', 'u', 'ul', 'var', 'video', 'noscript'])
+                               'article', 'aside', 'audio', 'b', 'big', 'blockquote', 'br', 'button',
+                               'canvas', 'caption', 'center', 'cite', 'code', 'col', 'colgroup',
+                               'command', 'datagrid', 'datalist', 'dd', 'del', 'details', 'dfn',
+                               'dialog', 'dir', 'div', 'dl', 'dt', 'em', 'event-source', 'fieldset',
+                               'figcaption', 'figure', 'footer', 'font', 'form', 'header', 'h1',
+                               'h2', 'h3', 'h4', 'h5', 'h6', 'hr', 'i', 'img', 'input', 'ins',
+                               'keygen', 'kbd', 'label', 'legend', 'li', 'm', 'map', 'menu', 'meter',
+                               'multicol', 'nav', 'nextid', 'ol', 'output', 'optgroup', 'option',
+                               'p', 'pre', 'progress', 'q', 's', 'samp', 'section', 'select',
+                               'small', 'sound', 'source', 'spacer', 'span', 'strike', 'strong',
+                               'sub', 'sup', 'table', 'tbody', 'td', 'textarea', 'time', 'tfoot',
+                               'th', 'thead', 'tr', 'tt', 'u', 'ul', 'var', 'video', 'noscript'])
 
     acceptable_attributes = set(['abbr', 'accept', 'accept-charset', 'accesskey',
-      'action', 'align', 'alt', 'autocomplete', 'autofocus', 'axis',
-      'background', 'balance', 'bgcolor', 'bgproperties', 'border',
-      'bordercolor', 'bordercolordark', 'bordercolorlight', 'bottompadding',
-      'cellpadding', 'cellspacing', 'ch', 'challenge', 'char', 'charoff',
-      'choff', 'charset', 'checked', 'cite', 'class', 'clear', 'color', 'cols',
-      'colspan', 'compact', 'contenteditable', 'controls', 'coords', 'data',
-      'datafld', 'datapagesize', 'datasrc', 'datetime', 'default', 'delay',
-      'dir', 'disabled', 'draggable', 'dynsrc', 'enctype', 'end', 'face', 'for',
-      'form', 'frame', 'galleryimg', 'gutter', 'headers', 'height', 'hidefocus',
-      'hidden', 'high', 'href', 'hreflang', 'hspace', 'icon', 'id', 'inputmode',
-      'ismap', 'keytype', 'label', 'leftspacing', 'lang', 'list', 'longdesc',
-      'loop', 'loopcount', 'loopend', 'loopstart', 'low', 'lowsrc', 'max',
-      'maxlength', 'media', 'method', 'min', 'multiple', 'name', 'nohref',
-      'noshade', 'nowrap', 'open', 'optimum', 'pattern', 'ping', 'point-size',
-      'poster', 'pqg', 'preload', 'prompt', 'radiogroup', 'readonly', 'rel',
-      'repeat-max', 'repeat-min', 'replace', 'required', 'rev', 'rightspacing',
-      'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape', 'size', 'span',
-      'src', 'start', 'step', 'summary', 'suppress', 'tabindex', 'target',
-      'template', 'title', 'toppadding', 'type', 'unselectable', 'usemap',
-      'urn', 'valign', 'value', 'variable', 'volume', 'vspace', 'vrml',
-      'width', 'wrap', 'xml:lang'])
+                                 'action', 'align', 'alt', 'autocomplete', 'autofocus', 'axis',
+                                 'background', 'balance', 'bgcolor', 'bgproperties', 'border',
+                                 'bordercolor', 'bordercolordark', 'bordercolorlight', 'bottompadding',
+                                 'cellpadding', 'cellspacing', 'ch', 'challenge', 'char', 'charoff',
+                                 'choff', 'charset', 'checked', 'cite', 'class', 'clear', 'color', 'cols',
+                                 'colspan', 'compact', 'contenteditable', 'controls', 'coords', 'data',
+                                 'datafld', 'datapagesize', 'datasrc', 'datetime', 'default', 'delay',
+                                 'dir', 'disabled', 'draggable', 'dynsrc', 'enctype', 'end', 'face', 'for',
+                                 'form', 'frame', 'galleryimg', 'gutter', 'headers', 'height', 'hidefocus',
+                                 'hidden', 'high', 'href', 'hreflang', 'hspace', 'icon', 'id', 'inputmode',
+                                 'ismap', 'keytype', 'label', 'leftspacing', 'lang', 'list', 'longdesc',
+                                 'loop', 'loopcount', 'loopend', 'loopstart', 'low', 'lowsrc', 'max',
+                                 'maxlength', 'media', 'method', 'min', 'multiple', 'name', 'nohref',
+                                 'noshade', 'nowrap', 'open', 'optimum', 'pattern', 'ping', 'point-size',
+                                 'poster', 'pqg', 'preload', 'prompt', 'radiogroup', 'readonly', 'rel',
+                                 'repeat-max', 'repeat-min', 'replace', 'required', 'rev', 'rightspacing',
+                                 'rows', 'rowspan', 'rules', 'scope', 'selected', 'shape', 'size', 'span',
+                                 'src', 'start', 'step', 'summary', 'suppress', 'tabindex', 'target',
+                                 'template', 'title', 'toppadding', 'type', 'unselectable', 'usemap',
+                                 'urn', 'valign', 'value', 'variable', 'volume', 'vspace', 'vrml',
+                                 'width', 'wrap', 'xml:lang'])
 
     unacceptable_elements_with_end_tag = set(['script', 'applet', 'style'])
 
     acceptable_css_properties = set(['azimuth', 'background-color',
-      'border-bottom-color', 'border-collapse', 'border-color',
-      'border-left-color', 'border-right-color', 'border-top-color', 'clear',
-      'color', 'cursor', 'direction', 'display', 'elevation', 'float', 'font',
-      'font-family', 'font-size', 'font-style', 'font-variant', 'font-weight',
-      'height', 'letter-spacing', 'line-height', 'overflow', 'pause',
-      'pause-after', 'pause-before', 'pitch', 'pitch-range', 'richness',
-      'speak', 'speak-header', 'speak-numeral', 'speak-punctuation',
-      'speech-rate', 'stress', 'text-align', 'text-decoration', 'text-indent',
-      'unicode-bidi', 'vertical-align', 'voice-family', 'volume',
-      'white-space', 'width'])
+                                     'border-bottom-color', 'border-collapse', 'border-color',
+                                     'border-left-color', 'border-right-color', 'border-top-color', 'clear',
+                                     'color', 'cursor', 'direction', 'display', 'elevation', 'float', 'font',
+                                     'font-family', 'font-size', 'font-style', 'font-variant', 'font-weight',
+                                     'height', 'letter-spacing', 'line-height', 'overflow', 'pause',
+                                     'pause-after', 'pause-before', 'pitch', 'pitch-range', 'richness',
+                                     'speak', 'speak-header', 'speak-numeral', 'speak-punctuation',
+                                     'speech-rate', 'stress', 'text-align', 'text-decoration', 'text-indent',
+                                     'unicode-bidi', 'vertical-align', 'voice-family', 'volume',
+                                     'white-space', 'width'])
 
     # survey of common keywords found in feeds
     acceptable_css_keywords = set(['auto', 'aqua', 'black', 'block', 'blue',
-      'bold', 'both', 'bottom', 'brown', 'center', 'collapse', 'dashed',
-      'dotted', 'fuchsia', 'gray', 'green', '!important', 'italic', 'left',
-      'lime', 'maroon', 'medium', 'none', 'navy', 'normal', 'nowrap', 'olive',
-      'pointer', 'purple', 'red', 'right', 'solid', 'silver', 'teal', 'top',
-      'transparent', 'underline', 'white', 'yellow'])
+                                   'bold', 'both', 'bottom', 'brown', 'center', 'collapse', 'dashed',
+                                   'dotted', 'fuchsia', 'gray', 'green', '!important', 'italic', 'left',
+                                   'lime', 'maroon', 'medium', 'none', 'navy', 'normal', 'nowrap', 'olive',
+                                   'pointer', 'purple', 'red', 'right', 'solid', 'silver', 'teal', 'top',
+                                   'transparent', 'underline', 'white', 'yellow'])
 
     valid_css_values = re.compile('^(#[0-9a-f]+|rgb\(\d+%?,\d*%?,?\d*%?\)?|' +
-      '\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$')
+                                  '\d{0,2}\.?\d{0,2}(cm|em|ex|in|mm|pc|pt|px|%|,|\))?)$')
 
     mathml_elements = set([
         'annotation',
@@ -2567,47 +2667,47 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
 
     # svgtiny - foreignObject + linearGradient + radialGradient + stop
     svg_elements = set(['a', 'animate', 'animateColor', 'animateMotion',
-      'animateTransform', 'circle', 'defs', 'desc', 'ellipse', 'foreignObject',
-      'font-face', 'font-face-name', 'font-face-src', 'g', 'glyph', 'hkern',
-      'linearGradient', 'line', 'marker', 'metadata', 'missing-glyph', 'mpath',
-      'path', 'polygon', 'polyline', 'radialGradient', 'rect', 'set', 'stop',
-      'svg', 'switch', 'text', 'title', 'tspan', 'use'])
+                        'animateTransform', 'circle', 'defs', 'desc', 'ellipse', 'foreignObject',
+                        'font-face', 'font-face-name', 'font-face-src', 'g', 'glyph', 'hkern',
+                        'linearGradient', 'line', 'marker', 'metadata', 'missing-glyph', 'mpath',
+                        'path', 'polygon', 'polyline', 'radialGradient', 'rect', 'set', 'stop',
+                        'svg', 'switch', 'text', 'title', 'tspan', 'use'])
 
     # svgtiny + class + opacity + offset + xmlns + xmlns:xlink
     svg_attributes = set(['accent-height', 'accumulate', 'additive', 'alphabetic',
-       'arabic-form', 'ascent', 'attributeName', 'attributeType',
-       'baseProfile', 'bbox', 'begin', 'by', 'calcMode', 'cap-height',
-       'class', 'color', 'color-rendering', 'content', 'cx', 'cy', 'd', 'dx',
-       'dy', 'descent', 'display', 'dur', 'end', 'fill', 'fill-opacity',
-       'fill-rule', 'font-family', 'font-size', 'font-stretch', 'font-style',
-       'font-variant', 'font-weight', 'from', 'fx', 'fy', 'g1', 'g2',
-       'glyph-name', 'gradientUnits', 'hanging', 'height', 'horiz-adv-x',
-       'horiz-origin-x', 'id', 'ideographic', 'k', 'keyPoints', 'keySplines',
-       'keyTimes', 'lang', 'mathematical', 'marker-end', 'marker-mid',
-       'marker-start', 'markerHeight', 'markerUnits', 'markerWidth', 'max',
-       'min', 'name', 'offset', 'opacity', 'orient', 'origin',
-       'overline-position', 'overline-thickness', 'panose-1', 'path',
-       'pathLength', 'points', 'preserveAspectRatio', 'r', 'refX', 'refY',
-       'repeatCount', 'repeatDur', 'requiredExtensions', 'requiredFeatures',
-       'restart', 'rotate', 'rx', 'ry', 'slope', 'stemh', 'stemv',
-       'stop-color', 'stop-opacity', 'strikethrough-position',
-       'strikethrough-thickness', 'stroke', 'stroke-dasharray',
-       'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
-       'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'systemLanguage',
-       'target', 'text-anchor', 'to', 'transform', 'type', 'u1', 'u2',
-       'underline-position', 'underline-thickness', 'unicode', 'unicode-range',
-       'units-per-em', 'values', 'version', 'viewBox', 'visibility', 'width',
-       'widths', 'x', 'x-height', 'x1', 'x2', 'xlink:actuate', 'xlink:arcrole',
-       'xlink:href', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type',
-       'xml:base', 'xml:lang', 'xml:space', 'xmlns', 'xmlns:xlink', 'y', 'y1',
-       'y2', 'zoomAndPan'])
+                          'arabic-form', 'ascent', 'attributeName', 'attributeType',
+                          'baseProfile', 'bbox', 'begin', 'by', 'calcMode', 'cap-height',
+                          'class', 'color', 'color-rendering', 'content', 'cx', 'cy', 'd', 'dx',
+                          'dy', 'descent', 'display', 'dur', 'end', 'fill', 'fill-opacity',
+                          'fill-rule', 'font-family', 'font-size', 'font-stretch', 'font-style',
+                          'font-variant', 'font-weight', 'from', 'fx', 'fy', 'g1', 'g2',
+                          'glyph-name', 'gradientUnits', 'hanging', 'height', 'horiz-adv-x',
+                          'horiz-origin-x', 'id', 'ideographic', 'k', 'keyPoints', 'keySplines',
+                          'keyTimes', 'lang', 'mathematical', 'marker-end', 'marker-mid',
+                          'marker-start', 'markerHeight', 'markerUnits', 'markerWidth', 'max',
+                          'min', 'name', 'offset', 'opacity', 'orient', 'origin',
+                          'overline-position', 'overline-thickness', 'panose-1', 'path',
+                          'pathLength', 'points', 'preserveAspectRatio', 'r', 'refX', 'refY',
+                          'repeatCount', 'repeatDur', 'requiredExtensions', 'requiredFeatures',
+                          'restart', 'rotate', 'rx', 'ry', 'slope', 'stemh', 'stemv',
+                          'stop-color', 'stop-opacity', 'strikethrough-position',
+                          'strikethrough-thickness', 'stroke', 'stroke-dasharray',
+                          'stroke-dashoffset', 'stroke-linecap', 'stroke-linejoin',
+                          'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'systemLanguage',
+                          'target', 'text-anchor', 'to', 'transform', 'type', 'u1', 'u2',
+                          'underline-position', 'underline-thickness', 'unicode', 'unicode-range',
+                          'units-per-em', 'values', 'version', 'viewBox', 'visibility', 'width',
+                          'widths', 'x', 'x-height', 'x1', 'x2', 'xlink:actuate', 'xlink:arcrole',
+                          'xlink:href', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type',
+                          'xml:base', 'xml:lang', 'xml:space', 'xmlns', 'xmlns:xlink', 'y', 'y1',
+                          'y2', 'zoomAndPan'])
 
     svg_attr_map = None
     svg_elem_map = None
 
-    acceptable_svg_properties = set([ 'fill', 'fill-opacity', 'fill-rule',
-      'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
-      'stroke-opacity'])
+    acceptable_svg_properties = set(['fill', 'fill-opacity', 'fill-rule',
+                                     'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin',
+                                     'stroke-opacity'])
 
     def reset(self):
         _BaseHTMLProcessor.reset(self)
@@ -2625,57 +2725,57 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
             # add implicit namespaces to html5 inline svg/mathml
             if self._type.endswith('html'):
                 if not dict(attrs).get('xmlns'):
-                    if tag=='svg':
-                        attrs.append( ('xmlns','http://www.w3.org/2000/svg') )
-                    if tag=='math':
-                        attrs.append( ('xmlns','http://www.w3.org/1998/Math/MathML') )
+                    if tag == 'svg':
+                        attrs.append(('xmlns', 'http://www.w3.org/2000/svg'))
+                    if tag == 'math':
+                        attrs.append(('xmlns', 'http://www.w3.org/1998/Math/MathML'))
 
             # not otherwise acceptable, perhaps it is MathML or SVG?
-            if tag=='math' and ('xmlns','http://www.w3.org/1998/Math/MathML') in attrs:
+            if tag == 'math' and ('xmlns', 'http://www.w3.org/1998/Math/MathML') in attrs:
                 self.mathmlOK += 1
-            if tag=='svg' and ('xmlns','http://www.w3.org/2000/svg') in attrs:
+            if tag == 'svg' and ('xmlns', 'http://www.w3.org/2000/svg') in attrs:
                 self.svgOK += 1
 
             # chose acceptable attributes based on tag class, else bail
-            if  self.mathmlOK and tag in self.mathml_elements:
+            if self.mathmlOK and tag in self.mathml_elements:
                 acceptable_attributes = self.mathml_attributes
             elif self.svgOK and tag in self.svg_elements:
                 # for most vocabularies, lowercasing is a good idea.  Many
                 # svg elements, however, are camel case
                 if not self.svg_attr_map:
-                    lower=[attr.lower() for attr in self.svg_attributes]
-                    mix=[a for a in self.svg_attributes if a not in lower]
+                    lower = [attr.lower() for attr in self.svg_attributes]
+                    mix = [a for a in self.svg_attributes if a not in lower]
                     self.svg_attributes = lower
-                    self.svg_attr_map = dict([(a.lower(),a) for a in mix])
+                    self.svg_attr_map = dict([(a.lower(), a) for a in mix])
 
-                    lower=[attr.lower() for attr in self.svg_elements]
-                    mix=[a for a in self.svg_elements if a not in lower]
+                    lower = [attr.lower() for attr in self.svg_elements]
+                    mix = [a for a in self.svg_elements if a not in lower]
                     self.svg_elements = lower
-                    self.svg_elem_map = dict([(a.lower(),a) for a in mix])
+                    self.svg_elem_map = dict([(a.lower(), a) for a in mix])
                 acceptable_attributes = self.svg_attributes
-                tag = self.svg_elem_map.get(tag,tag)
+                tag = self.svg_elem_map.get(tag, tag)
                 keymap = self.svg_attr_map
             elif not tag in self.acceptable_elements:
                 return
 
         # declare xlink namespace, if needed
         if self.mathmlOK or self.svgOK:
-            if filter(lambda (n,v): n.startswith('xlink:'),attrs):
-                if not ('xmlns:xlink','http://www.w3.org/1999/xlink') in attrs:
-                    attrs.append(('xmlns:xlink','http://www.w3.org/1999/xlink'))
+            if [n_v for n_v in attrs if n_v[0].startswith('xlink:')]:
+                if not ('xmlns:xlink', 'http://www.w3.org/1999/xlink') in attrs:
+                    attrs.append(('xmlns:xlink', 'http://www.w3.org/1999/xlink'))
 
         clean_attrs = []
         for key, value in self.normalize_attrs(attrs):
             if key in acceptable_attributes:
-                key=keymap.get(key,key)
+                key = keymap.get(key, key)
                 # make sure the uri uses an acceptable uri scheme
-                if key == u'href':
+                if key == 'href':
                     value = _makeSafeAbsoluteURI(value)
-                clean_attrs.append((key,value))
-            elif key=='style':
+                clean_attrs.append((key, value))
+            elif key == 'style':
                 clean_value = self.sanitize_style(value)
                 if clean_value:
-                    clean_attrs.append((key,clean_value))
+                    clean_attrs.append((key, clean_value))
         _BaseHTMLProcessor.unknown_starttag(self, tag, clean_attrs)
 
     def unknown_endtag(self, tag):
@@ -2686,7 +2786,7 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
                 if tag == 'math' and self.mathmlOK:
                     self.mathmlOK -= 1
             elif self.svgOK and tag in self.svg_elements:
-                tag = self.svg_elem_map.get(tag,tag)
+                tag = self.svg_elem_map.get(tag, tag)
                 if tag == 'svg' and self.svgOK:
                     self.svgOK -= 1
             else:
@@ -2705,7 +2805,7 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
 
     def sanitize_style(self, style):
         # disallow urls
-        style=re.compile('url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ',style)
+        style = re.compile('url\s*\(\s*[^\s)]+?\s*\)\s*').sub(' ', style)
 
         # gauntlet
         if not re.match("""^([:,;#%.\sa-zA-Z0-9!]|\w-\w|'[\s\w]+'|"[\s\w]+"|\([\d,\s]+\))*$""", style):
@@ -2715,15 +2815,15 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
             return ''
 
         clean = []
-        for prop,value in re.findall("([-\w]+)\s*:\s*([^:;]*)",style):
+        for prop, value in re.findall("([-\w]+)\s*:\s*([^:;]*)", style):
             if not value:
                 continue
             if prop.lower() in self.acceptable_css_properties:
                 clean.append(prop + ': ' + value + ';')
-            elif prop.split('-')[0].lower() in ['background','border','margin','padding']:
+            elif prop.split('-')[0].lower() in ['background', 'border', 'margin', 'padding']:
                 for keyword in value.split():
                     if not keyword in self.acceptable_css_keywords and \
-                        not self.valid_css_values.match(keyword):
+                            not self.valid_css_values.match(keyword):
                         break
                 else:
                     clean.append(prop + ': ' + value + ';')
@@ -2738,7 +2838,7 @@ class _HTMLSanitizer(_BaseHTMLProcessor):
             return ret
         # if ret == -1, this may be a malicious attempt to circumvent
         # sanitization, or a page-destroying unclosed comment
-        match = re.compile(r'--[^>]*>').search(self.rawdata, i+4)
+        match = re.compile(r'--[^>]*>').search(self.rawdata, i + 4)
         if match:
             return match.end()
         # unclosed comment; deliberately fail to handle_data()
@@ -2755,7 +2855,9 @@ def _sanitizeHTML(htmlSource, encoding, _type):
     data = data.strip().replace('\r\n', '\n')
     return data
 
-class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler, urllib2.HTTPDefaultErrorHandler):
+
+class _FeedURLHandler(urllib.request.HTTPDigestAuthHandler, urllib.request.HTTPRedirectHandler,
+                      urllib.request.HTTPDefaultErrorHandler):
     def http_error_default(self, req, fp, code, msg, headers):
         # The default implementation just raises HTTPError.
         # Forget that.
@@ -2763,11 +2865,12 @@ class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler
         return fp
 
     def http_error_301(self, req, fp, code, msg, hdrs):
-        result = urllib2.HTTPRedirectHandler.http_error_301(self, req, fp,
-                                                            code, msg, hdrs)
+        result = urllib.request.HTTPRedirectHandler.http_error_301(self, req, fp,
+                                                                   code, msg, hdrs)
         result.status = code
         result.newurl = result.geturl()
         return result
+
     # The default implementations in urllib2.HTTPRedirectHandler
     # are identical, so hardcoding a http_error_301 call above
     # won't affect anything
@@ -2786,9 +2889,9 @@ class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler
         # header the server sent back (for the realm) and retry
         # the request with the appropriate digest auth headers instead.
         # This evil genius hack has been brought to you by Aaron Swartz.
-        host = urlparse.urlparse(req.get_full_url())[1]
+        host = urllib.parse.urlparse(req.get_full_url())[1]
         if base64 is None or 'Authorization' not in req.headers \
-                          or 'WWW-Authenticate' not in headers:
+                or 'WWW-Authenticate' not in headers:
             return self.http_error_default(req, fp, code, msg, headers)
         auth = _base64decode(req.headers['Authorization'].split(' ')[1])
         user, passw = auth.split(':')
@@ -2798,45 +2901,46 @@ class _FeedURLHandler(urllib2.HTTPDigestAuthHandler, urllib2.HTTPRedirectHandler
         self.reset_retry_count()
         return retry
 
+
 def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, request_headers):
     """URL, filename, or string --> stream
 
-    This function lets you define parsers that take any input source
-    (URL, pathname to local or network file, or actual data as a string)
-    and deal with it in a uniform manner.  Returned object is guaranteed
-    to have all the basic stdio read methods (read, readline, readlines).
-    Just .close() the object when you're done with it.
+	This function lets you define parsers that take any input source
+	(URL, pathname to local or network file, or actual data as a string)
+	and deal with it in a uniform manner.  Returned object is guaranteed
+	to have all the basic stdio read methods (read, readline, readlines).
+	Just .close() the object when you're done with it.
 
-    If the etag argument is supplied, it will be used as the value of an
-    If-None-Match request header.
+	If the etag argument is supplied, it will be used as the value of an
+	If-None-Match request header.
 
-    If the modified argument is supplied, it can be a tuple of 9 integers
-    (as returned by gmtime() in the standard Python time module) or a date
-    string in any format supported by feedparser. Regardless, it MUST
-    be in GMT (Greenwich Mean Time). It will be reformatted into an
-    RFC 1123-compliant date and used as the value of an If-Modified-Since
-    request header.
+	If the modified argument is supplied, it can be a tuple of 9 integers
+	(as returned by gmtime() in the standard Python time module) or a date
+	string in any format supported by feedparser. Regardless, it MUST
+	be in GMT (Greenwich Mean Time). It will be reformatted into an
+	RFC 1123-compliant date and used as the value of an If-Modified-Since
+	request header.
 
-    If the agent argument is supplied, it will be used as the value of a
-    User-Agent request header.
+	If the agent argument is supplied, it will be used as the value of a
+	User-Agent request header.
 
-    If the referrer argument is supplied, it will be used as the value of a
-    Referer[sic] request header.
+	If the referrer argument is supplied, it will be used as the value of a
+	Referer[sic] request header.
 
-    If handlers is supplied, it is a list of handlers used to build a
-    urllib2 opener.
+	If handlers is supplied, it is a list of handlers used to build a
+	urllib2 opener.
 
-    if request_headers is supplied it is a dictionary of HTTP request headers
-    that will override the values generated by FeedParser.
+	if request_headers is supplied it is a dictionary of HTTP request headers
+	that will override the values generated by FeedParser.
 
-    :return: A :class:`StringIO.StringIO` or :class:`io.BytesIO`.
-    """
+	:return: A :class:`StringIO.StringIO` or :class:`io.BytesIO`.
+	"""
 
     if hasattr(url_file_stream_or_string, 'read'):
         return url_file_stream_or_string
 
-    if isinstance(url_file_stream_or_string, basestring) \
-       and urlparse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp', 'file', 'feed'):
+    if isinstance(url_file_stream_or_string, str) \
+            and urllib.parse.urlparse(url_file_stream_or_string)[0] in ('http', 'https', 'ftp', 'file', 'feed'):
         # Deal with the feed URI scheme
         if url_file_stream_or_string.startswith('feed:http'):
             url_file_stream_or_string = url_file_stream_or_string[5:]
@@ -2847,26 +2951,27 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
         # Test for inline user:password credentials for HTTP basic auth
         auth = None
         if base64 and not url_file_stream_or_string.startswith('ftp:'):
-            urltype, rest = urllib.splittype(url_file_stream_or_string)
-            realhost, rest = urllib.splithost(rest)
+            urltype, rest = urllib.parse.splittype(url_file_stream_or_string)
+            realhost, rest = urllib.parse.splithost(rest)
             if realhost:
-                user_passwd, realhost = urllib.splituser(realhost)
+                user_passwd, realhost = urllib.parse.splituser(realhost)
                 if user_passwd:
                     url_file_stream_or_string = '%s://%s%s' % (urltype, realhost, rest)
                     auth = base64.standard_b64encode(user_passwd).strip()
 
         # iri support
-        if isinstance(url_file_stream_or_string, unicode):
+        if isinstance(url_file_stream_or_string, str):
             url_file_stream_or_string = _convert_to_idn(url_file_stream_or_string)
 
         # try to open with urllib2 (to use optional headers)
-        request = _build_urllib2_request(url_file_stream_or_string, agent, etag, modified, referrer, auth, request_headers)
-        opener = urllib2.build_opener(*tuple(handlers + [_FeedURLHandler()]))
-        opener.addheaders = [] # RMK - must clear so we only send our custom User-Agent
+        request = _build_urllib2_request(url_file_stream_or_string, agent, etag, modified, referrer, auth,
+                                         request_headers)
+        opener = urllib.request.build_opener(*tuple(handlers + [_FeedURLHandler()]))
+        opener.addheaders = []  # RMK - must clear so we only send our custom User-Agent
         try:
             return opener.open(request)
         finally:
-            opener.close() # JohnD
+            opener.close()  # JohnD
 
     # try to open with native open function (if url_file_stream_or_string is a filename)
     try:
@@ -2882,23 +2987,24 @@ def _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, h
         pass
 
     # treat url_file_stream_or_string as string
-    if isinstance(url_file_stream_or_string, unicode):
+    if isinstance(url_file_stream_or_string, str):
         return _StringIO(url_file_stream_or_string.encode('utf-8'))
     return _StringIO(url_file_stream_or_string)
+
 
 def _convert_to_idn(url):
     """Convert a URL to IDN notation"""
     # this function should only be called with a unicode string
     # strategy: if the host cannot be encoded in ascii, then
     # it'll be necessary to encode it in idn form
-    parts = list(urlparse.urlsplit(url))
+    parts = list(urllib.parse.urlsplit(url))
     try:
         parts[1].encode('ascii')
     except UnicodeEncodeError:
         # the url needs to be converted to idn notation
         host = parts[1].rsplit(':', 1)
         newhost = []
-        port = u''
+        port = ''
         if len(host) == 2:
             port = host.pop()
         for h in host[0].split('.'):
@@ -2906,16 +3012,17 @@ def _convert_to_idn(url):
         parts[1] = '.'.join(newhost)
         if port:
             parts[1] += ':' + port
-        return urlparse.urlunsplit(parts)
+        return urllib.parse.urlunsplit(parts)
     else:
         return url
 
+
 def _build_urllib2_request(url, agent, etag, modified, referrer, auth, request_headers):
-    request = urllib2.Request(url)
+    request = urllib.request.Request(url)
     request.add_header('User-Agent', agent)
     if etag:
         request.add_header('If-None-Match', etag)
-    if isinstance(modified, basestring):
+    if isinstance(modified, str):
         modified = _parse_date(modified)
     elif isinstance(modified, datetime.datetime):
         modified = modified.utctimetuple()
@@ -2926,7 +3033,9 @@ def _build_urllib2_request(url, agent, etag, modified, referrer, auth, request_h
         # in English.
         short_weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
         months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-        request.add_header('If-Modified-Since', '%s, %02d %s %04d %02d:%02d:%02d GMT' % (short_weekdays[modified[6]], modified[2], months[modified[1] - 1], modified[0], modified[3], modified[4], modified[5]))
+        request.add_header('If-Modified-Since', '%s, %02d %s %04d %02d:%02d:%02d GMT' % (
+        short_weekdays[modified[6]], modified[2], months[modified[1] - 1], modified[0], modified[3], modified[4],
+        modified[5]))
     if referrer:
         request.add_header('Referer', referrer)
     if gzip and zlib:
@@ -2943,10 +3052,11 @@ def _build_urllib2_request(url, agent, etag, modified, referrer, auth, request_h
         request.add_header('Accept', ACCEPT_HEADER)
     # use this for whatever -- cookies, special headers, etc
     # [('Cookie','Something'),('x-special-header','Another Value')]
-    for header_name, header_value in request_headers.items():
+    for header_name, header_value in list(request_headers.items()):
         request.add_header(header_name, header_value)
-    request.add_header('A-IM', 'feed') # RFC 3229 support
+    request.add_header('A-IM', 'feed')  # RFC 3229 support
     return request
+
 
 def _parse_psc_chapter_start(start):
     FORMAT = r'^((\d{2}):)?(\d{2}):(\d{2})(\.(\d{3}))?$'
@@ -2957,12 +3067,16 @@ def _parse_psc_chapter_start(start):
 
     _, h, m, s, _, ms = m.groups()
     h, m, s, ms = (int(h or 0), int(m), int(s), int(ms or 0))
-    return datetime.timedelta(0, h*60*60 + m*60 + s, ms*1000)
+    return datetime.timedelta(0, h * 60 * 60 + m * 60 + s, ms * 1000)
+
 
 _date_handlers = []
+
+
 def registerDateHandler(func):
     '''Register a date handler function (takes string, returns 9-tuple date in GMT)'''
     _date_handlers.insert(0, func)
+
 
 # ISO-8601 date parsing routines written by Fazal Majid.
 # The ISO 8601 standard is very convoluted and irregular - a full ISO 8601
@@ -2974,19 +3088,19 @@ def registerDateHandler(func):
 # Please note the order in templates is significant because we need a
 # greedy match.
 _iso8601_tmpl = ['YYYY-?MM-?DD', 'YYYY-0MM?-?DD', 'YYYY-MM', 'YYYY-?OOO',
-                'YY-?MM-?DD', 'YY-?OOO', 'YYYY',
-                '-YY-?MM', '-OOO', '-YY',
-                '--MM-?DD', '--MM',
-                '---DD',
-                'CC', '']
+                 'YY-?MM-?DD', 'YY-?OOO', 'YYYY',
+                 '-YY-?MM', '-OOO', '-YY',
+                 '--MM-?DD', '--MM',
+                 '---DD',
+                 'CC', '']
 _iso8601_re = [
     tmpl.replace(
-    'YYYY', r'(?P<year>\d{4})').replace(
-    'YY', r'(?P<year>\d\d)').replace(
-    'MM', r'(?P<month>[01]\d)').replace(
-    'DD', r'(?P<day>[0123]\d)').replace(
-    'OOO', r'(?P<ordinal>[0123]\d\d)').replace(
-    'CC', r'(?P<century>\d\d$)')
+        'YYYY', r'(?P<year>\d{4})').replace(
+        'YY', r'(?P<year>\d\d)').replace(
+        'MM', r'(?P<month>[01]\d)').replace(
+        'DD', r'(?P<day>[0123]\d)').replace(
+        'OOO', r'(?P<ordinal>[0123]\d\d)').replace(
+        'CC', r'(?P<century>\d\d$)')
     + r'(T?(?P<hour>\d{2}):(?P<minute>\d{2})'
     + r'(:(?P<second>\d{2}))?'
     + r'(\.(?P<fracsecond>\d+))?'
@@ -3001,6 +3115,7 @@ try:
     del regex
 except NameError:
     pass
+
 
 def _parse_date_iso8601(dateString):
     '''Parse a variety of ISO-8601-compatible formats like 20040105'''
@@ -3042,7 +3157,7 @@ def _parse_date_iso8601(dateString):
         if ordinal:
             day = ordinal
         elif params.get('century', 0) or \
-                 params.get('year', 0) or params.get('month', 0):
+                params.get('year', 0) or params.get('month', 0):
             day = 1
         else:
             day = time.gmtime()[2]
@@ -3079,32 +3194,39 @@ def _parse_date_iso8601(dateString):
     # which is guaranteed to normalize d/m/y/h/m/s.
     # Many implementations have bugs, but we'll pretend they don't.
     return time.localtime(time.mktime(tuple(tm)))
+
+
 registerDateHandler(_parse_date_iso8601)
 
 # 8-bit date handling routines written by ytrewq1.
-_korean_year  = u'\ub144' # b3e2 in euc-kr
-_korean_month = u'\uc6d4' # bff9 in euc-kr
-_korean_day   = u'\uc77c' # c0cf in euc-kr
-_korean_am    = u'\uc624\uc804' # bfc0 c0fc in euc-kr
-_korean_pm    = u'\uc624\ud6c4' # bfc0 c8c4 in euc-kr
+_korean_year = '\ub144'  # b3e2 in euc-kr
+_korean_month = '\uc6d4'  # bff9 in euc-kr
+_korean_day = '\uc77c'  # c0cf in euc-kr
+_korean_am = '\uc624\uc804'  # bfc0 c0fc in euc-kr
+_korean_pm = '\uc624\ud6c4'  # bfc0 c8c4 in euc-kr
 
 _korean_onblog_date_re = \
     re.compile('(\d{4})%s\s+(\d{2})%s\s+(\d{2})%s\s+(\d{2}):(\d{2}):(\d{2})' % \
                (_korean_year, _korean_month, _korean_day))
 _korean_nate_date_re = \
-    re.compile(u'(\d{4})-(\d{2})-(\d{2})\s+(%s|%s)\s+(\d{,2}):(\d{,2}):(\d{,2})' % \
+    re.compile('(\d{4})-(\d{2})-(\d{2})\s+(%s|%s)\s+(\d{,2}):(\d{,2}):(\d{,2})' % \
                (_korean_am, _korean_pm))
+
+
 def _parse_date_onblog(dateString):
     '''Parse a string according to the OnBlog 8-bit date format'''
     m = _korean_onblog_date_re.match(dateString)
     if not m:
         return
     w3dtfdate = '%(year)s-%(month)s-%(day)sT%(hour)s:%(minute)s:%(second)s%(zonediff)s' % \
-                {'year': m.group(1), 'month': m.group(2), 'day': m.group(3),\
-                 'hour': m.group(4), 'minute': m.group(5), 'second': m.group(6),\
+                {'year': m.group(1), 'month': m.group(2), 'day': m.group(3), \
+                 'hour': m.group(4), 'minute': m.group(5), 'second': m.group(6), \
                  'zonediff': '+09:00'}
     return _parse_date_w3dtf(w3dtfdate)
+
+
 registerDateHandler(_parse_date_onblog)
+
 
 def _parse_date_nate(dateString):
     '''Parse a string according to the Nate 8-bit date format'''
@@ -3119,49 +3241,52 @@ def _parse_date_nate(dateString):
     if len(hour) == 1:
         hour = '0' + hour
     w3dtfdate = '%(year)s-%(month)s-%(day)sT%(hour)s:%(minute)s:%(second)s%(zonediff)s' % \
-                {'year': m.group(1), 'month': m.group(2), 'day': m.group(3),\
-                 'hour': hour, 'minute': m.group(6), 'second': m.group(7),\
+                {'year': m.group(1), 'month': m.group(2), 'day': m.group(3), \
+                 'hour': hour, 'minute': m.group(6), 'second': m.group(7), \
                  'zonediff': '+09:00'}
     return _parse_date_w3dtf(w3dtfdate)
+
+
 registerDateHandler(_parse_date_nate)
 
 # Unicode strings for Greek date strings
 _greek_months = \
-  { \
-   u'\u0399\u03b1\u03bd': u'Jan',       # c9e1ed in iso-8859-7
-   u'\u03a6\u03b5\u03b2': u'Feb',       # d6e5e2 in iso-8859-7
-   u'\u039c\u03ac\u03ce': u'Mar',       # ccdcfe in iso-8859-7
-   u'\u039c\u03b1\u03ce': u'Mar',       # cce1fe in iso-8859-7
-   u'\u0391\u03c0\u03c1': u'Apr',       # c1f0f1 in iso-8859-7
-   u'\u039c\u03ac\u03b9': u'May',       # ccdce9 in iso-8859-7
-   u'\u039c\u03b1\u03ca': u'May',       # cce1fa in iso-8859-7
-   u'\u039c\u03b1\u03b9': u'May',       # cce1e9 in iso-8859-7
-   u'\u0399\u03bf\u03cd\u03bd': u'Jun', # c9effded in iso-8859-7
-   u'\u0399\u03bf\u03bd': u'Jun',       # c9efed in iso-8859-7
-   u'\u0399\u03bf\u03cd\u03bb': u'Jul', # c9effdeb in iso-8859-7
-   u'\u0399\u03bf\u03bb': u'Jul',       # c9f9eb in iso-8859-7
-   u'\u0391\u03cd\u03b3': u'Aug',       # c1fde3 in iso-8859-7
-   u'\u0391\u03c5\u03b3': u'Aug',       # c1f5e3 in iso-8859-7
-   u'\u03a3\u03b5\u03c0': u'Sep',       # d3e5f0 in iso-8859-7
-   u'\u039f\u03ba\u03c4': u'Oct',       # cfeaf4 in iso-8859-7
-   u'\u039d\u03bf\u03ad': u'Nov',       # cdefdd in iso-8859-7
-   u'\u039d\u03bf\u03b5': u'Nov',       # cdefe5 in iso-8859-7
-   u'\u0394\u03b5\u03ba': u'Dec',       # c4e5ea in iso-8859-7
-  }
+    { \
+        '\u0399\u03b1\u03bd': 'Jan',  # c9e1ed in iso-8859-7
+        '\u03a6\u03b5\u03b2': 'Feb',  # d6e5e2 in iso-8859-7
+        '\u039c\u03ac\u03ce': 'Mar',  # ccdcfe in iso-8859-7
+        '\u039c\u03b1\u03ce': 'Mar',  # cce1fe in iso-8859-7
+        '\u0391\u03c0\u03c1': 'Apr',  # c1f0f1 in iso-8859-7
+        '\u039c\u03ac\u03b9': 'May',  # ccdce9 in iso-8859-7
+        '\u039c\u03b1\u03ca': 'May',  # cce1fa in iso-8859-7
+        '\u039c\u03b1\u03b9': 'May',  # cce1e9 in iso-8859-7
+        '\u0399\u03bf\u03cd\u03bd': 'Jun',  # c9effded in iso-8859-7
+        '\u0399\u03bf\u03bd': 'Jun',  # c9efed in iso-8859-7
+        '\u0399\u03bf\u03cd\u03bb': 'Jul',  # c9effdeb in iso-8859-7
+        '\u0399\u03bf\u03bb': 'Jul',  # c9f9eb in iso-8859-7
+        '\u0391\u03cd\u03b3': 'Aug',  # c1fde3 in iso-8859-7
+        '\u0391\u03c5\u03b3': 'Aug',  # c1f5e3 in iso-8859-7
+        '\u03a3\u03b5\u03c0': 'Sep',  # d3e5f0 in iso-8859-7
+        '\u039f\u03ba\u03c4': 'Oct',  # cfeaf4 in iso-8859-7
+        '\u039d\u03bf\u03ad': 'Nov',  # cdefdd in iso-8859-7
+        '\u039d\u03bf\u03b5': 'Nov',  # cdefe5 in iso-8859-7
+        '\u0394\u03b5\u03ba': 'Dec',  # c4e5ea in iso-8859-7
+    }
 
 _greek_wdays = \
-  { \
-   u'\u039a\u03c5\u03c1': u'Sun', # caf5f1 in iso-8859-7
-   u'\u0394\u03b5\u03c5': u'Mon', # c4e5f5 in iso-8859-7
-   u'\u03a4\u03c1\u03b9': u'Tue', # d4f1e9 in iso-8859-7
-   u'\u03a4\u03b5\u03c4': u'Wed', # d4e5f4 in iso-8859-7
-   u'\u03a0\u03b5\u03bc': u'Thu', # d0e5ec in iso-8859-7
-   u'\u03a0\u03b1\u03c1': u'Fri', # d0e1f1 in iso-8859-7
-   u'\u03a3\u03b1\u03b2': u'Sat', # d3e1e2 in iso-8859-7
-  }
+    { \
+        '\u039a\u03c5\u03c1': 'Sun',  # caf5f1 in iso-8859-7
+        '\u0394\u03b5\u03c5': 'Mon',  # c4e5f5 in iso-8859-7
+        '\u03a4\u03c1\u03b9': 'Tue',  # d4f1e9 in iso-8859-7
+        '\u03a4\u03b5\u03c4': 'Wed',  # d4e5f4 in iso-8859-7
+        '\u03a0\u03b5\u03bc': 'Thu',  # d0e5ec in iso-8859-7
+        '\u03a0\u03b1\u03c1': 'Fri',  # d0e1f1 in iso-8859-7
+        '\u03a3\u03b1\u03b2': 'Sat',  # d3e1e2 in iso-8859-7
+    }
 
 _greek_date_format_re = \
-    re.compile(u'([^,]+),\s+(\d{2})\s+([^\s]+)\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+([^\s]+)')
+    re.compile('([^,]+),\s+(\d{2})\s+([^\s]+)\s+(\d{4})\s+(\d{2}):(\d{2}):(\d{2})\s+([^\s]+)')
+
 
 def _parse_date_greek(dateString):
     '''Parse a string according to a Greek 8-bit date format.'''
@@ -3171,31 +3296,34 @@ def _parse_date_greek(dateString):
     wday = _greek_wdays[m.group(1)]
     month = _greek_months[m.group(3)]
     rfc822date = '%(wday)s, %(day)s %(month)s %(year)s %(hour)s:%(minute)s:%(second)s %(zonediff)s' % \
-                 {'wday': wday, 'day': m.group(2), 'month': month, 'year': m.group(4),\
-                  'hour': m.group(5), 'minute': m.group(6), 'second': m.group(7),\
+                 {'wday': wday, 'day': m.group(2), 'month': month, 'year': m.group(4), \
+                  'hour': m.group(5), 'minute': m.group(6), 'second': m.group(7), \
                   'zonediff': m.group(8)}
     return _parse_date_rfc822(rfc822date)
+
+
 registerDateHandler(_parse_date_greek)
 
 # Unicode strings for Hungarian date strings
 _hungarian_months = \
-  { \
-    u'janu\u00e1r':   u'01',  # e1 in iso-8859-2
-    u'febru\u00e1ri': u'02',  # e1 in iso-8859-2
-    u'm\u00e1rcius':  u'03',  # e1 in iso-8859-2
-    u'\u00e1prilis':  u'04',  # e1 in iso-8859-2
-    u'm\u00e1ujus':   u'05',  # e1 in iso-8859-2
-    u'j\u00fanius':   u'06',  # fa in iso-8859-2
-    u'j\u00falius':   u'07',  # fa in iso-8859-2
-    u'augusztus':     u'08',
-    u'szeptember':    u'09',
-    u'okt\u00f3ber':  u'10',  # f3 in iso-8859-2
-    u'november':      u'11',
-    u'december':      u'12',
-  }
+    { \
+        'janu\u00e1r': '01',  # e1 in iso-8859-2
+        'febru\u00e1ri': '02',  # e1 in iso-8859-2
+        'm\u00e1rcius': '03',  # e1 in iso-8859-2
+        '\u00e1prilis': '04',  # e1 in iso-8859-2
+        'm\u00e1ujus': '05',  # e1 in iso-8859-2
+        'j\u00fanius': '06',  # fa in iso-8859-2
+        'j\u00falius': '07',  # fa in iso-8859-2
+        'augusztus': '08',
+        'szeptember': '09',
+        'okt\u00f3ber': '10',  # f3 in iso-8859-2
+        'november': '11',
+        'december': '12',
+    }
 
 _hungarian_date_format_re = \
-  re.compile(u'(\d{4})-([^-]+)-(\d{,2})T(\d{,2}):(\d{2})((\+|-)(\d{,2}:\d{2}))')
+    re.compile('(\d{4})-([^-]+)-(\d{,2})T(\d{,2}):(\d{2})((\+|-)(\d{,2}:\d{2}))')
+
 
 def _parse_date_hungarian(dateString):
     '''Parse a string according to a Hungarian 8-bit date format.'''
@@ -3210,10 +3338,12 @@ def _parse_date_hungarian(dateString):
     if len(hour) == 1:
         hour = '0' + hour
     w3dtfdate = '%(year)s-%(month)s-%(day)sT%(hour)s:%(minute)s%(zonediff)s' % \
-                {'year': m.group(1), 'month': month, 'day': day,\
-                 'hour': hour, 'minute': m.group(5),\
+                {'year': m.group(1), 'month': month, 'day': day, \
+                 'hour': hour, 'minute': m.group(5), \
                  'zonediff': m.group(6)}
     return _parse_date_w3dtf(w3dtfdate)
+
+
 registerDateHandler(_parse_date_hungarian)
 
 timezonenames = {
@@ -3226,6 +3356,8 @@ timezonenames = {
     'a': -1, 'n': 1,
     'm': -12, 'y': 12,
 }
+
+
 # W3 date and time format parser
 # http://www.w3.org/TR/NOTE-datetime
 # Also supports MSSQL-style datetimes as defined at:
@@ -3301,18 +3433,20 @@ def _parse_date_w3dtf(datestr):
         # IronPython throws ValueErrors instead of OverflowErrors
         return None
 
+
 registerDateHandler(_parse_date_w3dtf)
+
 
 def _parse_date_rfc822(date):
     """Parse RFC 822 dates and times
-    http://tools.ietf.org/html/rfc822#section-5
+	http://tools.ietf.org/html/rfc822#section-5
 
-    There are some formatting differences that are accounted for:
-    1. Years may be two or four digits.
-    2. The month and day can be swapped.
-    3. Additional timezone names are supported.
-    4. A default time and timezone are assumed if only a date is present.
-    """
+	There are some formatting differences that are accounted for:
+	1. Years may be two or four digits.
+	2. The month and day can be swapped.
+	3. Additional timezone names are supported.
+	4. A default time and timezone are assumed if only a date is present.
+	"""
     daynames = set(['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'])
     months = {
         'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
@@ -3358,7 +3492,7 @@ def _parse_date_rfc822(date):
     timeparts = parts[3].split(':')
     timeparts = timeparts + ([0] * (3 - len(timeparts)))
     try:
-        (hour, minute, second) = map(int, timeparts)
+        (hour, minute, second) = list(map(int, timeparts))
     except ValueError:
         return None
     tzhour = 0
@@ -3395,21 +3529,25 @@ def _parse_date_rfc822(date):
     except (OverflowError, ValueError):
         # IronPython throws ValueErrors instead of OverflowErrors
         return None
+
+
 registerDateHandler(_parse_date_rfc822)
 
 _months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun',
            'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+
+
 def _parse_date_asctime(dt):
     """Parse asctime-style dates.
 
-    Converts asctime to RFC822-compatible dates and uses the RFC822 parser
-    to do the actual parsing.
+	Converts asctime to RFC822-compatible dates and uses the RFC822 parser
+	to do the actual parsing.
 
-    Supported formats (format is standardized to the first one listed):
+	Supported formats (format is standardized to the first one listed):
 
-    * {weekday name} {month name} dd hh:mm:ss {+-tz} yyyy
-    * {weekday name} {month name} dd hh:mm:ss yyyy
-    """
+	* {weekday name} {month name} dd hh:mm:ss {+-tz} yyyy
+	* {weekday name} {month name} dd hh:mm:ss yyyy
+	"""
 
     parts = dt.split()
 
@@ -3425,7 +3563,10 @@ def _parse_date_asctime(dt):
     return _parse_date_rfc822(' '.join([
         parts[0], parts[2], parts[1], parts[5], parts[3], parts[4],
     ]))
+
+
 registerDateHandler(_parse_date_asctime)
+
 
 def _parse_date_perforce(aDateString):
     """parse a date in yyyy/mm/dd hh:mm:ss TTT format"""
@@ -3442,7 +3583,10 @@ def _parse_date_perforce(aDateString):
     tm = rfc822.parsedate_tz(dateString)
     if tm:
         return time.gmtime(rfc822.mktime_tz(tm))
+
+
 registerDateHandler(_parse_date_perforce)
+
 
 def _parse_date(dateString):
     '''Parses a variety of date formats into a 9-tuple in GMT'''
@@ -3459,6 +3603,7 @@ def _parse_date(dateString):
             continue
         return date9tuple
     return None
+
 
 # Each marker represents some of the characters of the opening XML
 # processing instruction ('<?xm') in the specified encoding.
@@ -3478,11 +3623,12 @@ RE_XML_DECLARATION = re.compile('^<\?xml[^>]*?>')
 # Example: <?xml version="1.0" encoding="utf-8"?>
 RE_XML_PI_ENCODING = re.compile(_s2bytes('^<\?.*encoding=[\'"](.*?)[\'"].*\?>'))
 
+
 def convert_to_utf8(http_headers, data):
     '''Detect and convert the character encoding to UTF-8.
 
-    http_headers is a dictionary
-    data is a raw string (not Unicode)'''
+	http_headers is a dictionary
+	data is a raw string (not Unicode)'''
 
     # This is so much trickier than it sounds, it's not even funny.
     # According to RFC 3023 ('XML Media Types'), if the HTTP Content-Type
@@ -3525,9 +3671,9 @@ def convert_to_utf8(http_headers, data):
     # you should definitely install it if you can.
     # http://cjkpython.i18n.org/
 
-    bom_encoding = u''
-    xml_encoding = u''
-    rfc3023_encoding = u''
+    bom_encoding = ''
+    xml_encoding = ''
+    rfc3023_encoding = ''
 
     # Look at the first few bytes of the document to guess what
     # its encoding may be. We only need to decode enough of the
@@ -3537,31 +3683,31 @@ def convert_to_utf8(http_headers, data):
     # http://www.w3.org/TR/REC-xml/#sec-guessing-no-ext-info
     # Check for BOMs first.
     if data[:4] == codecs.BOM_UTF32_BE:
-        bom_encoding = u'utf-32be'
+        bom_encoding = 'utf-32be'
         data = data[4:]
     elif data[:4] == codecs.BOM_UTF32_LE:
-        bom_encoding = u'utf-32le'
+        bom_encoding = 'utf-32le'
         data = data[4:]
     elif data[:2] == codecs.BOM_UTF16_BE and data[2:4] != ZERO_BYTES:
-        bom_encoding = u'utf-16be'
+        bom_encoding = 'utf-16be'
         data = data[2:]
     elif data[:2] == codecs.BOM_UTF16_LE and data[2:4] != ZERO_BYTES:
-        bom_encoding = u'utf-16le'
+        bom_encoding = 'utf-16le'
         data = data[2:]
     elif data[:3] == codecs.BOM_UTF8:
-        bom_encoding = u'utf-8'
+        bom_encoding = 'utf-8'
         data = data[3:]
     # Check for the characters '<?xm' in several encodings.
     elif data[:4] == EBCDIC_MARKER:
-        bom_encoding = u'cp037'
+        bom_encoding = 'cp037'
     elif data[:4] == UTF16BE_MARKER:
-        bom_encoding = u'utf-16be'
+        bom_encoding = 'utf-16be'
     elif data[:4] == UTF16LE_MARKER:
-        bom_encoding = u'utf-16le'
+        bom_encoding = 'utf-16le'
     elif data[:4] == UTF32BE_MARKER:
-        bom_encoding = u'utf-32be'
+        bom_encoding = 'utf-32be'
     elif data[:4] == UTF32LE_MARKER:
-        bom_encoding = u'utf-32le'
+        bom_encoding = 'utf-32le'
 
     tempdata = data
     try:
@@ -3579,10 +3725,10 @@ def convert_to_utf8(http_headers, data):
         xml_encoding = xml_encoding_match.groups()[0].decode('utf-8').lower()
         # Normalize the xml_encoding if necessary.
         if bom_encoding and (xml_encoding in (
-            u'u16', u'utf-16', u'utf16', u'utf_16',
-            u'u32', u'utf-32', u'utf32', u'utf_32',
-            u'iso-10646-ucs-2', u'iso-10646-ucs-4',
-            u'csucs4', u'csunicode', u'ucs-2', u'ucs-4'
+                'u16', 'utf-16', 'utf16', 'utf_16',
+                'u32', 'utf-32', 'utf32', 'utf_32',
+                'iso-10646-ucs-2', 'iso-10646-ucs-4',
+                'csucs4', 'csunicode', 'ucs-2', 'ucs-4'
         )):
             xml_encoding = bom_encoding
 
@@ -3594,35 +3740,35 @@ def convert_to_utf8(http_headers, data):
     http_content_type = http_headers.get('content-type') or ''
     http_content_type, params = cgi.parse_header(http_content_type)
     http_encoding = params.get('charset', '').replace("'", "")
-    if not isinstance(http_encoding, unicode):
+    if not isinstance(http_encoding, str):
         http_encoding = http_encoding.decode('utf-8', 'ignore')
 
     acceptable_content_type = 0
-    application_content_types = (u'application/xml', u'application/xml-dtd',
-                                 u'application/xml-external-parsed-entity')
-    text_content_types = (u'text/xml', u'text/xml-external-parsed-entity')
+    application_content_types = ('application/xml', 'application/xml-dtd',
+                                 'application/xml-external-parsed-entity')
+    text_content_types = ('text/xml', 'text/xml-external-parsed-entity')
     if (http_content_type in application_content_types) or \
-       (http_content_type.startswith(u'application/') and
-        http_content_type.endswith(u'+xml')):
+            (http_content_type.startswith('application/') and
+             http_content_type.endswith('+xml')):
         acceptable_content_type = 1
-        rfc3023_encoding = http_encoding or xml_encoding or u'utf-8'
+        rfc3023_encoding = http_encoding or xml_encoding or 'utf-8'
     elif (http_content_type in text_content_types) or \
-         (http_content_type.startswith(u'text/') and
-          http_content_type.endswith(u'+xml')):
+            (http_content_type.startswith('text/') and
+             http_content_type.endswith('+xml')):
         acceptable_content_type = 1
-        rfc3023_encoding = http_encoding or u'us-ascii'
-    elif http_content_type.startswith(u'text/'):
-        rfc3023_encoding = http_encoding or u'us-ascii'
+        rfc3023_encoding = http_encoding or 'us-ascii'
+    elif http_content_type.startswith('text/'):
+        rfc3023_encoding = http_encoding or 'us-ascii'
     elif http_headers and 'content-type' not in http_headers:
-        rfc3023_encoding = xml_encoding or u'iso-8859-1'
+        rfc3023_encoding = xml_encoding or 'iso-8859-1'
     else:
-        rfc3023_encoding = xml_encoding or u'utf-8'
+        rfc3023_encoding = xml_encoding or 'utf-8'
     # gb18030 is a superset of gb2312, so always replace gb2312
     # with gb18030 for greater compatibility.
-    if rfc3023_encoding.lower() == u'gb2312':
-        rfc3023_encoding = u'gb18030'
-    if xml_encoding.lower() == u'gb2312':
-        xml_encoding = u'gb18030'
+    if rfc3023_encoding.lower() == 'gb2312':
+        rfc3023_encoding = 'gb18030'
+    if xml_encoding.lower() == 'gb2312':
+        xml_encoding = 'gb18030'
 
     # there are four encodings to keep track of:
     # - http_encoding is the encoding declared in the Content-Type HTTP header
@@ -3647,12 +3793,12 @@ def convert_to_utf8(http_headers, data):
             chardet_encoding = chardet.detect(data)['encoding']
             if not chardet_encoding:
                 chardet_encoding = ''
-            if not isinstance(chardet_encoding, unicode):
-                chardet_encoding = unicode(chardet_encoding, 'ascii', 'ignore')
+            if not isinstance(chardet_encoding, str):
+                chardet_encoding = str(chardet_encoding, 'ascii', 'ignore')
             return chardet_encoding
     # try: HTTP encoding, declared XML encoding, encoding sniffed from BOM
     for proposed_encoding in (rfc3023_encoding, xml_encoding, bom_encoding,
-                              lazy_chardet_encoding, u'utf-8', u'windows-1252', u'iso-8859-2'):
+                              lazy_chardet_encoding, 'utf-8', 'windows-1252', 'iso-8859-2'):
         if callable(proposed_encoding):
             proposed_encoding = proposed_encoding()
         if not proposed_encoding:
@@ -3671,7 +3817,7 @@ def convert_to_utf8(http_headers, data):
             if RE_XML_DECLARATION.search(data):
                 data = RE_XML_DECLARATION.sub(new_declaration, data)
             else:
-                data = new_declaration + u'\n' + data
+                data = new_declaration + '\n' + data
             data = data.encode('utf-8')
             break
     # if still no luck, give up
@@ -3680,7 +3826,7 @@ def convert_to_utf8(http_headers, data):
             'document encoding unknown, I tried ' +
             '%s, %s, utf-8, windows-1252, and iso-8859-2 but nothing worked' %
             (rfc3023_encoding, xml_encoding))
-        rfc3023_encoding = u''
+        rfc3023_encoding = ''
     elif proposed_encoding != rfc3023_encoding:
         error = CharacterEncodingOverride(
             'document declared as %s, but parsed as %s' %
@@ -3688,6 +3834,7 @@ def convert_to_utf8(http_headers, data):
         rfc3023_encoding = proposed_encoding
 
     return data, rfc3023_encoding, error
+
 
 # Match XML entity declarations.
 # Example: <!ENTITY copyright "(C)">
@@ -3705,18 +3852,19 @@ RE_DOCTYPE_PATTERN = re.compile(_s2bytes(r'^\s*<!DOCTYPE([^>]*?)>'), re.MULTILIN
 # Forbidden: explode1 "&explode2;&explode2;"
 RE_SAFE_ENTITY_PATTERN = re.compile(_s2bytes('\s+(\w+)\s+"(&#\w+;|[^&"]*)"'))
 
+
 def replace_doctype(data):
     '''Strips and replaces the DOCTYPE, returns (rss_version, stripped_data)
 
-    rss_version may be 'rss091n' or None
-    stripped_data is the same XML document with a replaced DOCTYPE
-    '''
+	rss_version may be 'rss091n' or None
+	stripped_data is the same XML document with a replaced DOCTYPE
+	'''
 
     # Divide the document into two groups by finding the location
     # of the first element that doesn't begin with '<?' or '<!'.
     start = re.search(_s2bytes('<\w'), data)
     start = start and start.start() or -1
-    head, data = data[:start+1], data[start+1:]
+    head, data = data[:start + 1], data[start + 1:]
 
     # Save and then remove all of the ENTITY declarations.
     entity_results = RE_ENTITY_PATTERN.findall(head)
@@ -3726,7 +3874,7 @@ def replace_doctype(data):
     doctype_results = RE_DOCTYPE_PATTERN.findall(head)
     doctype = doctype_results and doctype_results[0] or _s2bytes('')
     if _s2bytes('netscape') in doctype.lower():
-        version = u'rss091n'
+        version = 'rss091n'
     else:
         version = None
 
@@ -3734,16 +3882,16 @@ def replace_doctype(data):
     replacement = _s2bytes('')
     if len(doctype_results) == 1 and entity_results:
         match_safe_entities = lambda e: RE_SAFE_ENTITY_PATTERN.match(e)
-        safe_entities = filter(match_safe_entities, entity_results)
+        safe_entities = list(filter(match_safe_entities, entity_results))
         if safe_entities:
             replacement = _s2bytes('<!DOCTYPE feed [\n<!ENTITY') \
-                        + _s2bytes('>\n<!ENTITY ').join(safe_entities) \
-                        + _s2bytes('>\n]>')
+                          + _s2bytes('>\n<!ENTITY ').join(safe_entities) \
+                          + _s2bytes('>\n]>')
     data = RE_DOCTYPE_PATTERN.sub(replacement, head) + data
 
     # Precompute the safe entities for the loose parser.
     safe_entities = dict((k.decode('utf-8'), v.decode('utf-8'))
-                      for k, v in RE_SAFE_ENTITY_PATTERN.findall(replacement))
+                         for k, v in RE_SAFE_ENTITY_PATTERN.findall(replacement))
     return version, data, safe_entities
 
 
@@ -3755,29 +3903,32 @@ def _parse_poslist(value, geom_type, swap=True, dims=2):
         return _parse_georss_line(value, swap, dims)
     elif geom_type == 'polygon':
         ring = _parse_georss_line(value, swap, dims)
-        return {'type': u'Polygon', 'coordinates': (ring['coordinates'],)}
+        return {'type': 'Polygon', 'coordinates': (ring['coordinates'],)}
     else:
         return None
+
 
 def _gen_georss_coords(value, swap=True, dims=2):
     # A generator of (lon, lat) pairs from a string of encoded GeoRSS
     # coordinates. Converts to floats and swaps order.
-    latlons = itertools.imap(float, value.strip().replace(',', ' ').split())
-    nxt = latlons.next
+    latlons = map(float, value.strip().replace(',', ' ').split())
+    nxt = latlons.__next__
     while True:
         t = [nxt(), nxt()][::swap and -1 or 1]
         if dims == 3:
             t.append(nxt())
         yield tuple(t)
 
+
 def _parse_georss_point(value, swap=True, dims=2):
     # A point contains a single latitude-longitude pair, separated by
     # whitespace. We'll also handle comma separators.
     try:
         coords = list(_gen_georss_coords(value, swap, dims))
-        return {u'type': u'Point', u'coordinates': coords[0]}
+        return {'type': 'Point', 'coordinates': coords[0]}
     except (IndexError, ValueError):
         return None
+
 
 def _parse_georss_line(value, swap=True, dims=2):
     # A line contains a space separated list of latitude-longitude pairs in
@@ -3785,9 +3936,10 @@ def _parse_georss_line(value, swap=True, dims=2):
     # whitespace. There must be at least two pairs.
     try:
         coords = list(_gen_georss_coords(value, swap, dims))
-        return {u'type': u'LineString', u'coordinates': coords}
+        return {'type': 'LineString', 'coordinates': coords}
     except (IndexError, ValueError):
         return None
+
 
 def _parse_georss_polygon(value, swap=True, dims=2):
     # A polygon contains a space separated list of latitude-longitude pairs,
@@ -3800,7 +3952,8 @@ def _parse_georss_polygon(value, swap=True, dims=2):
         return None
     if len(ring) < 4:
         return None
-    return {u'type': u'Polygon', u'coordinates': (ring,)}
+    return {'type': 'Polygon', 'coordinates': (ring,)}
+
 
 def _parse_georss_box(value, swap=True, dims=2):
     # A bounding box is a rectangular region, often used to define the extents
@@ -3809,21 +3962,23 @@ def _parse_georss_box(value, swap=True, dims=2):
     # first pair is the lower corner, the second is the upper corner.
     try:
         coords = list(_gen_georss_coords(value, swap, dims))
-        return {u'type': u'Box', u'coordinates': tuple(coords)}
+        return {'type': 'Box', 'coordinates': tuple(coords)}
     except (IndexError, ValueError):
         return None
+
 
 # end geospatial parsers
 
 
-def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, referrer=None, handlers=None, request_headers=None, response_headers=None):
+def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, referrer=None, handlers=None,
+          request_headers=None, response_headers=None):
     '''Parse a feed from a URL, file, stream, or string.
 
-    request_headers, if given, is a dict from http header name to value to add
-    to the request; this overrides internally generated values.
+	request_headers, if given, is a dict from http header name to value to add
+	to the request; this overrides internally generated values.
 
-    :return: A :class:`FeedParserDict`.
-    '''
+	:return: A :class:`FeedParserDict`.
+	'''
 
     if handlers is None:
         handlers = []
@@ -3841,7 +3996,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     try:
         f = _open_resource(url_file_stream_or_string, etag, modified, agent, referrer, handlers, request_headers)
         data = f.read()
-    except Exception, e:
+    except Exception as e:
         result['bozo'] = 1
         result['bozo_exception'] = e
         data = None
@@ -3857,7 +4012,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
 
     # lowercase all of the HTTP headers for comparisons per RFC 2616
     if 'headers' in result:
-        http_headers = dict((k.lower(), v) for k, v in result['headers'].items())
+        http_headers = dict((k.lower(), v) for k, v in list(result['headers'].items()))
     else:
         http_headers = {}
 
@@ -3866,7 +4021,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
         if gzip and 'gzip' in http_headers.get('content-encoding', ''):
             try:
                 data = gzip.GzipFile(fileobj=_StringIO(data)).read()
-            except (IOError, struct.error), e:
+            except (IOError, struct.error) as e:
                 # IOError can occur if the gzip header is bad.
                 # struct.error can occur if the data is damaged.
                 result['bozo'] = 1
@@ -3879,29 +4034,29 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
         elif zlib and 'deflate' in http_headers.get('content-encoding', ''):
             try:
                 data = zlib.decompress(data)
-            except zlib.error, e:
+            except zlib.error as e:
                 try:
                     # The data may have no headers and no checksum.
                     data = zlib.decompress(data, -15)
-                except zlib.error, e:
+                except zlib.error as e:
                     result['bozo'] = 1
                     result['bozo_exception'] = e
 
     # save HTTP headers
     if http_headers:
         if 'etag' in http_headers:
-            etag = http_headers.get('etag', u'')
-            if not isinstance(etag, unicode):
+            etag = http_headers.get('etag', '')
+            if not isinstance(etag, str):
                 etag = etag.decode('utf-8', 'ignore')
             if etag:
                 result['etag'] = etag
         if 'last-modified' in http_headers:
-            modified = http_headers.get('last-modified', u'')
+            modified = http_headers.get('last-modified', '')
             if modified:
                 result['modified'] = modified
                 result['modified_parsed'] = _parse_date(modified)
     if hasattr(f, 'url'):
-        if not isinstance(f.url, unicode):
+        if not isinstance(f.url, str):
             result['href'] = f.url.decode('utf-8', 'ignore')
         else:
             result['href'] = f.url
@@ -3916,9 +4071,9 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
 
     # Stop processing if the server sent HTTP 304 Not Modified.
     if getattr(f, 'code', 0) == 304:
-        result['version'] = u''
+        result['version'] = ''
         result['debug_message'] = 'The feed has not changed since you last checked, ' + \
-            'so the server sent no data.  This is a feature, not a bug!'
+                                  'so the server sent no data.  This is a feature, not a bug!'
         return result
 
     data, result['encoding'], error = convert_to_utf8(http_headers, data)
@@ -3930,12 +4085,12 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     result['version'], data, entities = replace_doctype(data)
 
     # Ensure that baseuri is an absolute URI using an acceptable URI scheme.
-    contentloc = http_headers.get('content-location', u'')
-    href = result.get('href', u'')
+    contentloc = http_headers.get('content-location', '')
+    href = result.get('href', '')
     baseuri = _makeSafeAbsoluteURI(href, contentloc) or _makeSafeAbsoluteURI(contentloc) or href
 
     baselang = http_headers.get('content-language', None)
-    if not isinstance(baselang, unicode) and baselang is not None:
+    if not isinstance(baselang, str) and baselang is not None:
         baselang = baselang.decode('utf-8', 'ignore')
 
     if not _XML_AVAILABLE:
@@ -3956,7 +4111,7 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
         source.setByteStream(_StringIO(data))
         try:
             saxparser.parse(source)
-        except xml.sax.SAXException, e:
+        except xml.sax.SAXException as e:
             result['bozo'] = 1
             result['bozo_exception'] = feedparser.exc or e
             use_strict_parser = 0
@@ -3969,40 +4124,41 @@ def parse(url_file_stream_or_string, etag=None, modified=None, agent=None, refer
     result['namespaces'] = feedparser.namespacesInUse
     return result
 
+
 # The list of EPSG codes for geographic (latitude/longitude) coordinate
 # systems to support decoding of GeoRSS GML profiles.
 _geogCS = [
-3819, 3821, 3824, 3889, 3906, 4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008,
-4009, 4010, 4011, 4012, 4013, 4014, 4015, 4016, 4018, 4019, 4020, 4021, 4022,
-4023, 4024, 4025, 4027, 4028, 4029, 4030, 4031, 4032, 4033, 4034, 4035, 4036,
-4041, 4042, 4043, 4044, 4045, 4046, 4047, 4052, 4053, 4054, 4055, 4075, 4081,
-4120, 4121, 4122, 4123, 4124, 4125, 4126, 4127, 4128, 4129, 4130, 4131, 4132,
-4133, 4134, 4135, 4136, 4137, 4138, 4139, 4140, 4141, 4142, 4143, 4144, 4145,
-4146, 4147, 4148, 4149, 4150, 4151, 4152, 4153, 4154, 4155, 4156, 4157, 4158,
-4159, 4160, 4161, 4162, 4163, 4164, 4165, 4166, 4167, 4168, 4169, 4170, 4171,
-4172, 4173, 4174, 4175, 4176, 4178, 4179, 4180, 4181, 4182, 4183, 4184, 4185,
-4188, 4189, 4190, 4191, 4192, 4193, 4194, 4195, 4196, 4197, 4198, 4199, 4200,
-4201, 4202, 4203, 4204, 4205, 4206, 4207, 4208, 4209, 4210, 4211, 4212, 4213,
-4214, 4215, 4216, 4218, 4219, 4220, 4221, 4222, 4223, 4224, 4225, 4226, 4227,
-4228, 4229, 4230, 4231, 4232, 4233, 4234, 4235, 4236, 4237, 4238, 4239, 4240,
-4241, 4242, 4243, 4244, 4245, 4246, 4247, 4248, 4249, 4250, 4251, 4252, 4253,
-4254, 4255, 4256, 4257, 4258, 4259, 4260, 4261, 4262, 4263, 4264, 4265, 4266,
-4267, 4268, 4269, 4270, 4271, 4272, 4273, 4274, 4275, 4276, 4277, 4278, 4279,
-4280, 4281, 4282, 4283, 4284, 4285, 4286, 4287, 4288, 4289, 4291, 4292, 4293,
-4294, 4295, 4296, 4297, 4298, 4299, 4300, 4301, 4302, 4303, 4304, 4306, 4307,
-4308, 4309, 4310, 4311, 4312, 4313, 4314, 4315, 4316, 4317, 4318, 4319, 4322,
-4324, 4326, 4463, 4470, 4475, 4483, 4490, 4555, 4558, 4600, 4601, 4602, 4603,
-4604, 4605, 4606, 4607, 4608, 4609, 4610, 4611, 4612, 4613, 4614, 4615, 4616,
-4617, 4618, 4619, 4620, 4621, 4622, 4623, 4624, 4625, 4626, 4627, 4628, 4629,
-4630, 4631, 4632, 4633, 4634, 4635, 4636, 4637, 4638, 4639, 4640, 4641, 4642,
-4643, 4644, 4645, 4646, 4657, 4658, 4659, 4660, 4661, 4662, 4663, 4664, 4665,
-4666, 4667, 4668, 4669, 4670, 4671, 4672, 4673, 4674, 4675, 4676, 4677, 4678,
-4679, 4680, 4681, 4682, 4683, 4684, 4685, 4686, 4687, 4688, 4689, 4690, 4691,
-4692, 4693, 4694, 4695, 4696, 4697, 4698, 4699, 4700, 4701, 4702, 4703, 4704,
-4705, 4706, 4707, 4708, 4709, 4710, 4711, 4712, 4713, 4714, 4715, 4716, 4717,
-4718, 4719, 4720, 4721, 4722, 4723, 4724, 4725, 4726, 4727, 4728, 4729, 4730,
-4731, 4732, 4733, 4734, 4735, 4736, 4737, 4738, 4739, 4740, 4741, 4742, 4743,
-4744, 4745, 4746, 4747, 4748, 4749, 4750, 4751, 4752, 4753, 4754, 4755, 4756,
-4757, 4758, 4759, 4760, 4761, 4762, 4763, 4764, 4765, 4801, 4802, 4803, 4804,
-4805, 4806, 4807, 4808, 4809, 4810, 4811, 4813, 4814, 4815, 4816, 4817, 4818,
-4819, 4820, 4821, 4823, 4824, 4901, 4902, 4903, 4904, 4979 ]
+    3819, 3821, 3824, 3889, 3906, 4001, 4002, 4003, 4004, 4005, 4006, 4007, 4008,
+    4009, 4010, 4011, 4012, 4013, 4014, 4015, 4016, 4018, 4019, 4020, 4021, 4022,
+    4023, 4024, 4025, 4027, 4028, 4029, 4030, 4031, 4032, 4033, 4034, 4035, 4036,
+    4041, 4042, 4043, 4044, 4045, 4046, 4047, 4052, 4053, 4054, 4055, 4075, 4081,
+    4120, 4121, 4122, 4123, 4124, 4125, 4126, 4127, 4128, 4129, 4130, 4131, 4132,
+    4133, 4134, 4135, 4136, 4137, 4138, 4139, 4140, 4141, 4142, 4143, 4144, 4145,
+    4146, 4147, 4148, 4149, 4150, 4151, 4152, 4153, 4154, 4155, 4156, 4157, 4158,
+    4159, 4160, 4161, 4162, 4163, 4164, 4165, 4166, 4167, 4168, 4169, 4170, 4171,
+    4172, 4173, 4174, 4175, 4176, 4178, 4179, 4180, 4181, 4182, 4183, 4184, 4185,
+    4188, 4189, 4190, 4191, 4192, 4193, 4194, 4195, 4196, 4197, 4198, 4199, 4200,
+    4201, 4202, 4203, 4204, 4205, 4206, 4207, 4208, 4209, 4210, 4211, 4212, 4213,
+    4214, 4215, 4216, 4218, 4219, 4220, 4221, 4222, 4223, 4224, 4225, 4226, 4227,
+    4228, 4229, 4230, 4231, 4232, 4233, 4234, 4235, 4236, 4237, 4238, 4239, 4240,
+    4241, 4242, 4243, 4244, 4245, 4246, 4247, 4248, 4249, 4250, 4251, 4252, 4253,
+    4254, 4255, 4256, 4257, 4258, 4259, 4260, 4261, 4262, 4263, 4264, 4265, 4266,
+    4267, 4268, 4269, 4270, 4271, 4272, 4273, 4274, 4275, 4276, 4277, 4278, 4279,
+    4280, 4281, 4282, 4283, 4284, 4285, 4286, 4287, 4288, 4289, 4291, 4292, 4293,
+    4294, 4295, 4296, 4297, 4298, 4299, 4300, 4301, 4302, 4303, 4304, 4306, 4307,
+    4308, 4309, 4310, 4311, 4312, 4313, 4314, 4315, 4316, 4317, 4318, 4319, 4322,
+    4324, 4326, 4463, 4470, 4475, 4483, 4490, 4555, 4558, 4600, 4601, 4602, 4603,
+    4604, 4605, 4606, 4607, 4608, 4609, 4610, 4611, 4612, 4613, 4614, 4615, 4616,
+    4617, 4618, 4619, 4620, 4621, 4622, 4623, 4624, 4625, 4626, 4627, 4628, 4629,
+    4630, 4631, 4632, 4633, 4634, 4635, 4636, 4637, 4638, 4639, 4640, 4641, 4642,
+    4643, 4644, 4645, 4646, 4657, 4658, 4659, 4660, 4661, 4662, 4663, 4664, 4665,
+    4666, 4667, 4668, 4669, 4670, 4671, 4672, 4673, 4674, 4675, 4676, 4677, 4678,
+    4679, 4680, 4681, 4682, 4683, 4684, 4685, 4686, 4687, 4688, 4689, 4690, 4691,
+    4692, 4693, 4694, 4695, 4696, 4697, 4698, 4699, 4700, 4701, 4702, 4703, 4704,
+    4705, 4706, 4707, 4708, 4709, 4710, 4711, 4712, 4713, 4714, 4715, 4716, 4717,
+    4718, 4719, 4720, 4721, 4722, 4723, 4724, 4725, 4726, 4727, 4728, 4729, 4730,
+    4731, 4732, 4733, 4734, 4735, 4736, 4737, 4738, 4739, 4740, 4741, 4742, 4743,
+    4744, 4745, 4746, 4747, 4748, 4749, 4750, 4751, 4752, 4753, 4754, 4755, 4756,
+    4757, 4758, 4759, 4760, 4761, 4762, 4763, 4764, 4765, 4801, 4802, 4803, 4804,
+    4805, 4806, 4807, 4808, 4809, 4810, 4811, 4813, 4814, 4815, 4816, 4817, 4818,
+    4819, 4820, 4821, 4823, 4824, 4901, 4902, 4903, 4904, 4979]

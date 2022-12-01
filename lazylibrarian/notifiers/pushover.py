@@ -18,11 +18,8 @@
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode
-# noinspection PyUnresolvedReferences
-from six.moves.http_client import HTTPSConnection
+from urllib.parse import urlencode
+from http.client import HTTPSConnection
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -66,9 +63,6 @@ class PushoverNotifier:
 
         http_handler = HTTPSConnection('api.pushover.net')
 
-        if PY2:
-            message = message.encode(lazylibrarian.SYS_ENCODING)
-            event = event.encode(lazylibrarian.SYS_ENCODING)
         try:
             data = {'token': pushover_apitoken,
                     'user': pushover_keys,
@@ -94,8 +88,7 @@ class PushoverNotifier:
         if request_status == 200:
             if test_message:
                 logger.debug(request_body)
-                if not PY2:
-                    request_body = request_body.decode()
+                request_body = request_body.decode()
                 if 'devices' in request_body:
                     return "Devices: %s" % request_body.split('[')[1].split(']')[0]
                 else:

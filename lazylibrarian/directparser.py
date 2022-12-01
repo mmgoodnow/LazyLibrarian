@@ -12,8 +12,7 @@
 
 import time
 import traceback
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -21,17 +20,9 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import module_available
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight, check_float, check_int
-from six import PY2
 
-if module_available("bs4") and module_available("html5lib"):
-    # noinspection PyUnresolvedReferences
-    import html5lib
-    from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
-
+import html5lib
+from bs4 import BeautifulSoup
 
 # noinspection PyProtectedMember
 def redirect_url(genhost, url):

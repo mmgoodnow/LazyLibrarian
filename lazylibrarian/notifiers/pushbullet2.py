@@ -12,18 +12,9 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-from lazylibrarian.common import module_available
-# We use system version if available for pushbullet, as there was a report that
-# lazylibrarian version of requests was not working with pushbullet.
-# Not clear why, see as issue #675
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-    from requests.auth import HTTPBasicAuth
-else:
-    import lib.requests as requests
-    from lib.requests.auth import HTTPBasicAuth
+import urllib3
+import requests
+from requests.auth import HTTPBasicAuth
 
 HOST = "https://api.pushbullet.com/v2"
 

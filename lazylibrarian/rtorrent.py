@@ -17,8 +17,7 @@ from time import sleep
 
 import lazylibrarian
 from lazylibrarian import logger
-# noinspection PyUnresolvedReferences
-from six.moves import xmlrpc_client
+from xmlrpc.client import Binary, ServerProxy
 
 
 def get_server():
@@ -44,9 +43,9 @@ def get_server():
             if not lazylibrarian.CONFIG['SSL_VERIFY']:
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
-            server = xmlrpc_client.ServerProxy(host, context=context)
+            server = ServerProxy(host, context=context)
         else:
-            server = xmlrpc_client.ServerProxy(host)
+            server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -70,9 +69,9 @@ def add_torrent(tor_url, hash_id, data=None):
         if data:
             logger.debug('Sending rTorrent content [%s...]' % str(data)[:40])
             if version.startswith('0.9') or version.startswith('1.'):
-                _ = server.load.raw('', xmlrpc_client.Binary(data))
+                _ = server.load.raw('', Binary(data))
             else:
-                _ = server.load_raw(xmlrpc_client.Binary(data))
+                _ = server.load_raw(Binary(data))
         else:
             logger.debug('Sending rTorrent url [%s...]' % str(tor_url)[:40])
             if version.startswith('0.9') or version.startswith('1.'):

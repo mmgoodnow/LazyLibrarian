@@ -18,20 +18,15 @@ import traceback
 # noinspection PyUnresolvedReferences
 import xml.dom.minidom
 from string import Template
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode, parse_qsl
+from urllib.parse import urlencode, parse_qsl
 
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import gr_api_sleep
 from lazylibrarian.formatter import plural, get_list, check_int, thread_name
 from lazylibrarian.gr import GoodReads
-from six import PY2
 
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
+import lib.oauth2 as oauth
 
 client = ''
 request_token = ''
@@ -80,8 +75,7 @@ class GrAuth:
             return 'Invalid response [%s] from: %s' % (response['status'], request_token_url)
 
         request_token = dict(parse_qsl(content))
-        if not PY2:
-            request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
+        request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
             logger.debug("oauth1: %s" % str(request_token))
         if 'oauth_token' in request_token:
@@ -120,8 +114,7 @@ class GrAuth:
             return 'Invalid response [%s] from %s' % (response['status'], access_token_url)
 
         access_token = dict(parse_qsl(content))
-        if not PY2:
-            access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
+        access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
             logger.debug("oauth2: %s" % str(access_token))
         lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] = access_token['oauth_token']

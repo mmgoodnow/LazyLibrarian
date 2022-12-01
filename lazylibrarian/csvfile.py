@@ -15,21 +15,17 @@ import shutil
 import traceback
 
 import lazylibrarian
-from six import PY2
 from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move, path_isdir, syspath, remove
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
-    make_unicode, split_title, make_bytestr
+    make_unicode, split_title
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
 from lazylibrarian.librarysync import find_book_in_db
 
 try:
     from csv import writer, reader, QUOTE_MINIMAL
 except ImportError:
-    if PY2:
-        from lib.csv import writer, reader, QUOTE_MINIMAL
-    else:
-        from lib3.csv import writer, reader, QUOTE_MINIMAL
+    from lib.csv import writer, reader, QUOTE_MINIMAL
 
 
 # noinspection PyArgumentList
@@ -62,22 +58,13 @@ def dump_table(table, savedir=None, status=None):
                 label += '_%s' % status
             csvfile = os.path.join(savedir, "%s.csv" % label)
             headers = headers.split(',')
-            if PY2:
-                with open(syspath(csvfile), 'wb') as outfile:
-                    # noinspection PyTypeChecker
-                    csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
-                    csvwrite.writerow(headers)
-                    for item in data:
-                        csvwrite.writerow([make_bytestr(s) if s else '' for s in item])
-                        count += 1
-            else:
-                with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
-                    # noinspection PyTypeChecker
-                    csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
-                    csvwrite.writerow(headers)
-                    for item in data:
-                        csvwrite.writerow([str(s) if s else '' for s in item])
-                        count += 1
+            with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
+                # noinspection PyTypeChecker
+                csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+                csvwrite.writerow(headers)
+                for item in data:
+                    csvwrite.writerow([str(s) if s else '' for s in item])
+                    count += 1
             msg = "Exported %s %s to %s" % (count, plural(count, "item"), csvfile)
             logger.info(msg)
         return count
@@ -108,10 +95,7 @@ def restore_table(table, savedir=None, status=None):
         csvfile = os.path.join(savedir, "%s.csv" % label)
 
         logger.debug('Reading file %s' % csvfile)
-        if PY2:
-            csvreader = reader(open(csvfile, 'rU'))
-        else:
-            csvreader = reader(open(csvfile, 'r', encoding='utf-8', newline=''))
+        csvreader = reader(open(csvfile, 'r', encoding='utf-8', newline=''))
         count = 0
         for row in csvreader:
             if csvreader.line_num == 1:
@@ -197,35 +181,20 @@ def export_csv(search_dir=None, status="Wanted", library=''):
             logger.warn(msg)
             return msg
         count = 0
-        if PY2:
-            with open(syspath(csvfile), 'wb') as outfile:
-                # noinspection PyTypeChecker
-                csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
+        # noinspection PyArgumentList
+        with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
+            # noinspection PyTypeChecker
+            csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
 
-                # write headers, change AuthorName BookName BookIsbn to match import csv names
-                csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
+            # write headers, change AuthorName BookName BookIsbn to match import csv names
+            csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
 
-                for resulted in find_status:
-                    logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
-                    row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
-                            resulted['BookIsbn'], resulted['AuthorID']])
-                    csvwrite.writerow([("%s" % s).encode(lazylibrarian.SYS_ENCODING) for s in row])
-                    count += 1
-        else:
-            # noinspection PyArgumentList
-            with open(syspath(csvfile), 'w', encoding='utf-8', newline='') as outfile:
-                # noinspection PyTypeChecker
-                csvwrite = writer(outfile, delimiter=',', quotechar='"', quoting=QUOTE_MINIMAL)
-
-                # write headers, change AuthorName BookName BookIsbn to match import csv names
-                csvwrite.writerow(['BookID', 'Author', 'Title', 'ISBN', 'AuthorID'])
-
-                for resulted in find_status:
-                    logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
-                    row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
-                            resulted['BookIsbn'], resulted['AuthorID']])
-                    csvwrite.writerow([("%s" % s) for s in row])
-                    count += 1
+            for resulted in find_status:
+                logger.debug("Exported CSV for %s %s" % (library, resulted['BookName']))
+                row = ([resulted['BookID'], resulted['AuthorName'], resulted['BookName'],
+                        resulted['BookIsbn'], resulted['AuthorID']])
+                csvwrite.writerow([("%s" % s) for s in row])
+                count += 1
         msg = "CSV exported %s %s to %s" % (count, plural(count, library), csvfile)
         logger.info(msg)
     except Exception:
@@ -315,10 +284,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
             return msg
 
         logger.debug('Reading file %s' % csvfile)
-        if PY2:
-            csvreader = reader(open(csvfile, 'rU'))
-        else:
-            csvreader = reader(open(csvfile, 'r', encoding='utf-8', newline=''))
+        csvreader = reader(open(csvfile, 'r', encoding='utf-8', newline=''))
         for row in csvreader:
             if csvreader.line_num == 1:
                 # If we are on the first line, create the headers list from the first row

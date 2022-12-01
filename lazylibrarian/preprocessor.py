@@ -34,10 +34,6 @@ except ImportError:
         PdfFileWriter = None
         PdfFileReader = None
 
-from six import PY2
-if PY2:
-    from io import open
-
 
 def preprocess_ebook(bookfolder):
     logger.debug("Preprocess ebook %s" % bookfolder)

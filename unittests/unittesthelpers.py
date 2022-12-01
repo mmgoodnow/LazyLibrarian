@@ -122,4 +122,4 @@ class LLTestCase(unittest.TestCase):
     def prepareTestDB(cls):
         curr_ver = dbupgrade.upgrade_needed()
         if curr_ver:
-            dbupgrade.dbupgrade(curr_ver)
+            dbupgrade.db_upgrade(curr_ver)

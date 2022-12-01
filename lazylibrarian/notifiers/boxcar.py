@@ -16,20 +16,15 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
-from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL,\
-    proxy_list, module_available
+    proxy_list
 from lazylibrarian.formatter import check_int
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 # API_URL = "https://boxcar.io/devices/providers/MH0S7xOFSwVLNvNhTpiC/notifications"
 # changed to boxcar2
@@ -59,9 +54,6 @@ class BoxcarNotifier:
 
         # build up the URL and parameters
         msg = msg.strip()
-        if PY2:
-            msg = msg.encode(lazylibrarian.SYS_ENCODING)
-            title = title.encode(lazylibrarian.SYS_ENCODING)
         cur_url = API_URL
 
         # if this is a subscription notification then act accordingly

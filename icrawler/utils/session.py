@@ -1,10 +1,6 @@
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-    
-from six.moves.urllib.parse import urlsplit
+import urllib3
+import requests    
+from urllib.parse import urlsplit
 
 
 class Session(requests.Session):

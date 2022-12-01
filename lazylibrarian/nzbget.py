@@ -25,10 +25,9 @@ from base64 import standard_b64encode
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.formatter import check_int, make_unicode
-# noinspection PyUnresolvedReferences
-from six.moves import xmlrpc_client, http_client
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote
+from xmlrpc.client import ServerProxy, ProtocolError
+from http.client import HTTPException
+from urllib.parse import quote
 
 
 def check_link():
@@ -73,7 +72,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
                                                    "port": port,
                                                    "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'], safe='')}
     try:
-        nzb_get_rpc = xmlrpc_client.ServerProxy(url)
+        nzb_get_rpc = ServerProxy(url)
     except Exception as e:
         res = "NZBget connection to %s failed: %s %s" % (url, type(e).__name__, str(e))
         logger.error(res)
@@ -107,14 +106,14 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
             else:
                 logger.warn("Successfully connected to NZBget, but unable to send %s" % (nzb.name + ".nzb"))
 
-    except http_client.socket.error as e:
+    except HTTPException as e:
         res = "Please check your NZBget host and port (if it is running). "
         res += "NZBget is not responding to this combination: %s" % e
         logger.error(res)
         logger.error("NZBget url is [%s]" % url)
         return False, res
 
-    except xmlrpc_client.ProtocolError as e:
+    except ProtocolError as e:
         if e.errmsg == "Unauthorized":
             res = "NZBget password is incorrect."
         else:

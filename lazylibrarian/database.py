@@ -21,13 +21,10 @@ import threading
 import time
 import traceback
 import inspect
-from six import PY2
-if PY2:
-    from io import open
 
 import lazylibrarian
 from lazylibrarian import logger
-# DO NOT import from common in this module, circular import fails on py2
+# DO NOT import from common in this module, circular import
 
 db_lock = threading.Lock()
 

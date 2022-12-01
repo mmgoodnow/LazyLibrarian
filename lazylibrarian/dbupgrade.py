@@ -150,7 +150,7 @@ def has_column(db, table, column):
     return any(item[1] == column for item in columns)
 
 
-def dbupgrade(current_version):
+def db_upgrade(current_version):
     with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:

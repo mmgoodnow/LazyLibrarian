@@ -27,6 +27,7 @@ import signal
 import traceback
 import tarfile
 import cherrypy
+import urllib3
 import lib.requests as requests
 
 from shutil import rmtree
@@ -36,10 +37,9 @@ from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_h
 from lazylibrarian import config, database, versioncheck
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
-from lazylibrarian.dbupgrade import check_db, db_current_version
+from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
-from six import PY2
 
 
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
@@ -119,7 +119,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
 
     if options.noipv6:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+        urllib3.util.connection.HAS_IPV6 = False
     
     if options.daemon:
         if os.name != 'nt':
@@ -268,7 +268,7 @@ def init_config():
 
     if lazylibrarian.CONFIG['NO_IPV6']:        
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        requests.packages.urllib3.util.connection.HAS_IPV6 = False
+        urllib3.util.connection.HAS_IPV6 = False
 
 def init_caches():
     # override detected encoding if required
@@ -376,6 +376,11 @@ def init_database():
         error("Can't connect to the database: %s %s" % (type(e).__name__, str(e)))
         sys.exit(0)
 
+    curr_ver = upgrade_needed()
+    if curr_ver:
+        lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
+        db_upgrade(curr_ver)
+
     if version:
         db_changes = check_db()
         if db_changes:
@@ -472,13 +477,9 @@ def build_logintemplate():
     msg_file = os.path.join(lazylibrarian.DATADIR, 'logintemplate.text')
     if path_isfile(msg_file):
         try:
-            if PY2:
-                with open(syspath(msg_file), 'r') as msg_data:
-                    res = msg_data.read()
-            else:
-                # noinspection PyArgumentList
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
-                    res = msg_data.read()
+            # noinspection PyArgumentList
+            with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                res = msg_data.read()
             for item in ["{username}", "{password}", "{permission}"]:
                 if item not in res:
                     warn("Invalid login template in %s, no %s" % (msg_file, item))
@@ -496,13 +497,8 @@ def build_filetemplate():
     msg_file = os.path.join(lazylibrarian.DATADIR, 'filetemplate.text')
     if path_isfile(msg_file):
         try:
-            if PY2:
-                with open(syspath(msg_file), 'r') as msg_data:
-                    res = msg_data.read()
-            else:
-                # noinspection PyArgumentList
-                with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
-                    res = msg_data.read()
+            with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
+                res = msg_data.read()
             for item in ["{name}", "{method}", "{link}"]:
                 if item not in res:
                     warn("Invalid attachment template in %s, no %s" % (msg_file, item))
@@ -519,13 +515,8 @@ def build_genres():
     for json_file in [os.path.join(lazylibrarian.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
         if path_isfile(json_file):
             try:
-                if PY2:
-                    with open(syspath(json_file), 'r') as json_data:
-                        res = json.load(json_data)
-                else:
-                    # noinspection PyArgumentList
-                    with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
-                        res = json.load(json_data)
+                with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
+                    res = json.load(json_data)
                 info("Loaded genres from %s" % json_file)
                 return res
             except Exception as e:
@@ -733,21 +724,15 @@ def launch_browser(host, port, root):
 
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
-        if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-            lazylibrarian.SHOW_EBOOK = 1
-            lazylibrarian.SHOW_AUDIO = 0
-            lazylibrarian.SHOW_COMICS = 0
-            lazylibrarian.SHOW_SERIES = 0
-        else:
-            lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
-            lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
-            lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
-            lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
+        lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
+        lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
+        lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
+        lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
 
-            if lazylibrarian.CONFIG['ADD_SERIES']:
-                lazylibrarian.SHOW_SERIES = 1
-            if not lazylibrarian.CONFIG['SERIES_TAB']:
-                lazylibrarian.SHOW_SERIES = 0
+        if lazylibrarian.CONFIG['ADD_SERIES']:
+            lazylibrarian.SHOW_SERIES = 1
+        if not lazylibrarian.CONFIG['SERIES_TAB']:
+            lazylibrarian.SHOW_SERIES = 0
 
     if lazylibrarian.CONFIG['GR_URL'] == 'https://goodreads.org':
         lazylibrarian.CONFIG['GR_URL'] = 'https://www.goodreads.com'
@@ -775,7 +760,9 @@ def logmsg(level, msg):
 def shutdown(restart=False, update=False, exit=True, testing=False):
     if not testing:
         cherrypy.engine.exit()
-        logmsg('info', 'cherrypy server exit')
+        time.sleep(2)
+        state = str(cherrypy.engine.state)
+        logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     if not testing:
         config.config_write() 
@@ -815,10 +802,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
             executable = sys.executable
 
             if not executable:
-                if PY2:
-                    prg = "python2"
-                else:
-                    prg = "python3"
+                prg = "python3"
                 if os.name == 'nt':
                     params = ["where", prg]
                     try:

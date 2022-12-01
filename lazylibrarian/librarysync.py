@@ -18,7 +18,6 @@ import re
 import traceback
 import shutil
 from xml.etree import ElementTree
-from six import PY2
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -37,16 +36,12 @@ from lazylibrarian.preprocessor import preprocess_audio
 
 from lib.thefuzz import fuzz
 from lib.mobi import Mobi
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus, urlencode
+from urllib.parse import quote_plus, urlencode
 
 try:
     import zipfile
 except ImportError:
-    if PY2:
-        import lib.zipfile as zipfile
-    else:
-        import lib3.zipfile as zipfile
+    import lib.zipfile as zipfile
 
 
 # noinspection PyBroadException
@@ -182,8 +177,7 @@ def get_book_info(fname):
             txt = f.read()
         finally:
             f.close()
-        if not PY2:
-            txt = make_unicode(txt)
+        txt = make_unicode(txt)
         # sanitize any unmatched html tags or ElementTree won't parse
         dic = {'<br>': '', '</br>': ''}
         txt = replace_all(txt, dic)

@@ -20,9 +20,7 @@ import unicodedata
 import threading
 
 import lazylibrarian
-from six import PY2, text_type, binary_type
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus, quote, urlsplit, urlunsplit
+from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
@@ -39,16 +37,9 @@ apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u
 # noinspection PyDeprecation
 def thread_name(name=None):
     if name:
-        if PY2:
-            threading.currentThread().name = name
-        else:
-            threading.current_thread().name = name
+        threading.current_thread().name = name
     else:
-        if PY2:
-            # noinspection PyDeprecation
-            return threading.currentThread().getName()
-        else:
-            return threading.current_thread().name
+        return threading.current_thread().name
 
 
 def sanitize(name):
@@ -105,9 +96,7 @@ def url_fix(s, charset='utf-8'):
     """
     Return the argument so it's valid in a web context
     """
-    if PY2 and isinstance(s, text_type):
-        s = s.encode(charset, 'ignore')
-    elif not PY2 and not isinstance(s, text_type):
+    if not isinstance(s, str):
         s = s.decode(charset)
     scheme, netloc, path, qs, anchor = urlsplit(s)
     path = quote(path, '/%')
@@ -523,7 +512,7 @@ def size_in_bytes(size):
 
 
 def md5_utf8(txt):
-    if isinstance(txt, text_type):
+    if isinstance(txt, str):
         txt = txt.encode('utf-8')
     # noinspection PyDeprecation
     return md5(txt).hexdigest()
@@ -541,15 +530,9 @@ def make_utf8bytes(txt):
     # and return tuple of bytestring encoded in utf-8, detected encoding
     for idx in range(len(name)):
         # /!\ detection is done 2char by 2char for UTF-8 special character
-        if PY2:
-            ch = name[idx]
-        else:
-            ch = chr(name[idx])
+        ch = chr(name[idx])
         if idx < (len(name) - 1):
-            if PY2:
-                chx = name[idx + 1]
-            else:
-                chx = chr(name[idx + 1])
+            chx = chr(name[idx + 1])
             # Detect UTF-8
             if ((ch == '\xC2') | (ch == '\xC3')) & ((chx >= '\xA0') & (chx <= '\xFF')):
                 return name, 'UTF-8'
@@ -570,13 +553,13 @@ _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 def make_unicode(txt):
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
-    if isinstance(txt, text_type):  # nothing to do if already unicode
+    if isinstance(txt, str):  # nothing to do if already unicode
         return txt
     if txt is None:
         return txt
-    if not isinstance(txt, binary_type):  # list, int etc
+    if not isinstance(txt, bytes):  # list, int etc
         txt = str(txt)
-        if isinstance(txt, text_type):
+        if isinstance(txt, str):
             return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
         _encodings.insert(0, lazylibrarian.SYS_ENCODING)
@@ -593,13 +576,13 @@ def make_bytestr(txt):
     """
     Turn text into a binary byte string
     """
-    if isinstance(txt, binary_type):  # nothing to do if already bytestring
+    if isinstance(txt, bytes):  # nothing to do if already bytestring
         return txt
     if txt is None:
         return txt
-    if not isinstance(txt, text_type):  # list, int etc
+    if not isinstance(txt, str):  # list, int etc
         txt = str(txt)
-        if isinstance(txt, binary_type):
+        if isinstance(txt, bytes):
             return txt
     if lazylibrarian.SYS_ENCODING.lower() not in _encodings:
         _encodings.insert(0, lazylibrarian.SYS_ENCODING)
@@ -691,17 +674,7 @@ def get_list(st, c=None):
 # noinspection PyArgumentList
 def safe_unicode(obj, *args):
     """ return the unicode representation of obj """
-    if not PY2:
-        return str(obj, *args)
-    try:
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(obj, *args)
-    except UnicodeDecodeError:
-        # obj is byte string
-        ascii_text = str(obj).encode('string_escape')
-        # noinspection PyCompatibility,PyUnresolvedReferences
-        return unicode(ascii_text)
-
+    return str(obj, *args)
 
 def split_title(author, book):
     """
