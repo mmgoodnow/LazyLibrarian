@@ -27,13 +27,17 @@ unittest_allmodules:
     # Optional modules
     - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
     # Testing modules
-    - python -m pip install pytest mock pytest_order 
-    # Run the test
-    - pytest --junitxml=lltest.xml unittests/test*.py
+    - python -m pip install pytest mock pytest_order pytest-cov
+    # Run the test, including code coverage
+    - python -m pytest --junitxml=lltest.xml --cov=lazylibrarian --cov-report=xml:covall.xml unittests/test*.py
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always
     reports:
-       junit: llalltest.xml
+       junit: lltest.xml
+       coverage_report:
+        coverage_format: cobertura
+        path: covall.xml
 
 unittest_minimalmodules:
   stage: test
@@ -44,7 +48,7 @@ unittest_minimalmodules:
     - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
     # Testing modules
     - python -m pip install pytest mock pytest_order
-    - pytest --junitxml=lltest.xml unittests/test*.py
+    - pytest --junitxml=llmintest.xml unittests/test*.py
   artifacts:
     when: always
     reports:
