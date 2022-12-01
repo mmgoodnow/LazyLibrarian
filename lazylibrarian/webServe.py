@@ -5584,6 +5584,8 @@ class WebInterface(object):
                                            plural(lazylibrarian.CONFIG['COMMITS_BEHIND'], "commit"))
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
+            if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+                message = message + "Update needs manual installation"
         else:
             message = "unknown version"
             messages = "Your version is not recognized at<br>https://%s/%s/%s  Branch: %s" % (

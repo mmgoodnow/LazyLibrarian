@@ -251,7 +251,6 @@ def check_for_updates():
     else:
         commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = commits
-
         if auto_update and commits > 0:
             for name in [n.name.lower() for n in [t for t in threading.enumerate()]]:
                 for word in ['update', 'scan', 'import', 'sync', 'process']:
@@ -259,6 +258,11 @@ def check_for_updates():
                         suppress = True
                         logmsg('warn', 'Suppressed auto-update as %s running' % name)
                         break
+
+            if not suppress and '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+                suppress = True
+                logmsg('warn', 'Suppressed auto-update as manual install needed')
+
             if not suppress:
                 plural = ''
                 if commits > 1:

@@ -691,6 +691,10 @@ def init_version_checks(version_file):
         else:
             debug('Not updating, LazyLibrarian has local changes')
 
+    if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+        lazylibrarian.SIGNAL = None
+        info("Update available, but needs manual installation")
+
 
 def launch_browser(host, port, root):
     import webbrowser
