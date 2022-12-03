@@ -27,10 +27,7 @@ from lazylibrarian.providers import provider_is_blocked, block_provider
 from urllib.parse import quote_plus
 from shutil import rmtree
 
-try:
-    import zipfile
-except ImportError:
-    import lib.zipfile as zipfile
+import zipfile
 
 try:
     import PIL

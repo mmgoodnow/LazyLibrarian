@@ -25,16 +25,12 @@ import threading
 import time
 import traceback
 import uuid
+import zipfile
 
 import lazylibrarian
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
-
-try:
-    import zipfile
-except ImportError:
-    import lib.zipfile as zipfile
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
