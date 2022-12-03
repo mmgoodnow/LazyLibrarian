@@ -269,6 +269,13 @@ def check_for_updates():
                     plural = 's'
                 logmsg('info', 'Auto updating %s commit%s' % (commits, plural))
                 lazylibrarian.SIGNAL = 'update'
+
+    # testing - force a fake update
+    # lazylibrarian.COMMIT_LIST = 'test update system'
+    # lazylibrarian.SIGNAL = 'update'
+    # lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
+    # lazylibrarian.CONFIG['CURRENT_VERSION'] = 'testing'
+
     logmsg('debug', 'Update check complete')
     # noinspection PyBroadException
     try:
