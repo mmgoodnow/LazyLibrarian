@@ -50,6 +50,7 @@ packages
 *.cproject
 *.tmproj
 *.tmproject
+.cache/*
 
 # Pytest specific    #
 ######################
