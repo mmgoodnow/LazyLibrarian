@@ -175,7 +175,7 @@ def book_series(bookname):
     return series, seriesnum
 
 
-def next_run_time(when_run, test_now: datetime = None):
+def next_run_time(when_run, test_now: datetime.datetime = None):
     """
     Returns a readable approximation of how long until a job will be run, 
     given a string representing the last time it was run
