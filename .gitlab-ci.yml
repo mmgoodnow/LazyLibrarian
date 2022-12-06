@@ -49,7 +49,7 @@ unittest_minimalmodules:
     # Remove optional modules if they are there
     - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
     # Testing modules
-    - python -m pip install pytest mock pytest_order
+    - python -m pip install pytest mock pytest_order pytest-cov
     # Run the test, including code coverage
     - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
     - coverage report
