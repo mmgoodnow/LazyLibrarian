@@ -492,18 +492,29 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             zf = tarfile.open(backup_file, mode='w:gz')
-            for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                           'lib', 'mako']:
+            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'icrawler',
+                            'telemetryserver', 'unittests']
+            # these library folders are optional, might not exist
+            lib_folders = ['bs4', 'cherrypy', 'deluge_client', 'html5lib', 'httpagentparser', 'magic',
+                           'mako', 'PyPDF3', 'requests', 'thefuzz', 'urllib3', 'webencodings']
+            for folder in lib_folders:
+                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                if os.path.exists(path):
+                    prog_folders.append(folder)
+            for folder in prog_folders:
                 path = os.path.join(lazylibrarian.PROG_DIR, folder)
                 for root, _, files in walk(path):
                     for item in files:
                         if not item.endswith('.pyc'):
                             base = root[len(lazylibrarian.PROG_DIR) + 1:]
                             zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
-            for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
-                         'example_custom_notification.sh', 'example_ebook_convert.py',
-                         'example.genres.json', 'example.monthnames.json']:
-                zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
+            for item in ['LazyLibrarian.py', 'cherrypy_cors.py', 'epubandmobi.py', 'example_custom_notification.py',
+                         'example_custom_notification.sh', 'example_ebook_convert.py', 'example_filetemplate.txt',
+                         'example.genres.json', 'example_html_filetemplate.txt', 'example_logintemplate.txt', 
+                         'example.monthnames.json', 'updater.py', 'pyproject.toml']:
+                path = os.path.join(lazylibrarian.PROG_DIR, item)
+                if os.path.exists(path):
+                    zf.add(path, arcname=item)
             zf.close()
             msg = 'Saved current version to %s' % backup_file
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
