@@ -9,15 +9,16 @@ from typing import NewType, Dict, Union, List, Type
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter
-from re import match
+from re import match, compile, IGNORECASE
 
 from lazylibrarian import logger
 
 ### Type aliases to distinguish types of string
 Email = NewType('Email', str)
 CSVstr = NewType('CSV', str)
+URLstr = NewType('URL', str)
 ValidIntTypes = int
-ValidStrTypes =  Union[str, Email, CSVstr]
+ValidStrTypes =  Union[str, Email, CSVstr, URLstr]
 ValidTypes = Union[ValidStrTypes, ValidIntTypes, bool]
 
 """ Simple wrapper classes for config values of different types """
@@ -203,4 +204,27 @@ class ConfigCSV(ConfigStr):
                     # Split the string by the comma and check if the resulting parts are not empty
                     parts = value.split(',')
                     return all(part.strip() for part in parts)
+        return False
+
+class ConfigURL(ConfigStr):
+    """ A config item that is a string that must be a valid URL """
+    def get_url(self) -> URLstr:
+        return URLstr(self.get_str())
+
+    @classmethod
+    def is_valid_value(cls, value: ValidTypes) -> bool:
+        if isinstance(value, str):
+            if value == '':
+                return True
+            else:
+                regex = compile(
+                    r'^(?:http|ftp)s?://' # http:// or https://
+                    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
+                    r'localhost|' #localhost...
+                    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
+                    r'(?::\d+)?' # optional port
+                    r'(?:/?|[/?]\S+)$', IGNORECASE)
+                
+                # check if the URL matches the regular expression
+                return regex.match(value) is not None
         return False

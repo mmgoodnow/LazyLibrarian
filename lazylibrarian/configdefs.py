@@ -4,16 +4,17 @@
 #    Contain all of the config settings and defaults used across LazyLibrarian
 
 from typing import List, Dict
-from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV
+from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
+from lazylibrarian.configtypes import ConfigCSV, ConfigURL
 
 BASE_DEFAULTS: List[ConfigItem] = [
     # Name      Type   Section   Default
-    ConfigStr('General', 'OL_URL', 'https://www.openlibrary.org'),
-    ConfigStr('General', 'GR_URL', 'https://www.goodreads.com'),
-    ConfigStr('General', 'GB_URL', 'https://www.googleapis.com'),
-    ConfigStr('General', 'LT_URL', 'https://www.librarything.com'),
-    ConfigStr('General', 'CV_URL', 'https://www.comicvine.gamespot.com'),
-    ConfigStr('General', 'CX_URL', 'https://www.comixology.com'),
+    ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
+    ConfigURL('General', 'GR_URL', 'https://www.goodreads.com'),
+    ConfigURL('General', 'GB_URL', 'https://www.googleapis.com'),
+    ConfigURL('General', 'LT_URL', 'https://www.librarything.com'),
+    ConfigURL('General', 'CV_URL', 'https://www.comicvine.gamespot.com'),
+    ConfigURL('General', 'CX_URL', 'https://www.comixology.com'),
     ConfigBool('General', 'SHOW_NEWZ_PROV', 1),
     ConfigBool('General', 'SHOW_TORZ_PROV', 1),
     ConfigBool('General', 'SHOW_TOR_PROV', 1),
@@ -378,7 +379,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('AndroidPN', 'USE_ANDROIDPN', 0),
     ConfigBool('AndroidPN', 'ANDROIDPN_NOTIFY_ONSNATCH', 0),
     ConfigBool('AndroidPN', 'ANDROIDPN_NOTIFY_ONDOWNLOAD', 0),
-    ConfigStr('AndroidPN', 'ANDROIDPN_URL', ''),
+    ConfigURL('AndroidPN', 'ANDROIDPN_URL', ''),
     ConfigStr('AndroidPN', 'ANDROIDPN_USERNAME', ''),
     ConfigBool('AndroidPN', 'ANDROIDPN_BROADCAST', 0),
     ConfigBool('Telegram', 'USE_TELEGRAM', 0),
@@ -400,7 +401,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('Slack', 'SLACK_NOTIFY_ONSNATCH', 0),
     ConfigBool('Slack', 'SLACK_NOTIFY_ONDOWNLOAD', 0),
     ConfigStr('Slack', 'SLACK_TOKEN', ''),
-    ConfigStr('Slack', 'SLACK_URL', "https://hooks.slack.com/services/"),
+    ConfigURL('Slack', 'SLACK_URL', "https://hooks.slack.com/services/"),
     ConfigBool('Custom', 'USE_CUSTOM', 0),
     ConfigBool('Custom', 'CUSTOM_NOTIFY_ONSNATCH', 0),
     ConfigBool('Custom', 'CUSTOM_NOTIFY_ONDOWNLOAD', 0),
@@ -558,7 +559,7 @@ ARRAY_DEFS: Dict[str, List[ConfigItem]] = {
     ConfigStr('APPRISE_%i', 'DISPNAME', 'Apprise'),
     ConfigBool('APPRISE_%i', 'SNATCH', False),
     ConfigBool('APPRISE_%i', 'DOWNLOAD', False),
-    ConfigStr('APPRISE_%i', 'URL', ''),
+    ConfigURL('APPRISE_%i', 'URL', ''),
     ],
 }
 

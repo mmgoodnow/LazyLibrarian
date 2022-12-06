@@ -11,7 +11,7 @@ from configparser import ConfigParser
 from collections import Counter
 
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    Email, CSVstr, ValidStrTypes, ValidTypes
+    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
 from lazylibrarian.configdefs import ARRAY_DEFS
 from lazylibrarian import logger
 
@@ -31,6 +31,7 @@ class LLConfigHandler():
 
         if configfile:
             parser = ConfigParser()
+            parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(configfile)
             for section in parser.sections():
                 if section[-1:].isdigit(): 
@@ -44,13 +45,12 @@ class LLConfigHandler():
             for config_item in defaults:
                 key = config_item.key
                 config[key] = deepcopy(config_item)
-                if index != None and index >= 0:
+                if index != None and index >= 0: # It's an array
                     config[key].section = config[key].section % index
                         
     def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
-            option = option.upper()
             if option in config:
                 config_item = config[option]
                 if not config_item.update_from_parser(parser, option):
@@ -165,6 +165,16 @@ class LLConfigHandler():
         else:
             self.create_str_key(ConfigCSV, key, value)
 
+    """ URL strings """
+    def get_url(self, key: str) -> URLstr:
+        return URLstr(self.get_str(key))
+
+    def set_url(self, key: str, value: URLstr):
+        if key in self.config:
+            self.config[key].set_str(value)
+        else:
+            self.create_str_key(ConfigURL, key, value)
+
     def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
         """ Function for creating new config items on the fly. Should be rare in LL. """    
         if aclass.is_valid_value(value):
@@ -191,7 +201,7 @@ class LLConfigHandler():
             a = value.get_accesses()
             if len(a):
                 if value.section:
-                    result[f"{value.section}.{key}"] = a
+                    result[f"{value.section.upper()}.{key}"] = a
                 else:
                     result[f"{key}"] = a
 

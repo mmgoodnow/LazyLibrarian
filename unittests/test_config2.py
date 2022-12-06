@@ -68,8 +68,28 @@ class Config2Test(LLTestCase):
         expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
         
-        
-    def do_basic_config_ops(self, cfg: config2.LLConfigHandler):
+    def test_ConfigURL(self):
+        cfg = config2.LLConfigHandler()
+        testurl = [
+            ('google', 'https://www.google.com', True),
+            ('ftp', "ftp://ftp.example.com", True),
+            ('localip', "http://192.168.1.1", True),
+            ('invalid_spaces', "not a URL", False),
+            ('invalid_proto', "httpss://www.google.com", False),
+            ('invalid_domain', "http://.com", False),
+        ]
+        for url in testurl:
+            cfg.set_url(url[0], configtypes.URLstr(url[1]))
+
+        for url in testurl:
+            goturl = cfg.get_url(url[0])
+            if url[2]:
+                self.assertEqual(goturl, url[1])
+                self.assertEqual(type(goturl), str)
+            else:
+                self.assertEqual(goturl, '')
+
+    def set_basic_test_values(self, cfg: config2.LLConfigHandler):
         cfg.set_str('somestr', 'abc')
         cfg.set_int('someint', 123)
         cfg.set_int('someint', 45)
@@ -87,7 +107,7 @@ class Config2Test(LLTestCase):
 
     def test_basic_types(self):
         cfg = config2.LLConfigHandler()
-        self.do_basic_config_ops(cfg)
+        self.set_basic_test_values(cfg)
 
         self.assertEqual('abc', cfg.get_str('somestr'))
         self.assertEqual('abc', cfg['somestr'])
@@ -139,7 +159,7 @@ class Config2Test(LLTestCase):
     def test_access_counters(self):
         cfg = config2.LLConfigHandler()
         self.do_csv_ops(cfg)
-        self.do_basic_config_ops(cfg)
+        self.set_basic_test_values(cfg)
 
         # Access some of these items
         self.assertEqual('abc', cfg.get_str('somestr'))
@@ -183,14 +203,14 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile='./unittests/testdata/testconfig-defaults.ini')
         acs = cfg.get_all_accesses()
         expectedacs = {
-            'General.LOGLEVEL': Counter({'write_ok': 1}), 
-            'General.NO_IPV6': Counter({'write_ok': 1}), 
-            'General.EBOOK_DIR': Counter({'write_ok': 1}), 
-            'General.AUDIO_DIR': Counter({'write_ok': 1}), 
-            'General.ALTERNATE_DIR': Counter({'write_ok': 1}), 
-            'General.TESTDATA_DIR': Counter({'write_ok': 1}), 
-            'General.DOWNLOAD_DIR': Counter({'write_ok': 1})
-        }
+            'GENERAL.LOGLEVEL': Counter({'write_ok': 1}), 
+            'GENERAL.NO_IPV6': Counter({'write_ok': 1}), 
+            'GENERAL.EBOOK_DIR': Counter({'write_ok': 1}), 
+            'GENERAL.AUDIO_DIR': Counter({'write_ok': 1}), 
+            'GENERAL.ALTERNATE_DIR': Counter({'write_ok': 1}), 
+            'GENERAL.TESTDATA_DIR': Counter({'write_ok': 1}), 
+            'GENERAL.DOWNLOAD_DIR': Counter({'write_ok': 1})
+         }
         self.do_access_compare(acs, expectedacs, 'Loading ini file did not modify the expected values')
 
     def test_configread_nondefault(self):
@@ -198,47 +218,49 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile='./unittests/testdata/testconfig-nondefault.ini')
         acs = cfg.get_all_accesses()
         expectedacs = {
-            "General.LOGDIR": Counter({'write_ok': 1}),
-            "General.LOGLIMIT": Counter({'write_ok': 1}),
-            "General.LOGFILES": Counter({'write_ok': 1}),
-            "General.LOGSIZE": Counter({'write_ok': 1}),
-            "General.LOGLEVEL": Counter({'write_ok': 1}),
-            "General.MAG_TAB": Counter({'write_ok': 1}),
-            "General.COMIC_TAB": Counter({'write_ok': 1}),
-            "General.AUDIO_TAB": Counter({'write_ok': 1}),
-            "General.API_ENABLED": Counter({'write_ok': 1}),
-            "General.API_KEY": Counter({'write_ok': 1}),
-            "General.IMP_CALIBREDB": Counter({'write_ok': 1}),
-            "General.CALIBRE_USE_SERVER": Counter({'write_ok': 1}),
-            "General.CALIBRE_SERVER": Counter({'write_ok': 1}),
-            "General.IMP_NOSPLIT": Counter({'write_ok': 1}),
-            "Telemetry.SERVER_ID": Counter({'write_ok': 1}),
-            "General.EBOOK_DIR": Counter({'write_ok': 1}),
-            "General.AUDIO_DIR": Counter({'write_ok': 1}),
-            "General.ALTERNATE_DIR": Counter({'write_ok': 1}),
-            "General.TESTDATA_DIR": Counter({'write_ok': 1}),
-            "General.DOWNLOAD_DIR": Counter({'write_ok': 1}),
-            "PostProcess.EBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
-            "PostProcess.AUDIOBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
-            "PostProcess.COMIC_DEST_FOLDER": Counter({'write_ok': 1}),
-            "PostProcess.MAG_DEST_FOLDER": Counter({'write_ok': 1}),
-            "Newznab.0.DISPNAME": Counter({'write_ok': 1}),
-            "Newznab.0.ENABLED": Counter({'write_ok': 1}),
-            "Newznab.0.HOST": Counter({'write_ok': 1}),
-            "Newznab.0.API": Counter({'write_ok': 1}),
-            "Newznab.0.GENERALSEARCH": Counter({'write_ok': 1}),
-            "Newznab.0.BOOKSEARCH": Counter({'write_ok': 1}),
-            "Newznab.0.BOOKCAT": Counter({'write_ok': 1}),
-            "Newznab.0.UPDATED": Counter({'write_ok': 1}),
-            "Newznab.0.DLTYPES": Counter({'write_ok': 1}),
-            "Newznab.1.DISPNAME": Counter({'write_ok': 1}),
-            "Newznab.1.GENERALSEARCH": Counter({'write_ok': 1}),
-            "Newznab.1.BOOKSEARCH": Counter({'write_ok': 1}),
-            "Newznab.1.DLTYPES": Counter({'write_ok': 1}),
-            "Torznab.0.DISPNAME": Counter({'write_ok': 1}),
-            "Torznab.0.GENERALSEARCH": Counter({'write_ok': 1}),
-            "Torznab.0.BOOKSEARCH": Counter({'write_ok': 1}),
-            "Torznab.0.DLTYPES": Counter({'write_ok': 1}),
+            "GENERAL.LOGDIR": Counter({'write_ok': 1}),
+            "GENERAL.LOGLIMIT": Counter({'write_ok': 1}),
+            "GENERAL.LOGFILES": Counter({'write_ok': 1}),
+            "GENERAL.LOGSIZE": Counter({'write_ok': 1}),
+            "GENERAL.LOGLEVEL": Counter({'write_ok': 1}),
+            "GENERAL.MAG_TAB": Counter({'write_ok': 1}),
+            "GENERAL.COMIC_TAB": Counter({'write_ok': 1}),
+            "GENERAL.AUDIO_TAB": Counter({'write_ok': 1}),
+            "GENERAL.API_ENABLED": Counter({'write_ok': 1}),
+            "GENERAL.API_KEY": Counter({'write_ok': 1}),
+            "GENERAL.IMP_CALIBREDB": Counter({'write_ok': 1}),
+            "GENERAL.CALIBRE_USE_SERVER": Counter({'write_ok': 1}),
+            "GENERAL.CALIBRE_SERVER": Counter({'write_ok': 1}),
+            "GENERAL.IMP_NOSPLIT": Counter({'write_ok': 1}),
+            "TELEMETRY.SERVER_ID": Counter({'write_ok': 1}),
+            "GENERAL.EBOOK_DIR": Counter({'write_ok': 1}),
+            "GENERAL.AUDIO_DIR": Counter({'write_ok': 1}),
+            "GENERAL.ALTERNATE_DIR": Counter({'write_ok': 1}),
+            "GENERAL.TESTDATA_DIR": Counter({'write_ok': 1}),
+            "GENERAL.DOWNLOAD_DIR": Counter({'write_ok': 1}),
+            "POSTPROCESS.EBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
+            "POSTPROCESS.AUDIOBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
+            "POSTPROCESS.COMIC_DEST_FOLDER": Counter({'write_ok': 1}),
+            "POSTPROCESS.MAG_DEST_FOLDER": Counter({'write_ok': 1}),
+            "NEWZNAB.0.DISPNAME": Counter({'write_ok': 1}),
+            "NEWZNAB.0.ENABLED": Counter({'write_ok': 1}),
+            "NEWZNAB.0.HOST": Counter({'write_ok': 1}),
+            "NEWZNAB.0.API": Counter({'write_ok': 1}),
+            "NEWZNAB.0.GENERALSEARCH": Counter({'write_ok': 1}),
+            "NEWZNAB.0.BOOKSEARCH": Counter({'write_ok': 1}),
+            "NEWZNAB.0.BOOKCAT": Counter({'write_ok': 1}),
+            "NEWZNAB.0.UPDATED": Counter({'write_ok': 1}),
+            "NEWZNAB.0.APILIMIT": Counter({'write_ok': 1}),
+            "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),            
+            "NEWZNAB.0.DLTYPES": Counter({'write_ok': 1}),
+            "NEWZNAB.1.DISPNAME": Counter({'write_ok': 1}),
+            "NEWZNAB.1.GENERALSEARCH": Counter({'write_ok': 1}),
+            "NEWZNAB.1.BOOKSEARCH": Counter({'write_ok': 1}),
+            "NEWZNAB.1.DLTYPES": Counter({'write_ok': 1}),
+            "TORZNAB.0.DISPNAME": Counter({'write_ok': 1}),
+            "TORZNAB.0.GENERALSEARCH": Counter({'write_ok': 1}),
+            "TORZNAB.0.BOOKSEARCH": Counter({'write_ok': 1}),
+            "TORZNAB.0.DLTYPES": Counter({'write_ok': 1}),
             "RSS_.0.DISPNAME": Counter({'write_ok': 1}),
             "GEN_.0.DISPNAME": Counter({'write_ok': 1}),
             "IRC_.0.DISPNAME": Counter({'write_ok': 1}),
