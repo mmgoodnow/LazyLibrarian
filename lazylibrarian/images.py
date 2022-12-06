@@ -41,28 +41,8 @@ except ImportError:
     BaiduImageCrawler = None
     FlickrImageCrawler = None
 
-try:
-    # noinspection PyProtectedMember
-    from PyPDF3 import PdfFileWriter, PdfFileReader
-except ImportError:
-    try:
-        # noinspection PyProtectedMember
-        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
-    except ImportError:
-        PdfFileWriter = None
-        PdfFileReader = None
-
-# noinspection PyBroadException
-try:
-    # noinspection PyUnresolvedReferences
-    import magic
-except Exception:  # magic might fail for multiple reasons
-    # noinspection PyBroadException
-    try:
-        import lib.magic as magic
-    except Exception:
-        magic = None
-
+from PyPDF3 import PdfFileWriter, PdfFileReader
+import magic
 
 GS = ''
 GS_VER = ''

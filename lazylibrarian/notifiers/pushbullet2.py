@@ -142,22 +142,9 @@ class PushBullet:
         """
 
         if not file_type:
-            # noinspection PyBroadException
-            try:
-                # noinspection PyUnresolvedReferences
-                import magic
-            except Exception:  # magic might fail for multiple reasons
-                # noinspection PyBroadException
-                try:
-                    import lib.magic as magic
-                except Exception:
-                    magic = None
-
-            if magic:
-                file_type = magic.from_buffer(fobj.read(1024))
-                fobj.seek(0)
-            else:
-                file_type = ""
+            import magic
+            file_type = magic.from_buffer(fobj.read(1024))
+            fobj.seek(0)
 
         data = {"file_name": file_name,
                 "file_type": file_type}

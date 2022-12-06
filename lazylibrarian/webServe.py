@@ -69,16 +69,11 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
-
-try:
-    from deluge_client import DelugeRPCClient
-except ImportError:
-    from lib.deluge_client import DelugeRPCClient
-
+from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 
 lastauthor = ''
 lastmagazine = ''

@@ -28,7 +28,7 @@ from lazylibrarian.grsync import grfollow
 from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 from queue import Queue
 
 

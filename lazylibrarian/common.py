@@ -1523,12 +1523,8 @@ def log_header(online=True):
         except ImportError:
             header += "cryptography Extensions: not found\n"
 
-    # noinspection PyBroadException
-    try:
-        import lib.thefuzz as fuzz
-        vers = getattr(fuzz, '__version__', None)
-    except Exception:
-        vers = None
+    import thefuzz as fuzz
+    vers = getattr(fuzz, '__version__', None)
     header += "fuzz: %s\n" % vers if vers else 'not found'
     if vers:
         # noinspection PyBroadException
@@ -1541,30 +1537,17 @@ def log_header(online=True):
             vers = "not found"
         header += "Levenshtein: %s\n" % vers
 
-    # noinspection PyBroadException
+    import magic
+    vers = 'not found'
     try:
-        import magic
-        bundled = False
-    except Exception:
-        # noinspection PyBroadException
-        try:
-            import lib.magic as magic
-            bundled = True
-        except Exception:
-            magic = None
-            bundled = False
-    if magic is None:
+        if hasattr(magic, "magic_version"):
+            vers = magic.magic_version()
+        else:
+            # noinspection PyProtectedMember
+            vers = magic.libmagic._name
+    except AttributeError:
         vers = 'not found'
-    else: 
-        try:
-            if hasattr(magic, "magic_version"):
-                vers = magic.magic_version()
-            else:
-                # noinspection PyProtectedMember
-                vers = magic.libmagic._name
-        except AttributeError:
-            vers = 'not found'
-    header += "%smagic: %s\n" % ('bundled ' if bundled else '', vers)
+    header += "magic: %s\n" % vers
 
     return header
 

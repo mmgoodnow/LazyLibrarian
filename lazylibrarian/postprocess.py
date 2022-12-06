@@ -51,13 +51,8 @@ from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
-
-try:
-    from deluge_client import DelugeRPCClient
-except ImportError:
-    from lib.deluge_client import DelugeRPCClient
-
-from lib.thefuzz import fuzz
+from deluge_client import DelugeRPCClient
+from thefuzz import fuzz
 
 
 def update_downloads(provider):
