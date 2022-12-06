@@ -1,16 +1,16 @@
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools", "ez_setup"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-packages = ["lazylibrarian"]
+[tool.setuptools.packages.find]
+where = ["lazylibrarian"]
 
 [project]
 name = "LazyLibrarian"
 version = "2022.12.05"
 description = "LazyLibrarian is a SickBeard, CouchPotato, Headphones-like application for ebooks, audiobooks and magazines"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.5"
 
 dependencies = [
     'bs4',
