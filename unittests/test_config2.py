@@ -53,20 +53,22 @@ class Config2Test(LLTestCase):
         
     def test_ConfigBool(self):
         ci = configtypes.ConfigBool('Section', 'Key', True)
-        self.assertEqual(ci.get_int(), 0)      # Read Error
+        self.assertEqual(ci.get_int(), 1)      # We can read bools as int
         self.assertEqual(ci.get_str(), 'True')
         self.assertEqual(ci.get_bool(), True)  
+        self.assertEqual(int(ci), 1)           # We can read bools as default int
 
         ci.set_str('Override')                 # Write Error
         self.assertEqual(ci.get_str(), 'True')
 
-        ci.set_int(2)                          # Write Error
-        self.assertEqual(ci.get_int(), 0)      # Read Error
+        ci.set_int(2)                          # ok, writes as True/1
+        self.assertEqual(ci.get_bool(), True)      
+        self.assertEqual(int(ci), 1)      
         ci.set_bool(False)                      
         self.assertEqual(ci.get_bool(), False) 
 
-        expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
-        self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
+        expected = Counter({'read_ok': 8, 'write_ok': 1, 'write_error': 1})
+        self.do_access_compare(ci.accesses, expected, 'Basic Bool Config not working as expected')
         
     def test_ConfigURL(self):
         cfg = config2.LLConfigHandler()

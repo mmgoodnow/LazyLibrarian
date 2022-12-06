@@ -17,9 +17,9 @@ from lazylibrarian import logger
 Email = NewType('Email', str)
 CSVstr = NewType('CSV', str)
 URLstr = NewType('URL', str)
-ValidIntTypes = int
+ValidIntTypes = Union[int, bool]
 ValidStrTypes =  Union[str, Email, CSVstr, URLstr]
-ValidTypes = Union[ValidStrTypes, ValidIntTypes, bool]
+ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
 """ Simple wrapper classes for config values of different types """
 class ConfigItem():
@@ -60,6 +60,9 @@ class ConfigItem():
     def get_int(self) -> int:
         self._on_read(False)
         return 0
+
+    def __int__(self) -> int:  # Make it the default when accessing the object as int
+        return self.get_int()
 
     def set_int(self, value: int) -> bool:
         return False
@@ -125,7 +128,7 @@ class ConfigInt(ConfigItem):
         super().__init__(section, key, default, is_new)
 
     def get_int(self) -> int:
-        if self._on_read(type(self.value) == int):
+        if self._on_read(type(self.value) in [int, bool]):
             return int(self.value)
         else:
             return 0
@@ -152,7 +155,7 @@ class ConfigBool(ConfigInt):
         super().__init__(section, key, default, is_new)
 
     def get_bool(self) -> bool:
-        if self._on_read(type(self.value) == bool):
+        if self._on_read(type(self.value) in [bool, int]): # We're ok with ints
             return bool(self.value)
         else:
             return False
@@ -161,7 +164,7 @@ class ConfigBool(ConfigInt):
         return self._on_set(value)
 
     def set_int(self, value: int) -> bool:
-        return self._on_type_mismatch(value)
+        return self.set_bool(bool(value))
 
     def set_str(self, value: str) -> bool:
         return self._on_type_mismatch(value)
