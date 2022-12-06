@@ -177,8 +177,9 @@ class LLConfigHandler():
 
     def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
         """ Function for creating new config items on the fly. Should be rare in LL. """    
-        if aclass.is_valid_value(value):
-            self.config[key] = aclass('', key, '', is_new=True)
+        new_entry = aclass('', key, '', is_new=True)
+        if new_entry.is_valid_value(value):
+            self.config[key] = new_entry
             self.config[key].set_str(value)
         else:
             self._handle_access_error(key, 'format_error')

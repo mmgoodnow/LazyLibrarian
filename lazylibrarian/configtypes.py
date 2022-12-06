@@ -34,9 +34,12 @@ class ConfigItem():
         self.section = section
         self.key = key
         self.default = default
-        self.value = default
         self.accesses = Counter()
         self.is_new = is_new
+        if self.is_valid_value(default):
+            self.value = default
+        else:
+            raise RuntimeError(f'Cannot initialize {section}.{key} as {default}')
 
     def get_default(self) -> ValidTypes:
         return self.default
@@ -74,8 +77,7 @@ class ConfigItem():
     def set_bool(self, value: bool) -> bool:
         return False
 
-    @classmethod
-    def is_valid_value(cls, value: ValidTypes) -> bool:
+    def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
     def _on_read(self, ok: bool) -> bool:
@@ -149,6 +151,17 @@ class ConfigInt(ConfigItem):
             value = 0
         return self.set_int(value)
 
+class ConfigRangedInt(ConfigInt):
+    """ An int config item that must be in a particular range """
+    def __init__(self, section: str, key: str, default: int, 
+        range_min: int, range_max: int, is_new: bool=False):
+        self.range_min = range_min
+        self.range_max = range_max
+        super().__init__(section, key, default, is_new)
+
+    def is_valid_value(self, value: ValidTypes) -> bool:
+        return int(value) >= self.range_min and int(value) <= self.range_max
+        
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
     def __init__(self, section: str, key: str, default: bool|int, is_new: bool=False):
@@ -177,33 +190,34 @@ class ConfigEmail(ConfigStr):
     def get_email(self) -> Email:
         return Email(self.get_str())
 
-    @classmethod
-    def is_valid_value(cls, value: ValidTypes) -> bool:
+    def is_valid_value(self, value: ValidTypes) -> bool:
         value = str(value)
-        # Regular expression pattern to match email addresses
-        pattern = r"^[\w.-]+@[\w.-]+\.[\w]+$"
+        if value == '':
+            return True
+        else:
+            # Regular expression pattern to match email addresses
+            pattern = r"^[\w.-]+@[\w.-]+\.[\w]+$"
 
-        # Check if email matches pattern
-        if match(pattern, value):
-            # Check if local part of email is not too long
-            if len(value.split("@")[0]) <= 64:
-                # Check if domain name of email is not too long
-                return len(value.split("@")[1]) <= 255
-        return False
+            # Check if email matches pattern
+            if match(pattern, value):
+                # Check if local part of email is not too long
+                if len(value.split("@")[0]) <= 64:
+                    # Check if domain name of email is not too long
+                    return len(value.split("@")[1]) <= 255
+            return False
 
 class ConfigCSV(ConfigStr):
     """ A config item that is a string that must be a valid CSV """
     def get_csv(self) -> CSVstr:
         return CSVstr(self.get_str())
 
-    @classmethod
-    def is_valid_value(cls, value: ValidTypes) -> bool:
+    def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
             if value == '':
                 return True
             else:
-                # Check if the string only contains alphanumeric characters, commas, and spaces
-                if all(c.isalnum() or c == ',' or c == ' ' for c in value):
+                # Check if the string only contains alphanumeric characters, and select symbols
+                if all(c.isalnum() or c in ', !-+#' for c in value):
                     # Split the string by the comma and check if the resulting parts are not empty
                     parts = value.split(',')
                     return all(part.strip() for part in parts)
@@ -214,8 +228,7 @@ class ConfigURL(ConfigStr):
     def get_url(self) -> URLstr:
         return URLstr(self.get_str())
 
-    @classmethod
-    def is_valid_value(cls, value: ValidTypes) -> bool:
+    def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
             if value == '':
                 return True

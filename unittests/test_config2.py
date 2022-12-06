@@ -18,7 +18,7 @@ class Config2Test(LLTestCase):
         return super().setUpClass()
 
     def test_ConfigStr(self):
-        ci = configtypes.ConfigStr('Section', 'Key', 'Default')
+        ci = configtypes.ConfigStr('Section', 'StrValue', 'Default')
         self.assertEqual(ci.get_str(), 'Default')
         self.assertEqual(str(ci), 'Default')
 
@@ -34,7 +34,7 @@ class Config2Test(LLTestCase):
         self.do_access_compare(ci.accesses, expected, 'Basic String Config not working as expected')
         
     def test_ConfigInt(self):
-        ci = configtypes.ConfigInt('Section', 'Key', 42)
+        ci = configtypes.ConfigInt('Section', 'IntValue', 42)
         self.assertEqual(ci.get_int(), 42)
         self.assertEqual(ci.get_str(), '42')
         self.assertEqual(ci.get_bool(), False) # Read Error
@@ -51,8 +51,24 @@ class Config2Test(LLTestCase):
         expected = Counter({'read_ok': 5, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
         
+    def test_ConfigRangedInt(self):
+        ci = configtypes.ConfigRangedInt('Section', 'RangedIntValue', 42, 10, 1000)
+        self.assertEqual(int(ci), 42)
+
+        ci.set_int(5)                          # Write Error
+        self.assertEqual(int(ci), 42)
+
+        ci.set_int(1100)                       # Write Error
+        self.assertEqual(int(ci), 42)
+
+        ci.set_int(100)                       
+        self.assertEqual(int(ci), 100)
+
+        expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2})
+        self.do_access_compare(ci.accesses, expected, 'Ranged Int Config not working as expected')
+        
     def test_ConfigBool(self):
-        ci = configtypes.ConfigBool('Section', 'Key', True)
+        ci = configtypes.ConfigBool('Section', 'BoolValue', True)
         self.assertEqual(ci.get_int(), 1)      # We can read bools as int
         self.assertEqual(ci.get_str(), 'True')
         self.assertEqual(ci.get_bool(), True)  
