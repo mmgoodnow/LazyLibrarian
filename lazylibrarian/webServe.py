@@ -5846,10 +5846,13 @@ class WebInterface(object):
         # show the available notifiers
         apprise_list = lazylibrarian.notifiers.apprise_notify.AppriseNotifier.notify_types()
         result = ''
+        results = []
         try:
             for entry in apprise_list:
                 if isinstance(entry, str):
-                    result = result + entry + '\n'
+                    results.append(entry)
+            results.sort(key=str.casefold)
+            result = "\n".join(results)
         except Exception as e:
             logger.debug(str(e))
         return result
