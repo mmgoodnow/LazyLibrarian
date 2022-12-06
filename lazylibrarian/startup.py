@@ -27,6 +27,7 @@ import signal
 import traceback
 import tarfile
 import cherrypy
+import urllib3
 import requests
 
 from shutil import rmtree
@@ -41,7 +42,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 
 
-def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
+def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
         lazylibrarian.FULL_PATH = os.path.abspath(sys.executable)
@@ -88,6 +89,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     p.add_option('--port',
                  dest='port', default=None,
                  help="Force webinterface to listen on this port")
+    p.add_option('--noipv6',
+                 dest='noipv6', default=None,
+                 help="Do not attempt to use IPv6")
     p.add_option('--datadir',
                  dest='datadir', default=None,
                  help="Path to the data directory")
@@ -113,6 +117,10 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
     if options.quiet:
         lazylibrarian.LOGLEVEL = 0
 
+    if options.noipv6:
+        # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
+        urllib3.util.connection.HAS_IPV6 = False
+    
     if options.daemon:
         if os.name != 'nt':
             lazylibrarian.DAEMON = True
@@ -185,7 +193,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
         except ValueError:
             lazylibrarian.LOGLEVEL = 2
 
-    if options.config:
+    if config_override:
+        lazylibrarian.CONFIGFILE = config_override
+    elif options.config:
         lazylibrarian.CONFIGFILE = str(options.config)
     else:
         lazylibrarian.CONFIGFILE = os.path.join(lazylibrarian.DATADIR, "config.ini")
@@ -194,7 +204,8 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4):
         if lazylibrarian.DAEMON:
             lazylibrarian.PIDFILE = str(options.pidfile)
 
-    print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
+    if not config_override:
+        print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
     time.sleep(seconds_to_sleep)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
 
     icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
@@ -216,7 +227,7 @@ def init_logs():
         item_type, section, default = config.CONFIG_DEFINITIONS[key]
         lazylibrarian.CONFIG[key.upper()] = config.check_setting(item_type, section, key.lower(), default, log=False)
 
-    if not lazylibrarian.CONFIG['LOGDIR']:
+    if not lazylibrarian.CONFIG['LOGDIR'] or lazylibrarian.CONFIG['LOGDIR'][0] == '.':
         lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
 
     # Create logdir
@@ -255,6 +266,9 @@ def init_config():
     config.config_read()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
+    if lazylibrarian.CONFIG['NO_IPV6']:        
+        # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
+        urllib3.util.connection.HAS_IPV6 = False
 
 def init_caches():
     # override detected encoding if required
@@ -742,7 +756,8 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         state = str(cherrypy.engine.state)
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
-    # config_write() don't automatically rewrite config on exit
+    if not testing:
+        config.config_write() 
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())

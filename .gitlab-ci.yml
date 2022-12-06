@@ -1,27 +1,64 @@
-image: python:latest
+default:
+  image: python:latest
+
+  cache:
+    paths:
+      - .cache/pip
+      - venv/
+
+  before_script:
+    - python --version  # For debugging
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+
+stages:
+  - test
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-# Pip's cache doesn't store the python packages
-# https://pip.pypa.io/en/stable/topics/caching/
-cache:
-  paths:
-    - .cache/pip
-    - venv/
 
-before_script:
-  - python --version  # For debugging
-  - pip install virtualenv
-  - virtualenv venv
-  - source venv/bin/activate
-
-test:
+unittest_allmodules:
+  stage: test
   script:
-    - python -m pip install urllib3 charset_normalizer certifi idna Levenshtein requests pyopenssl apprise pytest
-    - pytest --junitxml=lltest.xml unittests 
-    #- python -m unittest discover -s unittests/
+    # Minimal modules
+    - python -m pip install charset_normalizer certifi idna
+    # Optional modules
+    - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
+    # Testing modules
+    - python -m pip install pytest mock pytest_order pytest-cov coverage
+    # Run the test, including code coverage
+    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
+    - coverage report
+    - coverage xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
   artifacts:
     when: always
     reports:
        junit: lltest.xml
+       coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+unittest_minimalmodules:
+  stage: test
+  script:
+    # Minimal modules
+    - python -m pip install charset_normalizer certifi idna
+    # Remove optional modules if they are there
+    - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
+    # Testing modules
+    - python -m pip install pytest mock pytest_order
+    # Run the test, including code coverage
+    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
+    - coverage report
+    - coverage xml
+  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+  artifacts:
+    when: always
+    reports:
+       junit: lltest.xml
+       coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml

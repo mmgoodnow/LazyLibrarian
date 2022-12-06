@@ -484,6 +484,16 @@ def check_db(upgradelog=None):
             for author in authors:
                 db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
 
+        # remove authors that started initializing, but failed to get added fully
+        lazylibrarian.UPDATE_MSG = 'Removing partially initialized authors'
+        authors = db.select('SELECT AuthorID FROM authors WHERE AuthorName LIKE "unknown author %"')
+        if authors:
+            cnt += len(authors)
+            msg = 'Removing %s %s partially initialized authors' % (len(authors), plural(len(authors), "author"))
+            logger.warn(msg)
+            for author in authors:
+                db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+
         # remove magazines with no name
         lazylibrarian.UPDATE_MSG = 'Removing magazines with no name'
         mags = db.select('SELECT Title FROM magazines WHERE Title IS NULL or Title = ""')

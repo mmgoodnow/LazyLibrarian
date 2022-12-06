@@ -691,18 +691,30 @@ class Api(object):
 
     def _memuse(self):
         """ Current Memory usage in kB """
-        with open('/proc/self/status') as f:
-            memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
-        self.data = memusage.strip()
+        if os.name == 'nt':
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+        else:
+            with open('/proc/self/status') as f:
+                memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
+            self.data = memusage.strip()
 
     def _cpuuse(self):
-        self.data = cpu_use()
+        if os.name == 'nt':
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+        else:
+            self.data = cpu_use()
 
     def _nice(self):
-        self.data = os.nice(0)
+        if os.name == 'nt':
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+        else:
+            self.data = os.nice(0)
 
     def _nicer(self):
-        self.data = os.nice(1)
+        if os.name == 'nt':
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+        else:
+            self.data = os.nice(1)
 
     @staticmethod
     def _gc_init():

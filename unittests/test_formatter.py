@@ -3,7 +3,6 @@
 # Purpose:
 #   Test functions in formatter.py
 
-import unittest
 import unittesthelpers
 
 import lazylibrarian
@@ -11,27 +10,8 @@ from lazylibrarian import startup, formatter
 import datetime
 
 
-class FormatterTest(unittest.TestCase):
+class FormatterTest(unittesthelpers.LLTestCase):
     # Initialisation code that needs to run only once
-    @classmethod
-    def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        startup.init_logs()
-        startup.init_config()
-        # startup.init_caches()
-        # startup.init_database()
-        # startup.init_build_debug_header(online = False)
-        startup.init_build_lists()
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        # unittesthelpers.removetestDB()
-        # unittesthelpers.removetestCache()
-        unittesthelpers.clearGlobals()
-        return super().tearDownClass()
 
     def test_sanitize(self):
         import unicodedata
@@ -462,11 +442,11 @@ class FormatterTest(unittest.TestCase):
         lists = [
             # Standard separations
             ("A few items, and some more", None, ["A", "few", "items", "and", "some", "more"]),
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # Separate just on comma
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
             # Tricky: Tell it to separate on comma and space, and it separates on the default
-            ("C:\Program Files\Test\Some File.jpg,D:\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # The empy list
             ("", ' ', []),
             (" ,   ", '', []),
@@ -488,46 +468,48 @@ class FormatterTest(unittest.TestCase):
     def test_surname_first(self):
         testnames = [
             # Passing through case
-            ("Allan Mertner", "Mertner, Allan"),
-            ("Allan & Mamta Mertner", "Mertner, Allan & Mamta"),
-            ("ALLAN MERTNER", "MERTNER, ALLAN"),
-            ("allan mertner", "mertner, allan"),
-            ("aLLaN mErtNer", "mErtNer, aLLaN"),
+            ("Allan Pedersen", "Pedersen, Allan"),
+            ("Allan & Mamta Pedersen", "Pedersen, Allan & Mamta"),
+            ("ALLAN SMITH", "SMITH, ALLAN"),
+            ("allan bmythe-banks", "bmythe-banks, allan"),
+            ("aLLaN apPlEBy", "apPlEBy, aLLaN"),
             # Testing with initials, with or without .
-            ("A Mertner", "Mertner, A"),
-            ("A. Mertner", "Mertner, A."),
+            ("A Pedersen", "Pedersen, A"),
+            ("A. Pedersen", "Pedersen, A."),
             # Testing with middle names
-            ("Allan Douglas Mertner", "Mertner, Allan Douglas"),
+            ("Allan Douglas Pedersen", "Pedersen, Allan Douglas"),
             # It doesn't reverse strings already in order
-            ("Mertner, Allan", "Allan, Mertner"),
-            ("MERTNER, Allan", "Allan, MERTNER"),
+            ("Pedersen, Allan", "Allan, Pedersen"),
+            ("SMITH, Allan", "Allan, SMITH"),
             # Test with postfixes
-            ("Allan Mertner, Jr.", "Mertner Jr., Allan"),
-            ("Allan Mertner JNR", "Mertner JNR, Allan"),
-            ("Allan Mertner, PhD", "Mertner PhD, Allan"),
-            ("Allan Testing Mertner Snr", "Mertner Snr, Allan Testing"),
+            ("Allan Pedersen, Jr.", "Pedersen Jr., Allan"),
+            ("Allan Pedersen JNR", "Pedersen JNR, Allan"),
+            ("Allan Pedersen, PhD", "Pedersen PhD, Allan"),
+            ("Allan Testing Pedersen Snr", "Pedersen Snr, Allan Testing"),
         ]
         for name in testnames:
-            self.assertEqual(formatter.surname_first(name[0]), name[1])
+            authorname = formatter.surname_first(name[0])
+            self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_format_author_name(self):
         testnames = [
-            ("Allan Mertner", "Allan Mertner"),
-            ("Allan & Mamta Mertner", "Allan"),
-            ("Mertner, Allan", "Allan Mertner"),
-            ("MERTNER, Allan", "Allan MERTNER"),
-            ("ALLAN MERTNER", "Allan Mertner"),
-            ("allan mertner", "Allan Mertner"),
-            ("aLLaN mErtNer", "aLLaN mErtNer"),
-            ("A Mertner", "A. Mertner"),
-            ("A. Mertner", "A. Mertner"),
+            ("Allan Pedersen", "Allan Pedersen"),
+            ("Allan & Mamta Pedersen", "Allan"),
+            ("Pedersen, Allan", "Allan Pedersen"),
+            ("SMITH, Allan", "Allan SMITH"),
+            ("ALLAN SMITH", "Allan Smith"),
+            ("allan smythe-banks", "Allan Smythe-Banks"),
+            ("aLLaN apPlEBy", "aLLaN apPlEBy"),
+            ("A Pedersen", "A. Pedersen"),
+            ("A. Pedersen", "A. Pedersen"),
             # With suffix
-            ("Allan Mertner, Jr.", "Allan Mertner Jr."),
-            ("Allan Mertner PhD", "Allan Mertner PhD"),
-            ("Allan Mertner, General", "General Allan Mertner"),
+            ("Allan Pedersen, Jr.", "Allan Pedersen Jr."),
+            ("Allan Pedersen PhD", "Allan Pedersen PhD"),
+            ("Allan Pedersen, General", "General Allan Pedersen"),
         ]
-        for names in testnames:
-            self.assertEqual(formatter.format_author_name(names[0]), names[1])
+        for name in testnames:
+            authorname = formatter.format_author_name(name[0])
+            self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_no_umlauts(self):
         teststrings = [

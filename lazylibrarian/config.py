@@ -32,7 +32,7 @@ CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDAT
               'GIT_HOST', 'COMMITS_BEHIND', 'INSTALL_TYPE', 'AUTO_UPDATE']
 
 CONFIG_NONWEB = ['BLOCKLIST_TIMER', 'DISPLAYLENGTH', 'ISBN_LOOKUP', 'WALL_COLUMNS', 'HTTP_TIMEOUT',
-                 'PROXY_LOCAL', 'SKIPPED_EXT', 'CHERRYPYLOG', 'SYS_ENCODING', 'HIST_REFRESH',
+                 'PROXY_LOCAL', 'SKIPPED_EXT', 'SYS_ENCODING', 'HIST_REFRESH',
                  'HTTP_EXT_TIMEOUT', 'CALIBRE_RENAME', 'NAME_RATIO', 'NAME_PARTIAL', 'NAME_PARTNAME',
                  'PREF_UNRARLIB', 'SEARCH_RATELIMIT', 'EMAIL_LIMIT', 'BOK_LOGIN',
                  'DELUGE_TIMEOUT', 'OL_URL', 'GR_URL', 'GB_URL', 'LT_URL', 'CV_URL', 'CX_URL']
@@ -91,7 +91,8 @@ CONFIG_DEFINITIONS = {
     'HTTPS_CERT': ('str', 'General', ''),
     'HTTPS_KEY': ('str', 'General', ''),
     'SSL_CERTS': ('str', 'General', ''),
-    'SSL_VERIFY': ('bool', 'General', 0),
+    'SSL_VERIFY': ('bool', 'General', 1),
+    'NO_IPV6': ('bool', 'General', 0),
     'HTTP_TIMEOUT': ('int', 'General', 30),
     'HTTP_EXT_TIMEOUT': ('int', 'General', 90),
     'BOOKSTRAP_THEME': ('str', 'General', 'slate'),
@@ -167,6 +168,7 @@ CONFIG_DEFINITIONS = {
     'WISHLIST_GENRES': ('bool', 'General', 1),
     'NOTIFY_WITH_TITLE': ('bool', 'General', 0),
     'NOTIFY_WITH_URL': ('bool', 'General', 0),
+    'SERVER_ID': ('str', 'Telemetry', ''),
     'GIT_HOST': ('str', 'Git', 'gitlab.com'),
     'GIT_USER': ('str', 'Git', 'LazyLibrarian'),
     'GIT_REPO': ('str', 'Git', 'lazylibrarian'),
@@ -187,11 +189,11 @@ CONFIG_DEFINITIONS = {
     'SAB_DELETE': ('bool', 'SABnzbd', 1),
     'SAB_EXTERNAL_HOST': ('str', 'SABnzbd', ''),
     'NZBGET_HOST': ('str', 'NZBGet', ''),
-    'NZBGET_PORT': ('int', 'NZBGet', '0'),
+    'NZBGET_PORT': ('int', 'NZBGet', 0),
     'NZBGET_USER': ('str', 'NZBGet', ''),
     'NZBGET_PASS': ('str', 'NZBGet', ''),
     'NZBGET_CATEGORY': ('str', 'NZBGet', ''),
-    'NZBGET_PRIORITY': ('int', 'NZBGet', '0'),
+    'NZBGET_PRIORITY': ('int', 'NZBGet', 0),
     'DESTINATION_COPY': ('bool', 'General', 0),
     'EBOOK_DIR': ('str', 'General', ''),
     'AUDIO_DIR': ('str', 'General', ''),
@@ -330,14 +332,14 @@ CONFIG_DEFINITIONS = {
     'REJECT_MAXCOMIC': ('int', 'General', 0),
     'REJECT_MINCOMIC': ('int', 'General', 0),
     'MAG_AGE': ('int', 'General', 31),
-    'SEARCH_BOOKINTERVAL': ('int', 'SearchScan', '360'),
-    'SEARCH_MAGINTERVAL': ('int', 'SearchScan', '360'),
-    'SCAN_INTERVAL': ('int', 'SearchScan', '10'),
-    'SEARCHRSS_INTERVAL': ('int', 'SearchScan', '20'),
-    'WISHLIST_INTERVAL': ('int', 'SearchScan', '24'),
-    'SEARCH_COMICINTERVAL': ('int', 'SearchScan', '24'),
-    'VERSIONCHECK_INTERVAL': ('int', 'SearchScan', '24'),
-    'GOODREADS_INTERVAL': ('int', 'SearchScan', '48'),
+    'SEARCH_BOOKINTERVAL': ('int', 'SearchScan', 360),
+    'SEARCH_MAGINTERVAL': ('int', 'SearchScan', 360),
+    'SCAN_INTERVAL': ('int', 'SearchScan', 10),
+    'SEARCHRSS_INTERVAL': ('int', 'SearchScan', 20),
+    'WISHLIST_INTERVAL': ('int', 'SearchScan', 24),
+    'SEARCH_COMICINTERVAL': ('int', 'SearchScan', 24),
+    'VERSIONCHECK_INTERVAL': ('int', 'SearchScan', 24),
+    'GOODREADS_INTERVAL': ('int', 'SearchScan', 48),
     'DELAYSEARCH': ('bool', 'SearchScan', 0),
     'SEARCH_RATELIMIT': ('int', 'SearchScan', 0),
     'FULL_SCAN': ('bool', 'LibraryScan', 0),
@@ -579,11 +581,55 @@ def check_setting(cfg_type, cfg_name, item_name, def_val, log=True):
 
     return my_val
 
+class LLConfigParser(configparser.RawConfigParser):
+
+    def _is_modified(self, section, key, value):
+        if key.upper() in CONFIG_DEFINITIONS.keys():
+            dtype, dsection, default = CONFIG_DEFINITIONS[key.upper()]
+            if dsection != section:
+                return True
+
+            if dtype == 'int':
+                try:
+                    # Some of these are represented as '1', so convert first
+                    default = int(default)
+                    return value != default
+                except:
+                    pass
+
+            return value != '' and value != default
+        else:
+            # Don't store empty values
+            return value != '' 
+
+    # Override _write_section, to not write non-default values
+    def _write_section(self, fp, section_name, section_items, delimiter):
+        """Write a single section to the specified `fp'."""
+        towrite = []
+        for key, value in section_items:
+            value = self._interpolation.before_write(self, section_name, key,
+                                                     value)
+            if self._is_modified(section_name, key, value):
+                if value is not None or not self._allow_no_value:
+                    value = delimiter + str(value).replace('\n', '\n\t')
+                else:
+                    value = ""
+
+                towrite.append((key, value))
+
+        if len(towrite):
+            # Only write the section if anything is non-default
+            fp.write("[{}]\n".format(section_name))
+            for key, value in towrite:
+                fp.write(f"{key}{value}\n")
+            fp.write("\n")
+
+
 def readConfigFile():
     """
     Read the config.ini file, but do not yet process it - that happens in config_read
     """
-    lazylibrarian.CFG = configparser.RawConfigParser()
+    lazylibrarian.CFG = LLConfigParser()
     lazylibrarian.CFG.read(lazylibrarian.CONFIGFILE)
 
 
