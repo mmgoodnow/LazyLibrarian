@@ -1,6 +1,6 @@
 import threading
 
-from six.moves import queue
+import queue
 
 from icrawler import Crawler, Parser, UrlListFeeder, ImageDownloader
 

@@ -18,14 +18,10 @@ import random
 import string
 import time
 
-# noinspection PyUnresolvedReferences
-from six.moves import http_cookiejar
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_error import URLError
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_request import HTTPCookieProcessor, build_opener, Request
+from http.cookiejar import CookieJar
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import HTTPCookieProcessor, build_opener, Request
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -59,7 +55,7 @@ class QbittorrentClient(object):
         self.base_url = host
         self.username = lazylibrarian.CONFIG['QBITTORRENT_USER']
         self.password = lazylibrarian.CONFIG['QBITTORRENT_PASS']
-        self.cookiejar = http_cookiejar.CookieJar()
+        self.cookiejar = CookieJar()
         self.opener = self._make_opener()
         self.cmdset = 0
         self._get_sid(self.base_url, self.username, self.password)

@@ -14,19 +14,15 @@
 import json
 import re
 import time
-# noinspection PyUnresolvedReferences
-from six.moves import http_cookiejar
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urljoin, urlencode
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
+from http.cookiejar import CookieJar
+from urllib.parse import urljoin, urlencode
+from urllib.request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
     build_opener, install_opener, Request
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import check_int, get_list
-from six import PY2
 
 
 class UtorrentClient(object):
@@ -60,7 +56,7 @@ class UtorrentClient(object):
         self.password = lazylibrarian.CONFIG['UTORRENT_PASS']
         self.opener = self._make_opener('uTorrent', self.base_url, self.username, self.password)
         self.token = self._get_token()
-        if not PY2 and self.token is not None:
+        if self.token is not None:
             self.token = self.token.decode('utf-8')
         # TODO refresh token, when necessary
 
@@ -72,7 +68,7 @@ class UtorrentClient(object):
         opener = build_opener(auth)
         install_opener(opener)
 
-        cookie_jar = http_cookiejar.CookieJar()
+        cookie_jar = CookieJar()
         cookie_handler = HTTPCookieProcessor(cookie_jar)
 
         handlers = [auth, cookie_handler]
@@ -197,10 +193,7 @@ class UtorrentClient(object):
         request.add_header('User-Agent', get_user_agent())
 
         if body:
-            if PY2:
-                request.add_data(body)
-            else:
-                request.data(body)
+            request.data(body)
             request.add_header('Content-length', len(body))
         if content_type:
             request.add_header('Content-type', content_type)

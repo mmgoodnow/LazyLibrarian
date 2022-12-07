@@ -3,39 +3,20 @@
 # Purpose:
 #   Testing the startup sequence
 
-import unittest
 import unittesthelpers
-
 import lazylibrarian
-from lazylibrarian import startup
 
-
-class SetupTest(unittest.TestCase):
+class SetupTest(unittesthelpers.LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        startup.init_logs()
-        startup.init_config()
-        startup.init_caches()
-        startup.init_database()
-        startup.init_build_debug_header(online = False)
-        startup.init_build_lists()
+        super().setDoAll(True)
         return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.removetestDB()
-        unittesthelpers.removetestCache()
-        unittesthelpers.clearGlobals()
-        return super().tearDownClass()
 
     def testConfig(self):
         # Validate that basic global objects and configs have run
-        self.assertIsInstance(lazylibrarian.LOGLEVEL, int)
+        self.assertEqual(lazylibrarian.LOGLEVEL, 0)
         self.assertIsNotNone(lazylibrarian.CONFIG)
         self.assertIsInstance(lazylibrarian.CONFIG['LOGLIMIT'], int)
 
@@ -50,9 +31,9 @@ class SetupTest(unittest.TestCase):
     # They should probably move somewhere else at some point.
     def test_directory(self):
         # Test the directory() function
-        # The directories should all have values from unittest/config.ini, and differ from the default
+        # The directories should all have values from unittest/testdata/config-defaults.ini, and differ from the default
         bookdir = lazylibrarian.directory("eBook")
-        self.assertNotEqual(bookdir, lazylibrarian.DATADIR)
+        self.assertNotEqual(bookdir, lazylibrarian.DATADIR, "BookDir and Datadir cannot be the same")
         self.assertEndsWith(bookdir, "eBooks")
 
         audiobookdir = lazylibrarian.directory("AudioBook")

@@ -28,9 +28,7 @@ from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
 from lazylibrarian.common import mime_type, zip_audio, path_isfile, any_file, listdir
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
-from six import text_type, string_types
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus
+from urllib.parse import quote_plus
 
 searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'EAuthor', 'AAuthor', 'RecentBooks',
               'RecentAudio', 'RecentMags', 'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks',
@@ -123,7 +121,7 @@ class OPDS(object):
                 if self.filepath and self.filename:
                     logger.debug('Downloading %s: %s' % (self.filename, self.filepath))
                     return serve_file(self.filepath, mime_type(self.filename), 'attachment', name=self.filename)
-                if isinstance(self.data, string_types):
+                if isinstance(self.data, str):
                     return self.data
                 else:
                     cherrypy.response.headers['Content-Type'] = "text/xml"
@@ -140,7 +138,7 @@ class OPDS(object):
         types = []
         multi = ''
         basename, _ = os.path.splitext(bookfile)
-        if not isinstance(basename, text_type):
+        if not isinstance(basename, str):
             basename = basename.decode('utf-8')
         for item in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
             target = basename + '.' + item

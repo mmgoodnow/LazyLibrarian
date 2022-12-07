@@ -150,7 +150,7 @@ def has_column(db, table, column):
     return any(item[1] == column for item in columns)
 
 
-def dbupgrade(current_version):
+def db_upgrade(current_version):
     with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:
@@ -480,6 +480,16 @@ def check_db(upgradelog=None):
         if authors:
             cnt += len(authors)
             msg = 'Removing %s %s with no name' % (len(authors), plural(len(authors), "author"))
+            logger.warn(msg)
+            for author in authors:
+                db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
+
+        # remove authors that started initializing, but failed to get added fully
+        lazylibrarian.UPDATE_MSG = 'Removing partially initialized authors'
+        authors = db.select('SELECT AuthorID FROM authors WHERE AuthorName LIKE "unknown author %"')
+        if authors:
+            cnt += len(authors)
+            msg = 'Removing %s %s partially initialized authors' % (len(authors), plural(len(authors), "author"))
             logger.warn(msg)
             for author in authors:
                 db.action('DELETE from authors WHERE AuthorID=?', (author["AuthorID"],))
@@ -925,7 +935,7 @@ def db_v59(db, upgradelog):
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
             lazylibrarian.CONFIG[item] = seeders
     lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
-    lazylibrarian.config_write()
+    lazylibrarian.config.config_write()
     upgradelog.write("%s v59: complete\n" % time.ctime())
 
 

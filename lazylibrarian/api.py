@@ -17,10 +17,9 @@ import shutil
 import sys
 import threading
 
-# noinspection PyUnresolvedReferences
-from six.moves import configparser, queue
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlsplit, urlunsplit
+import configparser
+from queue import Queue
+from urllib.parse import urlsplit, urlunsplit
 
 import cherrypy
 import lazylibrarian
@@ -56,7 +55,6 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
-from six import PY2, string_types
 
 cmd_dict = {'help': 'list available commands. ' +
                     'Time consuming commands take an optional &wait parameter if you want to wait for completion, ' +
@@ -290,7 +288,7 @@ class Api(object):
             if 'callback' not in self.kwargs:
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
                     logger.debug(str(self.data))
-                if isinstance(self.data, string_types):
+                if isinstance(self.data, str):
                     return self.data
                 else:
                     return json.dumps(self.data)
@@ -300,7 +298,7 @@ class Api(object):
                 self.data = self.callback + '(' + self.data + ');'
                 return self.data
 
-        elif isinstance(self.data, string_types):
+        elif isinstance(self.data, str):
             return self.data
         return json.dumps(self.data)
 
@@ -492,7 +490,7 @@ class Api(object):
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
-                lazylibrarian.config_write(section)
+                lazylibrarian.config.config_write(section)
                 self.data = {'Success': True, 'Data': 'Deleted %s' % name,
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 return
@@ -538,7 +536,7 @@ class Api(object):
                     lazylibrarian.CONFIG[name] = val
                 else:
                     miss.append(arg)
-            lazylibrarian.config_write(name)
+            lazylibrarian.config.config_write(name)
             self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
                          'Error':  {'Code': 200, 'Message': 'OK'}}
             if miss:
@@ -589,7 +587,7 @@ class Api(object):
                         providers[-1]['AUDIOCAT'] = audiocat
                     else:
                         miss.append(arg)
-                lazylibrarian.config_write(item['NAME'])
+                lazylibrarian.config.config_write(item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
@@ -684,7 +682,7 @@ class Api(object):
                 providers[-1][arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
-        lazylibrarian.config_write(section)
+        lazylibrarian.config.config_write(section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
         if miss:
@@ -1672,17 +1670,17 @@ class Api(object):
         authorname = format_author_name(kwargs['name'])
         if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
             gb = GoogleBooks(authorname)
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[authorname, myqueue])
             search_api.start()
         elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             gr = GoodReads(authorname)
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
             ol = OpenLibrary(authorname)
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[authorname, myqueue])
             search_api.start()
 
@@ -1696,17 +1694,17 @@ class Api(object):
 
         if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
             gb = GoogleBooks(kwargs['name'])
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
         elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
             gr = GoodReads(kwargs['name'])
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
         else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
-            myqueue = queue.Queue()
+            myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
 
@@ -1927,11 +1925,7 @@ class Api(object):
         try:
             self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
             lazylibrarian.CFG.set(kwargs['group'], kwargs['name'], kwargs['value'])
-            if PY2:
-                fmode = 'wb'
-            else:
-                fmode = 'w'
-            with open(syspath(lazylibrarian.CONFIGFILE), fmode) as configfile:
+            with open(syspath(lazylibrarian.CONFIGFILE), "w") as configfile:
                 lazylibrarian.CFG.write(configfile)
             lazylibrarian.config_read(reloaded=True)
         except Exception as e:

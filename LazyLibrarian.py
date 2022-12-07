@@ -22,10 +22,9 @@ import sys
 import time
 
 import lazylibrarian
-from lazylibrarian import startup, webStart, logger, dbupgrade, notifiers
+from lazylibrarian import startup, webStart, logger, notifiers
 from lazylibrarian.formatter import thread_name
-# noinspection PyUnresolvedReferences
-from six.moves import configparser
+import configparser
 
 
 # The following should probably be made configurable at the settings level
@@ -42,7 +41,10 @@ if opt_out_of_certificate_verification:
 
 # ==== end block (should be configurable at settings level)
 
-
+if sys.version[0] != '3':
+    sys.stderr.write("This version of lazylibrarian requires python 3\n")
+    exit(0)
+    
 def main():
    # rename this thread
     thread_name("MAIN")
@@ -107,12 +109,6 @@ def main():
                                      lazylibrarian.CONFIG['HTTP_PORT'],
                                      lazylibrarian.CONFIG['HTTP_ROOT'])
 
-    # QQ: Why do we upgrade the DB here? init_database seems more logical.
-    curr_ver = dbupgrade.upgrade_needed()
-    if curr_ver:
-        lazylibrarian.UPDATE_MSG = 'Updating database to version %s' % curr_ver
-        dbupgrade.dbupgrade(curr_ver)
-
     startup.start_schedulers()
 
     while True:
@@ -120,14 +116,14 @@ def main():
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                startup.shutdown()
+                startup.shutdown(exit=True)
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                startup.shutdown()
+                startup.shutdown(exit=True)
             elif lazylibrarian.SIGNAL == 'restart':
                 startup.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':
-                startup.shutdown(restart=True, update=True)
+                startup.shutdown(update=True)
             lazylibrarian.SIGNAL = None
 
 

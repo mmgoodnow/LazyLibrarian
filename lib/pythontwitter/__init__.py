@@ -34,18 +34,12 @@ import textwrap
 import time
 import gzip
 
-from six import PY2, text_type, StringIO
-# noinspection PyUnresolvedReferences
-from six.moves.http_client import UNAUTHORIZED
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_error import HTTPError
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlparse, urlunparse
+from io import StringIO
+from http.client import UNAUTHORIZED
+from urllib.error import HTTPError
+from urllib.parse import urlparse, urlunparse
 
-if PY2:
-    import urllib2
-else:
-    import urllib.request
+import urllib.request
 
 try:
     # Python >= 2.6
@@ -62,24 +56,18 @@ except ImportError:
             raise ImportError("Unable to load a json library")
 
 # lazylibrarian changes
-try:
-    import oauth2 as oauth
-except ImportError:
-    import lib.oauth2 as oauth
+import lib.oauth2 as oauth
 
 
 def longint(x):
-    if PY2:
-        return long(x)
-    else:
-        return int(x)
+    return int(x)
 
 
 def makeBytestr(txt):
     # convert unicode to bytestring, needed for post data
     if txt is None or not txt:
         return b''
-    elif not isinstance(txt, text_type):  # nothing to do if already bytestring
+    elif not isinstance(txt, str):  # nothing to do if already bytestring
         return txt
     for encoding in ['utf-8', 'latin-1']:
         try:
@@ -2393,10 +2381,7 @@ class Api(object):
     '''
 
         self.SetCache(cache)
-        if PY2:
-            self._urllib = urllib2
-        else:
-            self._urllib = urllib.request
+        self._urllib = urllib.request
         self._cache_timeout = Api.DEFAULT_CACHE_TIMEOUT
         self._input_encoding = input_encoding
         self._use_gzip = use_gzip_compression
@@ -2974,10 +2959,10 @@ class Api(object):
 
         url = '%s/statuses/update.json' % self.base_url
 
-        if isinstance(status, text_type) or self._input_encoding is None:
+        if isinstance(status, str) or self._input_encoding is None:
             u_status = status
         else:
-            u_status = text_type(status, self._input_encoding)
+            u_status = str(status, self._input_encoding)
 
         # if self._calculate_status_length(u_status, self._shortlink_size) > CHARACTER_LIMIT:
         #  raise TwitterError("Text must be less than or equal to %d characters. "
@@ -4406,9 +4391,9 @@ class Api(object):
 
     def _Encode(self, s):
         if self._input_encoding:
-            return text_type(s, self._input_encoding).encode('utf-8')
+            return str(s, self._input_encoding).encode('utf-8')
         else:
-            return text_type(s).encode('utf-8')
+            return str(s).encode('utf-8')
 
     def _EncodeParameters(self, parameters):
         '''Return a string in key=value&key=value form

@@ -26,13 +26,8 @@ import time
 import random
 import hmac
 import binascii
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import parse_qs, parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
-if PY2:
-    import lib.httplib2 as httplib2
-else:
-    import lib3.httplib2 as httplib2
+from urllib.parse import parse_qs, parse_qsl, quote, unquote, urlencode, urlparse, urlunparse
+import httplib2
 
 
 VERSION = '1.0'  # Hi Blaine!
@@ -680,9 +675,9 @@ class SignatureMethod_HMAC_SHA1(SignatureMethod):
         if token:
             key += escape(token.secret)
         raw = '&'.join(sig)
-        if not PY2 and isinstance(key, str):
+        if isinstance(key, str):
             key = key.encode('utf-8')
-        if not PY2 and isinstance(raw, str):
+        if isinstance(raw, str):
             raw = raw.encode('utf-8')
         return key, raw
 
@@ -713,7 +708,7 @@ class SignatureMethod_PLAINTEXT(SignatureMethod):
         sig = '%s&' % escape(consumer.secret)
         if token:
             sig = sig + escape(token.secret)
-        if not PY2 and isinstance(sig, str):
+        if isinstance(sig, str):
             sig = sig.encode('utf-8')
         return sig, sig
 

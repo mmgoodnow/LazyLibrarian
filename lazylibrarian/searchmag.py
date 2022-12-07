@@ -26,7 +26,6 @@ from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
-from six import PY2
 
 
 def cron_search_magazines():
@@ -78,13 +77,9 @@ def search_magazines(mags=None, reset=False):
 
             if not searchterm:
                 dic = {'...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '', ',': '', '*': ''}
-
                 searchterm = replace_all(searchmag['Title'], dic)
-
                 searchterm = re.sub(r'[.\-/]', ' ', searchterm)
-                if PY2:
-                    searchterm = searchterm.encode(lazylibrarian.SYS_ENCODING)
-
+                
             searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype,
                                "library": 'magazine'})
 

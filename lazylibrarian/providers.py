@@ -15,8 +15,7 @@ import re
 import time
 from xml.etree import ElementTree
 
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlencode, urlparse
+from urllib.parse import urlencode, urlparse
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -28,21 +27,11 @@ from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, 
 from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
-from six import PY2
 
-if PY2:
-    import lib.feedparser as feedparser
-else:
-    import lib3.feedparser as feedparser
+import lib.feedparser as feedparser
 
-if module_available("bs4") and module_available("html5lib"):
-    # noinspection PyUnresolvedReferences
-    import html5lib
-    from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
+import html5lib
+from bs4 import BeautifulSoup
 
 
 def test_provider(name, host=None, api=None):
@@ -408,7 +397,7 @@ def get_capabilities(provider, force=False):
                 provider['UPDATED'] = today()
                 provider['APILIMIT'] = 0
                 provider['RATELIMIT'] = 0
-                lazylibrarian.config_write(provider['NAME'])
+                lazylibrarian.config.config_write(provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
             #
@@ -520,7 +509,7 @@ def get_capabilities(provider, force=False):
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
-            lazylibrarian.config_write(provider['NAME'])
+            lazylibrarian.config.config_write(provider['NAME'])
     return provider
 
 
@@ -1529,7 +1518,7 @@ def indigo(host=None, feednr=None, priority=0, dispname=None, types='E', test=Fa
         logger.debug('Parsing results from %s' % url)
         api = 'https://www.chapters.indigo.ca/en-ca/api/v1/merchandising/GetCmsProductList/?sortDirection=0'
         api += '&sortKey=Default&rangeLength=0&rangeStart=0&pageSize=12'
-        list_id = re.findall('(?<="productLists":\[{"ContentID":).*?,', result)[0].split(',')[0]
+        list_id = re.findall(r'(?<="productLists":\[{"ContentID":).*?,', result)[0].split(',')[0]
         list_id = "&id=" + str(list_id)
         while next_page:
             time.sleep(1)
@@ -1880,7 +1869,7 @@ def cancel_search_type(search_type, error_msg, provider):
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
-                                lazylibrarian.config_write(provider['NAME'])
+                                lazylibrarian.config.config_write(provider['NAME'])
                                 return True
                         count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
@@ -1937,9 +1926,6 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
 
         if success:
             try:
-                if PY2:
-                    result = make_bytestr(result)
-
                 rootxml = ElementTree.fromstring(result)
             except Exception as e:
                 logger.error('Error parsing data from %s: %s %s' % (host, type(e).__name__, str(e)))

@@ -23,20 +23,7 @@ from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, rem
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrink_mag
 
-try:
-    # noinspection PyProtectedMember
-    from PyPDF3 import PdfFileWriter, PdfFileReader
-except ImportError:
-    try:
-        # noinspection PyProtectedMember
-        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
-    except ImportError:
-        PdfFileWriter = None
-        PdfFileReader = None
-
-from six import PY2
-if PY2:
-    from io import open
+from PyPDF3 import PdfFileWriter, PdfFileReader
 
 
 def preprocess_ebook(bookfolder):

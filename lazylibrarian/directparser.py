@@ -12,28 +12,18 @@
 
 import time
 import traceback
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import urlparse, urlencode
+from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.common import module_available
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight, check_float, check_int
-from six import PY2
 
-if module_available("bs4") and module_available("html5lib"):
-    # noinspection PyUnresolvedReferences
-    import html5lib
-    from bs4 import BeautifulSoup
-elif PY2:
-    from lib.bs4 import BeautifulSoup
-else:
-    from lib3.bs4 import BeautifulSoup
+import html5lib
+from bs4 import BeautifulSoup
 
 
-# noinspection PyProtectedMember
 def redirect_url(genhost, url):
     """ libgen.io might have dns blocked, but user can bypass using genhost 93.174.95.27 in config
         libgen might send us a book url that still contains http://libgen.io/  or /libgen.io/
@@ -49,12 +39,12 @@ def redirect_url(genhost, url):
     # genhost 93.174.95.27 -> scheme "", netloc "", path 93.174.95.27
     if host.netloc:
         if host.netloc.lower() != 'libgen.io':
-            # noinspection PyArgumentList
+            # noinspection PyArgumentList,PyProtectedMember
             myurl = myurl._replace(**{"netloc": host.netloc})
             logger.debug('Redirected libgen.io to [%s]' % host.netloc)
     elif host.path:
         if host.path.lower() != 'libgen.io':
-            # noinspection PyArgumentList
+            # noinspection PyArgumentList,PyProtectedMember
             myurl = myurl._replace(**{"netloc": host.netloc})
             logger.debug('Redirected libgen.io to [%s]' % host.netloc)
     return myurl.geturl()
@@ -418,11 +408,18 @@ def direct_gen(book=None, prov=None, test=False):
     while next_page:
         if 'index.php' in search:
             params = {
-                "s": make_utf8bytes(book['searchterm'])[0],
                 "f_lang": "All",
                 "f_columns": 0,
                 "f_ext": "All"
             }
+            # for index.php, default to s=
+            if "?req=" in search or "&req=" in search:
+                search = search.replace("?req=", "").replace("&req=", "")
+                params['req'] = make_utf8bytes(book['searchterm'])[0]
+            else:
+                if "?s=" in search or "&s=" in search:
+                    search = search.replace("?req=", "").replace("&req=", "")
+                params["s"] = make_utf8bytes(book['searchterm'])[0]   
         elif 'search.php' in search:
             params = {
                 "view": "simple",
@@ -430,9 +427,16 @@ def direct_gen(book=None, prov=None, test=False):
                 "phrase": 0,
                 "column": "def",
                 "lg_topic": "libgen",
-                "res": maxresults,
-                "req": make_utf8bytes(book['searchterm'])[0]
+                "res": maxresults
             }
+            # for search.php, default to req=
+            if "?s=" in search or "&s=" in search:
+                search = search.replace("?s=", "").replace("&s=", "")
+                params['s'] = make_utf8bytes(book['searchterm'])[0]
+            else:
+                if "?req=" in search or "&req=" in search:
+                    search = search.replace("?req=", "").replace("&req=", "")
+                params["req"] = make_utf8bytes(book['searchterm'])[0]
         elif 'comic' in search:
             params = {
                 "s": make_utf8bytes(book['searchterm'])[0]
@@ -634,6 +638,7 @@ def direct_gen(book=None, prov=None, test=False):
                                                 url = nurl.geturl()
                                                 break
                                 if url:
+                                    url = make_unicode(url)
                                     if not url.startswith('http'):
                                         url = url_fix(host + url)
                                     else:

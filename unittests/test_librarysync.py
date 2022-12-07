@@ -3,34 +3,17 @@
 # Purpose:
 #   Testing functionality in librarysync.py
 
-import unittest
 import unittesthelpers
 import os
-from lazylibrarian import directory, startup, librarysync
+from lazylibrarian import directory, librarysync
 
-class LibrarySyncTest(unittest.TestCase):
+class LibrarySyncTest(unittesthelpers.LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        unittesthelpers.disableHTTPSWarnings()
-        startup.init_logs()
-        startup.init_config()
-        startup.init_caches()
-        startup.init_database()
-        startup.init_build_debug_header(online = False)
-        startup.init_build_lists()
+        super().setDoAll(True)
         return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.removetestDB()
-        unittesthelpers.removetestCache()
-        unittesthelpers.clearGlobals()
-        return super().tearDownClass()
 
     def testGetBookInfo_NoExtension(self):
         # Test reading metadata from book files

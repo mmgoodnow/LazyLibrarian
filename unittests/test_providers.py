@@ -7,27 +7,11 @@ import unittest
 import unittesthelpers
 from xml.etree import ElementTree
 
-from lazylibrarian import providers, startup
+from lazylibrarian import providers
 
 
-class ProvidersTest(unittest.TestCase):
+class ProvidersTest(unittesthelpers.LLTestCase):
  
-    # Initialisation code that needs to run only once
-    @classmethod
-    def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        options = startup.startup_parsecommandline(__file__, args = [''], seconds_to_sleep = 0)
-        unittesthelpers.disableHTTPSWarnings()
-        startup.init_logs()
-        startup.init_config()
-        return super().setUpClass()
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        startup.shutdown(restart=False, update=False, exit=False, testing=True)
-        unittesthelpers.clearGlobals()
-        return super().tearDownClass()
-
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',
                 "authorName": 'input_authorname', "searchterm": 'safe_searchterm'}

@@ -24,15 +24,12 @@ from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_
     set_series, get_status, thinglang, google_book_dict
 from lazylibrarian.images import get_book_cover
 from lazylibrarian.cache import json_request, cache_img
-from lazylibrarian.formatter import plural, today, replace_all, unaccented, unaccented_bytes, is_valid_isbn, \
+from lazylibrarian.formatter import plural, today, replace_all, unaccented, is_valid_isbn, \
     get_list, clean_name, make_unicode, make_utf8bytes, replace_quotes_with, check_year, thread_name
 from lazylibrarian.ol import OpenLibrary
 
-from lib.thefuzz import fuzz
-
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote, quote_plus, urlencode
+from thefuzz import fuzz
+from urllib.parse import quote, quote_plus, urlencode
 
 
 class GoogleBooks:
@@ -240,10 +237,7 @@ class GoogleBooks:
         try:
             logger.debug('[%s] Now processing books with Google Books API' % authorname)
             # google doesnt like accents in author names
-            if PY2:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented_bytes(authorname, only_ascii=False))
-            else:
-                set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
+            set_url = self.url + quote('inauthor:"%s"' % unaccented(authorname, only_ascii=False))
             entryreason = reason
             api_hits = 0
             gr_lang_hits = 0

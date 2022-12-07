@@ -24,9 +24,6 @@ from lazylibrarian.common import safe_move, walk, make_dirs, setperm, path_exist
 from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
-from six import PY2
-if PY2:
-    from io import open
 
 
 def create_id(issuename=None):
@@ -44,9 +41,7 @@ def magazine_scan(title=None):
         mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
         if lazylibrarian.CONFIG['MAG_RELATIVE']:
             mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
-        if PY2:
-            mag_path = mag_path.encode(lazylibrarian.SYS_ENCODING)
-
+        
         onetitle = title
         if onetitle and '$Title' in mag_path:
             mag_path = mag_path.replace('$Title', onetitle)
@@ -256,9 +251,7 @@ def magazine_scan(title=None):
                                                                                        '$IssueDate', filedate)
                             if lazylibrarian.CONFIG['MAG_RELATIVE']:
                                 new_path = os.path.join(lazylibrarian.directory('eBook'), new_path)
-                            if PY2:
-                                new_path = new_path.encode(lazylibrarian.SYS_ENCODING)
-
+                            
                             newissuefile = os.path.join(new_path, newfname)
                             # check for windows case-insensitive
                             if os.name == 'nt' and newissuefile.lower() == issuefile.lower():

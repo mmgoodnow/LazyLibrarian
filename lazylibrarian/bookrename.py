@@ -22,7 +22,6 @@ from lazylibrarian.common import safe_move, multibook, listdir, path_isdir, only
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, make_utf8bytes, sort_definite, surname_first, sanitize
 from lazylibrarian.opfedit import opf_read
-from six import PY2
 
 try:
     from lib.tinytag import TinyTag
@@ -378,12 +377,8 @@ def audio_rename(bookid, rename=False, playlist=False):
                 logger.error('Unable to create directory %s: %s' % (dest_path, why))
 
     if playlist:
-        if PY2:
-            fmode = 'wb'
-        else:
-            fmode = 'w'
         try:
-            playlist = open(os.path.join(r, 'playlist.ll'), fmode)
+            playlist = open(os.path.join(r, 'playlist.ll'), "w")
         except Exception as why:
             logger.error('Unable to create playlist in %s: %s' % (r, why))
             playlist = None
@@ -397,16 +392,10 @@ def audio_rename(bookid, rename=False, playlist=False):
         out_type = os.path.splitext(part[3])[1]
         outfile = bookfile + out_type
         if playlist:
-            if PY2:
-                if rename:
-                    playlist.write("%s\n" % make_utf8bytes(outfile))
-                else:
-                    playlist.write("%s\n" % make_utf8bytes(part[3])[0])
+            if rename:
+                playlist.write("%s\n" % make_unicode(outfile))
             else:
-                if rename:
-                    playlist.write("%s\n" % make_unicode(outfile))
-                else:
-                    playlist.write("%s\n" % make_unicode(part[3]))
+                playlist.write("%s\n" % make_unicode(part[3]))
         if rename:
             n = os.path.join(make_unicode(r), make_unicode(outfile))
             o = os.path.join(make_unicode(r), make_unicode(part[3]))
@@ -432,16 +421,10 @@ def audio_rename(bookid, rename=False, playlist=False):
                 pattern = sanitize(pattern)
 
             if playlist:
-                if PY2:
-                    if rename:
-                        playlist.write("%s\n" % make_utf8bytes(pattern)[0])
-                    else:
-                        playlist.write("%s\n" % make_utf8bytes(part[3])[0])
+                if rename:
+                    playlist.write("%s\n" % make_unicode(pattern))
                 else:
-                    if rename:
-                        playlist.write("%s\n" % make_unicode(pattern))
-                    else:
-                        playlist.write("%s\n" % make_unicode(part[3]))
+                    playlist.write("%s\n" % make_unicode(part[3]))
             if rename:
                 n = os.path.join(make_unicode(r), make_unicode(pattern))
                 o = os.path.join(make_unicode(r), make_unicode(part[3]))

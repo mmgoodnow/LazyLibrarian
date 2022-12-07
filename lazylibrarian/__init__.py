@@ -28,17 +28,9 @@ from lazylibrarian import logger, database, notifiers # Must keep notifiers here
 from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
-
-from six import PY2, text_type
-# noinspection PyUnresolvedReferences
-from six.moves import configparser
-
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import configparser
+import urllib3
+import requests
 
 
 # Transient globals NOT stored in config
@@ -57,7 +49,7 @@ LOGINUSER = None
 CONFIG = {} # The configuration used, read from config.ini
 CFG = None # A ConfigParser used to read the .ini file
 DBFILE = None
-COMMIT_LIST = None
+COMMIT_LIST = ''
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
 REQUESTSLOG = 0

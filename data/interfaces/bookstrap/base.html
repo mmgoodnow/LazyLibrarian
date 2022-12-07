@@ -287,9 +287,25 @@
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] < 0:
                   msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 1:
-                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
+                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.'
+                  % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
+                    msg += '</div> <strong>Manual update is required</strong>'
+                  % endif
+                  msg += '<div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;'
+                  % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
+                    msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
+                  % endif
+                  msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
               % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] == 1:
-                  msg = '<div class="input-group">New version available. You are one commit behind.</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
+                  msg = '<div class="input-group">New version available. You are one commit behind.'
+                  % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
+                    msg += '</div> <strong>Manual update is required</strong>'
+                  % endif
+                  msg += '<div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the update message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;'
+                  % if "**MANUAL**" not in lazylibrarian.COMMIT_LIST:
+                    msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
+                  % endif
+                  msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
               % endif
           % endif
         % endif

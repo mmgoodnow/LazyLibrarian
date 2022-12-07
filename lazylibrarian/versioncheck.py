@@ -24,15 +24,11 @@ from shutil import rmtree
 import lazylibrarian
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath, module_available
+from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir, path_isdir, syspath
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 
-if module_available("urllib3") and module_available("requests"):
-    # noinspection PyUnresolvedReferences
-    import urllib3
-    import requests
-else:
-    import lib.requests as requests
+import urllib3
+import requests
 
 
 def logmsg(level, msg):
@@ -255,7 +251,6 @@ def check_for_updates():
     else:
         commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = commits
-
         if auto_update and commits > 0:
             for name in [n.name.lower() for n in [t for t in threading.enumerate()]]:
                 for word in ['update', 'scan', 'import', 'sync', 'process']:
@@ -263,12 +258,24 @@ def check_for_updates():
                         suppress = True
                         logmsg('warn', 'Suppressed auto-update as %s running' % name)
                         break
+
+            if not suppress and '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+                suppress = True
+                logmsg('warn', 'Suppressed auto-update as manual install needed')
+
             if not suppress:
                 plural = ''
                 if commits > 1:
                     plural = 's'
                 logmsg('info', 'Auto updating %s commit%s' % (commits, plural))
                 lazylibrarian.SIGNAL = 'update'
+
+    # testing - force a fake update
+    # lazylibrarian.COMMIT_LIST = 'test update system'
+    # lazylibrarian.SIGNAL = 'update'
+    # lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
+    # lazylibrarian.CONFIG['CURRENT_VERSION'] = 'testing'
+
     logmsg('debug', 'Update check complete')
     # noinspection PyBroadException
     try:
@@ -315,13 +322,8 @@ def get_latest_version_from_git():
             if branch.lower() == 'package':  # check packages against master
                 branch = 'master'
             # Get the latest commit available from git
-            if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                url = 'https://lazylibrarian.gitlab.io/version.json'
-            else:
-                url = 'https://api.%s/repos/%s/%s/commits/%s' % (
-                    lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                    lazylibrarian.CONFIG['GIT_REPO'], branch)
-
+            url = 'https://lazylibrarian.gitlab.io/version.json'
+            
             logmsg('debug',
                    'Retrieving latest version information from git command=[%s]' % url)
 
@@ -352,11 +354,7 @@ def get_latest_version_from_git():
                     r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
 
                 if str(r.status_code).startswith('2'):
-                    if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                        latest_version = r.json()
-                    else:
-                        git = r.json()
-                        latest_version = git['sha']
+                    latest_version = r.json()
                     logmsg('debug', 'Branch [%s] Latest Version has been set to [%s]' % (
                         branch, latest_version))
                 elif str(r.status_code) == '304':
@@ -384,16 +382,10 @@ def get_commit_difference_from_git():
         commit_list = 'Unable to get latest version from %s' % lazylibrarian.CONFIG['GIT_HOST']
         logmsg('info', commit_list)
     elif lazylibrarian.CONFIG['CURRENT_VERSION'] and commits != 0:
-        if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-            url = 'https://%s/api/v4/projects/%s%%2F%s/repository/compare?from=%s&to=%s' % (
-                lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['CURRENT_VERSION'],
-                lazylibrarian.CONFIG['LATEST_VERSION'])
-        else:
-            url = 'https://api.%s/repos/%s/%s/compare/%s...%s' % (
-                lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['CURRENT_VERSION'],
-                lazylibrarian.CONFIG['LATEST_VERSION'])
+        url = 'https://%s/api/v4/projects/%s%%2F%s/repository/compare?from=%s&to=%s' % (
+            lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
+            lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['CURRENT_VERSION'],
+            lazylibrarian.CONFIG['LATEST_VERSION'])
         logmsg('debug', 'Check for differences between local & repo by [%s]' % url)
 
         try:
@@ -408,46 +400,32 @@ def get_commit_difference_from_git():
                 r = requests.get(url, timeout=timeout, headers=headers, proxies=proxies, verify=False)
             git = r.json()
             # for gitlab, commits = len(git['commits'])  no status/ahead/behind
-            if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                if 'commits' in git:
-                    commits = len(git['commits'])
-                    st = ''
-                    ahead = 0
-                    behind = 0
-                    if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
-                        output, _ = run_git('rev-list --left-right --count master...origin/master')
-                        if output:
-                            a, b = output.split(None, 1)
-                            ahead = check_int(a, 0)
-                            behind = check_int(b, 0)
-                            if ahead + behind:
-                                st = "Differ"
-                            else:
-                                st = "Even"
-                    if st:
-                        msg = 'Git: Status [%s] - Ahead [%s] - Behind [%s] - Total Commits [%s]' % (
-                               st, ahead, behind, commits)
-                    else:
-                        msg = 'Git: Total Commits [%s]' % commits
-                    logmsg('debug', msg)
-                else:
-                    logmsg('warn', 'Could not get difference status from git: %s' % str(git))
-
-                if commits > 0:
-                    for item in git['commits']:
-                        commit_list = "%s\n%s" % (item['title'], commit_list)
-            else:
-                if 'total_commits' in git:
-                    commits = int(git['total_commits'])
+            if 'commits' in git:
+                commits = len(git['commits'])
+                st = ''
+                ahead = 0
+                behind = 0
+                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+                    output, _ = run_git('rev-list --left-right --count master...origin/master')
+                    if output:
+                        a, b = output.split(None, 1)
+                        ahead = check_int(a, 0)
+                        behind = check_int(b, 0)
+                        if ahead + behind:
+                            st = "Differ"
+                        else:
+                            st = "Even"
+                if st:
                     msg = 'Git: Status [%s] - Ahead [%s] - Behind [%s] - Total Commits [%s]' % (
-                        git['status'], git['ahead_by'], git['behind_by'], git['total_commits'])
-                    logmsg('debug', msg)
+                           st, ahead, behind, commits)
                 else:
-                    logmsg('warn', 'Could not get difference status from git: %s' % str(git))
-
-                if commits > 0:
-                    for item in git['commits']:
-                        commit_list = "%s\n%s" % (item['commit']['message'], commit_list)
+                    msg = 'Git: Total Commits [%s]' % commits
+                logmsg('debug', msg)
+            else:
+                logmsg('warn', 'Could not get difference status from git: %s' % str(git))
+            if commits > 0:
+                for item in git['commits']:
+                    commit_list = "%s\n%s" % (item['title'], commit_list)
         except Exception as err:
             logmsg('warn', 'Could not get difference status from git: %s' % type(err).__name__)
 
@@ -514,18 +492,29 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             zf = tarfile.open(backup_file, mode='w:gz')
-            for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                           'lib', 'lib3', 'mako']:
+            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'icrawler',
+                            'telemetryserver', 'unittests']
+            # these library folders are optional, might not exist
+            lib_folders = ['bs4', 'cherrypy', 'deluge_client', 'html5lib', 'httpagentparser', 'magic',
+                           'mako', 'PyPDF3', 'requests', 'thefuzz', 'urllib3', 'webencodings']
+            for folder in lib_folders:
+                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                if os.path.exists(path):
+                    prog_folders.append(folder)
+            for folder in prog_folders:
                 path = os.path.join(lazylibrarian.PROG_DIR, folder)
                 for root, _, files in walk(path):
                     for item in files:
                         if not item.endswith('.pyc'):
                             base = root[len(lazylibrarian.PROG_DIR) + 1:]
                             zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
-            for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
-                         'example_custom_notification.sh', 'example_ebook_convert.py',
-                         'example.genres.json', 'example.monthnames.json']:
-                zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
+            for item in ['LazyLibrarian.py', 'cherrypy_cors.py', 'epubandmobi.py', 'example_custom_notification.py',
+                         'example_custom_notification.sh', 'example_ebook_convert.py', 'example_filetemplate.txt',
+                         'example.genres.json', 'example_html_filetemplate.txt', 'example_logintemplate.txt', 
+                         'example.monthnames.json', 'updater.py', 'pyproject.toml']:
+                path = os.path.join(lazylibrarian.PROG_DIR, item)
+                if os.path.exists(path):
+                    zf.add(path, arcname=item)
             zf.close()
             msg = 'Saved current version to %s' % backup_file
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
@@ -578,15 +567,10 @@ def update():
             return True
 
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
-            if 'gitlab' in lazylibrarian.CONFIG['GIT_HOST']:
-                tar_download_url = 'https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz' % (
-                    lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
-                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'],
-                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
-            else:
-                tar_download_url = 'https://%s/%s/%s/tarball/%s' % (
-                    lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                    lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
+            tar_download_url = 'https://%s/%s/%s/-/archive/%s/%s-%s.tar.gz' % (
+                lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
+                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'],
+                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
             update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
 
             rmtree(update_dir, ignore_errors=True)

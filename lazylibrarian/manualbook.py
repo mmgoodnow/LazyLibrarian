@@ -13,14 +13,11 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import get_list, unaccented_bytes, unaccented, plural, date_format
+from lazylibrarian.formatter import get_list, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
-from lib.thefuzz import fuzz
-
-from six import PY2
-# noinspection PyUnresolvedReferences
-from six.moves.urllib_parse import quote_plus, quote
+from thefuzz import fuzz
+from urllib.parse import quote_plus, quote
 
 
 def search_item(item=None, bookid=None, cat=None):
@@ -37,10 +34,7 @@ def search_item(item=None, bookid=None, cat=None):
         return results
 
     book = {}
-    if PY2:
-        searchterm = unaccented_bytes(item, only_ascii=False, umlauts=False)
-    else:
-        searchterm = unaccented(item, only_ascii=False, umlauts=False)
+    searchterm = unaccented(item, only_ascii=False, umlauts=False)
 
     book['searchterm'] = searchterm
     if bookid:

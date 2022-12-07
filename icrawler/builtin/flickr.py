@@ -5,7 +5,7 @@ import json
 import math
 import os
 
-from six.moves.urllib.parse import urlencode
+from urllib.parse import urlencode
 
 from icrawler import Crawler, Feeder, Parser, ImageDownloader
 

@@ -3,8 +3,6 @@
 import os
 import os.path as osp
 
-from six import string_types
-
 from icrawler.storage import BaseStorage
 
 
@@ -25,7 +23,7 @@ class FileSystem(BaseStorage):
                 os.makedirs(folder)
             except OSError:
                 pass
-        mode = 'w' if isinstance(data, string_types) else 'wb'
+        mode = 'w' if isinstance(data, str) else 'wb'
         with open(filepath, mode) as fout:
             fout.write(data)
 

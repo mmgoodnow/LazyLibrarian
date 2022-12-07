@@ -6,22 +6,11 @@ import random
 import threading
 import time
 
-try:
-    import urllib3
-    import requests
-except ImportError:
-    import lib.requests as requests
-    
-from six import PY2
-try:
-    from bs4 import BeautifulSoup
-except ImportError:
-    if PY2:
-        from lib.bs4 import BeautifulSoup
-    else:
-        from lib3.bs4 import BeautifulSoup
+import urllib3
+import requests
+from bs4 import BeautifulSoup
 
-from six.moves import queue
+import queue
 
 
 class Proxy(object):
