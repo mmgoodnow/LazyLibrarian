@@ -56,7 +56,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(int(ci), 42)
 
         ci.set_int(5)                          # Write Error
-        self.assertEqual(int(ci), 42)
+        self.assertEqual(ci.get_int(), 42)
 
         ci.set_int(1100)                       # Write Error
         self.assertEqual(int(ci), 42)
@@ -66,6 +66,26 @@ class Config2Test(LLTestCase):
 
         expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Ranged Int Config not working as expected')
+        
+    def test_ConfigPerm(self):
+        ci = configtypes.ConfigPerm('Section', 'PermissionValue', 0o777)
+        self.assertEqual(ci.get_int(), 0o777)
+        self.assertEqual(str(ci), '0o777')
+
+        ci.set_int(1000000)                     # Write Error
+        self.assertEqual(int(ci), 0o777)
+
+        ci.set_int(-8)                          # Write Error
+        self.assertEqual(int(ci), 0o777)
+
+        ci.set_int(57)                          # Fine, if awkward
+        self.assertEqual(int(ci), 57)
+
+        ci.set_str('0o321')
+        self.assertEqual(int(ci), 0o321)
+
+        expected = Counter({'read_ok': 6, 'write_ok': 2, 'write_error': 2})
+        self.do_access_compare(ci.accesses, expected, 'Permission config working as expected')
         
     def test_ConfigBool(self):
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)

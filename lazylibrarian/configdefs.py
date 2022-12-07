@@ -5,7 +5,7 @@
 
 from typing import List, Dict
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
-from lazylibrarian.configtypes import ConfigCSV, ConfigURL, ConfigRangedInt
+from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt
 
 BASE_DEFAULTS: List[ConfigItem] = [
     # Name      Type   Section   Default
@@ -37,8 +37,8 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('General', 'AUTH_TYPE', "BASIC"),
     ConfigInt('General', 'LOGLEVEL', 1),
     ConfigInt('General', 'WALL_COLUMNS', 6),
-    ConfigStr('General', 'FILE_PERM', '0o644'),
-    ConfigStr('General', 'DIR_PERM', '0o755'),
+    ConfigPerm('General', 'FILE_PERM', 0o644),
+    ConfigPerm('General', 'DIR_PERM', 0o755),
     ConfigInt('General', 'BLOCKLIST_TIMER', 3600),
     ConfigInt('General', 'MAX_PAGES', 0),
     ConfigInt('General', 'MAX_BOOKPAGES', 0),
