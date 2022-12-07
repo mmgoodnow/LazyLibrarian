@@ -224,6 +224,10 @@ class Config2Test(LLTestCase):
         }
         self.do_access_compare(acs, expectedacs, 'Access patterns not as expected')
 
+        cfg.clear_access_counters()
+        acs = cfg.get_all_accesses()
+        self.do_access_compare(acs, {}, 'Clearing all access patterns did not work')
+
     def test_LLdefaults(self):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')

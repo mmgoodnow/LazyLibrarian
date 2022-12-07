@@ -214,3 +214,8 @@ class LLConfigHandler():
 
         return result
     
+    def clear_access_counters(self):
+        """ Clear all counters. Might be useful after sending telemetry etc """
+        all = self.get_all_accesses()
+        for _, item in all.items():
+            item.clear()
