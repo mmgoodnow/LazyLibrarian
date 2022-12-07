@@ -159,7 +159,7 @@ class Config2Test(LLTestCase):
         cfg2.set_int('a-new-int', 1)
         self.assertTrue(config2.are_equivalent(cfg1, cfg2))
 
-        cfg2.set_int('another-str', 'help')
+        cfg2.set_str('another-str', 'help')
         self.assertFalse(config2.are_equivalent(cfg1, cfg2))
 
     def do_access_compare(self, got, expected, error):
