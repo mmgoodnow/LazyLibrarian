@@ -14,6 +14,8 @@ from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigI
     ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
 from lazylibrarian.configdefs import ARRAY_DEFS
 from lazylibrarian import logger
+from lazylibrarian.formatter import thread_name
+from lazylibrarian.common import syspath
 
 ConfigDict = Dict[str, ConfigItem]
 
@@ -22,6 +24,7 @@ class LLConfigHandler():
     config: ConfigDict
     arrays: Dict[Tuple[str, int], ConfigDict]
     errors: Dict[str, Counter]
+    configfilename: str
 
     def __init__(self, defaults: List[ConfigItem]|None=None, configfile: str|None=None):
         self.config = dict()
@@ -30,6 +33,7 @@ class LLConfigHandler():
         self._copydefaults(self.config, defaults)
 
         if configfile:
+            self.configfilename = configfile
             parser = ConfigParser()
             parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(configfile)
@@ -38,6 +42,8 @@ class LLConfigHandler():
                     self._load_array_section(section, parser)
                 else:
                     self._load_section(section, parser, self.config)
+        else:
+            self.configfilename = ''
 
     def _copydefaults(self, config: ConfigDict, defaults: List[ConfigItem]|None=None, index: int|None=None):
         """ Copy the default values and settings for the given config """
@@ -219,3 +225,125 @@ class LLConfigHandler():
         all = self.get_all_accesses()
         for _, item in all.items():
             item.clear()
+
+    def save_config(self, filename: str, save_all: bool=False):
+        """ 
+        Save the configuration to a new file. Return number of items stored, -1 if error.
+        If save_all, saves all possible config items. If False, saves only changed items
+        """
+
+        def add_to_parser(parser, sectionname, item) -> int:
+            """ Add item to parser, return 1 if added, 0 if ignored """
+            if save_all or not item.is_default():
+                if not sectionname in parser:
+                    parser[sectionname] = {}
+                parser[sectionname][key] = str(item)
+                return 1
+            else:
+                return 0
+
+        parser = ConfigParser()
+        parser.optionxform = lambda optionstr: optionstr.lower()
+
+        count = 0
+        for key, item in self.config.items():
+            count += add_to_parser(parser, item.section, item)
+
+        for (name, inx), array in self.arrays.items():
+            sectionname = f"{name}{inx}"
+            for key, item in array.items():
+                count += add_to_parser(parser, sectionname, item)
+
+        try:
+            with open(filename, "w") as configfile:
+                parser.write(configfile)
+            return count
+        except Exception as e:
+            logger.warn(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
+            return -1
+
+    def save_config_and_backup_old(self, save_all: bool=False) -> int:
+        """ 
+        Renames the old config file to .bak and saves new config file. 
+        Return number of items stored, -1 if error.
+        """
+
+        if not self.configfilename:
+            logger.error('Cannot save and backup config without a filename')
+            return -1
+
+        currentname = thread_name()
+        thread_name("CONFIG2_WRITE")
+        try:
+            logger.info(f'Saving configuration to {self.configfilename}')
+            savecount = self.save_config(syspath(self.configfilename + '.new'), save_all)
+            if savecount == 0:
+                return 0
+            else:
+                import os
+
+                msg = ''
+                try:
+                    os.remove(syspath(self.configfilename + '.bak'))
+                except OSError as e:
+                    if e.errno != 2:  # doesn't exist is ok
+                        msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', self.configfilename, '.bak', e.strerror)
+                        logger.warn(msg)
+                try:
+                    os.rename(syspath(self.configfilename), syspath(self.configfilename + '.bak'))
+                except OSError as e:
+                    if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
+                        msg = '{} {} {} {}'.format('Unable to backup config file:', self.configfilename, type(e).__name__, e.strerror)
+                        logger.warn(msg)
+                try:
+                    os.rename(syspath(self.configfilename + '.new'), syspath(self.configfilename))
+                except OSError as e:
+                    msg = '{} {} {} {}'.format('Unable to rename new config file:', self.configfilename, type(e).__name__, e.strerror)
+                    logger.warn(msg)
+
+                if not msg:
+                    msg = f'Config file {self.configfilename} has been saved with {savecount} items'
+                    logger.info(msg)
+                    return savecount
+                else:
+                    return -1
+        finally:
+            thread_name(currentname)
+
+def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
+    """ Check that the two configs are logically equivalent by comparing all the keys and values """
+
+    def are_configdicts_equivalent(cd1: ConfigDict, cd2: ConfigDict) -> bool:
+        if not cd1 or not cd2:
+            return False
+        if len(cd1) != len(cd2):
+            return False
+        for key, item1 in cd1.items():
+            if key in cd2.keys():
+                if cd2[key].value != item1.value:
+                    return False
+            else:
+                return False
+        return True
+
+
+    if not cfg1 or not cfg2: # Both need to exist
+        return False 
+
+    # Compare base configs
+    if not are_configdicts_equivalent(cfg1.config, cfg2.config): 
+        return False
+
+    # Compare array configs
+    if len(cfg1.arrays) != len(cfg2.arrays):
+        return False
+
+    for (name, inx), cd1 in cfg1.arrays.items():
+        try:
+            cd2 = cfg2.arrays[(name, inx)]
+        except:
+            return False
+        if not are_configdicts_equivalent(cd1, cd2):
+            return False
+
+    return True

@@ -8,9 +8,15 @@ from collections import Counter
 
 from unittesthelpers import LLTestCase
 from lazylibrarian import config2, configdefs, configtypes
+from lazylibrarian.common import syspath
 
+# Ini files used for testing load/save functions. 
+# If these change, many test cases need to be updated. Run to find out which ones :)
+DEFAULT_INI_FILE = './unittests/testdata/testconfig-defaults.ini' 
+NONDEF_INI_FILE = './unittests/testdata/testconfig-nondefault.ini'
 
 class Config2Test(LLTestCase):
+    
     @classmethod
     def setUpClass(cls) -> None:
         cls.setConfigFile('No Config File*')
@@ -137,6 +143,25 @@ class Config2Test(LLTestCase):
         cfg.set_email('mail', email)
         cfg.set_email('mail2', configtypes.Email('name@gmailmissingcom'))
 
+    def test_compare_basic_configs(self):
+        """ Test that we can compare basic configs and tell if they differ """
+        cfg1 = config2.LLConfigHandler()
+        cfg2 = config2.LLConfigHandler()
+
+        self.set_basic_test_values(cfg1)
+        self.set_basic_test_values(cfg2)
+
+        self.assertTrue(config2.are_equivalent(cfg1, cfg2))
+
+        cfg1.set_int('a-new-int', 1)
+        self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+
+        cfg2.set_int('a-new-int', 1)
+        self.assertTrue(config2.are_equivalent(cfg1, cfg2))
+
+        cfg2.set_int('another-str', 'help')
+        self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+
     def do_access_compare(self, got, expected, error):
         self.assertEqual(len(got), len(expected))
         for key in got:
@@ -236,13 +261,13 @@ class Config2Test(LLTestCase):
 
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
-        cfg = config2.LLConfigHandler(defaults=None, configfile='./unittests/testdata/testconfig-defaults.ini')
+        cfg = config2.LLConfigHandler(defaults=None, configfile=DEFAULT_INI_FILE)
         acs = cfg.get_all_accesses()
         self.do_access_compare(acs, {}, 'Loading ini without defaults should not load anything')
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all of the base definitions loads """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile='./unittests/testdata/testconfig-defaults.ini')
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=DEFAULT_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
             'GENERAL.LOGLEVEL': Counter({'write_ok': 1}), 
@@ -257,7 +282,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile='./unittests/testdata/testconfig-nondefault.ini')
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
             "GENERAL.LOGDIR": Counter({'write_ok': 1}),
@@ -313,7 +338,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile='./unittests/testdata/testconfig-nondefault.ini')
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
 
         self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'Expected one entry for APPRISE') 
         self.assertEqual(cfg.get_array_entries('NEWZNAB'), 2, 'Expected two entries for NEWZNAB') 
@@ -327,4 +352,65 @@ class Config2Test(LLTestCase):
             self.assertTrue(NEWZNAB['ENABLED'].get_bool(), 'NEWZNAB.0.ENABLED not loaded correctly') 
             self.assertEqual(NEWZNAB['APILIMIT'].get_int(), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
 
+    def remove_test_file(self, filename) -> bool:
+        """ Remove a file used for testing. Returns True if a file was removed """
+        import os
+        try:
+            os.remove(filename)
+            return True
+        except OSError as e:
+            self.assertEqual(e.errno, 2, 'Error removing test file is not as expected')
+            return False
 
+    def test_save_config(self):
+        """ Test saving config file """
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=DEFAULT_INI_FILE)
+        try:
+            count = cfg.save_config('test-small.ini', False) # Save only non-default values
+            self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
+        finally:
+            self.assertEqual(self.remove_test_file('test-small.ini'), True, 'Could not remove test-small.ini')
+
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
+        count = cfg.save_config('?*/\\invalid<>file', False) # Save only non-default values
+        self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
+            
+        try:
+            count = cfg.save_config('test-changed.ini', False) # Save only non-default values
+            self.assertEqual(count, 48, 'Saving config.ini has unexpected # of non-default items')
+        finally:
+            self.assertEqual(self.remove_test_file('test-changed.ini'), True, 'Could not remove test-changed.ini')
+
+        try:
+            count = cfg.save_config('test-all.ini', True) # Save everything.
+            self.assertEqual(count, 559, 'Saving config.ini has unexpected total # of items')
+        finally:
+            self.assertEqual(self.remove_test_file('test-all.ini'), True, 'Could not remove test-all.ini')
+
+    def test_save_config_and_backup_old(self):
+        """ Test saving config file while keeping the old one as a .bak file """
+        import os.path, shutil
+        TEST_FILE = syspath('./unittests/testdata/test.ini')
+        shutil.copyfile(NONDEF_INI_FILE, TEST_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TEST_FILE)
+
+        # delete potential backup file before starting
+        backupfile = syspath(cfg.configfilename + '.bak')
+        self.remove_test_file(backupfile)
+
+        try:
+            count = cfg.save_config_and_backup_old(False) 
+            self.assertEqual(count, 48, 'Saving config.ini has unexpected total # of items')
+            self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
+
+            cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
+            self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
+
+            # Verify that it works when .bak file exists as well:
+            count = cfg.save_config_and_backup_old(False) 
+            self.assertEqual(count, 48, 'Saving config.ini has unexpected total # of items')
+            self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
+
+        finally:
+            self.remove_test_file(TEST_FILE)
+            self.remove_test_file(backupfile)
