@@ -354,7 +354,7 @@ def syspath(path, prefix=True):
         path = path.replace('/', '\\')
         # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
 
-    if not path.startswith('.'): # Don't affect relative paths
+    if not path.startswith('.'):  # Don't affect relative paths
         # Add the magic prefix if it isn't already there.
         # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
         if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
@@ -1425,12 +1425,12 @@ def log_header(online=True):
         try:
             if lazylibrarian.CONFIG['SSL_VERIFY']:
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                            verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                            if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
+                                           verify=lazylibrarian.CONFIG['SSL_CERTS']
+                                           if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
             else:
                 logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                            verify=False).json()['tls_version']
+                                           verify=False).json()['tls_version']
             if '1.2' not in tls_version and '1.3' not in tls_version:
                 header += 'tls: missing required functionality. Try upgrading to v1.2 or newer. You have '
         except Exception as err:
@@ -1537,15 +1537,17 @@ def log_header(online=True):
             vers = "not found"
         header += "Levenshtein: %s\n" % vers
 
-    import magic
-    vers = 'not found'
     try:
-        if hasattr(magic, "magic_version"):
-            vers = magic.magic_version()
-        else:
-            # noinspection PyProtectedMember
-            vers = magic.libmagic._name
-    except AttributeError:
+        import magic
+        try:
+            if hasattr(magic, "magic_version"):
+                vers = magic.magic_version()
+            else:
+                # noinspection PyProtectedMember
+                vers = magic.libmagic._name
+        except AttributeError:
+            vers = 'not found'
+    except (ImportError, AttributeError):
         vers = 'not found'
     header += "magic: %s\n" % vers
 
