@@ -419,3 +419,53 @@ class Config2Test(LLTestCase):
         finally:
             self.remove_test_file(TEST_FILE)
             self.remove_test_file(backupfile)
+
+    def test_post_load_fixup(self):
+        """ Verify that the post_load_fixup routine does the right thing """
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+
+        import lazylibrarian
+        # Ensure we are in a known state
+        lazylibrarian.SHOW_EBOOK = 0
+        lazylibrarian.SHOW_AUDIO = 1
+        lazylibrarian.SHOW_MAGS = 0
+        lazylibrarian.SHOW_COMICS = 0
+
+        # Set some values that trigger warnings/fixes
+        import os
+        for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
+            value = cfg.config[fname].get_str() + os.sep
+            cfg.config[fname].set_str(value)
+        cfg.config['HTTP_LOOK'].set_str('default')
+
+        # Set some values that cause changes
+        cfg.config['EBOOK_TAB'].set_bool(True)
+        cfg.config['AUDIO_TAB'].set_bool(False)
+        cfg.config['MAG_TAB'].set_bool(True)
+        cfg.config['COMIC_TAB'].set_bool(True)
+        cfg.config['HOMEPAGE'].set_str('AudioBooks')
+        cfg.config['SSL_CERTS'].set_str('dir-doesnot-exist')
+
+        warnings = cfg.post_load_fixup()
+        self.assertEqual(cfg.config['LOGDIR'].get_str()[-4:], 'Logs', 'LOGDIR not set')
+        self.assertEqual(str(cfg.config['AUDIOBOOK_DEST_FOLDER']), str(cfg.config['EBOOK_DEST_FOLDER']))
+        self.assertEqual(str(cfg.config['HTTP_LOOK']), 'bookstrap')
+
+        self.assertTrue(lazylibrarian.SHOW_EBOOK)
+        self.assertFalse(lazylibrarian.SHOW_AUDIO)
+        self.assertTrue(lazylibrarian.SHOW_MAGS)
+        self.assertTrue(lazylibrarian.SHOW_COMICS)
+
+        self.assertEqual(str(cfg.config['HOMEPAGE']), '', 'HOMEPAGE cannot be audio if that is disabled')
+        self.assertEqual(warnings, 6, 'Unexpected # of warnings from fixup')
+
+        # Second run with different inputs
+        cfg.config['HOMEPAGE'].set_str('eBooks')
+        warnings = cfg.post_load_fixup()
+        self.assertEqual(str(cfg.config['HOMEPAGE']), 'eBooks', 'Should not have changed HOMEPAGE')
+        self.assertEqual(warnings, 4, 'Only expected 4 warnings from separators here')
+
+
+
+
+

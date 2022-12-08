@@ -283,6 +283,10 @@ class ConfigURL(ConfigStr):
     def get_url(self) -> URLstr:
         return URLstr(self.get_str())
 
+    def set_str(self, value: str):
+        value = value.rstrip('/')
+        super().set_str(value)
+
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
             if value == '':

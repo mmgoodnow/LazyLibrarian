@@ -9,13 +9,15 @@ from typing import Dict, List, TypedDict, Tuple, Type
 from copy import deepcopy
 from configparser import ConfigParser
 from collections import Counter
+from os import path, sep
 
+import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
     ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
 from lazylibrarian.configdefs import ARRAY_DEFS
 from lazylibrarian import logger
 from lazylibrarian.formatter import thread_name
-from lazylibrarian.common import syspath
+from lazylibrarian.common import syspath, path_exists
 
 ConfigDict = Dict[str, ConfigItem]
 
@@ -309,6 +311,49 @@ class LLConfigHandler():
                     return -1
         finally:
             thread_name(currentname)
+
+    def post_load_fixup(self) -> int:
+        """ 
+        Perform post-load operations specific to LL.
+        Returns 0 if ok, otherwise number of warnings
+        """
+        warnings = 0
+        logger.debug('Performing post-load fixup on config')
+        if str(self.config['LOGDIR']) == '':
+            self.config['LOGDIR'].set_str(path.join(lazylibrarian.DATADIR, 'Logs'))
+
+        if str(self.config['AUDIOBOOK_DEST_FOLDER']) == 'None':
+            self.config['AUDIOBOOK_DEST_FOLDER'].set_str(self.config['EBOOK_DEST_FOLDER'].get_str())
+
+        for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
+            if sep in self.config[fname].get_str():
+                logger.warn('Please check your %s setting, contains "%s"' % (fname, sep))
+                warnings += 1
+
+        if str(self.config['HTTP_LOOK']) in ['legacy', 'default']:
+            logger.warn('configured interface is deprecated, new features are in bookstrap')
+            self.config['HTTP_LOOK'].set_str('bookstrap')
+            warnings += 1
+
+        lazylibrarian.SHOW_EBOOK = 1 if self.config['EBOOK_TAB'].get_bool() else 0
+        lazylibrarian.SHOW_AUDIO = 1 if self.config['AUDIO_TAB'].get_bool() else 0
+        lazylibrarian.SHOW_MAGS = 1 if self.config['MAG_TAB'].get_bool() else 0
+        lazylibrarian.SHOW_COMICS = 1 if self.config['COMIC_TAB'].get_bool() else 0
+
+        if  str(self.config['HOMEPAGE']) == 'eBooks' and not lazylibrarian.SHOW_EBOOK or \
+            str(self.config['HOMEPAGE']) == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO or \
+            str(self.config['HOMEPAGE']) == 'Magazines' and not lazylibrarian.SHOW_MAGS or \
+            str(self.config['HOMEPAGE']) == 'Comics' and not lazylibrarian.SHOW_COMICS or \
+            str(self.config['HOMEPAGE']) == 'Series' and not lazylibrarian.SHOW_SERIES:
+            self.config['HOMEPAGE'].set_str('')
+        
+        if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):
+            logger.warn("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
+            self.config['SSL_CERTS'].set_str('')
+            warnings += 1
+
+        return warnings
+
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """
