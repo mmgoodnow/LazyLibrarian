@@ -756,7 +756,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         state = str(cherrypy.engine.state)
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
-    if not testing:
+    if testing:
         config.config_write() 
 
     if not restart and not update:
