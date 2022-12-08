@@ -120,7 +120,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     if options.noipv6:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
         urllib3.util.connection.HAS_IPV6 = False
-    
+
     if options.daemon:
         if os.name != 'nt':
             lazylibrarian.DAEMON = True
@@ -132,7 +132,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
 
     if options.port:
-        options.port = check_int(options.port, 0) 
+        options.port = check_int(options.port, 0)
 
     if options.nojobs:
         lazylibrarian.STOPTHREADS = True
@@ -220,7 +220,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     return options
 
 def init_logs():
-    # Initialized log files. Until this is done, do not use the 
+    # Initialized log files. Until this is done, do not use the
     config.check_ini_section('General')
     # False to silence logging until logger initialised
     for key in ['LOGLIMIT', 'LOGFILES', 'LOGSIZE', 'LOGDIR']:
@@ -244,11 +244,11 @@ def init_logs():
             lazylibrarian.LOGLEVEL = 1  # If not set in Config or cmdline, then lets set to NORMAL
         else:
             lazylibrarian.LOGLEVEL = cfgloglevel  # Config setting picked up
- 
+
     lazylibrarian.CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
     lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG['LOGLEVEL'])
     info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
-        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'], 
+        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'],
         lazylibrarian.CONFIG['LOGDIR'], cfgloglevel))
     if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
         info("Screen Log set to EXTENDED DEBUG")
@@ -266,7 +266,7 @@ def init_config():
     config.config_read()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
-    if lazylibrarian.CONFIG['NO_IPV6']:        
+    if lazylibrarian.CONFIG['NO_IPV6']:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
         urllib3.util.connection.HAS_IPV6 = False
 
@@ -765,7 +765,7 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     if not testing:
-        config.config_write() 
+        config.config_write()
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())

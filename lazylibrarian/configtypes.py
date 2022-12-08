@@ -80,6 +80,9 @@ class ConfigItem():
     def set_bool(self, value: bool) -> bool:
         return False
 
+    def reset_to_default(self):
+        self._on_set(self.default)
+
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
@@ -89,7 +92,7 @@ class ConfigItem():
             logger.debug(f"Read config[{self.key}]={self.value}")
         else:
             self.accesses['read_error'] += 1
-            logger.debug(f"Type error reading config[{self.key}] ({self.value})")
+            logger.warn(f"Type error reading config[{self.key}] ({self.value})")
         return ok
 
     def _on_set(self, value: ValidTypes) -> bool:
