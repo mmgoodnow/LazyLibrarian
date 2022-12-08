@@ -146,7 +146,7 @@ class PushBullet:
                 import magic
                 file_type = magic.from_buffer(fobj.read(1024))
                 fobj.seek(0)
-            except (ImportError, AttributeError):
+            except Exception:  # magic might fail for multiple reasons
                 file_type = "unknown"
 
         data = {"file_name": file_name,

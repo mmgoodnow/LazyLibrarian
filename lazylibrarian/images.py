@@ -31,18 +31,22 @@ import zipfile
 
 try:
     import PIL
-    # noinspection PyUnresolvedReferences
-    from PIL import Image as PILImage
-    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
 except ImportError:
     PIL = None
+if PIL:
+    from PIL import Image as PILImage
+    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
+else:
     GoogleImageCrawler = None
     BingImageCrawler = None
     BaiduImageCrawler = None
     FlickrImageCrawler = None
 
 from PyPDF3 import PdfFileWriter, PdfFileReader
-import magic
+try:
+    import magic
+except Exception:  # magic might fail for multiple reasons
+    magic = None
 
 GS = ''
 GS_VER = ''

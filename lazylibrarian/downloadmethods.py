@@ -19,7 +19,7 @@ from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
 try:
     import magic
-except (ImportError, AttributeError):
+except Exception:  # magic might fail for multiple reasons
     magic = None
 
 import lazylibrarian

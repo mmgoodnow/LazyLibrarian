@@ -1547,7 +1547,7 @@ def log_header(online=True):
                 vers = magic.libmagic._name
         except AttributeError:
             vers = 'not found'
-    except (ImportError, AttributeError):
+    except Exception:  # magic might fail for multiple reasons
         vers = 'not found'
     header += "magic: %s\n" % vers
 
