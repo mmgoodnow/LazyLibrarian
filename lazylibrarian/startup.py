@@ -181,7 +181,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
-            shutdown(update=True)
+            shutdown(update=True, exit=True)
 
     if options.loglevel:
         try:
