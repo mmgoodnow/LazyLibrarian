@@ -10,13 +10,13 @@ from unittesthelpers import LLTestCase
 from lazylibrarian import config2, configdefs, configtypes
 from lazylibrarian.common import syspath
 
-# Ini files used for testing load/save functions. 
+# Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones
-SMALL_INI_FILE = './unittests/testdata/testconfig-defaults.ini' 
+SMALL_INI_FILE = './unittests/testdata/testconfig-defaults.ini'
 COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
 
 class Config2Test(LLTestCase):
-    
+
     @classmethod
     def setUpClass(cls) -> None:
         cls.setConfigFile('No Config File*')
@@ -38,7 +38,7 @@ class Config2Test(LLTestCase):
 
         expected = Counter({'read_ok': 3, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Basic String Config not working as expected')
-        
+
     def test_ConfigInt(self):
         ci = configtypes.ConfigInt('Section', 'IntValue', 42)
         self.assertEqual(ci.get_int(), 42)
@@ -56,7 +56,7 @@ class Config2Test(LLTestCase):
 
         expected = Counter({'read_ok': 5, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
-        
+
     def test_ConfigRangedInt(self):
         ci = configtypes.ConfigRangedInt('Section', 'RangedIntValue', 42, 10, 1000)
         self.assertEqual(int(ci), 42)
@@ -67,12 +67,12 @@ class Config2Test(LLTestCase):
         ci.set_int(1100)                       # Write Error
         self.assertEqual(int(ci), 42)
 
-        ci.set_int(100)                       
+        ci.set_int(100)
         self.assertEqual(int(ci), 100)
 
         expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Ranged Int Config not working as expected')
-        
+
     def test_ConfigPerm(self):
         ci = configtypes.ConfigPerm('Section', 'PermissionValue', 0o777)
         self.assertEqual(ci.get_int(), 0o777)
@@ -92,26 +92,26 @@ class Config2Test(LLTestCase):
 
         expected = Counter({'read_ok': 6, 'write_ok': 2, 'write_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Permission config working as expected')
-        
+
     def test_ConfigBool(self):
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)
         self.assertEqual(ci.get_int(), 1)      # We can read bools as int
         self.assertEqual(ci.get_str(), 'True')
-        self.assertEqual(ci.get_bool(), True)  
+        self.assertEqual(ci.get_bool(), True)
         self.assertEqual(int(ci), 1)           # We can read bools as default int
 
         ci.set_str('Override')                 # Write Error
         self.assertEqual(ci.get_str(), 'True')
 
         ci.set_int(2)                          # ok, writes as True/1
-        self.assertEqual(ci.get_bool(), True)      
-        self.assertEqual(int(ci), 1)      
-        ci.set_bool(False)                      
-        self.assertEqual(ci.get_bool(), False) 
+        self.assertEqual(ci.get_bool(), True)
+        self.assertEqual(int(ci), 1)
+        ci.set_bool(False)
+        self.assertEqual(ci.get_bool(), False)
 
         expected = Counter({'read_ok': 8, 'write_ok': 1, 'write_error': 1})
         self.do_access_compare(ci.accesses, expected, 'Basic Bool Config not working as expected')
-        
+
     def test_ConfigURL(self):
         cfg = config2.LLConfigHandler()
         testurl = [
@@ -213,8 +213,8 @@ class Config2Test(LLTestCase):
 
         ecs = cfg.get_error_counters()
         expectedecs = {
-            'KeyDoesNotExist': Counter({'read_error': 1}), 
-            'does-not-exist': Counter({'read_error': 3}), 
+            'KeyDoesNotExist': Counter({'read_error': 1}),
+            'does-not-exist': Counter({'read_error': 3}),
             'also-does-not': Counter({'read_error': 1})
         }
         self.do_access_compare(ecs, expectedecs, 'Errors  not as expected')
@@ -238,13 +238,13 @@ class Config2Test(LLTestCase):
 
         acs = cfg.get_all_accesses()
         expectedacs = {
-            'csv': Counter({'create_ok': 1, 'read_ok': 1}), 
-            'csv2': Counter({'create_ok': 1}), 
-            'csv5': Counter({'read_ok': 3, 'create_ok': 1}), 
-            'somestr': Counter({'create_ok': 1, 'read_ok': 1}), 
-            'someint': Counter({'read_ok': 3, 'create_ok': 1, 'write_ok': 1}), 
-            'abool': Counter({'create_ok': 1}), 
-            'boo': Counter({'create_ok': 1, 'read_ok': 1}), 
+            'csv': Counter({'create_ok': 1, 'read_ok': 1}),
+            'csv2': Counter({'create_ok': 1}),
+            'csv5': Counter({'read_ok': 3, 'create_ok': 1}),
+            'somestr': Counter({'create_ok': 1, 'read_ok': 1}),
+            'someint': Counter({'read_ok': 3, 'create_ok': 1, 'write_ok': 1}),
+            'abool': Counter({'create_ok': 1}),
+            'boo': Counter({'create_ok': 1, 'read_ok': 1}),
             'mail': Counter({'create_ok': 1, 'read_ok': 1})
         }
         self.do_access_compare(acs, expectedacs, 'Access patterns not as expected')
@@ -282,12 +282,12 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
-            'GENERAL.LOGLEVEL': Counter({'write_ok': 1}), 
-            'GENERAL.NO_IPV6': Counter({'write_ok': 1}), 
-            'GENERAL.EBOOK_DIR': Counter({'write_ok': 1}), 
-            'GENERAL.AUDIO_DIR': Counter({'write_ok': 1}), 
-            'GENERAL.ALTERNATE_DIR': Counter({'write_ok': 1}), 
-            'GENERAL.TESTDATA_DIR': Counter({'write_ok': 1}), 
+            'GENERAL.LOGLEVEL': Counter({'write_ok': 1}),
+            'GENERAL.NO_IPV6': Counter({'write_ok': 1}),
+            'GENERAL.EBOOK_DIR': Counter({'write_ok': 1}),
+            'GENERAL.AUDIO_DIR': Counter({'write_ok': 1}),
+            'GENERAL.ALTERNATE_DIR': Counter({'write_ok': 1}),
+            'GENERAL.TESTDATA_DIR': Counter({'write_ok': 1}),
             'GENERAL.DOWNLOAD_DIR': Counter({'write_ok': 1})
          }
         self.do_access_compare(acs, expectedacs, 'Loading ini file did not modify the expected values')
@@ -330,13 +330,13 @@ class Config2Test(LLTestCase):
             "NEWZNAB.0.BOOKCAT": Counter({'write_ok': 1}),
             "NEWZNAB.0.UPDATED": Counter({'write_ok': 1}),
             "NEWZNAB.0.APILIMIT": Counter({'write_ok': 1}),
-            "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),            
+            "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),
             "NEWZNAB.0.DLTYPES": Counter({'write_ok': 1}),
             "NEWZNAB.1.DISPNAME": Counter({'write_ok': 1}),
-            'APPRISE_.0.NAME': Counter({'write_ok': 1}), 
-            'APPRISE_.0.DISPNAME': Counter({'write_ok': 1}), 
-            'APPRISE_.0.SNATCH': Counter({'write_ok': 1}), 
-            'APPRISE_.0.DOWNLOAD': Counter({'write_ok': 1}), 
+            'APPRISE_.0.NAME': Counter({'write_ok': 1}),
+            'APPRISE_.0.DISPNAME': Counter({'write_ok': 1}),
+            'APPRISE_.0.SNATCH': Counter({'write_ok': 1}),
+            'APPRISE_.0.DOWNLOAD': Counter({'write_ok': 1}),
             'APPRISE_.0.URL': Counter({'write_ok': 1}),
         }
         self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
@@ -345,16 +345,16 @@ class Config2Test(LLTestCase):
         """ Test accessing a more complex config.ini file """
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
-        self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'Expected one entry for APPRISE') 
-        self.assertEqual(cfg.get_array_entries('NEWZNAB'), 2, 'Expected two entries for NEWZNAB') 
-        self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries') 
+        self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'Expected one entry for APPRISE')
+        self.assertEqual(cfg.get_array_entries('NEWZNAB'), 2, 'Expected two entries for NEWZNAB')
+        self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries')
 
         NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
         self.assertIsNotNone(NEWZNAB, 'Expected to get a NEWZNAB object')
         if NEWZNAB:
-            self.assertEqual(NEWZNAB['DISPNAME'].get_str(), 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly') 
-            self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working') 
-            self.assertTrue(NEWZNAB['ENABLED'].get_bool(), 'NEWZNAB.0.ENABLED not loaded correctly') 
+            self.assertEqual(NEWZNAB['DISPNAME'].get_str(), 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
+            self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
+            self.assertTrue(NEWZNAB['ENABLED'].get_bool(), 'NEWZNAB.0.ENABLED not loaded correctly')
             self.assertEqual(NEWZNAB['APILIMIT'].get_int(), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
 
     def remove_test_file(self, filename) -> bool:
@@ -379,7 +379,7 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         count = cfg.save_config('?*/\\invalid<>file', False) # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
-            
+
         try:
             count = cfg.save_config('test-changed.ini', False) # Save only non-default values
             self.assertEqual(count, 41, 'Saving config.ini has unexpected # of non-default items')
@@ -404,7 +404,7 @@ class Config2Test(LLTestCase):
         self.remove_test_file(backupfile)
 
         try:
-            count = cfg.save_config_and_backup_old(False) 
+            count = cfg.save_config_and_backup_old(False)
             self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
 
@@ -412,7 +412,7 @@ class Config2Test(LLTestCase):
             self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
 
             # Verify that it works when .bak file exists as well:
-            count = cfg.save_config_and_backup_old(False) 
+            count = cfg.save_config_and_backup_old(False)
             self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
 

@@ -40,7 +40,7 @@ class LLConfigHandler():
             parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(configfile)
             for section in parser.sections():
-                if section[-1:].isdigit(): 
+                if section[-1:].isdigit():
                     self._load_array_section(section, parser)
                 else:
                     self._load_section(section, parser, self.config)
@@ -55,7 +55,7 @@ class LLConfigHandler():
                 config[key] = deepcopy(config_item)
                 if index != None and index >= 0: # It's an array
                     config[key].section = config[key].section % index
-                        
+
     def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
@@ -68,10 +68,10 @@ class LLConfigHandler():
 
     def _load_array_section(self, section:str, parser:ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
-        arrayname = section[:-1].upper() # Assume we have < 10 items! 
+        arrayname = section[:-1].upper() # Assume we have < 10 items!
         index = int(section[-1:])
         defaults = ARRAY_DEFS[arrayname] if arrayname in ARRAY_DEFS else None
-        if defaults: 
+        if defaults:
             logger.debug(f"Loading array {arrayname} index {index}")
             if not (arrayname, index) in self.arrays:
                 self.arrays[(arrayname, index)] = dict()
@@ -83,8 +83,8 @@ class LLConfigHandler():
 
     def get_config(self, section: str, key: str) -> ConfigItem|None:
         if key in self.config:
-            
-            return 
+
+            return
         return None
 
     """ Handle array entries """
@@ -115,7 +115,7 @@ class LLConfigHandler():
 
     def __getitem__(self, __name: str) -> str:
         """ Make it possible to use CONFIG['name'] to access a string config directly """
-        return self.get_str(__name) 
+        return self.get_str(__name)
 
     def set_str(self, key: str, value: str):
         if key in self.config:
@@ -184,7 +184,7 @@ class LLConfigHandler():
             self.create_str_key(ConfigURL, key, value)
 
     def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
-        """ Function for creating new config items on the fly. Should be rare in LL. """    
+        """ Function for creating new config items on the fly. Should be rare in LL. """
         new_entry = aclass('', key, '', is_new=True)
         if new_entry.is_valid_value(value):
             self.config[key] = new_entry
@@ -221,7 +221,7 @@ class LLConfigHandler():
                     result[f"{name}.{index}.{key}"] = a
 
         return result
-    
+
     def clear_access_counters(self):
         """ Clear all counters. Might be useful after sending telemetry etc """
         all = self.get_all_accesses()
@@ -229,7 +229,7 @@ class LLConfigHandler():
             item.clear()
 
     def save_config(self, filename: str, save_all: bool=False):
-        """ 
+        """
         Save the configuration to a new file. Return number of items stored, -1 if error.
         If save_all, saves all possible config items. If False, saves only changed items
         """
@@ -265,8 +265,8 @@ class LLConfigHandler():
             return -1
 
     def save_config_and_backup_old(self, save_all: bool=False) -> int:
-        """ 
-        Renames the old config file to .bak and saves new config file. 
+        """
+        Renames the old config file to .bak and saves new config file.
         Return number of items stored, -1 if error.
         """
 
@@ -313,7 +313,7 @@ class LLConfigHandler():
             thread_name(currentname)
 
     def post_load_fixup(self) -> int:
-        """ 
+        """
         Perform post-load operations specific to LL.
         Returns 0 if ok, otherwise number of warnings
         """
@@ -346,7 +346,7 @@ class LLConfigHandler():
             str(self.config['HOMEPAGE']) == 'Comics' and not lazylibrarian.SHOW_COMICS or \
             str(self.config['HOMEPAGE']) == 'Series' and not lazylibrarian.SHOW_SERIES:
             self.config['HOMEPAGE'].set_str('')
-        
+
         if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):
             logger.warn("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
             self.config['SSL_CERTS'].set_str('')
@@ -373,10 +373,10 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
 
 
     if not cfg1 or not cfg2: # Both need to exist
-        return False 
+        return False
 
     # Compare base configs
-    if not are_configdicts_equivalent(cfg1.config, cfg2.config): 
+    if not are_configdicts_equivalent(cfg1.config, cfg2.config):
         return False
 
     # Compare array configs

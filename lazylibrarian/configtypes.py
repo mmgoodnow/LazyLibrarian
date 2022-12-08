@@ -57,7 +57,7 @@ class ConfigItem():
     def __str__(self) -> str:  # Make it the default when accessing the object
         return self.get_str()
 
-    def set_str(self, value: str) -> bool: 
+    def set_str(self, value: str) -> bool:
         return False
 
     def get_force_lower(self):
@@ -112,7 +112,7 @@ class ConfigItem():
         self.accesses['write_error'] += 1
         logger.warn(f"Cannot set config[{self.key}] to {value}: incorrect type")
         return False
-    
+
     def get_accesses(self):
         return self.accesses
 
@@ -166,7 +166,7 @@ class ConfigInt(ConfigItem):
 
 class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
-    def __init__(self, section: str, key: str, default: int, 
+    def __init__(self, section: str, key: str, default: int,
         range_min: int, range_max: int, is_new: bool=False):
         self.range_min = range_min
         self.range_max = range_max
@@ -236,7 +236,7 @@ class ConfigBool(ConfigInt):
 
     def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
         return self.set_bool(parser.getboolean(self.section, name, fallback=False))
-        
+
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
     def __init__(self, section: str, key: str, default: str, is_new: bool=False):
@@ -299,7 +299,7 @@ class ConfigURL(ConfigStr):
                     r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
                     r'(?::\d+)?' # optional port
                     r'(?:/?|[/?]\S+)$', IGNORECASE)
-                
+
                 # check if the URL matches the regular expression
                 return regex.match(value) is not None
         return False
