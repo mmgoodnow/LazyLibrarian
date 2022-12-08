@@ -60,6 +60,9 @@ class ConfigItem():
     def set_str(self, value: str) -> bool: 
         return False
 
+    def get_force_lower(self):
+        return False
+
     def get_int(self) -> int:
         self._on_read(False)
         return 0
@@ -114,9 +117,19 @@ class ConfigItem():
         return self.accesses
 
 class ConfigStr(ConfigItem):
-    """ A config item that is a plan string """
+    """ A config item that is a string """
+    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False):
+        self.force_lower = force_lower
+        super().__init__(section, key, default, is_new)
+
     def set_str(self, value: str) -> bool:
-        return self._on_set(value)
+        if self.force_lower:
+            return self._on_set(value.lower())
+        else:
+            return self._on_set(value)
+
+    def get_force_lower(self):
+        return self.force_lower
 
     def set_int(self, value: int) -> bool:
         return self._on_type_mismatch(value)
@@ -223,9 +236,12 @@ class ConfigBool(ConfigInt):
 
     def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
         return self.set_bool(parser.getboolean(self.section, name, fallback=False))
-
+        
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
+    def __init__(self, section: str, key: str, default: str, is_new: bool=False):
+        return super().__init__(section, key, default, force_lower=True, is_new=is_new)
+
     def get_email(self) -> Email:
         return Email(self.get_str())
 

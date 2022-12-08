@@ -11,9 +11,9 @@ from lazylibrarian import config2, configdefs, configtypes
 from lazylibrarian.common import syspath
 
 # Ini files used for testing load/save functions. 
-# If these change, many test cases need to be updated. Run to find out which ones :)
-DEFAULT_INI_FILE = './unittests/testdata/testconfig-defaults.ini' 
-NONDEF_INI_FILE = './unittests/testdata/testconfig-nondefault.ini'
+# If these change, many test cases need to be updated. Run to find out which ones
+SMALL_INI_FILE = './unittests/testdata/testconfig-defaults.ini' 
+COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
 
 class Config2Test(LLTestCase):
     
@@ -254,20 +254,32 @@ class Config2Test(LLTestCase):
         self.do_access_compare(acs, {}, 'Clearing all access patterns did not work')
 
     def test_LLdefaults(self):
+        """ Test setting the default LL config """
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')
         self.do_access_compare({}, cfg.get_all_accesses(), 'There should be no changes from defaults')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
 
+    def test_force_lower(self):
+        """ Test various string configss that have force_lower and make sure they are. """
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+
+        for key, item in cfg.config.items():
+            if item.get_force_lower():
+                self.assertEqual(item.get_str(), str(item).lower(), f'force_lower has not worked for {key}')
+
+        has_uppercase = cfg['API_KEY']
+        self.assertNotEqual(has_uppercase, has_uppercase.lower())
+
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
-        cfg = config2.LLConfigHandler(defaults=None, configfile=DEFAULT_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         self.do_access_compare(acs, {}, 'Loading ini without defaults should not load anything')
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all of the base definitions loads """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=DEFAULT_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
             'GENERAL.LOGLEVEL': Counter({'write_ok': 1}), 
@@ -282,7 +294,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
             "GENERAL.LOGDIR": Counter({'write_ok': 1}),
@@ -321,24 +333,17 @@ class Config2Test(LLTestCase):
             "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),            
             "NEWZNAB.0.DLTYPES": Counter({'write_ok': 1}),
             "NEWZNAB.1.DISPNAME": Counter({'write_ok': 1}),
-            "NEWZNAB.1.GENERALSEARCH": Counter({'write_ok': 1}),
-            "NEWZNAB.1.BOOKSEARCH": Counter({'write_ok': 1}),
-            "NEWZNAB.1.DLTYPES": Counter({'write_ok': 1}),
-            "TORZNAB.0.DISPNAME": Counter({'write_ok': 1}),
-            "TORZNAB.0.GENERALSEARCH": Counter({'write_ok': 1}),
-            "TORZNAB.0.BOOKSEARCH": Counter({'write_ok': 1}),
-            "TORZNAB.0.DLTYPES": Counter({'write_ok': 1}),
-            "RSS_.0.DISPNAME": Counter({'write_ok': 1}),
-            "GEN_.0.DISPNAME": Counter({'write_ok': 1}),
-            "IRC_.0.DISPNAME": Counter({'write_ok': 1}),
-            "APPRISE_.0.NAME": Counter({'write_ok': 1}),
-            "APPRISE_.0.DISPNAME": Counter({'write_ok': 1}),
+            'APPRISE_.0.NAME': Counter({'write_ok': 1}), 
+            'APPRISE_.0.DISPNAME': Counter({'write_ok': 1}), 
+            'APPRISE_.0.SNATCH': Counter({'write_ok': 1}), 
+            'APPRISE_.0.DOWNLOAD': Counter({'write_ok': 1}), 
+            'APPRISE_.0.URL': Counter({'write_ok': 1}),
         }
         self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
 
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
         self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'Expected one entry for APPRISE') 
         self.assertEqual(cfg.get_array_entries('NEWZNAB'), 2, 'Expected two entries for NEWZNAB') 
@@ -364,26 +369,26 @@ class Config2Test(LLTestCase):
 
     def test_save_config(self):
         """ Test saving config file """
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=DEFAULT_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         try:
             count = cfg.save_config('test-small.ini', False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
         finally:
             self.assertEqual(self.remove_test_file('test-small.ini'), True, 'Could not remove test-small.ini')
 
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=NONDEF_INI_FILE)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         count = cfg.save_config('?*/\\invalid<>file', False) # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
             
         try:
             count = cfg.save_config('test-changed.ini', False) # Save only non-default values
-            self.assertEqual(count, 48, 'Saving config.ini has unexpected # of non-default items')
+            self.assertEqual(count, 41, 'Saving config.ini has unexpected # of non-default items')
         finally:
             self.assertEqual(self.remove_test_file('test-changed.ini'), True, 'Could not remove test-changed.ini')
 
         try:
             count = cfg.save_config('test-all.ini', True) # Save everything.
-            self.assertEqual(count, 559, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 512, 'Saving config.ini has unexpected total # of items')
         finally:
             self.assertEqual(self.remove_test_file('test-all.ini'), True, 'Could not remove test-all.ini')
 
@@ -391,7 +396,7 @@ class Config2Test(LLTestCase):
         """ Test saving config file while keeping the old one as a .bak file """
         import os.path, shutil
         TEST_FILE = syspath('./unittests/testdata/test.ini')
-        shutil.copyfile(NONDEF_INI_FILE, TEST_FILE)
+        shutil.copyfile(COMPLEX_INI_FILE, TEST_FILE)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TEST_FILE)
 
         # delete potential backup file before starting
@@ -400,7 +405,7 @@ class Config2Test(LLTestCase):
 
         try:
             count = cfg.save_config_and_backup_old(False) 
-            self.assertEqual(count, 48, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
 
             cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
@@ -408,7 +413,7 @@ class Config2Test(LLTestCase):
 
             # Verify that it works when .bak file exists as well:
             count = cfg.save_config_and_backup_old(False) 
-            self.assertEqual(count, 48, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
 
         finally:
