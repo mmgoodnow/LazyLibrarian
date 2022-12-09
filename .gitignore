@@ -10,7 +10,6 @@ version.txt
 .vscode/*
 venv/*
 client*
-*docker*
 git_helper.sh
 update-version.sh
 startlazy.sh
