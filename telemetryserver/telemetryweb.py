@@ -44,7 +44,7 @@ def server_status():
 def process_telemetry():
     global _received, _success
     _received += 1
-    
+
     # Expect data to be sent as...
     # ?server="{...}"&config="{...}"&usage="{...}"
     logger.info(f"Receiving {len(request.query_string)} bytes of telemetry data")
@@ -72,7 +72,7 @@ def run_server(add_to_db):
     PORT = 9174
     logger.info(f"Starting web server on port {PORT}")
     _add_to_db = add_to_db # Method handler
-    run(host='localhost', port=PORT, debug=True, quiet=True)
+    run(host='0.0.0.0', port=PORT, debug=True, quiet=True)
 
 
 _starttime = time.time()
