@@ -12,13 +12,13 @@ import configparser
 
 class TelemetryDB():
     """ Handler for the LL telemetry database """
-    DBName = 'lazytelemetry'
     connection = None
 
     def __init__(self, config: configparser.ConfigParser):
         self.host = config.get('database', 'host', fallback='localhost')
         self.user = config.get('database', 'user', fallback='root')
         self.password = config.get('database', 'password', fallback='secret789')
+        self.DBName = config.get('database', 'dbname', fallback='LazyTelemetry')
         self.retries = int(config.get('database', 'retries', fallback=3))
 
         self.logger = logging.getLogger(__name__)
