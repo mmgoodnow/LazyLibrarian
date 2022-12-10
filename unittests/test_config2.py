@@ -221,6 +221,34 @@ class Config2Test(LLTestCase):
             'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[invalid_domain]: read_error'
         ])
 
+    def test_ConfigFolder(self):
+        """ Tests for ConfigFolder class """
+        foldernames = [
+            '',
+            '/forward/slash',
+            '\\windows\\style',
+            'C:\\Windows/confused/style',
+            '$Author/$Template'
+        ]
+        import os
+        osname = os.name
+        try:
+            # Pretend it's Windows
+            os.name = 'nt'
+            for name in foldernames:
+                cf = configtypes.ConfigFolder('', '', name)
+                self.assertFalse('/' in str(cf), f'Expect no forward slashes in Windows: {name} -> {str(cf)}')
+                self.assertFalse('\\' in cf.get_save_str(), f'Expect no \\ in save strings: {name} -> {str(cf)}')
+
+            # Pretend it's not Windows:
+            os.name = 'linux'
+            for name in foldernames:
+                cf = configtypes.ConfigFolder('', '', name)
+                self.assertFalse('\\' in str(cf), f'Expect no backslashes in Linux: {name} -> {str(cf)}')
+                self.assertFalse('\\' in cf.get_save_str(), f'Expect no \\ in save strings: {name} -> {str(cf)}')
+        finally:
+            os.name = osname
+
     def set_basic_test_values(self, cfg: config2.LLConfigHandler):
         """ Helper function, sets some basic config values """
         with self.assertNoLogs('lazylibrarian.logger', level='INFO'):

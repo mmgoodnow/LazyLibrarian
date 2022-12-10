@@ -5,7 +5,7 @@
 
 from typing import List, Dict
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
-from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt
+from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
@@ -332,19 +332,19 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('LibraryScan', 'ISBN_LOOKUP', 1),
     ConfigBool('LibraryScan', 'IMP_IGNORE', 0),
     ConfigStr('PostProcess', 'CREATE_LINK', ''),
-    ConfigStr('PostProcess', 'EBOOK_DEST_FOLDER', '$Author/$Title'),
+    ConfigFolder('PostProcess', 'EBOOK_DEST_FOLDER', '$Author/$Title'),
     ConfigStr('PostProcess', 'EBOOK_DEST_FILE', '$Title - $Author'),
     ConfigStr('PostProcess', 'AUDIOBOOK_DEST_FILE', '$Author - $Title Part $Part of $Total'),
     ConfigStr('PostProcess', 'AUDIOBOOK_SINGLE_FILE', ''),
-    ConfigStr('PostProcess', 'AUDIOBOOK_DEST_FOLDER', 'None'),
+    ConfigFolder('PostProcess', 'AUDIOBOOK_DEST_FOLDER', 'None'),
     ConfigBool('PostProcess', 'ONE_FORMAT', 0),
-    ConfigStr('PostProcess', 'COMIC_DEST_FOLDER', '_Comics/$Title/$Issue'),
+    ConfigFolder('PostProcess', 'COMIC_DEST_FOLDER', '_Comics/$Title/$Issue'),
     ConfigBool('PostProcess', 'COMIC_RELATIVE', 1),
     ConfigBool('PostProcess', 'COMIC_DELFOLDER', 1),
     ConfigCSV('General', 'COMIC_TYPE', 'cbr, cbz', force_lower=True),
     ConfigBool('General', 'COMIC_SINGLE', 1),
     ConfigStr('PostProcess', 'MAG_COVERSWAP', ''),
-    ConfigStr('PostProcess', 'MAG_DEST_FOLDER', '_Magazines/$Title/$IssueDate'),
+    ConfigFolder('PostProcess', 'MAG_DEST_FOLDER', '_Magazines/$Title/$IssueDate'),
     ConfigStr('PostProcess', 'MAG_DEST_FILE', '$IssueDate - $Title'),
     ConfigBool('PostProcess', 'MAG_RELATIVE', 1),
     ConfigBool('PostProcess', 'MAG_DELFOLDER', 1),

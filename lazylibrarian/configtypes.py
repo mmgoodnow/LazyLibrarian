@@ -10,6 +10,7 @@ from enum import Enum
 from configparser import ConfigParser
 from collections import Counter
 from re import match, compile, IGNORECASE
+import os
 
 from lazylibrarian import logger
 
@@ -55,6 +56,9 @@ class ConfigItem():
         return str(self.value) # Everything can be a string
 
     def __str__(self) -> str:  # Make it the default when accessing the object
+        return self.get_str()
+
+    def get_save_str(self) -> str: # The string used to save this setting
         return self.get_str()
 
     def set_str(self, value: str) -> bool:
@@ -306,3 +310,28 @@ class ConfigURL(ConfigStr):
                 # check if the URL matches the regular expression
                 return regex.match(value) is not None
         return False
+
+class ConfigFolder(ConfigStr):
+    """ A config item that holds a folder name or template. It may hold path separators
+    that are OS-specific, but will always be saved to file using unix-style (/) separators
+    and will always be accessed at run-time with the OS-specific separator
+    """
+    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False):
+        super().__init__(section, key, self.fix_separator(default), force_lower, is_new)
+
+    def set_str(self, value: str) -> bool:
+        return super().set_str(self.fix_separator(value))
+
+    def get_save_str(self) -> str:
+        tosave = self.get_str()
+        if '\\' in tosave: # Never save \\ in the ini file
+            tosave = tosave.replace('\\', '/')
+        return tosave
+
+    def fix_separator(self, value: str) -> str:
+        if os.name == 'nt' and '/' in value:
+            return value.replace('/', '\\')
+        elif os.name != 'nt' and '\\' in value:
+            return value.replace('\\', '/')
+        return value
+
