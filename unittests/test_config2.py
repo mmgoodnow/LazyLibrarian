@@ -251,8 +251,8 @@ class Config2Test(LLTestCase):
 
     def test_ConfigScheduleInterval(self):
         """ Tests for config holding scheduler information """
-        ci = configtypes.ConfigScheduleInterval('', '', 'test', 10)
-        self.assertEqual(ci.get_schedule_name(), 'test', 'Schedule name not stored correctly')
+        ci = configtypes.ConfigScheduleInterval('', '', 'Test', 10)
+        self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         ci.set_int(100000) # Value too large, should have no effect
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')

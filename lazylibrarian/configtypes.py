@@ -186,7 +186,7 @@ class ConfigRangedInt(ConfigInt):
         return int(value) >= self.range_min and int(value) <= self.range_max
 
 class ConfigScheduleInterval(ConfigRangedInt):
-    """ An int config that is used to hold a scheduling interval in minutes """
+    """ An int config that is used to hold a scheduling interval in seconds, minutes or hours, who knows """
     def __init__(self, section: str, key: str, schedule_name: str, default: int, is_new: bool=False):
         if not schedule_name:
             raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
