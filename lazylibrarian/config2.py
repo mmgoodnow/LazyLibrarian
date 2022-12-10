@@ -5,10 +5,10 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, TypedDict, Tuple, Type
+from typing import Dict, List, TypedDict, Tuple, Type, MutableMapping
 from copy import deepcopy
 from configparser import ConfigParser
-from collections import Counter
+from collections import Counter, OrderedDict
 from os import path, sep
 
 import lazylibrarian
@@ -36,7 +36,7 @@ class LLConfigHandler():
 
         if configfile:
             self.configfilename = configfile
-            parser = ConfigParser()
+            parser = ConfigParser(dict_type=CaseInsensitiveDict)
             parser.optionxform = lambda optionstr: optionstr.upper()
             parser.read(configfile)
             for section in parser.sections():
@@ -51,7 +51,7 @@ class LLConfigHandler():
         """ Copy the default values and settings for the given config """
         if defaults:
             for config_item in defaults:
-                key = config_item.key
+                key = config_item.key.upper()
                 config[key] = deepcopy(config_item)
                 if index != None and index >= 0: # It's an array
                     config[key].section = config[key].section % index
@@ -234,18 +234,18 @@ class LLConfigHandler():
         If save_all, saves all possible config items. If False, saves only changed items
         """
 
-        def add_to_parser(parser, sectionname, item) -> int:
+        def add_to_parser(parser: ConfigParser, sectionname: str, item: ConfigItem) -> int:
             """ Add item to parser, return 1 if added, 0 if ignored """
             if save_all or not item.is_default():
                 if not sectionname in parser:
                     parser[sectionname] = {}
-                parser[sectionname][key] = str(item)
+                parser[sectionname][key] = item.get_save_str()
                 return 1
             else:
                 return 0
 
         parser = ConfigParser()
-        parser.optionxform = lambda optionstr: optionstr.lower()
+        parser.optionxform = lambda optionstr: optionstr.upper()
 
         count = 0
         for key, item in self.config.items():
@@ -360,14 +360,18 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
 
     def are_configdicts_equivalent(cd1: ConfigDict, cd2: ConfigDict) -> bool:
         if not cd1 or not cd2:
+            logger.warn(f"Arrays don't exist {not cd1}, {not cd2}")
             return False
         if len(cd1) != len(cd2):
+            logger.warn(f"Array lengths differ: {len(cd1)} != {len(cd2)}")
             return False
         for key, item1 in cd1.items():
             if key in cd2.keys():
                 if cd2[key].value != item1.value:
+                    logger.warn(f"Array values for [{key}]: {item1.value} != {cd2[key].value}")
                     return False
             else:
+                logger.warn(f"Array key [{key}] missing in array 2")
                 return False
         return True
 
@@ -377,18 +381,46 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
 
     # Compare base configs
     if not are_configdicts_equivalent(cfg1.config, cfg2.config):
+        logger.warn(f"Base configs differ")
         return False
 
     # Compare array configs
     if len(cfg1.arrays) != len(cfg2.arrays):
+        logger.warn(f"Number of array configs differ")
         return False
 
     for (name, inx), cd1 in cfg1.arrays.items():
         try:
             cd2 = cfg2.arrays[(name, inx)]
         except:
+            logger.warn(f"Error retrieving array config {name}.{inx}")
             return False
         if not are_configdicts_equivalent(cd1, cd2):
+            logger.warn(f"Array configs differ in {name}.{inx}")
             return False
 
     return True
+
+### This is to have section names be case insensitive.
+### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
+class CaseInsensitiveDict(MutableMapping):
+    """ Ordered case insensitive mutable mapping class. """
+    def __init__(self, *args, **kwargs):
+        self._d = OrderedDict(*args, **kwargs)
+        self._convert_keys()
+    def _convert_keys(self):
+        for k in list(self._d.keys()):
+            v = self._d.pop(k)
+            self._d.__setitem__(k, v)
+    def __len__(self):
+        return len(self._d)
+    def __iter__(self):
+        return iter(self._d)
+    def __setitem__(self, k, v):
+        self._d[k.upper()] = v
+    def __getitem__(self, k):
+        return self._d[k.upper()]
+    def __delitem__(self, k):
+        del self._d[k.upper()]
+    def copy(self):
+        return CaseInsensitiveDict(self._d.copy())

@@ -249,14 +249,25 @@ class Config2Test(LLTestCase):
 
             self.assertTrue(config2.are_equivalent(cfg1, cfg2))
 
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg1.set_int('a-new-int', 1)
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+        self.assertEqual(cm.output, [
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:are_configdicts_equivalent : Array lengths differ: 6 != 5',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
+        ])
 
+        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
             cfg2.set_int('a-new-int', 1)
             self.assertTrue(config2.are_equivalent(cfg1, cfg2))
 
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg2.set_str('another-str', 'help')
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
+        self.assertEqual(cm.output, [
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:are_configdicts_equivalent : Array lengths differ: 6 != 7',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
+        ])
 
     def do_access_compare(self, got, expected, error):
         """ Helper function, validates that two access lists are the same """
@@ -404,14 +415,14 @@ class Config2Test(LLTestCase):
             # Because no defaults are loaded, every item will case a warning
             cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
         self.assertEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.EBOOK_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.AUDIO_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.DOWNLOAD_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.ALTERNATE_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.TESTDATA_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.LOGLEVEL in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.NO_IPV6 in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option General.SSL_VERIFY in config'
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.EBOOK_DIR in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.AUDIO_DIR in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.DOWNLOAD_DIR in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.ALTERNATE_DIR in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.TESTDATA_DIR in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.LOGLEVEL in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.NO_IPV6 in config',
+            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.SSL_VERIFY in config'
         ])
         acs = cfg.get_all_accesses()
         self.do_access_compare(acs, {}, 'Loading ini without defaults should not load anything')
@@ -456,10 +467,7 @@ class Config2Test(LLTestCase):
             "GENERAL.ALTERNATE_DIR": Counter({'write_ok': 1}),
             "GENERAL.TESTDATA_DIR": Counter({'write_ok': 1}),
             "GENERAL.DOWNLOAD_DIR": Counter({'write_ok': 1}),
-            "POSTPROCESS.EBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
             "POSTPROCESS.AUDIOBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
-            "POSTPROCESS.COMIC_DEST_FOLDER": Counter({'write_ok': 1}),
-            "POSTPROCESS.MAG_DEST_FOLDER": Counter({'write_ok': 1}),
             "NEWZNAB.0.DISPNAME": Counter({'write_ok': 1}),
             "NEWZNAB.0.ENABLED": Counter({'write_ok': 1}),
             "NEWZNAB.0.HOST": Counter({'write_ok': 1}),
@@ -510,8 +518,11 @@ class Config2Test(LLTestCase):
         """ Test saving config file """
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         try:
-            count = cfg.save_config('test-small.ini', False) # Save only non-default values
+            TESTFILE = 'test-small.ini'
+            count = cfg.save_config(TESTFILE, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
             self.assertEqual(self.remove_test_file('test-small.ini'), True, 'Could not remove test-small.ini')
 
@@ -520,8 +531,11 @@ class Config2Test(LLTestCase):
             count = cfg.save_config('?*/\\invalid<>file', False) # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
         try:
-            count = cfg.save_config('test-changed.ini', False) # Save only non-default values
-            self.assertEqual(count, 41, 'Saving config.ini has unexpected # of non-default items')
+            TESTFILE = 'test-changed.ini'
+            count = cfg.save_config(TESTFILE, False) # Save only non-default values
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected # of non-default items')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
             self.assertEqual(self.remove_test_file('test-changed.ini'), True, 'Could not remove test-changed.ini')
 
@@ -545,7 +559,7 @@ class Config2Test(LLTestCase):
         try:
             with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
-            self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
 
             cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
@@ -554,7 +568,7 @@ class Config2Test(LLTestCase):
             # Verify that it works when .bak file exists as well:
             with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
-            self.assertEqual(count, 41, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
 
         finally:
@@ -575,7 +589,7 @@ class Config2Test(LLTestCase):
         # Set some values that trigger warnings/fixes
         import os
         for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
-            value = cfg.config[fname].get_str() + os.sep
+            value = cfg.config[fname].get_str() + os.sep # These will be removed in post
             cfg.config[fname].set_str(value)
         cfg.config['HTTP_LOOK'].set_str('default')
 
