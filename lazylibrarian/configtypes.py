@@ -90,6 +90,9 @@ class ConfigItem():
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
+    def get_schedule_name(self) -> str|None:
+        return None
+
     def _on_read(self, ok: bool) -> bool:
         if ok:
             self.accesses['read_ok'] += 1
@@ -181,6 +184,18 @@ class ConfigRangedInt(ConfigInt):
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         return int(value) >= self.range_min and int(value) <= self.range_max
+
+class ConfigScheduleInterval(ConfigRangedInt):
+    """ An int config that is used to hold a scheduling interval in minutes """
+    def __init__(self, section: str, key: str, schedule_name: str, default: int, is_new: bool=False):
+        if not schedule_name:
+            raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
+
+        self.schedule_name = schedule_name
+        super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new)
+
+    def get_schedule_name(self) -> str|None:
+        return self.schedule_name
 
 class ConfigPerm(ConfigInt):
     """ Represents UNIX file permissions. Emitted as an Octal string """

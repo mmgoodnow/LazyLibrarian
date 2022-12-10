@@ -6,6 +6,7 @@
 from typing import List, Dict
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
 from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
+from lazylibrarian.configtypes import ConfigScheduleInterval
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
@@ -301,14 +302,14 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'REJECT_MAXCOMIC', 0),
     ConfigInt('General', 'REJECT_MINCOMIC', 0),
     ConfigInt('General', 'MAG_AGE', 31),
-    ConfigInt('SearchScan', 'SEARCH_BOOKINTERVAL', 360),
-    ConfigInt('SearchScan', 'SEARCH_MAGINTERVAL', 360),
-    ConfigInt('SearchScan', 'SCAN_INTERVAL', 10),
-    ConfigInt('SearchScan', 'SEARCHRSS_INTERVAL', 20),
-    ConfigInt('SearchScan', 'WISHLIST_INTERVAL', 24),
-    ConfigInt('SearchScan', 'SEARCH_COMICINTERVAL', 24),
-    ConfigInt('SearchScan', 'VERSIONCHECK_INTERVAL', 24),
-    ConfigInt('SearchScan', 'GOODREADS_INTERVAL', 48),
+    ConfigScheduleInterval('SearchScan', 'SEARCH_BOOKINTERVAL', 'search_book', 360),
+    ConfigScheduleInterval('SearchScan', 'SEARCH_MAGINTERVAL', 'search_magazines', 360),
+    ConfigScheduleInterval('SearchScan', 'SCAN_INTERVAL', 'PostProcessor', 10),
+    ConfigScheduleInterval('SearchScan', 'SEARCHRSS_INTERVAL', 'search_rss_book', 20),
+    ConfigScheduleInterval('SearchScan', 'WISHLIST_INTERVAL', 'search_wishlist', 24),
+    ConfigScheduleInterval('SearchScan', 'SEARCH_COMICINTERVAL', 'search_comics', 24),
+    ConfigScheduleInterval('SearchScan', 'VERSIONCHECK_INTERVAL', 'check_for_updates', 24),
+    ConfigScheduleInterval('SearchScan', 'GOODREADS_INTERVAL', 'sync_to_gr', 48),
     ConfigBool('SearchScan', 'DELAYSEARCH', 0),
     ConfigInt('SearchScan', 'SEARCH_RATELIMIT', 0),
     ConfigBool('LibraryScan', 'FULL_SCAN', 0),

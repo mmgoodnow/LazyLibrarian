@@ -13,11 +13,11 @@ from os import path, sep
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
+    ConfigURL, ConfigScheduleInterval, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
 from lazylibrarian.configdefs import ARRAY_DEFS
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
-from lazylibrarian.common import syspath, path_exists
+from lazylibrarian.common import syspath, path_exists, schedule_job
 
 ConfigDict = Dict[str, ConfigItem]
 
@@ -311,6 +311,7 @@ class LLConfigHandler():
                     return -1
         finally:
             thread_name(currentname)
+            self.post_save_actions()
 
     def post_load_fixup(self) -> int:
         """
@@ -354,6 +355,19 @@ class LLConfigHandler():
 
         return warnings
 
+    def post_save_actions(self):
+        """ Run activities after saving, such as rescheduling jobs that may have changed """
+        for _, item in self.config.items():
+            schedule = item.get_schedule_name()
+            if schedule:
+                logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
+                schedule_job('Restart', schedule)
+
+        if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
+            logger.debug("Deleting single-book series from database")
+            db = database.DBConnection()
+            db.action('DELETE from series where total=1')
+            db.close()
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """

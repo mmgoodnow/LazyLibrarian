@@ -249,6 +249,20 @@ class Config2Test(LLTestCase):
         finally:
             os.name = osname
 
+    def test_ConfigScheduleInterval(self):
+        """ Tests for config holding scheduler information """
+        ci = configtypes.ConfigScheduleInterval('', '', 'test', 10)
+        self.assertEqual(ci.get_schedule_name(), 'test', 'Schedule name not stored correctly')
+        self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
+        ci.set_int(100000) # Value too large, should have no effect
+        self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
+
+        try:
+            ci = configtypes.ConfigScheduleInterval('', '', '', 10)
+            self.assertTrue(False, 'Expected RuntimeError to be raised because schedule is empty')
+        except RuntimeError:
+            pass # This is what we expect
+
     def set_basic_test_values(self, cfg: config2.LLConfigHandler):
         """ Helper function, sets some basic config values """
         with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
