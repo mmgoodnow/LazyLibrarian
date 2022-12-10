@@ -9,7 +9,6 @@ version.txt
 .idea/*
 .vscode/*
 venv/*
-client*
 *docker*
 git_helper.sh
 update-version.sh

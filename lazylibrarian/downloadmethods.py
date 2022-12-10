@@ -17,7 +17,10 @@ import time
 import unicodedata
 from base64 import b16encode, b32decode, b64encode
 from hashlib import sha1
-import magic
+try:
+    import magic
+except Exception:  # magic might fail for multiple reasons
+    magic = None
 
 import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \

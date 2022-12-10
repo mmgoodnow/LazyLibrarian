@@ -181,7 +181,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
-            shutdown(update=True)
+            shutdown(update=True, exit=True)
 
     if options.loglevel:
         try:
@@ -756,7 +756,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         state = str(cherrypy.engine.state)
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
-    if not testing:
+    if testing:
         config.config_write() 
 
     if not restart and not update:
