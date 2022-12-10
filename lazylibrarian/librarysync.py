@@ -18,6 +18,7 @@ import re
 import traceback
 import shutil
 from xml.etree import ElementTree
+import zipfile
 
 import lazylibrarian
 from lazylibrarian import logger, database
@@ -34,14 +35,9 @@ from lazylibrarian.ol import OpenLibrary
 from lazylibrarian.importer import update_totals, add_author_name_to_db, search_for
 from lazylibrarian.preprocessor import preprocess_audio
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 from lib.mobi import Mobi
 from urllib.parse import quote_plus, urlencode
-
-try:
-    import zipfile
-except ImportError:
-    import lib.zipfile as zipfile
 
 
 # noinspection PyBroadException

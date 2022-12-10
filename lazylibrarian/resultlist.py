@@ -25,7 +25,7 @@ from lazylibrarian.formatter import unaccented, replace_all, get_list, now, chec
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import get_searchterm
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 
 
 def process_result_list(resultlist, book, searchtype, source):

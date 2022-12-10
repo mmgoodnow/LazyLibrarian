@@ -1,5 +1,39 @@
-# Config file for pytest
+[build-system]
+requires = ["setuptools", "ez_setup"]
+build-backend = "setuptools.build_meta"
 
+[tool.setuptools.packages.find]
+where = ["lazylibrarian"]
+
+[project]
+name = "LazyLibrarian"
+version = "2022.12.05"
+description = "LazyLibrarian is a SickBeard, CouchPotato, Headphones-like application for ebooks, audiobooks and magazines"
+readme = "README.md"
+requires-python = ">=3.5"
+
+dependencies = [
+    'bs4',
+    'html5lib',
+    'webencodings',
+    'requests',
+    'urllib3',
+    'pyOpenSSL',
+    'cherrypy',
+    'cherrypy_cors',
+    'httpagentparser',
+    'mako',
+    'httplib2',
+    'Pillow',
+    'apprise',
+    'PyPDF3',
+    'python_magic',
+    'thefuzz[speedup]',
+    'deluge_client',
+]
+
+
+# Config file for pytest
 [tool.pytest.ini_options]
 pythonpath = "."
 filterwarnings = [

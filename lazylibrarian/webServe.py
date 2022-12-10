@@ -71,16 +71,11 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
-
-try:
-    from deluge_client import DelugeRPCClient
-except ImportError:
-    from lib.deluge_client import DelugeRPCClient
-
+from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 
 lastauthor = ''
 lastmagazine = ''
@@ -5586,6 +5581,8 @@ class WebInterface(object):
                                            plural(lazylibrarian.CONFIG['COMMITS_BEHIND'], "commit"))
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
+            if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+                message = message + "Update needs manual installation"
         else:
             message = "unknown version"
             messages = "Your version is not recognized at<br>https://%s/%s/%s  Branch: %s" % (
@@ -5846,10 +5843,13 @@ class WebInterface(object):
         # show the available notifiers
         apprise_list = lazylibrarian.notifiers.apprise_notify.AppriseNotifier.notify_types()
         result = ''
+        results = []
         try:
             for entry in apprise_list:
                 if isinstance(entry, str):
-                    result = result + entry + '\n'
+                    results.append(entry)
+            results.sort(key=str.casefold)
+            result = "\n".join(results)
         except Exception as e:
             logger.debug(str(e))
         return result

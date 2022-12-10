@@ -25,7 +25,7 @@ from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 
 
 # '0': '', '1': '', '2': '', '3': '', '4': '', '5': '', '6': '', '7': '', '8': '', '9': '',

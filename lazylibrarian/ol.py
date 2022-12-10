@@ -25,7 +25,7 @@ import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 from lazylibrarian.images import get_book_cover
-from lib.thefuzz import fuzz
+from thefuzz import fuzz
 
 
 class OpenLibrary:

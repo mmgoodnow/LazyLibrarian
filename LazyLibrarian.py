@@ -116,14 +116,14 @@ def main():
             try:
                 time.sleep(1)
             except KeyboardInterrupt:
-                startup.shutdown()
+                startup.shutdown(exit=True)
         else:
             if lazylibrarian.SIGNAL == 'shutdown':
-                startup.shutdown()
+                startup.shutdown(exit=True)
             elif lazylibrarian.SIGNAL == 'restart':
                 startup.shutdown(restart=True)
             elif lazylibrarian.SIGNAL == 'update':
-                startup.shutdown(restart=True, update=True)
+                startup.shutdown(update=True)
             lazylibrarian.SIGNAL = None
 
 

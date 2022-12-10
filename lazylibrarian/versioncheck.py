@@ -251,7 +251,6 @@ def check_for_updates():
     else:
         commits, lazylibrarian.COMMIT_LIST = get_commit_difference_from_git()
         lazylibrarian.CONFIG['COMMITS_BEHIND'] = commits
-
         if auto_update and commits > 0:
             for name in [n.name.lower() for n in [t for t in threading.enumerate()]]:
                 for word in ['update', 'scan', 'import', 'sync', 'process']:
@@ -259,12 +258,24 @@ def check_for_updates():
                         suppress = True
                         logmsg('warn', 'Suppressed auto-update as %s running' % name)
                         break
+
+            if not suppress and '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+                suppress = True
+                logmsg('warn', 'Suppressed auto-update as manual install needed')
+
             if not suppress:
                 plural = ''
                 if commits > 1:
                     plural = 's'
                 logmsg('info', 'Auto updating %s commit%s' % (commits, plural))
                 lazylibrarian.SIGNAL = 'update'
+
+    # testing - force a fake update
+    # lazylibrarian.COMMIT_LIST = 'test update system'
+    # lazylibrarian.SIGNAL = 'update'
+    # lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
+    # lazylibrarian.CONFIG['CURRENT_VERSION'] = 'testing'
+
     logmsg('debug', 'Update check complete')
     # noinspection PyBroadException
     try:
@@ -481,18 +492,29 @@ def update():
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
             zf = tarfile.open(backup_file, mode='w:gz')
-            for folder in ['cherrypy', 'data', 'init', 'lazylibrarian', 'LazyLibrarian.app',
-                           'lib', 'mako']:
+            prog_folders = ['data', 'init', 'lazylibrarian', 'LazyLibrarian.app', 'lib', 'icrawler',
+                            'telemetryserver', 'unittests']
+            # these library folders are optional, might not exist
+            lib_folders = ['bs4', 'cherrypy', 'deluge_client', 'html5lib', 'httpagentparser', 'magic',
+                           'mako', 'PyPDF3', 'requests', 'thefuzz', 'urllib3', 'webencodings']
+            for folder in lib_folders:
+                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                if os.path.exists(path):
+                    prog_folders.append(folder)
+            for folder in prog_folders:
                 path = os.path.join(lazylibrarian.PROG_DIR, folder)
                 for root, _, files in walk(path):
                     for item in files:
                         if not item.endswith('.pyc'):
                             base = root[len(lazylibrarian.PROG_DIR) + 1:]
                             zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
-            for item in ['LazyLibrarian.py', 'epubandmobi.py', 'example_custom_notification.py',
-                         'example_custom_notification.sh', 'example_ebook_convert.py',
-                         'example.genres.json', 'example.monthnames.json']:
-                zf.add(os.path.join(lazylibrarian.PROG_DIR, item), arcname=item)
+            for item in ['LazyLibrarian.py', 'cherrypy_cors.py', 'epubandmobi.py', 'example_custom_notification.py',
+                         'example_custom_notification.sh', 'example_ebook_convert.py', 'example_filetemplate.txt',
+                         'example.genres.json', 'example_html_filetemplate.txt', 'example_logintemplate.txt', 
+                         'example.monthnames.json', 'updater.py', 'pyproject.toml']:
+                path = os.path.join(lazylibrarian.PROG_DIR, item)
+                if os.path.exists(path):
+                    zf.add(path, arcname=item)
             zf.close()
             msg = 'Saved current version to %s' % backup_file
             upgradelog.write("%s %s\n" % (time.ctime(), msg))

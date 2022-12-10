@@ -181,7 +181,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
-            lazylibrarian.shutdown(restart=True, update=True)
+            shutdown(update=True, exit=True)
 
     if options.loglevel:
         try:
@@ -674,18 +674,6 @@ def init_version_checks(version_file):
             res, _ = versioncheck.run_git('remote -v')
             if 'gitlab.com' in res:
                 warn('Unrecognised version, LazyLibrarian may have local changes')
-            else:  # upgrading from github
-                warn("Upgrading git origin")
-                versioncheck.run_git('remote rm origin')
-                versioncheck.run_git('remote add origin https://gitlab.com/LazyLibrarian/LazyLibrarian.git')
-                versioncheck.run_git('config master.remote origin')
-                versioncheck.run_git('config master.merge refs/heads/master')
-                res, _ = versioncheck.run_git('pull origin master')
-                if 'CONFLICT' in res:
-                    warn("Forcing reset to fix merge conflicts")
-                    versioncheck.run_git('reset --hard origin/master')
-                versioncheck.run_git('branch --set-upstream-to=origin/master master')
-                lazylibrarian.SIGNAL = 'restart'
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
             warn('Unrecognised version [%s] to force upgrade delete %s' % (
                         lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
@@ -698,12 +686,16 @@ def init_version_checks(version_file):
         with open(syspath(version_file), 'w') as f:
             f.write("UNKNOWN SOURCE")
 
-    if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0 and lazylibrarian.SIGNAL == 'update':
+    if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0:
         lazylibrarian.SIGNAL = None
         if lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
             debug('Not updating, LazyLibrarian is already up to date')
         else:
             debug('Not updating, LazyLibrarian has local changes')
+
+    if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
+        lazylibrarian.SIGNAL = None
+        info("Update available, but needs manual installation")
 
 
 def launch_browser(host, port, root):
@@ -757,7 +749,7 @@ def logmsg(level, msg):
     else:
         print(level.upper(), msg)
 
-def shutdown(restart=False, update=False, exit=True, testing=False):
+def shutdown(restart=False, update=False, exit=False, testing=False):
     if not testing:
         cherrypy.engine.exit()
         time.sleep(2)
@@ -789,11 +781,12 @@ def shutdown(restart=False, update=False, exit=True, testing=False):
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))
+
     if lazylibrarian.PIDFILE:
         logmsg('info', 'Removing pidfile %s' % lazylibrarian.PIDFILE)
         os.remove(syspath(lazylibrarian.PIDFILE))
 
-    if restart:
+    if restart and not exit:
         logmsg('info', 'LazyLibrarian is restarting ...')
         if not lazylibrarian.DOCKER:
             # Try to use the currently running python executable, as it is known to work

@@ -838,22 +838,16 @@ def config_read(reloaded=False):
     lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
     lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
     lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
-    # Suppress audio/comic tabs if on legacy interface
-    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-        lazylibrarian.SHOW_AUDIO = 0
-        lazylibrarian.SHOW_COMICS = 0
-        lazylibrarian.SHOW_EBOOK = 1
-    else:
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
 
     for item in ['BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG', 'TOGGLES']:
         lazylibrarian.CONFIG[item] = 1 if lazylibrarian.CONFIG[item] else 0
@@ -1211,21 +1205,16 @@ def config_write(part=None):
     lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
     lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
 
-    if lazylibrarian.CONFIG['HTTP_LOOK'] == 'legacy':
-        lazylibrarian.SHOW_AUDIO = 0
-        lazylibrarian.SHOW_COMICS = 0
-        lazylibrarian.SHOW_EBOOK = 1
-    else:
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
-        if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
-            lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'eBooks' and not lazylibrarian.SHOW_EBOOK:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Magazines' and not lazylibrarian.SHOW_MAGS:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Comics' and not lazylibrarian.SHOW_COMICS:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
+    if lazylibrarian.CONFIG['HOMEPAGE'] == 'Series' and not lazylibrarian.SHOW_SERIES:
+        lazylibrarian.CONFIG['HOMEPAGE'] = ''
 
     if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
         db = database.DBConnection()

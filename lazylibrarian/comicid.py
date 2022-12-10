@@ -15,6 +15,7 @@ import re
 import string
 import time
 from xml.etree import ElementTree
+import zipfile
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -25,8 +26,6 @@ from urllib.parse import quote_plus
 
 import html5lib
 from bs4 import BeautifulSoup
-
-import lib.zipfile as zipfile
 
 
 def get_issue_num(words, skipped):

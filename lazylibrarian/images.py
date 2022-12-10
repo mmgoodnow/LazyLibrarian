@@ -27,45 +27,26 @@ from lazylibrarian.providers import provider_is_blocked, block_provider
 from urllib.parse import quote_plus
 from shutil import rmtree
 
-try:
-    import zipfile
-except ImportError:
-    import lib.zipfile as zipfile
+import zipfile
 
 try:
     import PIL
-    # noinspection PyUnresolvedReferences
-    from PIL import Image as PILImage
-    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
 except ImportError:
     PIL = None
+if PIL:
+    from PIL import Image as PILImage
+    from icrawler.builtin import GoogleImageCrawler, BingImageCrawler, BaiduImageCrawler, FlickrImageCrawler
+else:
     GoogleImageCrawler = None
     BingImageCrawler = None
     BaiduImageCrawler = None
     FlickrImageCrawler = None
 
+from PyPDF3 import PdfFileWriter, PdfFileReader
 try:
-    # noinspection PyProtectedMember
-    from PyPDF3 import PdfFileWriter, PdfFileReader
-except ImportError:
-    try:
-        # noinspection PyProtectedMember
-        from lib.PyPDF3 import PdfFileWriter, PdfFileReader
-    except ImportError:
-        PdfFileWriter = None
-        PdfFileReader = None
-
-# noinspection PyBroadException
-try:
-    # noinspection PyUnresolvedReferences
     import magic
 except Exception:  # magic might fail for multiple reasons
-    # noinspection PyBroadException
-    try:
-        import lib.magic as magic
-    except Exception:
-        magic = None
-
+    magic = None
 
 GS = ''
 GS_VER = ''
