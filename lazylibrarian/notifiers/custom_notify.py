@@ -15,7 +15,8 @@
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, run_script
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.common import run_script
 
 
 class CustomNotifier:

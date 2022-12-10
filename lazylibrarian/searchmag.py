@@ -19,7 +19,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import schedule_job
+from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name, thread_name
@@ -79,7 +79,7 @@ def search_magazines(mags=None, reset=False):
                 dic = {'...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', ' + ': ' ', '"': '', ',': '', '*': ''}
                 searchterm = replace_all(searchmag['Title'], dic)
                 searchterm = re.sub(r'[.\-/]', ' ', searchterm)
-                
+
             searchlist.append({"bookid": bookid, "searchterm": searchterm, "datetype": datetype,
                                "library": 'magazine'})
 

@@ -20,8 +20,8 @@
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
-    proxy_list
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.common import proxy_list
 from lazylibrarian.formatter import check_int
 
 import urllib3
@@ -36,7 +36,7 @@ class AndroidPNNotifier:
 
         # build up the URL and parameters
         msg = msg.strip()
-        
+
         data = {
             'action': "send",
             'broadcast': broadcast,

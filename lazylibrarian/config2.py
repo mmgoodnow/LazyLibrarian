@@ -17,7 +17,8 @@ from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigI
 from lazylibrarian.configdefs import ARRAY_DEFS
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
-from lazylibrarian.common import syspath, path_exists, schedule_job
+from lazylibrarian.common import syspath, path_exists
+from lazylibrarian.scheduling import schedule_job
 
 ConfigDict = Dict[str, ConfigItem]
 

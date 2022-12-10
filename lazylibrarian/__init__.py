@@ -220,7 +220,7 @@ def directory(dirname):
     if usedir and len(usedir) >= 2 and usedir[0] == ".":
         if usedir[1] == "/" or usedir[1] == "\\":
            usedir = PROG_DIR + "/" + usedir[2:]
-           if os.path.__name__ == 'ntpath': 
+           if os.path.__name__ == 'ntpath':
                usedir = usedir.replace('/', '\\')
     if usedir and not path_isdir(usedir):
         try:
@@ -253,8 +253,8 @@ def directory(dirname):
 
 
 def wishlist_type(host):
-    """ 
-    Return type of wishlist at host, or empty string if host is not a wishlist 
+    """
+    Return type of wishlist at host, or empty string if host is not a wishlist
     (Quite fragile, take care)
     """
     # GoodReads rss feeds
@@ -282,7 +282,7 @@ def wishlist_type(host):
         return 'penguinrandomhouse'
     if 'barnesandnoble' in host:
         return 'barnesandnoble'
- 
+
     return ''
 
 

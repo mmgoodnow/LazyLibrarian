@@ -19,8 +19,9 @@ import sys
 
 import lazylibrarian
 from lazylibrarian.formatter import make_unicode, thread_name, check_int, unaccented_bytes, unaccented
-from lazylibrarian.common import logger, path_exists, schedule_job, syspath
-from lazylibrarian import database 
+from lazylibrarian.common import logger, path_exists, syspath
+from lazylibrarian.scheduling import schedule_job
+from lazylibrarian import database
 from shutil import rmtree
 import configparser
 
@@ -600,7 +601,7 @@ class LLConfigParser(configparser.RawConfigParser):
             return value != '' and value != default
         else:
             # Don't store empty values
-            return value != '' 
+            return value != ''
 
     # Override _write_section, to not write non-default values
     def _write_section(self, fp, section_name, section_items, delimiter):

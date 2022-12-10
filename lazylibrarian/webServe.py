@@ -39,10 +39,12 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibre_test, sync_calibre_list, calibredb
 from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_words
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import show_jobs, show_stats, restart_jobs, clear_log, schedule_job, check_running_jobs, \
-    setperm, all_author_update, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
-    mime_type, zip_audio, run_script, walk, ensure_running, book_file, path_isdir, path_isfile, path_exists, \
+from lazylibrarian.common import show_stats, clear_log, \
+    setperm, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
+    mime_type, zip_audio, run_script, walk, book_file, path_isdir, path_isfile, path_exists, \
     syspath, remove, set_redactlist, get_calibre_id, safe_move, opf_file, safe_copy
+from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
+    ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \

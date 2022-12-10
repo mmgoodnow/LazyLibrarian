@@ -27,8 +27,8 @@ import lazylibrarian
 import os
 import traceback
 from lazylibrarian import logger, database, ebook_convert
-from lazylibrarian.common import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL, \
-    is_valid_email, path_isfile, syspath, run_script, mime_type
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
+from lazylibrarian.common import is_valid_email, path_isfile, syspath, run_script, mime_type
 from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
 
 
