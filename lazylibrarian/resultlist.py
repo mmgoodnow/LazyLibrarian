@@ -17,7 +17,8 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import schedule_job, only_punctuation
+from lazylibrarian.common import only_punctuation
+from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
     direct_dl_method, irc_dl_method
 from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int, disp_name

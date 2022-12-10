@@ -94,7 +94,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
             {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ", 
             "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ", 
             "BOOK_API": "OpenLibrary", 
-            "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 0}
+            "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 1}
         """)
         self.assertEqual(cfg, json_good, "Config not as expected. Check that ini file has not changed")
 
@@ -123,7 +123,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
             sGot[cfg] = t.construct_data_string(cfg)
         sExpect = [
             ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt"}'],
-            ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":0}'],
+            ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
             ['usage',  'usage={"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
         ]
         # Test individual strings

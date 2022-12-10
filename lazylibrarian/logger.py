@@ -20,8 +20,9 @@ from lazylibrarian import formatter
 
 # Simple rotating log handler that uses RotatingFileHandler
 class RotatingLogger(object):
-    # Class variable
+    # Class variables
     __LOGGER_INITIALIZED__ = False
+    SHOW_LINE_NO = True
 
     @classmethod
     def is_initialized(cls):
@@ -118,7 +119,10 @@ class RotatingLogger(object):
             if len(lazylibrarian.LOGLIST) > formatter.check_int(lazylibrarian.CONFIG['LOGLIMIT'], 500):
                 del lazylibrarian.LOGLIST[-1]
 
-        message = "%s : %s:%s:%s : %s" % (threadname, program, method, lineno, message)
+        if RotatingLogger.SHOW_LINE_NO:
+            message = "%s : %s:%s:%s : %s" % (threadname, program, method, lineno, message)
+        else:
+            message = "%s : %s:%s : %s" % (threadname, program, method, message)
 
         if level == 'DEBUG':
             logger.debug(message)
@@ -157,6 +161,6 @@ def logmessage(message, level):
 
     if level == "INFO" and lazylibrarian.LOGLEVEL <= 0:
         return
-        
+
     lazylibrarian_log.log(message, level)
 

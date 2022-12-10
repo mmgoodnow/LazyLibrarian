@@ -175,44 +175,6 @@ def book_series(bookname):
     return series, seriesnum
 
 
-def next_run_time(when_run, test_now: datetime = None):
-    """
-    Returns a readable approximation of how long until a job will be run, 
-    given a string representing the last time it was run
-    """
-    try:
-        when_run = datetime.datetime.strptime(when_run, '%Y-%m-%d %H:%M:%S')
-        timenow = datetime.datetime.now() if not test_now else test_now
-        td = when_run - timenow
-        diff = td.total_seconds()  # time difference in seconds
-    except ValueError as e:
-        lazylibrarian.logger.error("Error getting next run for [%s] %s" % (when_run, str(e)))
-        diff = 0
-        td = ''
-
-    td = str(td)
-    if 'days,' in td: # > 1 day, just return days
-        return td.split('s,')[0] + 's'
-    elif 'day,' in td and not "0:00:00" in td: # 1 day and change, or 1 day?
-        diff += 86400
-
-    # calculate whole units, plus round up by adding 1(true) if remainder >= half
-    days = int(diff / 86400) + (diff % 86400 >= 43200)
-    hours = int(diff / 3600) + (diff % 3600 >= 1800)
-    minutes = int(diff / 60) + (diff % 60 >= 30)
-    seconds = int(diff)
-
-    if days > 1:
-        return "%i days" % days
-    elif hours > 1:
-        return "%i hours" % hours
-    elif minutes > 1:
-        return "%i minutes" % minutes
-    elif seconds == 1:
-        return "1 second"
-    else:
-        return "%i seconds" % seconds
-
 
 def now():
     dtnow = datetime.datetime.now()
@@ -378,7 +340,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
 
 
 def month2num(month):
-    """ 
+    """
     Return a month number
      - given a month name (long or short) in requested locales
      - or given a season name (only in English)
@@ -411,7 +373,7 @@ def datecompare(nzbdate, control_date):
     try:
         y1, m1, d1 = (int(x) for x in nzbdate.split('-'))
         y2, m2, d2 = (int(x) for x in control_date.split('-'))
-        if y1 < 100: 
+        if y1 < 100:
             y1 += 1900
         if y2 < 100:
             y2 += 1900
@@ -608,7 +570,7 @@ def is_valid_isbn(isbn):
     if len(isbn) == 10 and isbn[:9].isdigit(): # Validate checksum
         xsum = 0
         for i in range(9):
-            xsum += check_int(isbn[i], 0) * (10-i) 
+            xsum += check_int(isbn[i], 0) * (10-i)
         if isbn[9] in "Xx":
             xsum += 10
         else:
@@ -676,7 +638,7 @@ def safe_unicode(obj, *args):
 
 def split_title(author, book):
     """
-    Strips the author name from book title and 
+    Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
@@ -777,7 +739,7 @@ def format_author_name(author):
 
 def sort_definite(title):
     """
-    Return the sort string for a title, moving prefixes 
+    Return the sort string for a title, moving prefixes
     we want to ignore to the end, like The or A
     """
     words = get_list(title)
@@ -886,7 +848,7 @@ def replace_all(text, dic):
 
 def replace_quotes_with(text, char):
     """
-    Replaces every occurrence of quote characters in "text" 
+    Replaces every occurrence of quote characters in "text"
     with char - which can be blank to remove them
     """
     if not text:

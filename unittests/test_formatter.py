@@ -6,9 +6,7 @@
 import unittesthelpers
 
 import lazylibrarian
-from lazylibrarian import startup, formatter
-import datetime
-
+from lazylibrarian import formatter
 
 class FormatterTest(unittesthelpers.LLTestCase):
     # Initialisation code that needs to run only once
@@ -26,7 +24,7 @@ class FormatterTest(unittesthelpers.LLTestCase):
             ("\\\\Server\\Test An odd one:2131", '\\Server\\Test An odd one2131'),
         ]
         for s in strings:
-            sn = formatter.sanitize(s[0])
+            sn = str(formatter.sanitize(s[0]))
             self.assertEqual(sn, s[1])
             self.assertTrue(unicodedata.is_normalized("NFC", sn))
 
@@ -64,38 +62,10 @@ class FormatterTest(unittesthelpers.LLTestCase):
         for s in strings:
             self.assertEqual(formatter.safe_unicode(s[0]), s[1])
 
-    def test_next_run_time(self):
-        testnow = datetime.datetime(2023, 11, 30, 17, 42, 31)
-        testcases = [
-            (datetime.timedelta(seconds=0), "0 seconds" ),
-            (datetime.timedelta(seconds=1), "1 second" ),
-            (datetime.timedelta(seconds=10), "10 seconds" ),
-            (datetime.timedelta(seconds=60), "60 seconds" ),
-            (datetime.timedelta(seconds=100), "2 minutes" ),
-            (datetime.timedelta(minutes=1), "60 seconds" ),
-            (datetime.timedelta(hours=1), "60 minutes" ),
-            (datetime.timedelta(hours=10), "10 hours" ),
-            (datetime.timedelta(days=1, seconds=1), "2 days" ),
-            (datetime.timedelta(days=1, hours=1), "2 days" ),
-            (datetime.timedelta(hours=100), "4 days" ),
-            (datetime.timedelta(days=1), "24 hours" ),
-            (datetime.timedelta(hours=25), "2 days" ),
-            (datetime.timedelta(days=2), "2 days" ),
-            (datetime.timedelta(days=100), "100 days" ),
-            (datetime.timedelta(days=1000), "1000 days" ),
-            (datetime.timedelta(weeks=5, days=7), "42 days" ),
-            # Failure case: Don't supply increments of less than a second
-            (datetime.timedelta(days=1, microseconds=1), "0 seconds" ),
-        ]
-        for case in testcases:
-            delta = case[0]
-            nrt = formatter.next_run_time(str(testnow+delta), testnow)
-            self.assertEqual(nrt, case[1])
-
     def test_book_series(self):
         testseries =[
             # Single-series
-            ("My Book (Toot, #40)", "Toot", '40'), 
+            ("My Book (Toot, #40)", "Toot", '40'),
             ("Some series (Book 3)", "Book", '3'),
             ("Mrs Bradshaws Handbook (Discworld, #40.5)", "Discworld", '40.5'),
             ("Test book (The Series: Book 6)", "The Series", "6"),
@@ -149,7 +119,7 @@ class FormatterTest(unittesthelpers.LLTestCase):
             ("Author", "Book: An explanation", ("Book", "An explanation", "")),
             ("Author", "Author: Book: An explanation", ("Book", "An explanation", "")),
             # Title with a "series" but no subtitle
-            ("Author", "My Book (Toot, #40)", ("My Book", "", "Toot, #40")), 
+            ("Author", "My Book (Toot, #40)", ("My Book", "", "Toot, #40")),
             ("Author", "Author: Some series (Book 3)", ("Some series", "", "Book 3")),
             ("Author", "Test book (The Series: Book 6)", ("Test book", "", "The Series: Book 6")),
             ("Author", "Author: Test book (The Series, 6)", ("Test book", "", "The Series, 6")),
@@ -298,16 +268,16 @@ class FormatterTest(unittesthelpers.LLTestCase):
 
     def test_date_format(self):
         dates = [
-            ("Tue, 23 Aug 2016 17:33:26 +0100", "2016-08-23"),  # Newznab/Torznab 
-            ("13 Nov 2014 05:01:18 +0200", "2014-11-13"),       # LimeTorrent 
+            ("Tue, 23 Aug 2016 17:33:26 +0100", "2016-08-23"),  # Newznab/Torznab
+            ("13 Nov 2014 05:01:18 +0200", "2014-11-13"),       # LimeTorrent
             ("04-25 23:46", formatter.now()[:4] + "-04-25"),    # torrent_tpb - use current year
-            ("2018-04-25", "2018-04-25"), 
-            ("May 1995", "1995-05-01"),                         # openlibrary 
+            ("2018-04-25", "2018-04-25"),
+            ("May 1995", "1995-05-01"),                         # openlibrary
             ("June 20, 2008", "2008-06-20"),
             ("28Dec2008", "2008-12-28"),                        # Compressed into one string
             ("XYZ is not a date", "XYZ-00-not a:date:00"),      # Error, but seen as a date
             ("XYZ", "XYZ"),                                     # Error, just a string
-            ("", ""), 
+            ("", ""),
         ]
         for d in dates:
             self.assertEqual(formatter.date_format(d[0]), d[1])
@@ -379,7 +349,7 @@ class FormatterTest(unittesthelpers.LLTestCase):
         ]
         for str in strings:
             self.assertEqual(formatter.make_unicode(str[0]), str[1])
-    
+
     def test_is_valid_isbn(self):
         isbns = [
             ("0123456789", True),
@@ -400,7 +370,7 @@ class FormatterTest(unittesthelpers.LLTestCase):
             ("book.opf", True),      # Book metadata
             ("cover.jpg", True),     # Cover images
             ("A volume.pdf", True),  # Magazines and ebooks
-            ("Audio.mp3", True),     # Audiobook 
+            ("Audio.mp3", True),     # Audiobook
             ("Adio.m4b", True),      # Modern audiobook
             ("TEST.EPUB", True),     # eBook
             ("Book 2.mobi", True),   # eBook
@@ -420,15 +390,15 @@ class FormatterTest(unittesthelpers.LLTestCase):
         types = ["book", "mag", "audio", "comic"]
         filenames_ok = [
             # Books: 'epub, mobi, pdf'
-            ("A volume.pdf", ("book", "mag")),  
-            ("TEST.EPUB", ("book")),     
-            ("Book 2.mobi", ("book")),   
+            ("A volume.pdf", ("book", "mag")),
+            ("TEST.EPUB", ("book")),
+            ("Book 2.mobi", ("book")),
             # Audiobooks: mp3, m4b
             ("Audio.mp3", ("audio")),
-            ("Adio.m4b", ("audio")),     
+            ("Adio.m4b", ("audio")),
             # Comics: cbr, cbz
-            ("Marvel.Cbr", ("comic")),    
-            ("DC.cbZ", ("comic")),       
+            ("Marvel.Cbr", ("comic")),
+            ("DC.cbZ", ("comic")),
             # Magazines: .pdf
             ("My mag.pdf", ("mag", "book"))
         ]

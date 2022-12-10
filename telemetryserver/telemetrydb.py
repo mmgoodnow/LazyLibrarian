@@ -3,6 +3,8 @@
 # Requires MySQL to be installed
 
 import mysql.connector
+import mysql.connector.errorcode
+import time
 import datetime
 import json
 import logging
@@ -10,63 +12,84 @@ import configparser
 
 class TelemetryDB():
     """ Handler for the LL telemetry database """
-    DBName = 'lazytelemetry'
     connection = None
 
-    def __init__(this, config: configparser.ConfigParser):
-        this.host = config.get('database', 'host', fallback='localhost')
-        this.user = config.get('database', 'user', fallback='LazyTelemetry')
-        this.password = config.get('database', 'password', fallback='secret789')
+    def __init__(self, config: configparser.ConfigParser):
+        self.host = config.get('database', 'host', fallback='localhost')
+        self.user = config.get('database', 'user', fallback='root')
+        self.password = config.get('database', 'password', fallback='secret789')
+        self.DBName = config.get('database', 'dbname', fallback='LazyTelemetry')
+        self.retries = int(config.get('database', 'retries', fallback=3))
 
-        this.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger(__name__)
 
-    def __del__(this):
-        if this.connection:
-            this.connection.commit()
-            this.connection.close()
-        this.connection = None
+    def __del__(self):
+        if self.connection:
+            self.connection.commit()
+            self.connection.close()
+        self.connection = None
 
-    def _connect(this):
+    def _connect(self):
         """ Connect to the database, return cursor """
-        if not this.connection:
-            this.connection = mysql.connector.connect(
-            host=this.host,
-            user=this.user, 
-            password=this.password,
-            database=this.DBName
+        if not self.connection:
+            self.connection = mysql.connector.connect(
+            host=self.host,
+            user=self.user,
+            password=self.password,
+            database=self.DBName
             )
 
-        return this.connection.cursor()
+        return self.connection.cursor()
 
-    def ensure_db_exists(this):
-        cursor = this._connect()
-        this.logger.debug('Ensuring database exists')
+    def connect_to_db_patiently(self) -> bool:
+        retries = 0
+        self.logger.debug(f'Will try DB connection #{self.retries} times')
+        while retries < self.retries:
+            self.logger.debug(f'Connecting to database, try #{retries}')
+            try:
+                cursor = self._connect()
+                if cursor:
+                    return True
+            except Exception as e:
+                retries += 1
+                self.logger.info(f'DB error {str(e)}: wait, then retry')
+                time.sleep(5)
+                dberror = str(e)
+
+        self.logger.error(f"Could not connect to database after {retries} attempts, exiting")
+        return False
+
+    def ensure_db_exists(self):
+        cursor = self._connect()
+        self.logger.debug('Ensuring database exists')
         try:
             try:
-                cursor.execute(f"CREATE DATABASE {this.DBName};")
+                cursor.execute(f"CREATE DATABASE {self.DBName};")
             except mysql.connector.Error as e:
                 if e.errno == mysql.connector.errorcode.ER_DB_CREATE_EXISTS:
-                    pass # this is ok
+                    pass # self is ok
         finally:
             cursor.close()
 
-    def ensure_column(this, cursor, tablename, column):
+    def ensure_column(self, cursor, tablename, column):
         try:
             alter_statement = f"ALTER TABLE {tablename} ADD COLUMN {column};"
             cursor.execute(alter_statement)
         except mysql.connector.Error as e:
             if e.errno == mysql.connector.errorcode.ER_DUP_FIELDNAME:
-                pass # We expect this most of the time
+                pass # We expect self most of the time
             else:
-                this.logger.error(f"Unexpected error creating column: {e.errno}")
+                self.logger.error(f"Unexpected error creating column {tablename}.{column}: {e.errno}")
         except Exception as e:
-            this.logger.error(f"Unexpected exception creating column: {str(e)}")
+            self.logger.error(f"Unexpected exception creating column: {str(e)}")
 
-    def ensure_table(this, tablename, columns):
-        cursor = this._connect()
+    def ensure_table(self, tablename, columns):
+        self.logger.debug(f'Ensuring table {tablename}')
+        cursor = self._connect()
         try:
+            create_it = True
             try:
-                create_it = True
+                self.logger.debug(f'Get existing table info')
                 cursor.execute(f"SHOW TABLES like '{tablename}';")
                 for tbl in cursor:
                     if tbl[0] == tablename:
@@ -74,19 +97,27 @@ class TelemetryDB():
             except mysql.connector.Error as e:
                 if e.errno == mysql.connector.errorcode.ER_NO_SUCH_TABLE:
                     create_it = True
+                else:
+                    self.logger.debug(f'Table {tablename} exists')
 
             if create_it:
                 create_statement = f"CREATE TABLE {tablename} (id INT AUTO_INCREMENT PRIMARY KEY);"
-                cursor.execute(create_statement)
-            [this.ensure_column(cursor, tablename, column) for column in columns]
+                self.logger.debug(f'Execute {create_statement}')
+                try:
+                    cursor.execute(create_statement)
+                    self.logger.debug(f'Created table ok')
+                except Exception as e:
+                    self.logger.error(f'Error creating table {tablename}: {str(e)}')
+
+            [self.ensure_column(cursor, tablename, column) for column in columns]
         finally:
             cursor.close()
 
 
-    def ensure_db_schema(this):
-        this.logger.info('Ensuring database schema is correct')
-        this.ensure_table("ll_servers",[
-            "serverid       VARCHAR(50) NOT NULL PRIMARY KEY",
+    def ensure_db_schema(self):
+        self.logger.info('Ensuring database schema is correct')
+        self.ensure_table("ll_servers",[
+            "serverid       VARCHAR(50) NOT NULL",
             "os             VARCHAR(50)",
             "first_seen     DATETIME NOT NULL",
             "last_seen      DATETIME NOT NULL",
@@ -95,7 +126,7 @@ class TelemetryDB():
             "ll_version     VARCHAR(50)",
             "ll_installtype VARCHAR(20)",
         ])
-        this.ensure_table("ll_configs",[
+        self.ensure_table("ll_configs",[
             "serverid       VARCHAR(50) NOT NULL",
             "datetime       DATETIME NOT NULL",
             "switches       VARCHAR(255)",
@@ -108,17 +139,17 @@ class TelemetryDB():
             "gen            INT NOT NULL",
             "apprise        INT NOT NULL",
         ])
-        this.ensure_table("ll_telemetry",[
+        self.ensure_table("ll_telemetry",[
             "serverid       VARCHAR(50) NOT NULL",
             "datetime       DATETIME NOT NULL",
         ])
 
-    def _update_server_data(this, server):
+    def _update_server_data(self, server):
         """ Returns current datetime string """
-        this.logger.debug(f'Store server data {server}')
+        self.logger.debug(f'Store server data {server}')
         try:
             nowstr = f"'{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}'"
-            cursor = this._connect()
+            cursor = self._connect()
             try:
                 entry = None
                 # Load existing row, if it exists
@@ -129,14 +160,14 @@ class TelemetryDB():
 
                 if entry:
                     longest_up = max(server["uptime_seconds"], entry[1])
-                    stmt = f"""UPDATE ll_servers SET 
+                    stmt = f"""UPDATE ll_servers SET
                         last_seen = {nowstr}, last_uptime = {server["uptime_seconds"]}, os = '{server["os"]}',
                         longest_uptime = {longest_up}, ll_version = '{server["version"]}', ll_installtype = '{server["install_type"]}'"""
                     cursor.execute(stmt)
                 else:
-                    stmt = (f"""INSERT INTO ll_servers 
+                    stmt = (f"""INSERT INTO ll_servers
                         (serverid, os, first_seen, last_seen, last_uptime, longest_uptime, ll_version, ll_installtype)
-                        VALUES 
+                        VALUES
                         ('{server["id"]}', '{server["os"]}', {nowstr}, {nowstr}, {server["uptime_seconds"]}, {server["uptime_seconds"]},
                         '{server["version"]}', '{server["install_type"]}') """)
                     cursor.execute(stmt)
@@ -145,19 +176,19 @@ class TelemetryDB():
 
         except Exception as e:
             raise Exception(f"Error updating server data: {str(e)}")
-        
+
         return nowstr
 
-    def _add_config_data(this, serverid, nowstr, config):
-        this.logger.debug(f'Store config data {config}')
+    def _add_config_data(self, serverid, nowstr, config):
+        self.logger.debug(f'Store config data {config}')
         try:
-            cursor = this._connect()
+            cursor = self._connect()
             try:
                 keys = "serverid, datetime, "
                 params = f"'{serverid}', {nowstr}, "
                 keys = keys + ", ".join([key.lower() for key in config.keys()])
                 params = params + ", ".join([f"'{str(value)}'" for value in config.values()])
-                    
+
                 stmt = f"INSERT INTO ll_configs ({keys}) VALUES ({params})"
                 cursor.execute(stmt)
             finally:
@@ -165,10 +196,10 @@ class TelemetryDB():
         except Exception as e:
             raise Exception(f"Error updating config data: {str(e)}")
 
-    def _add_usage_data(this, serverid, nowstr, usage):
-        this.logger.debug(f'Store usage data {usage}')
+    def _add_usage_data(self, serverid, nowstr, usage):
+        self.logger.debug(f'Store usage data {usage}')
         try:
-            cursor = this._connect()
+            cursor = self._connect()
             try:
                 keys = "serverid, datetime"
                 params = f"'{serverid}', {nowstr}"
@@ -177,7 +208,7 @@ class TelemetryDB():
                 for key in usage.keys():
                     columnname = "".join(c for c in key if c.isalpha())
                     columnspec = f"{columnname} INT"
-                    this.ensure_column(cursor, "ll_telemetry", columnspec)
+                    self.ensure_column(cursor, "ll_telemetry", columnspec)
                     keys += ", " + columnname
                     params += ", " + str(usage[key])
 
@@ -188,10 +219,14 @@ class TelemetryDB():
         except Exception as e:
             raise Exception(f"Error updating telemetry data: {str(e)}")
 
-    def add_telemetry(this, telemetry_data):
+    def add_telemetry(self, telemetry_data):
         """ Add telemetry received from LL to the database
         Returns status string """
-        this.logger.debug(f'Parsing telemetry data {telemetry_data}')
+        self.logger.debug(f'Parsing telemetry data {telemetry_data}')
+        server = None
+        config = None
+        serverid = None
+        usage = None
         try:
             server = list2dict(telemetry_data['server'])
             serverid = server["id"] if 'id' in server.keys() else None
@@ -204,36 +239,38 @@ class TelemetryDB():
                 return "No server data in json, aborting"
 
         try:
-            now = this._update_server_data(server)
+            now = self._update_server_data(server)
             processed = ['server']
             if config:
-                this._add_config_data(serverid, now, config)
+                self._add_config_data(serverid, now, config)
                 processed.append('config')
             if usage:
-                this._add_usage_data(serverid, now, usage)
+                self._add_usage_data(serverid, now, usage)
                 processed.append('usage')
 
-            this.connection.commit()
-            this.logger.debug('Processed data ok')
+            self.connection.commit()
+            self.logger.debug('Processed data ok')
             return f"ok. Processed {processed}"
         except Exception as e:
-            this.logger.error(f'Error processing data {str(e)}')
+            self.logger.error(f'Error processing data {str(e)}')
             return str(e)
 
-    def initialize(this):
+    def initialize(self):
         """ Initialize the database.
         Returns True if all is well. """
-        this.logger.info('Initializing database')
+        if not self.connect_to_db_patiently():
+            return False
+        self.logger.info('Initializing database')
         try:
-            this.ensure_db_exists()
-            this.ensure_db_schema()
+            self.ensure_db_exists()
+            self.ensure_db_schema()
             return True
         except mysql.connector.Error as e:
-            this.logger.error(f"Database error: {e}")
+            self.logger.error(f"Database error: {e}")
         return False
 
 # Helper functions
-                        
+
 def list2dict(obj):
     """ Turn a list object holding a string into a dict """
     if isinstance(obj, list):

@@ -33,8 +33,9 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, restart_jobs, show_jobs, check_running_jobs, all_author_update, setperm, \
-    log_header, author_update, show_stats, series_update, listdir, path_isfile, path_isdir, syspath, cpu_use
+from lazylibrarian.common import clear_log, setperm, \
+    log_header, show_stats, listdir, path_isfile, path_isdir, syspath, cpu_use
+from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks

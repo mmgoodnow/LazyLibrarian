@@ -37,7 +37,7 @@ from lazylibrarian import database, logger, utorrent, transmission, qbittorrent,
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
-from lazylibrarian.common import schedule_job, book_file, opf_file, setperm, bts_file, jpg_file, \
+from lazylibrarian.common import book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     path_isfile, path_isdir, path_exists, syspath, remove, calibre_prg
 from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
@@ -731,6 +731,7 @@ def unpack_archive(archivename, download_dir, title):
 
 def cron_process_dir():
     if lazylibrarian.STOPTHREADS:
+        from lazylibrarian.scheduling import schedule_job
         logger.debug("STOPTHREADS is set, not starting postprocessor")
         schedule_job(action='Stop', target='PostProcessor')
     else:
@@ -1584,6 +1585,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
         seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
         if not len(snatched) and not len(seeding):
+            from lazylibrarian.scheduling import schedule_job
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             schedule_job(action='Stop', target='PostProcessor')
             status['status'] = 'idle'

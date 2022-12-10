@@ -9,7 +9,7 @@ version.txt
 .idea/*
 .vscode/*
 venv/*
-*docker*
+client*
 git_helper.sh
 update-version.sh
 startlazy.sh
@@ -49,6 +49,7 @@ packages
 *.cproject
 *.tmproj
 *.tmproject
+.cache/*
 
 # Pytest specific    #
 ######################

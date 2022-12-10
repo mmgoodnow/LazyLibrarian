@@ -19,6 +19,7 @@
 import lazylibrarian
 import lib.pythontwitter as twitter
 from lazylibrarian import logger, common, formatter
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from urllib.parse import parse_qsl
 
 import lib.oauth2 as oauth
@@ -40,13 +41,13 @@ class TwitterNotifier:
     def notify_snatch(self, title, fail=False):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONSNATCH']:
             if fail:
-                self._notify_twitter(common.notifyStrings[common.NOTIFY_FAIL] + ': ' + title)
+                self._notify_twitter(notifyStrings[NOTIFY_FAIL] + ': ' + title)
             else:
-                self._notify_twitter(common.notifyStrings[common.NOTIFY_SNATCH] + ': ' + title)
+                self._notify_twitter(notifyStrings[NOTIFY_SNATCH] + ': ' + title)
 
     def notify_download(self, title):
         if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONDOWNLOAD']:
-            self._notify_twitter(common.notifyStrings[common.NOTIFY_DOWNLOAD] + ': ' + title)
+            self._notify_twitter(notifyStrings[NOTIFY_DOWNLOAD] + ': ' + title)
 
     def test_notify(self):
         return self._notify_twitter("This is a test notification from LazyLibrarian / " + formatter.now(), force=True)
