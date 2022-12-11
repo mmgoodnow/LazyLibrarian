@@ -48,7 +48,7 @@ def shutdownscheduler():
         # noinspection PyUnresolvedReferences
         SCHED.shutdown(wait=False)
 
-def next_run_time(when_run, test_now: datetime.datetime|None = None):
+def next_run_time(when_run, test_now=0):
     """
     Returns a readable approximation of how long until a job will be run,
     given a string representing the last time it was run
