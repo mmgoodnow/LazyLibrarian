@@ -197,41 +197,32 @@ class ConfigScheduleInterval(ConfigRangedInt):
     def get_schedule_name(self) -> str|None:
         return self.schedule_name
 
-class ConfigPerm(ConfigInt):
+class ConfigPerm(ConfigStr):
     """ Represents UNIX file permissions. Emitted as an Octal string """
-    def __init__(self, section: str, key: str, default: int, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: str, is_new: bool=False):
         super().__init__(section, key, default, is_new)
 
-    def get_str(self) -> str:
-        self._on_read(True)
-        return oct(int(self.value))
-
-    def set_str(self, value: str) -> bool:
-        # It's an int, but can be set with an octal string
-        return self._on_set(value)
+    def set_int(self, value: int) -> bool:
+        # It's a string, but can be set with an int value
+        return self.set_str(oct(value))
 
     def get_int(self) -> int:
-        if self._on_read(type(self.value) in [int, str]):
-            if type(self.value) == int:
-                return int(self.value)
-            else:
-                return int(str(self.value), 8)
-        else:
-            return int(self.default)
+        self._on_read(True)
+        return int(str(self.value), 8)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         try:
             if type(value) == str:
-                value = oct(int(str(value), 8)) # Should now be a valid Oct string
-            elif type(value) == int:
-                value = oct(int(value))
+                octvalue = oct(int(str(value), 8)) # Must now be a valid Oct string
+                if octvalue != value:
+                    return False
             else:
                 return False
 
-            if value[:2] != '0o':
+            if octvalue[:2] != '0o':
                 return False
 
-            intval = int(value[2:], 8)
+            intval = int(octvalue[2:], 8)
             return intval >= 0 and intval <= 0o777
         except ValueError:
             return False
@@ -314,9 +305,9 @@ class ConfigURL(ConfigStr):
     def get_url(self) -> URLstr:
         return URLstr(self.get_str())
 
-    def set_str(self, value: str):
+    def set_str(self, value: str) -> bool:
         value = value.rstrip('/')
-        super().set_str(value)
+        return super().set_str(value)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):

@@ -137,7 +137,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigPerm(self):
         """ Tests for ConfigPerm class """
-        ci = configtypes.ConfigPerm('Section', 'PermissionValue', 0o777)
+        ci = configtypes.ConfigPerm('Section', 'PermissionValue', '0o777')
         self.assertEqual(ci.get_int(), 0o777)
         self.assertEqual(str(ci), '0o777')
 
@@ -153,8 +153,8 @@ class Config2Test(LLTestCase):
             self.assertEqual(int(ci), 0o321)
 
         self.assertEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to 1000000',
-            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to -8',
+            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to 0o3641100',
+            'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to -0o10',
         ])
         expected = Counter({'read_ok': 6, 'write_ok': 2, 'write_error': 2})
         self.do_access_compare(ci.accesses, expected, 'Permission config working as expected')
@@ -254,7 +254,10 @@ class Config2Test(LLTestCase):
         ci = configtypes.ConfigScheduleInterval('', '', 'Test', 10)
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
-        ci.set_int(100000) # Value too large, should have no effect
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+            ci.set_int(100000) # Value too large, should have no effect
+        self.assertEqual(cm.output,
+            ['WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to 100000'])
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
 
         try:
@@ -536,11 +539,12 @@ class Config2Test(LLTestCase):
             "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),
             "NEWZNAB.0.DLTYPES": Counter({'write_ok': 1}),
             "NEWZNAB.1.DISPNAME": Counter({'write_ok': 1}),
-            'APPRISE_.0.NAME': Counter({'write_ok': 1}),
-            'APPRISE_.0.DISPNAME': Counter({'write_ok': 1}),
-            'APPRISE_.0.SNATCH': Counter({'write_ok': 1}),
-            'APPRISE_.0.DOWNLOAD': Counter({'write_ok': 1}),
-            'APPRISE_.0.URL': Counter({'write_ok': 1}),
+            'NEWZNAB.1.HOST': Counter({'write_ok': 1, 'read_ok': 1}),
+            'APPRISE.0.NAME': Counter({'write_ok': 1}),
+            'APPRISE.0.DISPNAME': Counter({'write_ok': 1}),
+            'APPRISE.0.SNATCH': Counter({'write_ok': 1}),
+            'APPRISE.0.DOWNLOAD': Counter({'write_ok': 1}),
+            'APPRISE.0.URL': Counter({'write_ok': 1, 'read_ok': 1}),
         }
         self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
 
@@ -548,8 +552,9 @@ class Config2Test(LLTestCase):
         """ Test accessing a more complex config.ini file """
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
-        self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'Expected one entry for APPRISE')
-        self.assertEqual(cfg.get_array_entries('NEWZNAB'), 2, 'Expected two entries for NEWZNAB')
+        self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'Expected two entries for APPRISE')
+        self.assertEqual(cfg.get_array_entries('NEWZNAB'), 3, 'Expected two entries for NEWZNAB')
+        self.assertEqual(cfg.get_array_entries('RSS'), 1, 'Expected one empty entry for RSS')
         self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries')
 
         NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
@@ -589,17 +594,20 @@ class Config2Test(LLTestCase):
         try:
             TESTFILE = 'test-changed.ini'
             count = cfg.save_config(TESTFILE, False) # Save only non-default values
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected # of non-default items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected # of non-default items')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
-            self.assertEqual(self.remove_test_file('test-changed.ini'), True, 'Could not remove test-changed.ini')
+            self.assertEqual(self.remove_test_file(TESTFILE), True, 'Could not remove test-changed.ini')
 
         try:
-            count = cfg.save_config('test-all.ini', True) # Save everything.
+            TESTFILE = 'test-all.ini'
+            count = cfg.save_config(TESTFILE, True) # Save everything.
             self.assertEqual(count, 512, 'Saving config.ini has unexpected total # of items')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
-            self.assertEqual(self.remove_test_file('test-all.ini'), True, 'Could not remove test-all.ini')
+            self.assertEqual(self.remove_test_file(TESTFILE), True, 'Could not remove test-all.ini')
 
     def test_save_config_and_backup_old(self):
         """ Test saving config file while keeping the old one as a .bak file """
@@ -615,7 +623,7 @@ class Config2Test(LLTestCase):
         try:
             with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
 
             cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
@@ -624,7 +632,7 @@ class Config2Test(LLTestCase):
             # Verify that it works when .bak file exists as well:
             with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
 
         finally:
@@ -682,6 +690,41 @@ class Config2Test(LLTestCase):
             warnings = cfg.post_load_fixup()
         self.assertEqual(str(cfg.config['HOMEPAGE']), 'eBooks', 'Should not have changed HOMEPAGE')
         self.assertEqual(warnings, 0, 'Expected no warnings here')
+
+    def test_array_entry_usage(self):
+        """ Verify that array entries can be added to and deleted """
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        #with self.assertLogs('lazylibrarian.logger', level='WARN'):
+
+        array = cfg.get_array('NOPEDOESNOTEXIST')
+        self.assertIsNone(array, 'Non-existent array type must not be found')
+
+        self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'This test assumes 2 APPRISE entries')
+        array = cfg.get_array('APPRISE')
+        self.assertIsNotNone(array, 'APPRISE array must exist')
+        if array:
+            self.assertTrue(array.is_in_use(0), 'This test assumes there is an Apprise[0] entry in use')
+            self.assertFalse(array.is_in_use(1), 'This test assumes there is an empty Apprise[1] entry')
+            # A user is removing the URL from the first APPRISE entry, making it invalid
+            array[0]['URL'].set_str('')
+            self.assertFalse(array.is_in_use(0), 'An empty URL should mean this item is not in use!')
+
+            # A user adds a URL to the formerly empty item, making it valid
+            array[1]['URL'].set_str('http://testing')
+            self.assertTrue(array.is_in_use(1), 'The entry should now be in use as the URL is not empty')
+
+            # We now save, clean up empty items and rename them
+            array.cleanup_for_save()
+
+        # Re-get the array and make sure it's valid
+        self.assertEqual(cfg.get_array_entries('APPRISE'), 1, 'There should be just one entry left')
+        array = cfg.get_array('APPRISE')
+        if array:
+            self.assertTrue(array.is_in_use(0), 'The renumbering did not work correctly')
+            array.ensure_empty_end_item()
+            self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'We should now have two entries')
+            self.assertFalse(array.is_in_use(1), 'The last entry must be empty at this stage')
+
 
 
 
