@@ -263,6 +263,20 @@ class Config2Test(LLTestCase):
         except RuntimeError:
             pass # This is what we expect
 
+    def test_ConfigDownloadTypes(self):
+        """ Test the ConfigDownloadTypes, which can only be A,C,E,M or combinations """
+        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+            cdt = configtypes.ConfigDownloadTypes('', '', 'E')
+            self.assertEqual(cdt.get_csv(), 'E')
+            cdt.set_str('M,A')
+            self.assertEqual(cdt.get_csv(), 'M,A')
+
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+            cdt.set_str('M,A,X') # Write error, value doesn't change
+        self.assertEqual(cm.output,
+            ['WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to M,A,X'])
+        self.assertEqual(cdt.get_csv(), 'M,A')
+
     def set_basic_test_values(self, cfg: config2.LLConfigHandler):
         """ Helper function, sets some basic config values """
         with self.assertNoLogs('lazylibrarian.logger', level='INFO'):

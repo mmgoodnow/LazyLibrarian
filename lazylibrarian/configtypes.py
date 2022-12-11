@@ -300,6 +300,15 @@ class ConfigCSV(ConfigStr):
                     return all(part.strip() for part in parts)
         return False
 
+class ConfigDownloadTypes(ConfigCSV):
+    """ A config item that holds a CSV of download types (letters A, C, E and M) """
+    def is_valid_value(self, value: ValidTypes) -> bool:
+        if super().is_valid_value(value):
+            parts = str(value).split(',')
+            return all(part in 'ACEM' for part in parts)
+        else:
+            return False
+
 class ConfigURL(ConfigStr):
     """ A config item that is a string that must be a valid URL """
     def get_url(self) -> URLstr:
