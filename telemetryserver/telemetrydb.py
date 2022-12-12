@@ -125,6 +125,7 @@ class TelemetryDB():
             "longest_uptime INT NOT NULL",
             "ll_version     VARCHAR(50)",
             "ll_installtype VARCHAR(20)",
+            "python_ver     VARCHAR(200)",
         ])
         self.ensure_table("ll_configs",[
             "serverid       VARCHAR(50) NOT NULL",
@@ -162,14 +163,14 @@ class TelemetryDB():
                     longest_up = max(server["uptime_seconds"], entry[1])
                     stmt = f"""UPDATE ll_servers SET
                         last_seen = {nowstr}, last_uptime = {server["uptime_seconds"]}, os = '{server["os"]}',
-                        longest_uptime = {longest_up}, ll_version = '{server["version"]}', ll_installtype = '{server["install_type"]}'"""
+                        longest_uptime = {longest_up}, ll_version = '{server["version"]}', ll_installtype = '{server["install_type"]}', python_ver='{server["python_ver"]}'"""
                     cursor.execute(stmt)
                 else:
                     stmt = (f"""INSERT INTO ll_servers
-                        (serverid, os, first_seen, last_seen, last_uptime, longest_uptime, ll_version, ll_installtype)
+                        (serverid, os, first_seen, last_seen, last_uptime, longest_uptime, ll_version, ll_installtype, python_ver)
                         VALUES
                         ('{server["id"]}', '{server["os"]}', {nowstr}, {nowstr}, {server["uptime_seconds"]}, {server["uptime_seconds"]},
-                        '{server["version"]}', '{server["install_type"]}') """)
+                        '{server["version"]}', '{server["install_type"]}', '{server["python_ver"]}') """)
                     cursor.execute(stmt)
             finally:
                 cursor.close()
