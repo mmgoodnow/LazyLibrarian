@@ -25,16 +25,15 @@ class Config2Test(LLTestCase):
         logger.RotatingLogger.SHOW_LINE_NO = False # Hack used to make tests more robust
         return super().setUpClass()
 
-    def test_Logging(self):
+    def test_log_catching(self):
         """ Test that we can test for log events """
         lazylibrarian.LOGLEVEL = 1
         # Test checking that a single message can be captured
         with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
             logger.error('test error')
-        self.assertEqual(cm.output,
-         ['ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test error']
-         ,'Did not log a message as expected'
-        )
+        self.assertEqual(cm.output, [
+            'ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test error'
+        ],'Did not log a message as expected')
 
         # Check more error levels, but with LOGLEVEL=1, debug messages are ignored
         with self.assertLogs('lazylibrarian.logger', level='DEBUG') as cm:
@@ -43,12 +42,10 @@ class Config2Test(LLTestCase):
             logger.info('test info')
             logger.debug('test debug')
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test error',
-            'WARNING:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test warn',
-            'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test info'
-        ]
-         ,'Expected an error, a warning and an info message'
-        )
+            'ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test error',
+            'WARNING:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test warn',
+            'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test info'
+        ],'Expected an error, a warning and an info message')
 
         # Test capturing debug messages
         lazylibrarian.LOGLEVEL = 2
@@ -56,8 +53,8 @@ class Config2Test(LLTestCase):
             logger.info('test info')
             logger.debug('test debug')
         self.assertEqual(cm.output, [
-            'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test info',
-            'DEBUG:lazylibrarian.logger:MainThread : test_config2.py:test_Logging : test debug'
+            'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test info',
+            'DEBUG:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test debug'
         ]
          ,'Expected an info and a debug message'
         )
@@ -65,13 +62,12 @@ class Config2Test(LLTestCase):
     def test_ConfigStr(self):
         """ Tests for ConfigStr class """
         lazylibrarian.LOGLEVEL = 2
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
-            ci = configtypes.ConfigStr('Section', 'StrValue', 'Default')
-            self.assertEqual(ci.get_str(), 'Default')
-            self.assertEqual(str(ci), 'Default')
+        ci = configtypes.ConfigStr('Section', 'StrValue', 'Default')
+        self.assertEqual(ci.get_str(), 'Default')
+        self.assertEqual(str(ci), 'Default')
 
-            ci.set_str('Override')
-            self.assertEqual(ci.get_str(), 'Override')
+        ci.set_str('Override')
+        self.assertEqual(ci.get_str(), 'Override')
 
         with self.assertLogs('lazylibrarian.logger', level='WARN') as cm:
             ci.set_int(2)                          # Write Error
@@ -163,17 +159,15 @@ class Config2Test(LLTestCase):
         """ Tests for ConfigBool class """
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)
         lazylibrarian.LOGLEVEL = 2
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 1)      # We can read bools as int
             self.assertEqual(ci.get_str(), 'True')
             self.assertEqual(ci.get_bool(), True)
             self.assertEqual(int(ci), 1)           # We can read bools as default int
             ci.set_int(2)                          # ok, writes as True/1
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             ci.set_str('Override')                 # Write Error
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
             self.assertEqual(ci.get_str(), 'True')
             self.assertEqual(ci.get_bool(), True)
             self.assertEqual(int(ci), 1)
@@ -199,7 +193,7 @@ class Config2Test(LLTestCase):
             ('invalid_domain', "http://.com"),
         ]
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             for url in goodurls:
                 cfg.set_url(url[0], configtypes.URLstr(url[1]))
 
@@ -207,7 +201,6 @@ class Config2Test(LLTestCase):
                 self.assertEqual(goturl, url[1])
                 self.assertEqual(type(goturl), str)
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             for url in badurls:
                 cfg.set_url(url[0], configtypes.URLstr(url[1]))  # Format error
                 goturl = cfg.get_url(url[0])                     # Read error
@@ -268,13 +261,12 @@ class Config2Test(LLTestCase):
 
     def test_ConfigDownloadTypes(self):
         """ Test the ConfigDownloadTypes, which can only be A,C,E,M or combinations """
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cdt = configtypes.ConfigDownloadTypes('', '', 'E')
             self.assertEqual(cdt.get_csv(), 'E')
             cdt.set_str('M,A')
             self.assertEqual(cdt.get_csv(), 'M,A')
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cdt.set_str('M,A,X') # Write error, value doesn't change
         self.assertEqual(cm.output,
             ['WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to M,A,X'])
@@ -282,7 +274,7 @@ class Config2Test(LLTestCase):
 
     def set_basic_test_values(self, cfg: config2.LLConfigHandler):
         """ Helper function, sets some basic config values """
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg.set_str('somestr', 'abc')
             cfg.set_int('someint', 123)
             cfg.set_int('someint', 45)
@@ -291,7 +283,6 @@ class Config2Test(LLTestCase):
             email = configtypes.Email('name@gmail.com')
             cfg.set_email('mail', email)
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg.set_email('mail2', configtypes.Email('name@gmailmissingcom')) # Format Error
         self.assertEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[mail2]: format_error'
@@ -302,13 +293,11 @@ class Config2Test(LLTestCase):
         cfg1 = config2.LLConfigHandler()
         cfg2 = config2.LLConfigHandler()
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.set_basic_test_values(cfg1)
             self.set_basic_test_values(cfg2)
-
             self.assertTrue(config2.are_equivalent(cfg1, cfg2))
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg1.set_int('a-new-int', 1)
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
         self.assertEqual(cm.output, [
@@ -316,11 +305,10 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
         ])
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg2.set_int('a-new-int', 1)
             self.assertTrue(config2.are_equivalent(cfg1, cfg2))
 
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             cfg2.set_str('another-str', 'help')
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
         self.assertEqual(cm.output, [
@@ -340,7 +328,7 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler()
         self.set_basic_test_values(cfg)
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual('abc', cfg.get_str('somestr'))
             self.assertEqual('abc', cfg['somestr'])
             self.assertEqual(45, cfg.get_int('someint'))
@@ -349,8 +337,6 @@ class Config2Test(LLTestCase):
             self.assertFalse(cfg.get_bool('abool'))
             self.assertTrue(cfg.get_bool('boo'))
             self.assertEqual('True', cfg['boo'])
-
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual('', cfg.get_email('mail2')) # Read Error
         self.assertEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[mail2]: read_error'
@@ -373,12 +359,10 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler()
         self.do_csv_ops(cfg)
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
+        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual('allan,bob,fred', cfg.get_csv('csv'))
             self.assertEqual('', cfg.get_csv('csv2'))
             self.assertEqual('single', cfg.get_csv('csv5'))
-
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual('', cfg.get_csv('csv3')) # Read error
             self.assertEqual('', cfg.get_csv('csv4')) # Read error
         self.assertEqual(cm.output, [
@@ -418,20 +402,19 @@ class Config2Test(LLTestCase):
         """ Test that read/create counters work correctly when there are no errors """
         cfg = config2.LLConfigHandler()
 
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
-            self.do_csv_ops(cfg)
-            self.set_basic_test_values(cfg)
+        self.do_csv_ops(cfg)
+        self.set_basic_test_values(cfg)
 
-            # Access some of these items
-            self.assertEqual('abc', cfg.get_str('somestr'))
-            for _ in range(3):
-                self.assertEqual(45, cfg.get_int('someint'))
-            self.assertEqual('name@gmail.com', cfg.get_email('mail'))
-            self.assertTrue(cfg.get_bool('boo'))
+        # Access some of these items
+        self.assertEqual('abc', cfg.get_str('somestr'))
+        for _ in range(3):
+            self.assertEqual(45, cfg.get_int('someint'))
+        self.assertEqual('name@gmail.com', cfg.get_email('mail'))
+        self.assertTrue(cfg.get_bool('boo'))
 
-            self.assertEqual('allan,bob,fred', cfg.get_csv('csv'))
-            for _ in range(3):
-                self.assertEqual('single', cfg.get_csv('csv5'))
+        self.assertEqual('allan,bob,fred', cfg.get_csv('csv'))
+        for _ in range(3):
+            self.assertEqual('single', cfg.get_csv('csv5'))
 
         acs = cfg.get_all_accesses()
         expectedacs = {
@@ -621,8 +604,9 @@ class Config2Test(LLTestCase):
         self.remove_test_file(backupfile)
 
         try:
-            with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
+            with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
+            self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
 
@@ -630,8 +614,9 @@ class Config2Test(LLTestCase):
             self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
 
             # Verify that it works when .bak file exists as well:
-            with self.assertNoLogs('lazylibrarian.logger', level='WARN'): # Expect only INFO messages
+            with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(False)
+            self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
 
@@ -686,8 +671,7 @@ class Config2Test(LLTestCase):
         for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
             cfg.config[fname].reset_to_default()
         cfg.config['HOMEPAGE'].set_str('eBooks')
-        with self.assertNoLogs('lazylibrarian.logger', level='INFO'):
-            warnings = cfg.post_load_fixup()
+        warnings = cfg.post_load_fixup()
         self.assertEqual(str(cfg.config['HOMEPAGE']), 'eBooks', 'Should not have changed HOMEPAGE')
         self.assertEqual(warnings, 0, 'Expected no warnings here')
 

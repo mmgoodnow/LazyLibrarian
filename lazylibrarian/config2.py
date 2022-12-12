@@ -5,7 +5,7 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, TypedDict, Tuple, Type, MutableMapping
+from typing import Dict, List, Type, MutableMapping, Optional
 from copy import deepcopy
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
@@ -13,7 +13,7 @@ from os import path, sep
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, ConfigScheduleInterval, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
+    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes
 from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
@@ -27,7 +27,7 @@ class ArrayConfig():
     _name: str    # e.g. 'APPRISE'
     _secstr: str  # e.g. 'APPRISE_%i'
     _primary: str # e.g. 'URL'
-    _configs: dict[int, ConfigDict]
+    _configs: Dict[int, ConfigDict]
     _defaults: List[ConfigItem]
 
     def __init__(self, arrayname: str, defaults: DefaultArrayDef):
@@ -110,7 +110,7 @@ class LLConfigHandler():
     errors: Dict[str, Counter]
     configfilename: str
 
-    def __init__(self, defaults: List[ConfigItem]|None=None, configfile: str|None=None):
+    def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
         self.config = dict()
         self.errors = dict()
         self.arrays = dict()
@@ -130,7 +130,7 @@ class LLConfigHandler():
             self.configfilename = ''
         self.ensure_arrays_have_empty_item()
 
-    def _copydefaults(self, config: ConfigDict, defaults: List[ConfigItem]|None=None):
+    def _copydefaults(self, config: ConfigDict, defaults: Optional[List[ConfigItem]]=None):
         """ Copy the default values and settings for the given config """
         if defaults:
             for config_item in defaults:
@@ -183,14 +183,14 @@ class LLConfigHandler():
                 rc += len(self.arrays[name])
         return rc
 
-    def get_array(self, wantname: str) -> ArrayConfig|None:
+    def get_array(self, wantname: str) -> Optional[ArrayConfig]:
         """ Return the config for an array, like 'APPRISE', or None """
         if wantname in self.arrays:
             return self.arrays[wantname]
         else:
             return None
 
-    def get_array_dict(self, wantname: str, wantindex: int) -> ConfigDict|None:
+    def get_array_dict(self, wantname: str, wantindex: int) -> Optional[ConfigDict]:
         """ Return the complete config for an entry, like ('APPRISE', 0) """
         if wantname in self.arrays and self.arrays[wantname].has_index(wantindex):
             return self.arrays[wantname][wantindex]

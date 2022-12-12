@@ -15,6 +15,7 @@
 # Purpose:
 #   Scheduling functionality
 
+from typing import Optional
 import time
 import datetime
 import traceback
@@ -48,7 +49,7 @@ def shutdownscheduler():
         # noinspection PyUnresolvedReferences
         SCHED.shutdown(wait=False)
 
-def next_run_time(when_run, test_now: datetime.datetime|None = None):
+def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     """
     Returns a readable approximation of how long until a job will be run,
     given a string representing the last time it was run

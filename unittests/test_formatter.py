@@ -26,7 +26,10 @@ class FormatterTest(unittesthelpers.LLTestCase):
         for s in strings:
             sn = str(formatter.sanitize(s[0]))
             self.assertEqual(sn, s[1])
-            self.assertTrue(unicodedata.is_normalized("NFC", sn))
+            try:
+                self.assertTrue(unicodedata.is_normalized("NFC", sn))
+            except AttributeError:
+                pass # P37: unicodedata.is_normalized is not valid in Python 3.7
 
     def test_url_fix(self):
         URLs = [

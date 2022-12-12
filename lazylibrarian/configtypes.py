@@ -5,7 +5,7 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Dict, Union, List, Type
+from typing import NewType, Dict, Union, List, Type, Optional
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter
@@ -90,7 +90,7 @@ class ConfigItem():
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
-    def get_schedule_name(self) -> str|None:
+    def get_schedule_name(self) -> Optional[str]:
         return None
 
     def _on_read(self, ok: bool) -> bool:
@@ -194,7 +194,7 @@ class ConfigScheduleInterval(ConfigRangedInt):
         self.schedule_name = schedule_name
         super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new)
 
-    def get_schedule_name(self) -> str|None:
+    def get_schedule_name(self) -> Optional[str]:
         return self.schedule_name
 
 class ConfigPerm(ConfigStr):
@@ -229,7 +229,7 @@ class ConfigPerm(ConfigStr):
 
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
-    def __init__(self, section: str, key: str, default: bool|int, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: Union[bool,int], is_new: bool=False):
         super().__init__(section, key, default, is_new)
 
     def get_bool(self) -> bool:
@@ -238,7 +238,7 @@ class ConfigBool(ConfigInt):
         else:
             return False
 
-    def set_bool(self, value: bool|int) -> bool:
+    def set_bool(self, value: Union[bool,int]) -> bool:
         return self._on_set(value)
 
     def set_int(self, value: int) -> bool:
