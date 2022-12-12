@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Script called by gitlab CI engine during test phases
 # Installs optional python modules
 
