@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # Script called by gitlab CI engine during test phases
 # Installs python modules required for LL and unit testing
 
