@@ -124,7 +124,16 @@ class ConfigItem():
         return False
 
     def get_accesses(self):
+        """ Get the full list of 'accesses' """
         return self.accesses
+
+    def get_reads(self) -> int:
+        """ Get number of successful reads since last reset """
+        return self.accesses['read_ok']
+
+    def get_writes(self) -> int:
+        """ Get number of successful writes since last reset """
+        return self.accesses['write_ok']
 
 class ConfigStr(ConfigItem):
     """ A config item that is a string """

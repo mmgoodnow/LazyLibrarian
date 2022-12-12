@@ -5,6 +5,8 @@
 #   Testing the new config2 module
 
 from collections import Counter
+import mock
+import os
 
 from unittesthelpers import LLTestCase
 import lazylibrarian
@@ -617,6 +619,8 @@ class Config2Test(LLTestCase):
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
+            acs = cfg.get_all_accesses()
+            self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')
 
             cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
             self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
@@ -627,10 +631,37 @@ class Config2Test(LLTestCase):
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
-
+            acs = cfg.get_all_accesses()
+            self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')
         finally:
             self.remove_test_file(TEST_FILE)
             self.remove_test_file(backupfile)
+
+    @mock.patch('shutil.rmtree')
+    @mock.patch('os.makedirs')
+    @mock.patch('builtins.open') # Need to be declared in reverse order below:
+    def test_post_save_actions(self, mock_open, mock_makedirs, mock_rmtree):
+        """ Test that the things done after saving and backing up are done correctly """
+        lazylibrarian.LOGLEVEL = 1
+        if lazylibrarian.CACHEDIR == '':
+            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.DATADIR, 'cache')
+
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+
+        # The only test is to make sure the mako cache is clearer
+        cfg.config['HTTP_LOOK'].set_str('a_special_ui') # Force the mako cache to get cleared
+        cfg.post_save_actions()
+        self.do_access_compare(cfg.get_all_accesses(), {}, 'Expected all accesses cleared after saving')
+
+        mako_dir = cfg.get_mako_cachedir()
+        mako_file = cfg.get_mako_versionfile()
+        mock_rmtree.assert_called_with(mako_dir)
+        mock_makedirs.assert_called_with(mako_dir)
+        mock_open.assert_called_with(mako_file, 'w')
+        self.assertEqual(cfg.config['HTTP_LOOK'].get_str(), 'a_special_ui', 'HTTP_LOOK did not change')
+
+        # TODO: Add tests for schedulers and database changes
+
 
     def test_post_load_fixup(self):
         """ Verify that the post_load_fixup routine does the right thing """

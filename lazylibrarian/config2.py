@@ -10,6 +10,9 @@ from copy import deepcopy
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
 from os import path, sep
+import os
+import shutil
+import sys
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
@@ -316,10 +319,14 @@ class LLConfigHandler():
         return result
 
     def clear_access_counters(self):
-        """ Clear all counters. Might be useful after sending telemetry etc """
-        all = self.get_all_accesses()
-        for _, item in all.items():
-            item.clear()
+        """ Clear all counters. Used after sending telemetry or saving config """
+        for _, value in self.config.items():
+            value.get_accesses().clear()
+
+        for _, array in self.arrays.items():
+            for _, config in array._configs.items():
+                for _, item in config.items():
+                    item.get_accesses().clear()
 
     def save_config(self, filename: str, save_all: bool=False):
         """
@@ -456,19 +463,41 @@ class LLConfigHandler():
 
         return warnings
 
+    def get_mako_cachedir(self):
+        return path.join(lazylibrarian.CACHEDIR, 'mako')
+
+    def get_mako_versionfile(self):
+        return path.join(self.get_mako_cachedir(), 'python_version.txt')
+
     def post_save_actions(self):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
+        # Clean the mako cache if the interface has changed
+        interface = self.config['HTTP_LOOK']
+        if interface.get_writes() > 0: # It's changed
+            dir = self.get_mako_cachedir()
+            logger.debug("Clearing mako cache")
+            shutil.rmtree(dir)
+            os.makedirs(dir)
+            version_file = self.get_mako_versionfile()
+            with open(version_file, 'w') as fp:
+                fp.write(sys.version.split()[0] + ':' + interface.get_str())
+
+        # Restart all scheduled jobs since the schedules may have changed
         for _, item in self.config.items():
             schedule = item.get_schedule_name()
             if schedule:
                 logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
                 schedule_job('Restart', schedule)
 
+        # Clean up the database if needed (Does this really belong here?)
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
             logger.debug("Deleting single-book series from database")
             db = database.DBConnection()
             db.action('DELETE from series where total=1')
             db.close()
+
+        # Clear all access counters so we can tell if something has changed later
+        self.clear_access_counters()
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """
