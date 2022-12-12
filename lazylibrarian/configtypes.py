@@ -22,6 +22,14 @@ ValidIntTypes = Union[int, bool]
 ValidStrTypes =  Union[str, Email, CSVstr, URLstr]
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
+### Types of access
+class Access(Enum):
+    READ_OK   = 'read_ok'
+    READ_ERR  = 'read_error'
+    WRITE_OK  = 'write_ok'
+    WRITE_ERR = 'write_error'
+    CREATE_OK = 'create_ok'
+
 """ Simple wrapper classes for config values of different types """
 class ConfigItem():
     section: str
@@ -95,31 +103,31 @@ class ConfigItem():
 
     def _on_read(self, ok: bool) -> bool:
         if ok:
-            self.accesses['read_ok'] += 1
+            self.accesses[Access.READ_OK] += 1
             logger.debug(f"Read config[{self.key}]={self.value}")
         else:
-            self.accesses['read_error'] += 1
+            self.accesses[Access.READ_ERR] += 1
             logger.warn(f"Type error reading config[{self.key}] ({self.value})")
         return ok
 
     def _on_set(self, value: ValidTypes) -> bool:
         if self.is_valid_value(value):
             if self.is_new:
-                self.accesses['create_ok'] += 1
+                self.accesses[Access.CREATE_OK] += 1
                 self.is_new = False
             elif self.value != value:
                 # Don't count a write if the value does not change
-                self.accesses['write_ok'] += 1
+                self.accesses[Access.WRITE_OK] += 1
             self.value = value
             logger.debug(f"Set config[{self.key}]={value}")
             return True
         else:
-            self.accesses['write_error'] += 1
+            self.accesses[Access.WRITE_ERR] += 1
             logger.warn(f"Cannot set config[{self.key}] to {value}")
             return False
 
     def _on_type_mismatch(self, value) -> bool:
-        self.accesses['write_error'] += 1
+        self.accesses[Access.WRITE_ERR] += 1
         logger.warn(f"Cannot set config[{self.key}] to {value}: incorrect type")
         return False
 
@@ -129,11 +137,11 @@ class ConfigItem():
 
     def get_reads(self) -> int:
         """ Get number of successful reads since last reset """
-        return self.accesses['read_ok']
+        return self.accesses[Access.READ_OK]
 
     def get_writes(self) -> int:
         """ Get number of successful writes since last reset """
-        return self.accesses['write_ok']
+        return self.accesses[Access.WRITE_OK]
 
 class ConfigStr(ConfigItem):
     """ A config item that is a string """

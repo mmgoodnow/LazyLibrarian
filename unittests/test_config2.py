@@ -11,6 +11,7 @@ import os
 from unittesthelpers import LLTestCase
 import lazylibrarian
 from lazylibrarian import config2, configdefs, configtypes, logger, LOGLEVEL
+from lazylibrarian.configtypes import Access
 from lazylibrarian.common import syspath
 
 # Ini files used for testing load/save functions.
@@ -83,7 +84,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[StrValue] (Override)',
         ])
 
-        expected = Counter({'read_ok': 3, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
+        expected = Counter({Access.READ_OK: 3, Access.WRITE_OK: 1, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
         self.do_access_compare(ci.accesses, expected, 'Basic String Config not working as expected')
 
     def test_ConfigInt(self):
@@ -110,7 +111,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[IntValue] to True: incorrect type',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[IntValue] (2)',
         ])
-        expected = Counter({'read_ok': 5, 'write_ok': 1, 'write_error': 2, 'read_error': 2})
+        expected = Counter({Access.READ_OK: 5, Access.WRITE_OK: 1, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
         self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
 
     def test_ConfigRangedInt(self):
@@ -130,7 +131,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RangedIntValue] to 5',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RangedIntValue] to 1100',
         ])
-        expected = Counter({'read_ok': 4, 'write_ok': 1, 'write_error': 2})
+        expected = Counter({Access.READ_OK: 4, Access.WRITE_OK: 1, Access.WRITE_ERR: 2})
         self.do_access_compare(ci.accesses, expected, 'Ranged Int Config not working as expected')
 
     def test_ConfigPerm(self):
@@ -154,7 +155,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to 0o3641100',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PermissionValue] to -0o10',
         ])
-        expected = Counter({'read_ok': 6, 'write_ok': 2, 'write_error': 2})
+        expected = Counter({Access.READ_OK: 6, Access.WRITE_OK: 2, Access.WRITE_ERR: 2})
         self.do_access_compare(ci.accesses, expected, 'Permission config working as expected')
 
     def test_ConfigBool(self):
@@ -178,7 +179,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[BoolValue] to Override: incorrect type',
         ])
-        expected = Counter({'read_ok': 8, 'write_ok': 1, 'write_error': 1})
+        expected = Counter({Access.READ_OK: 8, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
         self.do_access_compare(ci.accesses, expected, 'Basic Bool Config not working as expected')
 
     def test_ConfigURL(self):
@@ -394,9 +395,9 @@ class Config2Test(LLTestCase):
 
         ecs = cfg.get_error_counters()
         expectedecs = {
-            'KeyDoesNotExist': Counter({'read_error': 1}),
-            'does-not-exist': Counter({'read_error': 3}),
-            'also-does-not': Counter({'read_error': 1})
+            'KeyDoesNotExist': Counter({Access.READ_ERR: 1}),
+            'does-not-exist': Counter({Access.READ_ERR: 3}),
+            'also-does-not': Counter({Access.READ_ERR: 1})
         }
         self.do_access_compare(ecs, expectedecs, 'Errors  not as expected')
 
@@ -420,14 +421,14 @@ class Config2Test(LLTestCase):
 
         acs = cfg.get_all_accesses()
         expectedacs = {
-            'csv': Counter({'create_ok': 1, 'read_ok': 1}),
-            'csv2': Counter({'create_ok': 1}),
-            'csv5': Counter({'read_ok': 3, 'create_ok': 1}),
-            'somestr': Counter({'create_ok': 1, 'read_ok': 1}),
-            'someint': Counter({'read_ok': 3, 'create_ok': 1, 'write_ok': 1}),
-            'abool': Counter({'create_ok': 1}),
-            'boo': Counter({'create_ok': 1, 'read_ok': 1}),
-            'mail': Counter({'create_ok': 1, 'read_ok': 1})
+            'csv': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1}),
+            'csv2': Counter({Access.CREATE_OK: 1}),
+            'csv5': Counter({Access.READ_OK: 3, Access.CREATE_OK: 1}),
+            'somestr': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1}),
+            'someint': Counter({Access.READ_OK: 3, Access.CREATE_OK: 1, Access.WRITE_OK: 1}),
+            'abool': Counter({Access.CREATE_OK: 1}),
+            'boo': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1}),
+            'mail': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1})
         }
         self.do_access_compare(acs, expectedacs, 'Access patterns not as expected')
 
@@ -480,13 +481,13 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
-            'GENERAL.LOGLEVEL': Counter({'write_ok': 1}),
-            'GENERAL.NO_IPV6': Counter({'write_ok': 1}),
-            'GENERAL.EBOOK_DIR': Counter({'write_ok': 1}),
-            'GENERAL.AUDIO_DIR': Counter({'write_ok': 1}),
-            'GENERAL.ALTERNATE_DIR': Counter({'write_ok': 1}),
-            'GENERAL.TESTDATA_DIR': Counter({'write_ok': 1}),
-            'GENERAL.DOWNLOAD_DIR': Counter({'write_ok': 1})
+            'GENERAL.LOGLEVEL': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.NO_IPV6': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.EBOOK_DIR': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.AUDIO_DIR': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.ALTERNATE_DIR': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.TESTDATA_DIR': Counter({Access.WRITE_OK: 1}),
+            'GENERAL.DOWNLOAD_DIR': Counter({Access.WRITE_OK: 1})
          }
         self.do_access_compare(acs, expectedacs, 'Loading ini file did not modify the expected values')
 
@@ -496,45 +497,45 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
-            "GENERAL.LOGDIR": Counter({'write_ok': 1}),
-            "GENERAL.LOGLIMIT": Counter({'write_ok': 1}),
-            "GENERAL.LOGFILES": Counter({'write_ok': 1}),
-            "GENERAL.LOGSIZE": Counter({'write_ok': 1}),
-            "GENERAL.LOGLEVEL": Counter({'write_ok': 1}),
-            "GENERAL.MAG_TAB": Counter({'write_ok': 1}),
-            "GENERAL.COMIC_TAB": Counter({'write_ok': 1}),
-            "GENERAL.AUDIO_TAB": Counter({'write_ok': 1}),
-            "GENERAL.API_ENABLED": Counter({'write_ok': 1}),
-            "GENERAL.API_KEY": Counter({'write_ok': 1}),
-            "GENERAL.IMP_CALIBREDB": Counter({'write_ok': 1}),
-            "GENERAL.CALIBRE_USE_SERVER": Counter({'write_ok': 1}),
-            "GENERAL.CALIBRE_SERVER": Counter({'write_ok': 1}),
-            "GENERAL.IMP_NOSPLIT": Counter({'write_ok': 1}),
-            "TELEMETRY.SERVER_ID": Counter({'write_ok': 1}),
-            "GENERAL.EBOOK_DIR": Counter({'write_ok': 1}),
-            "GENERAL.AUDIO_DIR": Counter({'write_ok': 1}),
-            "GENERAL.ALTERNATE_DIR": Counter({'write_ok': 1}),
-            "GENERAL.TESTDATA_DIR": Counter({'write_ok': 1}),
-            "GENERAL.DOWNLOAD_DIR": Counter({'write_ok': 1}),
-            "POSTPROCESS.AUDIOBOOK_DEST_FOLDER": Counter({'write_ok': 1}),
-            "NEWZNAB.0.DISPNAME": Counter({'write_ok': 1}),
-            "NEWZNAB.0.ENABLED": Counter({'write_ok': 1}),
-            "NEWZNAB.0.HOST": Counter({'write_ok': 1}),
-            "NEWZNAB.0.API": Counter({'write_ok': 1}),
-            "NEWZNAB.0.GENERALSEARCH": Counter({'write_ok': 1}),
-            "NEWZNAB.0.BOOKSEARCH": Counter({'write_ok': 1}),
-            "NEWZNAB.0.BOOKCAT": Counter({'write_ok': 1}),
-            "NEWZNAB.0.UPDATED": Counter({'write_ok': 1}),
-            "NEWZNAB.0.APILIMIT": Counter({'write_ok': 1}),
-            "NEWZNAB.0.RATELIMIT": Counter({'write_ok': 1}),
-            "NEWZNAB.0.DLTYPES": Counter({'write_ok': 1}),
-            "NEWZNAB.1.DISPNAME": Counter({'write_ok': 1}),
-            'NEWZNAB.1.HOST': Counter({'write_ok': 1, 'read_ok': 1}),
-            'APPRISE.0.NAME': Counter({'write_ok': 1}),
-            'APPRISE.0.DISPNAME': Counter({'write_ok': 1}),
-            'APPRISE.0.SNATCH': Counter({'write_ok': 1}),
-            'APPRISE.0.DOWNLOAD': Counter({'write_ok': 1}),
-            'APPRISE.0.URL': Counter({'write_ok': 1, 'read_ok': 1}),
+            "GENERAL.LOGDIR": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.LOGLIMIT": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.LOGFILES": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.LOGSIZE": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.LOGLEVEL": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.MAG_TAB": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.COMIC_TAB": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.AUDIO_TAB": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.API_ENABLED": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.API_KEY": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.IMP_CALIBREDB": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.CALIBRE_USE_SERVER": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.CALIBRE_SERVER": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.IMP_NOSPLIT": Counter({Access.WRITE_OK: 1}),
+            "TELEMETRY.SERVER_ID": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.EBOOK_DIR": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.AUDIO_DIR": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.ALTERNATE_DIR": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.TESTDATA_DIR": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.DOWNLOAD_DIR": Counter({Access.WRITE_OK: 1}),
+            "POSTPROCESS.AUDIOBOOK_DEST_FOLDER": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.DISPNAME": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.ENABLED": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.HOST": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.API": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.GENERALSEARCH": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.BOOKSEARCH": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.BOOKCAT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.UPDATED": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.APILIMIT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.RATELIMIT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.0.DLTYPES": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB.1.DISPNAME": Counter({Access.WRITE_OK: 1}),
+            'NEWZNAB.1.HOST': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
+            'APPRISE.0.NAME': Counter({Access.WRITE_OK: 1}),
+            'APPRISE.0.DISPNAME': Counter({Access.WRITE_OK: 1}),
+            'APPRISE.0.SNATCH': Counter({Access.WRITE_OK: 1}),
+            'APPRISE.0.DOWNLOAD': Counter({Access.WRITE_OK: 1}),
+            'APPRISE.0.URL': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
         }
         self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
 
