@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Script called by gitlab CI engine during test phases
 # Removes optional python modules if they are there
 

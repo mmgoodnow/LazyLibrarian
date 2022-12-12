@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Script called by gitlab CI engine during test phases
 
 coverage run --source=lazylibrarian/ -m pytest --junitxml=lltest.xml ./unittests/test*.py
