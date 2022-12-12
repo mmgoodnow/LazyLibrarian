@@ -435,6 +435,7 @@ class Config2Test(LLTestCase):
 
     def test_LLdefaults(self):
         """ Test setting the default LL config """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')
         self.do_access_compare({}, cfg.get_all_accesses(), 'There should be no changes from defaults')
@@ -442,6 +443,7 @@ class Config2Test(LLTestCase):
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
         for key, item in cfg.config.items():
@@ -453,6 +455,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
+        lazylibrarian.LOGLEVEL = 1
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             # Because no defaults are loaded, every item will case a warning
             cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
@@ -471,6 +474,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all of the base definitions loads """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
@@ -486,6 +490,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
@@ -533,6 +538,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
         self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'Expected two entries for APPRISE')
@@ -560,6 +566,7 @@ class Config2Test(LLTestCase):
 
     def test_save_config(self):
         """ Test saving config file """
+        lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         try:
             TESTFILE = 'test-small.ini'
@@ -594,6 +601,7 @@ class Config2Test(LLTestCase):
 
     def test_save_config_and_backup_old(self):
         """ Test saving config file while keeping the old one as a .bak file """
+        lazylibrarian.LOGLEVEL = 1
         import os.path, shutil
         TEST_FILE = syspath('./unittests/testdata/test.ini')
         shutil.copyfile(COMPLEX_INI_FILE, TEST_FILE)
