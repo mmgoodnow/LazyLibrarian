@@ -33,7 +33,7 @@ LazyLibrarian runs by default on port 5299 at http://localhost:5299
 
 Linux / Mac OS X:
 
-* Install Python 2 v2.6 or higher, or Python 3 v3.5 or higher
+* Install Python 3 v3.7 or higher - later is better
 * Git clone/extract LL wherever you like
 * Run `python LazyLibrarian.py -d` or `python LazyLibrarian.py --daemon` to start in daemon mode
 * Fill in all the config (see the docs)

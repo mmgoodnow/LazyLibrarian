@@ -11,10 +11,7 @@ default:
     - pip install virtualenv
     - virtualenv venv
     - source venv/bin/activate
-    # Minimal modules
-    - python -m pip install charset_normalizer certifi idna
-    # Testing modules
-    - python -m pip install pytest mock pytest_order pytest-cov coverage
+    - scripts/ci/install-required-modules.sh
 
   artifacts:
     when: always
@@ -26,48 +23,46 @@ default:
 
 stages:
   - test
+  - package
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-unittest_allmodules:
+test_all_mods:
   stage: test
   script:
-    # Install optional modules
-    - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
-    - coverage report
-    - coverage xml
+    - scripts/ci/install-optional-modules.sh
+    - scripts/ci/runtests.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
-unittest_minimalmodules:
+test_min_mods:
   stage: test
   script:
-    # Remove optional modules if they are there
-    - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
-    - coverage report
-    - coverage xml
+    - scripts/ci/remove-optional-modules.sh
+    - scripts/ci/runtests.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
-unittest_allmodules-earliest:
+test_all_mods-earliest:
   image: python:3.7 # Will be end of life on 24 June 2023
   stage: test
   script:
-    # Install optional modules
-    - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py --verbose
-    - coverage report
-    - coverage xml
+    - scripts/ci/install-optional-modules.sh
+    - scripts/ci/runtests.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
 
-unittest_minimalmodules-earliest:
+test_min_mods-earliest:
   image: python:3.7 # Will be end of life on 24 June 2023
   stage: test
   script:
-    # Remove optional modules if they are there
-    - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py --verbose
-    - coverage report
-    - coverage xml
+    - scripts/ci/remove-optional-modules.sh
+    - scripts/ci/runtests.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+
+build_latest:
+  stage: package
+  script:
+    - python3 -m build
+  artifacts:
+    paths:
+      - dist/
+

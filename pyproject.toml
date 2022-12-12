@@ -10,7 +10,10 @@ name = "LazyLibrarian"
 version = "2022.12.05"
 description = "LazyLibrarian is a SickBeard, CouchPotato, Headphones-like application for ebooks, audiobooks and magazines"
 readme = "README.md"
-requires-python = ">=3.5"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+]
 
 dependencies = [
     'bs4',
@@ -32,6 +35,9 @@ dependencies = [
     'deluge_client',
 ]
 
+[project.urls]
+"Documentation" = "https://lazylibrarian.gitlab.io/"
+"Issue Tracker" = "https://gitlab.com/LazyLibrarian/LazyLibrarian/-/issues"
 
 # Config file for pytest
 [tool.pytest.ini_options]
@@ -41,4 +47,4 @@ filterwarnings = [
     '''ignore:'cgi' is deprecated''',
     # Ignore numerous warnings from cherrypy
     "ignore::DeprecationWarning: invalid escape sequence"
-]    
+]
