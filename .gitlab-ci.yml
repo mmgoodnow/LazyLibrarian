@@ -6,59 +6,88 @@ default:
       - .cache/pip
       - venv/
 
-  before_script:
-    - python --version  # For debugging
-    - pip install virtualenv
-    - virtualenv venv
-    - source venv/bin/activate
+  artifacts:
+    when: always
+    reports:
+       junit: lltest.xml
+       coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
 
 stages:
   - test
+  - package
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
 
-
-unittest_allmodules:
+.standard_job: # The basis for all jobs using a standard Python interpreter
   stage: test
-  script:
-    # Minimal modules
-    - python -m pip install charset_normalizer certifi idna
-    # Optional modules
-    - python -m pip install pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3
-    # Testing modules
-    - python -m pip install pytest mock pytest_order pytest-cov coverage
-    # Run the test, including code coverage
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
-    - coverage report
-    - coverage xml
+  before_script:
+    - python --version  # So it's in the log
+    - pip install virtualenv
+    - virtualenv venv
+    - source venv/bin/activate
+    - scripts/ci/install-required-modules.sh
   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
-  artifacts:
-    when: always
-    reports:
-       junit: lltest.xml
-       coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
 
-unittest_minimalmodules:
-  stage: test
+test_all_mods:
+  extends: .standard_job
   script:
-    # Minimal modules
-    - python -m pip install charset_normalizer certifi idna
-    # Remove optional modules if they are there
-    - python -m pip uninstall pillow lxml soupsieve Levenshtein apprise requests pyopenssl urllib3 -y
-    # Testing modules
-    - python -m pip install pytest mock pytest_order pytest-cov coverage
-    # Run the test, including code coverage
-    - coverage run --source=lazylibrarian/ -m pytest  --junitxml=lltest.xml ./unittests/test*.py
-    - coverage report
-    - coverage xml
-  coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+    - scripts/ci/install-optional-modules.sh
+    - scripts/ci/runtests.sh
+
+test_min_mods:
+  extends: .standard_job
+  script:
+    - scripts/ci/remove-optional-modules.sh
+    - scripts/ci/runtests.sh
+
+test_all_mods-earliest:
+  extends: .standard_job
+  image: python:3.7 # Will be end of life on 24 June 2023
+  script:
+    - scripts/ci/install-optional-modules.sh
+    - scripts/ci/runtests.sh
+
+test_min_mods-earliest:
+  extends: .standard_job
+  image: python:3.7 # Will be end of life on 24 June 2023
+  script:
+    - scripts/ci/remove-optional-modules.sh
+    - scripts/ci/runtests.sh
+
+test_all_pystonlite_310:
+  extends: .standard_job
+  image: python:3.10
+  script:
+    - python3 -m pip install pyston_lite_autoload # Install Pyston Lite Autoloader
+    - scripts/ci/install-optional-modules.sh
+    - scripts/ci/runtests.sh
+
+# test_all_pystonfull:
+#   image: pyston/pyston # Performance-optimized python
+#   stage: test
+#   before_script:
+#     - python --version  # So it's in the log
+#     - pip install virtualenv
+#     - virtualenv venv-pyston
+#     - source venv-pyston/bin/activate
+#     - apt-get update
+#     - apt-get install rustc -y # Cryptography needs Rust to build
+#   script:
+#     - scripts/ci/install-required-modules.sh
+#     - scripts/ci/install-optional-modules.sh
+#     - scripts/ci/runtests.sh
+#     - deactivate
+#   coverage: '/(?i)total.*? (100(?:\.0+)?\%|[1-9]?\d(?:\.\d+)?\%)$/'
+
+build_latest:
+  extends: .standard_job
+  stage: package
+  script:
+    - python3 -m build
   artifacts:
-    when: always
-    reports:
-       junit: lltest.xml
-       coverage_report:
-        coverage_format: cobertura
-        path: coverage.xml
+    paths:
+      - dist/
+

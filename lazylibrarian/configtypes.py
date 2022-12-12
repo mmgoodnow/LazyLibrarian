@@ -5,7 +5,7 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Dict, Union, List, Type
+from typing import NewType, Dict, Union, List, Type, Optional
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter
@@ -90,7 +90,7 @@ class ConfigItem():
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
-    def get_schedule_name(self) -> str|None:
+    def get_schedule_name(self) -> Optional[str]:
         return None
 
     def _on_read(self, ok: bool) -> bool:
@@ -194,51 +194,42 @@ class ConfigScheduleInterval(ConfigRangedInt):
         self.schedule_name = schedule_name
         super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new)
 
-    def get_schedule_name(self) -> str|None:
+    def get_schedule_name(self) -> Optional[str]:
         return self.schedule_name
 
-class ConfigPerm(ConfigInt):
+class ConfigPerm(ConfigStr):
     """ Represents UNIX file permissions. Emitted as an Octal string """
-    def __init__(self, section: str, key: str, default: int, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: str, is_new: bool=False):
         super().__init__(section, key, default, is_new)
 
-    def get_str(self) -> str:
-        self._on_read(True)
-        return oct(int(self.value))
-
-    def set_str(self, value: str) -> bool:
-        # It's an int, but can be set with an octal string
-        return self._on_set(value)
+    def set_int(self, value: int) -> bool:
+        # It's a string, but can be set with an int value
+        return self.set_str(oct(value))
 
     def get_int(self) -> int:
-        if self._on_read(type(self.value) in [int, str]):
-            if type(self.value) == int:
-                return int(self.value)
-            else:
-                return int(str(self.value), 8)
-        else:
-            return int(self.default)
+        self._on_read(True)
+        return int(str(self.value), 8)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         try:
             if type(value) == str:
-                value = oct(int(str(value), 8)) # Should now be a valid Oct string
-            elif type(value) == int:
-                value = oct(int(value))
+                octvalue = oct(int(str(value), 8)) # Must now be a valid Oct string
+                if octvalue != value:
+                    return False
             else:
                 return False
 
-            if value[:2] != '0o':
+            if octvalue[:2] != '0o':
                 return False
 
-            intval = int(value[2:], 8)
+            intval = int(octvalue[2:], 8)
             return intval >= 0 and intval <= 0o777
         except ValueError:
             return False
 
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
-    def __init__(self, section: str, key: str, default: bool|int, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: Union[bool,int], is_new: bool=False):
         super().__init__(section, key, default, is_new)
 
     def get_bool(self) -> bool:
@@ -247,7 +238,7 @@ class ConfigBool(ConfigInt):
         else:
             return False
 
-    def set_bool(self, value: bool|int) -> bool:
+    def set_bool(self, value: Union[bool,int]) -> bool:
         return self._on_set(value)
 
     def set_int(self, value: int) -> bool:
@@ -300,14 +291,23 @@ class ConfigCSV(ConfigStr):
                     return all(part.strip() for part in parts)
         return False
 
+class ConfigDownloadTypes(ConfigCSV):
+    """ A config item that holds a CSV of download types (letters A, C, E and M) """
+    def is_valid_value(self, value: ValidTypes) -> bool:
+        if super().is_valid_value(value):
+            parts = str(value).split(',')
+            return all(part in 'ACEM' for part in parts)
+        else:
+            return False
+
 class ConfigURL(ConfigStr):
     """ A config item that is a string that must be a valid URL """
     def get_url(self) -> URLstr:
         return URLstr(self.get_str())
 
-    def set_str(self, value: str):
+    def set_str(self, value: str) -> bool:
         value = value.rstrip('/')
-        super().set_str(value)
+        return super().set_str(value)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):

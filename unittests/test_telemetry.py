@@ -15,7 +15,7 @@ from lazylibrarian import config, telemetry, common
 
 
 class TelemetryTest(unittesthelpers.LLTestCase):
- 
+
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
@@ -79,6 +79,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         self.assertIsInstance(srv, dict)
         self.assertEqual(srv['id'], lazylibrarian.CONFIG['SERVER_ID'])
         self.assertIsInstance(srv['uptime_seconds'], int)
+        self.assertEqual(srv['python_ver'], '3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]')
 
     def test_set_config_data(self):
         t = telemetry.LazyTelemetry()
@@ -89,11 +90,11 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         self.assertIsInstance(cfg, dict)
         # Helpful to create new json_good data:
         # json_fromcfg = json.dumps(obj=cfg)
-        # print(json_fromcfg) 
+        # print(json_fromcfg)
         json_good = json.loads("""
-            {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ", 
-            "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ", 
-            "BOOK_API": "OpenLibrary", 
+            {"switches": "EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ",
+            "params": "IMP_CALIBREDB DOWNLOAD_DIR API_KEY ",
+            "BOOK_API": "OpenLibrary",
             "NEWZNAB": 1, "TORZNAB": 0, "RSS": 0, "IRC": 0, "GEN": 0, "APPRISE": 1}
         """)
         self.assertEqual(cfg, json_good, "Config not as expected. Check that ini file has not changed")
@@ -122,7 +123,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         for cfg in ['server', 'config', 'usage']:
             sGot[cfg] = t.construct_data_string(cfg)
         sExpect = [
-            ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt"}'],
+            ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
             ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
             ['usage',  'usage={"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
         ]
@@ -133,7 +134,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
             # Remove the key prefix before converting
             gotstr = sGot[key][len(key)+1:]
             expstr = expect[1][len(key)+1:]
-            # Don't just compare strings, compare if they are equivalent 
+            # Don't just compare strings, compare if they are equivalent
             # even if order of elements is different
             gotdata = json.loads(gotstr)
             expdata = json.loads(expstr)
@@ -142,7 +143,12 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         # Test they are concatenated correctly, excluding server key
         sUC = t.construct_data_string(['usage', 'config'])
         self.assertEqual(sUC, f"{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
-           
+
+        # Test creating complete string
+        sUC = t.construct_data_string(['server', 'usage', 'config'])
+        # Here, grab a new test string
+        # print(sUC)
+
 
     @pytest.mark.order(after="test_construct_data_string")
     @mock.patch('lazylibrarian.telemetry.requests')
@@ -160,7 +166,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         # Pretend to submit data to the server successfully
         mock_requests.get.return_value.status_code = 200
         msg, status = t.submit_data(lazylibrarian.CONFIG)
-        self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called") 
+        self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called")
         URLarg = mock_requests.get.call_args[0][0]
         ExpectedURL = t.get_data_url()
         self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")

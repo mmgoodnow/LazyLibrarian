@@ -5,7 +5,7 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, TypedDict, Tuple, Type, MutableMapping
+from typing import Dict, List, Type, MutableMapping, Optional
 from copy import deepcopy
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
@@ -13,8 +13,8 @@ from os import path, sep
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, ConfigScheduleInterval, Email, CSVstr, URLstr, ValidStrTypes, ValidTypes
-from lazylibrarian.configdefs import ARRAY_DEFS
+    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes
+from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
 from lazylibrarian.common import syspath, path_exists
@@ -22,14 +22,95 @@ from lazylibrarian.scheduling import schedule_job
 
 ConfigDict = Dict[str, ConfigItem]
 
+class ArrayConfig():
+    """ Handle an array-config, such as for a list of notifiers """
+    _name: str    # e.g. 'APPRISE'
+    _secstr: str  # e.g. 'APPRISE_%i'
+    _primary: str # e.g. 'URL'
+    _configs: Dict[int, ConfigDict]
+    _defaults: List[ConfigItem]
+
+    def __init__(self, arrayname: str, defaults: DefaultArrayDef):
+        self._name = arrayname
+        self._primary = defaults[0]  # Name of the primary key for this item
+        self._secstr = defaults[1]   # Name of the section string template
+        self._defaults = defaults[2] # All the entries
+        self._configs = OrderedDict()
+
+    def setupitem_at(self, index: int):
+        for config_item in self._defaults:
+            key = config_item.key.upper()
+            if not index in self._configs:
+                self._configs[index] = dict()
+            self._configs[index][key] = deepcopy(config_item)
+            self._configs[index][key].section = self.get_section_str(index)
+
+    def has_index(self, index: int) -> bool:
+        return index in self._configs.keys()
+
+    # Allow ArrayConfig to be accessed as an indexed list
+    def __len__(self) -> int:
+        return len(self._configs)
+
+    def __getitem__(self, index: int) -> ConfigDict:
+        return self._configs[index]
+
+    def is_in_use(self, index: int) -> bool:
+        """ Check if the index'th item is in use, or spare """
+        if index > len(self):
+            return False
+        config = self[index]
+        if self._primary in config:
+            return self._configs[index][self._primary].get_str() != ''
+        else:
+            return False
+
+    def get_section_str(self, index: int) -> str:
+        return self._secstr % index
+
+    def ensure_empty_end_item(self):
+        """ Ensure there is an empty/unused item at the end of the list """
+        if len(self._configs) == 0 or self.is_in_use(len(self._configs)-1):
+            self.setupitem_at(len(self))
+
+    def cleanup_for_save(self):
+        """ Clean out empty items and renumber items from 0 """
+        keepcount = 0
+        for index in range(0,len(self)):
+            if not self.is_in_use(index):
+                del self._configs[index]
+            else:
+                keepcount += 1
+
+        renum = 0
+        # Because we use an OrderedDict, items will be in numeric order
+        for number in self._configs:
+            if number > renum:
+                config = self._configs.pop(number)
+                # Update the section key in each item
+                for name, item in config.items():
+                    item.section = self.get_section_str(renum)
+                # Update the key of the dict entry
+                self._configs[renum] = config
+            renum += 1
+
+        # Validate that this worked, it's a bit iffy
+        if keepcount != len(self):
+            logger.error(f'Internal error cleaning up {self._name}')
+        for index in range(0,len(self)):
+            config = self._configs[index]
+            for name, item in config.items():
+                if item.section != self.get_section_str(index):
+                    logger.error(f'Internal error in {self._name}:{name}')
+
 """ Main configuration handler for LL """
 class LLConfigHandler():
-    config: ConfigDict
-    arrays: Dict[Tuple[str, int], ConfigDict]
+    config: ConfigDict # simple (str, value)
+    arrays: Dict[str, ArrayConfig] # (section, array)
     errors: Dict[str, Counter]
     configfilename: str
 
-    def __init__(self, defaults: List[ConfigItem]|None=None, configfile: str|None=None):
+    def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
         self.config = dict()
         self.errors = dict()
         self.arrays = dict()
@@ -47,15 +128,14 @@ class LLConfigHandler():
                     self._load_section(section, parser, self.config)
         else:
             self.configfilename = ''
+        self.ensure_arrays_have_empty_item()
 
-    def _copydefaults(self, config: ConfigDict, defaults: List[ConfigItem]|None=None, index: int|None=None):
+    def _copydefaults(self, config: ConfigDict, defaults: Optional[List[ConfigItem]]=None):
         """ Copy the default values and settings for the given config """
         if defaults:
             for config_item in defaults:
                 key = config_item.key.upper()
                 config[key] = deepcopy(config_item)
-                if index != None and index >= 0: # It's an array
-                    config[key].section = config[key].section % index
 
     def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
@@ -70,23 +150,27 @@ class LLConfigHandler():
     def _load_array_section(self, section:str, parser:ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
         arrayname = section[:-1].upper() # Assume we have < 10 items!
+        if arrayname[-1:] == '_':
+            arrayname = arrayname[:-1]
         index = int(section[-1:])
         defaults = ARRAY_DEFS[arrayname] if arrayname in ARRAY_DEFS else None
         if defaults:
             logger.debug(f"Loading array {arrayname} index {index}")
-            if not (arrayname, index) in self.arrays:
-                self.arrays[(arrayname, index)] = dict()
-            self._copydefaults(self.arrays[(arrayname, index)], defaults, index)
-            array = self.arrays[(arrayname, index)]
+            if not arrayname in self.arrays:
+                self.arrays[arrayname] = ArrayConfig(arrayname, defaults)
+
+            self.arrays[arrayname].setupitem_at(index)
+            array = self.arrays[arrayname][index]
             self._load_section(section, parser, array)
         else:
             logger.warn(f"Cannot load array {section}: Undefined")
 
-    def get_config(self, section: str, key: str) -> ConfigItem|None:
-        if key in self.config:
-
-            return
-        return None
+    def ensure_arrays_have_empty_item(self):
+        """ Make sure every array has an empty item for users to configure """
+        for name in ARRAY_DEFS:
+            if not name in self.arrays:
+                self.arrays[name] = ArrayConfig(name, ARRAY_DEFS[name])
+            self.arrays[name].ensure_empty_end_item()
 
     """ Handle array entries """
     def get_array_entries(self, wantname: str) -> int:
@@ -94,15 +178,22 @@ class LLConfigHandler():
         rc = 0
         if not wantname:
             return rc
-        for (name, _), _ in self.arrays.items():
-            if name == wantname or name[:len(wantname)] == wantname:
-                rc += 1
+        for name in self.arrays.keys():
+            if name[:len(wantname)] == wantname:
+                rc += len(self.arrays[name])
         return rc
 
-    def get_array_dict(self, wantname: str, wantindex: int) -> ConfigDict|None:
+    def get_array(self, wantname: str) -> Optional[ArrayConfig]:
+        """ Return the config for an array, like 'APPRISE', or None """
+        if wantname in self.arrays:
+            return self.arrays[wantname]
+        else:
+            return None
+
+    def get_array_dict(self, wantname: str, wantindex: int) -> Optional[ConfigDict]:
         """ Return the complete config for an entry, like ('APPRISE', 0) """
-        if (wantname, wantindex) in self.arrays:
-            return self.arrays[(wantname, wantindex)]
+        if wantname in self.arrays and self.arrays[wantname].has_index(wantindex):
+            return self.arrays[wantname][wantindex]
         else:
             return None
 
@@ -215,11 +306,12 @@ class LLConfigHandler():
                 else:
                     result[f"{key}"] = a
 
-        for (name, index), config in self.arrays.items():
-            for key, value in config.items():
-                a = value.get_accesses()
-                if len(a):
-                    result[f"{name}.{index}.{key}"] = a
+        for name, array in self.arrays.items():
+            for index, config in array._configs.items():
+                for key, item in config.items():
+                    a = item.get_accesses()
+                    if len(a):
+                        result[f"{name}.{index}.{key}"] = a
 
         return result
 
@@ -245,25 +337,33 @@ class LLConfigHandler():
             else:
                 return 0
 
-        parser = ConfigParser()
-        parser.optionxform = lambda optionstr: optionstr.upper()
-
-        count = 0
-        for key, item in self.config.items():
-            count += add_to_parser(parser, item.section, item)
-
-        for (name, inx), array in self.arrays.items():
-            sectionname = f"{name}{inx}"
-            for key, item in array.items():
-                count += add_to_parser(parser, sectionname, item)
-
+        for _, array in self.arrays.items():
+            array.cleanup_for_save()
         try:
-            with open(filename, "w") as configfile:
-                parser.write(configfile)
-            return count
-        except Exception as e:
-            logger.warn(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
-            return -1
+            parser = ConfigParser()
+            parser.optionxform = lambda optionstr: optionstr.lower()
+
+            count = 0
+            for key, item in self.config.items():
+                count += add_to_parser(parser, item.section, item)
+
+            for name, array in self.arrays.items():
+                for inx in range(0, len(array)):
+                    config = array[inx]
+                    sectionname = array.get_section_str(inx)
+                    for key, item in config.items():
+                        count += add_to_parser(parser, sectionname, item)
+
+            try:
+                with open(filename, "w") as configfile:
+                    parser.write(configfile)
+                return count
+            except Exception as e:
+                logger.warn(f'Error saving config file {filename}: {type(e).__name__} {str(e)}')
+                return -1
+        finally:
+            for _, array in self.arrays.items():
+                array.ensure_empty_end_item()
 
     def save_config_and_backup_old(self, save_all: bool=False) -> int:
         """
@@ -404,15 +504,17 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
         logger.warn(f"Number of array configs differ")
         return False
 
-    for (name, inx), cd1 in cfg1.arrays.items():
-        try:
-            cd2 = cfg2.arrays[(name, inx)]
-        except:
-            logger.warn(f"Error retrieving array config {name}.{inx}")
-            return False
-        if not are_configdicts_equivalent(cd1, cd2):
-            logger.warn(f"Array configs differ in {name}.{inx}")
-            return False
+    for name, array in cfg1.arrays.items():
+        for inx in range(0, len(array)):
+            cd1 = array[inx]
+            try:
+                cd2 = cfg2.arrays[name][inx]
+            except:
+                logger.warn(f"Error retrieving array config {name}.{inx}")
+                return False
+            if not are_configdicts_equivalent(cd1, cd2):
+                logger.warn(f"Array configs differ in {name}.{inx}")
+                return False
 
     return True
 

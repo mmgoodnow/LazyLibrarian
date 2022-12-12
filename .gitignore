@@ -1,21 +1,21 @@
 #  Lazy User Related   #
 ######################
-cache/*
+cache
 cache.db*
 Logs/*
 lazylibrarian.db*
 version.txt
 *.log
 .idea/*
-.vscode/*
+.vscode
 venv/*
 client*
 git_helper.sh
 update-version.sh
 startlazy.sh
 *.code-workspace
-unittests/Logs/*
-unittests/cache/*
+unittests/Logs
+unittests/cache
 python_version.txt
 
 #  Bookstrap related  #
@@ -39,6 +39,8 @@ python_version.txt
 packages
 *.deb
 *.rpm
+dist
+*.egg-info/
 
 #  IDE specific      #
 ######################
@@ -49,7 +51,8 @@ packages
 *.cproject
 *.tmproj
 *.tmproject
-.cache/*
+.cache
+.pytest_cache
 
 # Pytest specific    #
 ######################
@@ -58,6 +61,7 @@ packages
 lltest.xml
 llmintest.xml
 cov*.xml
+prof
 
 # OS generated files #
 ######################

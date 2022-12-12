@@ -20,6 +20,7 @@
 import datetime
 import json
 import os
+import sys
 import requests
 from collections import defaultdict
 from lazylibrarian import config, common, logger
@@ -91,9 +92,11 @@ class LazyTelemetry(object):
         if testing:
             server["os"] = 'nt'
             server["uptime_seconds"] = 0
+            server["python_ver"] = '3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]'
         else:
             server["os"] = os.name
             server["uptime_seconds"] = round(up.total_seconds())
+            server["python_ver"] = str(sys.version)
 
     def set_config_data(self, _config):
         import lazylibrarian # To get access to the _PROV objects
@@ -103,15 +106,15 @@ class LazyTelemetry(object):
         # Record whether particular on/off features are configured
         for key in [
             # General
-            'USER_ACCOUNTS', 'EBOOK_TAB', 'COMIC_TAB', 'SERIES_TAB', 
-            'AUDIO_TAB', 'MAG_TAB', 'SHOW_GENRES', 
+            'USER_ACCOUNTS', 'EBOOK_TAB', 'COMIC_TAB', 'SERIES_TAB',
+            'AUDIO_TAB', 'MAG_TAB', 'SHOW_GENRES',
             'BOOK_IMG', 'MAG_IMG', 'COMIC_IMG', 'AUTHOR_IMG',
             'API_ENABLED',
             # Downloaders
-            'NZB_DOWNLOADER_SABNZBD', 'NZB_DOWNLOADER_NZBGET', 'USE_SYNOLOGY', 
+            'NZB_DOWNLOADER_SABNZBD', 'NZB_DOWNLOADER_NZBGET', 'USE_SYNOLOGY',
             'NZB_DOWNLOADER_BLACKHOLE',
-            'TOR_DOWNLOADER_DELUGE', 'TOR_DOWNLOADER_TRANSMISSION', 
-            'TOR_DOWNLOADER_RTORRENT', 'TOR_DOWNLOADER_UTORRENT', 
+            'TOR_DOWNLOADER_DELUGE', 'TOR_DOWNLOADER_TRANSMISSION',
+            'TOR_DOWNLOADER_RTORRENT', 'TOR_DOWNLOADER_UTORRENT',
             'TOR_DOWNLOADER_QBITTORRENT', 'TOR_DOWNLOADER_BLACKHOLE',
             # Providers
             # Processing
@@ -119,7 +122,7 @@ class LazyTelemetry(object):
             # Notifiers
             'USE_TWITTER', 'USE_BOXCAR', 'USE_PUSHBULLET', 'USE_PUSHOVER',
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
-            'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL', 
+            'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL',
             ]:
             if _config[key]:
                 cfg_telemetry['switches'] += f"{key} "
@@ -130,14 +133,14 @@ class LazyTelemetry(object):
 
         # Record whether these are configured differently from the default
         default = {}
-        for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG', 
+        for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG',
             'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
             _, _, default = config.CONFIG_DEFINITIONS[key]
             if _config[key] != default:
                 cfg_telemetry["params"] += f"{key} "
 
         # Count how many of each provider are configured
-        for provider in [(lazylibrarian.NEWZNAB_PROV, "NEWZNAB"), 
+        for provider in [(lazylibrarian.NEWZNAB_PROV, "NEWZNAB"),
             (lazylibrarian.TORZNAB_PROV, "TORZNAB"),
             (lazylibrarian.RSS_PROV, "RSS"),
             (lazylibrarian.IRC_PROV, "IRC"),
@@ -150,7 +153,7 @@ class LazyTelemetry(object):
         # Count how many Apprise notifications are configured
         count = sum([1 for prov in lazylibrarian.APPRISE_PROV if prov["URL"]])
         cfg_telemetry["APPRISE"] = count
-       
+
 
     def record_usage_data(self, counter):
         usg = self.get_usage_telemetry()
@@ -159,7 +162,7 @@ class LazyTelemetry(object):
 
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
-    
+
     def construct_data_string(this, components=None):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
@@ -175,8 +178,8 @@ class LazyTelemetry(object):
         return datastr
 
     def get_data_url(self, server='localhost', port=9174, config=None):
-        return f"http://{server}:{port}/send?{self.construct_data_string()}"        
-    
+        return f"http://{server}:{port}/send?{self.construct_data_string()}"
+
     def submit_data(self, _config):
         """ Submits LL telemetry data
         Returns status message and true/false depending on whether it was successful"""
@@ -193,7 +196,7 @@ class LazyTelemetry(object):
             return "Timeout %s" % str(e), False
         except Exception as e:
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
-        
+
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             return r.text, True # Success
 
@@ -202,5 +205,5 @@ class LazyTelemetry(object):
             msg = requests.status_codes._codes[r.status_code][0]
         except Exception:
             msg = r.text
-        return "Response status %s: %s" % (r.status_code, msg), False        
+        return "Response status %s: %s" % (r.status_code, msg), False
 
