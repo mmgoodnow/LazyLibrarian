@@ -7,6 +7,7 @@ from typing import List, Dict, Tuple
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
 from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
 from lazylibrarian.configtypes import ConfigScheduleInterval, ConfigDownloadTypes
+from copy import deepcopy
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
@@ -566,3 +567,16 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ]),
 }
 
+def get_default(setting: str):
+    """ Look up setting in base defaults, return the default value if it exists, or None """
+    for default in BASE_DEFAULTS:
+        if default.is_key(setting):
+            return default.get_default()
+    return None
+
+def configitem_from_default(item: ConfigItem) -> ConfigItem:
+    """ Create a ConfigItem from a DEFAULT item """
+    rc = deepcopy(item) # Deepcopy to get all attributes copied and retain the class
+    rc.section = rc.section.upper() # To have consistency across implementation
+    rc.key = rc.key.upper()
+    return rc

@@ -5,8 +5,7 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, Type, MutableMapping, Optional
-from copy import deepcopy
+from typing import Dict, List, Type, Optional
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
 from os import path, sep
@@ -16,14 +15,12 @@ import sys
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes
-from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS
+    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, Access, CaseInsensitiveDict, ConfigDict
+from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
 from lazylibrarian.common import syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
-
-ConfigDict = Dict[str, ConfigItem]
 
 class ArrayConfig():
     """ Handle an array-config, such as for a list of notifiers """
@@ -44,8 +41,8 @@ class ArrayConfig():
         for config_item in self._defaults:
             key = config_item.key.upper()
             if not index in self._configs:
-                self._configs[index] = dict()
-            self._configs[index][key] = deepcopy(config_item)
+                self._configs[index] = ConfigDict()
+            self._configs[index][key] = configitem_from_default(config_item)
             self._configs[index][key].section = self.get_section_str(index)
 
     def has_index(self, index: int) -> bool:
@@ -114,7 +111,7 @@ class LLConfigHandler():
     configfilename: str
 
     def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
-        self.config = dict()
+        self.config = ConfigDict()
         self.errors = dict()
         self.arrays = dict()
         self._copydefaults(self.config, defaults)
@@ -138,7 +135,7 @@ class LLConfigHandler():
         if defaults:
             for config_item in defaults:
                 key = config_item.key.upper()
-                config[key] = deepcopy(config_item)
+                config[key] = configitem_from_default(config_item)
 
     def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
@@ -181,6 +178,7 @@ class LLConfigHandler():
         rc = 0
         if not wantname:
             return rc
+        wantname = wantname.upper()
         for name in self.arrays.keys():
             if name[:len(wantname)] == wantname:
                 rc += len(self.arrays[name])
@@ -188,64 +186,68 @@ class LLConfigHandler():
 
     def get_array(self, wantname: str) -> Optional[ArrayConfig]:
         """ Return the config for an array, like 'APPRISE', or None """
-        if wantname in self.arrays:
-            return self.arrays[wantname]
+        if wantname.upper() in self.arrays:
+            return self.arrays[wantname.upper()]
         else:
             return None
 
     def get_array_dict(self, wantname: str, wantindex: int) -> Optional[ConfigDict]:
         """ Return the complete config for an entry, like ('APPRISE', 0) """
-        if wantname in self.arrays and self.arrays[wantname].has_index(wantindex):
-            return self.arrays[wantname][wantindex]
+        if wantname in self.arrays and self.arrays[wantname.upper()].has_index(wantindex):
+            return self.arrays[wantname.upper()][wantindex]
         else:
             return None
 
+    def get_array_str(self, __array: str, index: int, __key: str) -> str:
+        """ Access a single array string config directly """
+        return self.arrays[__array.upper()][index][__key.upper()].get_str()
+
     """ Plain strings """
     def get_str(self, key: str) -> str:
-        if key in self.config:
-            return self.config[key].get_str()
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_str()
         else:
-            self._handle_access_error(key, 'read_error')
+            self._handle_access_error(key, Access.READ_ERR)
             return ''
 
     def __getitem__(self, __name: str) -> str:
         """ Make it possible to use CONFIG['name'] to access a string config directly """
-        return self.get_str(__name)
+        return self.get_str(__name.upper())
 
     def set_str(self, key: str, value: str):
-        if key in self.config:
-            self.config[key].set_str(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
         else:
             self.create_str_key(ConfigStr, key, value)
 
     """ Integers """
     def get_int(self, key: str) -> int:
-        if key in self.config:
-            return self.config[key].get_int()
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_int()
         else:
-            self._handle_access_error(key, 'read_error')
+            self._handle_access_error(key, Access.READ_ERR)
             return 0
 
     def set_int(self, key: str, value: int):
-        if key in self.config:
-            self.config[key].set_int(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_int(value)
         else:
-            self.config[key] = ConfigInt('', key, 0, is_new=True)
+            self.config[key.upper()] = ConfigInt('', key, 0, is_new=True)
             self.set_int(key, value)
 
     """ Booleans (0/1, False/True) """
     def get_bool(self, key: str) -> bool:
-        if key in self.config:
-            return self.config[key].get_bool()
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_bool()
         else:
-            self._handle_access_error(key, 'read_error')
+            self._handle_access_error(key, Access.READ_ERR)
             return False
 
     def set_bool(self, key: str, value: bool):
-        if key in self.config:
-            self.config[key].set_bool(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_bool(value)
         else:
-            self.config[key] = ConfigBool('', key, False, is_new=True)
+            self.config[key.upper()] = ConfigBool('', key, False, is_new=True)
             self.set_bool(key, value)
 
     """ Email addresses """
@@ -253,8 +255,8 @@ class LLConfigHandler():
         return Email(self.get_str(key))
 
     def set_email(self, key: str, value: Email):
-        if key in self.config:
-            self.config[key].set_str(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
         else:
             self.create_str_key(ConfigEmail, key, value)
 
@@ -263,8 +265,8 @@ class LLConfigHandler():
         return CSVstr(self.get_str(key))
 
     def set_csv(self, key: str, value: CSVstr):
-        if key in self.config:
-            self.config[key].set_str(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
         else:
             self.create_str_key(ConfigCSV, key, value)
 
@@ -273,8 +275,8 @@ class LLConfigHandler():
         return URLstr(self.get_str(key))
 
     def set_url(self, key: str, value: URLstr):
-        if key in self.config:
-            self.config[key].set_str(value)
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
         else:
             self.create_str_key(ConfigURL, key, value)
 
@@ -282,17 +284,18 @@ class LLConfigHandler():
         """ Function for creating new config items on the fly. Should be rare in LL. """
         new_entry = aclass('', key, '', is_new=True)
         if new_entry.is_valid_value(value):
-            self.config[key] = new_entry
-            self.config[key].set_str(value)
+            self.config[key.upper()] = new_entry
+            self.config[key.upper()].set_str(value)
         else:
-            self._handle_access_error(key, 'format_error')
+            self._handle_access_error(key, Access.FORMAT_ERR)
 
-    def _handle_access_error(self, key: str, status: str):
+    def _handle_access_error(self, key: str, status: Access):
         """ Handle accesses to invalid keys """
+        key = key.upper()
         if key not in self.errors:
             self.errors[key] = Counter()
         self.errors[key][status] += 1
-        logger.error(f"Config[{key}]: {status}")
+        logger.error(f"Config[{key}]: {status.value}")
 
     def get_error_counters(self) -> Dict[str, Counter]:
         """ Get a list of all access errors """
@@ -547,26 +550,3 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
 
     return True
 
-### This is to have section names be case insensitive.
-### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
-class CaseInsensitiveDict(MutableMapping):
-    """ Ordered case insensitive mutable mapping class. """
-    def __init__(self, *args, **kwargs):
-        self._d = OrderedDict(*args, **kwargs)
-        self._convert_keys()
-    def _convert_keys(self):
-        for k in list(self._d.keys()):
-            v = self._d.pop(k)
-            self._d.__setitem__(k, v)
-    def __len__(self):
-        return len(self._d)
-    def __iter__(self):
-        return iter(self._d)
-    def __setitem__(self, k, v):
-        self._d[k.upper()] = v
-    def __getitem__(self, k):
-        return self._d[k.upper()]
-    def __delitem__(self, k):
-        del self._d[k.upper()]
-    def copy(self):
-        return CaseInsensitiveDict(self._d.copy())

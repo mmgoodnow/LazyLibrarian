@@ -1,14 +1,13 @@
-
 #  This file is part of Lazylibrarian.
 #
 # Purpose:
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Dict, Union, List, Type, Optional
+from typing import NewType, Union, Optional, MutableMapping
 from enum import Enum
 from configparser import ConfigParser
-from collections import Counter
+from collections import Counter, OrderedDict
 from re import match, compile, IGNORECASE
 import os
 
@@ -29,6 +28,7 @@ class Access(Enum):
     WRITE_OK  = 'write_ok'
     WRITE_ERR = 'write_error'
     CREATE_OK = 'create_ok'
+    FORMAT_ERR= 'format_error'
 
 """ Simple wrapper classes for config values of different types """
 class ConfigItem():
@@ -40,8 +40,8 @@ class ConfigItem():
     is_new: bool
 
     def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool=False):
-        self.section = section
-        self.key = key
+        self.section = section.upper()
+        self.key = key.upper()
         self.default = default
         self.accesses = Counter()
         self.is_new = is_new
@@ -55,6 +55,9 @@ class ConfigItem():
 
     def is_default(self) -> bool:
         return self.value == self.default
+
+    def is_key(self, key: str) -> bool:
+        return key.upper() == self.key
 
     def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
         return self.set_str(parser.get(self.section, name))
@@ -367,3 +370,32 @@ class ConfigFolder(ConfigStr):
             return value.replace('\\', '/')
         return value
 
+
+### This is to have section names be case insensitive.
+### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
+class CaseInsensitiveDict(MutableMapping):
+    """ Ordered case insensitive mutable mapping class. """
+    def __init__(self, *args, **kwargs):
+        self._d = OrderedDict(*args, **kwargs)
+        self._convert_keys()
+    def _convert_keys(self):
+        for k in list(self._d.keys()):
+            v = self._d.pop(k)
+            self._d.__setitem__(k, v)
+    def __len__(self):
+        return len(self._d)
+    def __iter__(self):
+        return iter(self._d)
+    def __setitem__(self, k, v):
+        self._d[k.upper()] = v
+    def __getitem__(self, k):
+        return self._d[k.upper()]
+    def __delitem__(self, k):
+        del self._d[k.upper()]
+    def copy(self):
+        return CaseInsensitiveDict(self._d.copy())
+
+class ConfigDict(CaseInsensitiveDict):
+    """ A dictionary of (key, ConfigItem) """
+    def __init__(self, *args, **kwargs):
+        super().__init__( *args, **kwargs)
