@@ -541,6 +541,7 @@ def update():
                     msg = 'No update available: ' + str(output)
                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
                     logmsg('info', msg)
+                    break
                 elif 'Aborting' in line or 'local changes' in line:
                     msg = 'Unable to update: ' + str(output)
                     upgradelog.write("%s %s\n" % (time.ctime(), msg))
