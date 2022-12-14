@@ -181,7 +181,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
-            shutdown(update=True, exit=True)
+            shutdown(update=True, exit=True, testing=False)
 
     if options.loglevel:
         try:
@@ -756,7 +756,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         state = str(cherrypy.engine.state)
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
-    if not testing:
+    if testing:
         config.config_write()
 
     if not restart and not update:
@@ -776,8 +776,9 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
-                lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
-                config.config_write('Git')
+                if testing:
+                    lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                    config.config_write('Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))

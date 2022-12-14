@@ -45,9 +45,12 @@ def startscheduler():
 
 
 def shutdownscheduler():
-    if SCHED:
-        # noinspection PyUnresolvedReferences
-        SCHED.shutdown(wait=False)
+    try:
+        if SCHED:
+            # noinspection PyUnresolvedReferences
+            SCHED.shutdown(wait=False)
+    except NameError:
+        pass
 
 def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     """
