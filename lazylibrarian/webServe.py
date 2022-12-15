@@ -31,7 +31,7 @@ from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 import lazylibrarian
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, \
-    config2
+    configdefs
 from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
@@ -1606,6 +1606,7 @@ class WebInterface(object):
 
         interface = lazylibrarian.CFG.get('General', 'http_look')
         # now the config file entries
+        # CFG2DO P0 Figure this out
         for key in list(config.CONFIG_DEFINITIONS.keys()):
             item_type, section, default = config.CONFIG_DEFINITIONS[key]
             if key.lower() in kwargs:
@@ -1620,7 +1621,7 @@ class WebInterface(object):
                 lazylibrarian.CONFIG[key] = value
             else:
                 # no key is returned for strings not available in config html page so leave these unchanged
-                if key in config.CONFIG_NONWEB or key in config.CONFIG_GIT:
+                if key in config.CONFIG_NONWEB or key in configdefs.CONFIG_GIT:
                     pass
                 # default interface doesn't know about other interfaces variables
                 elif interface == 'legacy' and key in config.CONFIG_NONDEFAULT:

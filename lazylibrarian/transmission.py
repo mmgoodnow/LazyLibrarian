@@ -300,7 +300,7 @@ def torrent_action(method, arguments):
             logger.debug("Using existing host %s" % host_url)
     else:
         host = lazylibrarian.CONFIG['TRANSMISSION_HOST']
-        port = check_int(lazylibrarian.CONFIG['TRANSMISSION_PORT'], 0)
+        port = lazylibrarian.CONFIG.get_int('TRANSMISSION_PORT')
 
         if not host or not port:
             res = 'Invalid transmission host or port, check your config'

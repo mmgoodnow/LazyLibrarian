@@ -834,13 +834,12 @@ def log_header(online=True):
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
-    # CFG2DO Handle CONFIG_GIT
-    # for item in CONFIG_GIT:
-    #     if item == 'GIT_UPDATED':
-    #         timestamp = check_int(lazylibrarian.CONFIG[item], 0)
-    #         header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
-    #     else:
-    #         header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+    for item in configdefs.CONFIG_GIT:
+        if item == 'GIT_UPDATED':
+            timestamp = lazylibrarian.CONFIG.get_int(item)
+            header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
+        else:
+            header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
     try:
         header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
     except AttributeError:

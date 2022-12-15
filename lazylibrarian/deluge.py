@@ -238,7 +238,7 @@ def _get_auth():
 
     delugeweb_cert = lazylibrarian.CONFIG['DELUGE_CERT']
     delugeweb_host = lazylibrarian.CONFIG['DELUGE_HOST']
-    delugeweb_port = check_int(lazylibrarian.CONFIG['DELUGE_PORT'], 0)
+    delugeweb_port = lazylibrarian.CONFIG.get_int('DELUGE_PORT')
     if not delugeweb_host or not delugeweb_port:
         logger.error('Invalid delugeweb host or port, check your config')
         return None

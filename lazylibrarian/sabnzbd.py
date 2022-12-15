@@ -55,7 +55,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         return False, res
 
     hostname = lazylibrarian.CONFIG['SAB_HOST']
-    port = check_int(lazylibrarian.CONFIG['SAB_PORT'], 0)
+    port = lazylibrarian.CONFIG.get_int('SAB_PORT')
     if not hostname or not port:
         res = 'Invalid sabnzbd host or port, check your config'
         logger.error(res)

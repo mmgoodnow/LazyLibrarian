@@ -569,6 +569,9 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ]),
 }
 
+CONFIG_GIT = ['GIT_REPO', 'GIT_USER', 'GIT_BRANCH', 'LATEST_VERSION', 'GIT_UPDATED', 'CURRENT_VERSION',
+              'GIT_HOST', 'COMMITS_BEHIND', 'INSTALL_TYPE', 'AUTO_UPDATE']
+
 def get_default(setting: str):
     """ Look up setting in base defaults, return the default value if it exists, or None """
     for default in BASE_DEFAULTS:

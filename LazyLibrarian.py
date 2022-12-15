@@ -82,17 +82,17 @@ def main():
 
     # CFG2DO p1 Is this the right way to initialize bools?
     webStart.initialize({
-        'http_port': lazylibrarian.CONFIG['HTTP_PORT'],
+        'http_port': lazylibrarian.CONFIG.get_int('HTTP_PORT'),
         'http_host': lazylibrarian.CONFIG['HTTP_HOST'],
         'http_root': lazylibrarian.CONFIG['HTTP_ROOT'],
         'http_user': lazylibrarian.CONFIG['HTTP_USER'],
         'http_pass': lazylibrarian.CONFIG['HTTP_PASS'],
-        'http_proxy': lazylibrarian.CONFIG['HTTP_PROXY'],
-        'https_enabled': lazylibrarian.CONFIG['HTTPS_ENABLED'],
+        'http_proxy': lazylibrarian.CONFIG.get_bool('HTTP_PROXY'),
+        'https_enabled': lazylibrarian.CONFIG.get_bool('HTTPS_ENABLED'),
         'https_cert': lazylibrarian.CONFIG['HTTPS_CERT'],
         'https_key': lazylibrarian.CONFIG['HTTPS_KEY'],
         'opds_enabled': lazylibrarian.CONFIG['OPDS_ENABLED'],
-        'opds_authentication': lazylibrarian.CONFIG['OPDS_AUTHENTICATION'],
+        'opds_authentication': lazylibrarian.CONFIG.get_bool('OPDS_AUTHENTICATION'),
         'opds_username': lazylibrarian.CONFIG['OPDS_USERNAME'],
         'opds_password': lazylibrarian.CONFIG['OPDS_PASSWORD'],
         'authentication': lazylibrarian.CONFIG['AUTH_TYPE'],

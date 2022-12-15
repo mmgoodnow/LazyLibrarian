@@ -327,9 +327,9 @@ def _add_torrent_uri(task_cgi, sid, torurl):
 def _host_url():
     # Build webapi_url from config settings
     host = lazylibrarian.CONFIG['SYNOLOGY_HOST']
-    port = check_int(lazylibrarian.CONFIG['SYNOLOGY_PORT'], 0)
+    port = lazylibrarian.CONFIG.get_int('SYNOLOGY_PORT')
     if not host or not port:
-        logger.debug("Invalid Synology host or port, check your config")
+        logger.debug(f"Invalid Synology host or port, check your config: {host}:{port}")
         return False
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host

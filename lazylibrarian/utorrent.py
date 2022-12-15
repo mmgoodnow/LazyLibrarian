@@ -34,7 +34,7 @@ class UtorrentClient(object):
                  password='',):  # lazylibrarian.CONFIG['UTORRENT_PASS']):
 
         host = lazylibrarian.CONFIG['UTORRENT_HOST']
-        port = check_int(lazylibrarian.CONFIG['UTORRENT_PORT'], 0)
+        port = lazylibrarian.CONFIG.get_int('UTORRENT_PORT')
         if not host or not port:
             logger.error('Invalid Utorrent host or port, check your config')
 

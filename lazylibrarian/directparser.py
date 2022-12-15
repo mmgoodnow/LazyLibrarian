@@ -77,7 +77,7 @@ def direct_bok(book=None, prov=None, test=False):
         return [], "provider is already blocked"
 
     bok_today = lazylibrarian.bok_dlcount()[0]
-    if bok_today and bok_today >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
+    if bok_today and bok_today >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
         if test:
             return False
         return [], "download limit reached"
@@ -189,7 +189,7 @@ def direct_bok(book=None, prov=None, test=False):
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
                                         count, oldest = lazylibrarian.bok_dlcount()
-                                        if count and count >= check_int(lazylibrarian.CONFIG[prov + '_DLLIMIT'], 5):
+                                        if count and count >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
                                             # rolling 24hr delay if limit reached
                                             delay = oldest + 24*60*60 - time.time()
                                         else:

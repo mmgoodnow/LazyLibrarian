@@ -132,11 +132,11 @@ class EmailNotifier:
 
             if lazylibrarian.CONFIG.get_bool('EMAIL_SSL'):
                 mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                              check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
+                                              lazylibrarian.CONFIG.get_int('EMAIL_SMTP_PORT'),
                                               context=context)
             else:
                 mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                          check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 25))
+                                          lazylibrarian.CONFIG.get_int('EMAIL_SMTP_PORT')
 
             if lazylibrarian.CONFIG['EMAIL_TLS']:
                 mailserver.starttls(context=context)

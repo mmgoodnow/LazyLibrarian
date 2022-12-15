@@ -52,7 +52,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
     # we can send a new nzb, or commands to act on an existing nzbID (or array of nzbIDs)
     # by setting nzbID and cmd (we currently only use test, history, listgroups and delete)
     host = lazylibrarian.CONFIG['NZBGET_HOST']
-    port = check_int(lazylibrarian.CONFIG['NZBGET_PORT'], 0)
+    port = lazylibrarian.CONFIG.get_int('NZBGET_PORT')
     if not host or not port:
         res = 'Invalid NZBget host or port, check your config'
         logger.error(res)

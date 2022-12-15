@@ -189,14 +189,14 @@ def schedule_job(action='Start', target=None):
                 return  # return if already running, if not, start a new one
 
         if 'process_dir' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['SCAN_INTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('SCAN_INTERVAL')
             if interval:
                 startdate = nextrun("POSTPROCESS", interval, action)
                 SCHED.add_interval_job(postprocess.cron_process_dir,
                                        minutes=interval, start_date=startdate)
 
         elif 'search_magazines' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['SEARCH_MAGINTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('SEARCH_MAGINTERVAL')
             if interval and (lazylibrarian.use_tor() or lazylibrarian.use_nzb()
                              or lazylibrarian.use_rss() or lazylibrarian.use_direct()
                              or lazylibrarian.use_irc()):
@@ -209,7 +209,7 @@ def schedule_job(action='Start', target=None):
                     SCHED.add_interval_job(searchmag.cron_search_magazines,
                                            hours=hours, start_date=startdate)
         elif 'search_book' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('SEARCH_BOOKINTERVAL')
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLBOOKS", interval, action)
@@ -221,7 +221,7 @@ def schedule_job(action='Start', target=None):
                     SCHED.add_interval_job(searchbook.cron_search_book,
                                            hours=hours, start_date=startdate)
         elif 'search_rss_book' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['SEARCHRSS_INTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('SEARCHRSS_INTERVAL')
             if interval and lazylibrarian.use_rss():
                 startdate = nextrun("SEARCHALLRSS", interval, action)
                 if interval <= 600:
@@ -232,14 +232,14 @@ def schedule_job(action='Start', target=None):
                     SCHED.add_interval_job(searchrss.cron_search_rss_book,
                                            hours=hours, start_date=startdate)
         elif 'search_wishlist' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['WISHLIST_INTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('WISHLIST_INTERVAL')
             if interval and lazylibrarian.use_wishlist():
                 startdate = nextrun("SEARCHWISHLIST", interval, action, True)
                 SCHED.add_interval_job(searchrss.cron_search_wishlist,
                                        hours=interval, start_date=startdate)
 
         elif 'search_comics' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['SEARCH_COMICINTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('SEARCH_COMICINTERVAL')
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
                 startdate = nextrun("SEARCHALLCOMICS", interval, action, True)
@@ -247,14 +247,14 @@ def schedule_job(action='Start', target=None):
                                        hours=interval, start_date=startdate)
 
         elif 'check_for_updates' in newtarget:
-            interval = check_int(lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('VERSIONCHECK_INTERVAL')
             if interval:
                 startdate = nextrun("VERSIONCHECK", interval, action, True)
                 SCHED.add_interval_job(versioncheck.check_for_updates,
                                        hours=interval, start_date=startdate)
 
         elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG.get_bool('GR_SYNC'):
-            interval = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
+            interval = lazylibrarian.CONFIG.get_int('GOODREADS_INTERVAL')
             if interval:
                 startdate = nextrun("GRSYNC", interval, action, True)
                 SCHED.add_interval_job(grsync.cron_sync_to_gr,

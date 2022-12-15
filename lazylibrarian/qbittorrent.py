@@ -36,7 +36,7 @@ class QbittorrentClient(object):
     def __init__(self):
 
         host = lazylibrarian.CONFIG['QBITTORRENT_HOST']
-        port = check_int(lazylibrarian.CONFIG['QBITTORRENT_PORT'], 0)
+        port = lazylibrarian.CONFIG.get_int('QBITTORRENT_PORT')
         if not host or not port:
             logger.error('Invalid Qbittorrent host or port, check your config')
 
