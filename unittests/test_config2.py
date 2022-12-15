@@ -199,14 +199,14 @@ class Config2Test(LLTestCase):
 
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             for url in goodurls:
-                cfg.set_url(url[0], configtypes.URLstr(url[1]))
+                cfg.set_url(url[0], str(url[1]))
 
                 goturl = cfg.get_url(url[0])
                 self.assertEqual(goturl, url[1])
                 self.assertEqual(type(goturl), str)
 
             for url in badurls:
-                cfg.set_url(url[0], configtypes.URLstr(url[1]))  # Format error
+                cfg.set_url(url[0], str(url[1]))  # Format error
                 goturl = cfg.get_url(url[0])                     # Read error
                 self.assertEqual(goturl, '')
         self.maxDiff = None
@@ -546,6 +546,41 @@ class Config2Test(LLTestCase):
         }
         self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
 
+    def test_provider_iterator(self):
+        """ Test the iterator function used to access providers """
+        lazylibrarian.LOGLEVEL = 1
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        # Test reading items
+        names = []
+        for item in cfg.providers('NewzNab'):
+            names.append(item['DISPNAME'].get_str())
+        self.assertEqual(names, ['NZBtester', 'AnotherTest', ''])
+
+        # Test writing re-accessing data
+        index = 0
+        for item in cfg.providers('rss'):
+            item['HOST'].set_str(f'TestHost-{index}')
+            item['DLPRIORITY'].set_int(index)
+            index += 1
+        index = 0
+        for item in cfg.providers('rss'):
+            self.assertEqual(item['HOST'].get_str(), f'TestHost-{index}')
+            self.assertEqual(item['DLPRIORITY'].get_str(), f'{index}')
+            self.assertEqual(item['DLPRIORITY'].get_int(), index)
+            index += 1
+
+        # Test accessing a provider array that doesn't exist
+        cm = None
+        try:
+            with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
+                _ = cfg.providers('DoesNotExist')
+            self.assertTrue(False, 'Should never get here')
+        except:
+            if cm:
+                self.assertEqual(cm.output, [
+                    'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[DOESNOTEXIST]: read_error',
+                ], 'message')
+
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
         lazylibrarian.LOGLEVEL = 1
@@ -603,7 +638,6 @@ class Config2Test(LLTestCase):
         try:
             TESTFILE = 'test-all.ini'
             count = cfg.save_config(TESTFILE, True) # Save everything.
-            self.assertEqual(count, 512, 'Saving config.ini has unexpected total # of items')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:

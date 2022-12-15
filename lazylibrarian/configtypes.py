@@ -16,9 +16,8 @@ from lazylibrarian import logger
 ### Type aliases to distinguish types of string
 Email = NewType('Email', str)
 CSVstr = NewType('CSV', str)
-URLstr = NewType('URL', str)
 ValidIntTypes = Union[int, bool]
-ValidStrTypes =  Union[str, Email, CSVstr, URLstr]
+ValidStrTypes =  Union[str, Email, CSVstr]
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
 ### Types of access
@@ -55,6 +54,9 @@ class ConfigItem():
 
     def is_default(self) -> bool:
         return self.value == self.default
+
+    def is_enabled(self) -> bool:
+        return self.get_str() != ''
 
     def is_key(self, key: str) -> bool:
         return key.upper() == self.key
@@ -267,6 +269,9 @@ class ConfigBool(ConfigInt):
     def set_str(self, value: str) -> bool:
         return self._on_type_mismatch(value)
 
+    def is_enabled(self) -> bool:
+        return self.get_bool()
+
     def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
         return self.set_bool(parser.getboolean(self.section, name, fallback=False))
 
@@ -322,8 +327,8 @@ class ConfigDownloadTypes(ConfigCSV):
 
 class ConfigURL(ConfigStr):
     """ A config item that is a string that must be a valid URL """
-    def get_url(self) -> URLstr:
-        return URLstr(self.get_str())
+    def get_url(self) -> str:
+        return self.get_str()
 
     def set_str(self, value: str) -> bool:
         value = value.rstrip('/')

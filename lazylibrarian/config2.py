@@ -15,7 +15,7 @@ import sys
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, Email, CSVstr, URLstr, ValidStrTypes, Access, CaseInsensitiveDict, ConfigDict
+    ConfigURL, Email, CSVstr, ValidStrTypes, Access, CaseInsensitiveDict, ConfigDict
 from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name
@@ -55,15 +55,24 @@ class ArrayConfig():
     def __getitem__(self, index: int) -> ConfigDict:
         return self._configs[index]
 
+    def primary_host(self, index: int) -> str:
+        if index > len(self):
+            return ''
+        config = self[index]
+        if self._primary in config:
+            return self._configs[index][self._primary].get_str()
+        else:
+            return ''
+
+    # Allow ArrayConfig to be iterated over
+    def __iter__(self):
+        return self._configs.values().__iter__()
+
     def is_in_use(self, index: int) -> bool:
         """ Check if the index'th item is in use, or spare """
         if index > len(self):
             return False
-        config = self[index]
-        if self._primary in config:
-            return self._configs[index][self._primary].get_str() != ''
-        else:
-            return False
+        return self.primary_host(index) != ''
 
     def get_section_str(self, index: int) -> str:
         return self._secstr % index
@@ -103,6 +112,7 @@ class ArrayConfig():
                 if item.section != self.get_section_str(index):
                     logger.error(f'Internal error in {self._name}:{name}')
 
+
 """ Main configuration handler for LL """
 class LLConfigHandler():
     config: ConfigDict # simple (str, value)
@@ -115,7 +125,15 @@ class LLConfigHandler():
         self.errors = dict()
         self.arrays = dict()
         self._copydefaults(self.config, defaults)
+        self.configfilename = ''
+        self.load_configfile(configfile)
 
+    def load_configfile(self, configfile: Optional[str]=None):
+        if self.configfilename:
+            # Clear existing before loading another setup, brute force.
+            self.config = ConfigDict()
+            self.errors = dict()
+            self.arrays = dict()
         if configfile:
             self.configfilename = configfile
             parser = ConfigParser(dict_type=CaseInsensitiveDict)
@@ -202,6 +220,23 @@ class LLConfigHandler():
         """ Access a single array string config directly """
         return self.arrays[__array.upper()][index][__key.upper()].get_str()
 
+    def providers(self, name: str) -> ArrayConfig:
+        """ Return an iterable list of providers """
+        array = self.get_array(name)
+        if array:
+            return array
+        else:
+            self._handle_access_error(name, Access.READ_ERR)
+            raise Exception(f'Cannot iterate over non-existent array {name}')
+
+    """ As generic object """
+    def get_item(self, key: str) -> Optional[ConfigItem]:
+        if key.upper() in self.config:
+            return self.config[key.upper()]
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return None
+
     """ Plain strings """
     def get_str(self, key: str) -> str:
         if key.upper() in self.config:
@@ -212,7 +247,13 @@ class LLConfigHandler():
 
     def __getitem__(self, __name: str) -> str:
         """ Make it possible to use CONFIG['name'] to access a string config directly """
-        return self.get_str(__name.upper())
+        if __name:
+            return self.get_str(__name.upper())
+        else:
+            return ''
+
+    def __setitem__(self, __name: str, value: str):
+        self.set_str(__name.upper(), value)
 
     def set_str(self, key: str, value: str):
         if key.upper() in self.config:
@@ -271,10 +312,10 @@ class LLConfigHandler():
             self.create_str_key(ConfigCSV, key, value)
 
     """ URL strings """
-    def get_url(self, key: str) -> URLstr:
-        return URLstr(self.get_str(key))
+    def get_url(self, key: str) -> str:
+        return self.get_str(key)
 
-    def set_url(self, key: str, value: URLstr):
+    def set_url(self, key: str, value: str):
         if key.upper() in self.config:
             self.config[key.upper()].set_str(value)
         else:
@@ -375,7 +416,7 @@ class LLConfigHandler():
             for _, array in self.arrays.items():
                 array.ensure_empty_end_item()
 
-    def save_config_and_backup_old(self, save_all: bool=False) -> int:
+    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None) -> int:
         """
         Renames the old config file to .bak and saves new config file.
         Return number of items stored, -1 if error.

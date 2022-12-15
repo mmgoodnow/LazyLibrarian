@@ -149,7 +149,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('Git', 'CURRENT_VERSION', ''),
     ConfigStr('Git', 'LATEST_VERSION', ''),
     ConfigInt('Git', 'COMMITS_BEHIND', 0),
-    ConfigInt('Git', 'AUTO_UPDATE', 0),
+    ConfigBool('Git', 'AUTO_UPDATE', False),
     ConfigStr('SABnzbd', 'SAB_HOST', ''),
     ConfigRangedInt('SABnzbd', 'SAB_PORT', 0, 0, 65535),
     ConfigStr('SABnzbd', 'SAB_SUBDIR', ''),
@@ -181,7 +181,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('USENET', 'USENET_RETENTION', 0),
     ConfigStr('NZBMatrix', 'NZBMATRIX_USER', ''),
     ConfigStr('NZBMatrix', 'NZBMATRIX_API', ''),
-    ConfigBool('NZBMatrix', 'NZBMATRIX', 0),
+    ConfigBool('NZBMatrix', 'NZBMATRIX', 0), # Unused
     ConfigBool('TORRENT', 'TOR_DOWNLOADER_BLACKHOLE', 0),
     ConfigBool('TORRENT', 'TOR_CONVERT_MAGNET', 0),
     ConfigBool('TORRENT', 'TOR_DOWNLOADER_UTORRENT', 0),
@@ -285,7 +285,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('LIME', 'LIME_SEEDERS', 0),
     ConfigStr('Newzbin', 'NEWZBIN_UID', ''),
     ConfigStr('Newzbin', 'NEWZBIN_PASS', ''),
-    ConfigBool('Newzbin', 'NEWZBIN', 0),
+    ConfigBool('Newzbin', 'NEWZBIN', 0), # Unused
     ConfigCSV('General', 'EBOOK_TYPE', 'epub, mobi, pdf', force_lower=True),
     ConfigCSV('General', 'AUDIOBOOK_TYPE', 'mp3, m4b', force_lower=True),
     ConfigCSV('General', 'MAG_TYPE', 'pdf', force_lower=True),
@@ -420,7 +420,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('Email', 'EMAIL_SMTP_USER', ''),
     ConfigStr('Email', 'EMAIL_SMTP_PASSWORD', ''),
     ConfigInt('Email', 'EMAIL_LIMIT', 20),
-    ConfigBool('Email', 'USE_EMAIL_CUSTOM_FORMAT', 0),
+    ConfigBool('Email', 'USE_EMAIL_CUSTOM_FORMAT', 0), # Unused
     ConfigCSV('Email', 'EMAIL_CONVERT_FROM', '', force_lower=True),
     ConfigCSV('Email', 'EMAIL_SEND_TYPE', '', force_lower=True),
     ConfigStr('API', 'BOOK_API', 'OpenLibrary'),
@@ -502,6 +502,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigInt('', "RATELIMIT", 0),
     ConfigInt('', "DLPRIORITY", 0),
     ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
+    ConfigInt('', "LASTUSED", 0),
     ]),
     'TORZNAB': ('HOST', 'Torznab%i', [
     ConfigStr('', 'NAME', 'Torznab'),
@@ -527,6 +528,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigInt('', "DLPRIORITY", 0),
     ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
     ConfigInt('', "SEEDERS", 0),
+    ConfigInt('', "LASTUSED", 0),
     ]),
     'RSS': ('HOST', 'RSS_%i', [
     ConfigStr('', 'NAME', 'RSS'),
