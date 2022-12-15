@@ -32,7 +32,7 @@ except ImportError:
 
 def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
-    if not lazylibrarian.CONFIG['RSS_ENABLED']:
+    if not lazylibrarian.CONFIG.get_bool('RSS_ENABLED'):
         return res
     # noinspection PyBroadException
     try:
@@ -44,7 +44,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/book_wall&have=1'
         elif ftype == 'AudioBook':
-            podcast = lazylibrarian.CONFIG['RSS_PODCAST']
+            podcast = lazylibrarian.CONFIG.get_bool('RSS_PODCAST')
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
             cmd += "from books,authors where "
             if authorid:

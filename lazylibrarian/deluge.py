@@ -110,7 +110,7 @@ def add_torrent(link, data=None):
 
         if retid:
             logger.info('Deluge: Torrent sent to Deluge successfully  (%s)' % retid)
-            if lazylibrarian.CONFIG['TORRENT_PAUSED']:
+            if lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED'):
                 torrent_pause(retid)
             return retid, ''
 
@@ -175,7 +175,7 @@ def get_torrent_status(torrentid, data):
         tries = 2
         while tries:
             cookies = _get_auth()
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+            timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
             post_json = {"method": "web.get_torrent_status",
                          "params": [torrentid, data],
@@ -200,7 +200,7 @@ def get_torrent_status(torrentid, data):
 def remove_torrent(torrentid, remove_data=False):
     global delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -226,10 +226,7 @@ def remove_torrent(torrentid, remove_data=False):
 def _get_auth():
     global delugeweb_auth, delugeweb_url, delugeweb_authtime, headers, deluge_verify_cert
     if delugeweb_auth:
-        if lazylibrarian.CONFIG.get('DELUGE_TIMEOUT', 0):
-            timeout = check_int(lazylibrarian.CONFIG['DELUGE_TIMEOUT'], 0)
-        else:
-            timeout = 3600
+        timeout = lazylibrarian.CONFIG.get_int('DELUGE_TIMEOUT')
         if delugeweb_authtime > time.time() - timeout:
             delugeweb_authtime = time.time()
             return delugeweb_auth
@@ -237,7 +234,7 @@ def _get_auth():
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Authenticating...')
     delugeweb_authtime = 0
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     delugeweb_cert = lazylibrarian.CONFIG['DELUGE_CERT']
     delugeweb_host = lazylibrarian.CONFIG['DELUGE_HOST']
@@ -403,7 +400,7 @@ def _add_torrent_magnet(result):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding magnet')
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         post_json = {"method": "core.add_torrent_magnet", "params": [result['url'], {}], "id": 2}
@@ -434,7 +431,7 @@ def _add_torrent_url(result):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding URL')
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         post_json = {"method": "core.add_torrent_url", "params": [result['url'], {}], "id": 32}
@@ -467,7 +464,7 @@ def _add_torrent_file(result):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Adding file')
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         # content is torrent file contents (bytes) that needs to be encoded to base64
@@ -520,7 +517,7 @@ def set_torrent_label(retid, label):
         logger.error('Deluge: Invalid label. Label can\'t contain spaces - replacing with underscores')
         label = label.replace(' ', '_')
 
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
     try:
         # check if label already exists and create it if not
         post_json = {"method": 'label.get_labels', "params": [], "id": 3}
@@ -592,7 +589,7 @@ def set_seed_ratio(result):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Setting seed ratio')
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         ratio = None
@@ -639,7 +636,7 @@ def set_torrent_path(result):
     if not dl_dir:
         return True
 
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
     try:
         post_json = {"method": "core.set_torrent_move_completed", "params": [result['hash'], True], "id": 7}
 
@@ -678,7 +675,7 @@ def torrent_pause(retid):
     if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
         logger.debug('Deluge: Pausing torrent')
     cookies = _get_auth()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     try:
         post_json = {"method": "core.pause_torrent", "params": [retid], "id": 9}

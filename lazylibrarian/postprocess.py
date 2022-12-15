@@ -101,7 +101,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
             '$IssueDate', issuenum).replace('$Title', title)
 
-        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+        if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
             dest_dir = lazylibrarian.directory('eBook')
             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
             dest_path = make_utf8bytes(dest_path)[0]
@@ -168,10 +168,10 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
                               "LatestCover": coverfile}
         db.upsert("magazines", new_value_dict, control_value_dict)
 
-        if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+        if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
             logger.debug('create_mag_opf is disabled')
         else:
-            if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+            if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                 authors = title
             else:
                 authors = 'magazines'
@@ -460,7 +460,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             else:
                 logger.debug("Author %s not found, adding to database" % authorname)
                 if authorid:
-                    add_author_to_db(authorid=authorid, addbooks=lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'],
+                    add_author_to_db(authorid=authorid, addbooks=lazylibrarian.CONFIG.get_bool('NEWAUTHOR_BOOKS'),
                                      reason="process_alternate: %s" % bookname)
                 else:
                     aname, authorid, _ = add_author_name_to_db(author=authorname,
@@ -482,7 +482,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 match = {}
                 results = search_for(searchterm)
                 for result in results:
-                    if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                    if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
                             and result['authorid'] == authorid:
                         match = result
                         break
@@ -494,7 +494,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                                                      unaccented(authorname, only_ascii=False))
                         results = search_for(searchterm)
                         for result in results:
-                            if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                            if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
                                     and result['authorid'] == authorid:
                                 match = result
                                 break
@@ -561,7 +561,7 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
                 try:
                     srcfile = os.path.join(sourcedir, ourfile)
                     dstfile = os.path.join(targetdir, ourfile)
-                    if lazylibrarian.CONFIG['DESTINATION_COPY'] or move == 'copy':
+                    if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY') or move == 'copy':
                         dstfile = safe_copy(srcfile, dstfile)
                         setperm(dstfile)
                         logger.debug("copy_into_subdir %s" % ourfile)
@@ -824,7 +824,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             db.action(cmd, (book['BookID'],))
                         db.action('UPDATE wanted SET Status="Failed",DLResult=? WHERE BookID=?',
                                   (rejected, book['BookID']))
-                        if lazylibrarian.CONFIG['DEL_FAILED']:
+                        if lazylibrarian.CONFIG.get_bool('DEL_FAILED'):
                             delete_task(book['Source'], book['DownloadID'], True)
                 else:
                     _ = get_download_progress(book['Source'], book['DownloadID'])  # set completion time
@@ -857,7 +857,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             if len(snatched):
                 for book in snatched:
                     # check if we need to wait awhile before processing, might be copying/unpacking/moving
-                    delay = check_int(lazylibrarian.CONFIG['PP_DELAY'], 0)
+                    delay = lazylibrarian.CONFIG.get_int('PP_DELAY')
                     if delay:
                         completion = time.time() - check_int(book['Completed'], 0)
                         completion = int(-(-completion // 1))  # round up to int
@@ -897,7 +897,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             pp_path = ''
                             if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                                 logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
-                            if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                            if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                 # matching file or folder name
                                 pp_path = os.path.join(download_dir, fname)
                             elif path_isdir(os.path.join(download_dir, fname)):
@@ -910,12 +910,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
                                         if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                                             logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
-                                        if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                                        if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                             # found matching file in this folder
                                             pp_path = os.path.join(download_dir, fname)
                                             break
 
-                            if match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                            if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                                     logger.debug("process_dir found %s %s" % (type(pp_path), repr(pp_path)))
 
@@ -935,9 +935,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             while aname[-1] in '_. ':
                                                 aname = aname[:-1]
 
-                                            if lazylibrarian.CONFIG['DESTINATION_COPY'] or \
+                                            if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY') or \
                                                     (book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and
-                                                     lazylibrarian.CONFIG['KEEP_SEEDING']):
+                                                     lazylibrarian.CONFIG.get_bool('KEEP_SEEDING')):
                                                 move = 'copy'
                                             else:
                                                 move = 'move'
@@ -1009,7 +1009,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                         found_file = f
                                                         found_score = bookmatch
 
-                                            if found_score >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                                            if found_score >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                                 # found a matching book file in this folder
                                                 targetdir = os.path.join(download_dir, matchtitle + '.unpack')
                                                 if not make_dirs(targetdir, new=True):
@@ -1081,7 +1081,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         match = highest[0]
                         pp_path = highest[1]
                         book = highest[2]  # type: dict
-                    if match and match >= lazylibrarian.CONFIG['DLOAD_RATIO']:
+                    if match and match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                         logger.debug('Found match (%s%%): %s for %s %s' % (
                             match, repr(pp_path), booktype, repr(book['NZBtitle'])))
                         cmd = 'SELECT AuthorName,BookName from books,authors WHERE BookID=?'
@@ -1091,15 +1091,16 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             logger.debug('Processing %s %s' % (booktype, book['BookID']))
                             bookname = data['BookName']
                             authorname = data['AuthorName']
-                            if os.name == 'nt':
-                                if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                                    logger.warn('Please check your EBOOK_DEST_FOLDER setting')
-                                    lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                                        'EBOOK_DEST_FOLDER'].replace('/', '\\')
-                                if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
-                                    logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
-                                    lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                                        'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
+                            # CFG2DO: Verify that this path handling code is no longer necessary
+                            # if os.name == 'nt':
+                            #     if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+                            #         logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+                            #         lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                            #             'EBOOK_DEST_FOLDER'].replace('/', '\\')
+                            #     if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
+                            #         logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+                            #         lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+                            #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
                             # Default destination path, should be allowed change per config file.
                             namevars = name_vars(book['BookID'])
                             if booktype == 'AudioBook' and lazylibrarian.directory('Audio'):
@@ -1147,7 +1148,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 dest_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace(
                                     '$IssueDate', iss_date).replace('$Title', mag_name)
 
-                                if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                                if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
                                     dest_dir = lazylibrarian.directory('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                     dest_path = make_utf8bytes(dest_path)[0]
@@ -1188,7 +1189,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     global_name = sanitize(global_name)
                                     data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
-                                    if lazylibrarian.CONFIG['COMIC_RELATIVE']:
+                                    if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
                                         dest_dir = lazylibrarian.directory('eBook')
                                         dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                         dest_path = make_utf8bytes(dest_path)[0]
@@ -1275,7 +1276,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                             maginfo = db.match("SELECT CoverPage from magazines WHERE Title=?", (book['BookID'],))
                             # create a thumbnail cover for the new issue
-                            if lazylibrarian.CONFIG['SWAP_COVERPAGE']:
+                            if lazylibrarian.CONFIG.get_bool('SWAP_COVERPAGE'):
                                 coverpage = 1
                             else:
                                 coverpage = check_int(maginfo['CoverPage'], 1)
@@ -1309,10 +1310,10 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                   }
                             db.upsert("magazines", new_value_dict, control_value_dict)
 
-                            if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                            if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
                                 logger.debug('create_mag_opf is disabled')
                             else:
-                                if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                                if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                                     authors = book['BookID']
                                 else:
                                     authors = 'magazines'
@@ -1349,11 +1350,11 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 logger.debug("Progress for %s %s/%s" % (book['NZBtitle'], progress, finished))
                                 if progress == 100 and finished:
                                     if book['NZBmode'] in ['torrent', 'magnet', 'torznab'] and \
-                                            lazylibrarian.CONFIG['KEEP_SEEDING']:
+                                            lazylibrarian.CONFIG.get_bool('KEEP_SEEDING'):
                                         cmd = 'UPDATE wanted SET Status="Seeding" WHERE NZBurl=? and Status="Processed"'
                                         db.action(cmd, (book['NZBurl'],))
                                         logger.debug('%s still seeding at %s' % (book['NZBtitle'], book['Source']))
-                                    elif lazylibrarian.CONFIG['DEL_COMPLETED']:
+                                    elif lazylibrarian.CONFIG.get_bool('DEL_COMPLETED'):
                                         logger.debug('Deleting completed %s from %s' % (book['NZBtitle'],
                                                                                         book['Source']))
                                         delete_task(book['Source'], book['DownloadID'], False)
@@ -1364,7 +1365,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         if '.unpack' in pp_path:  # always delete files we unpacked
                             pp_path = pp_path.split('.unpack')[0] + '.unpack'
                             to_delete = True
-                        elif lazylibrarian.CONFIG['DESTINATION_COPY']:
+                        elif lazylibrarian.CONFIG.get_bool('DESTINATION_COPY'):
                             to_delete = False
                         if pp_path == download_dir.rstrip(os.sep):
                             to_delete = False
@@ -1384,7 +1385,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 logger.warn("Unable to remove %s, %s %s" %
                                             (pp_path, type(why).__name__, str(why)))
                         else:
-                            if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                            if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY'):
                                 logger.debug("Not removing %s as Keep Files is set" % pp_path)
                             else:
                                 logger.debug("Not removing %s as in download root" % pp_path)
@@ -1393,9 +1394,9 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                         ppcount += 1
                         dispname = disp_name(book['NZBprov'])
-                        if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE']:
+                        if lazylibrarian.CONFIG.get_bool('NOTIFY_WITH_TITLE'):
                             dispname = "%s: %s" % (dispname, book['NZBtitle'])
-                        if lazylibrarian.CONFIG['NOTIFY_WITH_URL']:
+                        if lazylibrarian.CONFIG.get_bool('NOTIFY_WITH_URL'):
                             dispname = "%s: %s" % (dispname, book['NZBurl'])
                         if bookname:
                             custom_notify_download("%s %s" % (book['BookID'], booktype))
@@ -1427,7 +1428,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                         # at this point, as it failed we should move it, or it will get postprocessed
                         # again (and fail again)
-                        if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED']:
+                        if lazylibrarian.CONFIG.get_bool('DEL_DOWNLOADFAILED'):
                             logger.debug('Deleting %s' % pp_path)
                             shutil.rmtree(pp_path, ignore_errors=True)
                         else:
@@ -1478,16 +1479,16 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             if book['Status'] == "Seeding":
                 if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
                     logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
-                                                                         lazylibrarian.CONFIG['SEED_WAIT']))
-                if not lazylibrarian.CONFIG['KEEP_SEEDING'] and (finished or progress < 0 and
-                                                                 not lazylibrarian.CONFIG['SEED_WAIT']):
+                                                                         lazylibrarian.CONFIG.get_bool('SEED_WAIT')))
+                if not lazylibrarian.CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0 and
+                                                                 not lazylibrarian.CONFIG.get_bool('SEED_WAIT')):
                     if finished:
                         logger.debug('%s finished seeding at %s' % (book['NZBtitle'], book['Source']))
                     else:
                         logger.debug('%s not seeding at %s' % (book['NZBtitle'], book['Source']))
-                    if lazylibrarian.CONFIG['DEL_COMPLETED']:
+                    if lazylibrarian.CONFIG.get_bool('DEL_COMPLETED'):
                         logger.debug("Removing seeding completed %s from %s" % (book['NZBtitle'], book['Source']))
-                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                        if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY'):
                             delfiles = False
                         else:
                             delfiles = True
@@ -1501,7 +1502,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                     # NOTE it will silently fail if the torrent client downloadfolder is not local
                     # e.g. in a docker or on a remote machine
                     pp_path = get_download_folder(book['Source'], book['DownloadID'])
-                    if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                    if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY'):
                         logger.debug("Not removing original files as Keep Files is set")
                     elif pp_path in get_list(lazylibrarian.CONFIG['DOWNLOAD_DIR']):
                         logger.debug("Not removing original files as in download root")
@@ -1527,12 +1528,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 if mins > 5 and progress < 0:
                     abort = True
 
-                if lazylibrarian.CONFIG['TASK_AGE'] and hours >= lazylibrarian.CONFIG['TASK_AGE']:
+                if lazylibrarian.CONFIG.get_int('TASK_AGE') and hours >= lazylibrarian.CONFIG.get_int('TASK_AGE'):
                     # SAB can report 100% (or more) and not finished if missing blocks and needs repair
                     if check_int(progress, 0) < 95:
                         abort = True
                     # allow a little more time for repair or if nearly finished
-                    elif hours >= lazylibrarian.CONFIG['TASK_AGE'] + 1:
+                    elif hours >= lazylibrarian.CONFIG.get_int('TASK_AGE') + 1:
                         abort = True
             if abort:
                 dlresult = ''
@@ -1570,7 +1571,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         q = 'UPDATE wanted SET Status="Failed" WHERE NZBurl=? and Status="Aborted"'
                         db.action(q, (book['NZBurl'],))
 
-                    if lazylibrarian.CONFIG['DEL_FAILED']:
+                    if lazylibrarian.CONFIG.get_bool('DEL_FAILED'):
                         logger.warn('%s, deleting failed task' % dlresult)
                         delete_task(book['Source'], book['DownloadID'], True)
             elif mins:
@@ -1616,24 +1617,24 @@ def check_contents(source, downloadid, booktype, title):
     rejected = ''
     banned_extensions = get_list(lazylibrarian.CONFIG['BANNED_EXT'])
     if booktype.lower() == 'ebook':
-        maxsize = lazylibrarian.CONFIG['REJECT_MAXSIZE']
-        minsize = lazylibrarian.CONFIG['REJECT_MINSIZE']
+        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXSIZE')
+        minsize = lazylibrarian.CONFIG.get_int('REJECT_MINSIZE')
         filetypes = lazylibrarian.CONFIG['EBOOK_TYPE']
         banwords = lazylibrarian.CONFIG['REJECT_WORDS']
     elif booktype.lower() == 'audiobook':
-        maxsize = lazylibrarian.CONFIG['REJECT_MAXAUDIO']
+        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXAUDIO')
         # minsize = lazylibrarian.CONFIG['REJECT_MINAUDIO']
         minsize = 0  # individual audiobook chapters can be quite small
         filetypes = lazylibrarian.CONFIG['AUDIOBOOK_TYPE']
         banwords = lazylibrarian.CONFIG['REJECT_AUDIO']
     elif booktype.lower() == 'magazine':
-        maxsize = lazylibrarian.CONFIG['REJECT_MAGSIZE']
-        minsize = lazylibrarian.CONFIG['REJECT_MAGMIN']
+        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAGSIZE')
+        minsize = lazylibrarian.CONFIG.get_int('REJECT_MAGMIN')
         filetypes = lazylibrarian.CONFIG['MAG_TYPE']
         banwords = lazylibrarian.CONFIG['REJECT_MAGS']
     else:  # comics
-        maxsize = lazylibrarian.CONFIG['REJECT_MAXCOMIC']
-        minsize = lazylibrarian.CONFIG['REJECT_MINCOMIC']
+        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXCOMIC')
+        minsize = lazylibrarian.CONFIG.get_int('REJECT_MINCOMIC')
         filetypes = lazylibrarian.CONFIG['COMIC_TYPE']
         banwords = lazylibrarian.CONFIG['REJECT_COMIC']
 
@@ -2218,7 +2219,7 @@ def delete_task(source, download_id, remove_data):
         if source == "BLACKHOLE":
             logger.warn("Download %s has not been processed from blackhole" % download_id)
         elif source == "SABNZBD":
-            if lazylibrarian.CONFIG['SAB_DELETE']:
+            if lazylibrarian.CONFIG.get_bool('SAB_DELETE'):
                 sabnzbd.sab_nzbd(download_id, 'delete', remove_data)
                 sabnzbd.sab_nzbd(download_id, 'delhistory', remove_data)
         elif source == "NZBGET":
@@ -2317,15 +2318,16 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
             else:
                 dest_dir = lazylibrarian.directory('eBook')
 
-            if os.name == 'nt':
-                if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
-                    logger.warn('Please check your EBOOK_DEST_FOLDER setting')
-                    lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                        'EBOOK_DEST_FOLDER'].replace('/', '\\')
-                if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
-                    logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
-                    lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
-                        'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
+            # CFG2DO Check that path handling no longer necessary
+            # if os.name == 'nt':
+            #     if '/' in lazylibrarian.CONFIG['EBOOK_DEST_FOLDER']:
+            #         logger.warn('Please check your EBOOK_DEST_FOLDER setting')
+            #         lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+            #             'EBOOK_DEST_FOLDER'].replace('/', '\\')
+            #     if '/' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']:
+            #         logger.warn('Please check your AUDIOBOOK_DEST_FOLDER setting')
+            #         lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'] = lazylibrarian.CONFIG[
+            #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
 
             namevars = name_vars(bookid)
             # global_name is only used for ebooks to ensure book/cover/opf all have the same basename
@@ -2365,13 +2367,13 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 if '.unpack' in pp_path:
                     pp_path = pp_path.split('.unpack')[0] + '.unpack'
 
-                if '.unpack' in pp_path or not lazylibrarian.CONFIG['DESTINATION_COPY'] and pp_path != dest_dir:
+                if '.unpack' in pp_path or not lazylibrarian.CONFIG.get_bool('DESTINATION_COPY') and pp_path != dest_dir:
                     if path_isdir(pp_path):
                         # calibre might have already deleted it?
                         logger.debug("Deleting %s" % pp_path)
                         shutil.rmtree(pp_path, ignore_errors=True)
                 else:
-                    if lazylibrarian.CONFIG['DESTINATION_COPY']:
+                    if lazylibrarian.CONFIG.get_bool('DESTINATION_COPY'):
                         logger.debug("Not removing %s as Keep Files is set" % pp_path)
                     else:
                         logger.debug("Not removing %s as in download root" % pp_path)
@@ -2475,7 +2477,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
 
     # do we want to create metadata - there may already be one in pp_path, but it was downloaded and might
     # not contain our choice of authorname/title/identifier, so if autoadding we ignore it and write our own
-    if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
+    if not lazylibrarian.CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'):
         _ = create_opf(dest_path, data, global_name, overwrite=True)
     else:
         _ = create_opf(dest_path, data, global_name, overwrite=False)
@@ -2508,7 +2510,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     issuedate = data.get('IssueDate', '')
     mode = data.get('NZBmode', '')
 
-    if booktype == 'ebook' and lazylibrarian.CONFIG['ONE_FORMAT']:
+    if booktype == 'ebook' and lazylibrarian.CONFIG.get_bool('ONE_FORMAT'):
         booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
         for btype in booktype_list:
             if not bestmatch:
@@ -2532,9 +2534,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         return False, 'Unable to locate a valid filetype (%s) in %s, leaving for manual processing' % (
             booktype, pp_path), pp_path
 
-    if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG['DESTINATION_COPY'] or
+    if not pp_path.endswith('.unpack') and (lazylibrarian.CONFIG.get_bool('DESTINATION_COPY') or
                                             (mode in ['torrent', 'magnet', 'torznab'] and
-                                             lazylibrarian.CONFIG['KEEP_SEEDING'])):
+                                             lazylibrarian.CONFIG.get_bool('KEEP_SEEDING'))):
         logger.debug("Copying to target %s" % pp_path + '.unpack')
         shutil.copytree(pp_path, pp_path + '.unpack')
         pp_path = pp_path + '.unpack'
@@ -2566,9 +2568,9 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     # If ebook, magazine or comic, do we want calibre to import it for us
     newbookfile = ''
     if (lazylibrarian.CONFIG['IMP_CALIBREDB'] and
-            (booktype == 'ebook' and lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']) or
-            (booktype == 'magazine' and lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']) or
-            (booktype == 'comic' and lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'])):
+            (booktype == 'ebook' and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_EBOOK')) or
+            (booktype == 'magazine' and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGAZINE')) or
+            (booktype == 'comic' and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_COMIC'))):
         try:
             logger.debug('Importing %s %s into calibre library' % (booktype, global_name))
             # calibre may ignore metadata.opf and book_name.opf depending on calibre settings,
@@ -2623,7 +2625,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         coverfile = os.path.basename(jpgfile)
                         jpgfile = safe_copy(jpgfile, jpgfile.replace(coverfile, 'cover.jpg'))
 
-                if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                     authors = title
                     global_name = issuedate
                 else:
@@ -2669,7 +2671,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             our_opf = False
             rc = 0
-            if not lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
+            if not lazylibrarian.CONFIG.get_bool('IMP_AUTOADD_BOOKONLY'):
                 # we can pass an opf with all the info, and a cover image
                 db = database.DBConnection()
                 if booktype in ['ebook', 'audiobook']:
@@ -2695,15 +2697,15 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     elif booktype == 'comic':
                         if data.get('Cover'):
                             process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
-                        if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                        if not lazylibrarian.CONFIG.get_bool('IMP_COMICOPF'):
                             logger.debug('create_comic_opf is disabled')
                         else:
                             opfpath, our_opf = create_comic_opf(pp_path, data, global_name, True)
                     else:
-                        if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                        if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
-                            if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                            if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                                 authors = title
                             else:
                                 authors = 'magazines'
@@ -2720,13 +2722,13 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                             logger.warn("calibredb unable to set opf")
 
                     tags = ''
-                    if lazylibrarian.CONFIG['OPF_TAGS']:
+                    if lazylibrarian.CONFIG.get_bool('OPF_TAGS'):
                         if booktype == 'magazine':
                             tags = 'Magazine'
                         if booktype == 'ebook':
-                            if lazylibrarian.CONFIG['GENRE_TAGS'] and data['BookGenre']:
+                            if lazylibrarian.CONFIG.get_bool('GENRE_TAGS') and data['BookGenre']:
                                 tags = data['BookGenre']
-                            if lazylibrarian.CONFIG['WISHLIST_TAGS']:
+                            if lazylibrarian.CONFIG.get_bool('WISHLIST_TAGS'):
                                 if data['Requester'] is not None:
                                     tag = data['Requester'].replace(" ", ",")
                                     if tag not in tags:
@@ -2746,7 +2748,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
             if not our_opf and not rc:  # pre-existing opf might not have our preferred authorname/title/identifier
                 if booktype == 'magazine':
-                    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                    if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                         authorname = title
                         global_name = issuedate
                     else:
@@ -2789,11 +2791,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     res = json.loads(res)
                     if booktype == 'magazine':
                         dest_dir = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
-                        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                        if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
                             dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
                     elif booktype == 'comic':
                         dest_dir = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
-                        if lazylibrarian.CONFIG['COMIC_RELATIVE']:
+                        if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
                             dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
 
                     while '$' in dest_dir:
@@ -2842,7 +2844,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     return False, 'Failed to locate author folder %s' % author_dir, pp_path
 
             if booktype == 'ebook':
-                remv = bool(lazylibrarian.CONFIG['FULL_SCAN'])
+                remv = bool(lazylibrarian.CONFIG.get_bool('FULL_SCAN'))
                 logger.debug('Scanning directory [%s]' % target_dir)
                 _ = library_scan(target_dir, remove=remv)
 
@@ -2991,17 +2993,17 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 bookid = "%s_%s" % (comicid, issueid)
                 if data:
                     process_img(pp_path, bookid, data['Cover'], global_name, 'comic')
-                    if not lazylibrarian.CONFIG['IMP_COMICOPF']:
+                    if not lazylibrarian.CONFIG.get_bool('IMP_COMICOPF'):
                         logger.debug('create_comic_opf is disabled')
                     else:
                         _, _ = create_comic_opf(pp_path, data, global_name, True)
                 else:
                     logger.debug('No data found for %s_%s' % (comicid, issueid))
             else:
-                if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
                     logger.debug('create_mag_opf is disabled')
                 else:
-                    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                    if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                         authors = title
                     else:
                         authors = 'magazines'
@@ -3015,10 +3017,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 def process_auto_add(src_path=None, booktype='book'):
     # Called to copy/move the book files to an auto add directory for the likes of Calibre which can't do nested dirs
     autoadddir = lazylibrarian.CONFIG['IMP_AUTOADD']
-    savefiles = lazylibrarian.CONFIG['IMP_AUTOADD_COPY']
+    savefiles = lazylibrarian.CONFIG.get_bool('IMP_AUTOADD_COPY')
     if booktype == 'mag':
         autoadddir = lazylibrarian.CONFIG['IMP_AUTOADDMAG']
-        savefiles = lazylibrarian.CONFIG['IMP_AUTOADDMAG_COPY']
+        savefiles = lazylibrarian.CONFIG.get_bool('IMP_AUTOADDMAG_COPY')
 
     if not path_exists(autoadddir):
         logger.error('AutoAdd directory for %s [%s] is missing or not set - cannot perform autoadd' % (
@@ -3036,7 +3038,7 @@ def process_auto_add(src_path=None, booktype='book'):
         # ignores author/title data in opf file if there is any embedded in book
 
         match = False
-        if booktype == 'book' and lazylibrarian.CONFIG['ONE_FORMAT']:
+        if booktype == 'book' and lazylibrarian.CONFIG.get_bool('ONE_FORMAT'):
             booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
             for booktype in booktype_list:
                 while not match:
@@ -3049,10 +3051,10 @@ def process_auto_add(src_path=None, booktype='book'):
         for name in names:
             if match and is_valid_booktype(name, booktype=booktype) and not name.endswith(match):
                 logger.debug('Skipping %s' % os.path.splitext(name)[1])
-            elif booktype == 'book' and lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY'] and not \
+            elif booktype == 'book' and lazylibrarian.CONFIG.get_bool('IMP_AUTOADD_BOOKONLY') and not \
                     is_valid_booktype(name, booktype="book"):
                 logger.debug('Skipping %s' % name)
-            elif booktype == 'mag' and lazylibrarian.CONFIG['IMP_AUTOADD_MAGONLY'] and not \
+            elif booktype == 'mag' and lazylibrarian.CONFIG.get_bool('IMP_AUTOADD_MAGONLY') and not \
                     is_valid_booktype(name, booktype="mag"):
                 logger.debug('Skipping %s' % name)
             else:
@@ -3159,7 +3161,7 @@ def create_mag_opf(issuefile, authors, title, issue, issue_id, overwrite=False):
     dest_path, global_name = os.path.split(issuefile)
     global_name = os.path.splitext(global_name)[0]
 
-    if lazylibrarian.CONFIG['IMP_CALIBRE_MAGISSUE']:
+    if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGISSUE'):
         iname = issue
     elif issue and len(issue) == 10 and issue[8:] == '01' and issue[4] == '-' and issue[7] == '-':  # yyyy-mm-01
         yr = issue[0:4]
@@ -3308,7 +3310,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
     if data.get('BookDesc', ''):
         opfinfo += '        <dc:description>%s</dc:description>\n' % data['BookDesc']
 
-    if lazylibrarian.CONFIG['GENRE_TAGS'] and data.get("BookGenre", ''):
+    if lazylibrarian.CONFIG.get_bool('GENRE_TAGS') and data.get("BookGenre", ''):
         for genre in get_list(data['BookGenre'], ','):
             opfinfo += '        <dc:subject>%s</dc:subject>\n' % genre
 

@@ -322,7 +322,7 @@ def remove_torrent(hashid, remove_data=False):
             if torrent['hash'].lower() == hashid:
                 remove = True
                 if torrent['state'] == 'uploading' or torrent['state'] == 'stalledUP':
-                    if not lazylibrarian.CONFIG['SEED_WAIT']:
+                    if not lazylibrarian.CONFIG.get_bool('SEED_WAIT'):
                         logger.debug('%s is seeding, removing torrent and data anyway' % torrent['name'])
                     else:
                         logger.info('%s has not finished seeding yet, torrent will not be removed' % torrent['name'])
@@ -360,7 +360,7 @@ def add_torrent(link, hashid):
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args['paused'] = 'true' if lazylibrarian.CONFIG['TORRENT_PAUSED'] else 'false'
+    args['paused'] = 'true' if lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED') else 'false'
     dl_dir = lazylibrarian.CONFIG['QBITTORRENT_DIR']
     if dl_dir:
         args['savepath'] = dl_dir

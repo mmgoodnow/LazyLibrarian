@@ -20,7 +20,7 @@ class GrowlNotifier:
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_GROWL'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_GROWL') and not force:
             return False
 
         if not growl_host:
@@ -97,14 +97,14 @@ class GrowlNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['GROWL_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('GROWL_ONSNATCH'):
             if fail:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('GROWL_ONDOWNLOAD'):
             self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal

@@ -15,14 +15,14 @@ class ProwlNotifier:
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_PROWL'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_PROWL') and not force:
             return False
 
         if prowl_api is None:
             prowl_api = lazylibrarian.CONFIG['PROWL_APIKEY']
 
         if prowl_priority is None:
-            prowl_priority = lazylibrarian.CONFIG['PROWL_PRIORITY']
+            prowl_priority = lazylibrarian.CONFIG.get_int('PROWL_PRIORITY')
 
         logger.debug(u"Prowl: title: " + title)
         logger.debug(u"Prowl: event: " + event)
@@ -65,14 +65,14 @@ class ProwlNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['PROWL_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('PROWL_ONSNATCH'):
             if fail:
                 self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
                 self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['PROWL_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('PROWL_ONDOWNLOAD'):
             self._send_prowl(prowl_api=None, prowl_priority=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal

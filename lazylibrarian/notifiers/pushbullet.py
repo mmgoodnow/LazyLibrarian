@@ -88,14 +88,14 @@ class PushbulletNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('PUSHBULLET_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('PUSHBULLET_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

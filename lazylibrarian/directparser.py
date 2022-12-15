@@ -53,7 +53,7 @@ def redirect_url(genhost, url):
 def bok_sleep():
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
-    limit = check_float(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0.0)
+    limit = lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT')
     # make sure bok leaves at least a 2-second delay between calls to prevent "Too many requests from your IP"
     if limit < 2.0:
         limit = 2.0
@@ -242,7 +242,7 @@ def direct_bok(book=None, prov=None, test=False):
             return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
+        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
         else:
@@ -419,7 +419,7 @@ def direct_gen(book=None, prov=None, test=False):
             else:
                 if "?s=" in search or "&s=" in search:
                     search = search.replace("?req=", "").replace("&req=", "")
-                params["s"] = make_utf8bytes(book['searchterm'])[0]   
+                params["s"] = make_utf8bytes(book['searchterm'])[0]
         elif 'search.php' in search:
             params = {
                 "view": "simple",
@@ -670,7 +670,7 @@ def direct_gen(book=None, prov=None, test=False):
                 return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
+        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 

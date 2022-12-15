@@ -39,7 +39,7 @@ class EmailNotifier:
     @staticmethod
     def _notify(message, event, force=False, files=None, to_addr=None):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
         subject = event
@@ -100,7 +100,7 @@ class EmailNotifier:
         if files:
             for f in files:
                 fsize = check_int(os.path.getsize(syspath(f)), 0)
-                limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+                limit = lazylibrarian.CONFIG.get_int('EMAIL_LIMIT')
                 title = unaccented(os.path.basename(f))
                 if limit and fsize > limit * 1024 * 1024:
                     oversize = True
@@ -126,11 +126,11 @@ class EmailNotifier:
             # Create a secure SSL context
             context = ssl.create_default_context()
             # but allow no certificate check so self-signed work
-            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+            if not lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
 
-            if lazylibrarian.CONFIG['EMAIL_SSL']:
+            if lazylibrarian.CONFIG.get_bool('EMAIL_SSL'):
                 mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
                                               check_int(lazylibrarian.CONFIG['EMAIL_SMTP_PORT'], 465),
                                               context=context)
@@ -172,7 +172,7 @@ class EmailNotifier:
         return res
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('EMAIL_NOTIFY_ONSNATCH'):
             if fail:
                 return self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
@@ -181,14 +181,14 @@ class EmailNotifier:
 
     def notify_download(self, title, bookid=None, force=False):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_EMAIL'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
-        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONDOWNLOAD'] or force:
+        if lazylibrarian.CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
             event = notifyStrings[NOTIFY_DOWNLOAD]
             logger.debug('Email send attachment is %s' % lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
-            if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']:
+            if lazylibrarian.CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
                 if not bookid:
                     logger.debug('Email request to attach book, but no bookid')
                 else:
@@ -197,7 +197,7 @@ class EmailNotifier:
                     custom_typelist = get_list(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
                     typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
-                    if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+                    if not lazylibrarian.get_bool('USER_ACCOUNTS'):
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)
@@ -293,7 +293,7 @@ class EmailNotifier:
         return False
 
     def test_notify(self, title='This is a test notification from LazyLibrarian'):
-        if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
             db = database.DBConnection()
             data = db.match('SELECT bookid from books where bookfile <> ""')
             if data:

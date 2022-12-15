@@ -40,7 +40,7 @@ def add_torrent(link, directory=None, metainfo=None):
         directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
     if directory:
         arguments['download-dir'] = directory
-    arguments['paused'] = True if lazylibrarian.CONFIG['TORRENT_PAUSED'] else False
+    arguments['paused'] = lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED')
 
     logger.debug('add_torrent args(%s)' % arguments)
     response, res = torrent_action(method, arguments)  # type: dict
@@ -251,7 +251,7 @@ def remove_torrent(torrentid, remove_data=False):
         if finished:
             logger.debug('%s has finished seeding, removing torrent and data' % name)
             remove = True
-        elif not lazylibrarian.CONFIG['SEED_WAIT']:
+        elif not lazylibrarian.CONFIG.get_bool('SEED_WAIT'):
             if (rpc_version < 14 and status == 8) or (rpc_version >= 14 and status in [5, 6]):
                 logger.debug('%s is seeding, removing torrent and data anyway' % name)
                 remove = True
@@ -335,7 +335,7 @@ def torrent_action(method, arguments):
     # blank username is valid
     auth = (username, password) if password else None
     proxies = proxy_list()
-    timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
     # Retrieve session id
     if session_id:
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
@@ -344,7 +344,7 @@ def torrent_action(method, arguments):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
             logger.debug('Requesting session_id')
         try:
-            if host_url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+            if host_url.startswith('https') and lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout,
                                         verify=lazylibrarian.CONFIG['SSL_CERTS']
                                         if lazylibrarian.CONFIG['SSL_CERTS'] else True)

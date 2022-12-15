@@ -30,7 +30,7 @@ def cron_search_book():
 
 
 def good_enough(match):
-    if match and int(match[0]) >= check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+    if match and int(match[0]) >= lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
         return True
     return False
 
@@ -222,7 +222,7 @@ def search_book(books=None, library=None):
                 logger.debug("Aborting %s" % threadname)
                 break
             do_search = True
-            if lazylibrarian.CONFIG['DELAYSEARCH'] and not force:
+            if lazylibrarian.CONFIG.get_bool('DELAYSEARCH') and not force:
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
                 if not res:
@@ -491,7 +491,7 @@ def search_book(books=None, library=None):
                 if download_result(highest, book) > 1:
                     book_count += 1  # we found it
                 db.action("DELETE from failedsearch WHERE BookID=? AND Library=?", (book['bookid'], book['library']))
-            elif lazylibrarian.CONFIG['DELAYSEARCH'] and not force and do_search and len(modelist):
+            elif lazylibrarian.CONFIG.get_bool('DELAYSEARCH') and not force and do_search and len(modelist):
                 res = db.match('SELECT * FROM failedsearch WHERE BookID=? AND Library=?',
                                (book['bookid'], book['library']))
                 if res:
@@ -503,7 +503,7 @@ def search_book(books=None, library=None):
                           {'Count': 0, 'Interval': interval + 1, 'Time': time.time()},
                           {'BookID': book['bookid'], 'Library': book['library']})
 
-            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+            time.sleep(lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT'))
 
         logger.info("Search for Wanted items complete, found %s %s" % (book_count, plural(book_count, "book")))
 

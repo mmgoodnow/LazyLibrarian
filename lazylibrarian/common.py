@@ -46,7 +46,7 @@ except ImportError:
     PSUTIL = False
 
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import logger, database, configdefs
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
 
@@ -130,7 +130,7 @@ def cpu_use():
         return "Unknown - install psutil"
 
 
-def get_user_agent():
+def get_user_agent() -> str:
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
     if lazylibrarian.CONFIG['USER_AGENT']:
         return lazylibrarian.CONFIG['USER_AGENT']
@@ -142,7 +142,7 @@ def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
     # Return which type we found multiples of, or empty string if no multiples
-    filetypes = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+    filetypes = lazylibrarian.CONFIG['EBOOK_TYPE']
 
     if recurse:
         for _, _, f in walk(foldername):
@@ -826,7 +826,6 @@ def clear_log():
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True):
-    from lazylibrarian.config import CONFIG_GIT
 
     popen_list = [sys.executable, lazylibrarian.FULL_PATH]
     popen_list += lazylibrarian.ARGS
@@ -835,12 +834,13 @@ def log_header(online=True):
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
-    for item in CONFIG_GIT:
-        if item == 'GIT_UPDATED':
-            timestamp = check_int(lazylibrarian.CONFIG[item], 0)
-            header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
-        else:
-            header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+    # CFG2DO Handle CONFIG_GIT
+    # for item in CONFIG_GIT:
+    #     if item == 'GIT_UPDATED':
+    #         timestamp = check_int(lazylibrarian.CONFIG[item], 0)
+    #         header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
+    #     else:
+    #         header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
     try:
         header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
     except AttributeError:
@@ -873,7 +873,7 @@ def log_header(online=True):
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     if online:
         try:
-            if lazylibrarian.CONFIG['SSL_VERIFY']:
+            if lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
                                            verify=lazylibrarian.CONFIG['SSL_CERTS']
                                            if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
@@ -1003,16 +1003,15 @@ def log_header(online=True):
 
     return header
 
-
 def set_redactlist():
     if len(lazylibrarian.REDACTLIST):
         return
 
     lazylibrarian.REDACTLIST = []
     wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
-    if lazylibrarian.CONFIG['HOSTREDACT']:
+    if lazylibrarian.CONFIG.get_bool('HOSTREDACT'):
         wordlist.append('_HOST')
-    for key in lazylibrarian.CONFIG.keys():
+    for key in lazylibrarian.CONFIG.config.keys():
         if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
             for word in wordlist:
                 if word in key and lazylibrarian.CONFIG[key]:
@@ -1020,25 +1019,18 @@ def set_redactlist():
     for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
         if lazylibrarian.CONFIG[key]:
             lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-    for item in lazylibrarian.NEWZNAB_PROV:
-        if item['API']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.TORZNAB_PROV:
-        if item['API']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['API'])
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.RSS_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.GEN_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['HOST']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['HOST'])
-    for item in lazylibrarian.APPRISE_PROV:
-        if lazylibrarian.CONFIG['HOSTREDACT'] and item['URL']:
-            lazylibrarian.REDACTLIST.append(u"%s" % item['URL'])
+
+    for name, definitions in configdefs.ARRAY_DEFS.items():
+        key = definitions[0] # Primary key for this array type
+        array = lazylibrarian.CONFIG.get_array(name)
+        if array:
+            for inx, config in array._configs.items():
+                # CFG2DO p3 Make this a bit more elegant
+                if config[key].get_str():
+                    lazylibrarian.REDACTLIST.append(f"{config[key].get_str()}")
+                if 'API' in config:
+                    if config['API'].get_str():
+                        lazylibrarian.REDACTLIST.append(f"{config['API'].get_str()}")
 
     logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
                                             plural(len(lazylibrarian.REDACTLIST), "entry")))

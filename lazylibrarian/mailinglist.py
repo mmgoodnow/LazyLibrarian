@@ -19,7 +19,7 @@ from lazylibrarian.notifiers import email_notifier
 
 
 def mailing_list(book_type, global_name, book_id):
-    if not lazylibrarian.CONFIG['USER_ACCOUNTS']:
+    if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
         return
     db = database.DBConnection()
     columns = db.select('PRAGMA table_info(subscribers)')
@@ -123,7 +123,7 @@ def mailing_list(book_type, global_name, book_id):
 
     filename = data['filename']
     fsize = check_int(os.path.getsize(syspath(filename)), 0)
-    limit = check_int(lazylibrarian.CONFIG['EMAIL_LIMIT'], 0)
+    limit = lazylibrarian.CONFIG.get_int('EMAIL_LIMIT')
     link = None
     if limit and fsize > limit * 1024 * 1024:
         msg = '%s is too large (%s) to email' % (os.path.split(filename)[1], fsize)

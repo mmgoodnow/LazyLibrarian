@@ -39,9 +39,9 @@ def magazine_scan(title=None):
     try:
         db = database.DBConnection()
         mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
-        if lazylibrarian.CONFIG['MAG_RELATIVE']:
+        if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
             mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
-        
+
         onetitle = title
         if onetitle and '$Title' in mag_path:
             mag_path = mag_path.replace('$Title', onetitle)
@@ -49,7 +49,7 @@ def magazine_scan(title=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
+        if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
             mags = db.select('select * from Issues')
             # check all the issues are still there, delete entry if not
             for mag in mags:
@@ -71,7 +71,7 @@ def magazine_scan(title=None):
                     logger.debug('Magazine %s details reset' % title)
 
             # now check the magazine titles and delete any with no issues
-            if lazylibrarian.CONFIG['MAG_DELFOLDER']:
+            if lazylibrarian.CONFIG.get_bool('MAG_DELFOLDER'):
                 mags = db.select('SELECT Title,count(Title) as counter from issues group by Title')
                 for mag in mags:
                     title = mag['Title']
@@ -224,7 +224,7 @@ def magazine_scan(title=None):
                             magissuedate = str(magissuedate).zfill(4)
                             magcoverpage = mag_entry['CoverPage']
 
-                        if lazylibrarian.CONFIG['MAG_RENAME']:
+                        if lazylibrarian.CONFIG.get_bool('MAG_RENAME'):
                             filedate = issuedate
                             if issuedate and issuedate.isdigit():
                                 if len(issuedate) == 8:
@@ -249,9 +249,9 @@ def magazine_scan(title=None):
 
                             new_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
                                                                                        '$IssueDate', filedate)
-                            if lazylibrarian.CONFIG['MAG_RELATIVE']:
+                            if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
                                 new_path = os.path.join(lazylibrarian.directory('eBook'), new_path)
-                            
+
                             newissuefile = os.path.join(new_path, newfname)
                             # check for windows case-insensitive
                             if os.name == 'nt' and newissuefile.lower() == issuefile.lower():
@@ -314,10 +314,10 @@ def magazine_scan(title=None):
                         except IOError as e:
                             logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
-                        if not lazylibrarian.CONFIG['IMP_MAGOPF']:
+                        if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
-                            if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
+                            if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                                 authors = title
                             else:
                                 authors = 'magazines'
@@ -352,7 +352,7 @@ def magazine_scan(title=None):
                                 new_value_dict["LatestCover"] = cover
                             db.upsert("magazines", new_value_dict, control_value_dict)
 
-            if lazylibrarian.CONFIG['FULL_SCAN'] and not onetitle:
+            if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
                 magcount = db.match("select count(*) from magazines")
                 isscount = db.match("select count(*) from issues")
                 logger.info("Magazine scan complete, found %s %s, %s %s" %

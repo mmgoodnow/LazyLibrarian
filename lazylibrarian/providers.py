@@ -14,11 +14,13 @@ import json
 import re
 import time
 from xml.etree import ElementTree
+from typing import Dict, List
 
 from urllib.parse import urlencode, urlparse
 
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import logger, database, configtypes
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import syspath, module_available
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
@@ -34,7 +36,7 @@ import html5lib
 from bs4 import BeautifulSoup
 
 
-def test_provider(name, host=None, api=None):
+def test_provider(name: str, host=None, api=None):
     db = database.DBConnection()
     res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
     if res:
@@ -55,80 +57,66 @@ def test_provider(name, host=None, api=None):
     if name == 'TPB':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['TPB_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['TPB_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('TPB_HOST', host)
         return torrent_tpb(book, test=True), "Pirate Bay"
     if name == 'WWT':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['WWT_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['WWT_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('WWT_HOST', host)
         return torrent_wwt(book, test=True), "WorldWideTorrents"
     if name == 'KAT':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['KAT_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['KAT_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('KAT_HOST', host)
         return torrent_kat(book, test=True), "KickAss Torrents"
     if name == 'ZOO':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['ZOO_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['ZOO_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('ZOO_HOST', host)
         return torrent_zoo(book, test=True), "Zooqle"
     if name == 'LIME':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['LIME_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['LIME_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('LIME_HOST', host)
         return torrent_lime(book, test=True), "LimeTorrents"
     if name == 'TDL':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['TDL_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['TDL_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('TDL_HOST', host)
         return torrent_tdl(book, test=True), "TorrentDownloads"
     if name == 'TRF':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['TRF_HOST'] = host
-        if api:
-            lazylibrarian.CONFIG['TRF_SEEDERS'] = check_int(api, 0)
+            lazylibrarian.CONFIG.set_str('TRF_HOST', host)
         return torrent_trf(book, test=True), "Torrof"
 
     if name.startswith('gen_'):
-        for provider in lazylibrarian.GEN_PROV:
+        for provider in lazylibrarian.CONFIG.providers('GEN'):
             if provider['NAME'].lower() == name:
                 if provider['DISPNAME']:
                     name = provider['DISPNAME']
                 logger.debug("Testing %s" % name)
                 if host:
-                    provider['HOST'] = host
+                    provider['HOST'].set_str(host)
                 if api:
-                    provider['SEARCH'] = api
+                    provider['SEARCH'].set_str(api)
                 return direct_gen(book, prov=provider['NAME'].lower(), test=True), name
 
     if name == 'BOK':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['BOK_HOST'] = host
+            lazylibrarian.CONFIG.set_str('BOK_HOST', host)
         return direct_bok(book, prov=name, test=True), "ZLibrary"
     if name == 'BFI':
         logger.debug("Testing provider %s" % name)
         if host:
-            lazylibrarian.CONFIG['BFI_HOST'] = host
+            lazylibrarian.CONFIG.set_str('BFI_HOST', host)
         return direct_bfi(book, prov=name, test=True), "BookFi"
 
     if name.startswith('rss_'):
         try:
             prov = name.split('_')[1]
-            for provider in lazylibrarian.RSS_PROV:
+            for provider in lazylibrarian.CONFIG.providers('RSS'):
                 if provider['NAME'] == 'RSS_%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
@@ -177,7 +165,7 @@ def test_provider(name, host=None, api=None):
             logger.debug("Exception: %s" % str(e))
 
     if name.startswith('apprise_'):
-        for provider in lazylibrarian.APPRISE_PROV:
+        for provider in lazylibrarian.CONFIG.providers('APPRISE'):
             if provider['NAME'].lower() == name:
                 if provider['DISPNAME']:
                     name = provider['DISPNAME']
@@ -192,22 +180,22 @@ def test_provider(name, host=None, api=None):
     if name.startswith('torznab_'):
         try:
             prov = name.split('_')[1]
-            for provider in lazylibrarian.TORZNAB_PROV:
+            for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
                 if provider['NAME'] == 'Torznab%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
-                    if provider['MANUAL']:
+                    if provider['MANUAL'].get_bool():
                         logger.debug("Capabilities are set to manual for %s" % provider['NAME'])
                     else:
                         if host:
                             if host[-1:] == '/':
                                 host = host[:-1]
-                            provider['HOST'] = host
+                            provider['HOST'].set_str(host)
                         if api:
                             ap, seed = api.split(' : ', 1)
-                            provider['API'] = ap
-                            provider['SEEDERS'] = check_int(seed, 0)
+                            provider['API'].set_str(ap)
+                            provider['SEEDERS'].set_int(seed)
                         provider = get_capabilities(provider, force=True)
 
                     if provider['BOOKSEARCH']:
@@ -227,18 +215,18 @@ def test_provider(name, host=None, api=None):
     if name.startswith('newznab_'):
         try:
             prov = name.split('_')[1]
-            for provider in lazylibrarian.NEWZNAB_PROV:
+            for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
                 if provider['NAME'] == 'Newznab%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
-                    if provider['MANUAL']:
+                    if provider['MANUAL'].get_bool():
                         logger.debug("Capabilities are set to manual for %s" % provider['NAME'])
                     else:
                         if host:
-                            provider['HOST'] = host
+                            provider['HOST'].set_str(host)
                         if api:
-                            provider['API'] = api
+                            provider['API'].set_str(api)
 
                         provider = get_capabilities(provider, force=True)
                     if provider['BOOKSEARCH']:
@@ -257,15 +245,21 @@ def test_provider(name, host=None, api=None):
     if name.startswith('irc_'):
         try:
             prov = name.split('_')[1]
-            for provider in lazylibrarian.IRC_PROV:
+            for provider in lazylibrarian.CONFIG.providers('IRC'):
                 if provider['NAME'] == 'IRC_%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                         if host:
-                            provider['SERVER'], provider['CHANNEL'] = host.split(' : ', 1)
+                            server, channel = host.split(' : ', 1)
+                            provider['SERVER'].set_str(server)
+                            provider['CHANNEL'].set_str(channel)
                         if api:
-                            provider['BOTNICK'], provider['BOTPASS'], provider['SEARCH'] = api.split(' : ', 2)
+                            snick, spass, ssearch = api.split(' : ', 2)
+                            provider['BOTNICK'].set_str(snick)
+                            provider['BOTPASS'].set_str(spass)
+                            provider['SEARCH'].set_str(ssearch)
                     logger.debug("Testing provider %s" % name)
+                    # CFG2DO Check whether this way of signaling IRC connection should change
                     provider['IRC'] = None  # start a new connection
                     success, _ = ircsearch(book, provider, "book", True)
                     return success, name
@@ -316,13 +310,13 @@ def get_searchterm(book, search_type):
     return authorname, bookname
 
 
-def get_capabilities(provider, force=False):
+def get_capabilities(provider: ConfigDict, force=False):
     """
     query provider for caps if none loaded yet, or if config entry is too old and not set manually.
     """
     if not force and len(provider['UPDATED']) == 10:  # any stored values?
         match = True
-        if (age(provider['UPDATED']) > lazylibrarian.CONFIG['CACHE_AGE']) and not provider['MANUAL']:
+        if (age(provider['UPDATED'].get_str()) > lazylibrarian.CONFIG.get_int('CACHE_AGE')) and not provider['MANUAL'].get_bool():
             logger.debug('Stored capabilities for %s are too old' % provider['HOST'])
             match = False
     else:
@@ -384,20 +378,21 @@ def get_capabilities(provider, force=False):
             else:
                 # or might be provider doesn't do caps
                 logger.debug('Using default capabilities for %s' % provider['HOST'])
-                provider['GENERALSEARCH'] = 'search'
-                provider['EXTENDED'] = '1'
-                provider['BOOKCAT'] = ''
-                provider['MAGCAT'] = ''
-                provider['AUDIOCAT'] = ''
-                provider['COMICCAT'] = ''
-                provider['BOOKSEARCH'] = ''
-                provider['MAGSEARCH'] = ''
-                provider['AUDIOSEARCH'] = ''
-                provider['COMICSEARCH'] = ''
-                provider['UPDATED'] = today()
-                provider['APILIMIT'] = 0
-                provider['RATELIMIT'] = 0
-                lazylibrarian.config.config_write(provider['NAME'])
+                # CFG2DO p3 Could have a provider.set_defaults() method to make this better
+                provider['GENERALSEARCH'].set_str('search')
+                provider['EXTENDED'].set_int(1)
+                provider['BOOKCAT'].set_str('')
+                provider['MAGCAT'].set_str('')
+                provider['AUDIOCAT'].set_str('')
+                provider['COMICCAT'].set_str('')
+                provider['BOOKSEARCH'].set_str('')
+                provider['MAGSEARCH'].set_str('')
+                provider['AUDIOSEARCH'].set_str('')
+                provider['COMICSEARCH'].set_str('')
+                provider['UPDATED'].set_str(today())
+                provider['APILIMIT'].set_int(0)
+                provider['RATELIMIT'].set_int(0)
+                lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
             #
@@ -414,16 +409,16 @@ def get_capabilities(provider, force=False):
             #
             #  set some defaults
             #
-            provider['GENERALSEARCH'] = 'search'
-            provider['EXTENDED'] = '1'
-            provider['BOOKCAT'] = ''
-            provider['COMICCAT'] = ''
-            provider['MAGCAT'] = ''
-            provider['AUDIOCAT'] = ''
-            provider['BOOKSEARCH'] = ''
-            provider['COMICSEARCH'] = ''
-            provider['MAGSEARCH'] = ''
-            provider['AUDIOSEARCH'] = ''
+            provider['GENERALSEARCH'].set_str('search')
+            provider['EXTENDED'].set_int(1)
+            provider['BOOKCAT'].set_str('')
+            provider['COMICCAT'].set_str('')
+            provider['MAGCAT'].set_str('')
+            provider['AUDIOCAT'].set_str('')
+            provider['BOOKSEARCH'].set_str('')
+            provider['COMICSEARCH'].set_str('')
+            provider['MAGSEARCH'].set_str('')
+            provider['AUDIOSEARCH'].set_str('')
             #
             search = data.find('searching/search')
             if search is not None:
@@ -431,14 +426,14 @@ def get_capabilities(provider, force=False):
                 if 'available' in search.attrib:
                     # noinspection PyUnresolvedReferences
                     if search.attrib['available'] == 'yes':
-                        provider['GENERALSEARCH'] = 'search'
+                        provider['GENERALSEARCH'].set_str('search')
             limits = data.find('limits')
             if limits is not None:
                 try:
                     limit = limits.attrib.get('apimax')
                     if limit:
-                        provider['APILIMIT'] = limit
-                        logger.debug("%s apilimit %s" % (provider['HOST'], limit))
+                        provider['APILIMIT'].set_int(limit)
+                        logger.debug("%s apilimit %i" % (provider['HOST'], limit))
                 except Exception as e:
                     logger.debug('Error getting apilimit from %s: %s %s' % (provider['HOST'],
                                                                             type(e).__name__, str(e)))
@@ -447,26 +442,26 @@ def get_capabilities(provider, force=False):
             for cat in categories:
                 if 'name' in cat.attrib:
                     if cat.attrib['name'].lower() == 'audio':
-                        provider['AUDIOCAT'] = cat.attrib['id']
+                        provider['AUDIOCAT'].set_csv(cat.attrib['id'])
                         subcats = cat.iter('subcat')
                         if not subcats:
                             subcats = cat.iter('subCategories')
                         for subcat in subcats:
                             if 'audiobook' in subcat.attrib['name'].lower():
-                                provider['AUDIOCAT'] = subcat.attrib['id']
+                                provider['AUDIOCAT'].set_csv(subcat.attrib['id'])
 
                     elif cat.attrib['name'].lower() == 'books':
-                        provider['BOOKCAT'] = cat.attrib['id']
+                        provider['BOOKCAT'].set_csv(cat.attrib['id'])
                         # if no specific magazine/comic subcategory, use books
-                        provider['MAGCAT'] = cat.attrib['id']
-                        provider['COMICCAT'] = cat.attrib['id']
+                        provider['MAGCAT'].set_csv(cat.attrib['id'])
+                        provider['COMICCAT'].set_csv(cat.attrib['id'])
                         # set default booksearch
                         if provider['BOOKCAT'] == '7000':
                             # looks like newznab+, should support book-search
-                            provider['BOOKSEARCH'] = 'book'
+                            provider['BOOKSEARCH'].set_str('book')
                         else:
                             # looks like nZEDb, probably no book-search
-                            provider['BOOKSEARCH'] = ''
+                            provider['BOOKSEARCH'].set_str('')
                         # but check in case we got some settings back
                         search = data.find('searching/book-search')
                         if search:
@@ -474,9 +469,9 @@ def get_capabilities(provider, force=False):
                             if 'available' in search.attrib:
                                 # noinspection PyUnresolvedReferences
                                 if search.attrib['available'] == 'yes':
-                                    provider['BOOKSEARCH'] = 'book'
+                                    provider['BOOKSEARCH'].set_str('book')
                                 else:
-                                    provider['BOOKSEARCH'] = ''
+                                    provider['BOOKSEARCH'].set_str('')
 
                         # subcategories override main category (not in addition to)
                         # but allow multile subcategories (mags->english, mags->french)
@@ -500,16 +495,16 @@ def get_capabilities(provider, force=False):
                                     comicsubs = comicsubs + ','
                                 comicsubs = comicsubs + subcat.attrib['id']
                         if ebooksubs:
-                            provider['BOOKCAT'] = ebooksubs
+                            provider['BOOKCAT'].set_csv(ebooksubs)
                         if magsubs:
-                            provider['MAGCAT'] = magsubs
+                            provider['MAGCAT'].set_csv(magsubs)
                         if comicsubs:
-                            provider['COMICCAT'] = comicsubs
+                            provider['COMICCAT'].set_csv(comicsubs)
             logger.info("Categories: Books %s : Mags %s : Audio %s : Comic %s : BookSearch '%s'" %
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
             provider['UPDATED'] = today()
-            lazylibrarian.config.config_write(provider['NAME'])
+            lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
     return provider
 
 
@@ -518,10 +513,10 @@ def provider_is_blocked(name):
     # Reset api counters if it's a new day
     if lazylibrarian.NABAPICOUNT != today():
         lazylibrarian.NABAPICOUNT = today()
-        for provider in lazylibrarian.NEWZNAB_PROV:
-            provider['APICOUNT'] = 0
-        for provider in lazylibrarian.TORZNAB_PROV:
-            provider['APICOUNT'] = 0
+        for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
+            provider['APICOUNT'].set_int(0)
+        for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
+            provider['APICOUNT'].set_int(0)
 
     timenow = int(time.time())
     for entry in lazylibrarian.PROVIDER_BLOCKLIST:
@@ -535,7 +530,7 @@ def provider_is_blocked(name):
 
 def block_provider(who, why, delay=None):
     if delay is None:
-        delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+        delay = lazylibrarian.CONFIG.get_int('BLOCKLIST_TIMER')
     if len(why) > 80:
         why = why[:80]
     if not delay:
@@ -563,9 +558,9 @@ def iterate_over_newznab_sites(book=None, search_type=None):
     resultslist = []
     providers = 0
 
-    for provider in lazylibrarian.NEWZNAB_PROV:
+    for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
         logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
-        if provider['ENABLED']:
+        if provider['ENABLED'].get_bool():
             ignored = False
             if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
@@ -583,32 +578,32 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
                 ignored = True
             if not ignored:
-                if check_int(provider['APILIMIT'], 0):
+                if provider['APILIMIT'].get_int():
                     if 'APICOUNT' in provider:
-                        res = check_int(provider['APICOUNT'], 0)
+                        res = provider['APICOUNT'].get_int()
                     else:
                         res = 0
-                    if res >= check_int(provider['APILIMIT'], 0):
+                    if res >= provider['APILIMIT'].get_int():
                         block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
                                        provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
-                        provider['APICOUNT'] = res + 1
+                        provider['APICOUNT'].set_int(res + 1)
 
                 if not provider_is_blocked(provider['HOST']):
-                    ratelimit = check_int(provider['RATELIMIT'], 0)
+                    ratelimit = provider['RATELIMIT'].get_int()
                     if ratelimit:
-                        if 'LASTUSED' in provider:
-                            delay = provider['LASTUSED'] + ratelimit - time.time()
+                        if provider['LASTUSED'].get_int() > 0:
+                            delay = provider['LASTUSED'].get_int() + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider['LASTUSED'] = time.time()
+                        provider['LASTUSED'].set_int(time.time())
 
                     provider = get_capabilities(provider)
                     providers += 1
                     logger.debug('Querying provider %s' % provider['HOST'])
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
 
-    for provider in lazylibrarian.TORZNAB_PROV:
+    for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
         logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
         if provider['ENABLED']:
             ignored = False
@@ -628,25 +623,25 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
                 ignored = True
             if not ignored:
-                if check_int(provider['APILIMIT'], 0):
+                if provider['APILIMIT'].get_int():
                     if 'APICOUNT' in provider:
                         res = check_int(provider['APICOUNT'], 0)
                     else:
                         res = 0
-                    if res >= check_int(provider['APILIMIT'], 0):
+                    if res >= provider['APILIMIT'].get_int():
                         block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
                                        provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
                         provider['APICOUNT'] = res + 1
 
                 if not provider_is_blocked(provider['HOST']):
-                    ratelimit = check_int(provider['RATELIMIT'], 0)
+                    ratelimit = provider['RATELIMIT'].get_int()
                     if ratelimit:
-                        if 'LASTUSED' in provider:
-                            delay = provider['LASTUSED'] + ratelimit - time.time()
+                        if provider['LASTUSED'].get_int() > 0:
+                            delay = provider['LASTUSED'].get_int() + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider['LASTUSED'] = time.time()
+                        provider['LASTUSED'].set_int(time.time())
 
                     provider = get_capabilities(provider)
                     providers += 1
@@ -729,9 +724,9 @@ def iterate_over_direct_sites(book=None, search_type=None):
         else:
             book['searchterm'] = authorname + ' ' + bookname
 
-    for prov in lazylibrarian.GEN_PROV:
+    for prov in lazylibrarian.CONFIG.providers('GEN'):
         logger.debug("DLTYPES: %s: %s %s" % (prov['NAME'], prov['ENABLED'], prov['DLTYPES']))
-        if prov['ENABLED']:
+        if prov['ENABLED'].get_bool():
             ignored = False
             if provider_is_blocked(prov['NAME']):
                 logger.debug('%s is BLOCKED' % prov['NAME'])
@@ -783,9 +778,9 @@ def iterate_over_direct_sites(book=None, search_type=None):
                 results, error = direct_bok(book, prov)
                 if error:
                     # use a short delay for site unavailable etc
-                    delay = check_int(lazylibrarian.CONFIG['BLOCKLIST_TIMER'], 3600)
+                    delay = lazylibrarian.CONFIG.get_int('BLOCKLIST_TIMER')
                     count, oldest = lazylibrarian.bok_dlcount()
-                    if count and count >= check_int(lazylibrarian.CONFIG['BOK_DLLIMIT'], 5):
+                    if count and count >= lazylibrarian.CONFIG.get_int('BOK_DLLIMIT'):
                         # rolling 24hr delay if limit reached
                         delay = oldest + 24*60*60 - time.time()
                     block_provider('zlibrary', error, delay=delay)
@@ -830,7 +825,7 @@ def iterate_over_rss_sites():
     resultslist = []
     providers = 0
     dltypes = ''
-    for provider in lazylibrarian.RSS_PROV:
+    for provider in lazylibrarian.CONFIG.providers('RSS'):
         logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED'] and not lazylibrarian.wishlist_type(provider['HOST']):
@@ -849,7 +844,7 @@ def iterate_over_rss_sites():
 def iterate_over_wishlists():
     resultslist = []
     providers = 0
-    for provider in lazylibrarian.RSS_PROV:
+    for provider in lazylibrarian.CONFIG.providers('RSS'):
         logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED']:
@@ -954,7 +949,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
     resultslist = []
     providers = 0
     try:
-        for provider in lazylibrarian.IRC_PROV:
+        for provider in lazylibrarian.CONFIG.providers('IRC'):
             logger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
             if provider['ENABLED']:
                 ignored = False
@@ -988,7 +983,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
         return resultslist, providers
 
 
-def ircsearch(book, provider, search_type, test=False):
+def ircsearch(book, provider: ConfigDict, search_type, test=False):
     results = []
     if not provider['SERVER']:
         logger.error("No server for %s" % provider['NAME'])
@@ -1725,8 +1720,10 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     Generic rss query function, just return all the results from the rss feed in a list
     """
     results = []
+    success = False
+    result = ''
 
-    url = host
+    url = str(host)
     if not str(url)[:4] == "http" and not str(url)[:4] == "file":
         url = 'http://' + url
 
@@ -1795,7 +1792,7 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
                 tortype = 'torrent'
 
             if magnet:
-                if not url or (url and lazylibrarian.CONFIG['PREFER_MAGNET']):
+                if not url or (url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
                     url = magnet
                     tortype = 'magnet'
 
@@ -1835,7 +1832,7 @@ def rss(host=None, feednr=None, priority=0, dispname=None, types='E', test=False
     return results
 
 
-def cancel_search_type(search_type, error_msg, provider):
+def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
     """ See if errorMsg contains a known error response for an unsupported search function
     depending on which searchType. If it does, disable that searchtype for the relevant provider
     return True if cancelled
@@ -1862,21 +1859,31 @@ def cancel_search_type(search_type, error_msg, provider):
                 msg = ''
 
             if msg:
-                for providerlist in [lazylibrarian.NEWZNAB_PROV, lazylibrarian.TORZNAB_PROV]:
-                    count = 0
+                count = 0
+                # CFG2DO p3 Quite inelegant duplication here
+                for providerlist in lazylibrarian.CONFIG.providers('NEWZNAB'):
                     while count < len(providerlist):
                         if providerlist[count]['HOST'] == provider['HOST']:
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
                                 providerlist[count][msg] = ""
-                                lazylibrarian.config.config_write(provider['NAME'])
+                                lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
+                                return True
+                        count += 1
+                for providerlist in lazylibrarian.CONFIG.providers('TORZNAB'):
+                    while count < len(providerlist):
+                        if providerlist[count]['HOST'] == provider['HOST']:
+                            if not provider['MANUAL']:
+                                logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
+                                providerlist[count][msg] = ""
+                                lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
                                 return True
                         count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
     return False
 
 
-def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, test=False):
+def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=None, test=False):
     """
     Generic NewzNabplus query function
     takes in host+key+type and returns the result set regardless of who
@@ -1973,7 +1980,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                             limits = item
                             apimax = limits.get('apimax')
                             if apimax:
-                                provider['APILIMIT'] = apimax
+                                provider['APILIMIT'].set_int(apimax)
                             apicurrent = limits.get('apicurrent')
                             if apicurrent:
                                 provider['APICOUNT'] = apicurrent
@@ -1983,7 +1990,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                             break
                 resultxml = rootxml.iter('item')
                 nzbcount = 0
-                maxage = check_int(lazylibrarian.CONFIG['USENET_RETENTION'], 0)
+                maxage = lazylibrarian.CONFIG.get_int('USENET_RETENTION')
                 for nzb in resultxml:
                     try:
                         thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider['DLPRIORITY'])
@@ -1997,7 +2004,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
                                 logger.warn("%s does not support seeders" % provider['DISPNAME'])
                             else:
                                 # its torznab, check if minimum seeders relevant
-                                if check_int(thisnzb['seeders'], 0) >= check_int(provider['SEEDERS'], 0):
+                                if thisnzb['seeders'].get_int() >= provider['SEEDERS'].get_int():
                                     nzbcount += 1
                                     results.append(thisnzb)
                                 else:
@@ -2037,7 +2044,7 @@ def newznab_plus(book=None, provider=None, search_type=None, search_mode=None, t
     return True, results
 
 
-def return_search_structure(provider, api_key, book, search_type, search_mode):
+def return_search_structure(provider: ConfigDict, api_key, book, search_type, search_mode):
     params = None
     if search_type in ["book", "shortbook", 'titlebook']:
         authorname, bookname = get_searchterm(book, search_type)
@@ -2115,7 +2122,7 @@ def return_search_structure(provider, api_key, book, search_type, search_mode):
                 "q": make_utf8bytes(searchterm)[0],
             }
     if params:
-        if provider['EXTENDED']:
+        if provider['EXTENDED'].get_str():
             extends = provider['EXTENDED'].split('&')
             if extends[0] in ['1', '0']:
                 params["extended"] = extends[0]
@@ -2135,7 +2142,7 @@ def return_search_structure(provider, api_key, book, search_type, search_mode):
     return params
 
 
-def return_results_by_search_type(book=None, nzbdetails=None, host=None, search_mode=None, priority=0):
+def return_results_by_search_type(book: Dict, nzbdetails, host=None, search_mode=None, priority=0) -> Dict:
     """
     # searchType has multiple query params for t=, which return different results sets.
     # books have a dedicated check, so will use that.
@@ -2256,7 +2263,7 @@ def return_results_by_search_type(book=None, nzbdetails=None, host=None, search_
         elif tag == 'pubdate':
             nzbdate = nzbdetails[n].text
         elif tag == 'link':
-            if not nzburl or (nzburl and not lazylibrarian.CONFIG['PREFER_MAGNET']):
+            if not nzburl or (nzburl and not lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
                 nzburl = nzbdetails[n].text
         elif nzbdetails[n].attrib.get('name') == 'magneturl':
             nzburl = nzbdetails[n].attrib.get('value')

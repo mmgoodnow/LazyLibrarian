@@ -40,7 +40,7 @@ def get_server():
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
         if host.startswith("https://"):
             context = ssl.create_default_context()
-            if not lazylibrarian.CONFIG['SSL_VERIFY']:
+            if not lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
             server = ServerProxy(host, context=context)
@@ -102,7 +102,7 @@ def add_torrent(tor_url, hash_id, data=None):
             else:
                 server.d.set_directory(hash_id, directory)
 
-        if not lazylibrarian.CONFIG['TORRENT_PAUSED']:
+        if not lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED'):
             server.d.start(hash_id)
 
     except Exception as e:

@@ -196,7 +196,7 @@ def search_wishlist():
                 if authorname and book['rss_isbn']:
                     results = search_for(book['rss_isbn'])
                     for result in results:
-                        if result['isbn_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+                        if result['isbn_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                             logger.info("Found %s (%s%%) %s: %s" %
                                         (result['bookid'], result['isbn_fuzz'], result['authorname'],
                                          result['bookname']))
@@ -221,8 +221,8 @@ def search_wishlist():
                     searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
-                        if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
-                                and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+                        if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
+                                and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                             logger.info("Found %s (%s%% %s%%) %s: %s" %
                                         (result['bookid'], result['author_fuzz'], result['book_fuzz'],
                                          result['authorname'], result['bookname']))
@@ -237,8 +237,8 @@ def search_wishlist():
                         searchterm = "%s <ll> %s" % (title, authorname)
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
-                            if result['author_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90) \
-                                    and result['book_fuzz'] > check_int(lazylibrarian.CONFIG['MATCH_RATIO'], 90):
+                            if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
+                                    and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                                 logger.info("Found %s (%s%% %s%%) %s: %s" %
                                             (result['bookid'], result['author_fuzz'], result['book_fuzz'],
                                              result['authorname'], result['bookname']))

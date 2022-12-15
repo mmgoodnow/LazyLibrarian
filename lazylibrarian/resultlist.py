@@ -44,7 +44,7 @@ def process_result_list(resultlist, book, searchtype, source):
         # controlValueDict = match[3]
         # dlpriority = match[4]
 
-        if score < int(lazylibrarian.CONFIG['MATCH_RATIO']):
+        if score < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
             return 0
         return download_result(match, book)
     return 0
@@ -79,14 +79,14 @@ def find_best_result(resultlist, book, searchtype, source):
 
         if book['library'] == 'AudioBook':
             reject_list = get_list(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
-            maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXAUDIO'], 0)
-            minsize = check_int(lazylibrarian.CONFIG['REJECT_MINAUDIO'], 0)
+            maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXAUDIO')
+            minsize = lazylibrarian.CONFIG.get_int('REJECT_MINAUDIO')
             auxinfo = 'AudioBook'
 
         else:  # elif book['library'] == 'eBook':
             reject_list = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
-            maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXSIZE'], 0)
-            minsize = check_int(lazylibrarian.CONFIG['REJECT_MINSIZE'], 0)
+            maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXSIZE')
+            minsize = lazylibrarian.CONFIG.get_int('REJECT_MINSIZE')
             auxinfo = 'eBook'
 
         if source == 'nzb':
@@ -126,7 +126,7 @@ def find_best_result(resultlist, book, searchtype, source):
                 rejected = True
                 logger.debug("Rejecting %s, no URL found" % result_title)
 
-            if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
+            if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_FAILED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -145,7 +145,7 @@ def find_best_result(resultlist, book, searchtype, source):
                                      (res[prefix + 'title'], blacklisted['NZBprov']))
                         rejected = True
 
-            if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
+            if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_PROCESSED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=?'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -237,7 +237,7 @@ def find_best_result(resultlist, book, searchtype, source):
                     new_value_dict['NZBprov'] = res['tor_feed']
                     new_value_dict['NZBtitle'] = res[prefix + 'title']
 
-                if author_match >= lazylibrarian.CONFIG['MATCH_RATIO']:
+                if author_match >= lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                     score = book_match
                 else:
                     score = (book_match + author_match) / 2  # as a percentage
@@ -277,7 +277,7 @@ def find_best_result(resultlist, book, searchtype, source):
             # controlValueDict = highest[2]
             dlpriority = highest[3]
 
-            if score < int(lazylibrarian.CONFIG['MATCH_RATIO']):
+            if score < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                 logger.info('Nearest match (%s%%): %s using %s search for %s %s' %
                             (score, new_value_dict['NZBtitle'], searchtype, book['authorName'], book['bookName']))
             else:

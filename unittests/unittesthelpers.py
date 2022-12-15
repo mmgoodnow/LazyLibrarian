@@ -97,7 +97,6 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.LOGLEVEL = 1
         lazylibrarian.LOGINUSER = None
         lazylibrarian.CONFIG = {}
-        lazylibrarian.CFG = None
         lazylibrarian.DBFILE = None
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.SHOWLOGOUT = 1
@@ -105,13 +104,6 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.REQUESTSLOG = 0
         lazylibrarian.DOCKER = False
         lazylibrarian.STOPTHREADS = False
-
-        lazylibrarian.NEWZNAB_PROV = []
-        lazylibrarian.TORZNAB_PROV = []
-        lazylibrarian.RSS_PROV = []
-        lazylibrarian.IRC_PROV = []
-        lazylibrarian.GEN_PROV = []
-        lazylibrarian.APPRISE_PROV = []
 
     @classmethod
     def disableHTTPSWarnings(cls):

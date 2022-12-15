@@ -27,7 +27,7 @@ class CustomNotifier:
     def _notify(message, event, force=False):
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_CUSTOM'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_CUSTOM') and not force:
             return False
 
         logger.debug('Custom Event: %s' % event)
@@ -114,14 +114,14 @@ class CustomNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('CUSTOM_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('CUSTOM_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

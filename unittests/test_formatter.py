@@ -141,12 +141,12 @@ class FormatterTest(unittesthelpers.LLTestCase):
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
             ("Author Name", "Author Name: Book (TM)", ("Book", "", "")),
         ]
-        lazylibrarian.CONFIG['IMP_NOSPLIT'] = ''
+        lazylibrarian.CONFIG.set_str('IMP_NOSPLIT', '')
         for data in testdata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testdata: {data}")
 
-        lazylibrarian.CONFIG['IMP_NOSPLIT'] = "unabridged,tm,annotated"
+        lazylibrarian.CONFIG.set_csv('IMP_NOSPLIT', "unabridged,tm,annotated")
         for data in testcommentarydata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testcommentarydata: {data}")
@@ -496,21 +496,33 @@ class FormatterTest(unittesthelpers.LLTestCase):
         ]
         # no_umlauts only does something if German is a language used
         lang = lazylibrarian.CONFIG['IMP_PREFLANG']
-        lazylibrarian.CONFIG['IMP_PREFLANG'] = 'eng'
+        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', 'eng')
         # First test that nothing changes without German
         for s in teststrings:
             self.assertEqual(formatter.no_umlauts(s[0]), s[0])
-        lazylibrarian.CONFIG['IMP_PREFLANG'] = 'de'
+        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', 'de')
         for s in teststrings:
             self.assertEqual(formatter.no_umlauts(s[0]), s[1])
-        lazylibrarian.CONFIG['IMP_PREFLANG'] = lang
+        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', lang)
 
     def test_disp_name(self):
+        # Add some dummy data to test on
+        rss = lazylibrarian.CONFIG.get_array('RSS')
+        if rss:
+            rss[0]['HOST'].set_str('test-host')
+            rss[0]['DISPNAME'].set_str('short-rss-name')
+        irc = lazylibrarian.CONFIG.get_array('IRC')
+        if irc:
+            irc[0]['SERVER'].set_str('irc-host')
+            irc[0]['DISPNAME'].set_str('123456789012345/67890Thisistoolong')
+
         providers = [
             ('test', 'test'),
             ('quite/short/item', 'quite/short/item'),
             ('test/hello/world/veryvery/long/item', 'veryvery long item'),
-            ('', 'Newznab0'),
+            ('', 'Apprise'),
+            ('test-host', 'short-rss-name'),
+            ('irc-host', '67890Thisistoolong'),
         ]
         for p in providers:
             self.assertEqual(formatter.disp_name(p[0]), p[1])

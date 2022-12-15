@@ -72,7 +72,7 @@ class BoxcarNotifier:
         proxies = proxy_list()
         # send the request to boxcar
         try:
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+            timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
             r = requests.get(cur_url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
@@ -124,7 +124,7 @@ class BoxcarNotifier:
         """
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_BOXCAR'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_BOXCAR') and not force:
             return False
 
         # if no username was given then use the one from the config
@@ -138,14 +138,14 @@ class BoxcarNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('BOXCAR_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(notifyStrings[NOTIFY_FAIL], title)
             else:
                 self._notify(notifyStrings[NOTIFY_SNATCH], title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('BOXCAR_NOTIFY_ONDOWNLOAD'):
             self._notify(notifyStrings[NOTIFY_DOWNLOAD], title)
 
     def test_notify(self, title="Test"):

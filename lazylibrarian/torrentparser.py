@@ -51,7 +51,7 @@ def torrent_trf(book=None, test=False):
     sterm = make_unicode("%s %s" % (book['searchterm'], cat))
 
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['TRF_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('TRF_SEEDERS') - 1
 
     search_url = "%s/%s" % (host, quote_plus(make_utf8bytes(sterm)[0]))
 
@@ -213,7 +213,7 @@ def torrent_tpb(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['TPB_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('TPB_SEEDERS') - 1
     next_page = True
 
     while next_page:
@@ -322,7 +322,7 @@ def torrent_tpb(book=None, test=False):
                                                               "result"), provider, sterm))
             return len(results)
 
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
+        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
         else:
@@ -367,7 +367,7 @@ def torrent_kat(book=None, test=False):
 
     if result:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
-        minimumseeders = int(lazylibrarian.CONFIG['KAT_SEEDERS']) - 1
+        minimumseeders = lazylibrarian.CONFIG.get_int('KAT_SEEDERS') - 1
         soup = BeautifulSoup(result, 'html5lib')
         rows = []
         try:
@@ -406,7 +406,7 @@ def torrent_kat(book=None, test=False):
                     except IndexError:
                         pass
 
-                    if not url or (magnet and url and lazylibrarian.CONFIG['PREFER_MAGNET']):
+                    if not url or (magnet and url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
                         url = magnet
                         mode = 'magnet'
 
@@ -470,7 +470,7 @@ def torrent_wwt(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = int(lazylibrarian.CONFIG['WWT_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('WWT_SEEDERS') - 1
     next_page = True
 
     while next_page:
@@ -537,7 +537,7 @@ def torrent_wwt(book=None, test=False):
                         except IndexError:
                             pass
 
-                        if not url or (magnet and url and lazylibrarian.CONFIG['PREFER_MAGNET']):
+                        if not url or (magnet and url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
                             url = magnet
                             mode = 'magnet'
 
@@ -577,7 +577,7 @@ def torrent_wwt(book=None, test=False):
             return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < page:
+        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 
@@ -618,7 +618,7 @@ def torrent_zoo(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['ZOO_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('ZOO_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
@@ -637,7 +637,7 @@ def torrent_zoo(book=None, test=False):
                         url = link
                         mode = 'torrent'
                     if magnet:
-                        if not url or (url and lazylibrarian.CONFIG['PREFER_MAGNET']):
+                        if not url or (url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
                             url = magnet
                             mode = 'magnet'
 
@@ -701,7 +701,7 @@ def torrent_lime(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['LIME_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('LIME_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
@@ -797,7 +797,7 @@ def torrent_tdl(book=None, test=False):
 
     results = []
 
-    minimumseeders = int(lazylibrarian.CONFIG['TDL_SEEDERS']) - 1
+    minimumseeders = lazylibrarian.CONFIG.get_int('TDL_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)

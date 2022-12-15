@@ -65,7 +65,7 @@ def createthumb(jpeg, basewidth=None, overwrite=True):
         return ''
     fname, extn = os.path.splitext(jpeg)
     outfile = "%s_w%s%s" % (fname, basewidth, extn) if basewidth else fname + '_thumb' + extn
-        
+
     if not overwrite and path_isfile(outfile):
         return outfile
 
@@ -558,7 +558,7 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
 
 
 def create_mag_covers(refresh=False):
-    if not lazylibrarian.CONFIG['IMP_MAGCOVER']:
+    if not lazylibrarian.CONFIG.get_bool('IMP_MAGCOVER'):
         logger.info('Cover creation is disabled in config')
         return ''
     db = database.DBConnection()
@@ -686,7 +686,7 @@ def shrink_mag(issuefile, dpi=0):
 # noinspection PyUnresolvedReferences
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
-    if not lazylibrarian.CONFIG['IMP_MAGCOVER'] or not pagenum:
+    if not lazylibrarian.CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
         logger.warn('No cover required for %s' % issuefile)
         return ''
     if not issuefile or not path_isfile(issuefile):

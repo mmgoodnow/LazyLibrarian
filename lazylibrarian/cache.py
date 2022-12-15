@@ -102,14 +102,14 @@ def fetch_url(url, headers=None, retry=True, raw=None):
     # jackett query all indexers needs a longer timeout
     # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
     if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
-        timeout = check_int(lazylibrarian.CONFIG['HTTP_EXT_TIMEOUT'], 90)
+        timeout = lazylibrarian.CONFIG.get_int('HTTP_EXT_TIMEOUT')
     else:
-        timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+        timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
 
     payload = {"timeout": timeout, "proxies": proxies}
     verify = False
     if url.startswith('https'):
-        if lazylibrarian.CONFIG['SSL_VERIFY']:
+        if lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
             verify = True
             if lazylibrarian.CONFIG['SSL_CERTS']:
                 verify = lazylibrarian.CONFIG['SSL_CERTS']
@@ -252,7 +252,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     source = None
     hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + cache.lower())
     if expire and not expiry:
-        expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
+        expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
 
     if use_cache and path_isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
@@ -396,7 +396,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE')
     expire_caches = ["JSONCache", "XMLCache"]
     for cache in expire_caches:
         cache = os.path.join(lazylibrarian.CACHEDIR, cache)
@@ -595,7 +595,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    expiry = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE')
     if expiry:
         time_now = time.time()
         too_old = time_now - (expiry * 24 * 60 * 60)

@@ -34,7 +34,7 @@ from shutil import rmtree
 
 from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_header, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
-from lazylibrarian import config, database, versioncheck
+from lazylibrarian import config2, database, versioncheck
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -119,7 +119,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
 
     if options.noipv6:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        urllib3.util.connection.HAS_IPV6 = False
+        urllib3.util.connection.HAS_IPV6 = False # type: ignore
 
     if options.daemon:
         if os.name != 'nt':
@@ -129,7 +129,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             print("Daemonize not supported under Windows, starting normally")
 
     if options.nolaunch:
-        lazylibrarian.CONFIG['LAUNCH_BROWSER'] = False
+        lazylibrarian.CONFIG.set_bool('LAUNCH_BROWSER', False)
 
     if options.port:
         options.port = check_int(options.port, 0)
@@ -154,27 +154,28 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
 
     if options.update:
-        lazylibrarian.SIGNAL = 'update'
-        # This is the "emergency recovery" update in case lazylibrarian won't start.
-        # Set up some dummy values for the update as we have not read the config file yet
-        lazylibrarian.CONFIG['GIT_PROGRAM'] = ''
-        lazylibrarian.CONFIG['GIT_USER'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['GIT_REPO'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['GIT_HOST'] = 'gitlab'
-        lazylibrarian.CONFIG['USER_AGENT'] = 'lazylibrarian'
-        lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
-        lazylibrarian.CONFIG['PROXY_HOST'] = ''
-        lazylibrarian.CONFIG['SSL_CERTS'] = ''
-        lazylibrarian.CONFIG['SSL_VERIFY'] = False
-        if lazylibrarian.CACHEDIR == '':
-            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
-        lazylibrarian.CONFIG['LOGLIMIT'] = 2000
-        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
-        if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
-            try:
-                os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
-            except OSError:
-                raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
+        # CFG2DO: Fix emergency recovery mode
+        # lazylibrarian.SIGNAL = 'update'
+        # # This is the "emergency recovery" update in case lazylibrarian won't start.
+        # # Set up some dummy values for the update as we have not read the config file yet
+        # lazylibrarian.CONFIG['GIT_PROGRAM'] = ''
+        # lazylibrarian.CONFIG['GIT_USER'] = 'lazylibrarian'
+        # lazylibrarian.CONFIG['GIT_REPO'] = 'lazylibrarian'
+        # lazylibrarian.CONFIG['GIT_HOST'] = 'gitlab'
+        # lazylibrarian.CONFIG['USER_AGENT'] = 'lazylibrarian'
+        # lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
+        # lazylibrarian.CONFIG['PROXY_HOST'] = ''
+        # lazylibrarian.CONFIG['SSL_CERTS'] = ''
+        # lazylibrarian.CONFIG['SSL_VERIFY'] = False
+        # if lazylibrarian.CACHEDIR == '':
+        #     lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
+        # lazylibrarian.CONFIG['LOGLIMIT'] = 2000
+        # lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+        # if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
+        #     try:
+        #         os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
+        #     except OSError:
+        #         raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
 
         versioncheck.get_install_type()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
@@ -215,20 +216,15 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     # create database and config
     lazylibrarian.DBFILE = os.path.join(lazylibrarian.DATADIR, 'lazylibrarian.db')
 
-    config.readConfigFile()
+    lazylibrarian.CONFIG.load_configfile(lazylibrarian.CONFIGFILE)
 
     return options
 
 def init_logs():
-    # Initialized log files. Until this is done, do not use the
-    config.check_ini_section('General')
-    # False to silence logging until logger initialised
-    for key in ['LOGLIMIT', 'LOGFILES', 'LOGSIZE', 'LOGDIR']:
-        item_type, section, default = config.CONFIG_DEFINITIONS[key]
-        lazylibrarian.CONFIG[key.upper()] = config.check_setting(item_type, section, key.lower(), default, log=False)
+    # Initialize log files. Until this is done, do not use the logger
 
     if not lazylibrarian.CONFIG['LOGDIR'] or lazylibrarian.CONFIG['LOGDIR'][0] == '.':
-        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+        lazylibrarian.CONFIG.set_str('LOGDIR', os.path.join(lazylibrarian.DATADIR, 'Logs'))
 
     # Create logdir
     if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
@@ -237,24 +233,17 @@ def init_logs():
         except OSError as e:
             print('%s : Unable to create folder for logs: %s' % (lazylibrarian.CONFIG['LOGDIR'], str(e)))
 
-    # Start the logger, silence console logging if we need to
-    cfgloglevel = check_int(config.check_setting('int', 'General', 'loglevel', 1, log=False), 9)
-    if lazylibrarian.LOGLEVEL == 1:  # default if no debug or quiet on cmdline
-        if cfgloglevel == 9:  # default value if none in config
-            lazylibrarian.LOGLEVEL = 1  # If not set in Config or cmdline, then lets set to NORMAL
-        else:
-            lazylibrarian.LOGLEVEL = cfgloglevel  # Config setting picked up
+    lazylibrarian.LOGLEVEL = lazylibrarian.CONFIG.get_int('LOGLEVEL')
 
-    lazylibrarian.CONFIG['LOGLEVEL'] = lazylibrarian.LOGLEVEL
-    lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG['LOGLEVEL'])
-    info("Log (%s) Level set to [%s]- Log Directory is [%s] - Config level is [%s]" % (
+    lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG.get_int('LOGLEVEL'))
+    info("Log (%s) Level set to [%s]- Log Directory is [%s]" % (
         lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'],
-        lazylibrarian.CONFIG['LOGDIR'], cfgloglevel))
-    if lazylibrarian.CONFIG['LOGLEVEL'] > 2:
+        lazylibrarian.CONFIG['LOGDIR']))
+    if lazylibrarian.CONFIG.get_int('LOGLEVEL') > 2:
         info("Screen Log set to EXTENDED DEBUG")
-    elif lazylibrarian.CONFIG['LOGLEVEL'] == 2:
+    elif lazylibrarian.CONFIG.get_int('LOGLEVEL') == 2:
         info("Screen Log set to DEBUG")
-    elif lazylibrarian.CONFIG['LOGLEVEL'] == 1:
+    elif lazylibrarian.CONFIG.get_int('LOGLEVEL') == 1:
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
@@ -263,15 +252,15 @@ def init_logs():
 
 def init_config():
     initscheduler()
-    config.config_read()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
-    if lazylibrarian.CONFIG['NO_IPV6']:
+    if lazylibrarian.CONFIG.get_bool('NO_IPV6'):
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        urllib3.util.connection.HAS_IPV6 = False
+        urllib3.util.connection.HAS_IPV6 = False # type: ignore
 
 def init_caches():
     # override detected encoding if required
+    # CFG2DO Consider dropping global SYS_ENCODING
     if lazylibrarian.CONFIG['SYS_ENCODING']:
         lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
 
@@ -310,8 +299,8 @@ def init_caches():
                             syspath(os.path.join(pth, itm[0], itm[1], itm)))
     last_run_version = None
     last_run_interface = None
-    makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
-    version_file = os.path.join(makocache, 'python_version.txt')
+    makocache = lazylibrarian.CONFIG.get_mako_cachedir()
+    version_file = lazylibrarian.CONFIG.get_mako_versionfile()
 
     if os.path.isfile(version_file):
         with open(version_file, 'r') as fp:
@@ -356,9 +345,9 @@ def init_caches():
     lazylibrarian.GB_CALLS = 0
 
     if lazylibrarian.CONFIG['BOOK_API'] != 'GoodReads':
-        lazylibrarian.CONFIG['GR_SYNC'] = 0
-        lazylibrarian.CONFIG['GR_FOLLOW'] = 0
-        lazylibrarian.CONFIG['GR_FOLLOWNEW'] = 0
+        lazylibrarian.CONFIG.set_bool('GR_SYNC', False)
+        lazylibrarian.CONFIG.set_bool('GR_FOLLOW', False)
+        lazylibrarian.CONFIG.set_bool('GR_FOLLOWNEW', False)
 
 
 def init_database():
@@ -425,18 +414,18 @@ def get_unrarlib():
     try:
         # noinspection PyUnresolvedReferences
         from unrar import rarfile
-        if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
+        if lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 1:
             return 1, rarfile
     except Exception:
         # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
-            if lazylibrarian.CONFIG['PREF_UNRARLIB'] == 1:
+            if lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 1:
                 return 1, rarfile
         except Exception:
             pass
 
-    if not rarfile or lazylibrarian.CONFIG['PREF_UNRARLIB'] == 2:
+    if not rarfile or lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 2:
         # noinspection PyBroadException
         try:
             from lib.UnRAR2 import RarFile
@@ -637,7 +626,7 @@ def create_version_file(filename):
                     with open(syspath(version_file), 'w') as d:
                         d.write(s.read())
             except OSError:
-                warn("Unable to copy ", filename)
+                warn(f"Unable to copy {filename}")
         try:
             os.remove(old_file)
         except OSError:
@@ -646,12 +635,12 @@ def create_version_file(filename):
     return version_file
 
 def init_version_checks(version_file):
-    if lazylibrarian.CONFIG['VERSIONCHECK_INTERVAL'] == 0:
+    if lazylibrarian.CONFIG.get_int('VERSIONCHECK_INTERVAL') == 0:
         debug('Automatic update checks are disabled')
         # pretend we're up to date so we don't keep warning the user
         # version check button will still override this if you want to
-        lazylibrarian.CONFIG['LATEST_VERSION'] = lazylibrarian.CONFIG['CURRENT_VERSION']
-        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 0
+        lazylibrarian.CONFIG.set_str('LATEST_VERSION', lazylibrarian.CONFIG['CURRENT_VERSION'])
+        lazylibrarian.CONFIG.set_int('COMMITS_BEHIND', 0)
     else:
         # Set the install type (win,git,source) &
         # check the version when the application starts
@@ -661,18 +650,18 @@ def init_version_checks(version_file):
             lazylibrarian.CONFIG['CURRENT_VERSION'], lazylibrarian.CONFIG['LATEST_VERSION'],
             lazylibrarian.CONFIG['INSTALL_TYPE']))
 
-        if check_int(lazylibrarian.CONFIG['GIT_UPDATED'], 0) == 0:
+        if lazylibrarian.CONFIG.get_int('GIT_UPDATED') == 0:
             if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
-                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
-                    lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
+                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
+                    lazylibrarian.CONFIG.set_int('GIT_UPDATED', int(time.time()))
                     debug('Setting update timestamp to now')
 
     # if gitlab doesn't recognise a hash it returns 0 commits
     if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
-            and lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
+            and lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
             res, _ = versioncheck.run_git('remote -v')
-            if 'gitlab.com' in res:
+            if 'gitlab.com' in str(res):
                 warn('Unrecognised version, LazyLibrarian may have local changes')
         elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
             warn('Unrecognised version [%s] to force upgrade delete %s' % (
@@ -680,15 +669,15 @@ def init_version_checks(version_file):
 
     if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
         # User may be running an old source zip, so try to force update
-        lazylibrarian.CONFIG['COMMITS_BEHIND'] = 1
+        lazylibrarian.CONFIG.set_int('COMMITS_BEHIND', 1)
         lazylibrarian.SIGNAL = 'update'
         # but only once in case the update fails, don't loop
         with open(syspath(version_file), 'w') as f:
             f.write("UNKNOWN SOURCE")
 
-    if lazylibrarian.CONFIG['COMMITS_BEHIND'] <= 0:
+    if lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') <= 0:
         lazylibrarian.SIGNAL = None
-        if lazylibrarian.CONFIG['COMMITS_BEHIND'] == 0:
+        if lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
             debug('Not updating, LazyLibrarian is already up to date')
         else:
             debug('Not updating, LazyLibrarian has local changes')
@@ -703,7 +692,7 @@ def launch_browser(host, port, root):
     if host == '0.0.0.0':
         host = 'localhost'
 
-    if lazylibrarian.CONFIG['HTTPS_ENABLED']:
+    if lazylibrarian.CONFIG.get_bool('HTTPS_ENABLED'):
         protocol = 'https'
     else:
         protocol = 'http'
@@ -716,18 +705,19 @@ def launch_browser(host, port, root):
 
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
+        # CFG2DO change to read_bool
         lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
         lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
         lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
         lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
 
-        if lazylibrarian.CONFIG['ADD_SERIES']:
+        if lazylibrarian.CONFIG.get_bool('ADD_SERIES'):
             lazylibrarian.SHOW_SERIES = 1
-        if not lazylibrarian.CONFIG['SERIES_TAB']:
+        if not lazylibrarian.CONFIG.get_bool('SERIES_TAB'):
             lazylibrarian.SHOW_SERIES = 0
 
     if lazylibrarian.CONFIG['GR_URL'] == 'https://goodreads.org':
-        lazylibrarian.CONFIG['GR_URL'] = 'https://www.goodreads.com'
+        lazylibrarian.CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
     # Crons and scheduled jobs started here
     # noinspection PyUnresolvedReferences
     startscheduler()
@@ -757,7 +747,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     if not testing:
-        config.config_write()
+        lazylibrarian.CONFIG.save_config_and_backup_old()
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())
@@ -776,8 +766,8 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
-                lazylibrarian.CONFIG['GIT_UPDATED'] = str(int(time.time()))
-                config.config_write('Git')
+                lazylibrarian.CONFIG.set_int('GIT_UPDATED', int(time.time()))
+                lazylibrarian.CONFIG.save_config_and_backup_old(section='Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))

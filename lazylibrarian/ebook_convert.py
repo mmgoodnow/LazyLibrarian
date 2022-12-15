@@ -24,7 +24,7 @@ def convert(input_file, output_format):
         sys.stderr.write("Error, No calibredb found")
         raise ValueError("No calibredb found")
 
-    if lazylibrarian.CONFIG['CALIBRE_USE_SERVER']:
+    if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER'):
         ebook_directory = lazylibrarian.CONFIG['CALIBRE_SERVER']
     else:
         ebook_directory = lazylibrarian.directory('eBook')
@@ -52,7 +52,7 @@ def convert(input_file, output_format):
             params = [calibredb, "add_format", "--with-library", "%s" % ebook_directory]
 
             # Add user authentication if provided
-            if lazylibrarian.CONFIG['CALIBRE_USE_SERVER'] and lazylibrarian.CONFIG['CALIBRE_USER'] and \
+            if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER') and lazylibrarian.CONFIG['CALIBRE_USER'] and \
                     lazylibrarian.CONFIG['CALIBRE_PASS']:
                 params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],
                                '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])

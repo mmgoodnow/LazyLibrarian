@@ -159,7 +159,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     res = check_int(cnt['counter'], 0)
                     seriesid = str(res + 1)
                     members = []
-                if len(members) < 2 and lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
+                if len(members) < 2 and lazylibrarian.CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
                     logger.debug("Ignoring unknown single-book-series %s" % item[2])
                     continue
                 else:
@@ -392,7 +392,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             if seriesid or os.path.getsize(syspath(workfile)) < 500:
                 cache_modified_time = os.stat(syspath(workfile)).st_mtime
                 time_now = time.time()
-                expiry = lazylibrarian.CONFIG['CACHE_AGE'] * 24 * 60 * 60  # expire cache after this many seconds
+                expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
                     if NEW_WHATWORK:
@@ -924,7 +924,7 @@ def get_series_members(seriesid=None, seriesname=None):
             order = 0
             bookname = ''
             rejected = True
-        if not rejected and lazylibrarian.CONFIG['NO_SETS']:
+        if not rejected and lazylibrarian.CONFIG.get_bool('NO_SETS'):
             if re.search(r'\d+ of \d+', str(order)) or \
                     re.search(r'\d+/\d+', str(order)):
                 rejected = 'Set or Part'
@@ -939,7 +939,7 @@ def get_series_members(seriesid=None, seriesname=None):
                         rejected = 'Set or Part %s' % m.group(0)
                         logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
 
-        if not rejected and lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and '.' in str(item[0]):
+        if not rejected and lazylibrarian.CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
             rejected = 'Rejected non-integer %s' % item[0]
             logger.debug('Rejected %s, %s' % (bookname, rejected))
         if not rejected and check_int(item[0], 0) == 1:
@@ -962,7 +962,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
 
     author = clean_name(author)
     title = clean_name(title)
-    
+
     baseurl = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
 
     urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
@@ -989,10 +989,10 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                 if total_fuzz > high_fuzz:
                     high_fuzz = total_fuzz
                     high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
-                if book_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
+                if book_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                         logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
-                elif auth_fuzz < lazylibrarian.CONFIG['MATCH_RATIO']:
+                elif auth_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_fuzz:
                         logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                 else:
@@ -1126,11 +1126,11 @@ def get_work_series(bookid=None, source='GR', reason=""):
                 except (KeyError, AttributeError):
                     continue
 
-                if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES'] and seriescount == '1':
+                if lazylibrarian.CONFIG.get_bool('NO_SINGLE_BOOK_SERIES') and seriescount == '1':
                     logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
-                elif lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] and seriesnum and '.' in seriesnum:
+                elif lazylibrarian.CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
-                elif lazylibrarian.CONFIG['NO_SETS'] and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
+                elif lazylibrarian.CONFIG.get_bool('NO_SETS') and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
                                                                         re.search(r'\d+/\d+', seriesnum) or
                                                                         re.search(r'\d+-\d+', seriesnum)):
                     logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
@@ -1199,7 +1199,7 @@ def set_genres(genrelist=None, bookid=None):
                 match = db.match('SELECT GenreID from genres where GenreName=?', (item,))
             db.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
                       (match['GenreID'], bookid), suppress='UNIQUE')
-        if lazylibrarian.CONFIG['WISHLIST_GENRES']:
+        if lazylibrarian.CONFIG.get_bool('WISHLIST_GENRES'):
             book = db.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
             if book['Requester'] is not None and book['Requester'] not in genrelist:
                 genrelist.insert(0, book['Requester'])
@@ -1376,7 +1376,7 @@ def thinglang(isbn):
     booklang = ''
     try:
         librarything_wait()
-        timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+        timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
         r = requests.get(book_url, timeout=timeout, proxies=proxies)
         resp = r.text
         logger.debug("LibraryThing reports language [%s] for %s" % (resp, isbn))
@@ -1399,7 +1399,7 @@ def isbn_from_words(words):
 
     baseurl = "http://www.google.com/search?q=ISBN+"
     search_url = baseurl + quote(words.replace(' ', '+'))
-    
+
     headers = {'User-Agent': 'w3m/0.5.3',
                'Content-Type': 'text/plain; charset="UTF-8"',
                'Content-Transfer-Encoding': 'Quoted-Printable',

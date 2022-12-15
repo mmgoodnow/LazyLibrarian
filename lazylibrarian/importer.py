@@ -60,7 +60,7 @@ def get_preferred_author_name(author):
             aname = item['AuthorName']
             if aname:
                 match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
+                if match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                     logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
                     author = item['AuthorName']
                     match = True
@@ -68,7 +68,7 @@ def get_preferred_author_name(author):
             aka = item['AKA']
             if aka:
                 match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
+                if match_fuzz >= lazylibrarian.CONFIGget_int('NAME_RATIO'):
                     logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
                     author = item['AuthorName']
                     match = True
@@ -92,7 +92,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             reason = 'Unknown reason in add_author_name_to_db'
 
     if addbooks is None:  # we get passed True/False or None
-        addbooks = lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']
+        addbooks = lazylibrarian.CONFIG.get_bool('NEWAUTHOR_BOOKS')
 
     new = False
     author_info = {}
@@ -107,7 +107,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
     else:
         check_exist_author = None
-    if not exists and (lazylibrarian.CONFIG['ADD_AUTHOR'] or reason.startswith('API')):
+    if not exists and (lazylibrarian.CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
         logger.debug('Author %s not found in database, trying to add' % author)
         # no match for supplied author, but we're allowed to add new ones
         if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
@@ -146,13 +146,13 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
             # fuzz.ratio doesn't lowercase for us
             match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
-            if match_fuzz < lazylibrarian.CONFIG['NAME_RATIO']:
+            if match_fuzz < lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                 logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
-            if "unknown" not in author.lower() and 'anonymous' not in author.lower() and (
-                    match_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']):
+            if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
+                    match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                 # use "intact" name for author that we stored in
                 # author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!
@@ -543,7 +543,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
                     book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
@@ -558,7 +558,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
                     book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
@@ -573,7 +573,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG['MULTI_SOURCE']:
+                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
                     if lazylibrarian.CONFIG['GR_API']:
                         book_api = GoodReads()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,

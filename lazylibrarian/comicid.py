@@ -128,7 +128,7 @@ def cv_identify(fname, best=True):
     results = []
     offset = 0
     next_page = True
-    max_pages = check_int(lazylibrarian.CONFIG['MAX_PAGES'], 0)
+    max_pages = lazylibrarian.CONFIG.get_int('MAX_PAGES')
     page_number = 0
     while next_page:
         if offset:
@@ -252,7 +252,7 @@ def cv_identify(fname, best=True):
         if results:
             return results[0]
 
-    if not lazylibrarian.CONFIG['CV_WEBSEARCH']:
+    if not lazylibrarian.CONFIG.get_bool('CV_WEBSEARCH'):
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
             logger.debug('No match for %s' % fname)
         return []
@@ -422,7 +422,7 @@ def cx_identify(fname, best=True):
     matchwords = '+'.join(titlewords)
     if '+' in matchwords:
         minmatch = 2
-    max_pages = check_int(lazylibrarian.CONFIG['MAX_PAGES'], 0)
+    max_pages = lazylibrarian.CONFIG.get_int('MAX_PAGES')
 
     url = '/'.join([lazylibrarian.CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
     data, _ = html_request(url)

@@ -232,13 +232,13 @@ def search_magazines(mags=None, reset=False):
                         bad_name += 1
                     else:
                         rejected = False
-                        maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAGSIZE'], 0)
+                        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAGSIZE')
                         if maxsize and nzbsize > maxsize:
                             logger.debug("Rejecting %s, too large (%sMb)" % (nzbtitle, nzbsize))
                             rejected = True
 
                         if not rejected:
-                            minsize = check_int(lazylibrarian.CONFIG['REJECT_MAGMIN'], 0)
+                            minsize = lazylibrarian.CONFIG.get_int('REJECT_MAGMIN')
                             if minsize and nzbsize < minsize:
                                 logger.debug("Rejecting %s, too small (%sMb)" % (nzbtitle, nzbsize))
                                 rejected = True
@@ -279,14 +279,14 @@ def search_magazines(mags=None, reset=False):
                                 logger.debug("Magazine name too short (%s)" % len(nzbtitle_exploded))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG['BLACKLIST_FAILED']:
+                        if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_FAILED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
+                        if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_PROCESSED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
@@ -389,8 +389,7 @@ def search_magazines(mags=None, reset=False):
                                         control_date = 0
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
-                                        start_time -= int(
-                                            lazylibrarian.CONFIG['MAG_AGE']) * 24 * 60 * 60  # number of days in seconds
+                                        start_time -= lazylibrarian.CONFIG.get_int('MAG_AGE') * 24 * 60 * 60  # number of days in seconds
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))
@@ -401,7 +400,7 @@ def search_magazines(mags=None, reset=False):
 
                                 if str(control_date).isdigit() and str(issuedate).isdigit():
                                     if not control_date:
-                                        comp_date = int(lazylibrarian.CONFIG['MAG_AGE']) - age(nzbdate)
+                                        comp_date = lazylibrarian.CONFIG.get_int('MAG_AGE') - age(nzbdate)
                                     else:
                                         comp_date = int(issuedate) - int(control_date)
                                 elif re.match(r'\d+-\d\d-\d\d', str(control_date)) and \
@@ -506,7 +505,7 @@ def search_magazines(mags=None, reset=False):
 
                 threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'pastissues']).start()
 
-            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+            time.sleep(lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT'))
 
         logger.info("Search for magazines complete")
         if reset:

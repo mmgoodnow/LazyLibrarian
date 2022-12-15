@@ -4186,7 +4186,7 @@
                 </div>
                 <div class="checkbox col-md-6">
                   <%
-                    if provider['MANUAL'] == True:
+                    if provider['MANUAL'].get_bool() == True:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -4280,7 +4280,7 @@
                 </div>
                 <div class="checkbox col-md-6">
                   <%
-                    if provider['MANUAL'] == True:
+                    if provider['MANUAL'].get_bool() == True:
                         checked = 'checked="checked"'
                     else:
                         checked = ''

@@ -21,6 +21,7 @@ import threading
 import time
 import traceback
 import inspect
+from typing import List
 
 import lazylibrarian
 from lazylibrarian import logger

@@ -9,8 +9,8 @@ from lazylibrarian import startup, importer
 
 
 class ImporterTest(unittesthelpers.LLTestCase):
-    bookapi = None
- 
+    bookapi = ''
+
     # Initialisation code that needs to run only once
     @classmethod
     def setUpClass(cls) -> None:
@@ -21,7 +21,7 @@ class ImporterTest(unittesthelpers.LLTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        lazylibrarian.CONFIG['BOOK_API'] = cls.bookapi
+        lazylibrarian.CONFIG.set_str('BOOK_API', cls.bookapi)
         return super().tearDownClass()
 
     def test_is_valid_authorid_InvalidIDs(self):
@@ -33,19 +33,19 @@ class ImporterTest(unittesthelpers.LLTestCase):
 
     def test_is_valid_authorid_GoogleBooks(self):
         # Test potentially valid Google Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'GoogleBooks'
+        lazylibrarian.CONFIG.set_str('BOOK_API', 'GoogleBooks')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
     def test_is_valid_authorid_Goodreads(self):
         # Test potentially valid Goodreads Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'GoodReads'
+        lazylibrarian.CONFIG.set_str('BOOK_API', 'GoodReads')
         self.assertEqual(importer.is_valid_authorid('123'), True)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), False)
 
     def test_is_valid_authorid_OpenLibrary(self):
         # Test potentially valid Goodreads Books IDs
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG.set_str('BOOK_API', 'OpenLibrary')
         self.assertEqual(importer.is_valid_authorid('123'), False)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
@@ -70,7 +70,7 @@ class ImporterTest(unittesthelpers.LLTestCase):
         self.assertEqual(authorname, '')
 
     def test_add_author_name_to_db_KnownAuthor_OL(self):
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG.set_str('BOOK_API', 'OpenLibrary')
         testname = 'Douglas Adams'
         authorname, authorid, new = importer.add_author_name_to_db(
             author=testname, refresh=False, addbooks=False, reason='Testing', title=False)
@@ -88,7 +88,7 @@ class ImporterTest(unittesthelpers.LLTestCase):
 
     def test_add_author_to_db_JustByID(self):
         testid = 'OL2219179A' # Maud D. Davies
-        lazylibrarian.CONFIG['BOOK_API'] = 'OpenLibrary'
+        lazylibrarian.CONFIG.set_str('BOOK_API', 'OpenLibrary')
         id = importer.add_author_to_db(
             authorname=None, refresh=False, addbooks=False, reason='Testing', authorid=testid)
         self.assertEqual(id, testid)

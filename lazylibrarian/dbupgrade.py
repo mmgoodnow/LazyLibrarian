@@ -934,9 +934,9 @@ def db_v59(db, upgradelog):
             entry['SEEDERS'] = seeders
         for item in ['KAT_SEEDERS', 'WWT_SEEDERS', 'TPB_SEEDERS', 'ZOO_SEEDERS', 'TRF_SEEDERS',
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
-            lazylibrarian.CONFIG[item] = seeders
-    lazylibrarian.CONFIG['NUMBEROFSEEDERS'] = 0
-    lazylibrarian.config.config_write()
+            lazylibrarian.CONFIG.set_int(item, seeders)
+    lazylibrarian.CONFIG.set_int('NUMBEROFSEEDERS', 0)
+    lazylibrarian.CONFIG.save_config_and_backup_old()
     upgradelog.write("%s v59: complete\n" % time.ctime())
 
 

@@ -139,8 +139,8 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     if results:
                         result = results[0]
-                        if result['author_fuzz'] > lazylibrarian.CONFIG['MATCH_RATIO'] \
-                                and result['book_fuzz'] > lazylibrarian.CONFIG['MATCH_RATIO']:
+                        if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
+                                and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
                             logger.debug("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
                                                                        result['authorname'], result['bookname']))
                             bookid = result['bookid']
@@ -426,7 +426,7 @@ def calibredb(cmd=None, prelib=None, postlib=None):
         return "No calibredb set in config", '', 1
 
     params = [lazylibrarian.CONFIG['IMP_CALIBREDB'], cmd]
-    if lazylibrarian.CONFIG['CALIBRE_USE_SERVER']:
+    if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER'):
         dest_url = lazylibrarian.CONFIG['CALIBRE_SERVER']
         if lazylibrarian.CONFIG['CALIBRE_USER'] and lazylibrarian.CONFIG['CALIBRE_PASS']:
             params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],

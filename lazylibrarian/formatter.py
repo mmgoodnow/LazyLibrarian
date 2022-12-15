@@ -20,6 +20,7 @@ import unicodedata
 import threading
 
 import lazylibrarian
+from lazylibrarian import configdefs
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 
@@ -511,8 +512,7 @@ def make_utf8bytes(txt):
 
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
-
-def make_unicode(txt):
+def make_unicode(txt) -> str:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
     if isinstance(txt, str):  # nothing to do if already unicode
@@ -864,28 +864,18 @@ def disp_name(provider):
     If not, returns the host name provided, shortened if too long.
     """
     provname = ''
-    for item in lazylibrarian.NEWZNAB_PROV:
-        if item['HOST'].strip('/') == provider:
-            provname = item['DISPNAME']
-            break
-    if not provname:
-        for item in lazylibrarian.TORZNAB_PROV:
-            if item['HOST'].strip('/') == provider:
-                provname = item['DISPNAME']
-                break
-    if not provname:
-        for item in lazylibrarian.RSS_PROV:
-            if item['HOST'].strip('/') == provider:
-                provname = item['DISPNAME']
-                break
-    if not provname:
-        for item in lazylibrarian.IRC_PROV:
-            if item['NAME'] == provider:
-                provname = item['DISPNAME']
-                break
+    # CFG2DO Test that disp_name works as expected
+    for name, definitions in configdefs.ARRAY_DEFS.items():
+        key = definitions[0] # Primary key for this array type
+        array = lazylibrarian.CONFIG.get_array(name)
+        if array and not provname:
+            for index, config in array._configs.items():
+                if config[key].get_str().strip('/') == provider:
+                    provname = config['DISPNAME'].get_str()
+                    break
+
     if not provname:
         provname = provider
-
     if len(provname) > 20:
         while len(provname) > 20 and '/' in provname:
             provname = provname.split('/', 1)[1]

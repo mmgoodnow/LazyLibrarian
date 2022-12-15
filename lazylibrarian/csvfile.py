@@ -344,7 +344,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     searchterm = "%s <ll> %s" % (title, authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
-                        if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                        if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
                                 and result['authorid'] == authorid:
                             bookmatch = result
                             break
@@ -355,7 +355,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                             searchterm = "%s <ll> %s" % (title, authorname)
                             results = search_for(unaccented(searchterm, only_ascii=False))
                             for result in results:
-                                if result['book_fuzz'] >= lazylibrarian.CONFIG['MATCH_RATIO'] \
+                                if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
                                         and result['authorid'] == authorid:
                                     bookmatch = result
                                     break
@@ -403,7 +403,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
               (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
                status, skipcount, plural(skipcount, library))
         logger.info(msg)
-        if lazylibrarian.CONFIG['DELETE_CSV']:
+        if lazylibrarian.CONFIG.get_bool('DELETE_CSV'):
             if skipcount == 0:
                 logger.info("Deleting %s on successful completion" % csvfile)
                 try:

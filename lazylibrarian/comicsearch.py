@@ -148,10 +148,10 @@ def search_item(comicid=None):
             rejected = False
             if score >= 40:  # ignore wildly wrong results?
 
-                maxsize = check_int(lazylibrarian.CONFIG['REJECT_MAXCOMIC'], 0)
-                minsize = check_int(lazylibrarian.CONFIG['REJECT_MINCOMIC'], 0)
+                maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXCOMIC')
+                minsize = lazylibrarian.CONFIG.get_int('REJECT_MINCOMIC')
                 filetypes = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
-                banwords = get_list(lazylibrarian.CONFIG['REJECT_COMIC'], ',')
+                banwords = lazylibrarian.CONFIG.get_int('REJECT_COMIC')
                 size_mb = check_int(size, 1000)
                 size_mb = round(float(size_mb) / 1048576, 2)
 
@@ -268,7 +268,7 @@ def search_comics(comicid=None):
                           sorted(foundissues.keys())))
             threading.Thread(target=download_comiclist, name='DL-COMICLIST', args=[foundissues]).start()
 
-            time.sleep(check_int(lazylibrarian.CONFIG['SEARCH_RATELIMIT'], 0))
+            time.sleep(lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT'))
         logger.info("ComicSearch for Wanted items complete")
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
     except Exception:

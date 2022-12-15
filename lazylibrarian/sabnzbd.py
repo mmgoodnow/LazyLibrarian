@@ -178,7 +178,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
                 params['category'] = label
             else:
                 params['cat'] = lazylibrarian.downloadmethods.use_label('SABNZBD', library)
-        if lazylibrarian.CONFIG['USENET_RETENTION']:
+        if lazylibrarian.CONFIG.get_int('USENET_RETENTION'):
             params["maxage"] = lazylibrarian.CONFIG['USENET_RETENTION']
 
 # FUTURE-CODE
@@ -196,8 +196,8 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         logger.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
     proxies = proxy_list()
     try:
-        timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
-        if url.startswith('https') and lazylibrarian.CONFIG['SSL_VERIFY']:
+        timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
+        if url.startswith('https') and lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
             r = requests.get(url, timeout=timeout, proxies=proxies,
                              verify=lazylibrarian.CONFIG['SSL_CERTS'] if lazylibrarian.CONFIG['SSL_CERTS'] else True)
         else:

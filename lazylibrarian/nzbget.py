@@ -173,28 +173,28 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         elif nzbget_version == 12:
             if nzbcontent64:
                 nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", label,
-                                                   lazylibrarian.CONFIG['NZBGET_PRIORITY'], False,
+                                                   lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False,
                                                    nzbcontent64, False, dupekey, dupescore, "score")
             else:
                 nzbget_result = nzb_get_rpc.appendurl(nzb.name + ".nzb", label,
-                                                      lazylibrarian.CONFIG['NZBGET_PRIORITY'], False, nzb.url, False,
+                                                      lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url, False,
                                                       dupekey, dupescore, "score")
         # v13+ has a new combined append method that accepts both (url and content)
         # also the return value has changed from boolean to integer
         # (Positive number representing NZBID of the queue item. 0 and negative numbers represent error codes.)
         elif nzbget_version >= 13:
             nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", nzbcontent64 if nzbcontent64 is not None else nzb.url,
-                                               label, lazylibrarian.CONFIG['NZBGET_PRIORITY'], False, False, dupekey,
+                                               label, lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, False, dupekey,
                                                dupescore, "score")
             if nzbget_result <= 0:
                 nzbget_result = False
         else:
             if nzbcontent64:
                 nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", label,
-                                                   lazylibrarian.CONFIG['NZBGET_PRIORITY'], False, nzbcontent64)
+                                                   lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzbcontent64)
             else:
                 nzbget_result = nzb_get_rpc.appendurl(nzb.name + ".nzb", label,
-                                                      lazylibrarian.CONFIG['NZBGET_PRIORITY'], False, nzb.url)
+                                                      lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url)
 
         if nzbget_result:
             logger.debug("NZB sent to NZBget successfully")

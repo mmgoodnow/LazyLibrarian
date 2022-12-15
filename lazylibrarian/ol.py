@@ -165,7 +165,7 @@ class OpenLibrary:
                         resultcount += 1
 
                 loop_count += 1
-                if 0 < lazylibrarian.CONFIG['MAX_PAGES'] < loop_count:
+                if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < loop_count:
                     logger.warn('Maximum results page search reached, still more results available')
                     next_page = False
 
@@ -199,7 +199,7 @@ class OpenLibrary:
         if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
                 author_name = format_author_name(book.get('author_name')[0])
-                if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
+                if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
                         key = key.split('/')[-1]
@@ -216,7 +216,7 @@ class OpenLibrary:
                 return {}
             for book in authorbooks['docs']:
                 author_name = format_author_name(book.get('author_name')[0])
-                if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG['NAME_RATIO']:
+                if fuzz.token_set_ratio(author_name, authorname) >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
                         key = key.split('/')[-1]
@@ -492,7 +492,7 @@ class OpenLibrary:
 
         # these are reject reasons we might want to override, so optionally add to database as "ignored"
         ignorable = ['future', 'date', 'isbn', 'word', 'set']
-        if lazylibrarian.CONFIG['NO_LANG']:
+        if lazylibrarian.CONFIG.get_bool('NO_LANG'):
             ignorable.append('lang')
 
         ol_id = ''
@@ -669,7 +669,7 @@ class OpenLibrary:
                             rejected = 'publisher', bookpub
                             break
 
-                if not rejected and not isbnhead and lazylibrarian.CONFIG['ISBN_LOOKUP']:
+                if not rejected and not isbnhead and lazylibrarian.CONFIG.get_bool('ISBN_LOOKUP'):
                     # try lookup by name
                     if title:
                         try:
@@ -687,7 +687,7 @@ class OpenLibrary:
                             else:
                                 isbnhead = res[0:3]
 
-                if not rejected and isbnhead and lazylibrarian.CONFIG['NO_ISBN']:
+                if not rejected and isbnhead and lazylibrarian.CONFIG.get_bool('NO_ISBN'):
                     rejected = 'isbn', 'No ISBN'
 
                 if not rejected:
@@ -706,7 +706,7 @@ class OpenLibrary:
 
                 if not rejected:
                     bookname = unaccented(title, only_ascii=False)
-                    if lazylibrarian.CONFIG['NO_SETS']:
+                    if lazylibrarian.CONFIG.get_bool('NO_SETS'):
                         # allow date ranges eg 1981-95
                         m = re.search(r'(\d+)-(\d+)', bookname)
                         if m:
@@ -724,11 +724,11 @@ class OpenLibrary:
 
                 if rejected and rejected[0] not in ignorable:
                     logger.debug('Rejecting %s, %s' % (title, rejected[1]))
-                elif rejected and not (rejected[0] in ignorable and lazylibrarian.CONFIG['IMP_IGNORE']):
+                elif rejected and not (rejected[0] in ignorable and lazylibrarian.CONFIG.get_bool('IMP_IGNORE')):
                     logger.debug('Rejecting %s, %s' % (title, rejected[1]))
                 else:
                     logger.debug("Found title: %s LT:%s" % (title, id_librarything))
-                    if not rejected and lazylibrarian.CONFIG['NO_FUTURE']:
+                    if not rejected and lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
                         if publish_date > today()[:len(publish_date)]:
                             rejected = 'future', 'Future publication date [%s]' % publish_date
                             if ignorable is None:
@@ -737,7 +737,7 @@ class OpenLibrary:
                                 logger.debug("Not rejecting %s (future pub date %s) as %s" %
                                              (title, publish_date, ignorable))
 
-                    if not rejected and lazylibrarian.CONFIG['NO_PUBDATE']:
+                    if not rejected and lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
                         if not publish_date or publish_date == '0000':
                             rejected = 'date', 'No publication date'
                             if ignorable is None:
@@ -884,7 +884,7 @@ class OpenLibrary:
                                 msg += " audio %s" % audiostatus
                             logger.debug(msg)
 
-                            if lazylibrarian.CONFIG['ADD_SERIES']:
+                            if lazylibrarian.CONFIG.get_bool('ADD_SERIES'):
                                 for series in serieslist:
                                     newseries = "%s %s" % (series[0], series[1])
                                     newseries.strip()
@@ -1262,14 +1262,14 @@ class OpenLibrary:
                 bookdate = publish_date
             else:
                 bookdate = "0000"
-            if lazylibrarian.CONFIG['NO_PUBDATE']:
+            if lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
                 if not bookdate or bookdate == '0000':
                     msg = 'Book %s Publication date [%s] does not match preference' % (title, bookdate)
                     logger.warn(msg)
                     if reason.startswith("Series:"):
                         return
 
-            if lazylibrarian.CONFIG['NO_FUTURE']:
+            if lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
                 # may have yyyy or yyyy-mm-dd
                 if bookdate > today()[:len(bookdate)]:
                     msg = 'Book %s Future publication date [%s] does not match preference' % (title, bookdate)
@@ -1277,7 +1277,7 @@ class OpenLibrary:
                     if reason.startswith("Series:"):
                         return
 
-            if lazylibrarian.CONFIG['NO_SETS']:
+            if lazylibrarian.CONFIG.get_bool('NO_SETS'):
                 if re.search(r'\d+ of \d+', title) or re.search(r'\d+/\d+', title):
                     msg = 'Book %s Set or Part' % title
                     logger.warn(msg)

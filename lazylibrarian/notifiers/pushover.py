@@ -36,7 +36,7 @@ class PushoverNotifier:
     def _send_pushover(message=None, event=None, pushover_apitoken=None, pushover_keys=None,
                        pushover_device=None, notification_type=None, method=None, force=False):
 
-        if not lazylibrarian.CONFIG['USE_PUSHOVER'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
         if pushover_apitoken is None:
@@ -117,7 +117,7 @@ class PushoverNotifier:
         except Exception as e:
             logger.warn("Pushover: could not convert  message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_PUSHOVER'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_PUSHOVER') and not force:
             return False
 
         logger.debug("Pushover: Sending notification " + str(message))
@@ -130,14 +130,14 @@ class PushoverNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('PUSHOVER_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL], notification_type='note')
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH], notification_type='note')
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('PUSHOVER_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD], notification_type='note')
 
     def test_notify(self, title="Test"):

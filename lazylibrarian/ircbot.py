@@ -21,6 +21,7 @@ import zipfile
 
 import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import path_isfile, syspath, remove
 
@@ -196,7 +197,7 @@ class IRC:
         return lynes
 
 
-def irc_connect(provider, retries=10):
+def irc_connect(provider: ConfigDict, retries=10):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         logger.warn("%s is blocked" % provider['SERVER'])
         return None

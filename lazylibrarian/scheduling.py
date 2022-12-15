@@ -250,7 +250,7 @@ def schedule_job(action='Start', target=None):
                 SCHED.add_interval_job(versioncheck.check_for_updates,
                                        hours=interval, start_date=startdate)
 
-        elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG['GR_SYNC']:
+        elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG.get_bool('GR_SYNC'):
             interval = check_int(lazylibrarian.CONFIG['GOODREADS_INTERVAL'], 0)
             if interval:
                 startdate = nextrun("GRSYNC", interval, action, True)
@@ -258,7 +258,7 @@ def schedule_job(action='Start', target=None):
                                        hours=interval, start_date=startdate)
 
         elif 'clean_cache' in newtarget:
-            days = lazylibrarian.CONFIG['CACHE_AGE']
+            days = lazylibrarian.CONFIG.get_int('CACHE_AGE')
             if days:
                 interval = 8
                 startdate = nextrun("CLEANCACHE", interval, action, True)
@@ -267,7 +267,7 @@ def schedule_job(action='Start', target=None):
 
         elif 'author_update' in newtarget or 'series_update' in newtarget:
             # Try to get all authors/series scanned evenly inside the cache age
-            maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+            maxage = lazylibrarian.CONFIG.get_int('CACHE_AGE')
             if maxage:
                 typ = newtarget.replace('_update', '')
                 if typ == 'author':
@@ -318,7 +318,7 @@ def author_update(restart=True, only_overdue=True):
     # noinspection PyBroadException
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
-        if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        if lazylibrarian.CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
                 msg = "There are no monitored authors"
@@ -352,7 +352,7 @@ def series_update(restart=True, only_overdue=True):
     # noinspection PyBroadException
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
-        if check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+        if lazylibrarian.CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
                 msg = "There are no monitored series"
@@ -467,7 +467,7 @@ def is_overdue(which="author"):
     name = ''
     ident = ''
     days = 0
-    maxage = check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0)
+    maxage = lazylibrarian.CONFIG.get_int('CACHE_AGE')
     if maxage:
         db = database.DBConnection()
         if which == 'author':
@@ -599,7 +599,7 @@ def show_jobs():
         result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no authors needing update")
-    elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+    elif days == lazylibrarian.CONFIG.get_int('CACHE_AGE'):
         result.append("Found %s %s from %s due update" % (overdue, plural(overdue, "author"), total))
     else:
         result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
@@ -609,7 +609,7 @@ def show_jobs():
         result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no series needing update")
-    elif days == check_int(lazylibrarian.CONFIG['CACHE_AGE'], 0):
+    elif days == lazylibrarian.CONFIG.get_int('CACHE_AGE'):
         result.append("Found %s series from %s due update" % (overdue, total))
     else:
         result.append("Found %s series from %s overdue update" % (overdue, total))

@@ -23,6 +23,7 @@ class RotatingLogger(object):
     # Class variables
     __LOGGER_INITIALIZED__ = False
     SHOW_LINE_NO = True
+    DEBUG_LOG_LIMIT = 100
 
     @classmethod
     def is_initialized(cls):
@@ -47,6 +48,7 @@ class RotatingLogger(object):
         lg.setLevel(logging.DEBUG)
 
         self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
+        RotatingLogger.DEBUG_LOG_LIMIT = lazylibrarian.CONFIG.get_int('LOGLIMIT') # We must not access the config when logging, so init it here
 
         if RotatingLogger.__LOGGER_INITIALIZED__:
             return # Do not set handlers again
@@ -66,8 +68,8 @@ class RotatingLogger(object):
 
         filehandler = RotatingFileHandler(
             self.filename,
-            maxBytes=lazylibrarian.CONFIG['LOGSIZE'],
-            backupCount=lazylibrarian.CONFIG['LOGFILES'])
+            maxBytes=lazylibrarian.CONFIG.get_int('LOGSIZE'),
+            backupCount=lazylibrarian.CONFIG.get_int('LOGFILES'))
 
         filehandler.setLevel(logging.DEBUG)
 
@@ -116,7 +118,7 @@ class RotatingLogger(object):
         if level != 'DEBUG' or lazylibrarian.LOGLEVEL >= 2:
             # Limit the size of the "in-memory" log, as gets slow if too long
             lazylibrarian.LOGLIST.insert(0, (formatter.now(), level, threadname, program, method, lineno, message))
-            if len(lazylibrarian.LOGLIST) > formatter.check_int(lazylibrarian.CONFIG['LOGLIMIT'], 500):
+            if len(lazylibrarian.LOGLIST) > RotatingLogger.DEBUG_LOG_LIMIT:
                 del lazylibrarian.LOGLIST[-1]
 
         if RotatingLogger.SHOW_LINE_NO:

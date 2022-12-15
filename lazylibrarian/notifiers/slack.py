@@ -29,7 +29,7 @@ class SlackNotifier:
     @staticmethod
     def _send_slack(message=None, event=None, slack_token=None,
                     method=None, force=False):
-        if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_SLACK') and not force:
             return False
 
         url = lazylibrarian.CONFIG['SLACK_URL']
@@ -82,7 +82,7 @@ class SlackNotifier:
         except Exception as e:
             logger.warn("Slack: could not convert message: %s" % e)
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_SLACK'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_SLACK') and not force:
             return False
 
         return self._send_slack(message, event, slack_token, method, force)
@@ -92,14 +92,14 @@ class SlackNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('SLACK_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
                 self._notify(message=title, event=notifyStrings[NOTIFY_SNATCH])
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('SLACK_NOTIFY_ONDOWNLOAD'):
             self._notify(message=title, event=notifyStrings[NOTIFY_DOWNLOAD])
 
     def test_notify(self, title="Test"):

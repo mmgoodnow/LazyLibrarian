@@ -48,7 +48,7 @@ class AndroidPNNotifier:
         proxies = proxy_list()
         # send the request
         try:
-            timeout = check_int(lazylibrarian.CONFIG['HTTP_TIMEOUT'], 30)
+            timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
             r = requests.get(url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
@@ -97,7 +97,7 @@ class AndroidPNNotifier:
         """
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_ANDROIDPN'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_ANDROIDPN') and not force:
             return False
 
         # fill in omitted parameters
@@ -106,7 +106,7 @@ class AndroidPNNotifier:
         if not url:
             url = lazylibrarian.CONFIG['ANDROIDPN_URL']
         if not broadcast:
-            broadcast = lazylibrarian.CONFIG['ANDROIDPN_BROADCAST']
+            broadcast = lazylibrarian.CONFIG.get_bool('ANDROIDPN_BROADCAST')
             if broadcast:
                 broadcast = 'Y'
             else:
@@ -125,14 +125,14 @@ class AndroidPNNotifier:
     #
 
     def notify_snatch(self, ep_name, fail=False):
-        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('ANDROIDPN_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(notifyStrings[NOTIFY_FAIL], ep_name)
             else:
                 self._notify(notifyStrings[NOTIFY_SNATCH], ep_name)
 
     def notify_download(self, ep_name):
-        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('ANDROIDPN_NOTIFY_ONDOWNLOAD'):
             self._notify(notifyStrings[NOTIFY_DOWNLOAD], ep_name)
 
     def test_notify(self):

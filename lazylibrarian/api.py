@@ -236,7 +236,7 @@ class Api(object):
 
     def check_params(self, **kwargs):
 
-        if not lazylibrarian.CONFIG['API_ENABLED']:
+        if not lazylibrarian.CONFIG.get_bool('API_ENABLED'):
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
             return
         if not lazylibrarian.CONFIG['API_KEY']:
@@ -491,7 +491,7 @@ class Api(object):
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
-                lazylibrarian.config.config_write(section)
+                lazylibrarian.CONFIG.save_config_and_backup_old(section=section)
                 self.data = {'Success': True, 'Data': 'Deleted %s' % name,
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 return
@@ -526,7 +526,7 @@ class Api(object):
                 if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
                     itemname = "%s_%s" % (name, arg)
                     if itemname in lazylibrarian.CONFIG:
-                        lazylibrarian.CONFIG[itemname] = kwargs[arg]
+                        lazylibrarian.CONFIG.set_str(itemname, kwargs[arg])
                         hit += arg
                 elif arg == 'ENABLED':
                     hit.append(arg)
@@ -534,10 +534,10 @@ class Api(object):
                         val = True
                     else:
                         val = False
-                    lazylibrarian.CONFIG[name] = val
+                    lazylibrarian.CONFIG.set_bool(name, val)
                 else:
                     miss.append(arg)
-            lazylibrarian.config.config_write(name)
+            lazylibrarian.CONFIG.save_config_and_backup_old(section=name)
             self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (name, ','.join(hit)),
                          'Error':  {'Code': 200, 'Message': 'OK'}}
             if miss:
@@ -588,7 +588,7 @@ class Api(object):
                         providers[-1]['AUDIOCAT'] = audiocat
                     else:
                         miss.append(arg)
-                lazylibrarian.config.config_write(item['NAME'])
+                lazylibrarian.CONFIG.save_config_and_backup_old(section=item['NAME'])
                 self.data = {'Success': True, 'Data': 'Changed %s [%s]' % (item['NAME'], ','.join(hit)),
                              'Error':  {'Code': 200, 'Message': 'OK'}}
                 if miss:
@@ -683,7 +683,7 @@ class Api(object):
                 providers[-1][arg.upper()] = kwargs[arg]
             else:
                 miss.append(arg)
-        lazylibrarian.config.config_write(section)
+        lazylibrarian.CONFIG.save_config_and_backup_old(section=section)
         self.data = {'Success': True, 'Data': 'Added %s [%s]' % (section, ','.join(hit)),
                      'Error':  {'Code': 200, 'Message': 'OK'}}
         if miss:

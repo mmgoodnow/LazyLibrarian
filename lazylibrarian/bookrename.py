@@ -480,7 +480,7 @@ def book_rename(bookid):
         return '', msg
 
     r = os.path.dirname(f)
-    if not lazylibrarian.CONFIG['CALIBRE_RENAME']:
+    if not lazylibrarian.CONFIG.get_bool('CALIBRE_RENAME'):
         try:
             # noinspection PyTypeChecker
             calibreid = r.rsplit('(', 1)[1].split(')')[0]

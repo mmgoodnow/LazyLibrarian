@@ -14,7 +14,7 @@ class TelegramNotifier:
     def _notify(telegram_token=None, telegram_userid=None, event=None, message=None, force=False):
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG['USE_TELEGRAM'] and not force:
+        if not lazylibrarian.CONFIG.get_bool('USE_TELEGRAM') and not force:
             return False
 
         telegram_api = "https://api.telegram.org/bot%s/%s"
@@ -52,7 +52,7 @@ class TelegramNotifier:
         #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG['TELEGRAM_ONSNATCH']:
+        if lazylibrarian.CONFIG.get_bool('TELEGRAM_ONSNATCH'):
             if fail:
                 self._notify(telegram_token=None, telegram_userid=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
@@ -60,7 +60,7 @@ class TelegramNotifier:
                              message=title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG['TELEGRAM_ONDOWNLOAD']:
+        if lazylibrarian.CONFIG.get_bool('TELEGRAM_ONDOWNLOAD'):
             self._notify(telegram_token=None, telegram_userid=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal

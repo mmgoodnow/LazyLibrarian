@@ -24,7 +24,7 @@ import threading
 import time
 from shutil import rmtree
 
-from lazylibrarian import logger, database, notifiers # Must keep notifiers here
+from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
 from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
@@ -46,8 +46,7 @@ CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGLEVEL = 1
 LOGINUSER = None
-CONFIG = {} # The configuration used, read from config.ini
-CFG = None # A ConfigParser used to read the .ini file
+CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 DBFILE = None
 COMMIT_LIST = ''
 SHOWLOGOUT = 1
@@ -91,13 +90,13 @@ IRC_CACHE_EXPIRY = 2 * 24 * 3600
 GB_CALLS = 0
 MONTHNAMES = []
 CACHEDIR = ''
-NEWZNAB_PROV = []
-TORZNAB_PROV = []
+#NEWZNAB_PROV = []
+#TORZNAB_PROV = []
 NABAPICOUNT = ''
-RSS_PROV = []
-IRC_PROV = []
-GEN_PROV = []
-APPRISE_PROV = []
+#RSS_PROV = []
+#IRC_PROV = []
+#GEN_PROV = []
+#APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
 USER_BLOCKLIST = []
@@ -296,39 +295,41 @@ def bok_dlcount():
         return len(grabs), grabs[0]['completed']
     return 0, 0
 
+from typing import Optional
+
+def count_in_use(provider: str, wishlist: Optional[bool]=None, config: config2.LLConfigHandler=CONFIG) -> int:
+    count = 0
+    if provider in config.arrays:
+        array = config.get_array(provider)
+        if array:
+            for inx in range(0, len(array)):
+                host = array.primary_host(inx)
+                ok = array.is_in_use(inx) and not provider_is_blocked(host)
+                if wishlist != None:
+                    ok = ok and wishlist_type(host) == wishlist
+                if ok:
+                    count += 1
+    return count
 
 def use_rss():
     """
     Returns number of RSS providers that are not wishlists, and are not blocked
     """
-    count = 0
-    for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and not wishlist_type(provider['HOST']) and not \
-                provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
+    return count_in_use('RSS', wishlist=False)
 
 
 def use_irc():
     """
     Returns number of IRC active providers that are not blocked
     """
-    count = 0
-    for provider in IRC_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['SERVER']):
-            count += 1
-    return count
+    return count_in_use('IRC')
 
 
 def use_wishlist():
     """
     Returns number of RSS providers that are wishlists and not blocked
     """
-    count = 0
-    for provider in RSS_PROV:
-        if bool(provider['ENABLED']) and wishlist_type(provider['HOST']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
+    return count_in_use('RSS', wishlist=True)
 
 
 def use_nzb():
@@ -336,14 +337,7 @@ def use_nzb():
     Returns number of nzb active providers that are not blocked
     (Includes Newznab and Torznab providers)
     """
-    count = 0
-    for provider in NEWZNAB_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    for provider in TORZNAB_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    return count
+    return count_in_use('NEWZNAB') + count_in_use('TORZNAB')
 
 
 def use_tor():
@@ -352,8 +346,8 @@ def use_tor():
     """
     count = 0
     for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-        if bool(CONFIG[provider]) and not provider_is_blocked(provider):
-            count += 1
+        if CONFIG.get_bool(provider) and not provider_is_blocked(provider):
+             count += 1
     return count
 
 
@@ -361,14 +355,11 @@ def use_direct():
     """
     Returns number of enabled direct book providers
     """
-    count = 0
-    for provider in GEN_PROV:
-        if bool(provider['ENABLED']) and not provider_is_blocked(provider['HOST']):
-            count += 1
-    if bool(CONFIG['BOK']) and not provider_is_blocked('BOK'):
-        count += 1
-    if bool(CONFIG['BFI']) and not provider_is_blocked('BFI'):
-        count += 1
+    count = count_in_use('GEN')
+    if CONFIG.get_bool('BOK') and not provider_is_blocked('BOK'):
+         count += 1
+    if CONFIG.get_bool('BFI') and not provider_is_blocked('BFI'):
+         count += 1
     return count
 
 

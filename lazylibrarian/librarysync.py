@@ -398,9 +398,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         digits = sum(c.isdigit() for c in difference)
         if digits == len(difference):
             # make sure we are below match threshold
-            ratio = lazylibrarian.CONFIG['NAME_RATIO'] - 1
-            partial = lazylibrarian.CONFIG['NAME_PARTIAL'] - 1
-            partname = lazylibrarian.CONFIG['NAME_PARTNAME'] - 1
+            ratio = lazylibrarian.CONFIG.get_int('NAME_RATIO') - 1
+            partial = lazylibrarian.CONFIG.get_int('NAME_PARTIAL') - 1
+            partname = lazylibrarian.CONFIG.get_int('NAME_PARTNAME') - 1
         else:
             ratio -= abs(words)
             partial -= abs(words)
@@ -453,13 +453,13 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             prefix_name = a_book['BookName']
             prefix_id = a_book['BookID']
 
-    if best_ratio >= lazylibrarian.CONFIG['NAME_RATIO']:
+    if best_ratio >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
         logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
         return ratio_id, best_type
-    if best_partial >= lazylibrarian.CONFIG['NAME_PARTIAL']:
+    if best_partial >= lazylibrarian.CONFIG.get_int('NAME_PARTIAL'):
         logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
         return partial_id, partial_type
-    if best_partname >= lazylibrarian.CONFIG['NAME_PARTNAME']:
+    if best_partname >= lazylibrarian.CONFIG.get_int('NAME_PARTNAME'):
         logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
         return partname_id, partname_type
 
@@ -654,7 +654,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini
                 # in case user keeps multiple different books in the same subdirectory
-                if library == 'eBook' and lazylibrarian.CONFIG['IMP_SINGLEBOOK'] and \
+                if library == 'eBook' and lazylibrarian.CONFIG.get_bool('IMP_SINGLEBOOK') and \
                         (subdirectory in processed_subdirectories):
                     if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
@@ -996,8 +996,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                                     book_fuzz = fuzz.ratio(booktitle, book)
                                                     author_fuzz = fuzz.ratio(bookauthor, author)
-                                                    if book_fuzz >= lazylibrarian.CONFIG['NAME_RATIO'] and \
-                                                            author_fuzz >= lazylibrarian.CONFIG['NAME_RATIO']:
+                                                    if book_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO') and \
+                                                            author_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                                                         rescan_hits += 1
                                                         try:
                                                             bookid = item.find('./best_book/id').text
@@ -1168,7 +1168,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             db.action('UPDATE books set BookFile=? where BookID=?',
                                                       (book_filename, bookid))
 
-                                            if lazylibrarian.CONFIG['IMP_RENAME']:
+                                            if lazylibrarian.CONFIG.get_bool('IMP_RENAME'):
                                                 book_filename, _ = book_rename(bookid)
 
                                             # location may have changed on rename
@@ -1230,7 +1230,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                       (book_filename, bookid))
 
                                             if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                                                if lazylibrarian.CONFIG['IMP_RENAME']:
+                                                if lazylibrarian.CONFIG.get_bool('IMP_RENAME'):
                                                     book_filename = audio_rename(bookid, rename=True, playlist=True)
                                                     preprocess_audio(os.path.dirname(book_filename), bookid,
                                                                      author, book, tag=True)
@@ -1268,7 +1268,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.warn(
                                             "Failed to match audiobook [%s] by [%s] in database" % (book, author))
                             else:
-                                if not warned_no_new_authors and not lazylibrarian.CONFIG['ADD_AUTHOR']:
+                                if not warned_no_new_authors and not lazylibrarian.CONFIG.get_bool('ADD_AUTHOR'):
                                     logger.warn("Add authors to database is disabled")
                                     warned_no_new_authors = True
 

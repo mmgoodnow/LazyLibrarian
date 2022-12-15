@@ -117,9 +117,9 @@ class GrAuth:
         access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
         if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
             logger.debug("oauth2: %s" % str(access_token))
-        lazylibrarian.CONFIG['GR_OAUTH_TOKEN'] = access_token['oauth_token']
-        lazylibrarian.CONFIG['GR_OAUTH_SECRET'] = access_token['oauth_token_secret']
-        lazylibrarian.config.config_write('API')
+        lazylibrarian.CONFIG.set_str('GR_OAUTH_TOKEN', access_token['oauth_token'])
+        lazylibrarian.CONFIG.set_str('GR_OAUTH_SECRET', access_token['oauth_token_secret'])
+        lazylibrarian.CONFIG.save_config_and_backup_old(section='API')
         return "Authorisation complete"
 
     def get_user_id(self):
@@ -478,7 +478,7 @@ def sync_to_gr():
         thread_name('GRSync')
         db = database.DBConnection()
         db.upsert("jobs", {"Start": time.time()}, {"Name": "GRSYNC"})
-        if lazylibrarian.CONFIG['GR_SYNCUSER']:
+        if lazylibrarian.CONFIG.get_bool('GR_SYNCUSER'):
             user = db.match("SELECT * from users WHERE UserID=?", (lazylibrarian.CONFIG['GR_USER'],))
 
             if not user:
@@ -718,7 +718,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         logger.info("There are %s %s %ss, %s on goodreads %s shelf" %
                     (len(ll_list), dstatus, library, len(gr_shelf), shelf))
 
-        if reset and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+        if reset and not lazylibrarian.CONFIG.get_bool('GR_SYNCREADONLY'):
             logger.info("Removing old goodreads shelf contents")
             for book in gr_shelf:
                 try:
@@ -766,7 +766,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         logger.info("%s missing from lazylibrarian %s" % (len(removed_from_ll), shelf))
         if len(removed_from_ll):
             logger.debug(', '.join(removed_from_ll))
-        if not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+        if not lazylibrarian.CONFIG.get_bool('GR_SYNCREADONLY'):
             for book in removed_from_ll:
                 # first the deletions since last sync...
                 try:
@@ -845,7 +845,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
         logger.info("%s new in lazylibrarian %s" % (len(added_to_ll), shelf))
         if len(added_to_ll):
             logger.debug(', '.join(added_to_ll))
-        if not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+        if not lazylibrarian.CONFIG.get_bool('GR_SYNCREADONLY'):
             for book in added_to_ll:
                 try:
                     res, content = ga.book_to_list(book, shelf, action='add')
@@ -905,8 +905,8 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     elif status == 'Wanted':
                         # if in "wanted" and already marked "Open/Have", optionally delete from "wanted"
                         # (depending on user prefs, to-read and wanted might not be the same thing)
-                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['Status'] in ['Open', 'Have'] \
-                                and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+                        if lazylibrarian.CONFIG.get_bool('GR_UNIQUE') and res['Status'] in ['Open', 'Have'] \
+                                and not lazylibrarian.CONFIG.get_bool('GR_SYNCREADONLY'):
                             try:
                                 r, content = ga.book_to_list(book, shelf, action='remove')
                             except Exception as e:
@@ -938,8 +938,8 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     elif status == 'Wanted':
                         # if in "wanted" and already marked "Open/Have", optionally delete from "wanted"
                         # (depending on user prefs, to-read and wanted might not be the same thing)
-                        if lazylibrarian.CONFIG['GR_UNIQUE'] and res['AudioStatus'] in ['Open', 'Have'] \
-                                and not lazylibrarian.CONFIG['GR_SYNCREADONLY']:
+                        if lazylibrarian.CONFIG.get_bool('GR_UNIQUE') and res['AudioStatus'] in ['Open', 'Have'] \
+                                and not lazylibrarian.CONFIG.get_bool('GR_SYNCREADONLY'):
                             try:
                                 r, content = ga.book_to_list(book, shelf, action='remove')
                             except Exception as e:

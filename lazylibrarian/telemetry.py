@@ -1,4 +1,4 @@
-#  This file is part of Lazylibrarian.
+#  self file is part of Lazylibrarian.
 
 #  Lazylibrarian is free software':'you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@ import os
 import sys
 import requests
 from collections import defaultdict
-from lazylibrarian import config, common, logger
+from lazylibrarian import config2, common, logger
 
 class LazyTelemetry(object):
     """Handles basic telemetry gathering for LazyLibrarian, helping
@@ -55,10 +55,10 @@ class LazyTelemetry(object):
         return cls._instance
 
     def ensure_server_id(self, _config):
-        """ Get unique, anonymous ID for this installation """
+        """ Get unique, anonymous ID for self installation """
         server = self._data["server"]
         if "id" not in server:
-            id = _config['SERVER_ID'] if 'SERVER_ID' in _config else None
+            id = _config['SERVER_ID']
             if not id:
                 import uuid
                 id = uuid.uuid4().hex
@@ -82,7 +82,7 @@ class LazyTelemetry(object):
     def get_usage_telemetry(self):
         return self._data["usage"]
 
-    def set_install_data(self, _config, testing=False):
+    def set_install_data(self, _config: config2.LLConfigHandler, testing=False):
         """ Update telemetry with data bout the installation """
         self.ensure_server_id(_config) # Make sure it has an ID
         server = self.get_server_telemetry()
@@ -98,7 +98,7 @@ class LazyTelemetry(object):
             server["uptime_seconds"] = round(up.total_seconds())
             server["python_ver"] = str(sys.version)
 
-    def set_config_data(self, _config):
+    def set_config_data(self, _config: config2.LLConfigHandler):
         import lazylibrarian # To get access to the _PROV objects
 
         cfg_telemetry = self.get_config_telemetry()
@@ -124,7 +124,8 @@ class LazyTelemetry(object):
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
             'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL',
             ]:
-            if _config[key]:
+            item = _config.get_item(key)
+            if item and item.is_enabled():
                 cfg_telemetry['switches'] += f"{key} "
 
         # Record the actual config of these features
@@ -132,27 +133,18 @@ class LazyTelemetry(object):
             cfg_telemetry[key] = _config[key]
 
         # Record whether these are configured differently from the default
-        default = {}
         for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG',
             'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
-            _, _, default = config.CONFIG_DEFINITIONS[key]
-            if _config[key] != default:
+            item = _config.get_item(key)
+            if item and not item.is_default():
                 cfg_telemetry["params"] += f"{key} "
 
         # Count how many of each provider are configured
-        for provider in [(lazylibrarian.NEWZNAB_PROV, "NEWZNAB"),
-            (lazylibrarian.TORZNAB_PROV, "TORZNAB"),
-            (lazylibrarian.RSS_PROV, "RSS"),
-            (lazylibrarian.IRC_PROV, "IRC"),
-            (lazylibrarian.RSS_PROV, "RSS"),
-            (lazylibrarian.GEN_PROV, "GEN"),
-            ]:
-            count = sum([1 for prov in provider[0] if prov["ENABLED"] and prov["HOST"]])
-            cfg_telemetry[provider[1]] = count
+        for provider in ["NEWZNAB", "TORZNAB", "RSS", "IRC", "GEN"]:
+            cfg_telemetry[provider] = lazylibrarian.count_in_use(provider, config=_config)
 
         # Count how many Apprise notifications are configured
-        count = sum([1 for prov in lazylibrarian.APPRISE_PROV if prov["URL"]])
-        cfg_telemetry["APPRISE"] = count
+        cfg_telemetry["APPRISE"] = lazylibrarian.count_in_use('APPRISE', config=_config)
 
 
     def record_usage_data(self, counter):
@@ -163,16 +155,16 @@ class LazyTelemetry(object):
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
 
-    def construct_data_string(this, components=None):
+    def construct_data_string(self, components=None):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
         if not components or 'server' in components:
-            data.append(f"server={json.dumps(obj=this.get_server_telemetry(),separators=(',', ':'))}")
+            data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
         if not components or 'config' in components:
-            data.append(f"config={json.dumps(obj=this.get_config_telemetry(),separators=(',', ':'))}")
+            data.append(f"config={json.dumps(obj=self.get_config_telemetry(),separators=(',', ':'))}")
         if not components or 'usage' in components:
-            data.append(f"usage={json.dumps(obj=this.get_usage_telemetry(),separators=(',', ':'))}")
+            data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(),separators=(',', ':'))}")
 
         datastr = '&'.join(data)
         return datastr

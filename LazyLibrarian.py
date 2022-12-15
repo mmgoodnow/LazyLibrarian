@@ -44,7 +44,7 @@ if opt_out_of_certificate_verification:
 if sys.version[0] != '3':
     sys.stderr.write("This version of lazylibrarian requires python 3\n")
     exit(0)
-    
+
 def main():
    # rename this thread
     thread_name("MAIN")
@@ -66,21 +66,21 @@ def main():
     else:
         logger.warn("Looking for Apprise library: %s" % lazylibrarian.APPRISE)
         lazylibrarian.APPRISE = ''
-        lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] = False
+        lazylibrarian.CONFIG.set_bool('HIDE_OLD_NOTIFIERS', False)
 
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
 
     # Try to start the server.
     if options.port:
-        lazylibrarian.CONFIG['HTTP_PORT'] = options.port
+        lazylibrarian.CONFIG.set_int('HTTP_PORT', options.port)
         logger.info('Starting LazyLibrarian on forced port: %s, webroot "%s"' %
                     (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
     else:
-        lazylibrarian.CONFIG['HTTP_PORT'] = int(lazylibrarian.CONFIG['HTTP_PORT'])
         logger.info('Starting LazyLibrarian on port: %s, webroot "%s"' %
                     (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
 
+    # CFG2DO p1 Is this the right way to initialize bools?
     webStart.initialize({
         'http_port': lazylibrarian.CONFIG['HTTP_PORT'],
         'http_host': lazylibrarian.CONFIG['HTTP_HOST'],
@@ -104,7 +104,7 @@ def main():
     else:
         lazylibrarian.LOGINUSER = None
 
-    if lazylibrarian.CONFIG['LAUNCH_BROWSER'] and not options.nolaunch:
+    if lazylibrarian.CONFIG.get_bool('LAUNCH_BROWSER') and not options.nolaunch:
         startup.launch_browser(lazylibrarian.CONFIG['HTTP_HOST'],
                                      lazylibrarian.CONFIG['HTTP_PORT'],
                                      lazylibrarian.CONFIG['HTTP_ROOT'])

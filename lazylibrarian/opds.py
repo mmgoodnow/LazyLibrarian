@@ -49,7 +49,7 @@ class OPDS(object):
         self.user_agent = ''
         self.reader = ''
 
-        self.PAGE_SIZE = check_int(lazylibrarian.CONFIG['OPDS_PAGE'], 0)
+        self.PAGE_SIZE = lazylibrarian.CONFIG.get_int('OPDS_PAGE')
 
         if lazylibrarian.CONFIG['HTTP_ROOT'] is None:
             self.opdsroot = '/opds'
@@ -70,7 +70,7 @@ class OPDS(object):
         if 'cmd' not in kwargs:
             self.cmd = 'root'
 
-        if not lazylibrarian.CONFIG['OPDS_ENABLED']:
+        if not lazylibrarian.CONFIG.get_bool('OPDS_ENABLED'):
             self.data = self._error_with_message('OPDS not enabled')
             return
 
@@ -518,7 +518,7 @@ class OPDS(object):
                          'author': escape("%s" % author),
                          'type': mimetype}
 
-                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                     entry['image'] = self.searchroot + '/' + book['BookImg']
                     entry['thumbnail'] = entry['image']
                     entry['content'] = escape('%s %s' % (book['BookName'], book['BookDesc']))
@@ -608,7 +608,7 @@ class OPDS(object):
                     'rel': 'subsection',
                 }
 
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 entry['thumbnail'] = '/' + author['AuthorImg']
             entries.append(entry)
 
@@ -682,7 +682,7 @@ class OPDS(object):
                     'rel': 'subsection',
                 }
 
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 entry['thumbnail'] = '/' + author['AuthorImg']
             entries.append(entry)
 
@@ -751,7 +751,7 @@ class OPDS(object):
                     'rel': 'subsection',
                 }
 
-                # if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                # if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 #     res = cache_img('magazine', md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
                 #     entry['thumbnail'] = '/' + res[0]
                 entries.append(entry)
@@ -821,7 +821,7 @@ class OPDS(object):
                     'rel': 'subsection',
                 }
 
-                # if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                # if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 #     res = cache_img('magazine', md5_utf8(mag['LatestCover']), mag['LatestCover'], refresh=True)
                 #     entry['thumbnail'] = '/' + res[0]
                 entries.append(entry)
@@ -957,7 +957,7 @@ class OPDS(object):
                      'kind': 'acquisition',
                      'rel': 'file',
                      'type': mime_type(issue['IssueFile'])}
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(issue['IssueFile'])[0]
                 res = cache_img('comic', issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
@@ -1029,7 +1029,7 @@ class OPDS(object):
                      'kind': 'acquisition',
                      'rel': 'file',
                      'type': mime_type(issue['IssueFile'])}
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(issue['IssueFile'])[0]
                 res = cache_img('magazine', issue['IssueID'], fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
@@ -1118,7 +1118,7 @@ class OPDS(object):
                          'kind': 'acquisition',
                          'rel': rel,
                          'type': mimetype}
-                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                     entry['image'] = self.searchroot + '/' + book['BookImg']
                     entry['thumbnail'] = entry['image']
                     entry['content'] = escape('%s - %s' % (book['BookName'], book['BookDesc']))
@@ -1204,7 +1204,7 @@ class OPDS(object):
                          'kind': 'acquisition',
                          'rel': rel,
                          'type': mimetype}
-                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                     entry['image'] = self.searchroot + '/' + book['BookImg']
                     entry['thumbnail'] = entry['image']
                     entry['content'] = escape('%s - %s' % (book['BookName'], book['BookDesc']))
@@ -1298,7 +1298,7 @@ class OPDS(object):
                          'author': escape("%s" % author),
                          'type': mimetype}
 
-                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                     entry['image'] = self.searchroot + '/' + book['BookImg']
                     entry['thumbnail'] = entry['image']
                     entry['content'] = escape('%s (%s %s) %s' % (book['BookName'], series['SeriesName'],
@@ -1380,7 +1380,7 @@ class OPDS(object):
                      'rel': 'file',
                      'author': escape(title),
                      'type': mime_type(mag['IssueFile'])}
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 entry['image'] = self.searchroot + '/' + mag['Cover']
                 entry['thumbnail'] = entry['image']
             entries.append(entry)
@@ -1446,7 +1446,7 @@ class OPDS(object):
                      'rel': 'file',
                      'author': escape(title),
                      'type': mime_type(mag['IssueFile'])}
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 fname = os.path.splitext(mag['IssueFile'])[0]
                 res = cache_img('comic', issueid, fname + '.jpg')
                 entry['image'] = self.searchroot + '/' + res[0]
@@ -1576,7 +1576,7 @@ class OPDS(object):
                          'rel': rel,
                          'type': mimetype}
 
-                if lazylibrarian.CONFIG['OPDS_METAINFO']:
+                if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                     auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
                     if auth:
                         author = make_unicode(auth['AuthorName'])
@@ -1670,7 +1670,7 @@ class OPDS(object):
                      'kind': 'acquisition',
                      'rel': 'file',
                      'type': mime_type("we_send.zip")}
-            if lazylibrarian.CONFIG['OPDS_METAINFO']:
+            if lazylibrarian.CONFIG.get_bool('OPDS_METAINFO'):
                 auth = db.match("SELECT AuthorName from authors WHERE AuthorID=?", (book['AuthorID'],))
                 if auth:
                     author = make_unicode(auth['AuthorName'])
