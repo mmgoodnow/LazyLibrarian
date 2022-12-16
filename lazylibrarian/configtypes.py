@@ -83,6 +83,8 @@ class ConfigItem():
         if value != self.value:
             # Don't trigger a change if it's the same
             return self.set_str(value)
+        else:
+            return False
 
     def get_list(self) -> List[str]:
         return [self.get_str()]
@@ -116,6 +118,9 @@ class ConfigItem():
     def get_schedule_name(self) -> Optional[str]:
         return None
 
+    def get_read_count(self) -> int:
+        return self.accesses[Access.READ_OK]
+
     def _on_read(self, ok: bool) -> bool:
         if ok:
             self.accesses[Access.READ_OK] += 1
@@ -134,9 +139,9 @@ class ConfigItem():
             elif self.value != value:
                 # Don't count a write if the value does not change
                 self.accesses[Access.WRITE_OK] += 1
+                if lazylibrarian.LOGLEVEL & lazylibrarian.log_configwrite:
+                    logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configwrite:
-                logger.debug(f"Set config[{self.key}]={value}")
             return True
         else:
             self.accesses[Access.WRITE_ERR] += 1
@@ -293,13 +298,24 @@ class ConfigBool(ConfigInt):
     def set_str(self, value: str) -> bool:
         return self._on_type_mismatch(value)
 
+    def set_from_ui(self, value: bool) -> bool:
+        if bool(value) != self.value:
+            # Don't trigger a change if it's the same
+            return self.set_bool(bool(value))
+        else:
+            return False
+
     def get_str(self) -> str:
         """ For a Bool, return '' for False, 'True' for True """
         self._on_read(True)
         if self.value:
             return '1'
         else:
-            return '' # Evaluates as False
+            return '' # Evaluates as False in if statements
+
+    def get_save_str(self) -> str:
+        self._on_read(True)
+        return str(bool(self.value))
 
     def is_enabled(self) -> bool:
         return self.get_bool()

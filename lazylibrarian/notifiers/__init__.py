@@ -31,7 +31,6 @@ from . import telegram
 from . import apprise_notify
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.common import set_redactlist
 
 # online
 twitter_notifier = tweet.TwitterNotifier()
@@ -79,7 +78,6 @@ def custom_notify_snatch(bookid, fail=False):
 
 
 def notify_download(title, bookid=None):
-    set_redactlist()
     for item in lazylibrarian.REDACTLIST:
         title = title.replace(item, '******')
     try:
@@ -94,7 +92,6 @@ def notify_download(title, bookid=None):
 
 
 def notify_snatch(title, fail=False):
-    set_redactlist()
     for item in lazylibrarian.REDACTLIST:
         title = title.replace(item, '******')
     try:

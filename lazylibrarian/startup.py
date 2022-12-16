@@ -154,28 +154,21 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
 
     if options.update:
-        # CFG2DO: Fix emergency recovery mode
-        # lazylibrarian.SIGNAL = 'update'
-        # # This is the "emergency recovery" update in case lazylibrarian won't start.
-        # # Set up some dummy values for the update as we have not read the config file yet
-        # lazylibrarian.CONFIG['GIT_PROGRAM'] = ''
-        # lazylibrarian.CONFIG['GIT_USER'] = 'lazylibrarian'
-        # lazylibrarian.CONFIG['GIT_REPO'] = 'lazylibrarian'
-        # lazylibrarian.CONFIG['GIT_HOST'] = 'gitlab'
-        # lazylibrarian.CONFIG['USER_AGENT'] = 'lazylibrarian'
-        # lazylibrarian.CONFIG['HTTP_TIMEOUT'] = 30
-        # lazylibrarian.CONFIG['PROXY_HOST'] = ''
-        # lazylibrarian.CONFIG['SSL_CERTS'] = ''
-        # lazylibrarian.CONFIG['SSL_VERIFY'] = False
-        # if lazylibrarian.CACHEDIR == '':
-        #     lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
-        # lazylibrarian.CONFIG['LOGLIMIT'] = 2000
-        # lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
-        # if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
-        #     try:
-        #         os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
-        #     except OSError:
-        #         raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
+        lazylibrarian.SIGNAL = 'update'
+        # This is the "emergency recovery" update in case lazylibrarian won't start.
+        # Set up some dummy values for the update as we have not read the config file yet
+        lazylibrarian.CONFIG.reset_to_default([
+            'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
+            'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
+        ])
+        if lazylibrarian.CACHEDIR == '':
+            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
+        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+        if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
+            try:
+                os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
+            except OSError:
+                raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
 
         versioncheck.get_install_type()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
@@ -260,7 +253,6 @@ def init_config():
 
 def init_caches():
     # override detected encoding if required
-    # CFG2DO Consider dropping global SYS_ENCODING
     if lazylibrarian.CONFIG['SYS_ENCODING']:
         lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
 

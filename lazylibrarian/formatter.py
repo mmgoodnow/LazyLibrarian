@@ -864,7 +864,6 @@ def disp_name(provider):
     """
     from lazylibrarian import configdefs
     provname = ''
-    # CFG2DO Test that disp_name works as expected
     for name, definitions in configdefs.ARRAY_DEFS.items():
         key = definitions[0] # Primary key for this array type
         array = lazylibrarian.CONFIG.providers(name)

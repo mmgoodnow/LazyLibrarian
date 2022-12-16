@@ -18,7 +18,7 @@ from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigI
     ConfigURL, Email, CSVstr, ValidStrTypes, Access, CaseInsensitiveDict, ConfigDict
 from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
-from lazylibrarian.formatter import thread_name
+from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.common import syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
 
@@ -144,6 +144,7 @@ class LLConfigHandler():
                     self._load_array_section(section, parser)
                 else:
                     self._load_section(section, parser, self.config)
+            set_redactlist()
         else:
             self.configfilename = ''
         self.ensure_arrays_have_empty_item()
@@ -390,6 +391,16 @@ class LLConfigHandler():
                     value = kwargs.get(setting)
                     if value != None:
                         item.set_from_ui(value)
+                    elif isinstance(item, ConfigBool): # Bools that are not listed are False
+                        item.set_from_ui(False)
+
+    def reset_to_default(self, keys: List[str]):
+        for key in keys:
+            item = self.get_item(key)
+            if item:
+                item.reset_to_default()
+            else:
+                logger.warn(f'Cannot reset value of {key} as it does not exist')
 
     def save_config(self, filename: str, save_all: bool=False):
         """
@@ -562,8 +573,43 @@ class LLConfigHandler():
             db.action('DELETE from series where total=1')
             db.close()
 
+        # Update the redact list since things may have changed
+        set_redactlist()
+
         # Clear all access counters so we can tell if something has changed later
         self.clear_access_counters()
+
+def set_redactlist():
+    """ Update lazylibrarian.REDACTLIST after config changes """
+
+    lazylibrarian.REDACTLIST = []
+    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
+    if lazylibrarian.CONFIG.get_bool('HOSTREDACT'):
+        wordlist.append('_HOST')
+    for key in lazylibrarian.CONFIG.config.keys():
+        if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
+            for word in wordlist:
+                if word in key and lazylibrarian.CONFIG[key]:
+                    lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
+    for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
+        if lazylibrarian.CONFIG[key]:
+            lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
+
+    for name, definitions in ARRAY_DEFS.items():
+        key = definitions[0] # Primary key for this array type
+        array = lazylibrarian.CONFIG.get_array(name)
+        if array:
+            for inx, config in array._configs.items():
+                # CFG2DO p3 Make this a bit more elegant
+                if config[key].get_str():
+                    lazylibrarian.REDACTLIST.append(f"{config[key].get_str()}")
+                if 'API' in config:
+                    if config['API'].get_str():
+                        lazylibrarian.REDACTLIST.append(f"{config['API'].get_str()}")
+
+    logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
+                                            plural(len(lazylibrarian.REDACTLIST), "entry")))
+
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """

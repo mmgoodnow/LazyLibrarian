@@ -1002,38 +1002,6 @@ def log_header(online=True):
 
     return header
 
-def set_redactlist():
-    if len(lazylibrarian.REDACTLIST):
-        return
-
-    lazylibrarian.REDACTLIST = []
-    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
-    if lazylibrarian.CONFIG.get_bool('HOSTREDACT'):
-        wordlist.append('_HOST')
-    for key in lazylibrarian.CONFIG.config.keys():
-        if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
-            for word in wordlist:
-                if word in key and lazylibrarian.CONFIG[key]:
-                    lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-    for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
-        if lazylibrarian.CONFIG[key]:
-            lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-
-    for name, definitions in configdefs.ARRAY_DEFS.items():
-        key = definitions[0] # Primary key for this array type
-        array = lazylibrarian.CONFIG.get_array(name)
-        if array:
-            for inx, config in array._configs.items():
-                # CFG2DO p3 Make this a bit more elegant
-                if config[key].get_str():
-                    lazylibrarian.REDACTLIST.append(f"{config[key].get_str()}")
-                if 'API' in config:
-                    if config['API'].get_str():
-                        lazylibrarian.REDACTLIST.append(f"{config['API'].get_str()}")
-
-    logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
-                                            plural(len(lazylibrarian.REDACTLIST), "entry")))
-
 
 def save_log():
     if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
@@ -1041,7 +1009,6 @@ def save_log():
 
     basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
     outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
-    set_redactlist()
 
     out = open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
 
@@ -1099,6 +1066,7 @@ def save_log():
     for line in lines:
         logfile.write(line)
         linecount += 1
+    logfile.close()
     remove(outfile + '.tmp')
     logger.debug("Redacted %s passwords/apikeys" % redacts)
     logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))

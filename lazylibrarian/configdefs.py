@@ -21,7 +21,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'SHOW_TOR_PROV', 1),
     ConfigBool('General', 'SHOW_RSS_PROV', 1),
     ConfigBool('General', 'SHOW_IRC_PROV', 1),
-    ConfigBool('General', 'SHOW_GEN_PROV', 1),
+    ConfigBool('General', 'SHOW_GEN_PROV', False), # Unused
     ConfigBool('General', 'SHOW_DIRECT_PROV', 1),
     ConfigBool('General', 'MULTI_SOURCE', 0),
     ConfigBool('General', 'USER_ACCOUNTS', 0),

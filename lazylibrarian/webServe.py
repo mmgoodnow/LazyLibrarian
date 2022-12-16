@@ -30,8 +30,8 @@ from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import lazylibrarian
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
-    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync, \
-    configdefs
+    qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
+from lazylibrarian.configtypes import ConfigBool
 from lazylibrarian.auth import AuthController
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.bookwork import set_series, delete_empty_series, add_series_members, NEW_WHATWORK
@@ -42,7 +42,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_stats, clear_log, \
     setperm, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, book_file, path_isdir, path_isfile, path_exists, \
-    syspath, remove, set_redactlist, get_calibre_id, safe_move, opf_file, safe_copy
+    syspath, remove, get_calibre_id, safe_move, opf_file, safe_copy
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
@@ -1608,10 +1608,13 @@ class WebInterface(object):
             lazylibrarian.CURRENT_TAB = kwargs['current_tab']
 
         # now the config file entries
-        for key in lazylibrarian.CONFIG.config.keys():
+        for key, item in lazylibrarian.CONFIG.config.items():
             if key.lower() in kwargs:
                 value = kwargs[key.lower()]
                 lazylibrarian.CONFIG.set_from_ui(key, value)
+            else:
+                if isinstance(item, ConfigBool) and item.get_read_count() > 0:
+                    item.set_from_ui(False) # Set other items to False that we've seen (i.e. are shown)
 
         magazines = db.select('SELECT * from magazines')
         if magazines:
@@ -2283,7 +2286,7 @@ class WebInterface(object):
             flag_have = 0
             userid = None
             userprefs = 0
-            if not lazylibrarian.get_bool('USER_ACCOUNTS'):
+            if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
                 perm = lazylibrarian.perm_admin
             else:
                 perm = 0
@@ -5785,7 +5788,6 @@ class WebInterface(object):
                 rows = filtered[displaystart:(displaystart + displaylength)]
 
             if lazylibrarian.CONFIG.get_bool('LOGREDACT'):
-                set_redactlist()
                 redacted = []
                 for line in rows:
                     line = list(line)

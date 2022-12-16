@@ -80,7 +80,6 @@ def main():
         logger.info('Starting LazyLibrarian on port: %s, webroot "%s"' %
                     (lazylibrarian.CONFIG['HTTP_PORT'], lazylibrarian.CONFIG['HTTP_ROOT']))
 
-    # CFG2DO p1 Is this the right way to initialize bools?
     webStart.initialize({
         'http_port': lazylibrarian.CONFIG.get_int('HTTP_PORT'),
         'http_host': lazylibrarian.CONFIG['HTTP_HOST'],
