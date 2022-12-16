@@ -8,7 +8,7 @@ import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
-from lazylibrarian import dbupgrade, startup
+from lazylibrarian import dbupgrade, startup, config2, configdefs
 
 class LLTestCase(unittest.TestCase):
     ALLSETUP = None
@@ -96,7 +96,7 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.SYS_ENCODING = ''
         lazylibrarian.LOGLEVEL = 1
         lazylibrarian.LOGINUSER = None
-        lazylibrarian.CONFIG = {}
+        lazylibrarian.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         lazylibrarian.DBFILE = None
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.SHOWLOGOUT = 1

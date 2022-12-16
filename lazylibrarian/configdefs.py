@@ -29,7 +29,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigEmail('General', 'ADMIN_EMAIL', ''),
     ConfigStr('General', 'SYS_ENCODING', ''),
     ConfigStr('General', 'HOMEPAGE', ''),
-    ConfigStr('General', 'LOGDIR', ''),
+    ConfigFolder('General', 'LOGDIR', ''),
     ConfigInt('General', 'LOGLIMIT', 500),
     ConfigInt('General', 'LOGFILES', 10),
     ConfigInt('General', 'LOGSIZE', 204800),
