@@ -40,7 +40,7 @@ class AppriseNotifier:
         if url is not None:
             apobj.add(url)
         else:
-            for item in lazylibrarian.APPRISE_PROV:
+            for item in lazylibrarian.CONFIG.providers('APPRISE'):
                 if event == notifyStrings[NOTIFY_DOWNLOAD] and item['DOWNLOAD']:
                     apobj.add(item['URL'])
                 elif event == notifyStrings[NOTIFY_SNATCH] and item['SNATCH']:

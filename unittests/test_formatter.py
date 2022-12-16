@@ -420,6 +420,8 @@ class FormatterTest(unittesthelpers.LLTestCase):
             ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
             # Tricky: Tell it to separate on comma and space, and it separates on the default
             ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            # CSV content
+            ('snr, jnr, jr, sr, phd', None, ['snr', 'jnr', 'jr', 'sr', 'phd']),
             # The empy list
             ("", ' ', []),
             (" ,   ", '', []),

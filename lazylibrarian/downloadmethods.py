@@ -85,7 +85,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
     data = None
     myprov = None
 
-    for item in lazylibrarian.IRC_PROV:
+    for item in lazylibrarian.CONFIG.providers('IRC'):
         if item['NAME'] == provider or item['DISPNAME'] == provider:
             myprov = item
             break

@@ -28,9 +28,6 @@ from lazylibrarian import logger, database, config2, configdefs, notifiers # Mus
 from lazylibrarian.common import path_isdir, syspath, module_available
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
-import configparser
-import urllib3
-import requests
 
 
 # Transient globals NOT stored in config
@@ -90,13 +87,7 @@ IRC_CACHE_EXPIRY = 2 * 24 * 3600
 GB_CALLS = 0
 MONTHNAMES = []
 CACHEDIR = ''
-#NEWZNAB_PROV = []
-#TORZNAB_PROV = []
 NABAPICOUNT = ''
-#RSS_PROV = []
-#IRC_PROV = []
-#GEN_PROV = []
-#APPRISE_PROV = []
 BOOKSTRAP_THEMELIST = []
 PROVIDER_BLOCKLIST = []
 USER_BLOCKLIST = []
@@ -141,6 +132,8 @@ log_libsync = 1 << 12  # 4096 librarysync details
 log_admin = 1 << 13  # 8192 admin logging
 log_cherrypy = 1 << 14  # 16384 cherrypy logging
 log_requests = 1 << 15  # 32768 requests httpclient logging
+log_configread = 1 << 16 # log all config2 read requests
+log_configwrite = 1 << 17 # log all config2 read requests
 
 # user permissions
 perm_config = 1 << 0  # 1 access to config page

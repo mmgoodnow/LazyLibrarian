@@ -115,7 +115,7 @@ class ArrayConfig():
 
 """ Main configuration handler for LL """
 class LLConfigHandler():
-    config: ConfigDict # simple (str, value)
+    config: ConfigDict # Dict(key, ConfigItem)
     arrays: Dict[str, ArrayConfig] # (section, array)
     errors: Dict[str, Counter]
     configfilename: str
@@ -236,6 +236,14 @@ class LLConfigHandler():
         else:
             self._handle_access_error(key, Access.READ_ERR)
             return None
+
+    def set_from_ui(self, key: str, value) -> bool:
+        """ Set the value from UI, where value may need to be coerced. Returns True if key existes """
+        if key.upper() in self.config:
+            item = self.config[key.upper()]
+            return item.set_from_ui(value)
+        else:
+            return False
 
     """ Plain strings """
     def get_str(self, key: str) -> str:
@@ -372,6 +380,17 @@ class LLConfigHandler():
                 for _, item in config.items():
                     item.get_accesses().clear()
 
+    def update_providers_from_UI(self, kwargs):
+        """ Update all provider arrays with a settings array from the web UI.
+            Assumes that all UI settings are of the form section_num_setting=value """
+        for pname, array in self.arrays.items():
+            for inx, config in array._configs.items():
+                for key, item in config.items():
+                    setting = f'{pname.lower()}_{inx}_{key.lower()}'
+                    value = kwargs.get(setting)
+                    if value != None:
+                        item.set_from_ui(value)
+
     def save_config(self, filename: str, save_all: bool=False):
         """
         Save the configuration to a new file. Return number of items stored, -1 if error.
@@ -429,7 +448,7 @@ class LLConfigHandler():
         currentname = thread_name()
         thread_name("CONFIG2_WRITE")
         try:
-            logger.info(f'Saving configuration to {self.configfilename}')
+            logger.debug(f'Saving configuration to {self.configfilename}')
             savecount = self.save_config(syspath(self.configfilename + '.new'), save_all)
             if savecount == 0:
                 return 0
@@ -456,7 +475,10 @@ class LLConfigHandler():
                     logger.warn(msg)
 
                 if not msg:
-                    msg = f'Config file {self.configfilename} has been saved with {savecount} items'
+                    if section:
+                        msg = f'Config file {self.configfilename} has been saved with {savecount} items (Triggered by {section})'
+                    else:
+                        msg = f'Config file {self.configfilename} has been saved with {savecount} items'
                     logger.info(msg)
                     return savecount
                 else:

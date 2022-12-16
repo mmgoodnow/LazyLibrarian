@@ -99,8 +99,6 @@ class LazyTelemetry(object):
             server["python_ver"] = str(sys.version)
 
     def set_config_data(self, _config: config2.LLConfigHandler):
-        import lazylibrarian # To get access to the _PROV objects
-
         cfg_telemetry = self.get_config_telemetry()
 
         # Record whether particular on/off features are configured

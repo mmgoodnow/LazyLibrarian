@@ -699,17 +699,16 @@ def launch_browser(host, port, root):
     if root and not root.startswith('/'):
         root = '/' + root
     try:
-        webbrowser.open('%s://%s:%i%s/home' % (protocol, host, port, root))
+        webbrowser.open(f'{protocol}://{host}:{port}{root}/home')
     except Exception as e:
         error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
 
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
-        # CFG2DO change to read_bool
-        lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG['EBOOK_TAB'] else 0
-        lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG['AUDIO_TAB'] else 0
-        lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG['MAG_TAB'] else 0
-        lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG['COMIC_TAB'] else 0
+        lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG.get_bool('EBOOK_TAB') else 0
+        lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG.get_bool('AUDIO_TAB') else 0
+        lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG.get_bool('MAG_TAB') else 0
+        lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG.get_bool('COMIC_TAB') else 0
 
         if lazylibrarian.CONFIG.get_bool('ADD_SERIES'):
             lazylibrarian.SHOW_SERIES = 1

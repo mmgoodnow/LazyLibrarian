@@ -334,7 +334,7 @@ def check_db(upgradelog=None):
 
     try:
         # check information provider matches database
-        info = lazylibrarian.CONFIG.get('BOOK_API', '')
+        info = lazylibrarian.CONFIG.get_str('BOOK_API')
         if info in ['OpenLibrary', 'GoogleBooks']:
             tot = db.select('SELECT * from authors')
             res = db.select('SELECT * from authors WHERE AuthorID LIKE "OL%A"')
@@ -926,12 +926,12 @@ def db_v58(db, upgradelog):
 
 # noinspection PyUnusedLocal
 def db_v59(db, upgradelog):
-    seeders = lazylibrarian.CONFIG.get('NUMBEROFSEEDERS', 0)
+    seeders = lazylibrarian.CONFIG.get_int('NUMBEROFSEEDERS')
     if seeders:
         lazylibrarian.UPDATE_MSG = 'Setting up SEEDERS'
         upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
-        for entry in lazylibrarian.TORZNAB_PROV:
-            entry['SEEDERS'] = seeders
+        for entry in lazylibrarian.CONFIG.providers('TORZNAB'):
+            entry['SEEDERS'].set_int(seeders)
         for item in ['KAT_SEEDERS', 'WWT_SEEDERS', 'TPB_SEEDERS', 'ZOO_SEEDERS', 'TRF_SEEDERS',
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
             lazylibrarian.CONFIG.set_int(item, seeders)

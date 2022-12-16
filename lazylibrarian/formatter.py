@@ -20,7 +20,6 @@ import unicodedata
 import threading
 
 import lazylibrarian
-from lazylibrarian import configdefs
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 
@@ -863,11 +862,12 @@ def disp_name(provider):
     matches the host name provided as parameter, if any.
     If not, returns the host name provided, shortened if too long.
     """
+    from lazylibrarian import configdefs
     provname = ''
     # CFG2DO Test that disp_name works as expected
     for name, definitions in configdefs.ARRAY_DEFS.items():
         key = definitions[0] # Primary key for this array type
-        array = lazylibrarian.CONFIG.get_array(name)
+        array = lazylibrarian.CONFIG.providers(name)
         if array and not provname:
             for index, config in array._configs.items():
                 if config[key].get_str().strip('/') == provider:

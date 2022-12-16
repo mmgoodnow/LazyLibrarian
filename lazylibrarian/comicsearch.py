@@ -151,7 +151,7 @@ def search_item(comicid=None):
                 maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXCOMIC')
                 minsize = lazylibrarian.CONFIG.get_int('REJECT_MINCOMIC')
                 filetypes = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
-                banwords = lazylibrarian.CONFIG.get_int('REJECT_COMIC')
+                banwords = lazylibrarian.CONFIG.get_csv('REJECT_COMIC')
                 size_mb = check_int(size, 1000)
                 size_mb = round(float(size_mb) / 1048576, 2)
 

@@ -64,7 +64,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigStr('General', 'SSL_CERTS', ''),
     ConfigBool('General', 'SSL_VERIFY', 1),
     ConfigBool('General', 'NO_IPV6', 0),
-    ConfigInt('General', 'HTTP_TIMEOUT', 30),
+    ConfigRangedInt('General', 'HTTP_TIMEOUT', 30, 30, 100000),
     ConfigInt('General', 'HTTP_EXT_TIMEOUT', 90),
     ConfigStr('General', 'BOOKSTRAP_THEME', 'slate'),
     ConfigBool('General', 'MAG_SINGLE', 1),

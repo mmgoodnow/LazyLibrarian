@@ -24,7 +24,7 @@
             <i class="fa fa-download"></i> Import CSV</button>
             <button class="button btn btn-sm btn-primary" type="button" value="exportcsv" id="exportcsv">
             <i class="fa fa-upload"></i> Export CSV</button>
-            %if lazylibrarian.CONFIG['GR_SYNC'] == True:
+            %if lazylibrarian.CONFIG['GR_SYNC']:
               <button class="button btn btn-sm btn-primary" type="button" value="synctogoodreads" id="synctogoodreads">
               <i class="fa fa-link"></i> Goodreads Sync</button>
             %endif
@@ -65,7 +65,7 @@
                     %endif
                 >${item}</option>
             %endfor
-            %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
             <option value="Read"
                 %if whichStatus == "Read":
                     selected = "selected"
@@ -91,7 +91,7 @@
         </div>
       </div>
 
-      %if lazylibrarian.CONFIG['TOGGLES'] == True:
+      %if lazylibrarian.CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
           <a class="toggle-vis" data-column="2"> Author</a>
@@ -100,7 +100,7 @@
           <a class="toggle-vis hidden-sm hidden-xs" data-column="5"> Rating</a>
           <a class="toggle-vis" data-column="6"> Released</a>
           <a class="toggle-vis" data-column="7"> Listed</a>
-          %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+          %if lazylibrarian.CONFIG['DELAYSEARCH']:
             <a class="toggle-vis" data-column="8"> Delay</a>
             <a class="toggle-vis" data-column="9"> Search</a>
           %endif
@@ -124,7 +124,7 @@
             <th class="stars text-center hidden-sm hidden-xs">Rating</th>
             <th class="date text-center">Released</th>
             <th class="date text-center">Listed</th>
-            %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+            %if lazylibrarian.CONFIG['DELAYSEARCH']:
                 %if whichStatus == 'Wanted':
                     <th class="stars text-center no-sort">Delay</th>
                     <th class="date text-center no-sort">Last Search</th>
@@ -156,14 +156,14 @@
             <option value="${item}">${item}</option>
           %endfor
         %endif
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>
         <option value="Reading">Reading</option>
         <option value="Abandoned">Abandoned</option>
         %endif
-        %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+        %if lazylibrarian.CONFIG['DELAYSEARCH']:
         <option value="NoDelay">No Delay</option>
         %endif
       </select>
@@ -311,7 +311,7 @@
                         }
                         return output.join('<br>');
                     }},
-                    %if lazylibrarian.CONFIG['RATESTARS'] == True:
+                    %if lazylibrarian.CONFIG['RATESTARS']:
                     { targets: [5],
                         'class': 'text-center',
                         'render': function(data, type, row) {
@@ -323,7 +323,7 @@
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             return row[16] + '<br>' + row[17];} },
-                    %if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+                    %if lazylibrarian.CONFIG['DELAYSEARCH']:
                         %if whichStatus == 'Wanted':
                             { targets: [8],
                                 'class': 'text-center',

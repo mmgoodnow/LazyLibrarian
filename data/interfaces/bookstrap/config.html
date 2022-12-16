@@ -13,7 +13,7 @@
       <button class="button btn btn-sm btn-primary" type="button" value="Show Jobs" id="show_jobs"><i class="fa fa-list-ul"></i> Job Status</button>
       <button class="button btn btn-sm btn-primary" type="button" value="Show Stats" id="show_stats"><i class="fa fa-list-ul"></i> DB Stats</button>
       <button class="button btn btn-sm btn-primary" type="button" value="checkforupdates" id="checkforupdates"><i class="fa fa-list-alt"></i> Check Version</button>
-      %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+      %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
       <a class="button btn btn-sm btn-primary" href="user_admin"><i class="fa fa-user"></i> User Admin</a>
       %endif
      <button class="hidden" onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Checking, please wait...</button>
@@ -43,7 +43,7 @@
         <li role="presentation" id="6" aria-controls="notifications"><a role="tab" data-toggle="tab" aria-controls="notifications" href="#notifications">Notifications</a></li>
         <li role="presentation" id="7" aria-controls="capabilities"><a role="tab" data-toggle="tab" aria-controls="capabilities" href="#capabilities">Categories</a></li>
         <li role="presentation" id="8" aria-controls="filters"><a role="tab" data-toggle="tab" aria-controls="filters" href="#filters">Filters</a></li>
-        %if lazylibrarian.CONFIG['SHOW_GENRES'] == True:
+        %if lazylibrarian.CONFIG['SHOW_GENRES']:
         <li role="presentation" id="9" aria-controls="genres"><a role="tab" data-toggle="tab" aria-controls="genres" href="#genres">Genres</a></li>
         %endif
         </ul>
@@ -74,7 +74,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['HTTP_PROXY'] == True:
+                        if lazylibrarian.CONFIG['HTTP_PROXY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -85,7 +85,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['HTTPS_ENABLED'] == True:
+                        if lazylibrarian.CONFIG['HTTPS_ENABLED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -109,7 +109,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['SSL_VERIFY'] == True:
+                        if lazylibrarian.CONFIG['SSL_VERIFY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -166,7 +166,7 @@
                         <input type="number" id="logsize" name="logsize" value="${lazylibrarian.CONFIG['LOGSIZE']}" class="form-control" placeholder="Log File Size">
                       </div>
                       <%
-                        if lazylibrarian.CONFIG['LOGREDACT'] == True:
+                        if lazylibrarian.CONFIG['LOGREDACT']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -175,7 +175,7 @@
                       <input type="checkbox" id="logredact" name="logredact" value="1" ${checked} />
                       Redact information in screen log</label>
                       <%
-                        if lazylibrarian.CONFIG['HOSTREDACT'] == True:
+                        if lazylibrarian.CONFIG['HOSTREDACT']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -354,6 +354,28 @@
                           <input type="checkbox" id="log_requests" name="log_requests" value="1" ${checked} />
                           Requests Logging</label>
                         </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configread:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_requests" class="control-label">
+                          <input type="checkbox" id="log_configread" name="log_configread" value="1" ${checked} />
+                          Config Read Value</label>
+                        </div>
+                        <div class="col-md-6">
+                          <%
+                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configwrite:
+                                checked = 'checked="checked"'
+                            else:
+                                checked = ''
+                          %>
+                          <label for="log_requests" class="control-label">
+                          <input type="checkbox" id="log_configwrite" name="log_configwrite" value="1" ${checked} />
+                          Config Write Value</label>
+                        </div>
                       </div>
                       %endif
                     </fieldset>
@@ -375,7 +397,7 @@
                     <legend>rss Server</legend>
                         <div class="checkbox">
                           <%
-                            if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+                            if lazylibrarian.CONFIG['RSS_ENABLED']:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -390,10 +412,10 @@
                             <input type="text" id="rss_host" name="rss_host" value="${lazylibrarian.CONFIG['RSS_HOST']}" class="form-control" placeholder="mywebsite.org:port">
                             </div>
                             <span class="help-block">Use if you need to override rss link address</span>
-                        %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                        %if lazylibrarian.CONFIG['AUDIO_TAB']:
                         <div class="checkbox">
                           <%
-                            if lazylibrarian.CONFIG['RSS_PODCAST'] == True:
+                            if lazylibrarian.CONFIG['RSS_PODCAST']:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -409,7 +431,7 @@
                     <legend>OPDS Server</legend>
                         <div class="checkbox">
                           <%
-                            if lazylibrarian.CONFIG['OPDS_ENABLED'] == True:
+                            if lazylibrarian.CONFIG['OPDS_ENABLED']:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -422,7 +444,7 @@
                         <fieldset id="opdsoptions">
                             <div class="checkbox">
                               <%
-                                if lazylibrarian.CONFIG['OPDS_AUTHENTICATION'] == True:
+                                if lazylibrarian.CONFIG['OPDS_AUTHENTICATION']:
                                     checked = 'checked="checked"'
                                 else:
                                     checked = ''
@@ -443,7 +465,7 @@
                             </div>
                             <div class="checkbox">
                               <%
-                                if lazylibrarian.CONFIG['OPDS_METAINFO'] == True:
+                                if lazylibrarian.CONFIG['OPDS_METAINFO']:
                                     checked = 'checked="checked"'
                                 else:
                                     checked = ''
@@ -465,7 +487,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+                        if lazylibrarian.CONFIG['USER_ACCOUNTS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -476,7 +498,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['SINGLE_USER'] == True:
+                        if lazylibrarian.CONFIG['SINGLE_USER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -531,7 +553,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['LAUNCH_BROWSER'] == True:
+                        if lazylibrarian.CONFIG['LAUNCH_BROWSER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -542,7 +564,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['API_ENABLED'] == True:
+                        if lazylibrarian.CONFIG['API_ENABLED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -618,7 +640,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['AUTHOR_IMG'] == True:
+                          if lazylibrarian.CONFIG['AUTHOR_IMG']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -629,7 +651,7 @@
                       </div>
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['BOOK_IMG'] == True:
+                          if lazylibrarian.CONFIG['BOOK_IMG']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -642,7 +664,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                          if lazylibrarian.CONFIG['EBOOK_TAB']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -653,7 +675,7 @@
                       </div>
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                          if lazylibrarian.CONFIG['AUDIO_TAB']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -666,7 +688,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                          if lazylibrarian.CONFIG['MAG_TAB']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -675,10 +697,10 @@
                           <input type="checkbox" id="mag_tab" name="mag_tab" value="1" ${checked} />
                           Show Magazines</label>
                       </div>
-                      %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                      %if lazylibrarian.CONFIG['MAG_TAB']:
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['MAG_IMG'] == True:
+                          if lazylibrarian.CONFIG['MAG_IMG']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -692,7 +714,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                          if lazylibrarian.CONFIG['COMIC_TAB']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -701,10 +723,10 @@
                           <input type="checkbox" id="comic_tab" name="comic_tab" value="1" ${checked} />
                           Show Comics</label>
                       </div>
-                      %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                      %if lazylibrarian.CONFIG['COMIC_TAB']:
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['COMIC_IMG'] == True:
+                          if lazylibrarian.CONFIG['COMIC_IMG']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -718,7 +740,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['SERIES_TAB'] == True:
+                          if lazylibrarian.CONFIG['SERIES_TAB']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -729,7 +751,7 @@
                       </div>
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['RATESTARS'] == True:
+                          if lazylibrarian.CONFIG['RATESTARS']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -742,7 +764,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['TOGGLES'] == True:
+                          if lazylibrarian.CONFIG['TOGGLES']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -753,7 +775,7 @@
                       </div>
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['SORT_SURNAME'] == True:
+                          if lazylibrarian.CONFIG['SORT_SURNAME']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -766,7 +788,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['SHOW_GENRES'] == True:
+                          if lazylibrarian.CONFIG['SHOW_GENRES']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -778,7 +800,7 @@
                       %if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == True:
+                          if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -792,7 +814,7 @@
                     %endif
                       <div class="col-md-12">
                       <%
-                        if lazylibrarian.CONFIG['SORT_DEFINITE'] == True:
+                        if lazylibrarian.CONFIG['SORT_DEFINITE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -803,7 +825,7 @@
                       </div>
                       <div class="col-md-12">
                       <%
-                        if lazylibrarian.CONFIG['IGNORE_PAUSED'] == True:
+                        if lazylibrarian.CONFIG['IGNORE_PAUSED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -848,7 +870,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['MULTI_SOURCE'] == True:
+                    if lazylibrarian.CONFIG['MULTI_SOURCE']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -875,7 +897,7 @@
                     <input type="text" id="gr_api" name="gr_api" value="${lazylibrarian.CONFIG['GR_API']}" class="form-control"     placeholder="Goodreads API">
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['GR_SYNC'] == True:
+                        if lazylibrarian.CONFIG['GR_SYNC']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -887,7 +909,7 @@
                     <fieldset id="grsync_options">
                       <div class="checkbox">
                         <%
-                          if lazylibrarian.CONFIG['GR_SYNCREADONLY'] == True:
+                          if lazylibrarian.CONFIG['GR_SYNCREADONLY']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -904,7 +926,7 @@
                       <input type="text" id="gr_oauth_secret" name="gr_oauth_secret" value="${lazylibrarian.CONFIG['GR_OAUTH_SECRET']}" class="form-control">
                       <div class="checkbox">
                         <%
-                          if lazylibrarian.CONFIG['GR_SYNCUSER'] == True:
+                          if lazylibrarian.CONFIG['GR_SYNCUSER']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -922,13 +944,13 @@
                         <input type="text" id="gr_user" name="gr_user" value="${lazylibrarian.CONFIG['GR_USER']}" class="form-control">
                         </fieldset>
                       <fieldset id="grlibrary_options">
-                      %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                      %if lazylibrarian.CONFIG['EBOOK_TAB']:
                       <label for="gr_wanted">Sync Wanted eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_wanted" name="gr_wanted" value="${lazylibrarian.CONFIG['GR_WANTED']}" class="form-control" placeholder="eg: to-read">
                       <label for="gr_owned">Sync Owned eBooks to Goodreads shelf:</label>
                       <input type="text" id="gr_owned" name="gr_owned" value="${lazylibrarian.CONFIG['GR_OWNED']}" class="form-control" placeholder="eg: owned">
                       %endif
-                      %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                      %if lazylibrarian.CONFIG['AUDIO_TAB']:
                       <fieldset id="graudio_options">
                         <label for="gr_awanted">Sync Wanted AudioBooks to Goodreads shelf:</label>
                         <input type="text" id="gr_awanted" name="gr_awanted" value="${lazylibrarian.CONFIG['GR_AWANTED']}" class="form-control" placeholder="eg: audio_wanted">
@@ -938,7 +960,7 @@
                       %endif
                         <div class="checkbox">
                           <%
-                            if lazylibrarian.CONFIG['GR_UNIQUE'] == True:
+                            if lazylibrarian.CONFIG['GR_UNIQUE']:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -971,14 +993,14 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="form-group">
                     <label for="cv_apikey" class="control-label">ComicVine Api Key:</label>
                     <input type="text" id="cv_apikey" name="cv_apikey" value="${lazylibrarian.CONFIG['CV_APIKEY']}" class="form-control" placeholder="optional">
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['CV_WEBSEARCH'] == True:
+                    if lazylibrarian.CONFIG['CV_WEBSEARCH']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -993,28 +1015,28 @@
               <div class="col-md-4">
                 <fieldset>
                   <legend>File Formats</legend>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                   <div class="form-group">
                     <label for="ebook_type" class="control-label">eBooks:</label>
                     <input type="text" id="ebook_type" name="ebook_type" value="${lazylibrarian.CONFIG['EBOOK_TYPE']}" class="form-control" placeholder="eBook file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                  %if lazylibrarian.CONFIG['AUDIO_TAB']:
                   <div class="form-group">
                     <label for="audiobook_type" class="control-label">AudioBooks:</label>
                     <input type="text" id="audiobook_type" name="audiobook_type" value="${lazylibrarian.CONFIG['AUDIOBOOK_TYPE']}" class="form-control" placeholder="AudioBook file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="form-group">
                     <label for="mag_type" class="control-label">Magazines:</label>
                     <input type="text" id="mag_type" name="mag_type" value="${lazylibrarian.CONFIG['MAG_TYPE']}" class="form-control"       placeholder="Magazine file formats">
                     <span class="help-block">Comma separated file extensions</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="form-group">
                     <label for="mag_type" class="control-label">Comics:</label>
                     <input type="text" id="comic_type" name="comic_type" value="${lazylibrarian.CONFIG['COMIC_TYPE']}" class="form-control"       placeholder="Comic file formats">
@@ -1023,7 +1045,7 @@
                   %endif
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NO_FUTURE'] == True:
+                    if lazylibrarian.CONFIG['NO_FUTURE']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1034,7 +1056,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NO_PUBDATE'] == True:
+                    if lazylibrarian.CONFIG['NO_PUBDATE']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1045,7 +1067,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NO_ISBN'] == True:
+                    if lazylibrarian.CONFIG['NO_ISBN']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1056,7 +1078,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NO_SETS'] == True:
+                    if lazylibrarian.CONFIG['NO_SETS']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1067,7 +1089,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NO_LANG'] == True:
+                    if lazylibrarian.CONFIG['NO_LANG']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1078,7 +1100,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['IMP_IGNORE'] == True:
+                    if lazylibrarian.CONFIG['IMP_IGNORE']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1089,7 +1111,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['DELETE_CSV'] == True:
+                        if lazylibrarian.CONFIG['DELETE_CSV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1100,7 +1122,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['BLACKLIST_FAILED'] == True:
+                        if lazylibrarian.CONFIG['BLACKLIST_FAILED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1111,7 +1133,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['BLACKLIST_PROCESSED'] == True:
+                        if lazylibrarian.CONFIG['BLACKLIST_PROCESSED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1122,7 +1144,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['DELAYSEARCH'] == True:
+                        if lazylibrarian.CONFIG['DELAYSEARCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1182,7 +1204,7 @@
                   <fieldset class="usenet_options">
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_SABNZBD'] == True:
+                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_SABNZBD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1242,7 +1264,7 @@
                       </div>
                       <div class="checkbox">
                         <%
-                          if lazylibrarian.CONFIG['SAB_DELETE'] == True:
+                          if lazylibrarian.CONFIG['SAB_DELETE']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -1254,7 +1276,7 @@
                     </fieldset>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET'] == True:
+                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_NZBGET']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1305,7 +1327,7 @@
                     </fieldset>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['USE_SYNOLOGY'] == True:
+                        if lazylibrarian.CONFIG['USE_SYNOLOGY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1341,7 +1363,7 @@
                       <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_SYNOLOGY'] == True:
+                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_SYNOLOGY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1352,7 +1374,7 @@
                       </div>
                       <div class="col-md-6">
                         <%
-                        if lazylibrarian.CONFIG['TOR_DOWNLOADER_SYNOLOGY'] == True:
+                        if lazylibrarian.CONFIG['TOR_DOWNLOADER_SYNOLOGY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1372,7 +1394,7 @@
                     </fieldset>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_BLACKHOLE'] == True:
+                        if lazylibrarian.CONFIG['NZB_DOWNLOADER_BLACKHOLE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1390,7 +1412,7 @@
                     </fieldset>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['NZB_PAUSED'] == True:
+                    if lazylibrarian.CONFIG['NZB_PAUSED']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1413,7 +1435,7 @@
               <fieldset id="torrent_options">
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_DELUGE'] == True:
+                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_DELUGE']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1470,7 +1492,7 @@
                   </fieldset>
                   <div class="checkbox">
                     <%
-                      if lazylibrarian.CONFIG['TOR_DOWNLOADER_TRANSMISSION'] == True:
+                      if lazylibrarian.CONFIG['TOR_DOWNLOADER_TRANSMISSION']:
                           checked = 'checked="checked"'
                       else:
                           checked = ''
@@ -1521,7 +1543,7 @@
                   </fieldset>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_RTORRENT'] == True:
+                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_RTORRENT']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1564,7 +1586,7 @@
                   </fieldset>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_UTORRENT'] == True:
+                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_UTORRENT']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1611,7 +1633,7 @@
                   </fieldset>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_QBITTORRENT'] == True:
+                    if lazylibrarian.CONFIG['TOR_DOWNLOADER_QBITTORRENT']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1662,7 +1684,7 @@
                     </fieldset>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['TOR_DOWNLOADER_BLACKHOLE'] == True:
+                        if lazylibrarian.CONFIG['TOR_DOWNLOADER_BLACKHOLE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1679,7 +1701,7 @@
                       </div>
                       <div class="checkbox">
                         <%
-                          if lazylibrarian.CONFIG['TOR_CONVERT_MAGNET'] == True:
+                          if lazylibrarian.CONFIG['TOR_CONVERT_MAGNET']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -1691,7 +1713,7 @@
                     </fieldset>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['PREFER_MAGNET'] == True:
+                        if lazylibrarian.CONFIG['PREFER_MAGNET']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1702,7 +1724,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['KEEP_SEEDING'] == True:
+                        if lazylibrarian.CONFIG['KEEP_SEEDING']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1713,7 +1735,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['SEED_WAIT'] == True:
+                        if lazylibrarian.CONFIG['SEED_WAIT']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1724,7 +1746,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['DEL_COMPLETED'] == True:
+                        if lazylibrarian.CONFIG['DEL_COMPLETED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1735,7 +1757,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['DEL_FAILED'] == True:
+                        if lazylibrarian.CONFIG['DEL_FAILED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1746,7 +1768,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED'] == True:
+                        if lazylibrarian.CONFIG['DEL_DOWNLOADFAILED']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1757,7 +1779,7 @@
                     </div>
                   <div class="checkbox">
                     <%
-                    if lazylibrarian.CONFIG['TORRENT_PAUSED'] == True:
+                    if lazylibrarian.CONFIG['TORRENT_PAUSED']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -1779,7 +1801,7 @@
                 <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_NEWZ_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_NEWZ_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1788,10 +1810,10 @@
                       <label for="show_newz_prov" class="fa">  Newznab Providers </label>
                   </legend>
                   <fieldset id="newz_prov">
-                   %for provider in lazylibrarian.NEWZNAB_PROV:
+                   %for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
                   <%
                       checked = ''
-                      if provider['ENABLED'] == True:
+                      if provider['ENABLED'].get_bool():
                           checked = 'checked="checked"'
                     %>
                   <div class="col-md-4 form-group">
@@ -1833,7 +1855,7 @@
                 <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_TORZ_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_TORZ_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1842,10 +1864,10 @@
                       <label for="show_torz_prov" class="fa">  Torznab Providers </label>
                   </legend>
                   <fieldset id="torz_prov">
-                  %for provider in lazylibrarian.TORZNAB_PROV:
+                  %for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
                   <%
                       checked = ''
-                      if provider['ENABLED'] == True:
+                      if provider['ENABLED'].get_bool():
                         checked = 'checked="checked"'
                     %>
                   <div class="col-md-4 form-group">
@@ -1891,7 +1913,7 @@
                 <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_RSS_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_RSS_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1900,10 +1922,10 @@
                       <label for="show_rss_prov" class="fa"> rss/Wishlist Providers</label>
                   </legend>
                   <fieldset id="rss_prov">
-                  %for provider in lazylibrarian.RSS_PROV:
+                  %for provider in lazylibrarian.CONFIG.providers('RSS'):
                   <%
                    checked = ''
-                   if provider['ENABLED'] == True:
+                   if provider['ENABLED'].get_bool():
                        checked = 'checked="checked"'
                   %>
                   <div class="col-md-4 form-group">
@@ -1929,11 +1951,11 @@
                     </div>
                       <%
                         label = 'Priority'
-                        if 'list_rss' in provider['HOST']:
+                        if 'list_rss' in provider['HOST'].get_str():
                           label = 'Pages'
-                        if '/book/' in provider['HOST']:
+                        if '/book/' in provider['HOST'].get_str():
                           label = 'Pages'
-                        if '/show/' in provider['HOST']:
+                        if '/show/' in provider['HOST'].get_str():
                           label = 'Pages'
                       %>
                     <div class="input-group">
@@ -1954,7 +1976,7 @@
                 <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_TOR_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_TOR_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -1964,7 +1986,7 @@
                   </legend>
                   <fieldset id="tor_prov">
                   <%
-                    if lazylibrarian.CONFIG['KAT'] == True:
+                    if lazylibrarian.CONFIG['KAT']:
                       checked = 'checked="checked"'
                     else:
                       checked = ''
@@ -1992,7 +2014,7 @@
                     </div>
                   </div>
                   <%
-                    if lazylibrarian.CONFIG['TPB'] == True:
+                    if lazylibrarian.CONFIG['TPB']:
                       checked = 'checked="checked"'
                     else:
                       checked = ''
@@ -2020,7 +2042,7 @@
                     </div>
                   </div>
                    <%
-                      if lazylibrarian.CONFIG['WWT'] == True:
+                      if lazylibrarian.CONFIG['WWT']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2048,7 +2070,7 @@
                       </div>
                     </div>
                     <%
-                      if lazylibrarian.CONFIG['ZOO'] == True:
+                      if lazylibrarian.CONFIG['ZOO']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2076,7 +2098,7 @@
                       </div>
                     </div>
                     <%
-                      if lazylibrarian.CONFIG['TDL'] == True:
+                      if lazylibrarian.CONFIG['TDL']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2104,7 +2126,7 @@
                       </div>
                     </div>
                      <%
-                      if lazylibrarian.CONFIG['TRF'] == True:
+                      if lazylibrarian.CONFIG['TRF']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2132,7 +2154,7 @@
                       </div>
                     </div>
                     <%
-                      if lazylibrarian.CONFIG['LIME'] == True:
+                      if lazylibrarian.CONFIG['LIME']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2166,7 +2188,7 @@
                 <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_IRC_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_IRC_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2175,10 +2197,10 @@
                       <label for="show_irc_prov" class="fa">  IRC Providers</label>
                   </legend>
                    <fieldset id="irc_prov">
-                  %for provider in lazylibrarian.IRC_PROV:
+                  %for provider in lazylibrarian.CONFIG.providers('IRC'):
                   <%
                    checked = ''
-                   if provider['ENABLED'] == True:
+                   if provider['ENABLED'].get_bool():
                        checked = 'checked="checked"'
                   %>
                   <div class="col-md-4 form-group">
@@ -2238,7 +2260,7 @@
                   <fieldset>
                   <legend>
                     <%
-                        if lazylibrarian.CONFIG['SHOW_DIRECT_PROV'] == True:
+                        if lazylibrarian.CONFIG['SHOW_DIRECT_PROV']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2248,7 +2270,7 @@
                   </legend>
                     <fieldset id=direct_prov>
                     <%
-                      if lazylibrarian.CONFIG['BOK'] == True:
+                      if lazylibrarian.CONFIG['BOK']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2289,7 +2311,7 @@
                       </div>
                     </div>
                     <%
-                      if lazylibrarian.CONFIG['BFI'] == True:
+                      if lazylibrarian.CONFIG['BFI']:
                         checked = 'checked="checked"'
                       else:
                         checked = ''
@@ -2313,10 +2335,10 @@
                         </span>
                       </div>
                     </div>
-                  %for provider in lazylibrarian.GEN_PROV:
+                  %for provider in lazylibrarian.CONFIG.providers('GEN'):
                   <%
                    checked = ''
-                   if provider['ENABLED'] == True:
+                   if provider['ENABLED'].get_bool():
                        checked = 'checked="checked"'
                   %>
                   <div class="col-md-4 form-group">
@@ -2373,7 +2395,7 @@
                       <span class="input-group-addon">Minutes</span>
                     </div>
                   </div>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="form-group">
                     <label for="search_maginterval" class="control-label">Magazine Search Interval:</label>
                     <div class="input-group">
@@ -2382,7 +2404,7 @@
                     </div>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="form-group">
                     <label for="search_comicinterval" class="control-label">Comic Search Interval:</label>
                     <div class="input-group">
@@ -2426,7 +2448,7 @@
                       <span class="input-group-addon">Hours</span>
                     </div>
                     <%
-                        if lazylibrarian.CONFIG['AUTO_UPDATE'] == True:
+                        if lazylibrarian.CONFIG['AUTO_UPDATE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2453,7 +2475,7 @@
                     </select>
                     <span class="help-block">Status for missing/deleted ebooks</span>
                   </div>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                   <div class="form-group">
                     <label for="newbook_status">New Book Status:</label>
                     <select id="newbook_status" name="newbook_status" class="form-control">
@@ -2469,7 +2491,7 @@
                     <span class="help-block">Status for new ebooks by existing authors</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                  %if lazylibrarian.CONFIG['AUDIO_TAB']:
                   <div class="form-group">
                     <label for="newaudio_status">New AudioBook Status:</label>
                     <select id="newaudio_status" name="newaudio_status" class="form-control">
@@ -2485,7 +2507,7 @@
                     <span class="help-block">Status for new audiobooks by existing authors</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                   <div class="form-group">
                     <label for="newauthor_status">New Authors eBook Status:</label>
                     <select id="newauthor_status" name="newauthor_status" class="form-control">
@@ -2501,7 +2523,7 @@
                     <span class="help-block">Status for ebooks by new authors</span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                  %if lazylibrarian.CONFIG['AUDIO_TAB']:
                   <div class="form-group">
                     <label for="newauthor_audio">New Authors AudioBook Status:</label>
                     <select id="newauthor_audio" name="newauthor_audio" class="form-control">
@@ -2547,7 +2569,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS'] == True:
+                        if lazylibrarian.CONFIG['NEWAUTHOR_BOOKS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2604,7 +2626,7 @@
                   </div>
                   <div class="checkbox">
                       <%
-                        if lazylibrarian.CONFIG['CALIBRE_USE_SERVER'] == True:
+                        if lazylibrarian.CONFIG['CALIBRE_USE_SERVER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2637,7 +2659,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK'] == True:
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_EBOOK']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2648,7 +2670,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_CALIBRE_COMIC'] == True:
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_COMIC']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2659,7 +2681,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE'] == True:
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGAZINE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2670,7 +2692,7 @@
                   </div>
                  <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE'] == True:
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGTITLE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2681,7 +2703,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGISSUE'] == True:
+                        if lazylibrarian.CONFIG['IMP_CALIBRE_MAGISSUE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2692,7 +2714,7 @@
                   </div>
                    <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_AUTOADD_COPY'] == True:
+                        if lazylibrarian.CONFIG['IMP_AUTOADD_COPY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2703,7 +2725,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY'] == True:
+                        if lazylibrarian.CONFIG['IMP_AUTOADD_BOOKONLY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2714,7 +2736,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['OPF_TAGS'] == True:
+                        if lazylibrarian.CONFIG['OPF_TAGS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2725,7 +2747,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['GENRE_TAGS'] == True:
+                        if lazylibrarian.CONFIG['GENRE_TAGS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2736,7 +2758,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['WISHLIST_TAGS'] == True:
+                        if lazylibrarian.CONFIG['WISHLIST_TAGS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2754,7 +2776,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_AUTOADDMAG_COPY'] == True:
+                        if lazylibrarian.CONFIG['IMP_AUTOADDMAG_COPY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2765,7 +2787,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_AUTOADD_MAGONLY'] == True:
+                        if lazylibrarian.CONFIG['IMP_AUTOADD_MAGONLY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2828,7 +2850,7 @@
                       <strong>Current limitation: Each title has to be in unique subfolder</strong></span>
                       <small>Example:  <mark>${config['namevars']['BookFile']}</mark></small>
                   </div>
-                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                  %if lazylibrarian.CONFIG['AUDIO_TAB']:
                   <div class="form-group">
                     <label for="audiobook_dest_folder">AudioBook Foldername Pattern:</label>
                     <input type="text" id="audiobook_dest_folder" name="audiobook_dest_folder" value="${lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER']}" class="form-control" placeholder="AudioBook Destination Folder">
@@ -2853,7 +2875,7 @@
                   %endif
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['DESTINATION_COPY'] == True:
+                        if lazylibrarian.CONFIG['DESTINATION_COPY']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2864,7 +2886,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['ONE_FORMAT'] == True:
+                        if lazylibrarian.CONFIG['ONE_FORMAT']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2873,7 +2895,7 @@
                       <input type="checkbox" id="one_format" name="one_format" value="1" ${checked} />
                       Only import one format of an ebook if multiple formats downloaded</label>
                   </div>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="form-group">
                     <label for="mag_dest_folder">Magazine Foldername Pattern:</label>
                     <input type="text" id="mag_dest_folder" name="mag_dest_folder" value="${lazylibrarian.CONFIG['MAG_DEST_FOLDER']}" class="form-control" placeholder="Magazines Destination Folder">
@@ -2881,7 +2903,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['MAG_RELATIVE'] == True:
+                        if lazylibrarian.CONFIG['MAG_RELATIVE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2892,7 +2914,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['MAG_DELFOLDER'] == True:
+                        if lazylibrarian.CONFIG['MAG_DELFOLDER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2908,7 +2930,7 @@
                       <BR><strong>Current limitation: Filename must contain IssueDate</strong></span>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="form-group">
                     <label for="comic_dest_folder">Comic Foldername Pattern:</label>
                     <input type="text" id="comic_dest_folder" name="comic_dest_folder" value="${lazylibrarian.CONFIG['COMIC_DEST_FOLDER']}" class="form-control" placeholder="Comics Destination Folder">
@@ -2916,7 +2938,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['COMIC_RELATIVE'] == True:
+                        if lazylibrarian.CONFIG['COMIC_RELATIVE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2927,7 +2949,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['COMIC_DELFOLDER'] == True:
+                        if lazylibrarian.CONFIG['COMIC_DELFOLDER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -2947,13 +2969,13 @@
                     <input type="text" id="download_dir" name="download_dir" value="${lazylibrarian.CONFIG['DOWNLOAD_DIR']}" class="form-control" placeholder="Download Directory">
                     <span class="help-block">Comma separated list of folders where downloaders place books</span>
                   </div>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                   <div class="form-group">
                     <label for="ebook_dir" class="control-label">eBook Library Folder:</label>
                     <input type="text" id="ebook_dir" name="ebook_dir" value="${lazylibrarian.CONFIG['EBOOK_DIR']}" class="form-control" placeholder="eBook Library Folder">
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                  %if lazylibrarian.CONFIG['AUDIO_TAB']:
                   <div class="form-group">
                     <label for="audio_dir" class="control-label">AudioBook Library Folder:</label>
                     <input type="text" id="audio_dir" name="audio_dir" value="${lazylibrarian.CONFIG['AUDIO_DIR']}" class="form-control" placeholder="AudioBook Library Folder">
@@ -2981,7 +3003,7 @@
                       <span class="input-group-addon">Days</span>
                     </div>
                   </div>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="form-group">
                     <label for="mag_age" class="control-label">Max Magazine Issue Age:</label>
                     <div class="input-group">
@@ -3025,7 +3047,7 @@
                   </div>
                 </fieldset>
                 <fieldset>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="form-group">
                     <label for="imp_convert">Cover creation program:</label>
                     <input type="text" placeholder="Cover creation program" id="imp_convert" name="imp_convert" value="${lazylibrarian.CONFIG['IMP_CONVERT']}" class="form-control">
@@ -3033,7 +3055,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_MAGCOVER'] == True:
+                        if lazylibrarian.CONFIG['IMP_MAGCOVER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3044,7 +3066,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_MAGOPF'] == True:
+                        if lazylibrarian.CONFIG['IMP_MAGOPF']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3056,10 +3078,10 @@
                   %endif
                 </fieldset>
                 <fieldset>
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_COMICCOVER'] == True:
+                        if lazylibrarian.CONFIG['IMP_COMICCOVER']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3070,7 +3092,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_COMICOPF'] == True:
+                        if lazylibrarian.CONFIG['IMP_COMICOPF']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3084,7 +3106,7 @@
                 <fieldset>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['FULL_SCAN'] == True:
+                        if lazylibrarian.CONFIG['FULL_SCAN']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3096,7 +3118,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_SINGLEBOOK'] == True:
+                        if lazylibrarian.CONFIG['IMP_SINGLEBOOK']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3108,7 +3130,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_RENAME'] == True:
+                        if lazylibrarian.CONFIG['IMP_RENAME']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3117,10 +3139,10 @@
                       <input type="checkbox" id="imp_rename" name="imp_rename" value="1" ${checked} />
                       Rename existing books on libraryscan</label>
                   </div>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['MAG_RENAME'] == True:
+                        if lazylibrarian.CONFIG['MAG_RENAME']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3132,7 +3154,7 @@
                   %endif
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['ADD_AUTHOR'] == True:
+                        if lazylibrarian.CONFIG['ADD_AUTHOR']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3143,7 +3165,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['ADD_SERIES'] == True:
+                        if lazylibrarian.CONFIG['ADD_SERIES']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3154,7 +3176,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES'] == True:
+                        if lazylibrarian.CONFIG['NO_SINGLE_BOOK_SERIES']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3165,7 +3187,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['NO_NONINTEGER_SERIES'] == True:
+                        if lazylibrarian.CONFIG['NO_NONINTEGER_SERIES']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3176,7 +3198,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['IMP_AUTOSEARCH'] == True:
+                        if lazylibrarian.CONFIG['IMP_AUTOSEARCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3185,10 +3207,10 @@
                       <input type="checkbox" id="imp_autosearch" name="imp_autosearch" value="1" ${checked} />
                       Search when added</label>
                   </div>
-                  %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                  %if lazylibrarian.CONFIG['MAG_TAB']:
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['MAG_SINGLE'] == True:
+                        if lazylibrarian.CONFIG['MAG_SINGLE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3198,10 +3220,10 @@
                       Quick open single issues of magazines</label>
                   </div>
                   %endif
-                  %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                  %if lazylibrarian.CONFIG['COMIC_TAB']:
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['COMIC_SINGLE'] == True:
+                        if lazylibrarian.CONFIG['COMIC_SINGLE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3220,7 +3242,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['KEEP_OPF'] == True:
+                        if lazylibrarian.CONFIG['KEEP_OPF']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3231,7 +3253,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['KEEP_JPG'] == True:
+                        if lazylibrarian.CONFIG['KEEP_JPG']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3242,7 +3264,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['DELETE_OTHER_FORMATS'] == True:
+                        if lazylibrarian.CONFIG['DELETE_OTHER_FORMATS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3258,7 +3280,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['WRITE_AUDIOTAGS'] == True:
+                        if lazylibrarian.CONFIG['WRITE_AUDIOTAGS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3269,7 +3291,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['CREATE_SINGLEAUDIO'] == True:
+                        if lazylibrarian.CONFIG['CREATE_SINGLEAUDIO']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3280,7 +3302,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['ZIP_AUDIOPARTS'] == True:
+                        if lazylibrarian.CONFIG['ZIP_AUDIOPARTS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3291,7 +3313,7 @@
                   </div>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO'] == True:
+                        if lazylibrarian.CONFIG['KEEP_SEPARATEAUDIO']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3303,7 +3325,7 @@
                   <legend>Magazine Conversions</legend>
                   <div class="checkbox">
                     <%
-                        if lazylibrarian.CONFIG['SWAP_COVERPAGE'] == True:
+                        if lazylibrarian.CONFIG['SWAP_COVERPAGE']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3329,7 +3351,7 @@
               %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_TWITTER'] == True:
+                    if lazylibrarian.CONFIG['USE_TWITTER']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3344,7 +3366,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3355,7 +3377,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['TWITTER_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3383,7 +3405,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_BOXCAR'] == True:
+                    if lazylibrarian.CONFIG['USE_BOXCAR']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3398,7 +3420,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3409,7 +3431,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['BOXCAR_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3430,7 +3452,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_PUSHBULLET'] == True:
+                    if lazylibrarian.CONFIG['USE_PUSHBULLET']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3445,7 +3467,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3456,7 +3478,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['PUSHBULLET_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3481,7 +3503,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_PUSHOVER'] == True:
+                    if lazylibrarian.CONFIG['USE_PUSHOVER']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3496,7 +3518,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['PUSHOVER_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3507,7 +3529,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['PUSHOVER_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3540,7 +3562,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_ANDROIDPN'] == True:
+                    if lazylibrarian.CONFIG['USE_ANDROIDPN']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3555,7 +3577,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3566,7 +3588,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['ANDROIDPN_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3579,7 +3601,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['ANDROIDPN_BROADCAST'] == True:
+                        if lazylibrarian.CONFIG['ANDROIDPN_BROADCAST']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3605,7 +3627,7 @@
               %endif
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_EMAIL'] == True:
+                    if lazylibrarian.CONFIG['USE_EMAIL']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3620,7 +3642,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3631,7 +3653,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['EMAIL_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3644,7 +3666,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3687,7 +3709,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['EMAIL_SSL'] == True:
+                        if lazylibrarian.CONFIG['EMAIL_SSL']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3698,7 +3720,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['EMAIL_TLS'] == True:
+                        if lazylibrarian.CONFIG['EMAIL_TLS']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3710,7 +3732,7 @@
                     </div>
                     <div class="checkbox">
                       <%
-                      if lazylibrarian.CONFIG['USE_EMAIL_CUSTOM_FORMAT'] == True:
+                      if lazylibrarian.CONFIG['USE_EMAIL_CUSTOM_FORMAT']:
                         checked = 'checked="checked"'
                       else:
                           checked = ''
@@ -3749,7 +3771,7 @@
               %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_PROWL'] == True:
+                    if lazylibrarian.CONFIG['USE_PROWL']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3764,7 +3786,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PROWL_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['PROWL_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3775,7 +3797,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['PROWL_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['PROWL_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3822,7 +3844,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_GROWL'] == True:
+                    if lazylibrarian.CONFIG['USE_GROWL']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3837,7 +3859,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['GROWL_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['GROWL_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3848,7 +3870,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['GROWL_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3871,7 +3893,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_TELEGRAM'] == True:
+                    if lazylibrarian.CONFIG['USE_TELEGRAM']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3886,7 +3908,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['TELEGRAM_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['TELEGRAM_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3897,7 +3919,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['TELEGRAM_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['TELEGRAM_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3923,7 +3945,7 @@
                 </div>
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_SLACK'] == True:
+                    if lazylibrarian.CONFIG['USE_SLACK']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3938,7 +3960,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3949,7 +3971,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['SLACK_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -3975,7 +3997,7 @@
               %endif
                 <div class="checkbox">
                   <%
-                    if lazylibrarian.CONFIG['USE_CUSTOM'] == True:
+                    if lazylibrarian.CONFIG['USE_CUSTOM']:
                         checked = 'checked="checked"'
                     else:
                         checked = ''
@@ -3990,7 +4012,7 @@
                     <div class="row checkbox">
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONSNATCH'] == True:
+                        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONSNATCH']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -4001,7 +4023,7 @@
                     </div>
                     <div class="col-md-6">
                       <%
-                        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONDOWNLOAD'] == True:
+                        if lazylibrarian.CONFIG['CUSTOM_NOTIFY_ONDOWNLOAD']:
                             checked = 'checked="checked"'
                         else:
                             checked = ''
@@ -4028,14 +4050,14 @@
                     <button class="button btn btn-sm btn-primary" type="button" value="Supported Types" id="show_apprise"><i class="fa fa-list-ul"></i> Supported Types</button>
                     </legend>
                   </div>
-                  %for provider in lazylibrarian.APPRISE_PROV:
+                  %for provider in lazylibrarian.CONFIG.providers('APPRISE'):
                   %if provider['DISPNAME'] != '':
                   <%
                    onsnatch = ''
-                   if provider['SNATCH'] == True:
+                   if provider['SNATCH']:
                        onsnatch = 'checked="checked"'
                    ondownload = ''
-                   if provider['DOWNLOAD'] == True:
+                   if provider['DOWNLOAD']:
                        ondownload = 'checked="checked"'
                   %>
                   <div class="col-md-6 form-group">
@@ -4068,7 +4090,7 @@
                     <div class="row checkbox">
                       <div class="col-md-6">
                         <%
-                          if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE'] == True:
+                          if lazylibrarian.CONFIG['NOTIFY_WITH_TITLE']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -4079,7 +4101,7 @@
                       </div>
                       <div class="col-md-6">
                          <%
-                          if lazylibrarian.CONFIG['NOTIFY_WITH_URL'] == True:
+                          if lazylibrarian.CONFIG['NOTIFY_WITH_URL']:
                               checked = 'checked="checked"'
                           else:
                               checked = ''
@@ -4100,7 +4122,7 @@
               You only need to alter category settings if auto-detection fails or returns incorrect values. If you make any alterations, tick the lock button to prevent reloading values from the provider. API limit is not read from the provider and is not affected by lock.
               </div>
             <div class="row">
-                %for provider in lazylibrarian.NEWZNAB_PROV:
+                %for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
                 <%
                   if provider['HOST'] == "":
                     hidden = 'hidden="hidden"'
@@ -4127,7 +4149,7 @@
                   <input type="text" placeholder="Extended Search" id="newznab_${loop.index}_extended" name="newznab_${loop.index}_extended" value="${provider['EXTENDED']}" class="form-control">
                 </div>
                 </div>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_booksearch" class="control-label">eBook Search:</label>
@@ -4139,7 +4161,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                %if lazylibrarian.CONFIG['MAG_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_magsearch" class="control-label">Magazine Search:</label>
@@ -4151,7 +4173,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                %if lazylibrarian.CONFIG['AUDIO_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_audiosearch" class="control-label">AudioBook Search:</label>
@@ -4163,7 +4185,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                %if lazylibrarian.CONFIG['COMIC_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="newznab_${loop.index}_comicsearch" class="control-label">Comic Search:</label>
@@ -4200,7 +4222,7 @@
                 %endfor
             </div>
             <div class="row">
-                %for provider in lazylibrarian.TORZNAB_PROV:
+                %for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
                 <%
                     if provider['HOST'] == "":
                         hidden = 'hidden="hidden"'
@@ -4221,7 +4243,7 @@
                   <input type="text" placeholder="Extended Search" id="torznab_${loop.index}_extended" name="torznab_${loop.index}_extended" value="${provider['EXTENDED']}" class="form-control">
                 </div>
                 </div>
-                  %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                  %if lazylibrarian.CONFIG['EBOOK_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_booksearch" class="control-label">eBook Search:</label>
@@ -4233,7 +4255,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                %if lazylibrarian.CONFIG['MAG_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_magsearch" class="control-label">Magazine Search:</label>
@@ -4245,7 +4267,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                %if lazylibrarian.CONFIG['AUDIO_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_audiosearch" class="control-label">AudioBook Search:</label>
@@ -4257,7 +4279,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                %if lazylibrarian.CONFIG['COMIC_TAB']:
                 <div class="row form-group" ${hidden}>
                 <div class="col-md-6">
                   <label for="torznab_${loop.index}_comicsearch" class="control-label">Comic Search:</label>
@@ -4298,7 +4320,7 @@
         <div role="tabpanel" class="tab-pane" id="filters">
           <div class="configtable">
             <div class="row">
-                %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                %if lazylibrarian.CONFIG['EBOOK_TAB']:
                 <div class="col-md-6">
                 <legend>Book Reject List</legend>
                 <div class="form-group">
@@ -4321,7 +4343,7 @@
                 </div>
                 <br>
                 %endif
-                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                %if lazylibrarian.CONFIG['AUDIO_TAB']:
                 <div class="col-md-6">
                 <legend>AudioBook Reject List</legend>
                 <div class="form-group">
@@ -4333,7 +4355,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                %if lazylibrarian.CONFIG['MAG_TAB']:
                 <div class="col-md-6">
                 <legend>Magazine Reject/Allow Lists (all titles)</legend>
                 <div class="form-group">
@@ -4358,7 +4380,7 @@
                 </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                %if lazylibrarian.CONFIG['COMIC_TAB']:
                 <div class="col-md-6">
                 <legend>Comic Reject List (all titles)</legend>
                 <div class="form-group">
@@ -4379,7 +4401,7 @@
                   </span>
                 </div>
                 </div>
-                %if lazylibrarian.CONFIG['EBOOK_TAB'] == True:
+                %if lazylibrarian.CONFIG['EBOOK_TAB']:
                 <div class="col-md-6">
                 <legend>eBook Size Limits</legend>
                   <div class="input-group">
@@ -4391,7 +4413,7 @@
                   </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['AUDIO_TAB'] == True:
+                %if lazylibrarian.CONFIG['AUDIO_TAB']:
                 <div class="col-md-6">
                 <legend>AudioBook Size Limits</legend>
                  <div class="input-group">
@@ -4403,7 +4425,7 @@
                   </div>
                 </div>
                 %endif
-                %if lazylibrarian.CONFIG['COMIC_TAB'] == True:
+                %if lazylibrarian.CONFIG['COMIC_TAB']:
                 <div class="col-md-6">
                 <legend>Comic Size Limits</legend>
                  <div class="input-group">
@@ -4428,7 +4450,7 @@
                 </div>
                 %endfor
                 %endif
-                %if lazylibrarian.CONFIG['MAG_TAB'] == True:
+                %if lazylibrarian.CONFIG['MAG_TAB']:
                 <div class="col-md-6">
                 <br>
                 <legend>Magazine Size Limits</legend>

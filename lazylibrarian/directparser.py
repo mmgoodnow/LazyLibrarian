@@ -379,7 +379,7 @@ def direct_gen(book=None, prov=None, test=False):
         if test:
             return False
         return [], "provider_is_blocked"
-    for entry in lazylibrarian.GEN_PROV:
+    for entry in lazylibrarian.CONFIG.providers('GEN'):
         if entry['NAME'].lower() == prov.lower():
             host = entry['HOST']
             if not host.startswith('http'):

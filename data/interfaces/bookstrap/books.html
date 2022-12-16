@@ -14,8 +14,8 @@
         %endif
         <a href="book_wall?have=0" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-plus"></i> Additions</a>
         <a href="book_wall?have=1" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Downloads</a>
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-          %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+          %if lazylibrarian.CONFIG['RSS_ENABLED']:
             <a href="rss_feed?user=${user}&type=eBook&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&limit=10.xml">
           %endif
@@ -76,7 +76,7 @@
         <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
       </div>
       %endif
-      %if lazylibrarian.CONFIG['TOGGLES'] == True:
+      %if lazylibrarian.CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
           <a class="toggle-vis" data-column="2"> Author</a>
@@ -177,7 +177,7 @@
                     }
                     return output.join('<br>');
                 }},
-                %if lazylibrarian.CONFIG['RATESTARS'] == True:
+                %if lazylibrarian.CONFIG['RATESTARS']:
                 { targets: [5],
                     'class': 'text-center',
                     'render': function(data, type, row) {

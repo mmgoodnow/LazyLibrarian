@@ -185,7 +185,7 @@
               <ul class="nav navbar-nav">
                 <!--li><a href="home" class="navbarele">Authors</a></li-->
                 %if perm > 0:
-                  %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
+                  %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
                     %if lazylibrarian.SHOWLOGOUT == 1:
                       <li><a href="logout" class="navbarele" id="logout">Logout</a></li>
                     %endif
@@ -284,9 +284,9 @@
           % elif lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION']:
               % if lazylibrarian.CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
                   msg = '<div class="input-group">Unable to get the latest version from git</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] < 0:
+              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') < 0:
                   msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] > 1:
+              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') > 1:
                   msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.'
                   % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
                     msg += '</div> <strong>Manual update is required</strong>'
@@ -296,7 +296,7 @@
                     msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
                   % endif
                   msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
-              % elif lazylibrarian.CONFIG['COMMITS_BEHIND'] == 1:
+              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 1:
                   msg = '<div class="input-group">New version available. You are one commit behind.'
                   % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
                     msg += '</div> <strong>Manual update is required</strong>'

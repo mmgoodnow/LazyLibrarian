@@ -45,7 +45,7 @@
               <a href="series?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-book"></i> Series</a>
               %endif
         %endif
-        %if lazylibrarian.CONFIG['GR_FOLLOW'] == True:
+        %if lazylibrarian.CONFIG['GR_FOLLOW']:
             %if author['GRfollow']:
               %if author['GRfollow'] != '0':
                 <a href="unfollow_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-check"></i> Following</a>
@@ -77,8 +77,8 @@
               </select>
             %endif
          </div>
-         %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-           %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+         %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+           %if lazylibrarian.CONFIG['RSS_ENABLED']:
              %if lazylibrarian.SHOW_EBOOK > 0:
              <a href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
              <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
@@ -202,7 +202,7 @@
       </div>
       <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
     </div>
-    %if lazylibrarian.CONFIG['TOGGLES'] == True:
+    %if lazylibrarian.CONFIG['TOGGLES']:
     <div class="toggles col-xs-12 col-sm-7 text-right">
     Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
     <a class="toggle-vis" data-column="3"> Title</a>
@@ -327,7 +327,7 @@
                         }
                         return output.join('<br>');
                     }},
-                    %if lazylibrarian.CONFIG['RATESTARS'] == True:
+                    %if lazylibrarian.CONFIG['RATESTARS']:
                     { targets: [5],
                         'class': 'text-center',
                         'render': function(data, type, row) {

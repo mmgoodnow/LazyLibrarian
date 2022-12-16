@@ -14,8 +14,8 @@
         <a href="past_issues?which_status=Skipped" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
         %endif
         <a href="mag_wall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS'] == True:
-          %if lazylibrarian.CONFIG['RSS_ENABLED'] == True:
+        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+          %if lazylibrarian.CONFIG['RSS_ENABLED']:
             <a href="rss_feed?user=${user}&type=Magazine&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest magazines" href="rss_feed?user=${user}&type=Magazine&limit=10.xml">
           %endif
@@ -71,7 +71,7 @@
         <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
       </div>
       %endif
-      %if lazylibrarian.CONFIG['TOGGLES'] == True:
+      %if lazylibrarian.CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
           <a class="toggle-vis" data-column="2"> Title</a>

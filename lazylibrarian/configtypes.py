@@ -4,14 +4,16 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Union, Optional, MutableMapping
+from typing import NewType, Union, Optional, MutableMapping, List
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
 from re import match, compile, IGNORECASE
 import os
 
+import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.formatter import check_int
 
 ### Type aliases to distinguish types of string
 Email = NewType('Email', str)
@@ -77,6 +79,14 @@ class ConfigItem():
     def set_str(self, value: str) -> bool:
         return False
 
+    def set_from_ui(self, value: str) -> bool:
+        if value != self.value:
+            # Don't trigger a change if it's the same
+            return self.set_str(value)
+
+    def get_list(self) -> List[str]:
+        return [self.get_str()]
+
     def get_force_lower(self):
         return False
 
@@ -109,7 +119,8 @@ class ConfigItem():
     def _on_read(self, ok: bool) -> bool:
         if ok:
             self.accesses[Access.READ_OK] += 1
-            logger.debug(f"Read config[{self.key}]={self.value}")
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configread:
+                logger.debug(f"Read config[{self.key}]={self.value}")
         else:
             self.accesses[Access.READ_ERR] += 1
             logger.warn(f"Type error reading config[{self.key}] ({self.value})")
@@ -124,7 +135,8 @@ class ConfigItem():
                 # Don't count a write if the value does not change
                 self.accesses[Access.WRITE_OK] += 1
             self.value = value
-            logger.debug(f"Set config[{self.key}]={value}")
+            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configwrite:
+                logger.debug(f"Set config[{self.key}]={value}")
             return True
         else:
             self.accesses[Access.WRITE_ERR] += 1
@@ -186,6 +198,14 @@ class ConfigInt(ConfigItem):
     def set_str(self, value: str) -> bool:
         return self._on_type_mismatch(value)
 
+    def set_from_ui(self, value: str) -> bool:
+        ivalue = check_int(value, self.get_default)
+        if ivalue != self.value:
+            # Don't trigger a change if it's the same
+            return self.set_int(ivalue)
+        else:
+            return False
+
     def set_bool(self, value: bool) -> bool:
         return self._on_type_mismatch(value)
 
@@ -232,6 +252,10 @@ class ConfigPerm(ConfigStr):
         self._on_read(True)
         return int(str(self.value), 8)
 
+    def set_from_ui(self, value: str) -> bool:
+        # UI providers a 3-digit octal string
+        return super().set_from_ui(f'0o{value}')
+
     def is_valid_value(self, value: ValidTypes) -> bool:
         try:
             if type(value) == str:
@@ -269,6 +293,14 @@ class ConfigBool(ConfigInt):
     def set_str(self, value: str) -> bool:
         return self._on_type_mismatch(value)
 
+    def get_str(self) -> str:
+        """ For a Bool, return '' for False, 'True' for True """
+        self._on_read(True)
+        if self.value:
+            return '1'
+        else:
+            return '' # Evaluates as False
+
     def is_enabled(self) -> bool:
         return self.get_bool()
 
@@ -303,6 +335,11 @@ class ConfigCSV(ConfigStr):
     """ A config item that is a string that must be a valid CSV """
     def get_csv(self) -> CSVstr:
         return CSVstr(self.get_str())
+
+    def get_list(self) -> List[str]:
+        """ Return a list like ['abc', 'def'] from 'abc, def'' """
+        st = self.get_str().replace(',', ' ').replace('+', ' ')
+        return ','.join(st.split()).split()
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
