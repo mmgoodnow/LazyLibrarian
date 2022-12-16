@@ -23,6 +23,7 @@ import os
 import sys
 import requests
 from collections import defaultdict
+import lazylibrarian
 from lazylibrarian import config2, common, logger
 
 class LazyTelemetry(object):

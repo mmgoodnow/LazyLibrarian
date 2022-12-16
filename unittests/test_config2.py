@@ -165,22 +165,25 @@ class Config2Test(LLTestCase):
         lazylibrarian.LOGLEVEL = 2
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 1)      # We can read bools as int
-            self.assertEqual(ci.get_str(), 'True')
+            self.assertEqual(ci.get_str(), '1')
             self.assertEqual(ci.get_bool(), True)
             self.assertEqual(int(ci), 1)           # We can read bools as default int
             ci.set_int(2)                          # ok, writes as True/1
 
             ci.set_str('Override')                 # Write Error
 
-            self.assertEqual(ci.get_str(), 'True')
+            self.assertEqual(ci.get_str(), '1')
+            self.assertEqual(ci.get_save_str(), 'True')
             self.assertEqual(ci.get_bool(), True)
             self.assertEqual(int(ci), 1)
             ci.set_bool(False)
             self.assertEqual(ci.get_bool(), False)
+            self.assertEqual(ci.get_str(), '')
+            self.assertEqual(ci.get_save_str(), 'False')
         self.assertEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[BOOLVALUE] to Override: incorrect type',
         ])
-        expected = Counter({Access.READ_OK: 8, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
+        expected = Counter({Access.READ_OK: 11, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
         self.do_access_compare(ci.accesses, expected, 'Basic Bool Config not working as expected')
 
     def test_ConfigURL(self):
@@ -341,7 +344,7 @@ class Config2Test(LLTestCase):
             self.assertEqual('name@gmail.com', cfg.get_email('mail'))
             self.assertFalse(cfg.get_bool('abool'))
             self.assertTrue(cfg.get_bool('boo'))
-            self.assertEqual('True', cfg['boo'])
+            self.assertEqual('1', cfg['boo'])
             self.assertEqual('', cfg.get_email('mail2')) # Read Error
         self.assertEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[MAIL2]: read_error'
