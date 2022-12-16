@@ -23,11 +23,10 @@ variables:
 
 .standard_job: # The basis for all jobs using a standard Python interpreter
   stage: test
-  workflow:
-    rules:
-      - if: '$CI_PIPELINE_SOURCE == "web"'
-        when: always # Run only manually, by triggering run on the web
-      - when: never  # Never run when the source is a "push", for now
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+      when: always # Run only manually, by triggering run on the web
+    - when: never  # Never run when the source is a "push", for now
   before_script:
     - python --version  # So it's in the log
     - pip install virtualenv
