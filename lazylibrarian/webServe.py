@@ -188,7 +188,7 @@ def serve_template(templatename, **kwargs):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-            if 'auth_type' in lazylibrarian.CONFIG and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+            if  lazylibrarian.CONFIG.get_item('auth_type') and lazylibrarian.CONFIG['auth_type'] == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"

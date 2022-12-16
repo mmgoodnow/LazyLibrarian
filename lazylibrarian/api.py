@@ -20,7 +20,7 @@ import threading
 import configparser
 from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
-
+# CFG2DO: API needs updating to use config2, and needs thorough testing
 import cherrypy
 import lazylibrarian
 from lazylibrarian import logger, database
