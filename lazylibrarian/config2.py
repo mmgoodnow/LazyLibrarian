@@ -446,7 +446,7 @@ class LLConfigHandler():
             for _, array in self.arrays.items():
                 array.ensure_empty_end_item()
 
-    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None) -> int:
+    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None, restart_jobs:bool=True) -> int:
         """
         Renames the old config file to .bak and saves new config file.
         Return number of items stored, -1 if error.
@@ -496,7 +496,7 @@ class LLConfigHandler():
                     return -1
         finally:
             thread_name(currentname)
-            self.post_save_actions()
+            self.post_save_actions(restart_jobs)
 
     def post_load_fixup(self) -> int:
         """
@@ -546,7 +546,7 @@ class LLConfigHandler():
     def get_mako_versionfile(self):
         return path.join(self.get_mako_cachedir(), 'python_version.txt')
 
-    def post_save_actions(self):
+    def post_save_actions(self, restart_jobs: bool=True):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
@@ -560,11 +560,12 @@ class LLConfigHandler():
                 fp.write(sys.version.split()[0] + ':' + interface.get_str())
 
         # Restart all scheduled jobs since the schedules may have changed
-        for _, item in self.config.items():
-            schedule = item.get_schedule_name()
-            if schedule:
-                logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
-                schedule_job('Restart', schedule)
+        if restart_jobs:
+            for _, item in self.config.items():
+                schedule = item.get_schedule_name()
+                if schedule:
+                    logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
+                    schedule_job('Restart', schedule)
 
         # Clean up the database if needed (Does this really belong here?)
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():
@@ -578,6 +579,50 @@ class LLConfigHandler():
 
         # Clear all access counters so we can tell if something has changed later
         self.clear_access_counters()
+
+    def create_access_summary(self, saveto:str='') -> Dict:
+        """ For debugging: Create a summary of all accesses, potentially
+        highlighting places where config2 is used incorrectly or where things
+        are highly inefficient """
+
+        access_summary = {}
+        for a in Access:
+            access_summary[a.name] = []
+
+        for key, value in self.config.items():
+            accesses = value.get_accesses()
+            for a in accesses.items():
+                access_summary[a[0].name].append((key, a[1])) # Accesstype = (key, counter)
+
+        for name, array in self.arrays.items(): # e.g. Apprise
+            for index, config in array._configs.items(): # e.g. Each Apprise
+                for key, item in config.items():
+                    accesses = item.get_accesses()
+                    for a in accesses.items():
+                        access_summary[a[0].name].append((f"{name}.{index}.{key}", a[1])) # Accesstype = (key, counter)
+
+        if saveto:
+            self.save_access_summary(saveto, access_summary)
+
+        return access_summary
+
+    def save_access_summary(self, saveto: str, access_summary):
+        """ For debugging: Create a summary of all config accesses by type """
+
+        file = open(saveto,"w")
+        try:
+            file.write(f'*** Config Item Access Summary ***\n')
+            for type, summary in access_summary.items():
+                if len(summary) > 0:
+                    file.writelines(f'Access type: {type}\n')
+                    for line in summary:
+                        #Format:  NameOfKey--------------------- Count--
+                        file.writelines(f'  {line[0]:30}: {line[1]:7}\n')
+        finally:
+            file.close()
+
+
+### Global config related methods that are not part of the config object
 
 def set_redactlist():
     """ Update lazylibrarian.REDACTLIST after config changes """

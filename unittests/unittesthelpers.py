@@ -28,10 +28,13 @@ class LLTestCase(unittest.TestCase):
             cls.prepareTestDB()
             startup.init_build_debug_header(online = False)
         startup.init_build_lists()
+#        lazylibrarian.CONFIG.clear_access_counters()
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
+        lazylibrarian.CONFIG.create_access_summary()
+
         startup.shutdown(restart=False, update=False, exit=False, testing=True)
         if cls.ALLSETUP:
             cls.removetestDB()

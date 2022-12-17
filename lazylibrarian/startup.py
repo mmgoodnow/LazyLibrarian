@@ -190,9 +190,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     if config_override:
         lazylibrarian.CONFIGFILE = config_override
     elif options.config:
-        lazylibrarian.CONFIGFILE = str(options.config)
+        lazylibrarian.CONFIGFILE = syspath(str(options.config))
     else:
-        lazylibrarian.CONFIGFILE = os.path.join(lazylibrarian.DATADIR, "config.ini")
+        lazylibrarian.CONFIGFILE = syspath(os.path.join(lazylibrarian.DATADIR, "config.ini"))
 
     if options.pidfile:
         if lazylibrarian.DAEMON:
@@ -738,7 +738,9 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     if not testing:
-        lazylibrarian.CONFIG.save_config_and_backup_old()
+        if lazylibrarian.LOGLEVEL >= 2:
+            lazylibrarian.CONFIG.create_access_summary(syspath(os.path.join(CONFIG['LOGDIR'],'configaccess.log')))
+        lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=False)
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())
