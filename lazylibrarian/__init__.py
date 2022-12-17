@@ -34,7 +34,7 @@ from lazylibrarian.providers import provider_is_blocked
 # These are used/modified by LazyLibrarian.py before config.ini is read
 FULL_PATH = None
 PROG_DIR = ''
-ARGS = None
+ARGS = []
 DAEMON = False
 SIGNAL = None
 PIDFILE = ''
@@ -44,7 +44,7 @@ SYS_ENCODING = ''
 LOGLEVEL = 1
 LOGINUSER = None
 CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
-DBFILE = None
+DBFILE = ''
 COMMIT_LIST = ''
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0

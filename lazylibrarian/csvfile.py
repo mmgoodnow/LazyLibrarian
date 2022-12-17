@@ -40,6 +40,8 @@ def dump_table(table, savedir=None, status=None):
 
         if not path_isdir(savedir):
             savedir = lazylibrarian.DATADIR
+        else:
+            savedir = str(savedir)
 
         headers = ''
         for item in columns:
@@ -86,6 +88,8 @@ def restore_table(table, savedir=None, status=None):
 
         if not path_isdir(savedir):
             savedir = lazylibrarian.DATADIR
+        else:
+            savedir = str(savedir)
 
         headers = ''
 

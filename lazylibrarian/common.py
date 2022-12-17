@@ -308,7 +308,7 @@ def make_dirs(dest_path, new=False):
 WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
 
 
-def syspath(path, prefix=True):
+def syspath(path, prefix=True) -> str:
     """Convert a path for use by the operating system. In particular,
     paths on Windows must receive a magic prefix and must be converted
     to Unicode before they are sent to the OS. To disable the magic
@@ -710,7 +710,7 @@ def show_stats():
     series_stats.append(['Blank', res['counter']])
     res = db.match("SELECT count(*) as counter FROM series WHERE Updated>0")
     series_stats.append(['Monitor', res['counter']])
-    overdue = is_overdue('series')[0]
+    overdue = lazylibrarian.scheduling.is_overdue('series')[0]
     series_stats.append(['Overdue', overdue])
 
     mag_stats = []
@@ -785,7 +785,7 @@ def show_stats():
     author_stats.append(['Empty', res['counter']])
     res = db.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
     author_stats.append(['Blank', res['counter']])
-    overdue = is_overdue('author')[0]
+    overdue = lazylibrarian.scheduling.is_overdue('author')[0]
     author_stats.append(['Overdue', overdue])
     for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
         if len(stats):

@@ -167,6 +167,7 @@ def db_upgrade(current_version):
                     logger.error('Database integrity check: %s' % result)
                     # should probably abort now if result is not "ok"
 
+            db_changes = 0
             if db_version < current_version:
                 db = database.DBConnection()
                 if db_version:
@@ -270,7 +271,6 @@ def db_upgrade(current_version):
                     logger.error(msg)
                     lazylibrarian.UPDATE_MSG = msg
 
-                db_changes = 0
                 index = db_version + 1
                 while 'db_v%s' % index in globals():
                     db_changes += 1

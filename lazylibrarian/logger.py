@@ -36,8 +36,10 @@ class RotatingLogger(object):
 
     def stop_logger(self):
         lg = logging.getLogger(__name__)
-        lg.removeHandler(self.filehandler)
-        lg.removeHandler(self.consolehandler)
+        if self.filehandler:
+            lg.removeHandler(self.filehandler)
+        if self.consolehandler:
+            lg.removeHandler(self.consolehandler)
         self.filehandler = None
         self.consolehandler = None
         RotatingLogger.__LOGGER_INITIALIZED__ = False

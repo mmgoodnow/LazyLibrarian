@@ -35,9 +35,10 @@ apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u
 
 
 # noinspection PyDeprecation
-def thread_name(name=None):
+def thread_name(name=None) -> str:
     if name:
         threading.current_thread().name = name
+        return name
     else:
         return threading.current_thread().name
 

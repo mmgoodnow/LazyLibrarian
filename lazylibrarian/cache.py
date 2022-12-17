@@ -573,23 +573,24 @@ def clean_cache():
     cachedir = os.path.join(lazylibrarian.CACHEDIR, 'author')
     cleaned = 0
     kept = 0
-    for item in images:
-        keep = True
-        imgfile = ''
-        if item['AuthorImg'] is None or item['AuthorImg'] == '':
-            keep = False
-        if keep and not item['AuthorImg'].startswith('http') and not item['AuthorImg'] == "images/nophoto.png":
-            # html uses '/' as separator, but os might not
-            imgname = item['AuthorImg'].rsplit('/')[-1]
-            imgfile = os.path.join(cachedir, imgname)
-            if not path_isfile(imgfile):
+    if images:
+        for item in images:
+            keep = True
+            imgfile = ''
+            if item['AuthorImg'] is None or item['AuthorImg'] == '':
                 keep = False
-        if keep:
-            kept += 1
-        else:
-            cleaned += 1
-            logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
-            db.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
+            if keep and not item['AuthorImg'].startswith('http') and not item['AuthorImg'] == "images/nophoto.png":
+                # html uses '/' as separator, but os might not
+                imgname = item['AuthorImg'].rsplit('/')[-1]
+                imgfile = os.path.join(cachedir, imgname)
+                if not path_isfile(imgfile):
+                    keep = False
+            if keep:
+                kept += 1
+            else:
+                cleaned += 1
+                logger.debug('Image missing for %s %s' % (item['AuthorName'], imgfile))
+                db.action('update authors set AuthorImg="images/nophoto.png" where AuthorID=?', (item['AuthorID'],))
 
     msg = "Cleaned %i missing author %s, kept %i" % (cleaned, plural(cleaned, "image"), kept)
     result.append(msg)

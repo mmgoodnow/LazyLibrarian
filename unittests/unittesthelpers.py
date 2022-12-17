@@ -90,7 +90,7 @@ class LLTestCase(unittest.TestCase):
         # Clear configuration variables to ahve a clean slate for any further test runs
         lazylibrarian.FULL_PATH = None
         lazylibrarian.PROG_DIR = ''
-        lazylibrarian.ARGS = None
+        lazylibrarian.ARGS = []
         lazylibrarian.DAEMON = False
         lazylibrarian.SIGNAL = None
         lazylibrarian.PIDFILE = ''
@@ -100,7 +100,7 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.LOGLEVEL = 1
         lazylibrarian.LOGINUSER = None
         lazylibrarian.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
-        lazylibrarian.DBFILE = None
+        lazylibrarian.DBFILE = ''
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.SHOWLOGOUT = 1
         lazylibrarian.CHERRYPYLOG = 0
