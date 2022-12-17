@@ -284,7 +284,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
                 match = item
                 break
     if match:
-        logger.debug('Exact match [%s] %s' % (book, match))
+        logger.debug('Exact match [%s] %s' % (book, match['BookID']))
         return match['BookID'], match
 
     # Try a more complex fuzzy match against each book in the db by this author
