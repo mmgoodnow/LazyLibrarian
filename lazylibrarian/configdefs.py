@@ -310,7 +310,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigScheduleInterval('SearchScan', 'WISHLIST_INTERVAL', 'search_wishlist', 24),
     ConfigScheduleInterval('SearchScan', 'SEARCH_COMICINTERVAL', 'search_comics', 24),
     ConfigScheduleInterval('SearchScan', 'VERSIONCHECK_INTERVAL', 'check_for_updates', 24),
-    ConfigScheduleInterval('SearchScan', 'GOODREADS_INTERVAL', 'sync_to_gr', 48),
+    ConfigScheduleInterval('SearchScan', 'GOODREADS_INTERVAL', 'sync_to_goodreads', 48),
     ConfigBool('SearchScan', 'DELAYSEARCH', 0),
     ConfigInt('SearchScan', 'SEARCH_RATELIMIT', 0),
     ConfigBool('LibraryScan', 'FULL_SCAN', 0),

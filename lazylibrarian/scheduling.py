@@ -112,14 +112,9 @@ def nextrun(target=None, interval=0, action='', hours=False):
         else:
             lastrun = 0
 
-    if target == 'sync_to_goodreads':
-        newtarget = 'sync_to_gr'
-    else:
-        newtarget = target
-
     nextruntime = ''
     for job in SCHED.get_jobs():
-        if newtarget in str(job):
+        if target in str(job):
             nextruntime = job.split('at: ')[1].split('.')[0].strip(')')
             break
 
@@ -168,34 +163,27 @@ def schedule_job(action='Start', target=None):
     from lazylibrarian import postprocess, searchmag, searchbook, searchrss, \
         comicsearch, versioncheck, grsync, cache
 
-    if target == 'PostProcessor':  # more readable
-        newtarget = 'process_dir'
-    elif target == 'sync_to_goodreads':
-        newtarget = 'sync_to_gr'
-    else:
-        newtarget = target
-
     if action in ['Stop', 'Restart']:
         for job in SCHED.get_jobs():
-            if newtarget in str(job):
+            if target in str(job):
                 SCHED.unschedule_job(job)
                 logger.debug("Stop %s job" % target)
                 break
 
     if action in ['Start', 'Restart', 'StartNow']:
         for job in SCHED.get_jobs():
-            if newtarget in str(job):
+            if target in str(job):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
 
-        if 'process_dir' in newtarget:
+        if 'PostProcessor' in target:
             interval = lazylibrarian.CONFIG.get_int('SCAN_INTERVAL')
             if interval:
                 startdate = nextrun("POSTPROCESS", interval, action)
                 SCHED.add_interval_job(postprocess.cron_process_dir,
                                        minutes=interval, start_date=startdate)
 
-        elif 'search_magazines' in newtarget:
+        elif 'search_magazines' in target:
             interval = lazylibrarian.CONFIG.get_int('SEARCH_MAGINTERVAL')
             if interval and (lazylibrarian.use_tor() or lazylibrarian.use_nzb()
                              or lazylibrarian.use_rss() or lazylibrarian.use_direct()
@@ -208,7 +196,7 @@ def schedule_job(action='Start', target=None):
                     hours = int(interval / 60)
                     SCHED.add_interval_job(searchmag.cron_search_magazines,
                                            hours=hours, start_date=startdate)
-        elif 'search_book' in newtarget:
+        elif 'search_book' in target:
             interval = lazylibrarian.CONFIG.get_int('SEARCH_BOOKINTERVAL')
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
@@ -220,7 +208,7 @@ def schedule_job(action='Start', target=None):
                     hours = int(interval / 60)
                     SCHED.add_interval_job(searchbook.cron_search_book,
                                            hours=hours, start_date=startdate)
-        elif 'search_rss_book' in newtarget:
+        elif 'search_rss_book' in target:
             interval = lazylibrarian.CONFIG.get_int('SEARCHRSS_INTERVAL')
             if interval and lazylibrarian.use_rss():
                 startdate = nextrun("SEARCHALLRSS", interval, action)
@@ -231,14 +219,14 @@ def schedule_job(action='Start', target=None):
                     hours = int(interval / 60)
                     SCHED.add_interval_job(searchrss.cron_search_rss_book,
                                            hours=hours, start_date=startdate)
-        elif 'search_wishlist' in newtarget:
+        elif 'search_wishlist' in target:
             interval = lazylibrarian.CONFIG.get_int('WISHLIST_INTERVAL')
             if interval and lazylibrarian.use_wishlist():
                 startdate = nextrun("SEARCHWISHLIST", interval, action, True)
                 SCHED.add_interval_job(searchrss.cron_search_wishlist,
                                        hours=interval, start_date=startdate)
 
-        elif 'search_comics' in newtarget:
+        elif 'search_comics' in target:
             interval = lazylibrarian.CONFIG.get_int('SEARCH_COMICINTERVAL')
             if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
                              or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
@@ -246,21 +234,21 @@ def schedule_job(action='Start', target=None):
                 SCHED.add_interval_job(comicsearch.cron_search_comics,
                                        hours=interval, start_date=startdate)
 
-        elif 'check_for_updates' in newtarget:
+        elif 'check_for_updates' in target:
             interval = lazylibrarian.CONFIG.get_int('VERSIONCHECK_INTERVAL')
             if interval:
                 startdate = nextrun("VERSIONCHECK", interval, action, True)
                 SCHED.add_interval_job(versioncheck.check_for_updates,
                                        hours=interval, start_date=startdate)
 
-        elif 'sync_to_gr' in newtarget and lazylibrarian.CONFIG.get_bool('GR_SYNC'):
+        elif 'sync_to_goodreads' in target and lazylibrarian.CONFIG.get_bool('GR_SYNC'):
             interval = lazylibrarian.CONFIG.get_int('GOODREADS_INTERVAL')
             if interval:
                 startdate = nextrun("GRSYNC", interval, action, True)
                 SCHED.add_interval_job(grsync.cron_sync_to_gr,
                                        hours=interval, start_date=startdate)
 
-        elif 'clean_cache' in newtarget:
+        elif 'clean_cache' in target:
             days = lazylibrarian.CONFIG.get_int('CACHE_AGE')
             if days:
                 interval = 8
@@ -268,11 +256,11 @@ def schedule_job(action='Start', target=None):
                 SCHED.add_interval_job(cache.clean_cache,
                                        hours=interval, start_date=startdate)
 
-        elif 'author_update' in newtarget or 'series_update' in newtarget:
+        elif 'author_update' in target or 'series_update' in target:
             # Try to get all authors/series scanned evenly inside the cache age
             maxage = lazylibrarian.CONFIG.get_int('CACHE_AGE')
             if maxage:
-                typ = newtarget.replace('_update', '')
+                typ = target.replace('_update', '')
                 if typ == 'author':
                     task = 'AUTHORUPDATE'
                 else:
@@ -559,9 +547,6 @@ def show_jobs():
             jobname = "Wishlist search"
             threadname = "SEARCHWISHLIST"
         elif "PostProcessor" in job:
-            jobname = "PostProcessor"
-            threadname = "POSTPROCESS"
-        elif "cron_process_dir" in job:
             jobname = "PostProcessor"
             threadname = "POSTPROCESS"
         elif "author_update" in job:
