@@ -244,7 +244,7 @@ def directory(dirname):
 
 
 
-def wishlist_type(host):
+def wishlist_type(host: str):
     """
     Return type of wishlist at host, or empty string if host is not a wishlist
     (Quite fragile, take care)

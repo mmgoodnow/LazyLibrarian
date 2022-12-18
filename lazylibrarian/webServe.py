@@ -744,7 +744,7 @@ class WebInterface(object):
             cnt = 0
             feeds = db.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
             for provider in lazylibrarian.CONFIG.providers('RSS'):
-                wishtype = lazylibrarian.wishlist_type(provider['HOST'])
+                wishtype = lazylibrarian.wishlist_type(provider['HOST'].get_str())
                 if wishtype:
                     cnt += 1
                     subscribed = False

@@ -198,8 +198,8 @@ class IRC:
 
 
 def irc_connect(provider: ConfigDict, retries=10):
-    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
-        logger.warn("%s is blocked" % provider['SERVER'])
+    if lazylibrarian.providers.provider_is_blocked(provider['SERVER'].get_str()):
+        logger.warn("%s is blocked" % provider['SERVER'].get_str())
         return None
 
     irc = provider.get('IRC')
