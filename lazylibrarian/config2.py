@@ -12,6 +12,7 @@ from os import path, sep
 import os
 import shutil
 import sys
+import re
 
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
@@ -168,10 +169,11 @@ class LLConfigHandler():
 
     def _load_array_section(self, section:str, parser:ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
-        arrayname = section[:-1].upper() # Assume we have < 10 items!
+        arrayname, index = re.split(r'(^[^\d]+)', section)[1:]
+        arrayname = arrayname.upper()
         if arrayname[-1:] == '_':
             arrayname = arrayname[:-1]
-        index = int(section[-1:])
+        index = int(index)
         defaults = ARRAY_DEFS[arrayname] if arrayname in ARRAY_DEFS else None
         if defaults:
             logger.debug(f"Loading array {arrayname} index {index}")

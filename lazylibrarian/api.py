@@ -23,7 +23,7 @@ from urllib.parse import urlsplit, urlunsplit
 # CFG2DO: API needs updating to use config2, and needs thorough testing
 import cherrypy
 import lazylibrarian
-from lazylibrarian import logger, database
+from lazylibrarian import logger, database, configdefs
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
@@ -239,10 +239,10 @@ class Api(object):
         if not lazylibrarian.CONFIG.get_bool('API_ENABLED'):
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
             return
-        if not lazylibrarian.CONFIG['API_KEY']:
+        if not lazylibrarian.CONFIG.get_str('API_KEY'):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 501, 'Message': 'No API key'}}
             return
-        if len(lazylibrarian.CONFIG['API_KEY']) != 32:
+        if len(lazylibrarian.CONFIG.get_str('API_KEY')) != 32:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 503, 'Message': 'Invalid API key'}}
             return
 
@@ -251,7 +251,7 @@ class Api(object):
                                                                   'Message': 'Missing parameter: apikey'}}
             return
 
-        if kwargs['apikey'] != lazylibrarian.CONFIG['API_KEY']:
+        if kwargs['apikey'] != lazylibrarian.CONFIG.get_str('API_KEY'):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 401, 'Message': 'Incorrect API key'}}
             return
         else:
@@ -366,6 +366,28 @@ class Api(object):
                              }
         return
 
+
+    def _provider_array(self, prov_type):
+        array = lazylibrarian.CONFIG.providers(prov_type)
+        providers = []
+        for index, config in array._configs.items():
+            thisprov = {}
+            for key in config:
+                if key == 'NAME':
+                    if 'znab' in str(config[key]):
+                        thisprov[key] = '%s%s' % (str(config[key]), index)
+                    else:
+                        thisprov[key] = '%s_%s' % (str(config[key]), index)
+                elif key in ['ENABLED', 'MANUAL']:
+                    thisprov[key] = bool(config[key])
+                elif key in ['DLPRIORITY', 'EXTENDED', 'APILIMIT', 'APICOUNT', 'RATELIMIT', 'LASTUSED']:
+                    thisprov[key] = check_int(config[key], 0)
+                else:
+                    thisprov[key] = str(config[key])
+            providers.append(thisprov)
+        return providers
+
+
     def _listproviders(self):
         self._listdirectproviders()
         direct = self.data
@@ -374,10 +396,10 @@ class Api(object):
         for item in torrent:  # type: dict
             keys = list(item.keys())
             item['NAME'] = keys[-1].split('_')[0]
-        self.data = {'newznab': lazylibrarian.NEWZNAB_PROV,
-                     'torznab': lazylibrarian.TORZNAB_PROV,
-                     'rss': lazylibrarian.RSS_PROV,
-                     'irc': lazylibrarian.IRC_PROV,
+        self.data = {'newznab': self._provider_array('NEWZNAB'),
+                     'torznab': self._provider_array('TORZNAB'),
+                     'rss': self._provider_array('RSS'),
+                     'irc': self._provider_array('IRC'),
                      'torrent': torrent,
                      'direct': direct,
                      }
@@ -387,27 +409,29 @@ class Api(object):
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
 
     def _listnabproviders(self):
-        newzlist = []
-        for item in lazylibrarian.NEWZNAB_PROV:
-            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
-            if item['AUDIOCAT']:
-                if entry['Categories']:
-                    entry['Categories'] += ','
-                entry['Categories'] += item['AUDIOCAT']
-            newzlist.append(entry)
+        # custom output format for prowlarr
+        newzlist = self._provider_array('NEWZNAB')
+        for item in newzlist:
+            # merge prowlarr categories
+            item['Categories'] = ''
+            for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
+                if item.get(key):
+                    if item.get('Categories'):
+                        item['Categories'] += ','
+                    item['Categories'] += item[key]   
+                    item.pop(key)
 
-        torzlist = []
-        for item in lazylibrarian.TORZNAB_PROV:
-            entry = {'Name': item['DISPNAME'], 'Dispname': item['DISPNAME'], 'Host': item['HOST'],
-                     'Apikey': item['API'], 'Enabled': item['ENABLED'], 'Categories': item['BOOKCAT']}
-            if item['AUDIOCAT']:
-                if entry['Categories']:
-                    entry['Categories'] += ','
-                entry['Categories'] += item['AUDIOCAT']
-            torzlist.append(entry)
+        torzlist = self._provider_array('TORZNAB')
+        for item in torzlist:
+            item['Categories'] = ''
+            for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
+                if item.get(key):
+                    if item.get('Categories'):
+                        item['Categories'] += ','
+                    item['Categories'] += item[key]   
+                    item.pop(key)
 
-        tot = len(lazylibrarian.NEWZNAB_PROV) + len(lazylibrarian.TORZNAB_PROV)
+        tot = len(newzlist) + len(torzlist)
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = {'Success': True,
                      'Data': {
@@ -416,44 +440,53 @@ class Api(object):
                      },
                      'Error':  {'Code': 200, 'Message': 'OK'}
                      }
-
+        
     def _listrssproviders(self):
-        tot = len(lazylibrarian.RSS_PROV)
+        providers = self._provider_array('RSS')
+        tot = len(providers)
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
-        self.data = lazylibrarian.RSS_PROV
+        self.data = providers
 
     def _listircproviders(self):
-        tot = len(lazylibrarian.IRC_PROV)
+        providers = self._provider_array('IRC')
+        tot = len(providers)
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
-        self.data = lazylibrarian.IRC_PROV
+        self.data = providers
 
     def _listtorrentproviders(self):
         providers = []
         for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
+            mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool(provider)}
             for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'SEEDERS']:
                 name = "%s_%s" % (provider, item)
-                mydict[name] = lazylibrarian.CONFIG[name]
+                mydict[name] = lazylibrarian.CONFIG.get_str(name)
             providers.append(mydict)
         logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
-        return
 
     def _listdirectproviders(self):
-        providers = []
-        for provider in ['BOK', 'BFI']:
-            mydict = {'ENABLED': bool(lazylibrarian.CONFIG[provider])}
-            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT']:
-                name = "%s_%s" % (provider, item)
-                if name in lazylibrarian.CONFIG:
-                    mydict[name] = lazylibrarian.CONFIG[name]
-            providers.append(mydict)
-        for item in lazylibrarian.GEN_PROV:
-            providers.append(item)
-        logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
+        providers = self._provider_array('GEN')
+        mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool('BOK')}
+        for item in ['HOST', 'LOGIN', 'USER', 'PASS', 'DLTYPES']:
+            name = "%s_%s" % ('BOK', item)
+            mydict[name] = lazylibrarian.CONFIG.get_str(name)
+        for item in ['DLPRIORITY', 'DLLIMIT']:
+            name = "%s_%s" % ('BOK', item)
+            mydict[name] = lazylibrarian.CONFIG.get_int(name)
+        providers.append(mydict)
+        mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool('BFI')}
+        for item in ['HOST', 'DLTYPES']:
+            name = "%s_%s" % ('BFI', item)
+            mydict[name] = lazylibrarian.CONFIG.get_str(name)
+        for item in ['DLPRIORITY']:
+            name = "%s_%s" % ('BFI', item)
+            mydict[name] = lazylibrarian.CONFIG.get_int(name)
+        providers.append(mydict)
+        tot = len(providers)
+        logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
-        return
 
+    # TODO
     def _delprovider(self, **kwargs):
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
@@ -465,29 +498,43 @@ class Api(object):
             name = kwargs.get('NAME', '')
 
         if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
+            providers = lazylibrarian.CONFIG.providers('NEWZNAB')
             providers = lazylibrarian.NEWZNAB_PROV
             section = 'newznab'
             clear = 'HOST'
         elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = lazylibrarian.CONFIG.providers('TORZNAB')
             section = 'torznab'
             clear = 'HOST'
         elif name.startswith('RSS_'):
-            providers = lazylibrarian.RSS_PROV
+            providers = lazylibrarian.CONFIG.providers('RSS')
             section = 'rss_'
             clear = 'HOST'
         elif name.startswith('GEN_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = lazylibrarian.CONFIG.providers('GEN')
             section = 'GEN_'
             clear = 'HOST'
         elif name.startswith('IRC_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = lazylibrarian.CONFIG.providers('IRC')
             section = 'IRC_'
             clear = 'SERVER'
         else:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Invalid parameter: name'}}
             return
+
+        for index, config in array._configs.items():
+            thisprov = {}
+            for key in config:
+                if key == 'NAME':
+                    thisprov[key] = '%s_%s' % (str(config[key]), index)
+                elif key in ['ENABLED', 'MANUAL']:
+                    thisprov[key] = bool(config[key])
+                elif key in ['DLPRIORITY', 'EXTENDED', 'APILIMIT', 'APICOUNT', 'RATELIMIT', 'LASTUSED']:
+                    thisprov[key] = check_int(config[key], 0)
+                else:
+                    thisprov[key] = str(config[key])
+
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
@@ -499,6 +546,7 @@ class Api(object):
                                                               'Message': 'Provider %s not found' % name}}
         return
 
+    # TODO
     def _changeprovider(self, **kwargs):
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
@@ -598,6 +646,7 @@ class Api(object):
                      'Error':  {'Code': 404, 'Message': 'Provider %s not found' % name}}
         return
 
+    #TODO
     def _addprovider(self, **kwargs):
         if 'type' not in kwargs and 'providertype' not in kwargs:
             self.data = {'Success': False, 'Data': '',
@@ -842,14 +891,14 @@ class Api(object):
 
     def _listalienauthors(self):
         cmd = "SELECT AuthorID,AuthorName from authors WHERE AuthorID "
-        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+        if lazylibrarian.CONFIG.get_str('BOOK_API') != 'OpenLibrary':
             cmd += 'NOT '
         cmd += 'LIKE "OL%A"'
         self.data = self._dic_from_query(cmd)
 
     def _listalienbooks(self):
         cmd = "SELECT BookID,BookName from books WHERE BookID "
-        if lazylibrarian.CONFIG['BOOK_API'] != 'OpenLibrary':
+        if lazylibrarian.CONFIG.get_str('BOOK_API') != 'OpenLibrary':
             cmd += 'NOT '
         cmd += 'LIKE "OL%W"'
         self.data = self._dic_from_query(cmd)
@@ -1330,11 +1379,11 @@ class Api(object):
                     issuedate = issuedate.zfill(4)  # pad with leading zeros
             if dirname:
                 title = os.path.basename(dirname)
-                if '$Title' in lazylibrarian.CONFIG['MAG_DEST_FILE']:
-                    fname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate).replace(
+                if '$Title' in lazylibrarian.CONFIG.get_str('MAG_DEST_FILE'):
+                    fname = lazylibrarian.CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate).replace(
                         '$Title', title)
                 else:
-                    fname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$IssueDate', issuedate)
+                    fname = lazylibrarian.CONFIG.get_str('MAG_DEST_FILE').replace('$IssueDate', issuedate)
                 self.data = os.path.join(dirname, fname + '.' + name_exploded[-1])
             else:
                 self.data = "Regex %s [%s] %s" % (regex_pass, issuedate, year)
@@ -1630,16 +1679,16 @@ class Api(object):
     def _getversion(self):
         self.data = {
             'Success': True,
-            'install_type': lazylibrarian.CONFIG['INSTALL_TYPE'],
-            'current_version': lazylibrarian.CONFIG['CURRENT_VERSION'],
-            'latest_version': lazylibrarian.CONFIG['LATEST_VERSION'],
-            'commits_behind': lazylibrarian.CONFIG['COMMITS_BEHIND'],
+            'install_type': lazylibrarian.CONFIG.get_str('INSTALL_TYPE'),
+            'current_version': lazylibrarian.CONFIG.get_str('CURRENT_VERSION'),
+            'latest_version': lazylibrarian.CONFIG.get_str('LATEST_VERSION'),
+            'commits_behind': lazylibrarian.CONFIG.get_int('COMMITS_BEHIND'),
         }
 
     def _getcurrentversion(self):
         self.data = {
             'Success': True,
-            'Data': lazylibrarian.CONFIG['CURRENT_VERSION'],
+            'Data': lazylibrarian.CONFIG.get_str('CURRENT_VERSION'),
             'Error':  {'Code': 200, 'Message': 'OK'}
         }
 
@@ -1669,17 +1718,17 @@ class Api(object):
             return
 
         authorname = format_author_name(kwargs['name'])
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        if lazylibrarian.CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[authorname, myqueue])
             search_api.start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[authorname, myqueue])
             search_api.start()
-        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(authorname)
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[authorname, myqueue])
@@ -1693,17 +1742,17 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        if lazylibrarian.CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gb.find_results, name='API-GBRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=gr.find_results, name='API-GRRESULTS', args=[kwargs['name'], myqueue])
             search_api.start()
-        else:  # if lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        else:  # if lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['name'])
             myqueue = Queue()
             search_api = threading.Thread(target=ol.find_results, name='API-OLRESULTS', args=[kwargs['name'], myqueue])
@@ -1717,15 +1766,15 @@ class Api(object):
             self.data = 'Missing parameter: id'
             return
 
-        if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+        if lazylibrarian.CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(kwargs['id'])
             threading.Thread(target=gb.find_book, name='API-GBRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+        elif lazylibrarian.CONFIG.get_str('BOOK_API') == "GoodReads":
             gr = GoodReads(kwargs['id'])
             threading.Thread(target=gr.find_book, name='API-GRRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
-        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+        elif lazylibrarian.CONFIG.get_str('BOOK_API') == "OpenLibrary":
             ol = OpenLibrary(kwargs['id'])
             threading.Thread(target=ol.find_book, name='API-OLRESULTS', args=[kwargs['id'],
                                                                               None, None, "Added by API"]).start()
@@ -2115,7 +2164,7 @@ class Api(object):
         self.data = show_stats()
 
     def _importalternate(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG.get_str('ALTERNATE_DIR'))
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = process_alternate(usedir, library)
@@ -2123,7 +2172,7 @@ class Api(object):
             threading.Thread(target=process_alternate, name='API-IMPORTALT', args=[usedir, library]).start()
 
     def _includealternate(self, **kwargs):
-        startdir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        startdir = kwargs.get('dir', lazylibrarian.CONFIG.get_str('ALTERNATE_DIR'))
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
             self.data = library_scan(startdir, library, None, False)
@@ -2132,7 +2181,7 @@ class Api(object):
                              args=[startdir, library, None, False]).start()
 
     def _importcsvwishlist(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG.get_str('ALTERNATE_DIR'))
         status = kwargs.get('status', 'Wanted')
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
@@ -2141,7 +2190,7 @@ class Api(object):
             threading.Thread(target=import_csv, name='API-IMPORTCSV', args=[usedir, status, library]).start()
 
     def _exportcsvwishlist(self, **kwargs):
-        usedir = kwargs.get('dir', lazylibrarian.CONFIG['ALTERNATE_DIR'])
+        usedir = kwargs.get('dir', lazylibrarian.CONFIG.get_str('ALTERNATE_DIR'))
         status = kwargs.get('status', 'Wanted')
         library = kwargs.get('library', 'eBook')
         if 'wait' in kwargs:
