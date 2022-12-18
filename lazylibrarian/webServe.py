@@ -744,7 +744,7 @@ class WebInterface(object):
             cnt = 0
             feeds = db.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
             for provider in lazylibrarian.CONFIG.providers('RSS'):
-                wishtype = lazylibrarian.wishlist_type(provider['HOST'].get_str())
+                wishtype = lazylibrarian.wishlist_type(provider['HOST'])
                 if wishtype:
                     cnt += 1
                     subscribed = False
@@ -1490,9 +1490,9 @@ class WebInterface(object):
         if lazylibrarian.NABAPICOUNT != today():
             lazylibrarian.NABAPICOUNT = today()
             for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
-                provider['APICOUNT'].set_int(0)
+                provider.set_int('APICOUNT', 0)
             for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
-                provider['APICOUNT'].set_int(0)
+                provider.set_int('APICOUNT', 0)
 
         # Don't pass the whole config, no need to pass the
         # lazylibrarian.globals
@@ -2989,7 +2989,7 @@ class WebInterface(object):
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         db = database.DBConnection()
-        if not lazylibrarian.get_bool('USER_ACCOUNTS'):
+        if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
             perm = lazylibrarian.perm_admin
             preftype = ''
         else:
@@ -3761,7 +3761,7 @@ class WebInterface(object):
                             db.action('delete from wanted where bookid=?', (bookid,))
                             logger.info('Removed "%s" from database' % bookname)
 
-            if action in reading_lists:
+            if action in reading_lists and cookie:
                 db.action('UPDATE users SET ToRead=?,HaveRead=?,Reading=?,Abandoned=? WHERE UserID=?',
                           (', '.join('"{0}"'.format(w) for w in to_read),
                            ', '.join('"{0}"'.format(w) for w in have_read),
@@ -6861,7 +6861,7 @@ class WebInterface(object):
 
     @staticmethod
     def send_file(myfile, name=None, email=False):
-        if lazylibrarian.get_bool('USER_ACCOUNTS'):
+        if lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
             db = database.DBConnection()
             cookie = cherrypy.request.cookie
             msg = ''

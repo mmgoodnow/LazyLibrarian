@@ -214,12 +214,12 @@ class Config2Test(LLTestCase):
                 self.assertEqual(goturl, '')
         self.maxDiff = None
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_SPACES]: format_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_SPACES]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_PROTO]: format_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_PROTO]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_DOMAIN]: format_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[INVALID_DOMAIN]: read_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_SPACES]: format_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_SPACES]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_PROTO]: format_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_PROTO]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_DOMAIN]: format_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_DOMAIN]: read_error'
         ])
 
     def test_ConfigFolder(self):
@@ -288,12 +288,12 @@ class Config2Test(LLTestCase):
             cfg.set_int('someint', 45)
             cfg.set_bool('abool', False)
             cfg.set_bool('boo', True)
-            email = configtypes.Email('name@gmail.com')
+            email = 'name@gmail.com'
             cfg.set_email('mail', email)
 
-            cfg.set_email('mail2', configtypes.Email('name@gmailmissingcom')) # Format Error
+            cfg.set_email('mail2', 'name@gmailmissingcom') # Format Error
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[MAIL2]: format_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[MAIL2]: format_error'
         ])
 
     def test_compare_basic_configs(self):
@@ -347,19 +347,19 @@ class Config2Test(LLTestCase):
             self.assertEqual('1', cfg['boo'])
             self.assertEqual('', cfg.get_email('mail2')) # Read Error
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[MAIL2]: read_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[MAIL2]: read_error'
         ])
 
     def do_csv_ops(self, cfg: config2.LLConfigHandler):
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
-            cfg.set_csv('csv', configtypes.CSVstr('allan,bob,fred'))
-            cfg.set_csv('csv2', configtypes.CSVstr(''))
-            cfg.set_csv('csv3', configtypes.CSVstr(',,test')) # Format error
-            cfg.set_csv('csv4', configtypes.CSVstr('"fred" bob and alice,test')) # Format error
-            cfg.set_csv('csv5', configtypes.CSVstr('single'))
+            cfg.set_csv('csv', 'allan,bob,fred')
+            cfg.set_csv('csv2', '')
+            cfg.set_csv('csv3', ',,test') # Format error
+            cfg.set_csv('csv4', '"fred" bob and alice,test') # Format error
+            cfg.set_csv('csv5', 'single')
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[CSV3]: format_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[CSV4]: format_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV3]: format_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV4]: format_error'
         ])
         ecs = cfg.get_error_counters()
         expectedecs = {
@@ -380,8 +380,8 @@ class Config2Test(LLTestCase):
             self.assertEqual('', cfg.get_csv('csv3')) # Read error
             self.assertEqual('', cfg.get_csv('csv4')) # Read error
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[CSV3]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[CSV4]: read_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV3]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV4]: read_error'
         ])
 
     def test_read_error_counters(self):
@@ -396,11 +396,11 @@ class Config2Test(LLTestCase):
             self.assertEqual('', cfg.get_csv('also-does-not'))
             self.assertEqual('', cfg['KeyDoesNotExist'])
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[ALSO-DOES-NOT]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[KEYDOESNOTEXIST]: read_error'
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[ALSO-DOES-NOT]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[KEYDOESNOTEXIST]: read_error'
         ])
 
         ecs = cfg.get_error_counters()
@@ -556,20 +556,20 @@ class Config2Test(LLTestCase):
         # Test reading items
         names = []
         for item in cfg.providers('NewzNab'):
-            names.append(item['DISPNAME'].get_str())
+            names.append(item['DISPNAME']) # Access item as string directly
         self.assertEqual(names, ['NZBtester', 'AnotherTest', ''])
 
         # Test writing re-accessing data
         index = 0
         for item in cfg.providers('rss'):
-            item['HOST'].set_str(f'TestHost-{index}')
-            item['DLPRIORITY'].set_int(index)
+            item['HOST'] = f'TestHost-{index}'
+            item.set_int('DLPRIORITY', index)
             index += 1
         index = 0
         for item in cfg.providers('rss'):
-            self.assertEqual(item['HOST'].get_str(), f'TestHost-{index}')
-            self.assertEqual(item['DLPRIORITY'].get_str(), f'{index}')
-            self.assertEqual(item['DLPRIORITY'].get_int(), index)
+            self.assertEqual(item['HOST'], f'TestHost-{index}')
+            self.assertEqual(item['DLPRIORITY'], f'{index}')
+            self.assertEqual(item.get_int('DLPRIORITY'), index)
             index += 1
 
         # Test accessing a provider array that doesn't exist
@@ -581,7 +581,7 @@ class Config2Test(LLTestCase):
         except:
             if cm:
                 self.assertEqual(cm.output, [
-                    'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[DOESNOTEXIST]: read_error',
+                    'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOESNOTEXIST]: read_error',
                 ], 'message')
 
     def test_configread_nondefault_access(self):
@@ -597,10 +597,10 @@ class Config2Test(LLTestCase):
         NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
         self.assertIsNotNone(NEWZNAB, 'Expected to get a NEWZNAB object')
         if NEWZNAB:
-            self.assertEqual(NEWZNAB['DISPNAME'].get_str(), 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
+            self.assertEqual(NEWZNAB['DISPNAME'], 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
             self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
-            self.assertTrue(NEWZNAB['ENABLED'].get_bool(), 'NEWZNAB.0.ENABLED not loaded correctly')
-            self.assertEqual(NEWZNAB['APILIMIT'].get_int(), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
+            self.assertTrue(NEWZNAB.get_bool('ENABLED'), 'NEWZNAB.0.ENABLED not loaded correctly')
+            self.assertEqual(NEWZNAB.get_int('APILIMIT'), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
 
     def remove_test_file(self, filename) -> bool:
         """ Remove a file used for testing. Returns True if a file was removed """
@@ -774,11 +774,11 @@ class Config2Test(LLTestCase):
             self.assertTrue(array.is_in_use(0), 'This test assumes there is an Apprise[0] entry in use')
             self.assertFalse(array.is_in_use(1), 'This test assumes there is an empty Apprise[1] entry')
             # A user is removing the URL from the first APPRISE entry, making it invalid
-            array[0]['URL'].set_str('')
+            array[0].set_str('URL', '')
             self.assertFalse(array.is_in_use(0), 'An empty URL should mean this item is not in use!')
 
             # A user adds a URL to the formerly empty item, making it valid
-            array[1]['URL'].set_str('http://testing')
+            array[1]['URL'] = 'http://testing'
             self.assertTrue(array.is_in_use(1), 'The entry should now be in use as the URL is not empty')
 
             # We now save, clean up empty items and rename them
@@ -824,16 +824,16 @@ class Config2Test(LLTestCase):
                 count = cfg.get_array_entries('newznab')
                 self.assertEqual(len(array), count, 'Expect array lengths to be the same')
                 items = array[0] # This is a ConfigDict
-                test1:str = items['DISPNAME'].get_str()
-                test2:str = items['dispname'].get_str()
+                test1:str = items['DISPNAME']
+                test2:str = items['dispname']
                 test3:str = cfg.get_array_str('newznab', 0, 'dispname')
                 self.assertEqual(test1, 'NZBtester', 'Did not read as expected from ini file')
                 self.assertEqual(test1, test2, 'Expected key lookup to be case insensitive')
                 self.assertEqual(test1, test3, 'Different ways of getting same key should be the same')
 
         self.assertEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[HELLO]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[HELLO]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[HELLO]: read_error',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:_handle_access_error : Config[HELLO]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
+            'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
         ], 'Unexpected log messages when testing tolerance')

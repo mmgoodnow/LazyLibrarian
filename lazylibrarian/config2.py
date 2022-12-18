@@ -15,8 +15,7 @@ import sys
 import re
 
 import lazylibrarian
-from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, ConfigCSV, \
-    ConfigURL, Email, CSVstr, ValidStrTypes, Access, CaseInsensitiveDict, ConfigDict
+from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
@@ -25,26 +24,22 @@ from lazylibrarian.common import syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
 
 """ Main configuration handler for LL """
-class LLConfigHandler():
-    config: ConfigDict # Dict(key, ConfigItem)
+class LLConfigHandler(ConfigDict):
     arrays: Dict[str, ArrayConfig] # (section, array)
-    errors: Dict[str, Counter]
     configfilename: str
 
     def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
-        self.config = ConfigDict()
-        self.errors = dict()
+        super().__init__()
         self.arrays = dict()
-        self._copydefaults(self.config, defaults)
+        self._copydefaults(defaults)
         self.configfilename = ''
         self.load_configfile(configfile)
 
     def load_configfile(self, configfile: Optional[str]=None):
         if self.configfilename:
             # Clear existing before loading another setup, brute force.
-            self.config = ConfigDict()
-            self.errors = dict()
-            self.arrays = dict()
+            super().clear()
+            self.arrays.clear()
         if configfile:
             self.configfilename = configfile
             parser = ConfigParser(dict_type=CaseInsensitiveDict)
@@ -54,25 +49,25 @@ class LLConfigHandler():
                 if section[-1:].isdigit():
                     self._load_array_section(section, parser)
                 else:
-                    self._load_section(section, parser, self.config)
+                    self._load_section(section, parser, self)
             set_redactlist()
         else:
             self.configfilename = ''
         self.ensure_arrays_have_empty_item()
 
-    def _copydefaults(self, config: ConfigDict, defaults: Optional[List[ConfigItem]]=None):
+    def _copydefaults(self, defaults: Optional[List[ConfigItem]]=None):
         """ Copy the default values and settings for the given config """
         if defaults:
             for config_item in defaults:
                 key = config_item.key.upper()
-                config[key] = configitem_from_default(config_item)
+                self.config[key] = configitem_from_default(config_item)
 
     def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
             if option in config:
-                config_item = config[option]
-                if not config_item.update_from_parser(parser, option):
+                config_item = config.get_item(option)
+                if not config_item or not config_item.update_from_parser(parser, option):
                     logger.warn(f"Error loading {section}.{option} as {parser.get(section, option)}")
             else:
                 logger.warn(f"Unknown option {section}.{option} in config")
@@ -131,7 +126,7 @@ class LLConfigHandler():
 
     def get_array_str(self, __array: str, index: int, __key: str) -> str:
         """ Access a single array string config directly """
-        return self.arrays[__array.upper()][index][__key.upper()].get_str()
+        return self.arrays[__array.upper()][index][__key.upper()]
 
     def providers(self, name: str) -> ArrayConfig:
         """ Return an iterable list of providers """
@@ -141,127 +136,6 @@ class LLConfigHandler():
         else:
             self._handle_access_error(name, Access.READ_ERR)
             raise Exception(f'Cannot iterate over non-existent array {name}')
-
-    """ As generic object """
-    def get_item(self, key: str) -> Optional[ConfigItem]:
-        if key.upper() in self.config:
-            return self.config[key.upper()]
-        else:
-            self._handle_access_error(key, Access.READ_ERR)
-            return None
-
-    def set_from_ui(self, key: str, value) -> bool:
-        """ Set the value from UI, where value may need to be coerced. Returns True if key existes """
-        if key.upper() in self.config:
-            item = self.config[key.upper()]
-            return item.set_from_ui(value)
-        else:
-            return False
-
-    """ Plain strings """
-    def get_str(self, key: str) -> str:
-        if key.upper() in self.config:
-            return self.config[key.upper()].get_str()
-        else:
-            self._handle_access_error(key, Access.READ_ERR)
-            return ''
-
-    def __getitem__(self, __name: str) -> str:
-        """ Make it possible to use CONFIG['name'] to access a string config directly """
-        if __name:
-            return self.get_str(__name.upper())
-        else:
-            return ''
-
-    def __setitem__(self, __name: str, value: str):
-        self.set_str(__name.upper(), value)
-
-    def set_str(self, key: str, value: str):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_str(value)
-        else:
-            self.create_str_key(ConfigStr, key, value)
-
-    """ Integers """
-    def get_int(self, key: str) -> int:
-        if key.upper() in self.config:
-            return self.config[key.upper()].get_int()
-        else:
-            self._handle_access_error(key, Access.READ_ERR)
-            return 0
-
-    def set_int(self, key: str, value: int):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_int(value)
-        else:
-            self.config[key.upper()] = ConfigInt('', key, 0, is_new=True)
-            self.set_int(key, value)
-
-    """ Booleans (0/1, False/True) """
-    def get_bool(self, key: str) -> bool:
-        if key.upper() in self.config:
-            return self.config[key.upper()].get_bool()
-        else:
-            self._handle_access_error(key, Access.READ_ERR)
-            return False
-
-    def set_bool(self, key: str, value: bool):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_bool(value)
-        else:
-            self.config[key.upper()] = ConfigBool('', key, False, is_new=True)
-            self.set_bool(key, value)
-
-    """ Email addresses """
-    def get_email(self, key: str) -> Email:
-        return Email(self.get_str(key))
-
-    def set_email(self, key: str, value: Email):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_str(value)
-        else:
-            self.create_str_key(ConfigEmail, key, value)
-
-    """ CSV strings """
-    def get_csv(self, key: str) -> CSVstr:
-        return CSVstr(self.get_str(key))
-
-    def set_csv(self, key: str, value: CSVstr):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_str(value)
-        else:
-            self.create_str_key(ConfigCSV, key, value)
-
-    """ URL strings """
-    def get_url(self, key: str) -> str:
-        return self.get_str(key)
-
-    def set_url(self, key: str, value: str):
-        if key.upper() in self.config:
-            self.config[key.upper()].set_str(value)
-        else:
-            self.create_str_key(ConfigURL, key, value)
-
-    def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
-        """ Function for creating new config items on the fly. Should be rare in LL. """
-        new_entry = aclass('', key, '', is_new=True)
-        if new_entry.is_valid_value(value):
-            self.config[key.upper()] = new_entry
-            self.config[key.upper()].set_str(value)
-        else:
-            self._handle_access_error(key, Access.FORMAT_ERR)
-
-    def _handle_access_error(self, key: str, status: Access):
-        """ Handle accesses to invalid keys """
-        key = key.upper()
-        if key not in self.errors:
-            self.errors[key] = Counter()
-        self.errors[key][status] += 1
-        logger.error(f"Config[{key}]: {status.value}")
-
-    def get_error_counters(self) -> Dict[str, Counter]:
-        """ Get a list of all access errors """
-        return self.errors
 
     def get_all_accesses(self) -> Dict[str, Counter]:
         """ Get a list of all config values that have been accessed  """
@@ -558,11 +432,11 @@ def set_redactlist():
         if array:
             for inx, config in array._configs.items():
                 # CFG2DO p3 Make this a bit more elegant
-                if config[key].get_str():
-                    lazylibrarian.REDACTLIST.append(f"{config[key].get_str()}")
+                if config[key]:
+                    lazylibrarian.REDACTLIST.append(f"{config[key]}")
                 if 'API' in config:
-                    if config['API'].get_str():
-                        lazylibrarian.REDACTLIST.append(f"{config['API'].get_str()}")
+                    if config['API']:
+                        lazylibrarian.REDACTLIST.append(f"{config['API']}")
 
     logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
                                             plural(len(lazylibrarian.REDACTLIST), "entry")))
@@ -580,8 +454,11 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
             return False
         for key, item1 in cd1.items():
             if key in cd2.keys():
-                if cd2[key].value != item1.value:
-                    logger.warn(f"Array values for [{key}]: {item1.value} != {cd2[key].value}")
+                item2 = cd2.get_item(key)
+                if not item2:
+                    logger.warn(f"Array values for [{key}]: {item1.value}: key does not exist")
+                elif item2.value != item1.value:
+                    logger.warn(f"Array values for [{key}]: {item1.value} != {item2.value}")
                     return False
             else:
                 logger.warn(f"Array key [{key}] missing in array 2")
@@ -593,7 +470,7 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
         return False
 
     # Compare base configs
-    if not are_configdicts_equivalent(cfg1.config, cfg2.config):
+    if not are_configdicts_equivalent(cfg1, cfg2):
         logger.warn(f"Base configs differ")
         return False
 

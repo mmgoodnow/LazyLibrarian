@@ -55,7 +55,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
 
         # Restore to known good state
         telemetry.LazyTelemetry().clear_id(lazylibrarian.CONFIG)
-        lazylibrarian.CONFIG.set_str('SERVER_ID', saved_id)
+        lazylibrarian.CONFIG['SERVER_ID'] = saved_id
         check_id = self._do_ids_match()
         self.assertEqual(saved_id, check_id, 'Test logic is broken')
 

@@ -97,9 +97,9 @@ def test_provider(name: str, host=None, api=None):
                     name = provider['DISPNAME']
                 logger.debug("Testing %s" % name)
                 if host:
-                    provider['HOST'].set_str(host)
+                    provider['HOST'] = host
                 if api:
-                    provider['SEARCH'].set_str(api)
+                    provider['SEARCH'] = api
                 return direct_gen(book, prov=provider['NAME'].lower(), test=True), name
 
     if name == 'BOK':
@@ -126,38 +126,38 @@ def test_provider(name: str, host=None, api=None):
                         host = provider['HOST']
                     if 'goodreads' in host:
                         if 'list_rss' in host:
-                            return goodreads(host, provider['NAME'], provider['DLPRIORITY'],
+                            return goodreads(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                              provider['DISPNAME'], test=True), provider['DISPNAME']
                         if '/show/' in host or '/book/' in host:
                             # goodreads listopia html page
-                            return listopia(host, provider['NAME'], provider['DLPRIORITY'],
+                            return listopia(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                             provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'amazon' in host and '/charts' in host:
-                        return amazon(host, provider['NAME'], provider['DLPRIORITY'],
+                        return amazon(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'nytimes' in host:
-                        return ny_times(host, provider['NAME'], provider['DLPRIORITY'],
+                        return ny_times(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                         provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'publishersweekly' in host:
-                        return publishersweekly(host, provider['NAME'], provider['DLPRIORITY'],
+                        return publishersweekly(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                                 provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'apps.npr.org' in host:
-                        return appsnprorg(host, provider['NAME'], provider['DLPRIORITY'],
+                        return appsnprorg(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                           provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'penguinrandomhouse' in host:
-                        return penguinrandomhouse(host, provider['NAME'], provider['DLPRIORITY'],
+                        return penguinrandomhouse(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                                   provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'barnesandnoble' in host:
-                        return barnesandnoble(host, provider['NAME'], provider['DLPRIORITY'],
+                        return barnesandnoble(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                               provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'bookdepository' in host:
-                        return bookdepository(host, provider['NAME'], provider['DLPRIORITY'],
+                        return bookdepository(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                               provider['DISPNAME'], test=True), provider['DISPNAME']
                     elif 'indigo' in host:
-                        return indigo(host, provider['NAME'], provider['DLPRIORITY'],
+                        return indigo(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                       provider['DISPNAME'], test=True), provider['DISPNAME']
                     else:
-                        return rss(host, provider['NAME'], provider['DLPRIORITY'],
+                        return rss(host, provider['NAME'], provider.get_int('DLPRIORITY'),
                                    provider['DISPNAME'], test=True), provider['DISPNAME']
         except IndexError:
             pass
@@ -185,17 +185,17 @@ def test_provider(name: str, host=None, api=None):
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
-                    if provider['MANUAL'].get_bool():
+                    if provider.get_bool('MANUAL'):
                         logger.debug("Capabilities are set to manual for %s" % provider['NAME'])
                     else:
                         if host:
                             if host[-1:] == '/':
                                 host = host[:-1]
-                            provider['HOST'].set_str(host)
+                            provider['HOST'] = host
                         if api:
                             ap, seed = api.split(' : ', 1)
-                            provider['API'].set_str(ap)
-                            provider['SEEDERS'].set_int(seed)
+                            provider['API'] = ap
+                            provider.set_int('SEEDERS', seed)
                         provider = get_capabilities(provider, force=True)
 
                     if provider['BOOKSEARCH']:
@@ -220,13 +220,13 @@ def test_provider(name: str, host=None, api=None):
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
-                    if provider['MANUAL'].get_bool():
+                    if provider.get_bool('MANUAL'):
                         logger.debug("Capabilities are set to manual for %s" % provider['NAME'])
                     else:
                         if host:
-                            provider['HOST'].set_str(host)
+                            provider['HOST'] = host
                         if api:
-                            provider['API'].set_str(api)
+                            provider['API'] = api
 
                         provider = get_capabilities(provider, force=True)
                     if provider['BOOKSEARCH']:
@@ -251,13 +251,13 @@ def test_provider(name: str, host=None, api=None):
                         name = provider['DISPNAME']
                         if host:
                             server, channel = host.split(' : ', 1)
-                            provider['SERVER'].set_str(server)
-                            provider['CHANNEL'].set_str(channel)
+                            provider['SERVER'] = server
+                            provider['CHANNEL'] = channel
                         if api:
                             snick, spass, ssearch = api.split(' : ', 2)
-                            provider['BOTNICK'].set_str(snick)
-                            provider['BOTPASS'].set_str(spass)
-                            provider['SEARCH'].set_str(ssearch)
+                            provider['BOTNICK'] = snick
+                            provider['BOTPASS'] = spass
+                            provider['SEARCH'] = ssearch
                     logger.debug("Testing provider %s" % name)
                     # CFG2DO Check whether this way of signaling IRC connection should change
                     provider['IRC'] = None  # start a new connection
@@ -316,7 +316,7 @@ def get_capabilities(provider: ConfigDict, force=False):
     """
     if not force and len(provider['UPDATED']) == 10:  # any stored values?
         match = True
-        if (age(provider['UPDATED'].get_str()) > lazylibrarian.CONFIG.get_int('CACHE_AGE')) and not provider['MANUAL'].get_bool():
+        if (age(provider['UPDATED']) > lazylibrarian.CONFIG.get_int('CACHE_AGE')) and not provider.get_bool('MANUAL'):
             logger.debug('Stored capabilities for %s are too old' % provider['HOST'])
             match = False
     else:
@@ -379,19 +379,19 @@ def get_capabilities(provider: ConfigDict, force=False):
                 # or might be provider doesn't do caps
                 logger.debug('Using default capabilities for %s' % provider['HOST'])
                 # CFG2DO p3 Could have a provider.set_defaults() method to make this better
-                provider['GENERALSEARCH'].set_str('search')
-                provider['EXTENDED'].set_int(1)
-                provider['BOOKCAT'].set_str('')
-                provider['MAGCAT'].set_str('')
-                provider['AUDIOCAT'].set_str('')
-                provider['COMICCAT'].set_str('')
-                provider['BOOKSEARCH'].set_str('')
-                provider['MAGSEARCH'].set_str('')
-                provider['AUDIOSEARCH'].set_str('')
-                provider['COMICSEARCH'].set_str('')
-                provider['UPDATED'].set_str(today())
-                provider['APILIMIT'].set_int(0)
-                provider['RATELIMIT'].set_int(0)
+                provider['GENERALSEARCH'] = 'search'
+                provider.set_int('EXTENDED', 1)
+                provider['BOOKCAT'] = ''
+                provider['MAGCAT'] = ''
+                provider['AUDIOCAT'] = ''
+                provider['COMICCAT'] = ''
+                provider['BOOKSEARCH'] = ''
+                provider['MAGSEARCH'] = ''
+                provider['AUDIOSEARCH'] = ''
+                provider['COMICSEARCH'] = ''
+                provider['UPDATED'] = str(today)
+                provider.set_int('APILIMIT', 0)
+                provider.set_int('RATELIMIT', 0)
                 lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
         elif data is not None:
             logger.debug("Parsing xml for capabilities of %s" % url)
@@ -409,30 +409,29 @@ def get_capabilities(provider: ConfigDict, force=False):
             #
             #  set some defaults
             #
-            provider['GENERALSEARCH'].set_str('search')
-            provider['EXTENDED'].set_int(1)
-            provider['BOOKCAT'].set_str('')
-            provider['COMICCAT'].set_str('')
-            provider['MAGCAT'].set_str('')
-            provider['AUDIOCAT'].set_str('')
-            provider['BOOKSEARCH'].set_str('')
-            provider['COMICSEARCH'].set_str('')
-            provider['MAGSEARCH'].set_str('')
-            provider['AUDIOSEARCH'].set_str('')
-            #
+            provider['GENERALSEARCH'] = 'search'
+            provider.set_int('EXTENDED', 1)
+            provider['BOOKCAT'] = ''
+            provider['COMICCAT'] = ''
+            provider['MAGCAT'] = ''
+            provider['AUDIOCAT'] = ''
+            provider['BOOKSEARCH'] = ''
+            provider['COMICSEARCH'] = ''
+            provider['MAGSEARCH'] = ''
+            provider['AUDIOSEARCH'] = ''
             search = data.find('searching/search')
             if search is not None:
                 # noinspection PyUnresolvedReferences
                 if 'available' in search.attrib:
                     # noinspection PyUnresolvedReferences
                     if search.attrib['available'] == 'yes':
-                        provider['GENERALSEARCH'].set_str('search')
+                        provider['GENERALSEARCH'] = 'search'
             limits = data.find('limits')
             if limits is not None:
                 try:
                     limit = limits.attrib.get('apimax')
                     if limit:
-                        provider['APILIMIT'].set_int(limit)
+                        provider.set_int('APILIMIT', check_int(limit, 0))
                         logger.debug("%s apilimit %i" % (provider['HOST'], limit))
                 except Exception as e:
                     logger.debug('Error getting apilimit from %s: %s %s' % (provider['HOST'],
@@ -442,37 +441,35 @@ def get_capabilities(provider: ConfigDict, force=False):
             for cat in categories:
                 if 'name' in cat.attrib:
                     if cat.attrib['name'].lower() == 'audio':
-                        provider['AUDIOCAT'].set_csv(cat.attrib['id'])
+                        provider['AUDIOCAT'] = cat.attrib['id']
                         subcats = cat.iter('subcat')
                         if not subcats:
                             subcats = cat.iter('subCategories')
                         for subcat in subcats:
                             if 'audiobook' in subcat.attrib['name'].lower():
-                                provider['AUDIOCAT'].set_csv(subcat.attrib['id'])
+                                provider['AUDIOCAT'] = subcat.attrib['id']
 
                     elif cat.attrib['name'].lower() == 'books':
-                        provider['BOOKCAT'].set_csv(cat.attrib['id'])
+                        provider['BOOKCAT'] = cat.attrib['id']
                         # if no specific magazine/comic subcategory, use books
-                        provider['MAGCAT'].set_csv(cat.attrib['id'])
-                        provider['COMICCAT'].set_csv(cat.attrib['id'])
+                        provider['MAGCAT'] = cat.attrib['id']
+                        provider['COMICCAT'] = cat.attrib['id']
                         # set default booksearch
                         if provider['BOOKCAT'] == '7000':
                             # looks like newznab+, should support book-search
-                            provider['BOOKSEARCH'].set_str('book')
+                            provider['BOOKSEARCH'] = 'book'
                         else:
                             # looks like nZEDb, probably no book-search
-                            provider['BOOKSEARCH'].set_str('')
-                        # but check in case we got some settings back
+                            provider['BOOKSEARCH'] = ''                        # but check in case we got some settings back
                         search = data.find('searching/book-search')
                         if search:
                             # noinspection PyUnresolvedReferences
                             if 'available' in search.attrib:
                                 # noinspection PyUnresolvedReferences
                                 if search.attrib['available'] == 'yes':
-                                    provider['BOOKSEARCH'].set_str('book')
+                                    provider['BOOKSEARCH'] = 'book'
                                 else:
-                                    provider['BOOKSEARCH'].set_str('')
-
+                                    provider['BOOKSEARCH'] = ''
                         # subcategories override main category (not in addition to)
                         # but allow multile subcategories (mags->english, mags->french)
                         subcats = cat.iter('subcat')
@@ -495,11 +492,11 @@ def get_capabilities(provider: ConfigDict, force=False):
                                     comicsubs = comicsubs + ','
                                 comicsubs = comicsubs + subcat.attrib['id']
                         if ebooksubs:
-                            provider['BOOKCAT'].set_csv(ebooksubs)
+                            provider['BOOKCAT'] = ebooksubs
                         if magsubs:
-                            provider['MAGCAT'].set_csv(magsubs)
+                            provider['MAGCAT'] = magsubs
                         if comicsubs:
-                            provider['COMICCAT'].set_csv(comicsubs)
+                            provider['COMICCAT'] = comicsubs
             logger.info("Categories: Books %s : Mags %s : Audio %s : Comic %s : BookSearch '%s'" %
                         (provider['BOOKCAT'], provider['MAGCAT'], provider['AUDIOCAT'], provider['COMICCAT'],
                          provider['BOOKSEARCH']))
@@ -514,9 +511,9 @@ def provider_is_blocked(name: str):
     if lazylibrarian.NABAPICOUNT != today():
         lazylibrarian.NABAPICOUNT = today()
         for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
-            provider['APICOUNT'].set_int(0)
+            provider.set_int('APICOUNT', 0)
         for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
-            provider['APICOUNT'].set_int(0)
+            provider.set_int('APICOUNT', 0)
 
     timenow = int(time.time())
     for entry in lazylibrarian.PROVIDER_BLOCKLIST:
@@ -560,9 +557,9 @@ def iterate_over_newznab_sites(book=None, search_type=None):
 
     for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
         logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
-        if provider['ENABLED'].get_bool():
+        if provider['ENABLED'] and search_type:
             ignored = False
-            if provider_is_blocked(provider['HOST'].get_str()):
+            if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
             elif "book" in search_type and 'E' not in provider['DLTYPES']:
@@ -578,25 +575,25 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
                 ignored = True
             if not ignored:
-                if provider['APILIMIT'].get_int():
+                if provider.get_int('APILIMIT'):
                     if 'APICOUNT' in provider:
-                        res = provider['APICOUNT'].get_int()
+                        res = provider.get_int('APICOUNT')
                     else:
                         res = 0
-                    if res >= provider['APILIMIT'].get_int():
+                    if res >= provider.get_int('APILIMIT'):
                         block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
                                        provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
-                        provider['APICOUNT'].set_int(res + 1)
+                        provider.set_int('APICOUNT', res + 1)
 
-                if not provider_is_blocked(provider['HOST'].get_str()):
-                    ratelimit = provider['RATELIMIT'].get_int()
+                if not provider_is_blocked(provider['HOST']):
+                    ratelimit = provider.get_int('RATELIMIT')
                     if ratelimit:
-                        if provider['LASTUSED'].get_int() > 0:
-                            delay = provider['LASTUSED'].get_int() + ratelimit - time.time()
+                        if provider.get_int('LASTUSED') > 0:
+                            delay = provider.get_int('LASTUSED') + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider['LASTUSED'].set_int(time.time())
+                        provider.set_int('LASTUSED', int(time.time()))
 
                     provider = get_capabilities(provider)
                     providers += 1
@@ -605,9 +602,9 @@ def iterate_over_newznab_sites(book=None, search_type=None):
 
     for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
         logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
-        if provider['ENABLED']:
+        if provider['ENABLED'] and search_type:
             ignored = False
-            if provider_is_blocked(provider['HOST'].get_str()):
+            if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
                 ignored = True
             elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
@@ -623,25 +620,25 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                 logger.debug("Ignoring %s for Comic" % provider['HOST'])
                 ignored = True
             if not ignored:
-                if provider['APILIMIT'].get_int():
+                if provider.get_int('APILIMIT'):
                     if 'APICOUNT' in provider:
                         res = check_int(provider['APICOUNT'], 0)
                     else:
                         res = 0
-                    if res >= provider['APILIMIT'].get_int():
+                    if res >= provider.get_int('APILIMIT'):
                         block_provider(provider['HOST'], 'Reached Daily API limit (%s)' %
                                        provider['APILIMIT'], delay=seconds_to_midnight())
                     else:
-                        provider['APICOUNT'] = res + 1
+                        provider.set_int('APICOUNT', res + 1)
 
-                if not provider_is_blocked(provider['HOST'].get_str()):
-                    ratelimit = provider['RATELIMIT'].get_int()
+                if not provider_is_blocked(provider['HOST']):
+                    ratelimit = provider.get_int('RATELIMIT')
                     if ratelimit:
-                        if provider['LASTUSED'].get_int() > 0:
-                            delay = provider['LASTUSED'].get_int() + ratelimit - time.time()
+                        if provider.get_int('LASTUSED') > 0:
+                            delay = provider.get_int('LASTUSED') + ratelimit - time.time()
                             if delay > 0:
                                 time.sleep(delay)
-                        provider['LASTUSED'].set_int(time.time())
+                        provider.set_int('LASTUSED', int(time.time()))
 
                     provider = get_capabilities(provider)
                     providers += 1
@@ -655,7 +652,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
     resultslist = []
     providers = 0
 
-    if search_type not in ['mag', 'comic'] and not search_type.startswith('general'):
+    if search_type and search_type not in ['mag', 'comic'] and not search_type.startswith('general'):
         authorname, bookname = get_searchterm(book, search_type)
         if 'title' in search_type:
             book['searchterm'] = bookname
@@ -726,7 +723,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
 
     for prov in lazylibrarian.CONFIG.providers('GEN'):
         logger.debug("DLTYPES: %s: %s %s" % (prov['NAME'], prov['ENABLED'], prov['DLTYPES']))
-        if prov['ENABLED'].get_bool():
+        if prov.get_bool('ENABLED'):
             ignored = False
             if provider_is_blocked(prov['NAME'].get_str()):
                 logger.debug('%s is BLOCKED' % prov['NAME'])
@@ -828,13 +825,13 @@ def iterate_over_rss_sites():
     for provider in lazylibrarian.CONFIG.providers('RSS'):
         logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
-        if provider['ENABLED'] and not lazylibrarian.wishlist_type(provider['HOST'].get_str()):
-            if provider_is_blocked(provider['HOST'].get_str()):
+        if provider['ENABLED'] and not lazylibrarian.wishlist_type(provider['HOST']):
+            if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
             else:
                 providers += 1
                 logger.debug('[iterate_over_rss_sites] - %s' % provider['HOST'])
-                resultslist += rss(provider['HOST'], provider['NAME'], provider['DLPRIORITY'],
+                resultslist += rss(provider['HOST'], provider['NAME'], provider.get_int('DLPRIORITY'),
                                    provider['DISPNAME'], provider['DLTYPES'], False, provider['LABEL'])
                 dltypes += provider['DLTYPES']
 
@@ -848,99 +845,99 @@ def iterate_over_wishlists():
         logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED']:
-            wishtype = lazylibrarian.wishlist_type(provider['HOST'].get_str())
+            wishtype = lazylibrarian.wishlist_type(provider['HOST'])
             if wishtype == 'goodreads':
-                if provider_is_blocked(provider['HOST'].get_str()):
-                    logger.debug('%s is BLOCKED' % provider['HOST'].get_str())
+                if provider_is_blocked(provider['HOST']):
+                    logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
-                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'].get_str())
+                    logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += goodreads(provider['HOST'], provider['NAME'],
-                                             provider['DLPRIORITY'], provider['DISPNAME'],
+                                             provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                              provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'listopia':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += listopia(provider['HOST'], provider['NAME'],
-                                            provider['DLPRIORITY'], provider['DISPNAME'],
+                                            provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                             provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'amazon':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += amazon(provider['HOST'], provider['NAME'],
-                                          provider['DLPRIORITY'], provider['DISPNAME'],
+                                          provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                           provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'ny_times':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += ny_times(provider['HOST'], provider['NAME'],
-                                            provider['DLPRIORITY'], provider['DISPNAME'],
+                                            provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                             provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'publishersweekly':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += publishersweekly(provider['HOST'], provider['NAME'],
-                                                    provider['DLPRIORITY'], provider['DISPNAME'],
+                                                    provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                                     provider['DLTYPES'], False, provider['LABEL'])
 
             elif wishtype == 'apps.npr.org':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += appsnprorg(provider['HOST'], provider['NAME'],
-                                              provider['DLPRIORITY'], provider['DISPNAME'],
+                                              provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                               provider['DLTYPES'], False, provider['LABEL'])
 
             elif wishtype == 'penguinrandomhouse':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += penguinrandomhouse(provider['HOST'], provider['NAME'],
-                                                      provider['DLPRIORITY'], provider['DISPNAME'],
+                                                      provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                                       provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'barnesandnoble':
-                if provider_is_blocked(provider['HOST']).get_str():
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += barnesandnoble(provider['HOST'], provider['NAME'],
-                                                  provider['DLPRIORITY'], provider['DISPNAME'],
+                                                  provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                                   provider['DLTYPES'], False, provider['LABEL'])
 
             elif wishtype == 'bookdepository':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += bookdepository(provider['HOST'], provider['NAME'],
-                                                  provider['DLPRIORITY'], provider['DISPNAME'],
+                                                  provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                                   provider['DLTYPES'], False, provider['LABEL'])
             elif wishtype == 'indigo':
-                if provider_is_blocked(provider['HOST'].get_str()):
+                if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
                 else:
                     providers += 1
                     logger.debug('[iterate_over_wishlists] - %s' % provider['HOST'])
                     resultslist += indigo(provider['HOST'], provider['NAME'],
-                                          provider['DLPRIORITY'], provider['DISPNAME'],
+                                          provider.get_int('DLPRIORITY'), provider['DISPNAME'],
                                           provider['DLTYPES'], False, provider['LABEL'])
     return resultslist, providers
 
@@ -953,7 +950,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
             logger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
             if provider['ENABLED']:
                 ignored = False
-                if provider_is_blocked(provider['SERVER'].get_str()):
+                if provider_is_blocked(provider['SERVER']):
                     logger.debug('%s is BLOCKED' % provider['SERVER'])
                     ignored = True
                 elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in provider['DLTYPES']:
@@ -1861,21 +1858,21 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
             if msg:
                 count = 0
                 # CFG2DO p3 Quite inelegant duplication here
-                for providerlist in lazylibrarian.CONFIG.providers('NEWZNAB'):
-                    while count < len(providerlist):
-                        if providerlist[count]['HOST'] == provider['HOST']:
+                for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
+                    while count < len(provider):
+                        if provider['HOST'] == provider['HOST']:
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
-                                providerlist[count][msg] = ""
+                                provider[msg] = ""
                                 lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
                                 return True
                         count += 1
-                for providerlist in lazylibrarian.CONFIG.providers('TORZNAB'):
-                    while count < len(providerlist):
-                        if providerlist[count]['HOST'] == provider['HOST']:
+                for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
+                    while count < len(provider):
+                        if provider['HOST'] == provider['HOST']:
                             if not provider['MANUAL']:
                                 logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
-                                providerlist[count][msg] = ""
+                                provider[msg] = ""
                                 lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
                                 return True
                         count += 1
@@ -1980,7 +1977,7 @@ def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=No
                             limits = item
                             apimax = limits.get('apimax')
                             if apimax:
-                                provider['APILIMIT'].set_int(apimax)
+                                provider.set_int('APILIMIT', int(apimax))
                             apicurrent = limits.get('apicurrent')
                             if apicurrent:
                                 provider['APICOUNT'] = apicurrent
@@ -1993,7 +1990,7 @@ def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=No
                 maxage = lazylibrarian.CONFIG.get_int('USENET_RETENTION')
                 for nzb in resultxml:
                     try:
-                        thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider['DLPRIORITY'])
+                        thisnzb = return_results_by_search_type(book, nzb, host, search_mode, provider.get_int('DLPRIORITY'))
                         thisnzb['dispname'] = provider['DISPNAME']
                         if search_type in ['book', 'shortbook', 'titlebook']:
                             thisnzb['booksearch'] = provider['BOOKSEARCH']
@@ -2004,7 +2001,7 @@ def newznab_plus(book:Dict, provider:ConfigDict, search_type:str, search_mode=No
                                 logger.warn("%s does not support seeders" % provider['DISPNAME'])
                             else:
                                 # its torznab, check if minimum seeders relevant
-                                if thisnzb['seeders'].get_int() >= provider['SEEDERS'].get_int():
+                                if thisnzb['seeders'].get_int() >= provider.get_int('SEEDERS'):
                                     nzbcount += 1
                                     results.append(thisnzb)
                                 else:
@@ -2122,7 +2119,7 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
                 "q": make_utf8bytes(searchterm)[0],
             }
     if params:
-        if provider['EXTENDED'].get_str():
+        if provider['EXTENDED']:
             extends = provider['EXTENDED'].split('&')
             if extends[0] in ['1', '0']:
                 params["extended"] = extends[0]

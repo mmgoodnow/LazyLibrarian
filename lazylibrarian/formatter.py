@@ -870,8 +870,8 @@ def disp_name(provider):
         array = lazylibrarian.CONFIG.providers(name)
         if array and not provname:
             for index, config in array._configs.items():
-                if config[key].get_str().strip('/') == provider:
-                    provname = config['DISPNAME'].get_str()
+                if config[key].strip('/') == provider:
+                    provname = config['DISPNAME']
                     break
 
     if not provname:

@@ -511,12 +511,12 @@ class FormatterTest(unittesthelpers.LLTestCase):
         # Add some dummy data to test on
         rss = lazylibrarian.CONFIG.get_array('RSS')
         if rss:
-            rss[0]['HOST'].set_str('test-host')
-            rss[0]['DISPNAME'].set_str('short-rss-name')
+            rss[0]['HOST'] = 'test-host'
+            rss[0]['DISPNAME'] = 'short-rss-name'
         irc = lazylibrarian.CONFIG.get_array('IRC')
         if irc:
-            irc[0]['SERVER'].set_str('irc-host')
-            irc[0]['DISPNAME'].set_str('123456789012345/67890Thisistoolong')
+            irc[0]['SERVER'] = 'irc-host'
+            irc[0]['DISPNAME'] = '123456789012345/67890Thisistoolong'
 
         providers = [
             ('test', 'test'),

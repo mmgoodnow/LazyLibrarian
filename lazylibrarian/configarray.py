@@ -30,8 +30,8 @@ class ArrayConfig():
             key = config_item.key.upper()
             if not index in self._configs:
                 self._configs[index] = ConfigDict()
-            self._configs[index][key] = configitem_from_default(config_item)
-            self._configs[index][key].section = self.get_section_str(index)
+            item = self._configs[index].set_item(key, configitem_from_default(config_item))
+            item.section = self.get_section_str(index)
 
     def has_index(self, index: int) -> bool:
         return index in self._configs.keys()
@@ -48,7 +48,7 @@ class ArrayConfig():
             return ''
         config = self[index]
         if self._primary in config:
-            return self._configs[index][self._primary].get_str()
+            return self._configs[index][self._primary]
         else:
             return ''
 

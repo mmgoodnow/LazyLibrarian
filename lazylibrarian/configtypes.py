@@ -4,7 +4,8 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Union, Optional, MutableMapping, List
+from typing import NewType, Union, Optional, MutableMapping, Type, ItemsView, KeysView
+from typing import Dict, List
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
@@ -16,10 +17,8 @@ from lazylibrarian import logger
 from lazylibrarian.formatter import check_int
 
 ### Type aliases to distinguish types of string
-Email = NewType('Email', str)
-CSVstr = NewType('CSV', str)
 ValidIntTypes = Union[int, bool]
-ValidStrTypes =  Union[str, Email, CSVstr]
+ValidStrTypes =  str
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
 ### Types of access
@@ -328,8 +327,8 @@ class ConfigEmail(ConfigStr):
     def __init__(self, section: str, key: str, default: str, is_new: bool=False):
         return super().__init__(section, key, default, force_lower=True, is_new=is_new)
 
-    def get_email(self) -> Email:
-        return Email(self.get_str())
+    def get_email(self) -> str:
+        return self.get_str()
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         value = str(value)
@@ -349,8 +348,8 @@ class ConfigEmail(ConfigStr):
 
 class ConfigCSV(ConfigStr):
     """ A config item that is a string that must be a valid CSV """
-    def get_csv(self) -> CSVstr:
-        return CSVstr(self.get_str())
+    def get_csv(self) -> str:
+        return self.get_str()
 
     def get_list(self) -> List[str]:
         """ Return a list like ['abc', 'def'] from 'abc, def'' """
@@ -438,7 +437,6 @@ class ConfigFolder(ConfigStr):
             return value.replace('\\', '/')
         return value
 
-
 ### This is to have section names be case insensitive.
 ### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
 class CaseInsensitiveDict(MutableMapping):
@@ -463,7 +461,153 @@ class CaseInsensitiveDict(MutableMapping):
     def copy(self):
         return CaseInsensitiveDict(self._d.copy())
 
-class ConfigDict(CaseInsensitiveDict):
-    """ A dictionary of (key, ConfigItem) """
-    def __init__(self, *args, **kwargs):
-        super().__init__( *args, **kwargs)
+class ConfigDict:
+    """ A class for managing access to a dict of configs in a convenient way """
+    def __init__(self):
+        self.config: Dict[str, ConfigItem] = CaseInsensitiveDict()
+        self.errors: Dict[str, Counter] = dict()
+
+    def clear(self):
+        self.config.clear()
+        self.errors.clear()
+
+    """ As an object that acts like a Dict """
+    def __iter__(self):
+        return iter(self.config)
+
+    def items(self) -> ItemsView[str, ConfigItem]:
+        return self.config.items()
+
+    def keys(self) -> KeysView[str]:
+        return self.config.keys()
+
+    def __len__(self):
+        return len(self.config)
+
+    """ As generic object """
+    def get_item(self, key: str) -> Optional[ConfigItem]:
+        if key.upper() in self.config:
+            return self.config[key.upper()]
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return None
+
+    def set_item(self, key: str, item: ConfigItem) -> ConfigItem:
+        self.config[key.upper()] = item
+        return item
+
+    def set_from_ui(self, key: str, value) -> bool:
+        """ Set the value from UI, where value may need to be coerced. Returns True if key existes """
+        if key.upper() in self.config:
+            item = self.config[key.upper()]
+            return item.set_from_ui(value)
+        else:
+            return False
+
+    """ Plain strings """
+    def get_str(self, key: str) -> str:
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_str()
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return ''
+
+    def __getitem__(self, __name: str) -> str:
+        """ Make it possible to use CONFIG['name'] to access a string config directly """
+        if __name:
+            return self.get_str(__name.upper())
+        else:
+            return ''
+
+    def __setitem__(self, __name: str, value: str):
+        self.set_str(__name.upper(), value)
+
+    def set_str(self, key: str, value: str):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
+        else:
+            self.create_str_key(ConfigStr, key, value)
+
+    """ Integers """
+    def get_int(self, key: str) -> int:
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_int()
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return 0
+
+    def set_int(self, key: str, value: int):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_int(value)
+        else:
+            self.config[key.upper()] = ConfigInt('', key, 0, is_new=True)
+            self.set_int(key, value)
+
+    """ Booleans (0/1, False/True) """
+    def get_bool(self, key: str) -> bool:
+        if key.upper() in self.config:
+            return self.config[key.upper()].get_bool()
+        else:
+            self._handle_access_error(key, Access.READ_ERR)
+            return False
+
+    def set_bool(self, key: str, value: bool):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_bool(value)
+        else:
+            self.config[key.upper()] = ConfigBool('', key, False, is_new=True)
+            self.set_bool(key, value)
+
+    """ Email addresses """
+    def get_email(self, key: str) -> str:
+        return self.get_str(key)
+
+    def set_email(self, key: str, value: str):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
+        else:
+            self.create_str_key(ConfigEmail, key, value)
+
+    """ CSV strings """
+    def get_csv(self, key: str) -> str:
+        return self.get_str(key)
+
+    def set_csv(self, key: str, value: str):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
+        else:
+            self.create_str_key(ConfigCSV, key, value)
+
+    """ URL strings """
+    def get_url(self, key: str) -> str:
+        return self.get_str(key)
+
+    def set_url(self, key: str, value: str):
+        if key.upper() in self.config:
+            self.config[key.upper()].set_str(value)
+        else:
+            self.create_str_key(ConfigURL, key, value)
+
+    def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
+        """ Function for creating new config items on the fly. Should be rare in LL. """
+        new_entry = aclass('', key, '', is_new=True)
+        if new_entry.is_valid_value(value):
+            self.config[key.upper()] = new_entry
+            self.config[key.upper()].set_str(value)
+        else:
+            self._handle_access_error(key, Access.FORMAT_ERR)
+
+    def _handle_access_error(self, key: str, status: Access):
+        """ Handle accesses to invalid keys """
+        key = key.upper()
+        if key not in self.errors:
+            self.errors[key] = Counter()
+        self.errors[key][status] += 1
+        logger.error(f"Config[{key}]: {status.value}")
+
+    def get_error_counters(self) -> Dict[str, Counter]:
+        """ Get a list of all access errors """
+        return self.errors
+
+    def test(self):
+        self.config.items()
