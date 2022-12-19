@@ -253,13 +253,15 @@ class ConfigRangedInt(ConfigInt):
 class ConfigScheduler(ConfigRangedInt):
     """ An int config that is used to hold a scheduling interval and associated info to run it """
     def __init__(self, section: str, key: str, schedule_name: str, default: int, unit: TimeUnit,
-        run_name: str, method_name: str, needs_provider: bool, is_new: bool=False, persist: bool=True):
+        run_name: str, method_name: str, friendly_name: str,
+        needs_provider: bool, is_new: bool=False, persist: bool=True):
         if not schedule_name:
             raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
 
         self.schedule_name = schedule_name    # The name of the schedule, like 'search_book'
         self.run_name = run_name              # The name of the run, like 'SEARCHALLBOOKS'
         self.method_name = method_name        # The method to call
+        self.friendly_name = friendly_name    # The name to show in the UI
         self.needs_provider = needs_provider  # Whether it needs a provider to work
         self.unit = unit                      # Is the value in Minutes or Hours?
         super().__init__(section, key, default, range_min=0, range_max=100000, is_new=is_new, persist=persist)

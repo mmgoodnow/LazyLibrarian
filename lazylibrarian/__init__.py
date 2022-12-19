@@ -22,7 +22,6 @@ import os
 import sys
 import threading
 import time
-from shutil import rmtree
 
 from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
 from lazylibrarian.common import path_isdir, syspath, module_available

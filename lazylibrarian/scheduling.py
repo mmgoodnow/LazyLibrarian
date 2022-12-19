@@ -447,40 +447,13 @@ def show_jobs():
     db = database.DBConnection()
     for job in SCHED.get_jobs():
         job = str(job)
-        if "search_magazines" in job:
-            jobname = "Magazine search"
-            threadname = "SEARCHALLMAG"
-        elif "search_comics" in job:
-            jobname = "Comic search"
-            threadname = "SEARCHALLCOMICS"
-        elif "check_for_updates" in job:
-            jobname = "Check for Update"
-            threadname = "VERSIONCHECK"
-        elif "search_book" in job:
-            jobname = "Book search"
-            threadname = "SEARCHALLBOOKS"
-        elif "search_rss_book" in job:
-            jobname = "rss book search"
-            threadname = "SEARCHALLRSS"
-        elif "search_wishlist" in job:
-            jobname = "Wishlist search"
-            threadname = "SEARCHWISHLIST"
-        elif "PostProcessor" in job:
-            jobname = "PostProcessor"
-            threadname = "POSTPROCESS"
-        elif "author_update" in job:
-            jobname = "Update authors"
-            threadname = "AUTHORUPDATE"
-        elif "series_update" in job:
-            jobname = "Update series"
-            threadname = "SERIESUPDATE"
-        elif "sync_to_gr" in job:
-            jobname = "Goodreads Sync"
-            threadname = "GRSYNC"
-        elif "clean_cache" in job:
-            jobname = "Clean cache"
-            threadname = "CLEANCACHE"
-        else:
+        jobname = ''
+        for _, scheduler in lazylibrarian.CONFIG.get_schedulers():
+            if scheduler.method_name in job:
+                jobname = scheduler.friendly_name
+                threadname = scheduler.run_name
+                break
+        if not jobname:
             jobname = job.split(' ')[0].split('.')[2]
             threadname = jobname.upper()
 

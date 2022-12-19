@@ -295,6 +295,8 @@ class LLConfigHandler(ConfigDict):
                 else:
                     return -1
         finally:
+            from lazylibrarian.telemetry import record_usage_data
+            record_usage_data('Config/Save')
             thread_name(currentname)
             # Only clear counters if we save the entire config
             clear:bool = False if section and section != '' else True

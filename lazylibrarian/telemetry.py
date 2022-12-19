@@ -24,7 +24,10 @@ import sys
 import requests
 from collections import defaultdict
 import lazylibrarian
-from lazylibrarian import config2, common, logger
+from lazylibrarian import logger
+from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import LLConfigHandler
+from lazylibrarian.formatter import thread_name
 
 class LazyTelemetry(object):
     """Handles basic telemetry gathering for LazyLibrarian, helping
@@ -83,7 +86,7 @@ class LazyTelemetry(object):
     def get_usage_telemetry(self):
         return self._data["usage"]
 
-    def set_install_data(self, _config: config2.LLConfigHandler, testing=False):
+    def set_install_data(self, _config: LLConfigHandler, testing=False):
         """ Update telemetry with data bout the installation """
         self.ensure_server_id(_config) # Make sure it has an ID
         server = self.get_server_telemetry()
@@ -99,7 +102,7 @@ class LazyTelemetry(object):
             server["uptime_seconds"] = round(up.total_seconds())
             server["python_ver"] = str(sys.version)
 
-    def set_config_data(self, _config: config2.LLConfigHandler):
+    def set_config_data(self, _config: LLConfigHandler):
         cfg_telemetry = self.get_config_telemetry()
 
         # Record whether particular on/off features are configured
@@ -146,7 +149,7 @@ class LazyTelemetry(object):
         cfg_telemetry["APPRISE"] = lazylibrarian.count_in_use('APPRISE', config=_config)
 
 
-    def record_usage_data(self, counter):
+    def record_usage_data(self, counter: str):
         usg = self.get_usage_telemetry()
         assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
@@ -168,19 +171,20 @@ class LazyTelemetry(object):
         datastr = '&'.join(data)
         return datastr
 
-    def get_data_url(self, server='localhost', port=9174, config=None):
-        return f"http://{server}:{port}/send?{self.construct_data_string()}"
+    def get_data_url(self, server='localhost:9174', config=None):
+        return f"{server}/send?{self.construct_data_string()}"
 
     def submit_data(self, _config):
         """ Submits LL telemetry data
         Returns status message and true/false depending on whether it was successful"""
 
-        proxies = common.proxy_list()
+        proxies = proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}
         payload = {"timeout": timeout, "proxies": proxies}
-        url = self.get_data_url(config=_config)
+        url = self.get_data_url(server=_config['TELEMETRY_SERVER'])
         try:
+            logger.debug(f'Sending telemetry data; URL is {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
             logger.error("submit_data: Timeout sending telemetry %s" % url)
@@ -198,3 +202,27 @@ class LazyTelemetry(object):
             msg = r.text
         return "Response status %s: %s" % (r.status_code, msg), False
 
+### Global functions
+
+TELEMETRY = LazyTelemetry()
+
+def record_usage_data(counter: str):
+    """ Convenience function for recording usage """
+    TELEMETRY.record_usage_data(counter)
+
+def scheduled_send():
+    """ Routine called by scheduler, to regularly send telemetry data """
+    threadname = thread_name()
+    if "Thread-" in threadname:
+        thread_name("TELEMETRYSEND")
+    try:
+        TELEMETRY.set_install_data(lazylibrarian.CONFIG, testing=False)
+        TELEMETRY.set_config_data(lazylibrarian.CONFIG)
+        if lazylibrarian.CONFIG['TELEMETRY_SERVER'] == '':
+            result = 'No telemetry server configured'
+        else:
+            result = TELEMETRY.submit_data(lazylibrarian.CONFIG)
+        logger.debug(f'Telemetry data sending: {result}')
+    finally:
+        thread_name(threadname)
+    return result
