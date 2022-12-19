@@ -473,6 +473,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('Preprocess', 'ZIP_AUDIOPARTS', 0),
     ConfigBool('Preprocess', 'SWAP_COVERPAGE', 0),
     ConfigInt('Preprocess', 'SHRINK_MAG', 0),
+    ConfigInt('Testing', 'Unpersisted_test', 2, persist=False)
 ]
 
 # (Sectionname, SectionNameTemplate, [Items])

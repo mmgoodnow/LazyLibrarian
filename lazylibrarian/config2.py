@@ -203,7 +203,7 @@ class LLConfigHandler(ConfigDict):
 
         def add_to_parser(parser: ConfigParser, sectionname: str, item: ConfigItem) -> int:
             """ Add item to parser, return 1 if added, 0 if ignored """
-            if save_all or not item.is_default():
+            if item.do_persist() and (save_all or not item.is_default()):
                 if not sectionname in parser:
                     parser[sectionname] = {}
                 parser[sectionname][key] = item.get_save_str()

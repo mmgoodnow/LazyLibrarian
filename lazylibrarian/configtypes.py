@@ -38,13 +38,15 @@ class ConfigItem():
     value: ValidTypes
     accesses: Counter
     is_new: bool
+    persist: bool
 
-    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool=False, persist: bool=True):
         self.section = section.upper()
         self.key = key.upper()
         self.default = default
         self.accesses = Counter()
         self.is_new = is_new
+        self.persist = persist
         if self.is_valid_value(default):
             self.value = default
         else:
@@ -117,6 +119,10 @@ class ConfigItem():
     def get_schedule_name(self) -> Optional[str]:
         return None
 
+    def do_persist(self) -> bool:
+        """ Return True if the ConfigItem is one that needs to be saved """
+        return self.persist
+
     def get_read_count(self) -> int:
         return self.accesses[Access.READ_OK]
 
@@ -166,9 +172,9 @@ class ConfigItem():
 
 class ConfigStr(ConfigItem):
     """ A config item that is a string """
-    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False):
+    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False, persist: bool=True):
         self.force_lower = force_lower
-        super().__init__(section, key, default, is_new)
+        super().__init__(section, key, default, is_new=is_new, persist=persist)
 
     def set_str(self, value: str) -> bool:
         if self.force_lower:
@@ -187,8 +193,8 @@ class ConfigStr(ConfigItem):
 
 class ConfigInt(ConfigItem):
     """ A config item that is an int """
-    def __init__(self, section: str, key: str, default: int, is_new: bool=False):
-        super().__init__(section, key, default, is_new)
+    def __init__(self, section: str, key: str, default: int, is_new: bool=False, persist: bool=True):
+        super().__init__(section, key, default, is_new, persist)
 
     def get_int(self) -> int:
         if self._on_read(type(self.value) in [int, bool]):
@@ -223,30 +229,30 @@ class ConfigInt(ConfigItem):
 class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
     def __init__(self, section: str, key: str, default: int,
-        range_min: int, range_max: int, is_new: bool=False):
+        range_min: int, range_max: int, is_new: bool=False, persist: bool=True):
         self.range_min = range_min
         self.range_max = range_max
-        super().__init__(section, key, default, is_new)
+        super().__init__(section, key, default, is_new, persist)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         return int(value) >= self.range_min and int(value) <= self.range_max
 
 class ConfigScheduleInterval(ConfigRangedInt):
     """ An int config that is used to hold a scheduling interval in seconds, minutes or hours, who knows """
-    def __init__(self, section: str, key: str, schedule_name: str, default: int, is_new: bool=False):
+    def __init__(self, section: str, key: str, schedule_name: str, default: int, is_new: bool=False, persist: bool=True):
         if not schedule_name:
             raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
 
         self.schedule_name = schedule_name
-        super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new)
+        super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new, persist=persist)
 
     def get_schedule_name(self) -> Optional[str]:
         return self.schedule_name
 
 class ConfigPerm(ConfigStr):
     """ Represents UNIX file permissions. Emitted as an Octal string """
-    def __init__(self, section: str, key: str, default: str, is_new: bool=False):
-        super().__init__(section, key, default, is_new)
+    def __init__(self, section: str, key: str, default: str, is_new: bool=False, persist: bool=True):
+        super().__init__(section, key, default, is_new=is_new, persist=persist)
 
     def set_int(self, value: int) -> bool:
         # It's a string, but can be set with an int value
@@ -279,8 +285,8 @@ class ConfigPerm(ConfigStr):
 
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
-    def __init__(self, section: str, key: str, default: Union[bool,int], is_new: bool=False):
-        super().__init__(section, key, default, is_new)
+    def __init__(self, section: str, key: str, default: Union[bool,int], is_new: bool=False, persist: bool=True):
+        super().__init__(section, key, default, is_new, persist)
 
     def get_bool(self) -> bool:
         if self._on_read(type(self.value) in [bool, int]): # We're ok with ints
@@ -324,8 +330,8 @@ class ConfigBool(ConfigInt):
 
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
-    def __init__(self, section: str, key: str, default: str, is_new: bool=False):
-        return super().__init__(section, key, default, force_lower=True, is_new=is_new)
+    def __init__(self, section: str, key: str, default: str, is_new: bool=False, persist: bool=True):
+        return super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
 
     def get_email(self) -> str:
         return self.get_str()
@@ -410,8 +416,8 @@ class ConfigFolder(ConfigStr):
     """
     asLoaded = ''
 
-    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False):
-        super().__init__(section, key, self.fix_separator(default), force_lower, is_new)
+    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False, persist: bool=True):
+        super().__init__(section, key, self.fix_separator(default), force_lower, is_new, persist)
 
     def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
         """ For Folders, save the config as-is to be able to preserve relative paths """

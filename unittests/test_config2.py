@@ -157,7 +157,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to -0o10',
         ])
         expected = Counter({Access.READ_OK: 6, Access.WRITE_OK: 2, Access.WRITE_ERR: 2})
-        self.do_access_compare(ci.accesses, expected, 'Permission config working as expected')
+        self.do_access_compare(ci.accesses, expected, 'Permission config not working as expected')
 
     def test_ConfigBool(self):
         """ Tests for ConfigBool class """
@@ -672,7 +672,24 @@ class Config2Test(LLTestCase):
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
-            self.assertEqual(self.remove_test_file(TESTFILE), True, 'Could not remove test-all.ini')
+            self.assertTrue(self.remove_test_file(TESTFILE), 'Could not remove test-all.ini')
+
+    def test_persistence_flag(self):
+        """ Test whether the persist flag is obeyed when saving """
+        lazylibrarian.LOGLEVEL = 1
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
+        initial = cfg['Unpersisted_test']
+        cfg.set_int('Unpersisted_test', 17)
+        try:
+            TESTFILE = 'test-small.ini'
+            count = cfg.save_config(TESTFILE, False) # Save only non-default values
+            self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
+            self.assertFalse(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is identical to the original')
+        finally:
+            self.assertTrue(self.remove_test_file('test-small.ini'), 'Could not remove test-small.ini')
+
+        self.assertEqual(cfgnew['Unpersisted_test'], initial, 'The unpersisted item was persisted!')
 
     def test_save_config_and_backup_old(self):
         """ Test saving config file while keeping the old one as a .bak file """
