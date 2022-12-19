@@ -419,7 +419,7 @@ class Config2Test(LLTestCase):
         self.set_basic_test_values(cfg)
 
         # Access some of these items
-        self.assertEqual('abc', cfg.get_str('somestr'))
+        self.assertEqual('abc', cfg['somestr'])
         for _ in range(3):
             self.assertEqual(45, cfg.get_int('someint'))
         self.assertEqual('name@gmail.com', cfg.get_email('mail'))
@@ -442,9 +442,19 @@ class Config2Test(LLTestCase):
         }
         self.do_access_compare(acs, expectedacs, 'Access patterns not as expected')
 
+        errors = cfg.get_error_counters()
+        expectederrors = {
+            'CSV3': Counter({Access.FORMAT_ERR: 1}),
+            'CSV4': Counter({Access.FORMAT_ERR: 1}),
+            'MAIL2': Counter({Access.FORMAT_ERR: 1}),
+        }
+        self.assertEqual(errors, expectederrors, 'Errors were not as expected')
+
         cfg.clear_access_counters()
         acs = cfg.get_all_accesses()
+        errors = cfg.get_error_counters()
         self.do_access_compare(acs, {}, 'Clearing all access patterns did not work')
+        self.assertEqual(errors, {}, 'Clearing all access patterns did clear errors')
 
     def test_LLdefaults(self):
         """ Test setting the default LL config """
@@ -589,18 +599,36 @@ class Config2Test(LLTestCase):
         lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
-        self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'Expected two entries for APPRISE')
-        self.assertEqual(cfg.get_array_entries('NEWZNAB'), 3, 'Expected two entries for NEWZNAB')
-        self.assertEqual(cfg.get_array_entries('RSS'), 1, 'Expected one empty entry for RSS')
-        self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries')
+        with self.assertLogs('lazylibrarian.logger', level='ERROR'): # There will be errors; catch them
+            self.assertEqual(cfg['BaseInvalid'], '', 'Retrieving invalid base key does not work as expected') # Read error
 
-        NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
-        self.assertIsNotNone(NEWZNAB, 'Expected to get a NEWZNAB object')
-        if NEWZNAB:
-            self.assertEqual(NEWZNAB['DISPNAME'], 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
-            self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
-            self.assertTrue(NEWZNAB.get_bool('ENABLED'), 'NEWZNAB.0.ENABLED not loaded correctly')
-            self.assertEqual(NEWZNAB.get_int('APILIMIT'), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
+            self.assertEqual(cfg.get_array_entries('APPRISE'), 2, 'Expected two entries for APPRISE')
+            self.assertEqual(cfg.get_array_entries('NEWZNAB'), 3, 'Expected two entries for NEWZNAB')
+            self.assertEqual(cfg.get_array_entries('RSS'), 1, 'Expected one empty entry for RSS')
+            self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries')
+            self.assertEqual(cfg.get_array_entries('AlsoFake'), 0, 'Expected no entries')
+
+            NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
+            self.assertIsNotNone(NEWZNAB, 'Expected to get a NEWZNAB object')
+            if NEWZNAB:
+                self.assertEqual(NEWZNAB['DISPNAME'], 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
+                self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
+                self.assertTrue(NEWZNAB.get_bool('ENABLED'), 'NEWZNAB.0.ENABLED not loaded correctly')
+                self.assertEqual(NEWZNAB.get_int('APILIMIT'), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
+                self.assertEqual(NEWZNAB['InvalidKey'], '') # Generate a read error
+                self.assertEqual(NEWZNAB['InvalidKey'], '') # Generate a read error
+                self.assertEqual(NEWZNAB['InvalidKey_2'], '') # Generate a read error
+
+        summary = cfg.create_access_summary(saveto = '')
+        expectedSummary = {
+            'READ_OK': [('NEWZNAB.0.DISPNAME', 2), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.APILIMIT', 1), ('NEWZNAB.1.HOST', 1), ('APPRISE.0.URL', 1)],
+            'WRITE_OK': [('LOGDIR', 1), ('LOGLIMIT', 1), ('LOGFILES', 1), ('LOGSIZE', 1), ('LOGLEVEL', 1), ('MAG_TAB', 1), ('COMIC_TAB', 1), ('AUDIO_TAB', 1), ('API_ENABLED', 1), ('API_KEY', 1), ('IMP_CALIBREDB', 1), ('CALIBRE_USE_SERVER', 1), ('CALIBRE_SERVER', 1), ('IMP_NOSPLIT', 1), ('SERVER_ID', 1), ('EBOOK_DIR', 1), ('AUDIO_DIR', 1), ('ALTERNATE_DIR', 1), ('TESTDATA_DIR', 1), ('DOWNLOAD_DIR', 1), ('AUDIOBOOK_DEST_FOLDER', 1), ('NEWZNAB.0.DISPNAME', 1), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.HOST', 1), ('NEWZNAB.0.API', 1), ('NEWZNAB.0.GENERALSEARCH', 1), ('NEWZNAB.0.BOOKSEARCH', 1), ('NEWZNAB.0.BOOKCAT', 1), ('NEWZNAB.0.UPDATED', 1), ('NEWZNAB.0.APILIMIT', 1), ('NEWZNAB.0.RATELIMIT', 1), ('NEWZNAB.0.DLTYPES', 1), ('NEWZNAB.1.DISPNAME', 1), ('NEWZNAB.1.HOST', 1), ('APPRISE.0.NAME', 1), ('APPRISE.0.DISPNAME', 1), ('APPRISE.0.SNATCH', 1), ('APPRISE.0.DOWNLOAD', 1), ('APPRISE.0.URL', 1)],
+            'READ_ERR': [('BASEINVALID', 1), ('DOESNOTEXIST', 1), ('ALSOFAKE', 1), ('NEWZNAB.0.INVALIDKEY', 2), ('NEWZNAB.0.INVALIDKEY_2', 1)],
+            'WRITE_ERR': [],
+            'CREATE_OK': [],
+            'FORMAT_ERR': []
+        }
+        self.assertEqual(summary, expectedSummary, 'Access Summary is not as expected')
 
     def remove_test_file(self, filename) -> bool:
         """ Remove a file used for testing. Returns True if a file was removed """

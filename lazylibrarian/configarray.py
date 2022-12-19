@@ -7,7 +7,7 @@ from typing import Dict, List
 from collections import OrderedDict
 
 from lazylibrarian.configtypes import ConfigItem, ConfigDict
-from lazylibrarian.configdefs import DefaultArrayDef, ARRAY_DEFS, configitem_from_default
+from lazylibrarian.configdefs import DefaultArrayDef, configitem_from_default
 from lazylibrarian import logger
 
 class ArrayConfig():

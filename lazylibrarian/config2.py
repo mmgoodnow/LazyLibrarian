@@ -102,12 +102,17 @@ class LLConfigHandler(ConfigDict):
     def get_array_entries(self, wantname: str) -> int:
         """ Return number of entries in a particular array config """
         rc = 0
+        Found = False
         if not wantname:
             return rc
         wantname = wantname.upper()
         for name in self.arrays.keys():
             if name[:len(wantname)] == wantname:
                 rc += len(self.arrays[name])
+                Found = True
+
+        if not Found:
+            self._handle_access_error(wantname, Access.READ_ERR)
         return rc
 
     def get_array(self, wantname: str) -> Optional[ArrayConfig]:
@@ -161,11 +166,13 @@ class LLConfigHandler(ConfigDict):
         """ Clear all counters. Used after sending telemetry or saving config """
         for _, value in self.config.items():
             value.get_accesses().clear()
+        self.clear_error_counters()
 
         for _, array in self.arrays.items():
             for _, config in array._configs.items():
                 for _, item in config.items():
                     item.get_accesses().clear()
+                config.clear_error_counters()
 
     def update_providers_from_UI(self, kwargs):
         """ Update all provider arrays with a settings array from the web UI.
@@ -371,21 +378,30 @@ class LLConfigHandler(ConfigDict):
         highlighting places where config2 is used incorrectly or where things
         are highly inefficient """
 
+        # Collate all access attempts to keys that exist
         access_summary = {}
         for a in Access:
             access_summary[a.name] = []
 
         for key, value in self.config.items():
             accesses = value.get_accesses()
-            for a in accesses.items():
-                access_summary[a[0].name].append((key, a[1])) # Accesstype = (key, counter)
+            for aname, count in accesses.items():
+                access_summary[aname.name].append((key, count)) # Accesstype = (key, counter)
+        for key, errors in self.get_error_counters().items():
+            for ename, count in errors.items():
+                access_summary[ename.name].append((key, count))
 
         for name, array in self.arrays.items(): # e.g. Apprise
             for index, config in array._configs.items(): # e.g. Each Apprise
+                # Add the normal access items
                 for key, item in config.items():
                     accesses = item.get_accesses()
-                    for a in accesses.items():
-                        access_summary[a[0].name].append((f"{name}.{index}.{key}", a[1])) # Accesstype = (key, counter)
+                    for aname, count in accesses.items():
+                        access_summary[aname.name].append((f"{name}.{index}.{key}", count)) # Accesstype = (key, counter)
+                # Add any key error items
+                for key, errors in config.get_error_counters().items():
+                    for ename, count in errors.items():
+                        access_summary[ename.name].append((f"{name}.{index}.{key}", count))
 
         if saveto:
             self.save_access_summary(saveto, access_summary)

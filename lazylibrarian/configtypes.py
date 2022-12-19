@@ -609,5 +609,5 @@ class ConfigDict:
         """ Get a list of all access errors """
         return self.errors
 
-    def test(self):
-        self.config.items()
+    def clear_error_counters(self):
+        self.errors.clear()
