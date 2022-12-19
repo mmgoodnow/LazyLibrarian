@@ -132,14 +132,14 @@ class IRC:
             logger.debug(str(e))
             lazylibrarian.providers.block_provider(self.server, msg, 600)
 
-    def leave(self, provider):
-        if provider['IRC']:
+    def leave(self, provider: ConfigDict):
+        if provider.get_connection():
             self.irc.send(make_bytestr("PART " + provider['CHANNEL'] + " :Bye\n"))
             pause_until = time.time() + 2
             while pause_until > time.time():
                 _ = self.get_response('leaving pause')  # listen and handle ping
             self.irc.send(make_bytestr("QUIT\n"))
-            provider['IRC'] = None
+            provider.set_connection(None)
 
     def connect(self, server, port, botnick="", botpass=""):
         # Connect to the server
@@ -198,11 +198,11 @@ class IRC:
 
 
 def irc_connect(provider: ConfigDict, retries=10):
-    if lazylibrarian.providers.provider_is_blocked(provider['SERVER'].get_str()):
-        logger.warn("%s is blocked" % provider['SERVER'].get_str())
+    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
+        logger.warn("%s is blocked" % provider['SERVER'])
         return None
 
-    irc = provider.get('IRC')
+    irc = provider.get_connection()
     if irc:
         logger.debug("Trying existing connection to %s" % provider['SERVER'])
         try:
@@ -215,7 +215,7 @@ def irc_connect(provider: ConfigDict, retries=10):
                 return irc
         except Exception as e:
             logger.debug("Existing connection failed: %s" % str(e))
-            provider['IRC'] = None
+            provider.set_connection(None)
             # if the attempt to join failed it will block us,
             # and we were not blocked before the attempt
             for entry in lazylibrarian.PROVIDER_BLOCKLIST:
@@ -255,7 +255,7 @@ def irc_connect(provider: ConfigDict, retries=10):
                                 _ = irc.get_response('welcome pause')  # listen and handle ping
                             irc.join(provider['CHANNEL'])
                             _ = irc.get_response("join")
-                            provider['IRC'] = irc
+                            provider.set_connection(irc)
                             return irc
                 retried += 1  # welcome not found yet
             except socket.timeout:
@@ -268,14 +268,14 @@ def irc_connect(provider: ConfigDict, retries=10):
     return None
 
 
-def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
+def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=10):
     if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
         return '', msg
 
     if not cmd:
-        cmd = provider.get('SEARCH', '@search')
+        cmd = provider['SEARCH']
 
     if cache:
         cache_location = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
@@ -325,12 +325,12 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
     pingcheck = 0
     filename = ''
 
-    irc = provider['IRC']
+    irc = provider.get_connection()
     if not irc:
         irc = irc_connect(provider)
 
     if not irc:
-        provider['IRC'] = None
+        provider.set_connection(None)
         return '', "Failed to connect to %s" % provider['SERVER']
 
     while status != "finished":
@@ -353,7 +353,7 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
                     # about to repeat search, ensure not too soon
-                    pause_until = provider.get('LAST_SEARCH_TIME', 0) + abortafter
+                    pause_until = provider.get_int('LAST_SEARCH_TIME') + abortafter
                     pause = int(pause_until - time.time())
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
@@ -363,7 +363,7 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
                 cmd_sent = time.time()
                 last_cmd = "socket timeout resend %s" % new_cmd
                 logger.debug(new_cmd)
-                provider['LAST_SEARCH_TIME'] = time.time()
+                provider.set_int('LAST_SEARCH_TIME', int(time.time()))
                 last_search_cmd = new_cmd
         except socket.error as e:
             logger.error("Socket error: %s" % str(e))
@@ -415,7 +415,7 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
                 new_cmd = cmd + " " + searchstring
                 if new_cmd == last_search_cmd:
                     # about to repeat search, ensure not too soon
-                    pause_until = provider.get('LAST_SEARCH_TIME', 0) + abortafter
+                    pause_until = provider.get_int('LAST_SEARCH_TIME') + abortafter
                     pause = int(pause_until - time.time())
                     if pause > 0:
                         logger.debug("Waiting %ssec before resending search" % pause)
@@ -433,7 +433,7 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
                 last_cmd = new_cmd
                 status = "waiting"
                 last_search_cmd = new_cmd
-                provider['LAST_SEARCH_TIME'] = time.time()
+                provider.set_int('LAST_SEARCH_TIME', int(time.time()))
 
             elif status == "waiting":
                 if len(lyne.split("matches")) > 1:
@@ -557,12 +557,12 @@ def irc_search(provider, searchstring, cmd="", cache=True, retries=10):
     return filename, received_data
 
 
-def irc_leave(provider):
-    if provider['IRC']:
-        provider['IRC'].leave(provider)
+def irc_leave(provider: ConfigDict):
+    if provider.get_connection():
+        provider.get_connection().leave(provider)
 
 
-def irc_results(provider, fname, retries=5):
+def irc_results(provider: ConfigDict, fname, retries=5):
     # Open the zip file, extract the txt
     # for each line that starts with !
     # user is first word
@@ -625,7 +625,7 @@ def irc_results(provider, fname, retries=5):
             logger.error("Error reading results: %s" % str(e))
 
     if results:
-        irc = provider['IRC']
+        irc = provider.get_connection()
         if irc:
             retried = 0
             userlist = []

@@ -6,7 +6,7 @@
 from typing import List, Dict, Tuple
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
 from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
-from lazylibrarian.configtypes import ConfigScheduleInterval, ConfigDownloadTypes
+from lazylibrarian.configtypes import ConfigScheduleInterval, ConfigDownloadTypes, ConfigConnection
 from copy import deepcopy
 
 BASE_DEFAULTS: List[ConfigItem] = [
@@ -551,6 +551,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigStr('', "SEARCH", '@search'),
     ConfigInt('', "DLPRIORITY", 0),
     ConfigDownloadTypes('', "DLTYPES", 'E'),
+    ConfigConnection('', 'CONNECTION')
     ]),
     'GEN': ('HOST', 'GEN_%i', [
     ConfigStr('', 'NAME', 'GEN'),

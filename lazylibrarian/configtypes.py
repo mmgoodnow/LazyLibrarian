@@ -119,6 +119,12 @@ class ConfigItem():
     def get_schedule_name(self) -> Optional[str]:
         return None
 
+    def get_connection(self):
+        return None
+
+    def set_connection(self, value):
+        pass # Do nothing
+
     def do_persist(self) -> bool:
         """ Return True if the ConfigItem is one that needs to be saved """
         return self.persist
@@ -443,6 +449,18 @@ class ConfigFolder(ConfigStr):
             return value.replace('\\', '/')
         return value
 
+class ConfigConnection(ConfigItem):
+    """ A virtal config item that is used to hold a connection. Not persisted. """
+    def __init__(self, section: str, key: str):
+        self._connection = None
+        super().__init__(section, key, 0, is_new=False, persist=False)
+
+    # Introduce connection as a property for easy access
+    def get_connection(self):
+        return self._connection
+    def set_connection(self, value):
+        self._connection = value
+
 ### This is to have section names be case insensitive.
 ### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
 class CaseInsensitiveDict(MutableMapping):
@@ -546,7 +564,7 @@ class ConfigDict:
         if key.upper() in self.config:
             self.config[key.upper()].set_int(value)
         else:
-            self.config[key.upper()] = ConfigInt('', key, 0, is_new=True)
+            self.config[key.upper()] = ConfigInt('', key, 0, is_new=True, persist=False)
             self.set_int(key, value)
 
     """ Booleans (0/1, False/True) """
@@ -561,7 +579,7 @@ class ConfigDict:
         if key.upper() in self.config:
             self.config[key.upper()].set_bool(value)
         else:
-            self.config[key.upper()] = ConfigBool('', key, False, is_new=True)
+            self.config[key.upper()] = ConfigBool('', key, False, is_new=True, persist=False)
             self.set_bool(key, value)
 
     """ Email addresses """
@@ -594,9 +612,32 @@ class ConfigDict:
         else:
             self.create_str_key(ConfigURL, key, value)
 
+    """ Connection objects """
+    def get_connection(self, key: str=''):
+        """ Return the named connection, or the first valid one if not specified """
+        conn = None
+        if key:
+            if key.upper() in self.config:
+                conn = self.config[key.upper()].get_connection()
+        else:
+            for _, item in self.config.items():
+                conn = item.get_connection()
+                if conn:
+                    break
+        return conn
+
+    def set_connection(self, value=None, key: str=''):
+        """ Set the named connection, or any connections if key=='' """
+        if key:
+            if key.upper() in self.config:
+                self.config[key.upper()].set_connection(value)
+        else:
+            for _, item in self.config.items():
+                item.set_connection(value)
+
     def create_str_key(self, aclass: Type[ConfigItem], key: str, value: ValidStrTypes):
         """ Function for creating new config items on the fly. Should be rare in LL. """
-        new_entry = aclass('', key, '', is_new=True)
+        new_entry = aclass('', key, '', is_new=True, persist=False)
         if new_entry.is_valid_value(value):
             self.config[key.upper()] = new_entry
             self.config[key.upper()].set_str(value)

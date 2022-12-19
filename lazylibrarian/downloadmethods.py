@@ -25,6 +25,7 @@ except Exception:  # magic might fail for multiple reasons
 import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
     path_isdir, syspath, remove
@@ -76,7 +77,7 @@ def use_label(source, library):
     return ''
 
 
-def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider=None):
+def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', provider: str=''):
     db = database.DBConnection()
     source = provider
     msg = ''
@@ -93,15 +94,15 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
     if not myprov:
         msg = "%s server not found" % provider
     else:
-        myprov['IRC'] = None  # new download, start a new connection
+        myprov.set_connection(None)  # new download, start a new connection
         irc = irc_connect(myprov)
         if not irc:
             msg = "Failed to connect"
-            myprov['IRC'] = None
+            myprov.set_connection(None)
         else:
             fname, data = irc_search(myprov, dl_title, cmd=dl_url, cache=False)
             if not fname:
-                myprov['IRC'] = None
+                myprov.set_connection(None)
 
     # noinspection PyTypeChecker
     download_id = sha1(bencode(dl_url + ':' + dl_title)).hexdigest()
@@ -140,7 +141,8 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
         db.action(msg, (source, download_id, data, dl_url, dl_title))
         msg = data
         if 'timed out' in data:  # need to reconnect
-            provider['IRC'] = None
+            if myprov:
+                myprov.set_connection(None)
             logger.error(msg)
     return False, msg
 
@@ -262,12 +264,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     s = requests.Session()
     if provider == 'zlibrary':
         # do we need to login?
-        if lazylibrarian.CONFIG.get('BOK_USER') and lazylibrarian.CONFIG.get('BOK_PASS'):
+        if lazylibrarian.CONFIG['BOK_USER'] and lazylibrarian.CONFIG['BOK_PASS']:
             bok_login_url = lazylibrarian.CONFIG['BOK_LOGIN']
             data = {
                     "isModal": True,
-                    "email": lazylibrarian.CONFIG.get('BOK_USER'),
-                    "password": lazylibrarian.CONFIG.get('BOK_PASS'),
+                    "email": lazylibrarian.CONFIG['BOK_USER'],
+                    "password": lazylibrarian.CONFIG['BOK_PASS'],
                     "site_mode": "books",
                     "action": "login",
                     "isSingleLogin": 1,

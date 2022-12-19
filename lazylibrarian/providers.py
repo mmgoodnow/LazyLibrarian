@@ -117,7 +117,7 @@ def test_provider(name: str, host=None, api=None):
         try:
             prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('RSS'):
-                if provider['NAME'] == 'RSS_%s' % prov:
+                if provider.get_item('NAME').section == 'RSS_%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
@@ -246,7 +246,7 @@ def test_provider(name: str, host=None, api=None):
         try:
             prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('IRC'):
-                if provider['NAME'] == 'IRC_%s' % prov:
+                if provider.get_item('NAME').section == 'IRC_%s' % prov:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                         if host:
@@ -259,8 +259,7 @@ def test_provider(name: str, host=None, api=None):
                             provider['BOTPASS'] = spass
                             provider['SEARCH'] = ssearch
                     logger.debug("Testing provider %s" % name)
-                    # CFG2DO Check whether this way of signaling IRC connection should change
-                    provider['IRC'] = None  # start a new connection
+                    provider.set_connection(None)  # start a new connection
                     success, _ = ircsearch(book, provider, "book", True)
                     return success, name
         except IndexError:
@@ -725,7 +724,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
         logger.debug("DLTYPES: %s: %s %s" % (prov['NAME'], prov['ENABLED'], prov['DLTYPES']))
         if prov.get_bool('ENABLED'):
             ignored = False
-            if provider_is_blocked(prov['NAME'].get_str()):
+            if provider_is_blocked(prov['NAME']):
                 logger.debug('%s is BLOCKED' % prov['NAME'])
                 ignored = True
             elif search_type in ['book', 'shortbook', 'titlebook'] and 'E' not in prov['DLTYPES']:
@@ -992,7 +991,7 @@ def ircsearch(book, provider: ConfigDict, search_type, test=False):
     irc = irc_connect(provider)
     if not irc:
         logger.error("Failed to connect to %s" % provider['SERVER'])
-        provider['IRC'] = None
+        provider.set_connection(None)
         return False, results
 
     # if test:
@@ -1011,7 +1010,7 @@ def ircsearch(book, provider: ConfigDict, search_type, test=False):
                                                  provider['CHANNEL'], book['searchterm']))
         fname, data = irc_search(provider, book['searchterm'], cache=True)
         if not fname and 'timed out' in make_unicode(data):  # need to reconnect
-            provider['IRC'] = None
+            provider.set_connection(None)
             logger.error(data)
             return False, results
         if fname:

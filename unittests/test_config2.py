@@ -685,7 +685,8 @@ class Config2Test(LLTestCase):
             count = cfg.save_config(TESTFILE, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
-            self.assertFalse(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is identical to the original')
+            with self.assertLogs('lazylibrarian.logger', level='WARN'):
+                self.assertFalse(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is identical to the original')
         finally:
             self.assertTrue(self.remove_test_file('test-small.ini'), 'Could not remove test-small.ini')
 
