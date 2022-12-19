@@ -6,7 +6,7 @@
 from typing import List, Dict, Tuple
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
 from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
-from lazylibrarian.configtypes import ConfigScheduleInterval, ConfigDownloadTypes, ConfigConnection
+from lazylibrarian.configtypes import ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
 from copy import deepcopy
 
 BASE_DEFAULTS: List[ConfigItem] = [
@@ -303,14 +303,28 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigInt('General', 'REJECT_MAXCOMIC', 0),
     ConfigInt('General', 'REJECT_MINCOMIC', 0),
     ConfigInt('General', 'MAG_AGE', 31),
-    ConfigScheduleInterval('SearchScan', 'SEARCH_BOOKINTERVAL', 'search_book', 360),
-    ConfigScheduleInterval('SearchScan', 'SEARCH_MAGINTERVAL', 'search_magazines', 360),
-    ConfigScheduleInterval('SearchScan', 'SCAN_INTERVAL', 'PostProcessor', 10),
-    ConfigScheduleInterval('SearchScan', 'SEARCHRSS_INTERVAL', 'search_rss_book', 20),
-    ConfigScheduleInterval('SearchScan', 'WISHLIST_INTERVAL', 'search_wishlist', 24),
-    ConfigScheduleInterval('SearchScan', 'SEARCH_COMICINTERVAL', 'search_comics', 24),
-    ConfigScheduleInterval('SearchScan', 'VERSIONCHECK_INTERVAL', 'check_for_updates', 24),
-    ConfigScheduleInterval('SearchScan', 'GOODREADS_INTERVAL', 'sync_to_goodreads', 48),
+    ConfigScheduler('SearchScan', 'SEARCH_BOOKINTERVAL', 'search_book', 360, TimeUnit.MIN,
+        'SEARCHALLBOOKS', 'lazylibrarian.searchbook.cron_search_book', True),
+    ConfigScheduler('SearchScan', 'SEARCH_MAGINTERVAL', 'search_magazines', 360, TimeUnit.MIN,
+        'SEARCHALLMAG', 'lazylibrarian.searchmag.cron_search_magazines', True),
+    ConfigScheduler('SearchScan', 'SCAN_INTERVAL', 'PostProcessor', 10, TimeUnit.MIN,
+        'POSTPROCESS', 'lazylibrarian.postprocess.cron_process_dir', False),
+    ConfigScheduler('SearchScan', 'SEARCHRSS_INTERVAL', 'search_rss_book', 20, TimeUnit.MIN,
+        'SEARCHALLRSS', 'lazylibrarian.searchrss.cron_search_rss_book', False),
+    ConfigScheduler('SearchScan', 'WISHLIST_INTERVAL', 'search_wishlist', 2, TimeUnit.HOUR,
+        'SEARCHWISHLIST', 'lazylibrarian.searchrss.cron_search_wishlist', False),
+    ConfigScheduler('SearchScan', 'SEARCH_COMICINTERVAL', 'search_comics', 24, TimeUnit.HOUR,
+        'SEARCHALLCOMICS', 'lazylibrarian.comicsearch.cron_search_comics', True),
+    ConfigScheduler('SearchScan', 'VERSIONCHECK_INTERVAL', 'check_for_updates', 24, TimeUnit.HOUR,
+        'VERSIONCHECK', 'lazylibrarian.versioncheck.check_for_updates', False),
+    ConfigScheduler('SearchScan', 'GOODREADS_INTERVAL', 'sync_to_goodreads', 48, TimeUnit.HOUR,
+        'GRSYNC', 'lazylibrarian.grsync.cron_sync_to_gr', False),
+    ConfigScheduler('SearchScan', 'CLEAN_CACHE_INTERVAL', 'clean_cache', 8, TimeUnit.DAY,
+        'CLEANCACHE', 'lazylibrarian.cache.clean_cache', False, persist=False), # Interval is not used
+    ConfigScheduler('SearchScan', 'AUTHORUPDATE_INTERVAL', 'author_update', 1, TimeUnit.MIN,
+        'AUTHORUPDATE', 'lazylibrarian.scheduling.author_update', False, persist=False), # Interval is not used
+    ConfigScheduler('SearchScan', 'SERIESUPDATE_INTERVAL', 'series_update', 1, TimeUnit.MIN,
+        'SERIESUPDATE', 'lazylibrarian.scheduling.series_update', False, persist=False), # Interval is not used
     ConfigBool('SearchScan', 'DELAYSEARCH', 0),
     ConfigInt('SearchScan', 'SEARCH_RATELIMIT', 0),
     ConfigBool('LibraryScan', 'FULL_SCAN', 0),

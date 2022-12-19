@@ -118,3 +118,8 @@ class LLTestCase(unittest.TestCase):
         curr_ver = dbupgrade.upgrade_needed()
         if curr_ver:
             dbupgrade.db_upgrade(curr_ver)
+
+def false_method() -> bool:
+    """ A method that returns False. used for testing. """
+    return False
+

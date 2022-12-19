@@ -12,7 +12,7 @@ from unittesthelpers import LLTestCase
 import lazylibrarian
 from lazylibrarian import config2, configdefs, configtypes, logger, LOGLEVEL
 from lazylibrarian.configdefs import get_default
-from lazylibrarian.configtypes import Access
+from lazylibrarian.configtypes import Access, TimeUnit
 from lazylibrarian.common import syspath
 
 # Ini files used for testing load/save functions.
@@ -250,19 +250,20 @@ class Config2Test(LLTestCase):
         finally:
             os.name = osname
 
-    def test_ConfigScheduleInterval(self):
+    def test_ConfigScheduler(self):
         """ Tests for config holding scheduler information """
-        ci = configtypes.ConfigScheduleInterval('', '', 'Test', 10)
+        ci = configtypes.ConfigScheduler('', '', 'Test', 10, TimeUnit.MIN, 'run', 'unittesthelpers.false_method', needs_provider=False)
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
+        self.assertIsNotNone(ci.get_method(), 'Cannot find schedule method to run')
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
-            ci.set_int(100000) # Value too large, should have no effect
+            ci.set_int(10000000) # Value too large, should have no effect
         self.assertEqual(cm.output,
-            ['WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to 100000'])
+            ['WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[] to 10000000'])
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
 
         try:
-            ci = configtypes.ConfigScheduleInterval('', '', '', 10)
+            ci = configtypes.ConfigScheduler('', '', '', 10, TimeUnit.HOUR, 'run', '', True)
             self.assertTrue(False, 'Expected RuntimeError to be raised because schedule is empty')
         except RuntimeError:
             pass # This is what we expect
@@ -463,6 +464,27 @@ class Config2Test(LLTestCase):
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')
         self.do_access_compare({}, cfg.get_all_accesses(), 'There should be no changes from defaults')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
+
+    def test_schedule_list(self):
+        lazylibrarian.LOGLEVEL = 1
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+
+        keynames = []
+        schednames = []
+        persistcount = 0
+        canruncount = 0
+        for name, scheduler in cfg.get_schedulers():
+            keynames.append(name)
+            schednames.append(scheduler.get_schedule_name())
+            if scheduler.do_persist():
+                persistcount += 1
+            if scheduler.can_run():
+                canruncount += 1
+
+        self.assertEqual(keynames, ['SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL', 'VERSIONCHECK_INTERVAL', 'GOODREADS_INTERVAL', 'CLEAN_CACHE_INTERVAL', 'AUTHORUPDATE_INTERVAL', 'SERIESUPDATE_INTERVAL'])
+        self.assertEqual(schednames, ['search_book', 'search_magazines', 'PostProcessor', 'search_rss_book', 'search_wishlist', 'search_comics', 'check_for_updates', 'sync_to_goodreads', 'clean_cache', 'author_update', 'series_update'])
+        self.assertEqual(persistcount, 8)
+        self.assertEqual(canruncount, 7)
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """
@@ -741,7 +763,7 @@ class Config2Test(LLTestCase):
 
         # The only test is to make sure the mako cache is clearer
         cfg.config['HTTP_LOOK'].set_str('a_special_ui') # Force the mako cache to get cleared
-        cfg.post_save_actions()
+        cfg.post_save_actions(clear_counters=True, restart_jobs=False)
         self.do_access_compare(cfg.get_all_accesses(), {}, 'Expected all accesses cleared after saving')
 
         mako_dir = cfg.get_mako_cachedir()

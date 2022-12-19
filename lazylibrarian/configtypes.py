@@ -4,13 +4,14 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Union, Optional, MutableMapping, Type, ItemsView, KeysView
+from typing import NewType, Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
 from typing import Dict, List
 from enum import Enum
 from configparser import ConfigParser
 from collections import Counter, OrderedDict
 from re import match, compile, IGNORECASE
 import os
+import sys
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -29,6 +30,12 @@ class Access(Enum):
     WRITE_ERR = 'write_error'
     CREATE_OK = 'create_ok'
     FORMAT_ERR= 'format_error'
+
+### Schedule intervals
+class TimeUnit(Enum):
+    MIN = 'min'
+    HOUR = 'hour'
+    DAY = 'day'
 
 """ Simple wrapper classes for config values of different types """
 class ConfigItem():
@@ -116,8 +123,8 @@ class ConfigItem():
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
 
-    def get_schedule_name(self) -> Optional[str]:
-        return None
+    def get_schedule_name(self) -> str:
+        return ''
 
     def get_connection(self):
         return None
@@ -243,16 +250,60 @@ class ConfigRangedInt(ConfigInt):
     def is_valid_value(self, value: ValidTypes) -> bool:
         return int(value) >= self.range_min and int(value) <= self.range_max
 
-class ConfigScheduleInterval(ConfigRangedInt):
-    """ An int config that is used to hold a scheduling interval in seconds, minutes or hours, who knows """
-    def __init__(self, section: str, key: str, schedule_name: str, default: int, is_new: bool=False, persist: bool=True):
+class ConfigScheduler(ConfigRangedInt):
+    """ An int config that is used to hold a scheduling interval and associated info to run it """
+    def __init__(self, section: str, key: str, schedule_name: str, default: int, unit: TimeUnit,
+        run_name: str, method_name: str, needs_provider: bool, is_new: bool=False, persist: bool=True):
         if not schedule_name:
             raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
 
-        self.schedule_name = schedule_name
-        super().__init__(section, key, default, range_min=0, range_max=1440, is_new=is_new, persist=persist)
+        self.schedule_name = schedule_name    # The name of the schedule, like 'search_book'
+        self.run_name = run_name              # The name of the run, like 'SEARCHALLBOOKS'
+        self.method_name = method_name        # The method to call
+        self.needs_provider = needs_provider  # Whether it needs a provider to work
+        self.unit = unit                      # Is the value in Minutes or Hours?
+        super().__init__(section, key, default, range_min=0, range_max=100000, is_new=is_new, persist=persist)
 
-    def get_schedule_name(self) -> Optional[str]:
+    def get_method(self):
+        """ Return the method to call for this scheduler """
+        module, function = self.method_name.rsplit('.', 1)
+        try:
+            return getattr(sys.modules[module], function)
+        except:
+            return None
+
+    def can_run(self):
+        """ Return True if the job's requirements are satisfied """
+        ok = self.get_int() > 0 # 0 means schedule is disabled
+        if ok and self.needs_provider:
+            ok = lazylibrarian.use_tor() or lazylibrarian.use_nzb() \
+                or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
+                or lazylibrarian.use_irc()
+        if ok and self.run_name == 'GRSYNC': # Special case, should maybe add option to object
+            ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
+        return ok
+
+    def get_hour_min_interval(self) -> Tuple[int, int]:
+        """ Return (hours, minutes) tuple for the schedule """
+        value = self.get_int()
+        hours, minutes = 0, 0
+        if self.unit == TimeUnit.DAY:
+            hours = value * 24
+        elif self.unit == TimeUnit.HOUR:
+            hours = value
+        else:
+            if value <= 600:
+                minutes = value # Just minutes, if < 10 hours
+            else:
+                hours = int(value/60) # Just whole hours, if longer
+
+        # No interval < 5 minutes
+        if 60*hours+minutes < 5:
+            hours, minutes = 0, 5
+
+        return hours, minutes
+
+    def get_schedule_name(self) -> str:
         return self.schedule_name
 
 class ConfigPerm(ConfigStr):
@@ -649,6 +700,14 @@ class ConfigDict:
             self.config[key.upper()].set_str(value)
         else:
             self._handle_access_error(key, Access.FORMAT_ERR)
+
+    def get_ConfigScheduler(self, schedule_name: str) -> Optional[ConfigScheduler]:
+        """ Look for a config with the specified target """
+        for key, value in self.config.items():
+            if isinstance(value, ConfigScheduler):
+                if value.schedule_name.lower() == schedule_name.lower():
+                    return self.config[key]
+        return None
 
     def _handle_access_error(self, key: str, status: Access):
         """ Handle accesses to invalid keys """

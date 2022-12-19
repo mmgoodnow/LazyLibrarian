@@ -24,6 +24,7 @@ from lib.apscheduler.scheduler import Scheduler
 import lazylibrarian
 from lazylibrarian import database, logger, importer, bookwork
 from lazylibrarian.formatter import thread_name, plural, check_int
+from lazylibrarian.configtypes import ConfigScheduler
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -90,7 +91,7 @@ def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     else:
         return "%i seconds" % seconds
 
-def nextrun(target=None, interval=0, action='', hours=False):
+def nextrun(target=None, minutes=0, action=''):
     """ Check when a job is next due to run and log it
         Return startdate for the job """
     if target is None:
@@ -98,8 +99,7 @@ def nextrun(target=None, interval=0, action='', hours=False):
 
     if action == 'StartNow':
         lazylibrarian.STOPTHREADS = False
-        hours = False
-        interval = 0
+        minutes = 0
 
     db = database.DBConnection()
     columns = db.select('PRAGMA table_info(jobs)')
@@ -122,10 +122,7 @@ def nextrun(target=None, interval=0, action='', hours=False):
         startdate = datetime.datetime.strptime(nextruntime, '%Y-%m-%d %H:%M:%S')
         msg = "%s %s job in %s" % (action, target, next_run_time(startdate))
     else:
-        if hours:
-            interval *= 60
-
-        next_run_in = lastrun + (interval * 60) - time.time()
+        next_run_in = lastrun + (minutes * 60) - time.time()
         if next_run_in < 60:
             next_run_in = 60  # overdue, start in 1 minute
 
@@ -150,18 +147,49 @@ def nextrun(target=None, interval=0, action='', hours=False):
 
     return startdate
 
+def adjust_schedule(scheduler: ConfigScheduler):
+    """ This method makes any adjustments to the scheduler that need to happen,
+    but where the code does not belong in the configtypes module """
+
+    name = scheduler.get_schedule_name()
+    if name in ['cache_update']:
+        # Override the interval with the value from CACHE_AGE
+        cdays = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+        scheduler.set_int(cdays)
+
+    elif name in ['author_update', 'series_update']:
+        # Disregard configured value of interval, use CACHE_AGE.
+        # Then, shorten the interval depending on how much needs to be done
+        cdays = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+        if cdays:
+            maxhours = cdays*24
+
+            typ = name.replace('_update', '')
+            overdue, total, _, _, days = is_overdue(typ)
+            if days == maxhours:
+                due = "due"
+            else:
+                due = "overdue"
+            logger.debug("Found %s %s from %s %s update" % (
+                            overdue, plural(overdue, typ), total, due))
+
+            interval = maxhours * 60
+            interval = interval / max(total, 1)
+            interval = int(interval * 0.80)  # allow some update time
+
+            if interval < 5:  # set a minimum interval of 5 minutes, so we don't upset goodreads/librarything api
+                interval = 5
+
+            # Update the scheduler with the calculated interval in minutes
+            logger.debug(f"Setting interval for {name} to {interval} minutes, found {overdue} to update")
+            scheduler.set_int(interval)
 
 
-def schedule_job(action='Start', target=None):
+def schedule_job(action='Start', target:str=''):
     """ Start or stop or restart a cron job by name e.g.
         target=search_magazines, target=process_dir, target=search_book """
-    if target is None:
+    if target == '':
         return
-
-    # Import all of the functions we may schedule
-    # Late import to avoid circular references
-    from lazylibrarian import postprocess, searchmag, searchbook, searchrss, \
-        comicsearch, versioncheck, grsync, cache
 
     if action in ['Stop', 'Restart']:
         for job in SCHED.get_jobs():
@@ -176,126 +204,20 @@ def schedule_job(action='Start', target=None):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
 
-        if 'PostProcessor' in target:
-            interval = lazylibrarian.CONFIG.get_int('SCAN_INTERVAL')
-            if interval:
-                startdate = nextrun("POSTPROCESS", interval, action)
-                SCHED.add_interval_job(postprocess.cron_process_dir,
-                                       minutes=interval, start_date=startdate)
-
-        elif 'search_magazines' in target:
-            interval = lazylibrarian.CONFIG.get_int('SEARCH_MAGINTERVAL')
-            if interval and (lazylibrarian.use_tor() or lazylibrarian.use_nzb()
-                             or lazylibrarian.use_rss() or lazylibrarian.use_direct()
-                             or lazylibrarian.use_irc()):
-                startdate = nextrun("SEARCHALLMAG", interval, action)
-                if interval <= 600:  # for bigger intervals switch to hours
-                    SCHED.add_interval_job(searchmag.cron_search_magazines,
-                                           minutes=interval, start_date=startdate)
+        schedule = lazylibrarian.CONFIG.get_ConfigScheduler(target)
+        if schedule:
+            if schedule.can_run():
+                # Perform local adjustments to the schedule before proceeding
+                adjust_schedule(schedule)
+                hours, minutes = schedule.get_hour_min_interval()
+                startdate = nextrun(schedule.run_name, minutes+hours*60, action)
+                method = schedule.get_method()
+                if method:
+                    SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
                 else:
-                    hours = int(interval / 60)
-                    SCHED.add_interval_job(searchmag.cron_search_magazines,
-                                           hours=hours, start_date=startdate)
-        elif 'search_book' in target:
-            interval = lazylibrarian.CONFIG.get_int('SEARCH_BOOKINTERVAL')
-            if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
-                             or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
-                startdate = nextrun("SEARCHALLBOOKS", interval, action)
-                if interval <= 600:
-                    SCHED.add_interval_job(searchbook.cron_search_book,
-                                           minutes=interval, start_date=startdate)
-                else:
-                    hours = int(interval / 60)
-                    SCHED.add_interval_job(searchbook.cron_search_book,
-                                           hours=hours, start_date=startdate)
-        elif 'search_rss_book' in target:
-            interval = lazylibrarian.CONFIG.get_int('SEARCHRSS_INTERVAL')
-            if interval and lazylibrarian.use_rss():
-                startdate = nextrun("SEARCHALLRSS", interval, action)
-                if interval <= 600:
-                    SCHED.add_interval_job(searchrss.cron_search_rss_book,
-                                           minutes=interval, start_date=startdate)
-                else:
-                    hours = int(interval / 60)
-                    SCHED.add_interval_job(searchrss.cron_search_rss_book,
-                                           hours=hours, start_date=startdate)
-        elif 'search_wishlist' in target:
-            interval = lazylibrarian.CONFIG.get_int('WISHLIST_INTERVAL')
-            if interval and lazylibrarian.use_wishlist():
-                startdate = nextrun("SEARCHWISHLIST", interval, action, True)
-                SCHED.add_interval_job(searchrss.cron_search_wishlist,
-                                       hours=interval, start_date=startdate)
-
-        elif 'search_comics' in target:
-            interval = lazylibrarian.CONFIG.get_int('SEARCH_COMICINTERVAL')
-            if interval and (lazylibrarian.use_nzb() or lazylibrarian.use_tor()
-                             or lazylibrarian.use_direct() or lazylibrarian.use_irc()):
-                startdate = nextrun("SEARCHALLCOMICS", interval, action, True)
-                SCHED.add_interval_job(comicsearch.cron_search_comics,
-                                       hours=interval, start_date=startdate)
-
-        elif 'check_for_updates' in target:
-            interval = lazylibrarian.CONFIG.get_int('VERSIONCHECK_INTERVAL')
-            if interval:
-                startdate = nextrun("VERSIONCHECK", interval, action, True)
-                SCHED.add_interval_job(versioncheck.check_for_updates,
-                                       hours=interval, start_date=startdate)
-
-        elif 'sync_to_goodreads' in target and lazylibrarian.CONFIG.get_bool('GR_SYNC'):
-            interval = lazylibrarian.CONFIG.get_int('GOODREADS_INTERVAL')
-            if interval:
-                startdate = nextrun("GRSYNC", interval, action, True)
-                SCHED.add_interval_job(grsync.cron_sync_to_gr,
-                                       hours=interval, start_date=startdate)
-
-        elif 'clean_cache' in target:
-            days = lazylibrarian.CONFIG.get_int('CACHE_AGE')
-            if days:
-                interval = 8
-                startdate = nextrun("CLEANCACHE", interval, action, True)
-                SCHED.add_interval_job(cache.clean_cache,
-                                       hours=interval, start_date=startdate)
-
-        elif 'author_update' in target or 'series_update' in target:
-            # Try to get all authors/series scanned evenly inside the cache age
-            maxage = lazylibrarian.CONFIG.get_int('CACHE_AGE')
-            if maxage:
-                typ = target.replace('_update', '')
-                if typ == 'author':
-                    task = 'AUTHORUPDATE'
-                else:
-                    task = 'SERIESUPDATE'
-
-                overdue, total, _, _, days = is_overdue(typ)
-
-                if days == maxage:
-                    due = "due"
-                else:
-                    due = "overdue"
-                logger.debug("Found %s %s from %s %s update" % (
-                             overdue, plural(overdue, typ), total, due))
-
-                interval = maxage * 60 * 24
-                interval = interval / max(total, 1)
-                interval = int(interval * 0.80)  # allow some update time
-
-                if interval < 5:  # set a minimum interval of 5 minutes, so we don't upset goodreads/librarything api
-                    interval = 5
-
-                startdate = nextrun(task, interval, action)
-                if interval <= 600:  # for bigger intervals switch to hours
-                    if typ == 'author':
-                        SCHED.add_interval_job(author_update, minutes=interval, start_date=startdate)
-                    else:
-                        SCHED.add_interval_job(series_update, minutes=interval, start_date=startdate)
-                else:
-                    hours = int(interval / 60)
-                    if typ == 'author':
-                        SCHED.add_interval_job(author_update, hours=hours, start_date=startdate)
-                    else:
-                        SCHED.add_interval_job(series_update, hours=hours, start_date=startdate)
+                    logger.error(f'Cannot find method {schedule.method_name} for scheduled job {target}')
         else:
-            logger.debug("No %s scheduled" % target)
+            logger.error(f'Could not find scheduler for job {target}')
 
 
 def author_update(restart=True, only_overdue=True):
@@ -394,11 +316,8 @@ def all_author_update(refresh=False):
 
 def restart_jobs(start='Restart'):
     lazylibrarian.STOPTHREADS = start == 'Stop'
-    for item in ['PostProcessor', 'search_book', 'search_rss_book', 'search_wishlist', 'series_update',
-                 'search_magazines', 'search_comics', 'check_for_updates', 'author_update', 'sync_to_goodreads',
-                 'clean_cache']:
-        schedule_job(start, item)
-
+    for name, scheduler in lazylibrarian.CONFIG.get_schedulers():
+        schedule_job(start, scheduler.get_schedule_name())
 
 def ensure_running(jobname):
     lazylibrarian.STOPTHREADS = False

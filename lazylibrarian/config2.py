@@ -5,7 +5,7 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, Type, Optional
+from typing import Dict, List, Type, Optional, Generator, Tuple
 from configparser import ConfigParser
 from collections import Counter
 from os import path, sep
@@ -15,7 +15,7 @@ import sys
 import re
 
 import lazylibrarian
-from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict
+from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, ConfigScheduler
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
@@ -141,6 +141,13 @@ class LLConfigHandler(ConfigDict):
         else:
             self._handle_access_error(name, Access.READ_ERR)
             raise Exception(f'Cannot iterate over non-existent array {name}')
+
+    def get_schedulers(self, name:str='') -> Generator[Tuple[str, ConfigScheduler], None, None]:
+        """ Return an iterable list of schedulers that matches name, or all """
+        for key, item in self.config.items():
+            if name == '' or name.lower() in key.lower():
+                if isinstance(item, ConfigScheduler):
+                    yield key, item
 
     def get_all_accesses(self) -> Dict[str, Counter]:
         """ Get a list of all config values that have been accessed  """
