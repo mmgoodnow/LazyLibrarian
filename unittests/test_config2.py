@@ -252,7 +252,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigScheduler(self):
         """ Tests for config holding scheduler information """
-        ci = configtypes.ConfigScheduler('', '', 'Test', 10, TimeUnit.MIN, 'run', 'unittesthelpers.false_method', needs_provider=False)
+        ci = configtypes.ConfigScheduler('', '', 'Test', 10, TimeUnit.MIN, 'run', 'unittesthelpers.false_method', 'Description', needs_provider=False)
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         self.assertIsNotNone(ci.get_method(), 'Cannot find schedule method to run')
@@ -263,7 +263,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
 
         try:
-            ci = configtypes.ConfigScheduler('', '', '', 10, TimeUnit.HOUR, 'run', '', True)
+            ci = configtypes.ConfigScheduler('', '', '', 10, TimeUnit.HOUR, 'run', '', '', True)
             self.assertTrue(False, 'Expected RuntimeError to be raised because schedule is empty')
         except RuntimeError:
             pass # This is what we expect
@@ -481,10 +481,10 @@ class Config2Test(LLTestCase):
             if scheduler.can_run():
                 canruncount += 1
 
-        self.assertEqual(keynames, ['SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL', 'VERSIONCHECK_INTERVAL', 'GOODREADS_INTERVAL', 'CLEAN_CACHE_INTERVAL', 'AUTHORUPDATE_INTERVAL', 'SERIESUPDATE_INTERVAL'])
-        self.assertEqual(schednames, ['search_book', 'search_magazines', 'PostProcessor', 'search_rss_book', 'search_wishlist', 'search_comics', 'check_for_updates', 'sync_to_goodreads', 'clean_cache', 'author_update', 'series_update'])
-        self.assertEqual(persistcount, 8)
-        self.assertEqual(canruncount, 7)
+        self.assertEqual(keynames, ['TELEMETRY_INTERVAL', 'SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL', 'VERSIONCHECK_INTERVAL', 'GOODREADS_INTERVAL', 'CLEAN_CACHE_INTERVAL', 'AUTHORUPDATE_INTERVAL', 'SERIESUPDATE_INTERVAL'])
+        self.assertEqual(schednames, ['telemetry_send', 'search_book', 'search_magazines', 'PostProcessor', 'search_rss_book', 'search_wishlist', 'search_comics', 'check_for_updates', 'sync_to_goodreads', 'clean_cache', 'author_update', 'series_update'])
+        self.assertEqual(persistcount, 9)
+        self.assertEqual(canruncount, 8)
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """

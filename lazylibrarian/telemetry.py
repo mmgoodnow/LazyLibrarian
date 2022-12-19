@@ -154,6 +154,10 @@ class LazyTelemetry(object):
         assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
 
+    def clear_usage_data(self):
+        usg = self.get_usage_telemetry()
+        usg.clear()
+
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
 
