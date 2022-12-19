@@ -16,6 +16,7 @@ import os
 import shutil
 import sys
 import threading
+import re
 
 import configparser
 from queue import Queue
@@ -368,22 +369,18 @@ class Api(object):
 
 
     def _provider_array(self, prov_type):
+        # convert provider config values to a regular array of dicts with correct types
         array = lazylibrarian.CONFIG.providers(prov_type)
         providers = []
-        for index, config in array._configs.items():
+        for provider in array:
             thisprov = {}
-            for key in config:
-                if key == 'NAME':
-                    if 'znab' in str(config[key]):
-                        thisprov[key] = '%s%s' % (str(config[key]), index)
-                    else:
-                        thisprov[key] = '%s_%s' % (str(config[key]), index)
-                elif key in ['ENABLED', 'MANUAL']:
-                    thisprov[key] = bool(config[key])
+            for key in provider:
+                if key in ['ENABLED', 'MANUAL']:
+                    thisprov[key] = provider.get_bool(key)
                 elif key in ['DLPRIORITY', 'EXTENDED', 'APILIMIT', 'APICOUNT', 'RATELIMIT', 'LASTUSED']:
-                    thisprov[key] = check_int(config[key], 0)
+                    thisprov[key] = provider.get_int(key)
                 else:
-                    thisprov[key] = str(config[key])
+                    thisprov[key] = provider.get_str(key)
             providers.append(thisprov)
         return providers
 
@@ -393,9 +390,6 @@ class Api(object):
         direct = self.data
         self._listtorrentproviders()
         torrent = self.data
-        for item in torrent:  # type: dict
-            keys = list(item.keys())
-            item['NAME'] = keys[-1].split('_')[0]
         self.data = {'newznab': self._provider_array('NEWZNAB'),
                      'torznab': self._provider_array('TORZNAB'),
                      'rss': self._provider_array('RSS'),
@@ -415,21 +409,19 @@ class Api(object):
             # merge prowlarr categories
             item['Categories'] = ''
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
-                if item.get(key):
-                    if item.get('Categories'):
+                if item[key]:
+                    if item['Categories']:
                         item['Categories'] += ','
-                    item['Categories'] += item[key]
-                    item.pop(key)
+                    item['Categories'] += item[key]   
 
-        torzlist = self._provider_array('TORZNAB')
+        torzlist = providers = self._provider_array('TORZNAB')
         for item in torzlist:
             item['Categories'] = ''
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
-                if item.get(key):
-                    if item.get('Categories'):
+                if item[key]:
+                    if item['Categories']:
                         item['Categories'] += ','
-                    item['Categories'] += item[key]
-                    item.pop(key)
+                    item['Categories'] += item[key]   
 
         tot = len(newzlist) + len(torzlist)
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
@@ -456,17 +448,20 @@ class Api(object):
     def _listtorrentproviders(self):
         providers = []
         for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-            mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool(provider)}
-            for item in ['HOST', 'DLPRIORITY', 'DLTYPES', 'SEEDERS']:
+            mydict = {'NAME': provider, 'ENABLED': lazylibrarian.CONFIG.get_bool(provider)}
+            for item in ['HOST', 'DLTYPES']:
                 name = "%s_%s" % (provider, item)
                 mydict[name] = lazylibrarian.CONFIG.get_str(name)
+            for item in ['DLPRIORITY', 'SEEDERS']:
+                name = "%s_%s" % (provider, item)
+                mydict[name] = lazylibrarian.CONFIG.get_int(name)
             providers.append(mydict)
         logger.debug("Returning %s %s" % (len(providers), plural(len(providers), "entry")))
         self.data = providers
 
     def _listdirectproviders(self):
         providers = self._provider_array('GEN')
-        mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool('BOK')}
+        mydict = {'NAME': 'BOK', 'ENABLED': lazylibrarian.CONFIG.get_bool('BOK')}
         for item in ['HOST', 'LOGIN', 'USER', 'PASS', 'DLTYPES']:
             name = "%s_%s" % ('BOK', item)
             mydict[name] = lazylibrarian.CONFIG.get_str(name)
@@ -474,7 +469,8 @@ class Api(object):
             name = "%s_%s" % ('BOK', item)
             mydict[name] = lazylibrarian.CONFIG.get_int(name)
         providers.append(mydict)
-        mydict = {'ENABLED': lazylibrarian.CONFIG.get_bool('BFI')}
+        mydict = {'NAME': 'BFI', 'ENABLED': lazylibrarian.CONFIG.get_bool('BFI')}
+        mydict['NAME']
         for item in ['HOST', 'DLTYPES']:
             name = "%s_%s" % ('BFI', item)
             mydict[name] = lazylibrarian.CONFIG.get_str(name)
@@ -486,7 +482,6 @@ class Api(object):
         logger.debug("Returning %s %s" % (tot, plural(tot, "entry")))
         self.data = providers
 
-    # TODO
     def _delprovider(self, **kwargs):
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
@@ -499,7 +494,6 @@ class Api(object):
 
         if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
             providers = lazylibrarian.CONFIG.providers('NEWZNAB')
-            providers = lazylibrarian.NEWZNAB_PROV
             section = 'newznab'
             clear = 'HOST'
         elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
@@ -523,18 +517,6 @@ class Api(object):
                                                                   'Message': 'Invalid parameter: name'}}
             return
 
-        for index, config in array._configs.items():
-            thisprov = {}
-            for key in config:
-                if key == 'NAME':
-                    thisprov[key] = '%s_%s' % (str(config[key]), index)
-                elif key in ['ENABLED', 'MANUAL']:
-                    thisprov[key] = bool(config[key])
-                elif key in ['DLPRIORITY', 'EXTENDED', 'APILIMIT', 'APICOUNT', 'RATELIMIT', 'LASTUSED']:
-                    thisprov[key] = check_int(config[key], 0)
-                else:
-                    thisprov[key] = str(config[key])
-
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 item[clear] = ''
@@ -546,7 +528,6 @@ class Api(object):
                                                               'Message': 'Provider %s not found' % name}}
         return
 
-    # TODO
     def _changeprovider(self, **kwargs):
         if not kwargs.get('name', '') and not kwargs.get('NAME', ''):
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
@@ -560,15 +541,15 @@ class Api(object):
 
         # prowlarr gives us  providertype
         if name.startswith('Newznab') or kwargs.get('providertype', '') == 'newznab':
-            providers = lazylibrarian.NEWZNAB_PROV
+            providers = lazylibrarian.CONFIG.providers('NEWZNAB')
         elif name.startswith('Torznab') or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = lazylibrarian.CONFIG.providers('TORZNAB')
         elif name.startswith('RSS_'):
-            providers = lazylibrarian.RSS_PROV
+            providers = lazylibrarian.CONFIG.providers('RSS')
         elif name.startswith('IRC_'):
-            providers = lazylibrarian.IRC_PROV
+            providers = lazylibrarian.CONFIG.providers('IRC')
         elif name.startswith('GEN_'):
-            providers = lazylibrarian.GEN_PROV
+            providers = lazylibrarian.CONFIG.providers('GEN')
         elif name in ['BOK', 'BFI', 'KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             for arg in kwargs:
                 if arg in ['HOST', 'DLPRIORITY', 'DLTYPES', 'DLLIMIT', 'SEEDERS']:
@@ -595,13 +576,14 @@ class Api(object):
             self.data = {'Success': False, 'Data': '',
                          'Error':  {'Code': 400, 'Message': 'Invalid parameter: name'}}
             return
+
         for item in providers:
             if item['NAME'] == name or (kwargs.get('providertype', '') and item['DISPNAME'] == name):
                 for arg in kwargs:
                     if arg.upper() == 'NAME':
                         # don't allow api to change our internal name
                         continue
-                    elif arg == 'altername':
+                    elif arg == 'altername':  # prowlarr
                         hit.append(arg)
                         item['DISPNAME'] = kwargs[arg]
                     elif arg.upper() == 'ENABLED':
@@ -610,13 +592,13 @@ class Api(object):
                             val = True
                         else:
                             val = False
-                        item['ENABLED'] = val
+                        item.set_bool('ENABLED', val)
                     elif arg.upper() in item:
                         hit.append(arg)
-                        item[arg.upper()] = kwargs[arg]
-                    elif arg == 'prov_apikey':
+                        item.set_str(arg.upper(), kwargs[arg])
+                    elif arg == 'prov_apikey':  # prowlarr
                         hit.append(arg)
-                        item['API'] = kwargs[arg]
+                        item.set_str('API', kwargs[arg])
                     elif arg == 'categories' and 'BOOKCAT' in providers[0]:
                         hit.append(arg)
                         # prowlarr only gives us one category list
@@ -632,8 +614,8 @@ class Api(object):
                                 if bookcat:
                                     bookcat += ','
                                 bookcat += catnum
-                        providers[-1]['BOOKCAT'] = bookcat
-                        providers[-1]['AUDIOCAT'] = audiocat
+                        item.set_str('BOOKCAT', bookcat)
+                        item.set_str('AUDIOCAT', audiocat)
                     else:
                         miss.append(arg)
                 lazylibrarian.CONFIG.save_config_and_backup_old(section=item['NAME'])
@@ -646,7 +628,6 @@ class Api(object):
                      'Error':  {'Code': 404, 'Message': 'Provider %s not found' % name}}
         return
 
-    #TODO
     def _addprovider(self, **kwargs):
         if 'type' not in kwargs and 'providertype' not in kwargs:
             self.data = {'Success': False, 'Data': '',
@@ -657,23 +638,23 @@ class Api(object):
                          'Error':  {'Code': 400, 'Message': 'Missing parameter: HOST or SERVER'}}
             return
         if kwargs.get('type', '') == 'newznab' or kwargs.get('providertype', '') == 'newznab':
-            providers = lazylibrarian.NEWZNAB_PROV
+            providers = lazylibrarian.CONFIG.providers('NEWZNAB')
             provname = 'Newznab'
             section = 'Newznab'
         elif kwargs.get('type', '') == 'torznab' or kwargs.get('providertype', '') == 'torznab':
-            providers = lazylibrarian.TORZNAB_PROV
+            providers = lazylibrarian.CONFIG.providers('TORZNAB')
             provname = 'Torznab'
             section = 'Torznab'
         elif kwargs['type'] == 'rss':
-            providers = lazylibrarian.RSS_PROV
+            providers = lazylibrarian.CONFIG.providers('RSS')
             provname = 'RSS_'
             section = 'rss_'
         elif kwargs['type'] == 'gen':
-            providers = lazylibrarian.GEN_PROV
+            providers = lazylibrarian.CONFIG.providers('GEN')
             provname = 'GEN_'
             section = 'GEN_'
         elif kwargs['type'] == 'irc':
-            providers = lazylibrarian.IRC_PROV
+            providers = lazylibrarian.CONFIG.providers('IRC')
             provname = 'IRC_'
             section = 'IRC_'
         else:
