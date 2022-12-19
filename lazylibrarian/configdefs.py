@@ -495,7 +495,7 @@ DefaultArrayDef = Tuple[str, str, List[ConfigItem]]
 
 ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     'NEWZNAB': ('HOST', 'Newznab%i', [
-    ConfigStr('', 'NAME', 'Newznab'),
+    ConfigStr('', 'NAME', 'Newznab', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
     ConfigStr('', "HOST", ''),
@@ -520,7 +520,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigInt('', "LASTUSED", 0),
     ]),
     'TORZNAB': ('HOST', 'Torznab%i', [
-    ConfigStr('', 'NAME', 'Torznab'),
+    ConfigStr('', 'NAME', 'Torznab', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
     ConfigStr('', "HOST", ''),
@@ -546,7 +546,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigInt('', "LASTUSED", 0),
     ]),
     'RSS': ('HOST', 'RSS_%i', [
-    ConfigStr('', 'NAME', 'RSS'),
+    ConfigStr('', 'NAME', 'RSS', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
     ConfigStr('', "HOST", ''),
@@ -555,7 +555,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigStr('', "LABEL",  ''),
     ]),
     'IRC': ('SERVER', 'IRC_%i', [
-    ConfigStr('', 'NAME', 'IRC'),
+    ConfigStr('', 'NAME', 'IRC', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
     ConfigStr('', "SERVER", ''),
@@ -568,7 +568,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigConnection('', 'CONNECTION')
     ]),
     'GEN': ('HOST', 'GEN_%i', [
-    ConfigStr('', 'NAME', 'GEN'),
+    ConfigStr('', 'NAME', 'GEN', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
     ConfigStr('', "HOST", ''),
@@ -577,7 +577,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigDownloadTypes('', "DLTYPES", 'E'),
     ]),
     'APPRISE': ('URL', 'APPRISE_%i', [
-    ConfigStr('', 'NAME', 'APPRISE'),
+    ConfigStr('', 'NAME', 'APPRISE', persist=False),
     ConfigStr('', 'DISPNAME', 'Apprise'),
     ConfigBool('', 'SNATCH', False),
     ConfigBool('', 'DOWNLOAD', False),

@@ -682,7 +682,7 @@ class Config2Test(LLTestCase):
         try:
             TESTFILE = 'test-changed.ini'
             count = cfg.save_config(TESTFILE, False) # Save only non-default values
-            self.assertEqual(count, 39, 'Saving config.ini has unexpected # of non-default items')
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected # of non-default items')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
@@ -730,7 +730,7 @@ class Config2Test(LLTestCase):
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
-            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')
@@ -742,7 +742,7 @@ class Config2Test(LLTestCase):
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
-            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')

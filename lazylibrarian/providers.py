@@ -116,9 +116,8 @@ def test_provider(name: str, host=None, api=None):
 
     if name.startswith('rss_'):
         try:
-            prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('RSS'):
-                if provider.get_item('NAME').section.lower() == 'rss_%s' % prov:
+                if provider['NAME'].lower() == name:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
@@ -165,11 +164,9 @@ def test_provider(name: str, host=None, api=None):
         except Exception as e:
             logger.debug("Exception: %s" % str(e))
 
-    if name.startswith('apprise_'): 
-        index = -1
+    if name.startswith('apprise_'):
         for provider in lazylibrarian.CONFIG.providers('APPRISE'):
-            index += 1
-            if "%s_%s" % (provider['NAME'].lower(), index) == name:
+            if provider['NAME'].lower() == name:
                 if provider['DISPNAME']:
                     name = provider['DISPNAME']
                 logger.debug("Testing notifier %s" % name)
@@ -182,9 +179,8 @@ def test_provider(name: str, host=None, api=None):
     # then try book search if enabled, fall back to general search
     if name.startswith('torznab_'):
         try:
-            prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
-                if provider.get_item('NAME').section.lower() == 'torznab%s' % prov:
+                if provider['NAME'].lower() == name:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
@@ -217,9 +213,8 @@ def test_provider(name: str, host=None, api=None):
 
     if name.startswith('newznab_'):
         try:
-            prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
-                if provider.get_item('NAME').section.lower() == 'newznab%s' % prov:
+                if provider['NAME'].lower() == name:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                     logger.debug("Testing provider %s" % name)
@@ -247,9 +242,8 @@ def test_provider(name: str, host=None, api=None):
 
     if name.startswith('irc_'):
         try:
-            prov = name.split('_')[1]
             for provider in lazylibrarian.CONFIG.providers('IRC'):
-                if provider.get_item('NAME').section.lower() == 'irc_%s' % prov:
+                if provider['NAME'].lower() == name:
                     if provider['DISPNAME']:
                         name = provider['DISPNAME']
                         if host:

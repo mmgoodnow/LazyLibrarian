@@ -32,6 +32,8 @@ class ArrayConfig():
                 self._configs[index] = ConfigDict()
             item = self._configs[index].set_item(key, configitem_from_default(config_item))
             item.section = self.get_section_str(index)
+            if key == 'NAME': # Override name with section name
+                item.value = item.section
 
     def has_index(self, index: int) -> bool:
         return index in self._configs.keys()
