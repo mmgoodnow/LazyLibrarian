@@ -6477,7 +6477,7 @@ class WebInterface(object):
         api_key = hashlib.sha224(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[0:32]
         lazylibrarian.CONFIG.set_str('API_KEY', api_key)
         logger.info("New API generated")
-        raise cherrypy.HTTPRedirect("config")
+        return api_key
 
     # ALL ELSE ##########################################################
 

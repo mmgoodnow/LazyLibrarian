@@ -489,11 +489,6 @@
                 }
         });
 
-        $('#generate_api').click(function () {
-            $.get("generate_api",
-                function (data) { });
-        });
-
         $('#showblocked').on('click', function(e) {
             $.get('showblocked', function(data) {
                 bootbox.dialog({
@@ -1579,6 +1574,24 @@
                 $("#myAlert").addClass('hidden');
                 bootbox.dialog({
                     title: 'Check Version',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
+                            callback: function(){ location.reload(true); }
+                        },
+                    }
+                });
+            });
+        });
+
+       $('#generate_api').on('click', function(e) {
+            $("#myAlert").removeClass('hidden');
+            $.get('generate_api', function(data) {
+                $("#myAlert").addClass('hidden');
+                bootbox.dialog({
+                    title: 'Generate API',
                     message: '<pre>'+data+'</pre>',
                     buttons: {
                         primary: {
