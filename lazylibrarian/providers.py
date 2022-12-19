@@ -37,6 +37,7 @@ from bs4 import BeautifulSoup
 
 
 def test_provider(name: str, host=None, api=None):
+    print(1,host, name, api)
     db = database.DBConnection()
     res = db.match("SELECT authorname,authorid from authors order by totalbooks desc")
     if res:
@@ -164,9 +165,11 @@ def test_provider(name: str, host=None, api=None):
         except Exception as e:
             logger.debug("Exception: %s" % str(e))
 
-    if name.startswith('apprise_'):
+    if name.startswith('apprise_'): 
+        index = -1
         for provider in lazylibrarian.CONFIG.providers('APPRISE'):
-            if provider.get_item('NAME').section.lower() == name:
+            index += 1
+            if "%s_%s" % (provider['NAME'].lower(), index) == name:
                 if provider['DISPNAME']:
                     name = provider['DISPNAME']
                 logger.debug("Testing notifier %s" % name)
