@@ -377,17 +377,11 @@ def get_capabilities(provider: ConfigDict, force=False):
             else:
                 # or might be provider doesn't do caps
                 logger.debug('Using default capabilities for %s' % provider['HOST'])
-                # CFG2DO p3 Could have a provider.set_defaults() method to make this better
-                provider['GENERALSEARCH'] = 'search'
-                provider.set_int('EXTENDED', 1)
-                provider['BOOKCAT'] = ''
-                provider['MAGCAT'] = ''
-                provider['AUDIOCAT'] = ''
-                provider['COMICCAT'] = ''
-                provider['BOOKSEARCH'] = ''
-                provider['MAGSEARCH'] = ''
-                provider['AUDIOSEARCH'] = ''
-                provider['COMICSEARCH'] = ''
+                for key in ['GENERALSEARCH', 'EXTENDED', 'BOOKCAT', 'AUDIOCAT', 'COMICCAT', 'MAGCAT',
+                    'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
+                    item = provider.get_item(key)
+                    if item:
+                        item.reset_to_default()
                 provider['UPDATED'] = str(today)
                 provider.set_int('APILIMIT', 0)
                 provider.set_int('RATELIMIT', 0)
@@ -408,16 +402,11 @@ def get_capabilities(provider: ConfigDict, force=False):
             #
             #  set some defaults
             #
-            provider['GENERALSEARCH'] = 'search'
-            provider.set_int('EXTENDED', 1)
-            provider['BOOKCAT'] = ''
-            provider['COMICCAT'] = ''
-            provider['MAGCAT'] = ''
-            provider['AUDIOCAT'] = ''
-            provider['BOOKSEARCH'] = ''
-            provider['COMICSEARCH'] = ''
-            provider['MAGSEARCH'] = ''
-            provider['AUDIOSEARCH'] = ''
+            for key in ['GENERALSEARCH', 'EXTENDED', 'BOOKCAT', 'AUDIOCAT', 'COMICCAT', 'MAGCAT',
+                'BOOKSEARCH', 'MAGSEARCH', 'AUDIOSEARCH', 'COMICSEARCH']:
+                item = provider.get_item(key)
+                if item:
+                    item.reset_to_default()
             search = data.find('searching/search')
             if search is not None:
                 # noinspection PyUnresolvedReferences

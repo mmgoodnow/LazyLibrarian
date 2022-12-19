@@ -706,7 +706,7 @@ class Config2Test(LLTestCase):
 
         try:
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
-                count = cfg.save_config_and_backup_old(False)
+                count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
@@ -718,7 +718,7 @@ class Config2Test(LLTestCase):
 
             # Verify that it works when .bak file exists as well:
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
-                count = cfg.save_config_and_backup_old(False)
+                count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
             self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')

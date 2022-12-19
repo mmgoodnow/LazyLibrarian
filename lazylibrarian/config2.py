@@ -239,7 +239,7 @@ class LLConfigHandler(ConfigDict):
             for _, array in self.arrays.items():
                 array.ensure_empty_end_item()
 
-    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None, restart_jobs:bool=True) -> int:
+    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None, restart_jobs:bool=False) -> int:
         """
         Renames the old config file to .bak and saves new config file.
         Return number of items stored, -1 if error.
@@ -289,7 +289,9 @@ class LLConfigHandler(ConfigDict):
                     return -1
         finally:
             thread_name(currentname)
-            self.post_save_actions(restart_jobs)
+            # Only clear counters if we save the entire config
+            clear:bool = False if section and section != '' else True
+            self.post_save_actions(restart_jobs=restart_jobs, clear_counters=clear)
 
     def post_load_fixup(self) -> int:
         """
@@ -339,7 +341,7 @@ class LLConfigHandler(ConfigDict):
     def get_mako_versionfile(self):
         return path.join(self.get_mako_cachedir(), 'python_version.txt')
 
-    def post_save_actions(self, restart_jobs: bool=True):
+    def post_save_actions(self, restart_jobs: bool=True, clear_counters: bool=False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
@@ -370,8 +372,9 @@ class LLConfigHandler(ConfigDict):
         # Update the redact list since things may have changed
         set_redactlist()
 
-        # Clear all access counters so we can tell if something has changed later
-        self.clear_access_counters()
+        if clear_counters:
+            # Clear all access counters so we can tell if something has changed later
+            self.clear_access_counters()
 
     def create_access_summary(self, saveto:str='') -> Dict:
         """ For debugging: Create a summary of all accesses, potentially
@@ -447,7 +450,6 @@ def set_redactlist():
         array = lazylibrarian.CONFIG.get_array(name)
         if array:
             for inx, config in array._configs.items():
-                # CFG2DO p3 Make this a bit more elegant
                 if config[key]:
                     lazylibrarian.REDACTLIST.append(f"{config[key]}")
                 if 'API' in config:

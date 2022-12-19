@@ -382,10 +382,16 @@ class ConfigCSV(ConfigStr):
 
 class ConfigDownloadTypes(ConfigCSV):
     """ A config item that holds a CSV of download types (letters A, C, E and M) """
+    def set_str(self, value: str) -> bool:
+        return super().set_str(value.upper())
+
+        return super().set_str(value)
     def is_valid_value(self, value: ValidTypes) -> bool:
         if super().is_valid_value(value):
-            parts = str(value).split(',')
-            return all(part in 'ACEM' for part in parts)
+            parts = str(value).upper().split(',')
+            ok = all(len(part) == 1 for part in parts) and \
+                 all(part in 'ACEM' for part in parts)
+            return ok
         else:
             return False
 
@@ -488,7 +494,7 @@ class CaseInsensitiveDict(MutableMapping):
 class ConfigDict:
     """ A class for managing access to a dict of configs in a convenient way """
     def __init__(self):
-        self.config: Dict[str, ConfigItem] = CaseInsensitiveDict()
+        self.config: Dict[str, ConfigItem] = CaseInsensitiveDict() # type: ignore
         self.errors: Dict[str, Counter] = dict()
 
     def clear(self):

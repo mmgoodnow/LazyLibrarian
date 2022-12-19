@@ -1517,21 +1517,16 @@ class WebInterface(object):
         adminmsg = ''
         if 'user_accounts' in kwargs:
             logger.error('CFG2: Need to handle user account changes')
-            # CFG2DO: Check handling user account changes
-            if kwargs['user_accounts']: # and not lazylibrarian.CFG.get('General', 'user_accounts'):
-                # we just turned user_accounts on, check it's set up ok
+            if kwargs['user_accounts']:
                 email = ''
                 if 'admin_email' in kwargs and kwargs['admin_email']:
                     email = kwargs['admin_email']
-#                elif lazylibrarian.CFG.get('General', 'admin_email'):
-#                    email = lazylibrarian.CFG.get('General', 'admin_email')
                 else:
                     adminmsg += 'Please set a contact email so users can make requests<br>'
 
                 if email and not is_valid_email(email):
                     adminmsg += 'Contact email looks invalid, please check<br>'
 
-#                if lazylibrarian.CFG.get('General', 'http_user'):
                 if lazylibrarian.CONFIG['HTTP_USER'] != '':
                     adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
@@ -1712,7 +1707,7 @@ class WebInterface(object):
 
         lazylibrarian.LOGLEVEL = newloglevel
         lazylibrarian.CONFIG.set_int('LOGLEVEL', newloglevel)
-        lazylibrarian.CONFIG.save_config_and_backup_old()
+        lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=True)
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
 
