@@ -168,3 +168,21 @@ def logmessage(message, level):
 
     lazylibrarian_log.log(message, level)
 
+
+# extended loglevels
+log_matching = 1 << 2  # 4 magazine/comic date/name matching
+log_searching = 1 << 3  # 8 extra search logging
+log_dlcomms = 1 << 4  # 16 detailed downloader communication
+log_dbcomms = 1 << 5  # 32 database comms
+log_postprocess = 1 << 6  # 64 detailed postprocessing
+log_fuzz = 1 << 7  # 128 fuzzy logic
+log_serverside = 1 << 8  # 256 serverside processing
+log_fileperms = 1 << 9  # 512 changes to file permissions
+log_grsync = 1 << 10  # 1024 detailed goodreads sync
+log_cache = 1 << 11  # 2048 cache results
+log_libsync = 1 << 12  # 4096 librarysync details
+log_admin = 1 << 13  # 8192 admin logging
+log_cherrypy = 1 << 14  # 16384 cherrypy logging
+log_requests = 1 << 15  # 32768 requests httpclient logging
+log_configread = 1 << 16 # log all config2 read requests
+log_configwrite = 1 << 17 # log all config2 read requests

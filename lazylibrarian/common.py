@@ -279,7 +279,7 @@ def make_dirs(dest_path, new=False):
             dest_path = parent
 
     for entry in to_make:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
             logger.debug("mkdir: [%s]" % repr(entry))
         try:
             os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
@@ -292,11 +292,11 @@ def make_dirs(dest_path, new=False):
             # but that returns Error 5 Access is denied
             # Trap errno 17 (linux file exists) and 183 (windows already exists)
             if why.errno in [17, 183]:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+                if lazylibrarian.LOGLEVEL & logger.log_fileperms:
                     logger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
                 pass
             elif 'exists' in str(why):
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+                if lazylibrarian.LOGLEVEL & logger.log_fileperms:
                     logger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
                 pass
             else:
@@ -315,7 +315,7 @@ def syspath(path, prefix=True) -> str:
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+    if lazylibrarian.LOGLEVEL & logger.log_fileperms:
         logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
@@ -483,7 +483,7 @@ def setperm(file_or_dir):
     st = os.stat(syspath(file_or_dir))
     old_perm = oct(st.st_mode)[-3:].zfill(3)
     if old_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
             logger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
         return True
 
@@ -498,7 +498,7 @@ def setperm(file_or_dir):
     new_perm = oct(st.st_mode)[-3:].zfill(3)
 
     if new_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_fileperms:
+        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
             logger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
         return True
     else:
@@ -1116,7 +1116,7 @@ def run_script(params):
         else:
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
             logger.debug(make_unicode(res))
             logger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)

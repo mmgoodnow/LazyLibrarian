@@ -287,7 +287,7 @@ class Api(object):
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
                     logger.debug(str(self.data))
                 if isinstance(self.data, str):
                     return self.data
@@ -418,7 +418,7 @@ class Api(object):
                 if item.get(key):
                     if item.get('Categories'):
                         item['Categories'] += ','
-                    item['Categories'] += item[key]   
+                    item['Categories'] += item[key]
                     item.pop(key)
 
         torzlist = self._provider_array('TORZNAB')
@@ -428,7 +428,7 @@ class Api(object):
                 if item.get(key):
                     if item.get('Categories'):
                         item['Categories'] += ','
-                    item['Categories'] += item[key]   
+                    item['Categories'] += item[key]
                     item.pop(key)
 
         tot = len(newzlist) + len(torzlist)
@@ -440,7 +440,7 @@ class Api(object):
                      },
                      'Error':  {'Code': 200, 'Message': 'OK'}
                      }
-        
+
     def _listrssproviders(self):
         providers = self._provider_array('RSS')
         tot = len(providers)

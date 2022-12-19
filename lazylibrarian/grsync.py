@@ -76,7 +76,7 @@ class GrAuth:
 
         request_token = dict(parse_qsl(content))
         request_token = {key.decode("utf-8"): request_token[key].decode("utf-8") for key in request_token}
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+        if lazylibrarian.LOGLEVEL & logger.log_grsync:
             logger.debug("oauth1: %s" % str(request_token))
         if 'oauth_token' in request_token:
             authorize_link = '%s?oauth_token=%s' % (authorize_url, request_token['oauth_token'])
@@ -115,7 +115,7 @@ class GrAuth:
 
         access_token = dict(parse_qsl(content))
         access_token = {key.decode("utf-8"): access_token[key].decode("utf-8") for key in access_token}
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+        if lazylibrarian.LOGLEVEL & logger.log_grsync:
             logger.debug("oauth2: %s" % str(access_token))
         lazylibrarian.CONFIG.set_str('GR_OAUTH_TOKEN', access_token['oauth_token'])
         lazylibrarian.CONFIG.set_str('GR_OAUTH_SECRET', access_token['oauth_token_secret'])
@@ -185,7 +185,7 @@ class GrAuth:
 
                 if not response['status'].startswith('2'):
                     logger.error('Failure status: %s for page %s' % (response['status'], current_page))
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                    if lazylibrarian.LOGLEVEL & logger.log_grsync:
                         logger.debug(request_url)
                 else:
                     # noinspection PyUnresolvedReferences
@@ -199,10 +199,10 @@ class GrAuth:
                         shelves.append({'name': shelf_name, 'books': shelf_count, 'exclusive': shelf_exclusive})
                         page_shelves += 1
 
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                        if lazylibrarian.LOGLEVEL & logger.log_grsync:
                             logger.debug('Shelf %s : %s: Exclusive %s' % (shelf_name, shelf_count, shelf_exclusive))
 
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                    if lazylibrarian.LOGLEVEL & logger.log_grsync:
                         logger.debug('Found %s shelves on page %s' % (page_shelves, current_page))
 
             logger.debug('Found %s %s on %s %s' % (len(shelves), plural(len(shelves), "shelf"),
@@ -337,7 +337,7 @@ class GrAuth:
                 for book in xmldoc.getElementsByTagName('book'):
                     book_id, book_title = self.get_book_info(book)
 
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                    if lazylibrarian.LOGLEVEL & logger.log_grsync:
                         try:
                             logger.debug('Book %10s : %s' % (str(book_id), book_title))
                         except UnicodeEncodeError:
@@ -348,7 +348,7 @@ class GrAuth:
                     page_books += 1
                     total_books += 1
 
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                if lazylibrarian.LOGLEVEL & logger.log_grsync:
                     logger.debug('Found %s books on page %s (total = %s)' % (page_books, current_page, total_books))
                 if page_books == 0:
                     break
@@ -407,7 +407,7 @@ class GrAuth:
             return "Error in client.request: see error log"
         if not response['status'].startswith('2'):
             logger.error('Failure status: %s for %s page %s' % (response['status'], shelf_name, page))
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+            if lazylibrarian.LOGLEVEL & logger.log_grsync:
                 logger.debug(request_url)
         return content
 
@@ -730,7 +730,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     content = ''
                 if r:
                     gr_shelf.remove(book)
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                    if lazylibrarian.LOGLEVEL & logger.log_grsync:
                         logger.debug("%10s removed from %s shelf" % (book, shelf))
                 else:
                     logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
@@ -780,7 +780,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                     shelf_changed += 1
                 else:
                     if '404' not in content:  # already removed is ok
-                        if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                        if lazylibrarian.LOGLEVEL & logger.log_grsync:
                             logger.warn("Failed to remove %s from %s shelf: %s" % (book, shelf, content))
 
         logger.info("%s missing from goodreads %s" % (len(removed_from_shelf), shelf))
@@ -896,7 +896,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 if 'eBook' in library:
                     if status == 'Open':
                         if res['Status'] == 'Open':
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                            if lazylibrarian.LOGLEVEL & logger.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             db.action("UPDATE books SET Status='Have' WHERE BookID=?", (book,))
@@ -929,7 +929,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 if 'Audio' in library:
                     if status == 'Open':
                         if res['AudioStatus'] == 'Open':
-                            if lazylibrarian.LOGLEVEL & lazylibrarian.log_grsync:
+                            if lazylibrarian.LOGLEVEL & logger.log_grsync:
                                 logger.warn("%s [%s] is already marked Open" % (res['BookName'], book))
                         else:
                             db.action("UPDATE books SET AudioStatus='Have' WHERE BookID=?", (book,))

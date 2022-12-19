@@ -187,12 +187,12 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
 #    if lazylibrarian.SAB_PP:
 #        params["script"] = lazylibrarian.SAB_SCRIPT
 
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+    if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
         logger.debug('sab params: %s' % repr(params))
 
     url = host + "/api?" + urlencode(params)
 
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+    if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
         logger.debug('Request url for <a href="%s">sab_nzbd</a>' % url)
     proxies = proxy_list()
     try:
@@ -211,7 +211,7 @@ def sab_nzbd(title=None, nzburl=None, remove_data=False, search=None, nzo_ids=No
         res = "Unable to connect to SAB with URL: %s, %s:%s" % (url, type(e).__name__, str(e))
         logger.error(res)
         return False, res
-    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+    if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
         logger.debug("Result text from SAB: " + str(result))
 
     if title and title.startswith('LL.('):

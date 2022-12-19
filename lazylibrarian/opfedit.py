@@ -93,7 +93,7 @@ def opf_read(filename):
                 if not new_lyne:
                     new_lyne = lyne
                 f.write(new_lyne)
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+        if lazylibrarian.LOGLEVEL & logger.log_matching:
             items = []
             for item in replaces:
                 items.append(item[0])

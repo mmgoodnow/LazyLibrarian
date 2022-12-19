@@ -74,7 +74,7 @@ def id3read(filename):
         else:
             albumartist = ''
 
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_libsync:
+        if lazylibrarian.LOGLEVEL & logger.log_libsync:
             for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
                         'track_total', 'comment']:
                 logger.debug("id3r.%s [%s]" % (tag, eval(tag)))

@@ -60,7 +60,7 @@ def bok_sleep():
     if delay < limit:
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_cache:
+        if lazylibrarian.LOGLEVEL & logger.log_cache:
             logger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_BOK'] = time_now

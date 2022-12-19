@@ -63,7 +63,7 @@ class OpenLibrary:
             searchbytes, _ = make_utf8bytes(searchterm)
             searchbytes = searchbytes.replace(b'#', b'').replace(b'/', b'_')
             baseurl = self.OL_SEARCH + 'q=' + quote_plus(searchbytes)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+            if lazylibrarian.LOGLEVEL & logger.log_searching:
                 logger.debug(baseurl)
 
             while next_page:
@@ -271,7 +271,7 @@ class OpenLibrary:
 
         if not author_name:
             logger.warn("Rejecting authorid %s, no authorname" % authorid)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_matching:
+            if lazylibrarian.LOGLEVEL & logger.log_matching:
                 logger.debug(str(authorinfo))
             return {}
 
@@ -859,11 +859,11 @@ class OpenLibrary:
                                     update_value_dict["ScanResult"] = reason
 
                                 if "ScanResult" in update_value_dict:
-                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                    if lazylibrarian.LOGLEVEL & logger.log_searching:
                                         logger.debug("entry status %s %s,%s" % (entrystatus, bookstatus, audiostatus))
                                     book_status, audio_status = get_status(key, serieslist, bookstatus,
                                                                            audiostatus, entrystatus)
-                                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+                                    if lazylibrarian.LOGLEVEL & logger.log_searching:
                                         logger.debug("status is now %s,%s" % (book_status, audio_status))
                                     update_value_dict["Status"] = book_status
                                     update_value_dict["AudioStatus"] = audio_status
@@ -1216,7 +1216,7 @@ class OpenLibrary:
         db = database.DBConnection()
         url = self.OL_WORK + bookid + '.json'
         try:
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_searching:
+            if lazylibrarian.LOGLEVEL & logger.log_searching:
                 logger.debug(url)
             workinfo, in_cache = json_request(url)
             if not workinfo:

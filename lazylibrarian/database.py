@@ -51,7 +51,7 @@ class DBConnection:
             logger.debug(str(os.stat(lazylibrarian.DBFILE)))
 
     def close(self):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+        if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
             # Get the frame data of the method that made the original database call
             program = ""
             method = ""
@@ -69,7 +69,7 @@ class DBConnection:
             self.connection.close()
 
     def commit(self):
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+        if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
             # Get the frame data of the method that made the original database call
             program = ""
             method = ""
@@ -101,7 +101,7 @@ class DBConnection:
         program = ""
         method = ""
         lineno = ""
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+        if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
             # Get the frame data of the method that made the original database call
             if len(inspect.stack()) > 3:
                 frame = inspect.getframeinfo(inspect.stack()[3][0])
@@ -119,7 +119,7 @@ class DBConnection:
                     with self.connection:
                         sql_result = self.connection.execute(query, args)
 
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                     elapsed = time.time() - start
                     with open(self.dblog, 'a', encoding='utf-8') as f:
                         f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -128,7 +128,7 @@ class DBConnection:
 
             except sqlite3.OperationalError as e:
                 if "unable to open database file" in str(e) or "database is locked" in str(e):
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a', encoding='utf-8') as f:
                             f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -139,7 +139,7 @@ class DBConnection:
                     logger.error("Failed db query: [%s]" % query)
                     time.sleep(1)
                 else:
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a', encoding='utf-8') as f:
                             f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -156,7 +156,7 @@ class DBConnection:
                 # Also the python interface to sqlite only returns english text messages, not error codes
                 msg = str(e).lower()
                 if suppress and 'UNIQUE' in suppress and ('not unique' in msg or 'unique constraint failed' in msg):
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a', encoding='utf-8') as f:
                             f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -166,7 +166,7 @@ class DBConnection:
                     self.connection.commit()
                     break
                 else:
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                    if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                         elapsed = time.time() - start
                         with open(self.dblog, 'a', encoding='utf-8') as f:
                             f.write("%s %d %.4f %s %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -180,7 +180,7 @@ class DBConnection:
                     raise
 
             except sqlite3.DatabaseError as e:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                     elapsed = time.time() - start
                     with open(self.dblog, 'a', encoding='utf-8') as f:
                         f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,
@@ -192,7 +192,7 @@ class DBConnection:
                 raise
 
             except Exception as e:
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_dbcomms:
+                if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
                     elapsed = time.time() - start
                     with open(self.dblog, 'a', encoding='utf-8') as f:
                         f.write("%s %d %.4f %s %s %s %s [%s]\n" % (time.asctime(), attempt, elapsed,

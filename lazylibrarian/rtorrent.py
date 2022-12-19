@@ -48,7 +48,7 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
             logger.debug("rTorrent client version = %s" % version)
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed

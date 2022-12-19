@@ -34,7 +34,7 @@ from shutil import rmtree
 
 from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_header, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
-from lazylibrarian import config2, database, versioncheck
+from lazylibrarian import database, versioncheck, logger
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -180,9 +180,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     if options.loglevel:
         try:
             lazylibrarian.LOGLEVEL = int(options.loglevel)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_cherrypy:
+            if lazylibrarian.LOGLEVEL & logger.log_cherrypy:
                 lazylibrarian.CHERRYPYLOG = 1
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_requests:
+            if lazylibrarian.LOGLEVEL & logger.log_requests:
                 lazylibrarian.REQUESTSLOG = 1
         except ValueError:
             lazylibrarian.LOGLEVEL = 2

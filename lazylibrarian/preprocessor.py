@@ -61,7 +61,7 @@ def preprocess_ebook(bookfolder):
                       os.path.join(bookfolder, basename + '.' + ftype)]
             if ftype == 'mobi':
                 params.extend(['--output-profile', 'kindle'])
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                 logger.debug(str(params))
             try:
                 if os.name != 'nt':
@@ -216,7 +216,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                               '-metadata', "artist=%s" % authorname,
                               '-metadata', "track=%s" % part[0],
                               os.path.join(bookfolder, "tempaudio%s" % extn)]
-                    if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                    if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                         params.append('-report')
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
@@ -255,7 +255,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             # read metadata from first file
             params = [ffmpeg, '-i', os.path.join(bookfolder, parts[0][3]),
                       '-f', 'ffmetadata', '-y', metadata]
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
@@ -282,7 +282,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             for part in parts:
                 params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
                           '-f', 'ffmetadata', '-y', os.path.join(bookfolder, "partmeta.ll")]
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                     params.append('-report')
                     logger.debug(str(params))
                     ffmpeg_env = os.environ.copy()
@@ -343,7 +343,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
             params.extend(get_list(ffmpeg_options))
             params.append('-y')
             params.append(os.path.join(bookfolder, outfile))
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
@@ -442,7 +442,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 b2a = False
 
             params.append(tempfile)
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_postprocess:
+            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
                 params.append('-report')
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()

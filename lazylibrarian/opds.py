@@ -95,7 +95,7 @@ class OPDS(object):
                 remote_ip = cherrypy.request.remote.ip
 
             self.user_agent = cherrypy.request.headers.get('User-Agent')
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
                 logger.debug(self.user_agent)
 
             # NOTE Moon+ identifies as Aldiko/Moon+  so check for Moon+ first
@@ -1517,7 +1517,7 @@ class OPDS(object):
             cmd += "and CAST(BookRate AS INTEGER) > 0 order by BookRate DESC, BookDate DESC"
 
         results = db.select(cmd)
-        if results and lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        if results and lazylibrarian.LOGLEVEL & logger.log_dlcomms:
             logger.debug("Initial select found %s" % len(results))
 
         readfilter = None
@@ -1535,14 +1535,14 @@ class OPDS(object):
                 readfilter = []
 
         if readfilter is not None:
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Filter length %s" % len(readfilter))
             filtered = []
             for res in results:
                 if res['BookID'] in readfilter:
                     filtered.append(res)
             results = filtered
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Filter matches %s" % len(results))
 
         if limit:

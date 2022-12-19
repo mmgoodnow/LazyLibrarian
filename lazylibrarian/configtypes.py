@@ -142,7 +142,7 @@ class ConfigItem():
     def _on_read(self, ok: bool) -> bool:
         if ok:
             self.accesses[Access.READ_OK] += 1
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_configread:
+            if lazylibrarian.LOGLEVEL & logger.log_configread:
                 logger.debug(f"Read config[{self.key}]={self.value}")
         else:
             self.accesses[Access.READ_ERR] += 1
@@ -157,7 +157,7 @@ class ConfigItem():
             elif self.value != value:
                 # Don't count a write if the value does not change
                 self.accesses[Access.WRITE_OK] += 1
-                if lazylibrarian.LOGLEVEL & lazylibrarian.log_configwrite:
+                if lazylibrarian.LOGLEVEL & logger.log_configwrite:
                     logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
             return True
