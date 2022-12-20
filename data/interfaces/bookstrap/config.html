@@ -3349,7 +3349,7 @@
           <div class="configtable">
             <div class="row">
               <div class="col-md-6">
-              %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
+              %if lazylibrarian.CONFIG.get_bool('HIDE_OLD_NOTIFIERS') == False:
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_TWITTER']:
@@ -3769,7 +3769,7 @@
                 </div>
               </div>
               <div class="col-md-6">
-              %if lazylibrarian.CONFIG['HIDE_OLD_NOTIFIERS'] == False:
+              %if lazylibrarian.CONFIG.get_bool('HIDE_OLD_NOTIFIERS'):
                 <div class="checkbox">
                   <%
                     if lazylibrarian.CONFIG['USE_PROWL']:
