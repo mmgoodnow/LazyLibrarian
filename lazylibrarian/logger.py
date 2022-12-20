@@ -186,3 +186,4 @@ log_cherrypy = 1 << 14  # 16384 cherrypy logging
 log_requests = 1 << 15  # 32768 requests httpclient logging
 log_configread = 1 << 16 # log all config2 read requests
 log_configwrite = 1 << 17 # log all config2 read requests
+log_iterateproviders = 1 << 18 # Log iterating over providers in detail
