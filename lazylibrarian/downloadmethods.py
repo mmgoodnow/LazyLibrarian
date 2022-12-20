@@ -27,6 +27,7 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
     deluge, rtorrent, synology
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
+from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
     path_isdir, syspath, remove
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
@@ -131,6 +132,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
             db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
         db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=? and NZBtitle=?',
                   (source, download_id, dl_url, dl_title))
+        record_usage_data('Download/IRC/Success')
         return True, ''
 
     elif not fname:
@@ -247,6 +249,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
             db.action('UPDATE books SET audiostatus = "Snatched" WHERE BookID=?', (bookid,))
         db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
                   (source, download_id, nzburl))
+        record_usage_data('Download/NZB/Success')
         return True, ''
     else:
         res = 'Failed to send nzb to @ <a href="%s">%s</a>' % (nzburl, source)
@@ -404,6 +407,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 cmd = 'UPDATE wanted SET status="Snatched", Source=?, DownloadID=?, '
                 cmd += 'completed=? WHERE BookID=? and NZBProv=?'
                 db.action(cmd, (source, download_id, int(time.time()), bookid, provider))
+                record_usage_data('Download/Direct/Success')
                 return True, ''
             except Exception as e:
                 res = "%s writing book to %s, %s" % (type(e).__name__, destfile, e)
@@ -817,6 +821,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             db.action('UPDATE books SET audiostatus="Snatched" WHERE BookID=?', (bookid,))
         db.action('UPDATE wanted SET status="Snatched", Source=?, DownloadID=? WHERE NZBurl=?',
                   (source, download_id, full_url))
+        record_usage_data('Download/TOR/Success')
         return True, ''
 
     res = 'Failed to send torrent to %s' % source
