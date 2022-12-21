@@ -171,6 +171,6 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         msg, status = t.submit_data(lazylibrarian.CONFIG)
         self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called")
         URLarg = mock_requests.get.call_args[0][0]
-        ExpectedURL = t.get_data_url(server='')
+        ExpectedURL = t.get_data_url(server='', config=lazylibrarian.CONFIG)
         self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")
         self.assertTrue(status, "Request call did not succeed")

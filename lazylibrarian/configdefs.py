@@ -143,6 +143,8 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('Telemetry', 'TELEMETRY_SERVER', ''),
     ConfigScheduler('Telemetry', 'TELEMETRY_INTERVAL', 'telemetry_send', 6, TimeUnit.HOUR,
         'TELEMETRYSEND', 'lazylibrarian.telemetry.scheduled_send', 'Send telemetry', needs_provider=False, persist=True),
+    ConfigBool('Telemetry', 'TELEMETRY_SEND_CONFIG', True),
+    ConfigBool('Telemetry', 'TELEMETRY_SEND_USAGE', True),
     ConfigStr('Git', 'GIT_HOST', 'gitlab.com'),
     ConfigStr('Git', 'GIT_USER', 'LazyLibrarian'),
     ConfigStr('Git', 'GIT_REPO', 'lazylibrarian'),

@@ -161,22 +161,21 @@ class LazyTelemetry(object):
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
 
-    def construct_data_string(self, components=None):
+    def construct_data_string(self, config: LLConfigHandler):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
-        if not components or 'server' in components:
-            data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
-        if not components or 'config' in components:
+        data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
+        if config.get_bool('TELEMETRY_SEND_CONFIG'):
             data.append(f"config={json.dumps(obj=self.get_config_telemetry(),separators=(',', ':'))}")
-        if not components or 'usage' in components:
+        if config.get_bool('TELEMETRY_SEND_USAGE'):
             data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(),separators=(',', ':'))}")
 
         datastr = '&'.join(data)
         return datastr
 
-    def get_data_url(self, server='localhost:9174', config=None):
-        return f"{server}/send?{self.construct_data_string()}"
+    def get_data_url(self, server: str, config: LLConfigHandler):
+        return f"{server}/send?{self.construct_data_string(config)}"
 
     def submit_data(self, _config):
         """ Submits LL telemetry data
@@ -185,8 +184,11 @@ class LazyTelemetry(object):
         proxies = proxy_list()
         timeout = 5
         headers = {'User-Agent': 'LazyLibrarian'}
-        payload = {"timeout": timeout, "proxies": proxies}
-        url = self.get_data_url(server=_config['TELEMETRY_SERVER'])
+        if proxies:
+            payload = {"timeout": timeout, "proxies": proxies}
+        else:
+            payload = {"timeout": timeout}
+        url = self.get_data_url(server=_config['TELEMETRY_SERVER'], config=_config)
         try:
             logger.debug(f'Sending telemetry data; URL is {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
