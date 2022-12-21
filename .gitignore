@@ -63,6 +63,10 @@ llmintest.xml
 cov*.xml
 prof
 
+# Pydep specific #
+pydep
+pydep/*
+
 # OS generated files #
 ######################
 .Spotlight-V100
