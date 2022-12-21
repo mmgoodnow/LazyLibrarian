@@ -4,6 +4,7 @@
 # Purpose:
 #   Testing the new config2 module
 
+from typing import List, Dict
 from collections import Counter
 import mock
 import os
@@ -86,7 +87,7 @@ class Config2Test(LLTestCase):
         ])
 
         expected = Counter({Access.READ_OK: 3, Access.WRITE_OK: 1, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
-        self.do_access_compare(ci.accesses, expected, 'Basic String Config not working as expected')
+        self.single_access_compare(ci.accesses, expected, [], 'Basic String Config not working as expected')
 
     def test_ConfigInt(self):
         """ Tests for ConfigInt class """
@@ -113,7 +114,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[INTVALUE] (2)',
         ])
         expected = Counter({Access.READ_OK: 5, Access.WRITE_OK: 1, Access.WRITE_ERR: 2, Access.READ_ERR: 2})
-        self.do_access_compare(ci.accesses, expected, 'Basic Int Config not working as expected')
+        self.single_access_compare(ci.accesses, expected, [], 'Basic Int Config not working as expected')
 
     def test_ConfigRangedInt(self):
         """ Tests for ConfigRangedInt class """
@@ -133,7 +134,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RANGEDINTVALUE] to 1100',
         ])
         expected = Counter({Access.READ_OK: 4, Access.WRITE_OK: 1, Access.WRITE_ERR: 2})
-        self.do_access_compare(ci.accesses, expected, 'Ranged Int Config not working as expected')
+        self.single_access_compare(ci.accesses, expected, [], 'Ranged Int Config not working as expected')
 
     def test_ConfigPerm(self):
         """ Tests for ConfigPerm class """
@@ -157,7 +158,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to -0o10',
         ])
         expected = Counter({Access.READ_OK: 6, Access.WRITE_OK: 2, Access.WRITE_ERR: 2})
-        self.do_access_compare(ci.accesses, expected, 'Permission config not working as expected')
+        self.single_access_compare(ci.accesses, expected, [], 'Permission config not working as expected')
 
     def test_ConfigBool(self):
         """ Tests for ConfigBool class """
@@ -184,7 +185,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[BOOLVALUE] to Override: incorrect type',
         ])
         expected = Counter({Access.READ_OK: 11, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
-        self.do_access_compare(ci.accesses, expected, 'Basic Bool Config not working as expected')
+        self.single_access_compare(ci.accesses, expected, [], 'Basic Bool Config not working as expected')
 
     def test_ConfigURL(self):
         """ Tests for ConfigURL class """
@@ -325,12 +326,26 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
         ])
 
-    def do_access_compare(self, got, expected, error):
+    def single_access_compare(self, got: Counter, expected: Counter, exclude: List[Access]=[], error: str=''):
+        """ Helper function, validates that two access counters are the same """
+        for access in got:
+            if not access in exclude:
+                self.assertTrue(access in expected, f'Excected {access}')
+                vgot = got[access]
+                vexp = expected[access]
+                self.assertEqual(vgot, vexp, f'{access}:{vgot}!={vexp}: {error}')
+
+    def do_access_compare(self, got: Dict[str, Counter], expected: Dict[str, Counter], exclude: List[Access], error: str):
         """ Helper function, validates that two access lists are the same """
-        self.assertEqual(len(got), len(expected))
+        if exclude == []:
+            self.assertEqual(len(got), len(expected))
         for key in got:
-            eac = expected[key]
-            self.assertEqual(got[key], eac, f'[{key}]: {error}')
+            for access in got[key]:
+                if not access in exclude:
+                    self.assertTrue(access in expected[key], f'Excected [{key}.{access}')
+                    vgot = got[key][access]
+                    vexp = expected[key][access]
+                    self.assertEqual(vgot, vexp, f'[{key}.{access}]:{vgot}!={vexp}: {error}')
 
     def test_basic_types(self):
         """ Tests basic config types inside a ConfigHandler """
@@ -367,7 +382,7 @@ class Config2Test(LLTestCase):
             'CSV3': Counter({Access.FORMAT_ERR: 1}),
             'CSV4': Counter({Access.FORMAT_ERR: 1}),
         }
-        self.do_access_compare(ecs, expectedecs, 'Expected two format errors')
+        self.do_access_compare(ecs, expectedecs, [], 'Expected two format errors')
 
     def test_csv(self):
         """ Test ConfigCSV handling """
@@ -410,7 +425,7 @@ class Config2Test(LLTestCase):
             'DOES-NOT-EXIST': Counter({Access.READ_ERR: 3}),
             'ALSO-DOES-NOT': Counter({Access.READ_ERR: 1})
         }
-        self.do_access_compare(ecs, expectedecs, 'Errors  not as expected')
+        self.do_access_compare(ecs, expectedecs, [], 'Errors  not as expected')
 
     def test_access_counters(self):
         """ Test that read/create counters work correctly when there are no errors """
@@ -441,7 +456,16 @@ class Config2Test(LLTestCase):
             'BOO': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1}),
             'MAIL': Counter({Access.CREATE_OK: 1, Access.READ_OK: 1})
         }
-        self.do_access_compare(acs, expectedacs, 'Access patterns not as expected')
+        self.do_access_compare(acs, expectedacs, [], 'Access patterns not as expected')
+        expectedacs = {
+            'CSV': Counter({Access.READ_OK: 1}),
+            'CSV5': Counter({Access.READ_OK: 3}),
+            'SOMESTR': Counter({Access.READ_OK: 1}),
+            'SOMEINT': Counter({Access.READ_OK: 3, Access.WRITE_OK: 1}),
+            'BOO': Counter({ Access.READ_OK: 1}),
+            'MAIL': Counter({Access.READ_OK: 1})
+        }
+        self.do_access_compare(acs, expectedacs, [Access.CREATE_OK], 'Comparing with excluded sections not working')
 
         errors = cfg.get_error_counters()
         expectederrors = {
@@ -454,7 +478,7 @@ class Config2Test(LLTestCase):
         cfg.clear_access_counters()
         acs = cfg.get_all_accesses()
         errors = cfg.get_error_counters()
-        self.do_access_compare(acs, {}, 'Clearing all access patterns did not work')
+        self.do_access_compare(acs, {}, [], 'Clearing all access patterns did not work')
         self.assertEqual(errors, {}, 'Clearing all access patterns did clear errors')
 
     def test_LLdefaults(self):
@@ -462,7 +486,7 @@ class Config2Test(LLTestCase):
         lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')
-        self.do_access_compare({}, cfg.get_all_accesses(), 'There should be no changes from defaults')
+        self.do_access_compare({}, cfg.get_all_accesses(), [], 'There should be no changes from defaults')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
 
     def test_schedule_list(self):
@@ -501,27 +525,17 @@ class Config2Test(LLTestCase):
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
         lazylibrarian.LOGLEVEL = 1
-        with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
+        with self.assertLogs('lazylibrarian.logger', level='INFO'):
             # Because no defaults are loaded, every item will case a warning
             cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
-        self.assertEqual(cm.output, [
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.EBOOK_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.AUDIO_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.DOWNLOAD_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.ALTERNATE_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.TESTDATA_DIR in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.LOGLEVEL in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.NO_IPV6 in config',
-            'WARNING:lazylibrarian.logger:MainThread : config2.py:_load_section : Unknown option GENERAL.SSL_VERIFY in config'
-        ])
         acs = cfg.get_all_accesses()
-        self.do_access_compare(acs, {}, 'Loading ini without defaults should not load anything')
+        self.do_access_compare(acs, {}, [], 'Loading ini without defaults should not load anything')
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all of the base definitions loads """
         lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
-        acs = cfg.get_all_accesses()
+        acs = cfg.get_all_accesses() # We just want to know the right things were updated
         expectedacs = {
             'GENERAL.LOGLEVEL': Counter({Access.WRITE_OK: 1}),
             'GENERAL.NO_IPV6': Counter({Access.WRITE_OK: 1}),
@@ -531,7 +545,7 @@ class Config2Test(LLTestCase):
             'GENERAL.TESTDATA_DIR': Counter({Access.WRITE_OK: 1}),
             'GENERAL.DOWNLOAD_DIR': Counter({Access.WRITE_OK: 1})
          }
-        self.do_access_compare(acs, expectedacs, 'Loading ini file did not modify the expected values')
+        self.do_access_compare(acs, expectedacs, [Access.READ_OK], 'Loading ini file did not modify the expected values')
 
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
@@ -578,7 +592,7 @@ class Config2Test(LLTestCase):
             'APPRISE.0.DOWNLOAD': Counter({Access.WRITE_OK: 1}),
             'APPRISE.0.URL': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
         }
-        self.do_access_compare(acs, expectedacs, 'Loading complex ini file did not modify the expected values')
+        self.do_access_compare(acs, expectedacs, [Access.READ_OK], 'Loading complex ini file did not modify the expected values')
 
     def test_provider_iterator(self):
         """ Test the iterator function used to access providers """
@@ -619,6 +633,7 @@ class Config2Test(LLTestCase):
         """ Test accessing a more complex config.ini file """
         lazylibrarian.LOGLEVEL = 1
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        cfg.clear_access_counters()
 
         with self.assertLogs('lazylibrarian.logger', level='ERROR'): # There will be errors; catch them
             self.assertEqual(cfg['BaseInvalid'], '', 'Retrieving invalid base key does not work as expected') # Read error
@@ -642,8 +657,8 @@ class Config2Test(LLTestCase):
 
         summary = cfg.create_access_summary(saveto = '')
         expectedSummary = {
-            'READ_OK': [('NEWZNAB.0.DISPNAME', 2), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.APILIMIT', 1), ('NEWZNAB.1.HOST', 1), ('APPRISE.0.URL', 1)],
-            'WRITE_OK': [('LOGDIR', 1), ('LOGLIMIT', 1), ('LOGFILES', 1), ('LOGSIZE', 1), ('LOGLEVEL', 1), ('MAG_TAB', 1), ('COMIC_TAB', 1), ('AUDIO_TAB', 1), ('API_ENABLED', 1), ('API_KEY', 1), ('IMP_CALIBREDB', 1), ('CALIBRE_USE_SERVER', 1), ('CALIBRE_SERVER', 1), ('IMP_NOSPLIT', 1), ('SERVER_ID', 1), ('EBOOK_DIR', 1), ('AUDIO_DIR', 1), ('ALTERNATE_DIR', 1), ('TESTDATA_DIR', 1), ('DOWNLOAD_DIR', 1), ('AUDIOBOOK_DEST_FOLDER', 1), ('NEWZNAB.0.DISPNAME', 1), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.HOST', 1), ('NEWZNAB.0.API', 1), ('NEWZNAB.0.GENERALSEARCH', 1), ('NEWZNAB.0.BOOKSEARCH', 1), ('NEWZNAB.0.BOOKCAT', 1), ('NEWZNAB.0.UPDATED', 1), ('NEWZNAB.0.APILIMIT', 1), ('NEWZNAB.0.RATELIMIT', 1), ('NEWZNAB.0.DLTYPES', 1), ('NEWZNAB.1.DISPNAME', 1), ('NEWZNAB.1.HOST', 1), ('APPRISE.0.DISPNAME', 1), ('APPRISE.0.SNATCH', 1), ('APPRISE.0.DOWNLOAD', 1), ('APPRISE.0.URL', 1)],
+            'READ_OK': [('NEWZNAB.0.DISPNAME', 2), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.APILIMIT', 1)],
+            'WRITE_OK': [],
             'READ_ERR': [('BASEINVALID', 1), ('DOESNOTEXIST', 1), ('ALSOFAKE', 1), ('NEWZNAB.0.INVALIDKEY', 2), ('NEWZNAB.0.INVALIDKEY_2', 1)],
             'WRITE_ERR': [],
             'CREATE_OK': [],
@@ -732,7 +747,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
             acs = cfg.get_all_accesses()
-            self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')
+            self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
 
             cfgbak = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=backupfile)
             self.assertTrue(config2.are_equivalent(cfg, cfgbak), '.bak file is not the same as original file!')
@@ -744,7 +759,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
             acs = cfg.get_all_accesses()
-            self.do_access_compare(acs, {}, 'Expect all accesses cleared after saving')
+            self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
         finally:
             self.remove_test_file(TEST_FILE)
             self.remove_test_file(backupfile)
@@ -763,7 +778,7 @@ class Config2Test(LLTestCase):
         # The only test is to make sure the mako cache is clearer
         cfg.config['HTTP_LOOK'].set_str('a_special_ui') # Force the mako cache to get cleared
         cfg.post_save_actions(clear_counters=True, restart_jobs=False)
-        self.do_access_compare(cfg.get_all_accesses(), {}, 'Expected all accesses cleared after saving')
+        self.do_access_compare(cfg.get_all_accesses(), {}, [], 'Expected all accesses cleared after saving')
 
         mako_dir = cfg.get_mako_cachedir()
         mako_file = cfg.get_mako_versionfile()
