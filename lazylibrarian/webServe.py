@@ -5786,7 +5786,7 @@ class WebInterface(object):
                 redacted = []
                 for line in rows:
                     line = list(line)
-                    for item in lazylibrarian.REDACTLIST:
+                    for item in lazylibrarian.CONFIG.get_REDACTLIST():
                         line[6] = line[6].replace(item, '**********')
                     redacted.append(line)
                 rows = redacted

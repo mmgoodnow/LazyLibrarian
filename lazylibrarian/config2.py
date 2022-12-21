@@ -27,6 +27,7 @@ from lazylibrarian.scheduling import schedule_job
 class LLConfigHandler(ConfigDict):
     arrays: Dict[str, ArrayConfig] # (section, array)
     configfilename: str
+    REDACTLIST: List[str]
 
     def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
         super().__init__()
@@ -50,7 +51,7 @@ class LLConfigHandler(ConfigDict):
                     self._load_array_section(section, parser)
                 else:
                     self._load_section(section, parser, self)
-            set_redactlist()
+            self._update_redactlist()
         else:
             self.configfilename = ''
         self.ensure_arrays_have_empty_item()
@@ -379,7 +380,7 @@ class LLConfigHandler(ConfigDict):
             db.close()
 
         # Update the redact list since things may have changed
-        set_redactlist()
+        self._update_redactlist()
 
         if clear_counters:
             # Clear all access counters so we can tell if something has changed later
@@ -436,37 +437,37 @@ class LLConfigHandler(ConfigDict):
             file.close()
 
 
+    def _update_redactlist(self):
+        """ Update REDACTLIST after config changes """
+
+        self.REDACTLIST = []
+        wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
+        if self.get_bool('HOSTREDACT'):
+            wordlist.append('_HOST')
+        for key in self.config.keys():
+            if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
+                for word in wordlist:
+                    if word in key and self[key]:
+                        self.REDACTLIST.append(u"%s" % self[key])
+        for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
+            if self[key]:
+                self.REDACTLIST.append(u"%s" % self[key])
+
+        for name, definitions in ARRAY_DEFS.items():
+            key = definitions[0] # Primary key for this array type
+            array = self.get_array(name)
+            if array:
+                for inx, config in array._configs.items():
+                    if config[key]:
+                        self.REDACTLIST.append(f"{config[key]}")
+                    if 'API' in config:
+                        if config['API']:
+                            self.REDACTLIST.append(f"{config['API']}")
+
+        logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
+                                                plural(len(self.REDACTLIST), "entry")))
+
 ### Global config related methods that are not part of the config object
-
-def set_redactlist():
-    """ Update lazylibrarian.REDACTLIST after config changes """
-
-    lazylibrarian.REDACTLIST = []
-    wordlist = ['PASS', 'TOKEN', 'SECRET', '_API', '_USER', '_DEV']
-    if lazylibrarian.CONFIG.get_bool('HOSTREDACT'):
-        wordlist.append('_HOST')
-    for key in lazylibrarian.CONFIG.config.keys():
-        if key not in ['BOOK_API', 'GIT_USER', 'SINGLE_USER']:
-            for word in wordlist:
-                if word in key and lazylibrarian.CONFIG[key]:
-                    lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-    for key in ['EMAIL_FROM', 'EMAIL_TO', 'SSL_CERTS']:
-        if lazylibrarian.CONFIG[key]:
-            lazylibrarian.REDACTLIST.append(u"%s" % lazylibrarian.CONFIG[key])
-
-    for name, definitions in ARRAY_DEFS.items():
-        key = definitions[0] # Primary key for this array type
-        array = lazylibrarian.CONFIG.get_array(name)
-        if array:
-            for inx, config in array._configs.items():
-                if config[key]:
-                    lazylibrarian.REDACTLIST.append(f"{config[key]}")
-                if 'API' in config:
-                    if config['API']:
-                        lazylibrarian.REDACTLIST.append(f"{config['API']}")
-
-    logger.debug("Redact list has %d %s" % (len(lazylibrarian.REDACTLIST),
-                                            plural(len(lazylibrarian.REDACTLIST), "entry")))
 
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:

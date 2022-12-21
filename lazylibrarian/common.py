@@ -1027,7 +1027,7 @@ def save_log():
             linecount = 0
             lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
-                for item in lazylibrarian.REDACTLIST:
+                for item in lazylibrarian.CONFIG.REDACTLIST:
                     if item in line:
                         line = line.replace(item, '<redacted>')
                         redacts += 1
@@ -1052,7 +1052,7 @@ def save_log():
         out.write(u'---END-CONFIG---------------------------------\n')
         lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
         for line in lines:
-            for item in lazylibrarian.REDACTLIST:
+            for item in lazylibrarian.CONFIG.REDACTLIST:
                 if item in line:
                     line = line.replace(item, '<redacted>')
                     redacts += 1

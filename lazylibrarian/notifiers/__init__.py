@@ -78,7 +78,7 @@ def custom_notify_snatch(bookid, fail=False):
 
 
 def notify_download(title, bookid=None):
-    for item in lazylibrarian.REDACTLIST:
+    for item in lazylibrarian.CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
         for n in notifiers:
@@ -92,7 +92,7 @@ def notify_download(title, bookid=None):
 
 
 def notify_snatch(title, fail=False):
-    for item in lazylibrarian.REDACTLIST:
+    for item in lazylibrarian.CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
         for n in notifiers:
