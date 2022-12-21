@@ -729,7 +729,7 @@ def unpack_archive(archivename, download_dir, title):
         return ''
 
 
-def cron_process_dir():
+def PostProcessor(): # was cron_process_dir
     if lazylibrarian.STOPTHREADS:
         from lazylibrarian.scheduling import schedule_job
         logger.debug("STOPTHREADS is set, not starting postprocessor")
@@ -752,14 +752,14 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
     status = {'status': 'failed'}
     count = 0
     for threadname in [n.name for n in [t for t in threading.enumerate()]]:
-        if threadname == 'POSTPROCESS':
+        if threadname == 'POSTPROCESSOR':
             count += 1
 
     threadname = thread_name()
-    if threadname == 'POSTPROCESS':
+    if threadname == 'POSTPROCESSOR':
         count -= 1
     if count:
-        logger.debug("POSTPROCESS is already running")
+        logger.debug("POSTPROCESSOR is already running")
         status['status'] = 'running'
         return status
 

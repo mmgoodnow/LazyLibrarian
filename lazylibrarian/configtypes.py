@@ -284,7 +284,7 @@ class ConfigScheduler(ConfigRangedInt):
         if ok and self.run_name == 'GRSYNC': # Special case, should maybe add option to object
             ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
         if ok and self.run_name == 'TELEMETRYSEND': # Special case for telemetry
-            ok = lazylibrarian.CONFIG.get_int('TELEMETRY_INTERVAL') > 0 # 0 means disabled
+            ok = lazylibrarian.CONFIG.get_bool('TELEMETRY_ENABLE')
         return ok
 
     def get_hour_min_interval(self) -> Tuple[int, int]:

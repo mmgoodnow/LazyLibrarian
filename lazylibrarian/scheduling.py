@@ -195,7 +195,7 @@ def schedule_job(action='Start', target:str=''):
         for job in SCHED.get_jobs():
             if target in str(job):
                 SCHED.unschedule_job(job)
-                logger.debug("Stop %s job" % target)
+                logger.debug(f"Stop {target} job")
                 break
 
     if action in ['Start', 'Restart', 'StartNow']:
@@ -448,6 +448,7 @@ def show_jobs():
     for job in SCHED.get_jobs():
         job = str(job)
         jobname = ''
+        threadname = ''
         for _, scheduler in lazylibrarian.CONFIG.get_schedulers():
             if scheduler.method_name in job:
                 jobname = scheduler.friendly_name

@@ -216,7 +216,7 @@ def record_usage_data(counter: str):
     """ Convenience function for recording usage """
     TELEMETRY.record_usage_data(counter)
 
-def scheduled_send():
+def telemetry_send():
     """ Routine called by scheduler, to regularly send telemetry data """
     threadname = thread_name()
     if "Thread-" in threadname:

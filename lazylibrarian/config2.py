@@ -368,9 +368,13 @@ class LLConfigHandler(ConfigDict):
         if restart_jobs:
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
-                if schedule:
-                    logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
-                    schedule_job('Restart', schedule)
+                if schedule and isinstance(item, ConfigScheduler):
+                    if item.can_run():
+                        logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
+                        schedule_job('Restart', schedule)
+                    else:
+                        logger.debug(f"Stopping job {schedule}")
+                        schedule_job('Stop', schedule)
 
         # Clean up the database if needed (Does this really belong here?)
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():

@@ -6483,11 +6483,11 @@ class WebInterface(object):
 
     @cherrypy.expose
     def force_process(self, source=None):
-        if 'POSTPROCESS' not in [n.name for n in [t for t in threading.enumerate()]]:
-            threading.Thread(target=process_dir, name='POSTPROCESS', args=[True]).start()
+        if 'POSTPROCESSOR' not in [n.name for n in [t for t in threading.enumerate()]]:
+            threading.Thread(target=process_dir, name='POSTPROCESSOR', args=[True]).start()
             schedule_job(action='Restart', target='PostProcessor')
         else:
-            logger.debug('POSTPROCESS already running')
+            logger.debug('POSTPROCESSOR already running')
         raise cherrypy.HTTPRedirect(source)
 
     @cherrypy.expose
