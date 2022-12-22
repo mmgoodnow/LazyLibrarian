@@ -505,10 +505,16 @@ class Config2Test(LLTestCase):
             if scheduler.can_run():
                 canruncount += 1
 
-        self.assertEqual(keynames, ['TELEMETRY_INTERVAL', 'SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', 'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL', 'WISHLIST_INTERVAL', 'SEARCH_COMICINTERVAL', 'VERSIONCHECK_INTERVAL', 'GOODREADS_INTERVAL', 'CLEAN_CACHE_INTERVAL', 'AUTHORUPDATE_INTERVAL', 'SERIESUPDATE_INTERVAL'])
+        self.assertEqual(keynames, [
+            'TELEMETRY_INTERVAL', 'SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', # Disabled by default
+            'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL','WISHLIST_INTERVAL',
+            'SEARCH_COMICINTERVAL',  # Disabled by default
+            'VERSIONCHECK_INTERVAL',
+            'GOODREADS_INTERVAL',    # Disabled by default
+            'CLEAN_CACHE_INTERVAL','AUTHORUPDATE_INTERVAL', 'SERIESUPDATE_INTERVAL'])
         self.assertEqual(schednames, ['telemetry_send', 'search_book', 'search_magazines', 'PostProcessor', 'search_rss_book', 'search_wishlist', 'search_comics', 'check_for_updates', 'sync_to_goodreads', 'clean_cache', 'author_update', 'series_update'])
         self.assertEqual(persistcount, 9)
-        self.assertEqual(canruncount, 8)
+        self.assertEqual(canruncount, 7)
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """
