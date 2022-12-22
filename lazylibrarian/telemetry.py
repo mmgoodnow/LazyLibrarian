@@ -160,13 +160,19 @@ class LazyTelemetry(object):
         usg = self.get_usage_telemetry()
         usg.clear()
 
-    def get_json(self, pretty=False):
-        return json.dumps(obj=self._data, indent = 2 if pretty else None)
+    def get_json(self, send_config: bool, send_usage: bool, pretty=False):
+        senddata = {}
+        senddata['server'] = self._data['server']
+        if send_config:
+            senddata['config'] = self._data['config']
+        if send_usage:
+            senddata['usage'] = self._data['usage']
+        return json.dumps(senddata, indent = 2 if pretty else None)
 
-    def get_data_for_ui_preview(self):
+    def get_data_for_ui_preview(self, send_config: bool, send_usage: bool):
         self.set_install_data(lazylibrarian.CONFIG, testing=False)
         self.set_config_data(lazylibrarian.CONFIG)
-        return self.get_json(pretty=True)
+        return self.get_json(send_config, send_usage, pretty=True)
 
     def construct_data_string(self, send_config: bool, send_usage: bool):
         """ Returns a data string to send to telemetry server.
@@ -219,12 +225,12 @@ class LazyTelemetry(object):
         url = self.get_data_url(server, send_config, send_usage)
         return self._send_url(url)
 
-    def test_server(self, server: str, _config: LLConfigHandler) -> str:
+    def test_server(self, server: str) -> str:
         """ Try to connect to the configured server """
         try:
-            ID, ok = self._send_url(server, _config)
+            ID, ok = self._send_url(server)
             if ok and ID:
-                status, ok = self._send_url(f'{server}/status', _config)
+                status, ok = self._send_url(f'{server}/status')
                 # Use just the first line of both, in case there is an error
                 ID1 = ID.split('\n')[0]
                 status1 = status.split('\n')[0] if status else ''

@@ -1626,20 +1626,29 @@
 
         // Refresh telemetry data when the page has loaded
         $('window').ready(function(e) {
-            $.get('get_telemetry_data', function(data) {
+            var send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            var send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
                 $("#telemetry_data").val(data)
             });
         });
 
         $('#telemetry_refresh').on('click', function(e) {
-            $.get('get_telemetry_data', function(data) {
+            var send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            var send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
                 $("#telemetry_data").val(data)
             });
         });
 
         $('#telemetry_reset').on('click', function(e) {
+            var send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            var send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
             $.get('reset_telemetry_usage_data', function() {});
-            $.get('get_telemetry_data', function(data) {
+            $.get('get_telemetry_data', {'send_config': send_config, 'send_usage': send_usage},
+            function(data) {
                 $("#telemetry_data").val(data)
             });
         });

@@ -6889,8 +6889,10 @@ class WebInterface(object):
     # TELEMETRY ##########################################################
 
     @cherrypy.expose
-    def get_telemetry_data(self):
-        return TELEMETRY.get_data_for_ui_preview()
+    def get_telemetry_data(self, **kwargs):
+        send_config = kwargs['send_config']
+        send_usage = kwargs['send_usage']
+        return TELEMETRY.get_data_for_ui_preview(send_config, send_usage)
 
     @cherrypy.expose
     def reset_telemetry_usage_data(self):
@@ -6906,5 +6908,5 @@ class WebInterface(object):
 
     @cherrypy.expose
     def test_telemetry_server(self, **kwargs):
-        return TELEMETRY.test_server(kwargs['server'], lazylibrarian.CONFIG)
+        return TELEMETRY.test_server(kwargs['server'])
 
