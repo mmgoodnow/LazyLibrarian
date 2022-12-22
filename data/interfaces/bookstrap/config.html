@@ -4581,7 +4581,7 @@
                   <div class="form-group">
                     <span class="input-group-addon">Telemetry server</span>
                     <input type="text" id="telemetry_server" name="telemetry_server" value="${lazylibrarian.CONFIG['TELEMETRY_SERVER']}" class="form-control">
-                    <button class="button btn btn-sm" type="button" value="Test server" id="test_telemetry_server"><i class="fa fa-list-ul"></i> Test telemetry server</button>
+                    <button class="button btn btn-sm btn-primary" type="button" value="Test server" id="test_telemetry_server"><i class="fa fa-list-ul"></i> Test telemetry server</button>
                     <br>
                   </div>
                   <div class="input-group">
@@ -4623,10 +4623,10 @@
               </div>
               <div class="col-md-6">
                 <div class="form-group">
-                  <input type="button" value="Refresh telemetry" id="telemetry_refresh" class="btn" />
-                  <input type="button" value="Reset usage data" id="telemetry_reset" class="btn" />
+                  <input type="button" value="Refresh telemetry" id="telemetry_refresh" class="btn btn-primary" />
+                  <input type="button" value="Reset usage data" id="telemetry_reset" class="btn btn-primary" />
                   %if lazylibrarian.CONFIG['TELEMETRY_SERVER']:
-                  <input type="button" value="Submit telemetry" id="telemetry_submit" class="btn" />
+                  <input type="button" value="Submit telemetry" id="telemetry_submit" class="btn btn-primary" />
                   %endif
                 </div>
               </div>

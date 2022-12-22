@@ -1,9 +1,8 @@
 # Database for holding LazyLibrarian telemetry data
 #
-# Requires MySQL to be installed
-
-import mysql.connector
-import mysql.connector.errorcode
+# 
+import os
+import sqlite3
 import time
 import datetime
 import json
@@ -32,13 +31,10 @@ class TelemetryDB():
     def _connect(self):
         """ Connect to the database, return cursor """
         if not self.connection:
-            self.connection = mysql.connector.connect(
-            host=self.host,
-            user=self.user,
-            password=self.password,
-            database=self.DBName
-            )
-
+            self.connection = sqlite3.connect('/data/' + self.DBName, detect_types=sqlite3.PARSE_DECLTYPES |
+                                              sqlite3.PARSE_COLNAMES)
+            self.connection.execute("PRAGMA temp_store = 2")  # memory
+            self.connection.row_factory = sqlite3.Row
         return self.connection.cursor()
 
     def connect_to_db_patiently(self) -> bool:
@@ -60,54 +56,39 @@ class TelemetryDB():
         return False
 
     def ensure_db_exists(self):
-        cursor = self._connect()
         self.logger.debug('Ensuring database exists')
         try:
-            try:
-                cursor.execute(f"CREATE DATABASE {self.DBName};")
-            except mysql.connector.Error as e:
-                if e.errno == mysql.connector.errorcode.ER_DB_CREATE_EXISTS:
-                    pass # self is ok
+            cursor = self._connect()
+        except Exception as e:
+            self.logger.error(f"Unexpected exception creating database: {str(e)}")       
         finally:
             cursor.close()
 
     def ensure_column(self, cursor, tablename, column):
+        to_create = True
         try:
-            alter_statement = f"ALTER TABLE {tablename} ADD COLUMN {column};"
-            cursor.execute(alter_statement)
-        except mysql.connector.Error as e:
-            if e.errno == mysql.connector.errorcode.ER_DUP_FIELDNAME:
-                pass # We expect self most of the time
-            else:
-                self.logger.error(f"Unexpected error creating column {tablename}.{column}: {e.errno}")
+            columns = cursor.execute('PRAGMA table_info(%s)' % tablename).fetchall()
+            if not columns:  # no such table
+                to_create = True
+            to_create = not any(item[1].split()[0] == column.split()[0] for item in columns)
+            if to_create:
+                alter_statement = f"ALTER TABLE {tablename} ADD COLUMN {column};"
+                self.logger.debug(f'Execute {alter_statement}')
+                cursor.execute(alter_statement)
         except Exception as e:
-            self.logger.error(f"Unexpected exception creating column: {str(e)}")
+            self.logger.error(f"Unexpected error creating column {tablename}.{column}: {str(e)}")
 
     def ensure_table(self, tablename, columns):
         self.logger.debug(f'Ensuring table {tablename}')
         cursor = self._connect()
         try:
-            create_it = True
+            create_statement = f"CREATE TABLE IF NOT EXISTS {tablename} (rowid INTEGER PRIMARY KEY);"
+            self.logger.debug(f'Execute {create_statement}')
             try:
-                self.logger.debug(f'Get existing table info')
-                cursor.execute(f"SHOW TABLES like '{tablename}';")
-                for tbl in cursor:
-                    if tbl[0] == tablename:
-                        create_it = False
-            except mysql.connector.Error as e:
-                if e.errno == mysql.connector.errorcode.ER_NO_SUCH_TABLE:
-                    create_it = True
-                else:
-                    self.logger.debug(f'Table {tablename} exists')
-
-            if create_it:
-                create_statement = f"CREATE TABLE {tablename} (id INT AUTO_INCREMENT PRIMARY KEY);"
-                self.logger.debug(f'Execute {create_statement}')
-                try:
-                    cursor.execute(create_statement)
-                    self.logger.debug(f'Created table ok')
-                except Exception as e:
-                    self.logger.error(f'Error creating table {tablename}: {str(e)}')
+                cursor.execute(create_statement)
+                self.logger.info(f'Created table ok')
+            except Exception as e:
+                self.logger.error(f'Error creating table {tablename}: {str(e)}')
 
             [self.ensure_column(cursor, tablename, column) for column in columns]
         finally:
@@ -119,8 +100,8 @@ class TelemetryDB():
         self.ensure_table("ll_servers",[
             "serverid       VARCHAR(50) NOT NULL",
             "os             VARCHAR(50)",
-            "first_seen     DATETIME NOT NULL",
-            "last_seen      DATETIME NOT NULL",
+            "first_seen     TIMESTAMP NOT NULL",
+            "last_seen      TIMESTAMP NOT NULL",
             "last_uptime    INT NOT NULL",
             "longest_uptime INT NOT NULL",
             "ll_version     VARCHAR(50)",
@@ -129,7 +110,7 @@ class TelemetryDB():
         ])
         self.ensure_table("ll_configs",[
             "serverid       VARCHAR(50) NOT NULL",
-            "datetime       DATETIME NOT NULL",
+            "datetime       TIMESTAMP NOT NULL",
             "switches       VARCHAR(255)",
             "params         VARCHAR(255)",
             "book_api       VARCHAR(50)",
@@ -142,7 +123,7 @@ class TelemetryDB():
         ])
         self.ensure_table("ll_telemetry",[
             "serverid       VARCHAR(50) NOT NULL",
-            "datetime       DATETIME NOT NULL",
+            "datetime       TIMESTAMP NOT NULL",
         ])
 
     def _update_server_data(self, server):
@@ -220,6 +201,83 @@ class TelemetryDB():
         except Exception as e:
             raise Exception(f"Error updating telemetry data: {str(e)}")
 
+    def read_telemetry(self, telemetry_data):
+        """ Read telemetry data, returns data as json """
+        self.logger.debug(f'Reading telemetry data {telemetry_data}')
+        result = ''
+        try:
+            cursor = self._connect()
+            if telemetry_data == 'usage':
+                last_hour_date_time = datetime.datetime.now() - datetime.timedelta(hours = 1)
+                stmt = f"SELECT COUNT(*) as  last_hour from ll_telemetry where datetime > '{last_hour_date_time}'"
+                res = cursor.execute(stmt).fetchone()
+                last_hour = res[0]
+                last_day_date_time = datetime.datetime.now() - datetime.timedelta(days = 1)
+                stmt = f"SELECT COUNT(*) as  last_day from ll_telemetry where datetime > '{last_day_date_time}'"
+                res = cursor.execute(stmt).fetchone()
+                last_day = res[0]
+                last_week_date_time = datetime.datetime.now() - datetime.timedelta(days = 7)
+                stmt = f"SELECT COUNT(*) as  last_week from ll_telemetry where datetime > '{last_week_date_time}'"
+                res = cursor.execute(stmt).fetchone()
+                last_week = res[0]
+                stmt = f"SELECT COUNT(*) from ll_telemetry"
+                res = cursor.execute(stmt).fetchone()
+                all_time = res[0]
+                result = {'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week, 'All_Time':all_time} 
+            elif telemetry_data == 'servers':
+                versions = {}
+                for key in ['python_ver', 'll_version', 'll_installtype']:
+                    stmt = f"select distinct {key} from ll_servers"
+                    res = cursor.execute(stmt).fetchall()
+                    for item in res:
+                        stmt = f"select count(*) as count from ll_servers where {key} = '{item[0]}'"
+                        tot = cursor.execute(stmt).fetchone()
+                        versions[item[0]] = tot[0]
+                result = versions
+            elif telemetry_data in ['switches', 'params']:
+                results = {}
+                stmt = f"select serverid,datetime,{telemetry_data} as data from ll_configs"
+                configs = cursor.execute(stmt).fetchall()
+                latest = {}
+                for conf in configs:
+                    if conf['serverid'] not in latest:
+                        latest[conf['serverid']] = (conf['datetime'], conf['data'])
+                    else:
+                        dtime,data = latest[conf['serverid']]
+                        if dtime < conf['datetime']:
+                            latest[conf['serverid']] = (conf['datetime'], conf['data'])
+                last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days = 28)
+                for server in latest:
+                    dtime, data = latest[server]
+                    if dtime >= last_4wks_date_time:
+                        for item in data.split():
+                            if item not in results:
+                                results[item] = 1
+                            else:
+                                results[item] = results[item] + 1
+                result = results
+            elif telemetry_data == 'configs':
+                configs = {}
+                for key in ['book_api']:
+                    stmt = f"select distinct {key} from ll_configs"
+                    res = cursor.execute(stmt).fetchall()
+                    for item in res:
+                        stmt = f"select count(*) as count from ll_configs where {key} = '{item[0]}'"
+                        tot = cursor.execute(stmt).fetchone()
+                        configs[item[0]] = tot[0]
+                for key in ['newznab', 'torznab', 'rss', 'irc', 'gen', 'apprise']:
+                    stmt = f"select count(*) from ll_configs where {key} > 0"
+                    tot = cursor.execute(stmt).fetchone()
+                    configs[key] = tot[0]
+                result = configs
+        except Exception as e:
+            raise Exception(f"Error reading data: {str(e)}")
+        finally:
+            cursor.close()
+        if not result:
+            result = f"{telemetry_data} Not implemented yet"
+        return json.dumps(result)
+
     def add_telemetry(self, telemetry_data):
         """ Add telemetry received from LL to the database
         Returns status string """
@@ -266,7 +324,7 @@ class TelemetryDB():
             self.ensure_db_exists()
             self.ensure_db_schema()
             return True
-        except mysql.connector.Error as e:
+        except Exception as e:
             self.logger.error(f"Database error: {e}")
         return False
 
