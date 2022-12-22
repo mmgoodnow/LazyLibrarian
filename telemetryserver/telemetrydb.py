@@ -144,7 +144,8 @@ class TelemetryDB():
                     longest_up = max(server["uptime_seconds"], entry[1])
                     stmt = f"""UPDATE ll_servers SET
                         last_seen = {nowstr}, last_uptime = {server["uptime_seconds"]}, os = '{server["os"]}',
-                        longest_uptime = {longest_up}, ll_version = '{server["version"]}', ll_installtype = '{server["install_type"]}', python_ver='{server["python_ver"]}'"""
+                        longest_uptime = {longest_up}, ll_version = '{server["version"]}', ll_installtype = '{server["install_type"]}', python_ver='{server["python_ver"]}'
+                        WHERE serverid = '{server["id"]}'"""
                     cursor.execute(stmt)
                 else:
                     stmt = (f"""INSERT INTO ll_servers
@@ -236,37 +237,35 @@ class TelemetryDB():
                 result = versions
             elif telemetry_data in ['switches', 'params']:
                 results = {}
-                stmt = f"select serverid,datetime,{telemetry_data} as data from ll_configs"
-                configs = cursor.execute(stmt).fetchall()
-                latest = {}
-                for conf in configs:
-                    if conf['serverid'] not in latest:
-                        latest[conf['serverid']] = (conf['datetime'], conf['data'])
-                    else:
-                        dtime,data = latest[conf['serverid']]
-                        if dtime < conf['datetime']:
-                            latest[conf['serverid']] = (conf['datetime'], conf['data'])
                 last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days = 28)
-                for server in latest:
-                    dtime, data = latest[server]
-                    if dtime >= last_4wks_date_time:
-                        for item in data.split():
-                            if item not in results:
-                                results[item] = 1
-                            else:
-                                results[item] = results[item] + 1
+                stmt = f"""select {telemetry_data} as data from ll_configs,ll_servers 
+                            where ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                            and last_seen >= '{last_4wks_date_time}'"""
+                configs = cursor.execute(stmt).fetchall()
+                for conf in configs:
+                    for item in conf[0].split():
+                        if item not in results:
+                            results[item] = 1
+                        else:
+                            results[item] = results[item] + 1
                 result = results
             elif telemetry_data == 'configs':
                 configs = {}
-                for key in ['book_api']:
-                    stmt = f"select distinct {key} from ll_configs"
-                    res = cursor.execute(stmt).fetchall()
-                    for item in res:
-                        stmt = f"select count(*) as count from ll_configs where {key} = '{item[0]}'"
-                        tot = cursor.execute(stmt).fetchone()
-                        configs[item[0]] = tot[0]
+                last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days = 28)
+                stmt = f"""select distinct book_api from ll_configs,ll_servers where 
+                            ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                            and last_seen >= '{last_4wks_date_time}'"""
+                res = cursor.execute(stmt).fetchall()
+                for item in res:
+                    stmt = f"""select count(*) as count from ll_configs,ll_servers where book_api = '{item[0]}' and 
+                                ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                                and last_seen >= '{last_4wks_date_time}'"""
+                    tot = cursor.execute(stmt).fetchone()
+                    configs[item[0]] = tot[0]
                 for key in ['newznab', 'torznab', 'rss', 'irc', 'gen', 'apprise']:
-                    stmt = f"select count(*) from ll_configs where {key} > 0"
+                    stmt = f"""select count(*) from ll_configs,ll_servers where {key} > 0 and 
+                                ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                                and last_seen >= '{last_4wks_date_time}'"""
                     tot = cursor.execute(stmt).fetchone()
                     configs[key] = tot[0]
                 result = configs
