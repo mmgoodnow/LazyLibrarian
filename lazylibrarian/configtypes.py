@@ -222,7 +222,7 @@ class ConfigInt(ConfigItem):
         return self._on_type_mismatch(value)
 
     def set_from_ui(self, value: str) -> bool:
-        ivalue = check_int(value, self.get_default)
+        ivalue = check_int(value, self.get_default())
         if ivalue != self.value:
             # Don't trigger a change if it's the same
             return self.set_int(ivalue)
@@ -273,6 +273,12 @@ class ConfigScheduler(ConfigRangedInt):
             return getattr(sys.modules[module], function)
         except:
             return None
+
+    def is_valid_value(self, value: ValidTypes) -> bool:
+        ok = super().is_valid_value(value)
+        # Interval must be positive
+        ok = ok and int(value) >= 0
+        return ok
 
     def can_run(self):
         """ Return True if the job's requirements are satisfied """

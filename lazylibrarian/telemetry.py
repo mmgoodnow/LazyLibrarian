@@ -104,6 +104,8 @@ class LazyTelemetry(object):
 
     def set_config_data(self, _config: LLConfigHandler):
         cfg_telemetry = self.get_config_telemetry()
+        cfg_telemetry['switches'] = ''
+        cfg_telemetry["params"] = ''
 
         # Record whether particular on/off features are configured
         for key in [
@@ -161,25 +163,29 @@ class LazyTelemetry(object):
     def get_json(self, pretty=False):
         return json.dumps(obj=self._data, indent = 2 if pretty else None)
 
-    def construct_data_string(self, config: LLConfigHandler):
+    def get_data_for_ui_preview(self):
+        self.set_install_data(lazylibrarian.CONFIG, testing=False)
+        self.set_config_data(lazylibrarian.CONFIG)
+        return self.get_json(pretty=True)
+
+    def construct_data_string(self, send_config: bool, send_usage: bool):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
         data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
-        if config.get_bool('TELEMETRY_SEND_CONFIG'):
+        if send_config:
             data.append(f"config={json.dumps(obj=self.get_config_telemetry(),separators=(',', ':'))}")
-        if config.get_bool('TELEMETRY_SEND_USAGE'):
+        if send_usage:
             data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(),separators=(',', ':'))}")
 
         datastr = '&'.join(data)
         return datastr
 
-    def get_data_url(self, server: str, config: LLConfigHandler):
-        return f"{server}/send?{self.construct_data_string(config)}"
+    def get_data_url(self, server: str, send_config: bool, send_usage: bool):
+        return f"{server}/send?{self.construct_data_string(send_config, send_usage)}"
 
-    def submit_data(self, _config):
-        """ Submits LL telemetry data
-        Returns status message and true/false depending on whether it was successful"""
+    def _send_url(self, url: str):
+        """ Sends url to the telemetry server, returns result """
 
         proxies = proxy_list()
         timeout = 5
@@ -188,25 +194,45 @@ class LazyTelemetry(object):
             payload = {"timeout": timeout, "proxies": proxies}
         else:
             payload = {"timeout": timeout}
-        url = self.get_data_url(server=_config['TELEMETRY_SERVER'], config=_config)
         try:
-            logger.debug(f'Sending telemetry data; URL is {url}')
+            logger.debug(f'GETting URL {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
-            logger.error("submit_data: Timeout sending telemetry %s" % url)
+            logger.error("_send_url: Timeout sending telemetry %s" % url)
             return "Timeout %s" % str(e), False
         except Exception as e:
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
             return r.text, True # Success
-
         try:
             # noinspection PyProtectedMember
             msg = requests.status_codes._codes[r.status_code][0]
         except Exception:
             msg = r.text
         return "Response status %s: %s" % (r.status_code, msg), False
+
+    def submit_data(self, server: str, send_config: bool, send_usage: bool):
+        """ Submits LL telemetry data
+        Returns status message and true/false depending on whether it was successful"""
+
+        url = self.get_data_url(server, send_config, send_usage)
+        return self._send_url(url)
+
+    def test_server(self, server: str, _config: LLConfigHandler) -> str:
+        """ Try to connect to the configured server """
+        try:
+            ID, ok = self._send_url(server, _config)
+            if ok and ID:
+                status, ok = self._send_url(f'{server}/status', _config)
+                # Use just the first line of both, in case there is an error
+                ID1 = ID.split('\n')[0]
+                status1 = status.split('\n')[0] if status else ''
+                return f"Server ID: {ID1}\n\nStatus:\n{status1}"
+            else:
+                return f"Error connecting to server: {ID}"
+        except:
+            return "Error connecting to server"
 
 ### Global functions
 
@@ -216,7 +242,7 @@ def record_usage_data(counter: str):
     """ Convenience function for recording usage """
     TELEMETRY.record_usage_data(counter)
 
-def telemetry_send():
+def telemetry_send() -> str:
     """ Routine called by scheduler, to regularly send telemetry data """
     threadname = thread_name()
     if "Thread-" in threadname:
@@ -225,10 +251,13 @@ def telemetry_send():
         TELEMETRY.set_install_data(lazylibrarian.CONFIG, testing=False)
         TELEMETRY.set_config_data(lazylibrarian.CONFIG)
         if lazylibrarian.CONFIG['TELEMETRY_SERVER'] == '':
-            result = 'No telemetry server configured'
+            result, status = 'No telemetry server configured', False
         else:
-            result = TELEMETRY.submit_data(lazylibrarian.CONFIG)
-        logger.debug(f'Telemetry data sending: {result}')
+            server = lazylibrarian.CONFIG['TELEMETRY_SERVER']
+            send_config = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_CONFIG')
+            send_usage = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_USAGE')
+            result, status = TELEMETRY.submit_data(server, send_config, send_usage)
+        logger.debug(f'Telemetry data sending: {result}, {status}')
     finally:
         thread_name(threadname)
     return result

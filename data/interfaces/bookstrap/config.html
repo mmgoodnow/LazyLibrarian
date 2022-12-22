@@ -47,6 +47,7 @@
         %if lazylibrarian.CONFIG['SHOW_GENRES']:
         <li role="presentation" id="9" aria-controls="genres"><a role="tab" data-toggle="tab" aria-controls="genres" href="#genres">Genres</a></li>
         %endif
+        <li role="presentation" id="10" aria-controls="telemetry"><a role="tab" data-toggle="tab" aria-controls="telemetry" href="#telemetry">Telemetry</a></li>
         </ul>
         <div class="tab-content">
           <div role="tabpanel" class="tab-pane" id="webinterface">
@@ -4549,6 +4550,85 @@
                     <input type="text" id="genrereplace[${item}]" name="genrereplace[${item}]" value="${lazylibrarian.GRGENRES['genreReplace'][item]}" class="form-control" placeholder="<delete>">
                   </div>
                   %endfor
+              </div>
+            </div>
+          </div>
+        </div>
+        <div role="tabpanel" class="tab-pane" id="telemetry">
+          <div class="configtable">
+            <p>
+              LazyLibrarian has the ability to send basic information about the installation, how it is configured, and how it is used to a server.
+              This helps the developers figure out how it is used, where it is worth improving, and which parts nobody uses.
+              </p>
+              <p>All telemetry information is 100% anonymized. You can press the button below to see what telemetry data would be sent for your system.</p>
+              </div>
+            <div class="row">
+              <div class="col-md-12">
+                <legend>Telemetry Settings</legend>
+                <div class="checkbox">
+                  <%
+                    if lazylibrarian.CONFIG['TELEMETRY_ENABLE']:
+                        checked = 'checked="checked"'
+                    else:
+                        checked = ''
+                  %>
+                  <label for="telemetry_enable" class="control-label">
+                    <input type="checkbox" id="telemetry_enable" name="telemetry_enable" value="1" ${checked} />
+                    Enable sending anonymous telemetry data
+                  </label>
+                </div>
+                <div id="telemetry_options">
+                  <div class="form-group">
+                    <span class="input-group-addon">Telemetry server</span>
+                    <input type="text" id="telemetry_server" name="telemetry_server" value="${lazylibrarian.CONFIG['TELEMETRY_SERVER']}" class="form-control">
+                    <button class="button btn btn-sm" type="button" value="Test server" id="test_telemetry_server"><i class="fa fa-list-ul"></i> Test telemetry server</button>
+                    <br>
+                  </div>
+                  <div class="input-group">
+                    <span class="input-group-addon">Telemetry send interval (hours)</span>
+                    <input type="number" id="telemetry_interval" name="telemetry_interval" value="${lazylibrarian.CONFIG['TELEMETRY_INTERVAL']}" class="form-control">
+                  </div>
+                  <div class="row checkbox">
+                    <div class="col-md-6">
+                      <%
+                        if lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_CONFIG'):
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="telemetry_send_config" class="control-label">
+                        <input type="checkbox" id="telemetry_send_config" name="telemetry_send_config" value="1" ${checked} />
+                        Include configuration summary
+                      </label>
+                    </div>
+                    <div class="col-md-6">
+                      <%
+                        if lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_USAGE'):
+                            checked = 'checked="checked"'
+                        else:
+                            checked = ''
+                      %>
+                      <label for="telemetry_send_usage" class="control-label">
+                        <input type="checkbox" id="telemetry_send_usage" name="telemetry_send_usage" value="1" ${checked} />
+                        Include usage summary
+                      </label>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-12">
+                <p>Refresh to see all of the current telemetry data, including server, config and usage sections:</p>
+                <textarea id="telemetry_data" class="form-control" rows="16"
+                  placeholder="Click Refresh Telemetry to see the current data" readonly="true"></textarea>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group">
+                  <input type="button" value="Refresh telemetry" id="telemetry_refresh" class="btn" />
+                  <input type="button" value="Reset usage data" id="telemetry_reset" class="btn" />
+                  %if lazylibrarian.CONFIG['TELEMETRY_SERVER']:
+                  <input type="button" value="Submit telemetry" id="telemetry_submit" class="btn" />
+                  %endif
+                </div>
               </div>
             </div>
           </div>

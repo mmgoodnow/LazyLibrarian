@@ -1097,20 +1097,20 @@
         });
 
         if ($("#use_email").is(":checked"))
-                {
-                        $("#emailoptions").show();
+        {
+                $("#emailoptions").show();
 
-                        if ($("#use_email_custom_format").is(":checked")) {
-                            $("#email_custom_format_options").show();
-                        }
-                        else {
-                            $("#email_custom_format_options").hide();
-                        }
+                if ($("#use_email_custom_format").is(":checked")) {
+                    $("#email_custom_format_options").show();
                 }
+                else {
+                    $("#email_custom_format_options").hide();
+                }
+        }
         else
-                {
-                        $("#emailoptions").hide();
-                }
+        {
+                $("#emailoptions").hide();
+        }
 
         $("#use_email").click(function(){
                 if ($("#use_email").is(":checked"))
@@ -1131,6 +1131,26 @@
                 else
                 {
                         $("#email_custom_format_options").slideUp();
+                }
+        });
+
+        if ($("#telemetry_enable").is(":checked"))
+                {
+                        $("#telemetry_options").show();
+                }
+        else
+                {
+                        $("#telemetry_options").hide();
+                }
+
+        $("#telemetry_enable").click(function(){
+                if ($("#telemetry_enable").is(":checked"))
+                {
+                        $("#telemetry_options").slideDown();
+                }
+                else
+                {
+                        $("#telemetry_options").slideUp();
                 }
         });
 
@@ -1598,6 +1618,62 @@
                             label: "Close",
                             className: 'btn-primary',
                             callback: function(){ location.reload(true); }
+                        },
+                    }
+                });
+            });
+        });
+
+        // Refresh telemetry data when the page has loaded
+        $('window').ready(function(e) {
+            $.get('get_telemetry_data', function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#telemetry_refresh').on('click', function(e) {
+            $.get('get_telemetry_data', function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#telemetry_reset').on('click', function(e) {
+            $.get('reset_telemetry_usage_data', function() {});
+            $.get('get_telemetry_data', function(data) {
+                $("#telemetry_data").val(data)
+            });
+        });
+
+        $('#test_telemetry_server').on('click', function(e) {
+            var server = $.trim($("#telemetry_server").val());
+            $.get('test_telemetry_server', {'server': server},
+                function(data) {
+                bootbox.dialog({
+                    title: 'Telemetry server connection',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary'
+                        }
+                    }
+                });
+            });
+        });
+
+        $('#telemetry_submit').on('click', function(e) {
+            var server = $.trim($("#telemetry_server").val());
+            var send_config = $("#telemetry_send_config").prop("checked") ? 'True' : ''
+            var send_usage = $("#telemetry_send_usage").prop("checked") ? 'True' : ''
+            $.get('submit_telemetry_data', {'server': server, 'send_config': send_config, 'send_usage': send_usage},
+                function(data) {
+                bootbox.dialog({
+                    title: 'Submitted telemetry data',
+                    message: '<pre>'+data+'</pre>',
+                    buttons: {
+                        primary: {
+                            label: "Close",
+                            className: 'btn-primary',
                         },
                     }
                 });

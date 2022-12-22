@@ -71,6 +71,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
+from lazylibrarian.telemetry import TELEMETRY, telemetry_send
 from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
@@ -6884,3 +6885,26 @@ class WebInterface(object):
             return serve_file(myfile, mime_type(myfile), "attachment", name=name)
         else:
             logger.error("No file [%s]" % myfile)
+
+    # TELEMETRY ##########################################################
+
+    @cherrypy.expose
+    def get_telemetry_data(self):
+        return TELEMETRY.get_data_for_ui_preview()
+
+    @cherrypy.expose
+    def reset_telemetry_usage_data(self):
+        return TELEMETRY.clear_usage_data()
+
+    @cherrypy.expose
+    def submit_telemetry_data(self, **kwargs):
+        server = kwargs['server']
+        send_config = kwargs['send_config']
+        send_usage = kwargs['send_usage']
+        result, _ = TELEMETRY.submit_data(server, send_config, send_usage)
+        return result
+
+    @cherrypy.expose
+    def test_telemetry_server(self, **kwargs):
+        return TELEMETRY.test_server(kwargs['server'], lazylibrarian.CONFIG)
+
