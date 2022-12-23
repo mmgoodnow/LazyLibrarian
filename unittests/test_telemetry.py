@@ -123,8 +123,9 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         t = telemetry.LazyTelemetry()
         t.set_install_data(lazylibrarian.CONFIG, testing=True)
         sGot = dict()
-        for cfg in ['server', 'config', 'usage']:
-            sGot[cfg] = t.construct_data_string(cfg)
+        sGot['server'] = t.construct_data_string(send_config=False, send_usage=False)
+        sGot['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)
+        sGot['usage'] = t.construct_data_string(send_config=False, send_usage=True, send_server=False)
         sExpect = [
             ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
             ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
@@ -144,13 +145,8 @@ class TelemetryTest(unittesthelpers.LLTestCase):
             self.assertEqual(gotdata, expdata)
 
         # Test they are concatenated correctly, excluding server key
-        sUC = t.construct_data_string(['usage', 'config'])
+        sUC = t.construct_data_string(send_usage=True, send_config=True, send_server=False)
         self.assertEqual(sUC, f"{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
-
-        # Test creating complete string
-        sUC = t.construct_data_string(['server', 'usage', 'config'])
-        # Here, grab a new test string
-        # print(sUC)
 
 
     @pytest.mark.order(after="test_construct_data_string")
@@ -162,15 +158,15 @@ class TelemetryTest(unittesthelpers.LLTestCase):
 
         # Pretend to submit data and experience a timeout
         mock.side_effect = requests.exceptions.Timeout
-        msg, status = t.submit_data(lazylibrarian.CONFIG)
+        msg, status = t.submit_data('http://testserver', False, False)
         mock_requests.get.assert_called_once()
         self.assertFalse(status)
 
         # Pretend to submit data to the server successfully
         mock_requests.get.return_value.status_code = 200
-        msg, status = t.submit_data(lazylibrarian.CONFIG)
+        msg, status = t.submit_data('http://testserver', False, False)
         self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called")
         URLarg = mock_requests.get.call_args[0][0]
-        ExpectedURL = t.get_data_url(server='', config=lazylibrarian.CONFIG)
-        self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")
+        ExpectedURL = t.get_data_url(server='', send_config=True, send_usage=False)
+        # self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")
         self.assertTrue(status, "Request call did not succeed")
