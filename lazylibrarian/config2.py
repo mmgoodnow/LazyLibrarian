@@ -5,7 +5,7 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, Type, Optional, Generator, Tuple
+from typing import Dict, List, Optional, Generator, Tuple
 from configparser import ConfigParser
 from collections import Counter
 from os import path, sep
@@ -63,7 +63,8 @@ class LLConfigHandler(ConfigDict):
                 key = config_item.key.upper()
                 self.config[key] = configitem_from_default(config_item)
 
-    def _load_section(self, section:str, parser:ConfigParser, config: ConfigDict):
+    @staticmethod
+    def _load_section(section:str, parser:ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
             if option in config:
@@ -75,7 +76,7 @@ class LLConfigHandler(ConfigDict):
 
     def _load_array_section(self, section:str, parser:ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
-        arrayname, index = re.split(r'(^[^\d]+)', section)[1:]
+        arrayname, index = re.split(r'(^\D+)', section)[1:]
         arrayname = arrayname.upper()
         if arrayname[-1:] == '_':
             arrayname = arrayname[:-1]
@@ -103,16 +104,16 @@ class LLConfigHandler(ConfigDict):
     def get_array_entries(self, wantname: str) -> int:
         """ Return number of entries in a particular array config """
         rc = 0
-        Found = False
+        found = False
         if not wantname:
             return rc
         wantname = wantname.upper()
         for name in self.arrays.keys():
             if name[:len(wantname)] == wantname:
                 rc += len(self.arrays[name])
-                Found = True
+                found = True
 
-        if not Found:
+        if not found:
             self._handle_access_error(wantname, Access.READ_ERR)
         return rc
 
@@ -190,7 +191,7 @@ class LLConfigHandler(ConfigDict):
                 for key, item in config.items():
                     setting = f'{pname.lower()}_{inx}_{key.lower()}'
                     value = kwargs.get(setting)
-                    if value != None:
+                    if value is not None:
                         item.set_from_ui(value)
                     elif isinstance(item, ConfigBool): # Bools that are not listed are False
                         item.set_from_ui(False)
@@ -203,18 +204,31 @@ class LLConfigHandler(ConfigDict):
             else:
                 logger.warn(f'Cannot reset value of {key} as it does not exist')
 
+    def scheduler_can_run(self, scheduler: ConfigScheduler) -> bool:
+        """ Return True if the scheduler's requirements are satisfied """
+        ok = scheduler.get_int() > 0 # 0 means schedule is disabled
+        if ok and scheduler.needs_provider:
+            ok = lazylibrarian.use_tor() or lazylibrarian.use_nzb() \
+                or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
+                or lazylibrarian.use_irc()
+        if ok and scheduler.run_name == 'GRSYNC': # Special case, should maybe add option to object
+            ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
+        if ok and scheduler.run_name == 'TELEMETRYSEND': # Special case for telemetry
+            ok = self.config['TELEMETRY_ENABLE'].get_bool()
+        return ok
+
     def save_config(self, filename: str, save_all: bool=False):
         """
         Save the configuration to a new file. Return number of items stored, -1 if error.
         If save_all, saves all possible config items. If False, saves only changed items
         """
 
-        def add_to_parser(parser: ConfigParser, sectionname: str, item: ConfigItem) -> int:
+        def add_to_parser(aparser: ConfigParser, asectionname: str, aitem: ConfigItem) -> int:
             """ Add item to parser, return 1 if added, 0 if ignored """
-            if item.do_persist() and (save_all or not item.is_default()):
-                if not sectionname in parser:
-                    parser[sectionname] = {}
-                parser[sectionname][key] = item.get_save_str()
+            if aitem.do_persist() and (save_all or not aitem.is_default()):
+                if not asectionname in aparser:
+                    aparser[asectionname] = {}
+                aparser[asectionname][key] = aitem.get_save_str()
                 return 1
             else:
                 return 0
@@ -356,10 +370,10 @@ class LLConfigHandler(ConfigDict):
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
         if interface.get_writes() > 0: # It's changed
-            dir = self.get_mako_cachedir()
+            mako_dir = self.get_mako_cachedir()
             logger.debug("Clearing mako cache")
-            shutil.rmtree(dir)
-            os.makedirs(dir)
+            shutil.rmtree(mako_dir)
+            os.makedirs(mako_dir)
             version_file = self.get_mako_versionfile()
             with open(version_file, 'w') as fp:
                 fp.write(sys.version.split()[0] + ':' + interface.get_str())
@@ -369,7 +383,7 @@ class LLConfigHandler(ConfigDict):
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
-                    if item.can_run():
+                    if self.scheduler_can_run(item):
                         logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
                         schedule_job('Restart', schedule)
                     else:
@@ -387,7 +401,7 @@ class LLConfigHandler(ConfigDict):
         self._update_redactlist()
 
         if clear_counters:
-            # Clear all access counters so we can tell if something has changed later
+            # Clear all access counters, so we can tell if something has changed later
             self.clear_access_counters()
 
     def create_access_summary(self, saveto:str='') -> Dict:
@@ -425,15 +439,16 @@ class LLConfigHandler(ConfigDict):
 
         return access_summary
 
-    def save_access_summary(self, saveto: str, access_summary):
+    @staticmethod
+    def save_access_summary(saveto: str, access_summary):
         """ For debugging: Create a summary of all config accesses by type """
 
         file = open(saveto,"w")
         try:
             file.write(f'*** Config Item Access Summary ***\n')
-            for type, summary in access_summary.items():
+            for sumtype, summary in access_summary.items():
                 if len(summary) > 0:
-                    file.writelines(f'Access type: {type}\n')
+                    file.writelines(f'Access type: {sumtype}\n')
                     for line in summary:
                         #Format:  NameOfKey--------------------- Count--
                         file.writelines(f'  {line[0]:30}: {line[1]:7}\n')
@@ -477,16 +492,16 @@ class LLConfigHandler(ConfigDict):
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """
 
-    def are_configdicts_equivalent(cd1: ConfigDict, cd2: ConfigDict) -> bool:
-        if not cd1 or not cd2:
-            logger.warn(f"Arrays don't exist {not cd1}, {not cd2}")
+    def are_configdicts_equivalent(checkcd1: ConfigDict, checkcd2: ConfigDict) -> bool:
+        if not checkcd1 or not checkcd2:
+            logger.warn(f"Arrays don't exist {not checkcd1}, {not checkcd2}")
             return False
-        if len(cd1) != len(cd2):
-            logger.warn(f"Array lengths differ: {len(cd1)} != {len(cd2)}")
+        if len(checkcd1) != len(checkcd2):
+            logger.warn(f"Array lengths differ: {len(checkcd1)} != {len(checkcd2)}")
             return False
-        for key, item1 in cd1.items():
-            if key in cd2.keys():
-                item2 = cd2.get_item(key)
+        for key, item1 in checkcd1.items():
+            if key in checkcd2.keys():
+                item2 = checkcd2.get_item(key)
                 if not item2:
                     logger.warn(f"Array values for [{key}]: {item1.value}: key does not exist")
                 elif item2.value != item1.value:

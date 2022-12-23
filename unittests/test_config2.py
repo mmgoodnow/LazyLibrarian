@@ -502,7 +502,7 @@ class Config2Test(LLTestCase):
             schednames.append(scheduler.get_schedule_name())
             if scheduler.do_persist():
                 persistcount += 1
-            if scheduler.can_run():
+            if cfg.scheduler_can_run(scheduler):
                 canruncount += 1
 
         self.assertEqual(keynames, [

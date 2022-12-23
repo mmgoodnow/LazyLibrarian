@@ -281,19 +281,6 @@ class ConfigScheduler(ConfigRangedInt):
         ok = ok and int(value) >= 0
         return ok
 
-    def can_run(self):
-        """ Return True if the job's requirements are satisfied """
-        ok = self.get_int() > 0 # 0 means schedule is disabled
-        if ok and self.needs_provider:
-            ok = lazylibrarian.use_tor() or lazylibrarian.use_nzb() \
-                or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                or lazylibrarian.use_irc()
-        if ok and self.run_name == 'GRSYNC': # Special case, should maybe add option to object
-            ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
-        if ok and self.run_name == 'TELEMETRYSEND': # Special case for telemetry
-            ok = lazylibrarian.CONFIG.get_bool('TELEMETRY_ENABLE')
-        return ok
-
     def get_hour_min_interval(self) -> Tuple[int, int]:
         """ Return (hours, minutes) tuple for the schedule """
         value = self.get_int()
