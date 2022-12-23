@@ -4,7 +4,7 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import NewType, Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
+from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
 from typing import Dict, List
 from enum import Enum
 from configparser import ConfigParser
@@ -38,7 +38,7 @@ class TimeUnit(Enum):
     DAY = 'day'
 
 """ Simple wrapper classes for config values of different types """
-class ConfigItem():
+class ConfigItem:
     section: str
     key: str
     default: ValidTypes
@@ -248,7 +248,8 @@ class ConfigRangedInt(ConfigInt):
         super().__init__(section, key, default, is_new, persist)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
-        return int(value) >= self.range_min and int(value) <= self.range_max
+        return self.range_min <= int(value) <= self.range_max
+
 
 class ConfigScheduler(ConfigRangedInt):
     """ An int config that is used to hold a scheduling interval and associated info to run it """
@@ -346,7 +347,7 @@ class ConfigPerm(ConfigStr):
                 return False
 
             intval = int(octvalue[2:], 8)
-            return intval >= 0 and intval <= 0o777
+            return 0 <= intval <= 0o777
         except ValueError:
             return False
 
@@ -398,7 +399,7 @@ class ConfigBool(ConfigInt):
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
     def __init__(self, section: str, key: str, default: str, is_new: bool=False, persist: bool=True):
-        return super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
+        super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
 
     def get_email(self) -> str:
         return self.get_str()
@@ -446,7 +447,6 @@ class ConfigDownloadTypes(ConfigCSV):
     def set_str(self, value: str) -> bool:
         return super().set_str(value.upper())
 
-        return super().set_str(value)
     def is_valid_value(self, value: ValidTypes) -> bool:
         if super().is_valid_value(value):
             parts = str(value).upper().split(',')
@@ -509,7 +509,8 @@ class ConfigFolder(ConfigStr):
                 tosave = tosave.replace('\\', '/')
             return tosave
 
-    def fix_separator(self, value: str) -> str:
+    @staticmethod
+    def fix_separator(value: str) -> str:
         if os.name == 'nt' and '/' in value:
             return value.replace('/', '\\')
         elif os.name != 'nt' and '\\' in value:
@@ -716,7 +717,7 @@ class ConfigDict:
         for key, value in self.config.items():
             if isinstance(value, ConfigScheduler):
                 if value.schedule_name.lower() == schedule_name.lower():
-                    return self.config[key]
+                    return value
         return None
 
     def _handle_access_error(self, key: str, status: Access):
