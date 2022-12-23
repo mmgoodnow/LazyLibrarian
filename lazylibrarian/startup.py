@@ -204,6 +204,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     lazylibrarian.DBFILE = os.path.join(lazylibrarian.DATADIR, 'lazylibrarian.db')
 
     lazylibrarian.CONFIG.load_configfile(lazylibrarian.CONFIGFILE)
+    lazylibrarian.CONFIG.post_load_fixup()
 
     return options
 
