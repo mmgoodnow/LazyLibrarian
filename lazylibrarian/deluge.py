@@ -29,8 +29,9 @@ from base64 import b64encode, b64decode
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int, make_unicode
-from lazylibrarian.common import make_dirs, path_isdir, syspath
+from lazylibrarian.formatter import make_unicode
+from lazylibrarian.common import make_dirs
+from lazylibrarian.filesystem import path_isdir, syspath
 
 import urllib3
 import requests

@@ -14,7 +14,7 @@ import lazylibrarian
 from lazylibrarian import config2, configdefs, configtypes, logger, LOGLEVEL
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access, TimeUnit
-from lazylibrarian.common import syspath
+from lazylibrarian.filesystem import syspath
 
 # Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones

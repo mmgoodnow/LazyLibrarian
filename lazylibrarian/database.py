@@ -26,6 +26,7 @@ from typing import List
 import lazylibrarian
 from lazylibrarian import logger
 # DO NOT import from common in this module, circular import
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
 
 db_lock = threading.Lock()
 
@@ -44,7 +45,7 @@ class DBConnection:
             self.connection.execute("PRAGMA foreign_keys = ON")
             self.connection.execute("PRAGMA temp_store = 2")  # memory
             self.connection.row_factory = sqlite3.Row
-            self.dblog = lazylibrarian.common.syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
+            self.dblog = syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
         except Exception as e:
             logger.debug(str(e))
             logger.debug(lazylibrarian.DBFILE)

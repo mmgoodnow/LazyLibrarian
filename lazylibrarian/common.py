@@ -49,6 +49,7 @@ import lazylibrarian
 from lazylibrarian import logger, database, configdefs
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink
 
 
 # list of all ascii and non-ascii quotes/apostrophes
@@ -164,22 +165,6 @@ def multibook(foldername, recurse=False):
                     if counter > 1:
                         return item
     return ''
-
-
-def path_isfile(name):
-    return os.path.isfile(syspath(name))
-
-
-def path_isdir(name):
-    return os.path.isdir(syspath(name))
-
-
-def path_exists(name):
-    return os.path.exists(syspath(name))
-
-
-def path_islink(name):
-    return os.path.islink(syspath(name))
 
 
 def remove(name):
@@ -303,55 +288,6 @@ def make_dirs(dest_path, new=False):
                 logger.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
                 return False
     return True
-
-
-WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
-
-
-def syspath(path, prefix=True) -> str:
-    """Convert a path for use by the operating system. In particular,
-    paths on Windows must receive a magic prefix and must be converted
-    to Unicode before they are sent to the OS. To disable the magic
-    prefix on Windows, set `prefix` to False---but only do this if you
-    *really* know what you're doing.
-    """
-    if lazylibrarian.LOGLEVEL & logger.log_fileperms:
-        logger.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
-
-    if os.path.__name__ != 'ntpath':
-        return path
-
-    if not isinstance(path, str):
-        # Beets currently represents Windows paths internally with UTF-8
-        # arbitrarily. But earlier versions used MBCS because it is
-        # reported as the FS encoding by Windows. Try both.
-        try:
-            path = path.decode('utf-8')
-        except UnicodeError:
-            # The encoding should always be MBCS, Windows' broken
-            # Unicode representation.
-            encoding = sys.getfilesystemencoding() or sys.getdefaultencoding()
-            path = path.decode(encoding, 'replace')
-
-    if 1 < len(path) < 4 and path[1] == ':':  # it's just a drive letter (E: or E:/)
-        return path
-
-    # the html cache addressing uses forwardslash as a separator but Windows file system needs backslash
-    s = path.find(lazylibrarian.CACHEDIR)
-    if s >= 0 and '/' in path:
-        path = path.replace('/', '\\')
-        # logger.debug("cache path changed [%s] to [%s]" % (opath, path))
-
-    if not path.startswith('.'):  # Don't affect relative paths
-        # Add the magic prefix if it isn't already there.
-        # http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247.aspx
-        if prefix and not path.startswith(WINDOWS_MAGIC_PREFIX):
-            if path.startswith(u'\\\\'):
-                # UNC path. Final path should look like \\?\UNC\...
-                path = u'UNC' + path[1:]
-            path = WINDOWS_MAGIC_PREFIX + path
-
-    return path
 
 
 def safe_move(src, dst, action='move'):

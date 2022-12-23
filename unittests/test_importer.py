@@ -5,7 +5,7 @@
 
 import unittesthelpers
 import lazylibrarian
-from lazylibrarian import startup, importer
+from lazylibrarian import startup, importer, postprocess
 
 
 class ImporterTest(unittesthelpers.LLTestCase):

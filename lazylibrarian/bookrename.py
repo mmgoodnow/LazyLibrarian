@@ -17,8 +17,9 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import safe_move, multibook, listdir, path_isdir, only_punctuation, syspath, \
+from lazylibrarian.common import safe_move, multibook, listdir, only_punctuation, \
     opf_file, remove
+from lazylibrarian.filesystem import path_isdir, syspath
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, make_utf8bytes, sort_definite, surname_first, sanitize
 from lazylibrarian.opfedit import opf_read

@@ -174,11 +174,12 @@ class LazyTelemetry(object):
         self.set_config_data(lazylibrarian.CONFIG)
         return self.get_json(send_config, send_usage, pretty=True)
 
-    def construct_data_string(self, send_config: bool, send_usage: bool):
+    def construct_data_string(self, send_config: bool, send_usage: bool, send_server: bool=True):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
-        data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
+        if send_server:
+            data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
         if send_config:
             data.append(f"config={json.dumps(obj=self.get_config_telemetry(),separators=(',', ':'))}")
         if send_usage:

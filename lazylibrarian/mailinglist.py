@@ -13,7 +13,8 @@
 import os
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import path_exists, syspath, run_script
+from lazylibrarian.common import run_script
+from lazylibrarian.filesystem import path_exists, syspath
 from lazylibrarian.formatter import plural, get_list, check_int
 from lazylibrarian.notifiers import email_notifier
 

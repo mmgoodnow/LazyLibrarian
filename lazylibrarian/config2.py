@@ -20,7 +20,7 @@ from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import thread_name, plural
-from lazylibrarian.common import syspath, path_exists
+from lazylibrarian.filesystem import syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
 
 """ Main configuration handler for LL """

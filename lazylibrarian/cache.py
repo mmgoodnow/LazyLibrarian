@@ -18,8 +18,8 @@ from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian import logger, database
-from lazylibrarian.common import get_user_agent, proxy_list, listdir, path_isfile, path_isdir, syspath, \
-    remove
+from lazylibrarian.common import get_user_agent, proxy_list, listdir, remove
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 

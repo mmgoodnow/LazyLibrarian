@@ -24,7 +24,7 @@ import threading
 import time
 
 from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
-from lazylibrarian.common import path_isdir, syspath, module_available
+from lazylibrarian.filesystem import path_isdir, syspath
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
 

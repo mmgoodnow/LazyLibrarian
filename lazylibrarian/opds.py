@@ -26,7 +26,8 @@ from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
-from lazylibrarian.common import mime_type, zip_audio, path_isfile, any_file, listdir
+from lazylibrarian.common import mime_type, zip_audio, any_file, listdir
+from lazylibrarian.filesystem import path_isfile
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
 from urllib.parse import quote_plus
 

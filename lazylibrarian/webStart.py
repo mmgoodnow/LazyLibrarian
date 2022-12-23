@@ -27,7 +27,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
-from lazylibrarian.common import syspath, path_exists
+from lazylibrarian.filesystem import syspath, path_exists
 
 cp_ver = getattr(cherrypy, '__version__', None)
 if cp_ver and int(cp_ver.split('.')[0]) >= 10:

@@ -32,7 +32,8 @@ import requests
 
 from shutil import rmtree
 
-from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_header, syspath
+from lazylibrarian.common import remove, listdir, log_header
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger, filesystem
 from lazylibrarian import CONFIG
@@ -238,7 +239,7 @@ def init_logs():
     # Provide filesystem with info it needs to avoid depending on logger
     filesystem.set_logger(
         loglevel=lazylibrarian.LOGLEVEL,
-        logfileperms=lazylibrarian.LOGLEVEL>=2 & logger.log_fileperms,
+        logfileperms=lazylibrarian.LOGLEVEL & logger.log_fileperms > 0,
         logcalls={'debug': logger.debug, 'info': logger.info, 'warn': logger.warn, 'error': logger.error}
     )
 

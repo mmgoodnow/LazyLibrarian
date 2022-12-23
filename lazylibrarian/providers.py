@@ -22,7 +22,7 @@ import lazylibrarian
 from lazylibrarian import logger, database, configtypes
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
-from lazylibrarian.common import syspath, module_available
+from lazylibrarian.filesystem import syspath
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
     make_unicode, seconds_to_midnight, make_utf8bytes, make_bytestr, no_umlauts, month2num

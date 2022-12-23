@@ -23,7 +23,8 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
-from lazylibrarian.common import path_isfile, syspath, remove
+from lazylibrarian.common import remove
+from lazylibrarian.filesystem import path_isfile, syspath
 
 
 def ip_numstr_to_quad(num):

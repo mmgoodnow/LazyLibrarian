@@ -20,7 +20,8 @@ from shutil import copyfile
 
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import safe_move, walk, make_dirs, setperm, path_exists, path_isdir, path_isfile, syspath
+from lazylibrarian.common import safe_move, walk, make_dirs, setperm
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink
 from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
