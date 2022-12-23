@@ -1,0 +1,111 @@
+#  This file is part of Lazylibrarian.
+#
+# Purpose:
+#   Testing the functions in filesystem.py
+
+from typing import List, Dict
+from collections import Counter
+import os
+import mock
+
+from unittesthelpers import LLTestCase
+import lazylibrarian
+from lazylibrarian import filesystem, logger
+
+class FilesystemTest(LLTestCase):
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setDoAll(False)
+        return super().setUpClass()
+
+    def test_syspath(self):
+        """ Test that syspath returns a proper path in both Linux and Windows"""
+        paths_input_windows = [
+            ['', '\\\\?\\'],
+            ['simple', '\\\\?\\simple'],
+            ['./relative/path', './relative/path'],
+            ['/absolute/path', '\\\\?\\/absolute/path'],
+            [ b'not a string', '\\\\?\\not a string'],
+            ['D:\\','D:\\'],
+            [ '\\\\SERVER\\SHARE\\dir', '\\\\?\\UNC\\SERVER\\SHARE\\dir'],
+            [ '\\\\SERVER\\SHARE/dir', '\\\\?\\UNC\\SERVER\\SHARE/dir'],
+            # If CACHEDIR is part of it, / is replaced with \\ in Windows
+            [f'{filesystem.CACHEDIR}/test', f'\\\\?\\{filesystem.CACHEDIR}\\test'],
+        ]
+        with mock.patch('os.path.__name__', 'posixpath'):
+            for path1, _ in paths_input_windows:
+                self.assertEqual(filesystem.syspath(path1), path1)
+
+        with mock.patch('os.path.__name__', 'ntpath'):
+            for path1, path2 in paths_input_windows:
+                self.assertEqual(filesystem.syspath(path1), path2)
+
+    ### Tests for set_datadir
+
+    @mock.patch.object(filesystem, 'path_isdir')
+    @mock.patch.object(os, 'makedirs')
+    @mock.patch.object(os, 'access')
+    def test_set_datadir_exists_writeable(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
+        """ Test set_datadir, which will raise a SystemExit exception on error """
+        testdir = 'Pretend-it-exists'
+        mock_path_isdir.return_value = True
+        mock_os_access.return_value = True
+        filesystem.set_datadir(testdir)
+        mock_path_isdir.assert_called_once_with(testdir)
+        mock_os_makedirs.assert_not_called()
+        mock_os_access.assert_called_once_with(testdir, os.W_OK)
+
+    @mock.patch.object(filesystem, 'path_isdir')
+    @mock.patch.object(os, 'makedirs')
+    @mock.patch.object(os, 'access')
+    def test_set_datadir_exists_not_writeable(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
+        testdir = 'Pretend-it-exists'
+        mock_path_isdir.return_value = True
+        mock_os_access.return_value = False
+        with self.assertRaises(expected_exception=SystemExit):
+            filesystem.set_datadir(testdir)
+        mock_path_isdir.assert_called_once_with(testdir)
+        mock_os_makedirs.assert_not_called()
+        mock_os_access.assert_called_once_with(testdir, os.W_OK)
+
+    @mock.patch.object(filesystem, 'path_isdir')
+    @mock.patch.object(os, 'makedirs')
+    @mock.patch.object(os, 'access')
+    def test_set_datadir_doesnot_exist_created(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
+        testdir = 'Pretend-it-exists'
+        mock_path_isdir.return_value = False
+        mock_os_access.return_value = True
+        filesystem.set_datadir(testdir)
+        mock_path_isdir.assert_called_once_with(testdir)
+        mock_os_makedirs.assert_called_once_with(testdir)
+        mock_os_access.assert_called_once_with(testdir, os.W_OK)
+
+    @mock.patch.object(filesystem, 'path_isdir')
+    @mock.patch.object(os, 'makedirs')
+    @mock.patch.object(os, 'access')
+    def test_set_datadir_doesnot_exist_cannotcreate(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
+        testdir = 'Invalid?*path'
+        mock_path_isdir.return_value = False
+        mock_os_makedirs.side_effect = OSError
+        with self.assertRaises(expected_exception=SystemExit):
+            filesystem.set_datadir(testdir)
+        mock_path_isdir.assert_called_once_with(testdir)
+        mock_os_makedirs.assert_called_once_with(testdir)
+        mock_os_access.assert_not_called()
+
+    def test_set_logger(self):
+        """ Test that set_logger checks that it gets the right loggers """
+        with self.assertRaises(expected_exception=SystemExit):
+            filesystem.set_logger(
+                loglevel=1,
+                logfileperms=False,
+                logcalls={'debug': logger.debug}
+            )
+        with self.assertRaises(expected_exception=SystemExit):
+            filesystem.set_logger(
+                loglevel=lazylibrarian.LOGLEVEL+1,
+                logfileperms=True,
+                logcalls={'info': logger.info, 'warn': logger.warn, 'error': logger.error}
+            )
+

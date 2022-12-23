@@ -34,7 +34,7 @@ from shutil import rmtree
 
 from lazylibrarian.common import path_isfile, path_isdir, remove, listdir, log_header, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
-from lazylibrarian import database, versioncheck, logger
+from lazylibrarian import database, versioncheck, logger, filesystem
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -144,14 +144,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     else:
         lazylibrarian.DATADIR = lazylibrarian.PROG_DIR
 
-    if not path_isdir(lazylibrarian.DATADIR):
-        try:
-            os.makedirs(lazylibrarian.DATADIR)
-        except OSError:
-            raise SystemExit('Could not create data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
-
-    if not os.access(lazylibrarian.DATADIR, os.W_OK):
-        raise SystemExit('Cannot write to the data directory: ' + lazylibrarian.DATADIR + '. Exit ...')
+    filesystem.set_datadir(lazylibrarian.DATADIR)
 
     if options.update:
         lazylibrarian.SIGNAL = 'update'
@@ -241,6 +234,13 @@ def init_logs():
     else:
         info("Screen Log set to WARN/ERROR")
     debug("%s %s" % (lazylibrarian.FULL_PATH, str(lazylibrarian.ARGS)))
+
+    # Provide filesystem with info it needs to avoid depending on logger
+    filesystem.set_logger(
+        loglevel=lazylibrarian.LOGLEVEL,
+        logfileperms=lazylibrarian.LOGLEVEL>=2 & logger.log_fileperms,
+        logcalls={'debug': logger.debug, 'info': logger.info, 'warn': logger.warn, 'error': logger.error}
+    )
 
 
 def init_config():
