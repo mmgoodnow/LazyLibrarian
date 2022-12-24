@@ -36,6 +36,7 @@ class DirectoryHolder:
             lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for the cache')
             self.CACHEDIR = self.DATADIR
         self.TMPDIR = os.path.join(self.DATADIR, 'tmp')
+        ok, msg = self.ensure_dir_is_writeable(self.TMPDIR)
         if not ok:
             lazylibrarian_log.error(msg)
             lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for temporary files')

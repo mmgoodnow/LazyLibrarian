@@ -776,9 +776,6 @@ class Config2Test(LLTestCase):
     def test_post_save_actions(self, mock_open, mock_makedirs, mock_rmtree):
         """ Test that the things done after saving and backing up are done correctly """
         self.set_loglevel(1)
-        if lazylibrarian.CACHEDIR == '':
-            lazylibrarian.CACHEDIR = os.path.join(DIRS.DATADIR, 'cache')
-
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 
         # The only test is to make sure the mako cache is clearer
@@ -786,7 +783,7 @@ class Config2Test(LLTestCase):
         cfg.post_save_actions(clear_counters=True, restart_jobs=False)
         self.do_access_compare(cfg.get_all_accesses(), {}, [], 'Expected all accesses cleared after saving')
 
-        mako_dir = cfg.get_mako_cachedir()
+        mako_dir = DIRS.get_mako_cachedir()
         mako_file = cfg.get_mako_versionfile()
         mock_rmtree.assert_called_with(mako_dir)
         mock_makedirs.assert_called_with(mako_dir)

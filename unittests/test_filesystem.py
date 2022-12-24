@@ -50,9 +50,9 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.return_value = True
         mock_os_access.return_value = True
         DIRS.set_datadir(testdir)
-        mock_path_isdir.assert_called_once_with(testdir)
-        mock_os_makedirs.assert_not_called()
-        mock_os_access.assert_called_once_with(testdir, os.W_OK)
+        self.assertEqual(DIRS.DATADIR, testdir)
+        self.assertEqual(DIRS.CACHEDIR, os.path.join(DIRS.DATADIR, 'cache'))
+        self.assertEqual(DIRS.TMPDIR, os.path.join(DIRS.DATADIR, 'tmp'))
 
     @mock.patch.object(filesystem, 'path_isdir')
     @mock.patch.object(os, 'makedirs')
@@ -75,9 +75,9 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.return_value = False
         mock_os_access.return_value = True
         DIRS.set_datadir(testdir)
-        mock_path_isdir.assert_called_once_with(testdir)
-        mock_os_makedirs.assert_called_once_with(testdir)
-        mock_os_access.assert_called_once_with(testdir, os.W_OK)
+        self.assertEqual(DIRS.DATADIR, testdir)
+        self.assertEqual(DIRS.CACHEDIR, os.path.join(DIRS.DATADIR, 'cache'))
+        self.assertEqual(DIRS.TMPDIR, os.path.join(DIRS.DATADIR, 'tmp'))
 
     @mock.patch.object(filesystem, 'path_isdir')
     @mock.patch.object(os, 'makedirs')

@@ -272,7 +272,7 @@ def init_caches():
                             syspath(os.path.join(pth, itm[0], itm[1], itm)))
     last_run_version = None
     last_run_interface = None
-    makocache = lazylibrarian.CONFIG.get_mako_cachedir()
+    makocache = DIRS.get_mako_cachedir()
     version_file = lazylibrarian.CONFIG.get_mako_versionfile()
 
     if os.path.isfile(version_file):
