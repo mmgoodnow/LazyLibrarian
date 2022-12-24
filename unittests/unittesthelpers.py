@@ -86,6 +86,10 @@ class LLTestCase(unittest.TestCase):
                 print(str(e))
 
     @classmethod
+    def set_loglevel(cls, level: int):
+        logger.lazylibrarian_log.update_loglevel(override=level)
+
+    @classmethod
     def clearGlobals(cls):
         # Clear configuration variables to ahve a clean slate for any further test runs
         lazylibrarian.FULL_PATH = None
@@ -97,7 +101,8 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.DATADIR = ''
         lazylibrarian.CONFIGFILE = ''
         lazylibrarian.SYS_ENCODING = ''
-        lazylibrarian.LOGLEVEL = 1
+        logger.lazylibrarian_log.update_loglevel(1)
+        logger.lazylibrarian_log.LOGLEVEL_OVERRIDE = False
         lazylibrarian.LOGINUSER = None
         lazylibrarian.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         lazylibrarian.DBFILE = ''

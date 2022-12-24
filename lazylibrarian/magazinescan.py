@@ -25,6 +25,7 @@ from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exis
 from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
+from lazylibrarian.logger import lazylibrarian_log
 
 
 def create_id(issuename=None):
@@ -126,7 +127,7 @@ def magazine_scan(title=None):
                             if match:
                                 title = match.group("title").strip()
                                 issuedate = match.group("issuedate").strip()
-                                if lazylibrarian.LOGLEVEL & logger.log_matching:
+                                if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                                     logger.debug("Title pattern [%s][%s]" % (title, issuedate))
                                 if title.isdigit():
                                     match = False
@@ -162,7 +163,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(issuedate, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            if lazylibrarian.LOGLEVEL & logger.log_matching:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                                 logger.debug("Date regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:
@@ -176,7 +177,7 @@ def magazine_scan(title=None):
                             exploded = replace_all(fname, dic).split()
                             regex_pass, issuedate, year = lazylibrarian.searchmag.get_issue_date(exploded,
                                                                                                  datetype=datetype)
-                            if lazylibrarian.LOGLEVEL & logger.log_matching:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                                 logger.debug("File regex [%s][%s][%s]" % (regex_pass, issuedate, year))
                             if regex_pass:
                                 if issuedate.isdigit() and 'I' in datetype:

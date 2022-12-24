@@ -17,6 +17,7 @@ import unicodedata
 
 import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, isbn_from_words, thinglang, get_book_pubdate, get_gb_info, \
     get_gr_genres, set_genres, genre_filter
@@ -57,7 +58,7 @@ class GoodReads:
             set_url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
                                 'search.xml?q=' + url + '&' + urlencode(self.params)])
             logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
-            if lazylibrarian.LOGLEVEL & logger.log_searching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug(set_url)
 
             resultcount = 0
@@ -218,7 +219,7 @@ class GoodReads:
                     else:
                         url = set_url + '&page=' + str(loop_count)
                         resultxml = None
-                        if lazylibrarian.LOGLEVEL & logger.log_searching:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                             logger.debug(set_url)
                         try:
                             rootxml, in_cache = gr_xml_request(url)
@@ -266,7 +267,7 @@ class GoodReads:
         url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += quote(make_utf8bytes(author)[0]) + '?' + urlencode(self.params)
-            if lazylibrarian.LOGLEVEL & logger.log_searching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug(url)
             rootxml, _ = gr_xml_request(url, use_cache=not refresh)
         except Exception as e:
@@ -304,7 +305,7 @@ class GoodReads:
                         'author/show/' + authorid + '.xml?' + urlencode(self.params)])
 
         try:
-            if lazylibrarian.LOGLEVEL & logger.log_searching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug(url)
             rootxml, _ = gr_xml_request(url)
         except Exception as e:
@@ -398,7 +399,7 @@ class GoodReads:
                             'author/list/' + gr_id + '.xml?' + urlencode(self.params)])
 
             try:
-                if lazylibrarian.LOGLEVEL & logger.log_searching:
+                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                     logger.debug(url)
                 rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
             except Exception as e:
@@ -976,13 +977,13 @@ class GoodReads:
                                         update_value_dict["ScanResult"] = reason
 
                                     if "ScanResult" in update_value_dict:
-                                        if lazylibrarian.LOGLEVEL & logger.log_searching:
+                                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                             logger.debug("entry status %s %s,%s" % (entrystatus,
                                                                                     bookstatus,
                                                                                     audiostatus))
                                         book_status, audio_status = get_status(bookid, serieslist, bookstatus,
                                                                                audiostatus, entrystatus)
-                                        if lazylibrarian.LOGLEVEL & logger.log_searching:
+                                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                             logger.debug("status is now %s,%s" % (book_status,
                                                                                   audio_status))
                                         update_value_dict["Status"] = book_status
@@ -1037,7 +1038,7 @@ class GoodReads:
                                         urlencode(self.params) + '&page=' + str(loop_count)])
                         resultxml = None
                         try:
-                            if lazylibrarian.LOGLEVEL & logger.log_searching:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                 logger.debug(url)
                             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
                             if rootxml is None:
@@ -1159,7 +1160,7 @@ class GoodReads:
             url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
                             urlencode(self.params)])
             try:
-                if lazylibrarian.LOGLEVEL & logger.log_searching:
+                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                     logger.debug(url)
                 rootxml, _ = gr_xml_request(url, use_cache=False)
                 if rootxml is None:
@@ -1258,7 +1259,7 @@ class GoodReads:
         db = database.DBConnection()
         url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
         try:
-            if lazylibrarian.LOGLEVEL & logger.log_searching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug(url)
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:

@@ -13,9 +13,7 @@ from re import match, compile, IGNORECASE
 import os
 import sys
 
-import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int
 
 ### Type aliases to distinguish types of string
 ValidIntTypes = Union[int, bool]
@@ -140,9 +138,10 @@ class ConfigItem:
         return self.accesses[Access.READ_OK]
 
     def _on_read(self, ok: bool) -> bool:
+        from lazylibrarian.logger import lazylibrarian_log
         if ok:
             self.accesses[Access.READ_OK] += 1
-            if lazylibrarian.LOGLEVEL & logger.log_configread:
+            if lazylibrarian_log.LOGLEVEL & logger.log_configread:
                 logger.debug(f"Read config[{self.key}]={self.value}")
         else:
             self.accesses[Access.READ_ERR] += 1
@@ -150,6 +149,7 @@ class ConfigItem:
         return ok
 
     def _on_set(self, value: ValidTypes) -> bool:
+        from lazylibrarian.logger import lazylibrarian_log
         if self.is_valid_value(value):
             if self.is_new:
                 self.accesses[Access.CREATE_OK] += 1
@@ -157,7 +157,7 @@ class ConfigItem:
             elif self.value != value:
                 # Don't count a write if the value does not change
                 self.accesses[Access.WRITE_OK] += 1
-                if lazylibrarian.LOGLEVEL & logger.log_configwrite:
+                if lazylibrarian_log.LOGLEVEL & logger.log_configwrite:
                     logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
             return True
@@ -222,7 +222,11 @@ class ConfigInt(ConfigItem):
         return self._on_type_mismatch(value)
 
     def set_from_ui(self, value: str) -> bool:
-        ivalue = check_int(value, self.get_default())
+        try:
+            ivalue = int(value)
+        except (ValueError, TypeError):
+            ivalue = self.get_default()
+
         if ivalue != self.value:
             # Don't trigger a change if it's the same
             return self.set_int(ivalue)

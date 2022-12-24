@@ -24,12 +24,14 @@ import lazylibrarian
 
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
 from lazylibrarian.common import mime_type, zip_audio, any_file, listdir
 from lazylibrarian.filesystem import path_isfile
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
 from urllib.parse import quote_plus
+
 
 searchable = ['EAuthors', 'AAuthors', 'Magazines', 'Series', 'EAuthor', 'AAuthor', 'RecentBooks',
               'RecentAudio', 'RecentMags', 'RatedBooks', 'RatedAudio', 'ReadBooks', 'ToReadBooks',
@@ -96,7 +98,7 @@ class OPDS(object):
                 remote_ip = cherrypy.request.remote.ip
 
             self.user_agent = cherrypy.request.headers.get('User-Agent')
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug(self.user_agent)
 
             # NOTE Moon+ identifies as Aldiko/Moon+  so check for Moon+ first
@@ -1518,7 +1520,7 @@ class OPDS(object):
             cmd += "and CAST(BookRate AS INTEGER) > 0 order by BookRate DESC, BookDate DESC"
 
         results = db.select(cmd)
-        if results and lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if results and lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("Initial select found %s" % len(results))
 
         readfilter = None
@@ -1536,14 +1538,14 @@ class OPDS(object):
                 readfilter = []
 
         if readfilter is not None:
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Filter length %s" % len(readfilter))
             filtered = []
             for res in results:
                 if res['BookID'] in readfilter:
                     filtered.append(res)
             results = filtered
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Filter matches %s" % len(results))
 
         if limit:

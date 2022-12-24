@@ -19,6 +19,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
@@ -299,7 +300,7 @@ def search_magazines(mags=None, reset=False):
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
-                                if lazylibrarian.LOGLEVEL & logger.log_searching:
+                                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                     logger.debug('Reject: %s' % reject_list)
                                     logger.debug('Title: %s' % lower_title)
                                     logger.debug('Bookid: %s' % lower_bookid)
@@ -448,7 +449,7 @@ def search_magazines(mags=None, reset=False):
                                     logger.debug('This issue of %s is new, downloading' % nzbtitle_formatted)
                                     issues.append(issue)
                                     logger.debug('Magazine request number %s' % len(issues))
-                                    if lazylibrarian.LOGLEVEL & logger.log_searching:
+                                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                         logger.debug(str(issues))
                                     insert_table = "wanted"
                                     nzbdate = now()  # when we asked for it
@@ -456,7 +457,7 @@ def search_magazines(mags=None, reset=False):
                                     logger.debug('This issue of %s is already flagged for download; skipping' % issue)
                                     continue
                             else:
-                                if lazylibrarian.LOGLEVEL & logger.log_searching:
+                                if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                     logger.debug('This issue of %s is old; skipping.' % nzbtitle_formatted)
                                 old_date += 1
 

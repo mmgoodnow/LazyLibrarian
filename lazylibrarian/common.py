@@ -47,6 +47,7 @@ except ImportError:
 
 import lazylibrarian
 from lazylibrarian import logger, database, configdefs
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
 from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink
@@ -264,7 +265,7 @@ def make_dirs(dest_path, new=False):
             dest_path = parent
 
     for entry in to_make:
-        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
             logger.debug("mkdir: [%s]" % repr(entry))
         try:
             os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
@@ -277,11 +278,11 @@ def make_dirs(dest_path, new=False):
             # but that returns Error 5 Access is denied
             # Trap errno 17 (linux file exists) and 183 (windows already exists)
             if why.errno in [17, 183]:
-                if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
                     logger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
                 pass
             elif 'exists' in str(why):
-                if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
                     logger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
                 pass
             else:
@@ -419,7 +420,7 @@ def setperm(file_or_dir):
     st = os.stat(syspath(file_or_dir))
     old_perm = oct(st.st_mode)[-3:].zfill(3)
     if old_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
             logger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
         return True
 
@@ -434,7 +435,7 @@ def setperm(file_or_dir):
     new_perm = oct(st.st_mode)[-3:].zfill(3)
 
     if new_perm == want_perm:
-        if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
             logger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
         return True
     else:
@@ -738,7 +739,6 @@ def show_stats():
 
 
 def clear_log():
-    lazylibrarian.LOGLIST = []
     error = False
     if os.name == 'nt':
         return "Screen log cleared"
@@ -751,13 +751,13 @@ def clear_log():
             error = err.strerror
             logger.debug("Failed to remove %s : %s" % (f, error))
 
-    logger.lazylibrarian_log.init_logger(loglevel=lazylibrarian.LOGLEVEL)
+    logger.lazylibrarian_log.init_logger(config=lazylibrarian.CONFIG)
 
     if error:
         return 'Failed to clear logfiles: %s' % error
     else:
         return "Log cleared, level set to [%s]- Log Directory is [%s]" % (
-            lazylibrarian.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
+            lazylibrarian_log.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
@@ -768,7 +768,7 @@ def log_header(online=True):
     header = "Startup cmd: %s\n" % str(popen_list)
     header += "config file: %s\n" % lazylibrarian.CONFIGFILE
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
-    header += 'Loglevel: %s\n' % lazylibrarian.LOGLEVEL
+    header += 'Loglevel: %s\n' % lazylibrarian_log.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
     for item in configdefs.CONFIG_GIT:
         if item == 'GIT_UPDATED':
@@ -1052,7 +1052,7 @@ def run_script(params):
         else:
             p = subprocess.Popen(params, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         res, err = p.communicate()
-        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug(make_unicode(res))
             logger.debug(make_unicode(err))
         return p.returncode, make_unicode(res), make_unicode(err)

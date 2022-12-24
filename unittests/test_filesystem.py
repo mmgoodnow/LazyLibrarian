@@ -93,19 +93,3 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_called_once_with(testdir)
         mock_os_access.assert_not_called()
-
-    def test_set_logger(self):
-        """ Test that set_logger checks that it gets the right loggers """
-        with self.assertRaises(expected_exception=SystemExit):
-            filesystem.set_logger(
-                loglevel=1,
-                logfileperms=False,
-                logcalls={'debug': logger.debug}
-            )
-        with self.assertRaises(expected_exception=SystemExit):
-            filesystem.set_logger(
-                loglevel=lazylibrarian.LOGLEVEL+1,
-                logfileperms=True,
-                logcalls={'info': logger.info, 'warn': logger.warn, 'error': logger.error}
-            )
-

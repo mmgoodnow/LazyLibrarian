@@ -22,11 +22,12 @@ import zipfile
 
 import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file,walk, listdir
-from lazylibrarian.filesystem import path_exists, path_isdir
+from lazylibrarian.common import opf_file,walk, listdir, any_file
+from lazylibrarian.filesystem import path_exists, path_isdir, path_isfile
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
     clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
@@ -45,11 +46,11 @@ def get_book_meta(fdir, reason="get_book_meta"):
     # look for a bookid in a LL.() filename or a .desktop file and return author/title
     bookid = ''
     reason = "%s [%s]" % (reason, fdir)
-    if lazylibrarian.LOGLEVEL & logger.log_libsync:
+    if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
         logger.debug(reason)
     try:
         for item in listdir(fdir):
-            if lazylibrarian.LOGLEVEL & logger.log_libsync:
+            if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                 logger.debug("Checking [%s]" % item)
             if 'LL.(' in item:
                 bookid = item.split('LL.(')[1].split(')')[0]
@@ -258,7 +259,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
     whichstatus = 'Status' if library == 'eBook' else 'AudioStatus'
 
-    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
         logger.debug("Found %s exact match" % len(res))
         for item in res:
             logger.debug("%s [%s]" % (book, item[whichstatus]))
@@ -311,7 +312,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         logger.warn("No books by %s in database" % author)
         return 0, ''
 
-    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
         logger.debug(cmd)
 
     best_ratio = 0
@@ -344,7 +345,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 
     logger.debug('Searching %s %s%s by [%s] in database for [%s]' %
                  (len(books), ign, plural(len(books), "book"), author, book))
-    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
         logger.debug('book partname [%s] book_sub [%s]' % (book_partname, book_sub))
     if book_partname == book_lower:
         book_partname = ''
@@ -359,7 +360,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         a_bookname = a_book['BookName']
         if a_book['BookSub']:
             a_bookname += ' ' + a_book['BookSub']
-        if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
             logger.debug("Checking [%s]" % a_bookname)
         # tidy up everything to raise fuzziness scores
         # still need to lowercase for matching against partial_name later on
@@ -374,16 +375,16 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         #
         # token sort ratio allows "Lord Of The Rings, The"   to match  "The Lord Of The Rings"
         ratio = fuzz.token_sort_ratio(book_lower, a_book_lower)
-        if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
             logger.debug("Ratio %s [%s][%s]" % (ratio, book_lower, a_book_lower))
         # partial ratio allows "Lord Of The Rings"   to match  "The Lord Of The Rings"
         partial = fuzz.partial_ratio(book_lower, a_book_lower)
-        if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
             logger.debug("PartialRatio %s [%s][%s]" % (partial, book_lower, a_book_lower))
         if book_partname:
             # partname allows "Lord Of The Rings (illustrated edition)"   to match  "The Lord Of The Rings"
             partname = fuzz.partial_ratio(book_partname, a_book_lower)
-            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                 logger.debug("PartName %s [%s][%s]" % (partname, book_partname, a_book_lower))
 
         # lose a point for each extra word in the fuzzy matches so we get the closest match
@@ -656,10 +657,10 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 # in case user keeps multiple different books in the same subdirectory
                 if library == 'eBook' and lazylibrarian.CONFIG.get_bool('IMP_SINGLEBOOK') and \
                         (subdirectory in processed_subdirectories):
-                    if lazylibrarian.LOGLEVEL & logger.log_libsync:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
                 elif library == 'AudioBook' and (subdirectory in processed_subdirectories):
-                    if lazylibrarian.LOGLEVEL & logger.log_libsync:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
                 elif not path_isdir(rootdir):
                     logger.debug("Directory %s missing (renamed?)" % repr(rootdir))
@@ -971,7 +972,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         searchname = "%s %s" % (clean_name(author), clean_name(book))
                                         searchterm = quote_plus(make_utf8bytes(searchname)[0])
                                         set_url = base_url + searchterm + '&' + urlencode(params)
-                                        # if lazylibrarian.LOGLEVEL & logger.log_libsync:
+                                        # if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                                         logger.debug("Rescan url: %s" % set_url)
                                         # noinspection PyBroadException
                                         try:

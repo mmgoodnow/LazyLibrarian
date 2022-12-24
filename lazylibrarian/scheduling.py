@@ -206,7 +206,7 @@ def schedule_job(action='Start', target:str=''):
 
         schedule = lazylibrarian.CONFIG.get_ConfigScheduler(target)
         if schedule:
-            if schedule.can_run():
+            if lazylibrarian.CONFIG.scheduler_can_run(schedule):
                 # Perform local adjustments to the schedule before proceeding
                 adjust_schedule(schedule)
                 hours, minutes = schedule.get_hour_min_interval()

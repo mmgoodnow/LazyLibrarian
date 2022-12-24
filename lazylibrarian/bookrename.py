@@ -21,7 +21,8 @@ from lazylibrarian.common import safe_move, multibook, listdir, only_punctuation
     opf_file, remove
 from lazylibrarian.filesystem import path_isdir, syspath
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
-    make_unicode, make_utf8bytes, sort_definite, surname_first, sanitize
+    make_unicode, sort_definite, surname_first, sanitize
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.opfedit import opf_read
 
 try:
@@ -75,7 +76,7 @@ def id3read(filename):
         else:
             albumartist = ''
 
-        if lazylibrarian.LOGLEVEL & logger.log_libsync:
+        if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
             for tag in ['filename', 'artist', 'albumartist', 'composer', 'album', 'title', 'track',
                         'track_total', 'comment']:
                 logger.debug("id3r.%s [%s]" % (tag, eval(tag)))

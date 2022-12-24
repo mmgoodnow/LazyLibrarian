@@ -5,6 +5,7 @@
 
 import unittesthelpers
 import lazylibrarian
+from lazylibrarian.logger import lazylibrarian_log
 
 class SetupTest(unittesthelpers.LLTestCase):
 
@@ -16,7 +17,7 @@ class SetupTest(unittesthelpers.LLTestCase):
 
     def testConfig(self):
         # Validate that basic global objects and configs have run
-        self.assertEqual(lazylibrarian.LOGLEVEL, 0)
+        self.assertEqual(lazylibrarian_log.LOGLEVEL, 0)  # From config.ini
         self.assertIsNotNone(lazylibrarian.CONFIG)
         self.assertIsInstance(lazylibrarian.CONFIG.get_int('LOGLIMIT'), int)
 

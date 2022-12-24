@@ -18,6 +18,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import only_punctuation
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
     direct_dl_method, irc_dl_method
@@ -109,13 +110,13 @@ def find_best_result(resultlist, book, searchtype, source):
                 book_match = fuzz.token_set_ratio(title.replace(author, ''), only_title)
             if 'booksearch' in res and res['booksearch'] == 'bibliotik':
                 # bibliotik only returns book title, not author name
-                if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                     logger.debug("bibliotik, ignoring author fuzz")
                 author_match = 100
             else:
                 author_match = fuzz.token_set_ratio(author, result_title)
 
-            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                 logger.debug("%s author/book Match: %s/%s %s at %s" %
                              (source.upper(), author_match, book_match, result_title, res[prefix + 'prov']))
 

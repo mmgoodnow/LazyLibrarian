@@ -18,6 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
     now, disp_name, thread_name
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.scheduling import schedule_job
@@ -229,7 +230,7 @@ def search_comics(comicid=None):
             for item in res:
                 match = None
                 if item['score'] >= 85:
-                    if lazylibrarian.LOGLEVEL & logger.log_searching:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                         logger.debug("Trying to match %s" % item['title'])
                     if comic['ComicID'].startswith('CV'):
                         match = cv_identify(item['title'])
@@ -242,12 +243,12 @@ def search_comics(comicid=None):
                             if match[4] not in foundissues:
                                 foundissues[match[4]] = item
                     else:
-                        if lazylibrarian.LOGLEVEL & logger.log_searching:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                             logger.debug("No match (%s) want %s: %s" %
                                          (match[3]['seriesid'], id_list, item['title']))
                         notfound += 1
                 else:
-                    if lazylibrarian.LOGLEVEL & logger.log_searching:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                         logger.debug("No match [%s%%] %s" % (item['score'], item['title']))
                     notfound += 1
 
@@ -285,7 +286,7 @@ def download_comiclist(foundissues):
         match = db.match('SELECT Status from wanted WHERE NZBtitle=? and NZBprov=?',
                          (item['title'], item['provider']))
         if match:
-            if lazylibrarian.LOGLEVEL & logger.log_searching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug('%s is already marked %s' % (item['title'], match['Status']))
         else:
             bookid = "%s_%s" % (item['bookid'], issue)

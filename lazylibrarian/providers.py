@@ -14,19 +14,20 @@ import json
 import re
 import time
 from xml.etree import ElementTree
-from typing import Dict, List
+from typing import Dict
 
 from urllib.parse import urlencode, urlparse
 
 import lazylibrarian
-from lazylibrarian import logger, database, configtypes
+from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.filesystem import syspath
 from lazylibrarian.directparser import direct_gen, direct_bok, direct_bfi
 from lazylibrarian.formatter import age, today, plural, clean_name, unaccented, get_list, check_int, \
-    make_unicode, seconds_to_midnight, make_utf8bytes, make_bytestr, no_umlauts, month2num
+    make_unicode, seconds_to_midnight, make_utf8bytes, no_umlauts, month2num
 from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
 
@@ -417,7 +418,7 @@ def get_capabilities(provider: ConfigDict, force=False):
                     limit = limits.attrib.get('apimax')
                     if limit:
                         provider.set_int('APILIMIT', check_int(limit, 0))
-                        logger.debug("%s apilimit %i" % (provider['HOST'], limit))
+                        logger.debug(f"{provider['HOST']} apilimit {limit}")
                 except Exception as e:
                     logger.debug('Error getting apilimit from %s: %s %s' % (provider['HOST'],
                                                                             type(e).__name__, str(e)))
@@ -541,7 +542,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
     providers = 0
 
     for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
@@ -587,7 +588,7 @@ def iterate_over_newznab_sites(book=None, search_type=None):
                     resultslist += newznab_plus(book, provider, search_type, "nzb")[1]
 
     for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (provider['HOST'], provider['ENABLED'], provider['DLTYPES']))
         if provider['ENABLED'] and search_type:
             ignored = False
@@ -648,7 +649,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
         book['searchterm'] = no_umlauts(book['searchterm'])
 
     for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (prov, lazylibrarian.CONFIG[prov],
                                              lazylibrarian.CONFIG[prov + '_DLTYPES']))
         if lazylibrarian.CONFIG[prov]:
@@ -710,7 +711,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
             book['searchterm'] = authorname + ' ' + bookname
 
     for prov in lazylibrarian.CONFIG.providers('GEN'):
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (prov['NAME'], prov['ENABLED'], prov['DLTYPES']))
         if prov.get_bool('ENABLED'):
             ignored = False
@@ -739,7 +740,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
                     providers += 1
 
     for prov in ['BOK']:
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (prov, lazylibrarian.CONFIG[prov],
                                              lazylibrarian.CONFIG[prov + '_DLTYPES']))
         if lazylibrarian.CONFIG[prov]:
@@ -776,7 +777,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
                     providers += 1
 
     for prov in ['BFI']:
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s" % (prov, lazylibrarian.CONFIG[prov],
                                              lazylibrarian.CONFIG[prov + '_DLTYPES']))
         if lazylibrarian.CONFIG[prov]:
@@ -814,7 +815,7 @@ def iterate_over_rss_sites():
     providers = 0
     dltypes = ''
     for provider in lazylibrarian.CONFIG.providers('RSS'):
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED'] and not lazylibrarian.wishlist_type(provider['HOST']):
@@ -834,7 +835,7 @@ def iterate_over_wishlists():
     resultslist = []
     providers = 0
     for provider in lazylibrarian.CONFIG.providers('RSS'):
-        if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+        if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED']:
@@ -940,7 +941,7 @@ def iterate_over_irc_sites(book=None, search_type=None):
     providers = 0
     try:
         for provider in lazylibrarian.CONFIG.providers('IRC'):
-            if lazylibrarian.LOGLEVEL & logger.log_iterateproviders:
+            if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
                 logger.debug("DLTYPES: %s: %s %s" % (provider['DISPNAME'], provider['ENABLED'], provider['DLTYPES']))
             if provider['ENABLED']:
                 ignored = False

@@ -34,6 +34,7 @@ from lazylibrarian.ol import OpenLibrary
 
 from lazylibrarian import database, logger, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology, sabnzbd, nzbget
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars, audio_rename, stripspaces, id3read
 from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
@@ -52,6 +53,7 @@ from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
+from lazylibrarian.scheduling import schedule_job
 from deluge_client import DelugeRPCClient
 from thefuzz import fuzz
 
@@ -270,13 +272,13 @@ def process_issues(source_dir=None, title=''):
             if not extn or extn.lower() not in get_list(lazylibrarian.CONFIG['MAG_TYPE']):
                 continue
 
-            if lazylibrarian.LOGLEVEL & logger.log_matching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                 logger.debug('Trying to match %s' % f)
             filename_words = replace_all(f.lower(), dic).split()
             found_title = True
             for word in title_words:
                 if word not in filename_words:
-                    if lazylibrarian.LOGLEVEL & logger.log_matching:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                         logger.debug('[%s] not found in %s' % (word, f))
                     found_title = False
                     break
@@ -284,7 +286,7 @@ def process_issues(source_dir=None, title=''):
             if found_title:
                 for item in rejects:
                     if item in filename_words:
-                        if lazylibrarian.LOGLEVEL & logger.log_matching:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                             logger.debug('Rejecting %s, contains %s' % (f, item))
                         found_title = False
                         break
@@ -323,7 +325,7 @@ def process_issues(source_dir=None, title=''):
                     else:
                         logger.warn('Failed to process %s' % f)
                 else:
-                    if lazylibrarian.LOGLEVEL & logger.log_matching:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                         logger.debug('regex failed for %s' % f)
         return True
 
@@ -592,7 +594,7 @@ def unpack_archive(archivename, download_dir, title):
     # noinspection PyBroadException
     try:
         if zipfile.is_zipfile(archivename):
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug('%s is a zip file' % archivename)
             try:
                 z = zipfile.ZipFile(archivename)
@@ -622,7 +624,7 @@ def unpack_archive(archivename, download_dir, title):
                         f.write(z.read(item))
 
         elif tarfile.is_tarfile(archivename):
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug('%s is a tar file' % archivename)
             try:
                 z = tarfile.TarFile(archivename)
@@ -651,7 +653,7 @@ def unpack_archive(archivename, download_dir, title):
                         f.write(z.extractfile(item).read())
 
         elif lazylibrarian.UNRARLIB == 1 and lazylibrarian.RARFILE.is_rarfile(archivename):
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug('%s is a rar file' % archivename)
             try:
                 z = lazylibrarian.RARFILE.RarFile(archivename)
@@ -683,7 +685,7 @@ def unpack_archive(archivename, download_dir, title):
             # noinspection PyBroadException
             try:
                 z = lazylibrarian.RARFILE(archivename)
-                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                     logger.debug('%s is a rar file' % archivename)
             except Exception as e:
                 if archivename.endswith('.rar'):
@@ -719,7 +721,7 @@ def unpack_archive(archivename, download_dir, title):
                                     f.write(entry[1])
                             break
         if not targetdir:
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug("[%s] doesn't look like an archive we can unpack" % archivename)
             return ''
 
@@ -732,7 +734,6 @@ def unpack_archive(archivename, download_dir, title):
 
 def PostProcessor(): # was cron_process_dir
     if lazylibrarian.STOPTHREADS:
-        from lazylibrarian.scheduling import schedule_job
         logger.debug("STOPTHREADS is set, not starting postprocessor")
         schedule_job(action='Stop', target='PostProcessor')
     else:
@@ -883,7 +884,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                     for fname in downloads:
                         # skip if failed before or incomplete torrents, or incomplete btsync etc
-                        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                             logger.debug("Checking extn on %s" % fname)
                         extn = os.path.splitext(fname)[1]
                         if not extn or extn.strip('.') not in skipped_extensions:
@@ -896,7 +897,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             matchname = sanitize(matchname)
                             match = fuzz.token_set_ratio(matchtitle, matchname)
                             pp_path = ''
-                            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                 logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
                             if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                 # matching file or folder name
@@ -909,7 +910,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
                                         match = fuzz.token_set_ratio(matchtitle, matchname)
-                                        if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                                        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                             logger.debug("%s%% match %s : %s" % (match, matchtitle, matchname))
                                         if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
                                             # found matching file in this folder
@@ -917,7 +918,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             break
 
                             if match >= lazylibrarian.CONFIG.get_int('DLOAD_RATIO'):
-                                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                                     logger.debug("process_dir found %s %s" % (type(pp_path), repr(pp_path)))
 
                                 if path_isfile(pp_path):
@@ -927,7 +928,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # note that epub are zipfiles so check booktype first
                                     # and don't unpack cbr/cbz comics'
                                     if is_valid_type(fname, extras='cbr, cbz'):
-                                        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                                             logger.debug('file [%s] is a valid book/mag' % fname)
                                         if bts_file(download_dir):
                                             logger.debug("Skipping %s, found a .bts file" % download_dir)
@@ -1003,7 +1004,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             for f in listdir(pp_path):
                                                 if is_valid_booktype(f, booktype="book"):
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, f)
-                                                    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                                                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                                         logger.debug("%s%% match %s : %s" % (bookmatch,
                                                                                              matchtitle, f))
                                                     if bookmatch > found_score:
@@ -1212,7 +1213,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                      (book['NZBmode'], book['NZBtitle']))
                         if match:
                             logger.debug('Closest match (%s%%): %s' % (match, pp_path))
-                            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                 for match in matches:
                                     logger.debug('Match: %s%%  %s' % (match[0], match[1]))
 
@@ -1470,7 +1471,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             mins = 0
             progress = 'Unknown'
             finished = False
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug("%s %s %s" % (book['Status'], book['Source'], book['NZBtitle']))
             if book['Status'] == "Aborted":
                 abort = True
@@ -1478,7 +1479,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                 progress, finished = get_download_progress(book['Source'], book['DownloadID'])
 
             if book['Status'] == "Seeding":
-                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                     logger.debug("Progress:%s Finished:%s Waiting:%s" % (progress, finished,
                                                                          lazylibrarian.CONFIG.get_bool('SEED_WAIT')))
                 if not lazylibrarian.CONFIG.get_bool('KEEP_SEEDING') and (finished or progress < 0 and
@@ -1587,7 +1588,6 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
         seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
         if not len(snatched) and not len(seeding):
-            from lazylibrarian.scheduling import schedule_job
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             schedule_job(action='Stop', target='PostProcessor')
             status['status'] = 'idle'
@@ -1724,7 +1724,7 @@ def check_residual(download_dir):
     skipped_extensions = get_list(lazylibrarian.CONFIG['SKIPPED_EXT'])
     ppcount = 0
     downloads = listdir(download_dir)
-    if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
         logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
                                                             plural(len(downloads), 'entry'),
                                                             download_dir))
@@ -1754,26 +1754,26 @@ def check_residual(download_dir):
                 if exists:
                     logger.debug('Skipping BookID %s, already exists' % book_id)
                 else:
-                    if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                         logger.debug("Checking type of %s" % pp_path)
 
                     if path_isfile(pp_path):
-                        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                             logger.debug("%s is a file" % pp_path)
                         pp_path = os.path.join(download_dir)
 
                     if path_isdir(pp_path):
-                        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                             logger.debug("%s is a dir" % pp_path)
                         if process_book(pp_path, book_id):
-                            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                                 logger.debug("Imported %s" % pp_path)
                             ppcount += 1
             else:
-                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                     logger.debug("Skipping extn %s" % entry)
         else:
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug("Skipping (no LL bookid) %s" % entry)
     return ppcount
 
@@ -1801,7 +1801,7 @@ def get_download_name(title, source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'name' in result:
                     dlname = unaccented(result['name'], only_ascii=False)
@@ -1875,14 +1875,14 @@ def get_download_files(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'files' in result:
                     dlfiles = result['files']
             except Exception as e:
                 logger.error('DelugeRPC failed %s %s' % (type(e).__name__, str(e)))
         else:
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Unable to get file list from %s (not implemented)" % source)
         return dlfiles
 
@@ -1915,7 +1915,7 @@ def get_download_folder(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
                 if 'save_path' in result:
                     dlfolder = result['save_path']
@@ -1961,7 +1961,7 @@ def get_download_folder(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug(str(res))
             if res:
                 for item in res:
@@ -1970,7 +1970,7 @@ def get_download_folder(source, downloadid):
                         break
             if not dlfolder:  # not in queue, try history
                 res, _ = nzbget.send_nzb(cmd='history')
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug(str(res))
                 if res:
                     for item in res:
@@ -2075,7 +2075,7 @@ def get_download_progress(source, downloadid):
 
         elif source == 'NZBGET':
             res, _ = nzbget.send_nzb(cmd='listgroups')
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug(str(res))
             found = False
             if res:
@@ -2094,7 +2094,7 @@ def get_download_progress(source, downloadid):
                         break
             if not found:  # not in queue, try history in case completed or error
                 res, _ = nzbget.send_nzb(cmd='history')
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug(str(res))
                 if res:
                     for item in res:
@@ -2171,7 +2171,7 @@ def get_download_progress(source, downloadid):
             try:
                 client.connect()
                 result = client.call('core.get_torrent_status', downloadid, {})
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug("Deluge RPC Status [%s]" % str(result))
 
                 if 'progress' in result:
@@ -2193,7 +2193,7 @@ def get_download_progress(source, downloadid):
                 progress = 0
 
         else:
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Unable to get progress from %s (not implemented)" % source)
                 progress = 0
         try:
@@ -2266,7 +2266,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
     try:
         # Move a book into LL folder structure given just the folder and bookID, returns True or False
         # Called from "import_alternate" or if we find a "LL.(xxx)" folder that doesn't match a snatched book/mag
-        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
             logger.debug("process_book %s" % pp_path)
         is_audio = (book_file(pp_path, "audiobook") != '')
         is_ebook = (book_file(pp_path, "ebook") != '')
@@ -2299,7 +2299,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
             elif want_ebook and is_ebook:
                 booktype = "eBook"
             elif not was_snatched:
-                if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                     logger.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
                                  (bookid, is_ebook, is_audio))
 
@@ -2349,7 +2349,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 dest_file = make_unicode(dest_file)
                 if was_snatched:
                     snatched_from = disp_name(was_snatched[0]['NZBprov'])
-                    if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                         logger.debug("%s was snatched from %s" % (global_name, snatched_from))
                     control_value_dict = {"BookID": bookid}
                     new_value_dict = {"Status": "Processed", "NZBDate": now(), "DLResult": dest_file}
@@ -2359,7 +2359,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     new_value_dict = {"AuxInfo": booktype, "NZBDate": now(), "DLResult": dest_file}
                     db.upsert("wanted", new_value_dict, control_value_dict)
                     snatched_from = "manually added"
-                    if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                         logger.debug("%s %s was %s" % (booktype, global_name, snatched_from))
 
                 if dest_file:  # do we know the location (not calibre already exists)
@@ -2873,12 +2873,12 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             return False, 'calibredb import failed, %s %s' % (type(e).__name__, str(e)), pp_path
     else:
         # we are copying the files ourselves
-        if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+        if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
             logger.debug("BookType: %s, calibredb: [%s]" % (booktype, lazylibrarian.CONFIG['IMP_CALIBREDB']))
             logger.debug("Source Path: %s" % (repr(pp_path)))
             logger.debug("Dest Path: %s" % (repr(dest_path)))
         dest_path, encoding = make_utf8bytes(dest_path)
-        if encoding and lazylibrarian.LOGLEVEL & logger.log_postprocess:
+        if encoding and lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
             logger.debug("dest_path was %s" % encoding)
         if not path_exists(dest_path):
             logger.debug('%s does not exist, so it\'s safe to create it' % dest_path)
@@ -2895,7 +2895,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
 
         udest_path = make_unicode(dest_path)  # we can't mix unicode and bytes in log messages or joins
         global_name, encoding = make_utf8bytes(global_name)
-        if encoding and lazylibrarian.LOGLEVEL & logger.log_postprocess:
+        if encoding and lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
             logger.debug("global_name was %s" % encoding)
 
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.

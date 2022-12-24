@@ -73,6 +73,7 @@ from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.telemetry import TELEMETRY, telemetry_send
+from lazylibrarian.logger import lazylibrarian_log
 from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
@@ -217,7 +218,7 @@ def serve_template(templatename, **kwargs):
             else:
                 templatename = "login.html"
 
-        if lazylibrarian.LOGLEVEL & logger.log_admin:
+        if lazylibrarian_log.LOGLEVEL & logger.log_admin:
             logger.debug("User %s: %s %s %s %s" % (username, perm, userprefs, usertheme, templatename))
 
         theme = usertheme.split('_', 1)[0]
@@ -371,7 +372,7 @@ class WebInterface(object):
             myauthors = []
             if userid and userprefs & lazylibrarian.pref_myauthors:
                 res = db.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("User subscribes to %s authors" % len(res))
                 for author in res:
                     myauthors.append(author['WantID'])
@@ -379,7 +380,7 @@ class WebInterface(object):
 
             cmd += ' order by AuthorName COLLATE NOCASE'
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_index %s" % cmd)
 
             rowlist = db.select(cmd)
@@ -420,7 +421,7 @@ class WebInterface(object):
                     nrow.extend(arow[11:])
                     rows.append(nrow)  # add each rowlist to the masterlist
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
@@ -432,7 +433,7 @@ class WebInterface(object):
                 elif sortcolumn > 2:
                     sortcolumn = sortcolumn - 1
 
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -443,7 +444,7 @@ class WebInterface(object):
                 else:
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_index returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_index filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -457,7 +458,7 @@ class WebInterface(object):
                       'aaData': rows,
                       'loading': lazylibrarian.AUTHORS_UPDATE,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -1132,7 +1133,7 @@ class WebInterface(object):
             myseries = []
             if userid and userprefs & lazylibrarian.pref_myseries:
                 res = db.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("User subscribes to %s series" % len(res))
                 for series in res:
                     myseries.append(series['WantID'])
@@ -1141,7 +1142,7 @@ class WebInterface(object):
             cmd += ' GROUP BY series.seriesID'
             cmd += ' order by AuthorName,SeriesName'
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_series %s: %s" % (cmd, str(args)))
 
             if args:
@@ -1156,14 +1157,14 @@ class WebInterface(object):
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 for row in filtered:
@@ -1200,7 +1201,7 @@ class WebInterface(object):
                 else:
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_series returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_series filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -1213,7 +1214,7 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -1707,8 +1708,7 @@ class WebInterface(object):
         else:  # legacy interface, no log_type
             newloglevel = int(kwargs.get('loglevel', 0))
 
-        lazylibrarian.LOGLEVEL = newloglevel
-        lazylibrarian.CONFIG.set_int('LOGLEVEL', newloglevel)
+        lazylibrarian_log.set_new_loglevel_from_ui(newloglevel)
         lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=True)
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
@@ -2024,7 +2024,7 @@ class WebInterface(object):
                     match = fuzz.ratio(format_author_name(unaccented(item)).lower(), matchname)
                     if match >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, item)
-                        if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                             logger.debug("Fuzzy match folder %s%% %s for %s" % (match, item, author_name))
                         # Add this name variant as an aka if not already there?
                         break
@@ -2300,7 +2300,7 @@ class WebInterface(object):
                         have_read = set(get_list(res['HaveRead']))
                         reading = set(get_list(res['Reading']))
                         abandoned = set(get_list(res['Abandoned']))
-                        if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                             logger.debug("get_books userid %s read %s,%s,%s,%s" % (
                                 cookie['ll_uid'].value, len(to_read), len(have_read), len(reading), len(abandoned)))
 
@@ -2364,11 +2364,11 @@ class WebInterface(object):
             if kwargs['source'] in ["Books", "Audio"]:
                 if userid and userprefs & lazylibrarian.pref_myfeeds or \
                         userprefs & lazylibrarian.pref_myafeeds:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("Getting user booklist")
                     mybooks = []
                     res = db.select('SELECT WantID from subscribers WHERE Type="author" and UserID=?', (userid,))
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("User subscribes to %s authors" % len(res))
                     for authorid in res:
                         bookids = db.select('SELECT BookID from books WHERE AuthorID=?', (authorid['WantID'],))
@@ -2376,7 +2376,7 @@ class WebInterface(object):
                             mybooks.append(bookid['BookID'])
 
                     res = db.select('SELECT WantID from subscribers WHERE Type="series" and UserID=?', (userid,))
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("User subscribes to %s series" % len(res))
                     for series in res:
                         sel = 'SELECT BookID from member,series WHERE series.seriesid=?'
@@ -2386,7 +2386,7 @@ class WebInterface(object):
                             mybooks.append(bookid['BookID'])
 
                     res = db.select('SELECT WantID from subscribers WHERE Type="feed" and UserID=?', (userid,))
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("User subscribes to %s feeds" % len(res))
                     for feed in res:
                         sel = 'SELECT BookID from books WHERE Requester like "%?%"'
@@ -2396,7 +2396,7 @@ class WebInterface(object):
                             mybooks.append(bookid['BookID'])
 
                     mybooks = set(mybooks)
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("User booklist length %s" % len(mybooks))
                     cmd += ' and books.bookID in (' + ', '.join('"{0}"'.format(w) for w in mybooks) + ')'
 
@@ -2404,10 +2404,10 @@ class WebInterface(object):
             cmd += ' booklang, booksub, booklink, workpage, books.authorid, booklibrary, '
             cmd += ' audiostatus, audiolibrary, bookgenre, bookadded, scanresult, lt_workid'
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_books %s: %s" % (cmd, str(args)))
             rowlist = db.select(cmd, tuple(args))
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_books selected %s" % len(rowlist))
 
             if library is None:
@@ -2424,11 +2424,11 @@ class WebInterface(object):
                     if lazylibrarian.CONFIG.get_bool('SORT_DEFINITE'):
                         entry[2] = sort_definite(entry[2])
                     rows.append(entry)  # add each rowlist to the masterlist
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("get_books surname/definite completed")
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter [%s]" % sSearch)
                     if library is not None:
                         search_fields = ['AuthorName', 'BookName', 'BookDate', 'Status', 'BookID',
@@ -2451,7 +2451,7 @@ class WebInterface(object):
 
                 # table headers and column headers do not match at this point
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn < 4:  # author, title
@@ -2474,7 +2474,7 @@ class WebInterface(object):
                 else:  # rating, date
                     sortcolumn -= 2
 
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("final sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [12, 13, 15, 18]:  # series, dates
@@ -2600,7 +2600,7 @@ class WebInterface(object):
 
                 rows = data
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_books %s returning %s to %s, flagged %s,%s" % (
                     kwargs['source'], displaystart, displaystart + displaylength, flag_to, flag_have))
                 logger.debug("get_books filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
@@ -2621,7 +2621,7 @@ class WebInterface(object):
                 mydict['loading'] = lazylibrarian.EBOOK_UPDATE
             elif kwargs['source'] == 'Audio':
                 mydict['loading'] = lazylibrarian.AUDIO_UPDATE
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -2981,7 +2981,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def open_book(self, bookid=None, library=None, redirect=None, booktype=None, email=False):
-        if lazylibrarian.LOGLEVEL & logger.log_admin:
+        if lazylibrarian_log.LOGLEVEL & logger.log_admin:
             logger.debug("%s %s %s %s %s" % (bookid, library, redirect, booktype, email))
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
@@ -4149,7 +4149,7 @@ class WebInterface(object):
             mycomics = []
             if userid and userprefs & lazylibrarian.pref_mycomics:
                 res = db.select('SELECT WantID from subscribers WHERE Type="comic" and UserID=?', (userid,))
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("User subscribes to %s comics" % len(res))
                 for mag in res:
                     mycomics.append(mag['WantID'])
@@ -4167,14 +4167,14 @@ class WebInterface(object):
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [4, 5]:  # dates
@@ -4217,7 +4217,7 @@ class WebInterface(object):
                     else:
                         row[5] = date_format(row[5], lazylibrarian.CONFIG['ISS_FORMAT'])
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_comics returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_comics filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
 
@@ -4232,7 +4232,7 @@ class WebInterface(object):
                       'aaData': rows,
                       'loading': lazylibrarian.COMIC_UPDATE,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -4362,14 +4362,14 @@ class WebInterface(object):
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [2, 3]:  # dates
@@ -4400,7 +4400,7 @@ class WebInterface(object):
                 row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
                 row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_comic_issues returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_comic_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -4414,7 +4414,7 @@ class WebInterface(object):
                       'aaData': rows,
                       'loading': lazylibrarian.COMIC_UPDATE,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -4665,7 +4665,7 @@ class WebInterface(object):
             mymags = []
             if userid and userprefs & lazylibrarian.pref_mymags:
                 res = db.select('SELECT WantID from subscribers WHERE Type="magazine" and UserID=?', (userid,))
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("User subscribes to %s magazines" % len(res))
                 maglist = ''
                 for mag in res:
@@ -4675,7 +4675,7 @@ class WebInterface(object):
                 cmd += ' WHERE Title in (' + maglist + ')'
             cmd += ' order by Title'
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(cmd)
             rowlist = db.select(cmd)
 
@@ -4689,14 +4689,14 @@ class WebInterface(object):
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [4, 5]:  # dates
@@ -4741,7 +4741,7 @@ class WebInterface(object):
                                 row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
                     row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_mags returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_mags filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -4755,7 +4755,7 @@ class WebInterface(object):
                       'aaData': rows,
                       'loading': lazylibrarian.MAG_UPDATE,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -4801,14 +4801,14 @@ class WebInterface(object):
                     newrowlist.append(entry)  # add each rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in newrowlist if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = newrowlist
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 if sortcolumn in [2, 3]:  # dates
@@ -4849,7 +4849,7 @@ class WebInterface(object):
                 else:
                     row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_issues returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -4863,7 +4863,7 @@ class WebInterface(object):
                       'aaData': rows,
                       'loading': lazylibrarian.MAG_UPDATE,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -4934,7 +4934,7 @@ class WebInterface(object):
                 cmd += ' AND BookID=?'
                 args.append(kwargs['mag'].replace('&amp;', '&'))
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_past_issues %s: %s" % (cmd, str(args)))
             rowlist = db.select(cmd, tuple(args))
             if len(rowlist):
@@ -4943,14 +4943,14 @@ class WebInterface(object):
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 filtered.sort(key=lambda y: y[sortcolumn] if y[sortcolumn] is not None else '',
@@ -4974,7 +4974,7 @@ class WebInterface(object):
                         provider = provider.replace('/', ' ')
                         row[4] = provider
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_past_issues returning %s to %s" % (displaystart, displaystart + displaylength))
                 logger.debug("get_past_issues filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
         except Exception:
@@ -4987,7 +4987,7 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -5741,15 +5741,15 @@ class WebInterface(object):
         # 2 debug
         # >2 extra debugging
         self.label_thread()
-        if lazylibrarian.LOGLEVEL > 1:
-            lazylibrarian.LOGLEVEL = 1
+        if lazylibrarian_log.LOGLEVEL > 1:
+            lazylibrarian_log.set_new_loglevel_from_ui(1)
         else:
-            if lazylibrarian.LOGLEVEL < 2:
-                lazylibrarian.LOGLEVEL = 2
-        if lazylibrarian.LOGLEVEL < 2:
-            logger.info('Debug log OFF, loglevel is %s' % lazylibrarian.LOGLEVEL)
+            if lazylibrarian_log.LOGLEVEL < 2:
+                lazylibrarian_log.set_new_loglevel_from_ui(2)
+        if lazylibrarian_log.LOGLEVEL < 2:
+            logger.info('Debug log OFF, loglevel is %s' % lazylibrarian_log.LOGLEVEL)
         else:
-            logger.info('Debug log ON, loglevel is %s' % lazylibrarian.LOGLEVEL)
+            logger.info('Debug log ON, loglevel is %s' % lazylibrarian_log.LOGLEVEL)
         raise cherrypy.HTTPRedirect("logs")
 
     @cherrypy.expose
@@ -5771,9 +5771,9 @@ class WebInterface(object):
             lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             if sSearch:
-                filtered = [x for x in lazylibrarian.LOGLIST[::] if sSearch.lower() in str(x).lower()]
+                filtered = [x for x in logger.lazylibrarian_log.LOGLIST[::] if sSearch.lower() in str(x).lower()]
             else:
-                filtered = lazylibrarian.LOGLIST[::]
+                filtered = logger.lazylibrarian_log.LOGLIST[::]
 
             sortcolumn = int(iSortCol_0)
 
@@ -5799,7 +5799,7 @@ class WebInterface(object):
             filtered = []
         finally:
             mydict = {'iTotalDisplayRecords': len(filtered),
-                      'iTotalRecords': len(lazylibrarian.LOGLIST),
+                      'iTotalRecords': len(logger.lazylibrarian_log.LOGLIST),
                       'aaData': rows,
                       }
             return mydict
@@ -5835,14 +5835,14 @@ class WebInterface(object):
                     rows.append(entry)  # add the rowlist to the masterlist
 
                 if sSearch:
-                    if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                         logger.debug("filter %s" % sSearch)
                     filtered = [x for x in rows if sSearch.lower() in str(x).lower()]
                 else:
                     filtered = rows
 
                 sortcolumn = int(iSortCol_0)
-                if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 # use rowid to get most recently added first (monitoring progress)
@@ -5922,7 +5922,7 @@ class WebInterface(object):
                             continue
                     rows.append(row)
 
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_history returning %s to %s, snatching %s" %
                              (displaystart, displaystart + displaylength, snatching))
                 logger.debug("get_history filtered %s from %s:%s" % (len(filtered), len(rowlist), len(rows)))
@@ -5936,7 +5936,7 @@ class WebInterface(object):
                       'iTotalRecords': len(rowlist),
                       'aaData': rows,
                       }
-            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug(str(mydict))
             return mydict
 
@@ -6603,7 +6603,7 @@ class WebInterface(object):
                 if lazylibrarian.CONFIG['DELUGE_LABEL']:
                     labels = client.call('label.get_labels')
                     if labels:
-                        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                             logger.debug("Valid labels: %s" % str(labels))
                     else:
                         msg += "Deluge daemon seems to have no labels set\n"
@@ -6787,7 +6787,7 @@ class WebInterface(object):
             lazylibrarian.CONFIG.set_str('FFMPEG', kwargs['prg'])
         ffmpeg = lazylibrarian.CONFIG['FFMPEG']
         try:
-            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
                                                                 "ffmpeg-test-%s.log" %

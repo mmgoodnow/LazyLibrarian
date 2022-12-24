@@ -3,8 +3,8 @@ import ssl
 import struct
 import warnings
 import zlib
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.logger import lazylibrarian_log
 
 from .rencode import dumps, loads
 
@@ -80,10 +80,10 @@ class DelugeRPCClient(object):
         Connects to the Deluge instance
         """
         self._connect()
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug('Connected to Deluge, detecting daemon version')
         self._detect_deluge_version()
-        if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug('Daemon version {} detected, logging in'.format(self.deluge_version))
         if self.deluge_version == 2:
             result = self.call('daemon.login', self.username, self.password, client_version='deluge-client')
@@ -147,11 +147,11 @@ class DelugeRPCClient(object):
             debug_args = list(args)
             if len(debug_args) >= 2:
                 debug_args[1] = '<password hidden>'
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
+                    logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
                              (self.request_id, method, debug_args, kwargs))
         else:
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug('Calling reqid %s method %r with args:%r kwargs:%r' %
                              (self.request_id, method, args, kwargs))
 
@@ -233,12 +233,12 @@ class DelugeRPCClient(object):
                 exception = type(str(exception_type.decode('utf-8', 'ignore')), (RemoteException, ), {})
                 exception_msg = '%s\n%s' % (exception_msg.decode('utf-8', 'ignore'),
                                             traceback.decode('utf-8', 'ignore'))
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
-                logger.debug("RPC Error: %s" % exception_msg)
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
+                    logger.debug("RPC Error: %s" % exception_msg)
             raise exception(exception_msg)
         elif msg_type == RPC_RESPONSE:
             retval = data[0]
-            if lazylibrarian.LOGLEVEL & lazylibrarian.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug(str(retval))
             return retval
 

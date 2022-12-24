@@ -28,7 +28,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         return super().tearDownClass()
 
     def _do_ids_match(self):
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         t = telemetry.LazyTelemetry()
         loaded_id = lazylibrarian.CONFIG['SERVER_ID']
         id = t.ensure_server_id(lazylibrarian.CONFIG)
@@ -38,14 +38,14 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         return id
 
     def test_getTelemetryObject(self):
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         t = telemetry.LazyTelemetry()
         self.assertIsNotNone(t, 'Telemetry object must exist')
         t2 = telemetry.LazyTelemetry()
         self.assertEqual(t, t2, 'Telemetry object not acting as singleton')
 
     def test_ensure_server_id_generation(self):
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         saved_id = self._do_ids_match()
         # Pretend we don't have an ID to ensure generation works
         telemetry.LazyTelemetry().clear_id(lazylibrarian.CONFIG)
@@ -62,7 +62,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
 
     @pytest.mark.order(after="test_ensure_server_id_generation")
     def test_ensure_server_id_persistence(self):
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         my_id = self._do_ids_match()
 
         # Check we can read the new ID and test again

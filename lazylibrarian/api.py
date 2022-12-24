@@ -36,6 +36,7 @@ from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clear_log, setperm, log_header, show_stats, listdir, cpu_use
 from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
@@ -288,7 +289,7 @@ class Api(object):
             method_to_call(**self.kwargs)
 
             if 'callback' not in self.kwargs:
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug(str(self.data))
                 if isinstance(self.data, str):
                     return self.data
@@ -1088,7 +1089,7 @@ class Api(object):
         self.data = self._dic_from_query(cmd)
 
     def _getlogs(self):
-        self.data = lazylibrarian.LOGLIST
+        self.data = logger.lazylibrarian_log.LOGLIST
 
     def _logmessage(self, **kwargs):
         for item in ['level', 'text']:

@@ -25,6 +25,7 @@ from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import remove
 from lazylibrarian.filesystem import path_isfile, syspath
+from lazylibrarian.logger import lazylibrarian_log
 
 
 def ip_numstr_to_quad(num):
@@ -180,11 +181,11 @@ class IRC:
         except AttributeError:
             resp = reply
         lynes = resp.split('\n')
-        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             if len(lynes) == 1 and not lynes[0]:
                 logger.warn("Empty response %s" % why)
         for lyne in lynes:
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 if lyne:
                     logger.debug(lyne)
             elif "NOTICE" in lyne:
@@ -193,7 +194,7 @@ class IRC:
                 self.pong(lyne)
             elif lyne.startswith('VERSION '):
                 self.version()
-        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("%s line response to %s" % (len(lynes), why))
         return lynes
 
@@ -211,7 +212,7 @@ def irc_connect(provider: ConfigDict, retries=10):
             if res:
                 irc.join(provider['CHANNEL'])
                 _ = irc.get_response("join")
-                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                     logger.debug("Sent JOIN %s" % provider['CHANNEL'])
                 return irc
         except Exception as e:
@@ -236,7 +237,7 @@ def irc_connect(provider: ConfigDict, retries=10):
             try:
                 lynes = irc.get_response("connect, retried=%s" % retried)
                 for lyne in lynes:
-                    if lazylibrarian.LOGLEVEL & logger.log_dlcomms and lyne:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms and lyne:
                         logger.debug(lyne)
                     if "All connections in use" in lyne:
                         logger.warn(lyne)
@@ -296,7 +297,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
             time_now = time.time()
             if cache_modified_time < time_now - expiry:
                 # Cache entry is too old, delete it
-                if lazylibrarian.LOGLEVEL & logger.log_cache:
+                if lazylibrarian_log.LOGLEVEL & logger.log_cache:
                     logger.debug("Expiring %s" % myhash)
                 remove(hashfilename)
             else:
@@ -304,7 +305,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
 
         if valid_cache:
             lazylibrarian.CACHE_HIT = int(lazylibrarian.CACHE_HIT) + 1
-            if lazylibrarian.LOGLEVEL & logger.log_cache:
+            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
                 logger.debug("CacheHandler: Returning CACHED response %s for %s" % (hashfilename,
                                                                                     searchstring))
             with open(syspath(hashfilename), "rb") as cachefile:
@@ -522,7 +523,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                                 logger.debug("Completed, got %s" % len(received_data))
                                 status = "finished"
                             else:
-                                if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                                if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                                     logger.debug("Got %s of %s" % (len(received_data), filesize))
                                 peersocket.send(struct.pack("!I", len(received_data)))
                         if status != "finished":
@@ -634,7 +635,7 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                 userlist.append(item['tor_url'].lstrip('!'))
             userlist = set(userlist)
             users = ' '.join(userlist)
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Checking for %s online" % len(userlist))
             irc.ison(users)
             online = ''
@@ -653,7 +654,7 @@ def irc_results(provider: ConfigDict, fname, retries=5):
                         else:
                             logger.warn("Unexpected ISON reply: [%s]" % lyne)
                         online = res.split()
-                        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                             logger.debug("Found %s online" % len(online))
                         if len(userlist) == len(online):
                             return results
@@ -670,14 +671,14 @@ def irc_results(provider: ConfigDict, fname, retries=5):
             results = []
             stripped = 0
             offline = userlist.difference(online)
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Offline: %s" % ' '.join(offline))
             for entry in oldresults:
                 if entry['tor_url'].lstrip('!') in offline:
                     stripped += 1
                 else:
                     results.append(entry)
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Stripped %s results from %s users not online" %
                              (stripped, len(offline)))
         else:

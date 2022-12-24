@@ -4,20 +4,16 @@
 #    Contain core functions that access the filesystem, as well as
 #    core global variables containing references to files
 # Constraint:
-#    Should not depend on any other LazyLibrarian files
+#    Should not depend on any other LazyLibrarian files, except ConfigDict
 
 import os
 import sys
-from typing import Callable, Dict
-
-LogCall = Callable[[str], None]
+from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
 DATADIR: str                    # Where LL stores its data files
 CACHEDIR: str = ''              # Where LL stores its cache
 TMPDIR: str                     # Where LL will store temporary files
-LOGLEVEL: int                   # A copy of the global LOGLEVEL, for now
-__LOGFILEPERMS: bool = False    # Whether we should log most filesystem calls
-__LOGCALLS: Dict[str, LogCall]  # An index of logging methods
 
 ## INITIALIZATION FUNCTIONS
 
@@ -35,15 +31,6 @@ def set_datadir(datadir: str):
     CACHEDIR = DATADIR
     TMPDIR = DATADIR
 
-def set_logger(loglevel: int, logfileperms: bool, logcalls: Dict[str, LogCall]):
-    """ Let filesystem know what to log, without depending on logger.py """
-    global LOGLEVEL, __LOGFILEPERMS, __LOGCALLS
-    for key in ['debug', 'info', 'warn', 'error']:
-        if not key in logcalls:
-            raise SystemExit(f'No method provided for log level {key}. Exiting.')
-    LOGLEVEL = loglevel
-    __LOGFILEPERMS = logfileperms
-    __LOGCALLS = logcalls
 
 ## PATH FUNCTIONS
 
@@ -74,8 +61,8 @@ def syspath(path: str, prefix:bool=True) -> str:
     prefix on Windows, set `prefix` to False---but only do this if you
     *really* know what you're doing.
     """
-    if __LOGFILEPERMS:
-        __LOGCALLS['debug']("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
+    if lazylibrarian_log.LOGLEVEL & log_fileperms > 0:
+        lazylibrarian_log.debug("%s:%s [%s]%s" % (os.path.__name__, sys.version[0:5], repr(path), isinstance(path, str)))
 
     if os.path.__name__ != 'ntpath':
         return path

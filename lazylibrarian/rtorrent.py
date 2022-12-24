@@ -17,7 +17,9 @@ from time import sleep
 
 import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.logger import lazylibrarian_log
 from xmlrpc.client import Binary, ServerProxy
+
 
 
 def get_server():
@@ -48,7 +50,7 @@ def get_server():
             server = ServerProxy(host)
         version = server.system.client_version()
         socket.setdefaulttimeout(None)  # reset timeout
-        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("rTorrent client version = %s" % version)
     except Exception as e:
         socket.setdefaulttimeout(None)  # reset timeout if failed

@@ -25,6 +25,7 @@ from lazylibrarian.common import proxy_list, quotes, remove
 from lazylibrarian.filesystem import path_isfile, syspath
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
+from lazylibrarian.logger import lazylibrarian_log
 
 from thefuzz import fuzz
 
@@ -697,7 +698,7 @@ def add_series_members(seriesid, refresh=False):
         db.action("UPDATE series SET Updated=? WHERE SeriesID=?", (int(time.time()), seriesid))
         logger.debug("Found %s series %s, %s new for %s" % (len(members), plural(len(members), "member"),
                                                             count, seriesname))
-        if lazylibrarian.LOGLEVEL & logger.log_searching:
+        if lazylibrarian_log.LOGLEVEL & logger.log_searching:
             for member in members:
                 logger.debug("%s: %s [%s]" % (member[0], member[1], member[2]))
     except Exception as e:
@@ -991,10 +992,10 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                     high_fuzz = total_fuzz
                     high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
                 if book_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
-                    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                         logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
                 elif auth_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
-                    if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                    if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                         logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                 else:
                     return res
@@ -1009,7 +1010,7 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
             else:
                 logger.debug("No GoogleBooks match in %d %s%s cached=%s [%s:%s]" %
                              (len(results['items']), stype, plural(len(results['items'])), cached, author, title))
-            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                 logger.debug(str(high_parts))
     return {}
 

@@ -21,6 +21,7 @@ import threading
 
 import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
 
@@ -642,7 +643,7 @@ def split_title(author, book):
     Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
-    if lazylibrarian.LOGLEVEL & logger.log_matching:
+    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
     splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'], ',')
@@ -670,7 +671,7 @@ def split_title(author, book):
                 for item in splitlist:
                     if f"({item})" == booksub.lower():
                         booksub = ""
-            if lazylibrarian.LOGLEVEL & logger.log_matching:
+            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                 lazylibrarian.logger.debug("[%s][%s][%s]" % (bookname, booksub, bookseries))
             return bookname, booksub, bookseries
 
@@ -690,7 +691,7 @@ def split_title(author, book):
                 bookname = book
                 booksub = ''
                 break
-    if lazylibrarian.LOGLEVEL & logger.log_matching:
+    if lazylibrarian_log.LOGLEVEL & logger.log_matching:
         lazylibrarian.logger.debug("Name[%s] Sub[%s] Series[%s]" % (bookname, booksub, bookseries))
     return bookname, booksub, bookseries
 
@@ -715,7 +716,7 @@ def format_author_name(author):
                 forename = words[1].strip()
                 surname = words[0].strip()
             if author != forename + ' ' + surname:
-                if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                     lazylibrarian.logger.debug('Formatted authorname [%s] to [%s %s]' %
                                                (author, forename, surname))
                 author = forename + ' ' + surname
@@ -727,7 +728,7 @@ def format_author_name(author):
             forename = forename + surname[0] + '.'
             surname = surname[2:].strip()
         if author != forename + ' ' + surname:
-            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                 lazylibrarian.logger.debug('Stripped authorname [%s] to [%s %s]' %
                                            (author, forename, surname))
             author = forename + ' ' + surname

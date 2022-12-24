@@ -24,10 +24,11 @@ from base64 import standard_b64encode
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.formatter import check_int, make_unicode
+from lazylibrarian.formatter import make_unicode
 from xmlrpc.client import ServerProxy, ProtocolError
 from http.client import HTTPException
 from urllib.parse import quote
+from lazylibrarian.logger import lazylibrarian_log
 
 
 def check_link():
@@ -93,7 +94,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
 
     try:
         if nzb_get_rpc.writelog("INFO", msg):
-            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                 logger.debug("Successfully connected to NZBget")
             if cmd == "test":
                 # should check nzbget category is valid
@@ -147,7 +148,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         nzbcontent64 = make_unicode(standard_b64encode(data))
 
     logger.info("Sending NZB to NZBget")
-    if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+    if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
         logger.debug("URL: " + url)
 
     dupekey = ""
@@ -161,7 +162,7 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         # beginning with a 0.x will use the old command
         nzbget_version_str = nzb_get_rpc.version()
         nzbget_version = int(nzbget_version_str[:nzbget_version_str.find(".")])
-        if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+        if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("NZB Version %s" % nzbget_version)
         # for some reason 14 seems to not work with >= 13 method? I get invalid param autoAdd
         # PAB think its fixed now, code had autoAdd param as "False", it's not a string, it's bool so False

@@ -16,9 +16,10 @@ from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
-    make_utf8bytes, seconds_to_midnight, check_float, check_int
+    make_utf8bytes, seconds_to_midnight
 
 import html5lib
 from bs4 import BeautifulSoup
@@ -60,7 +61,7 @@ def bok_sleep():
     if delay < limit:
         sleep_time = limit - delay
         lazylibrarian.TIMERS['SLEEP_BOK'] += sleep_time
-        if lazylibrarian.LOGLEVEL & logger.log_cache:
+        if lazylibrarian_log.LOGLEVEL & logger.log_cache:
             logger.debug("B-OK sleep %.3f, total %.3f" % (sleep_time, lazylibrarian.TIMERS['SLEEP_BOK']))
         time.sleep(sleep_time)
     lazylibrarian.TIMERS['LAST_BOK'] = time_now

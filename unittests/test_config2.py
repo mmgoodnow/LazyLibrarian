@@ -11,7 +11,7 @@ import os
 
 from unittesthelpers import LLTestCase
 import lazylibrarian
-from lazylibrarian import config2, configdefs, configtypes, logger, LOGLEVEL
+from lazylibrarian import config2, configdefs, configtypes, logger
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access, TimeUnit
 from lazylibrarian.filesystem import syspath
@@ -32,7 +32,7 @@ class Config2Test(LLTestCase):
 
     def test_log_catching(self):
         """ Test that we can test for log events """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         # Test checking that a single message can be captured
         with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
             logger.error('test error')
@@ -53,7 +53,7 @@ class Config2Test(LLTestCase):
         ],'Expected an error, a warning and an info message')
 
         # Test capturing debug messages
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         with self.assertLogs('lazylibrarian.logger', level='DEBUG') as cm:
             logger.info('test info')
             logger.debug('test debug')
@@ -66,7 +66,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigStr(self):
         """ Tests for ConfigStr class """
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         ci = configtypes.ConfigStr('Section', 'StrValue', 'Default')
         self.assertEqual(ci.get_str(), 'Default')
         self.assertEqual(str(ci), 'Default')
@@ -92,7 +92,7 @@ class Config2Test(LLTestCase):
     def test_ConfigInt(self):
         """ Tests for ConfigInt class """
         ci = configtypes.ConfigInt('Section', 'IntValue', 42)
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 42)
             self.assertEqual(ci.get_str(), '42')
@@ -119,7 +119,7 @@ class Config2Test(LLTestCase):
     def test_ConfigRangedInt(self):
         """ Tests for ConfigRangedInt class """
         ci = configtypes.ConfigRangedInt('Section', 'RangedIntValue', 42, 10, 1000)
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual(int(ci), 42)
             ci.set_int(5)                          # Write Error
@@ -142,7 +142,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_int(), 0o777)
         self.assertEqual(str(ci), '0o777')
 
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             ci.set_int(1000000)                     # Write Error
             self.assertEqual(int(ci), 0o777)
@@ -163,7 +163,7 @@ class Config2Test(LLTestCase):
     def test_ConfigBool(self):
         """ Tests for ConfigBool class """
         ci = configtypes.ConfigBool('Section', 'BoolValue', True)
-        lazylibrarian.LOGLEVEL = 2
+        self.set_loglevel(2)
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:
             self.assertEqual(ci.get_int(), 1)      # We can read bools as int
             self.assertEqual(ci.get_str(), '1')
@@ -483,14 +483,14 @@ class Config2Test(LLTestCase):
 
     def test_LLdefaults(self):
         """ Test setting the default LL config """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS), 'Maybe there is a duplicate entry in BASE_DEFAULTS')
         self.do_access_compare({}, cfg.get_all_accesses(), [], 'There should be no changes from defaults')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
 
     def test_schedule_list(self):
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 
         keynames = []
@@ -518,7 +518,7 @@ class Config2Test(LLTestCase):
 
     def test_force_lower(self):
         """ Test various string configss that have force_lower and make sure they are. """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
         for key, item in cfg.config.items():
@@ -530,7 +530,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nodefs_defaultini(self):
         """ Test reading a near-default ini file, but without base definitions """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         with self.assertLogs('lazylibrarian.logger', level='INFO'):
             # Because no defaults are loaded, every item will case a warning
             cfg = config2.LLConfigHandler(defaults=None, configfile=SMALL_INI_FILE)
@@ -539,7 +539,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_defaultini(self):
         """ Test reading a near-default ini file, with all of the base definitions loads """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses() # We just want to know the right things were updated
         expectedacs = {
@@ -555,7 +555,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault(self):
         """ Test reading a more complex config.ini file """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         acs = cfg.get_all_accesses()
         expectedacs = {
@@ -602,7 +602,7 @@ class Config2Test(LLTestCase):
 
     def test_provider_iterator(self):
         """ Test the iterator function used to access providers """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         # Test reading items
         names = []
@@ -637,7 +637,7 @@ class Config2Test(LLTestCase):
 
     def test_configread_nondefault_access(self):
         """ Test accessing a more complex config.ini file """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         cfg.clear_access_counters()
 
@@ -684,7 +684,7 @@ class Config2Test(LLTestCase):
 
     def test_save_config(self):
         """ Test saving config file """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         try:
             TESTFILE = 'test-small.ini'
@@ -718,7 +718,7 @@ class Config2Test(LLTestCase):
 
     def test_persistence_flag(self):
         """ Test whether the persist flag is obeyed when saving """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         initial = cfg['Unpersisted_test']
         cfg.set_int('Unpersisted_test', 17)
@@ -736,7 +736,7 @@ class Config2Test(LLTestCase):
 
     def test_save_config_and_backup_old(self):
         """ Test saving config file while keeping the old one as a .bak file """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         import os.path, shutil
         TEST_FILE = syspath('./unittests/testdata/test.ini')
         shutil.copyfile(COMPLEX_INI_FILE, TEST_FILE)
@@ -775,7 +775,7 @@ class Config2Test(LLTestCase):
     @mock.patch('builtins.open') # Need to be declared in reverse order below:
     def test_post_save_actions(self, mock_open, mock_makedirs, mock_rmtree):
         """ Test that the things done after saving and backing up are done correctly """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         if lazylibrarian.CACHEDIR == '':
             lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.DATADIR, 'cache')
 
@@ -883,7 +883,7 @@ class Config2Test(LLTestCase):
 
     def test_case_tolerance(self):
         """ Make sure the config object is as Case TOLErant as possible """
-        lazylibrarian.LOGLEVEL = 1
+        self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
 
         with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:

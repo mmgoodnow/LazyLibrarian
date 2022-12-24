@@ -40,7 +40,6 @@ PIDFILE = ''
 DATADIR = ''
 CONFIGFILE = ''
 SYS_ENCODING = ''
-LOGLEVEL = 1
 LOGINUSER = None
 CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 DBFILE = ''
@@ -52,11 +51,6 @@ DOCKER = False
 STOPTHREADS = False
 
 # APPRISE not defined here, but in notifiers
-
-# Transients used by logger process
-LOGLIST = []
-LOGTOGGLE = 2  # normal debug
-LOGTYPE = ''
 
 # These are globals
 SUPPRESS_UPDATE = False

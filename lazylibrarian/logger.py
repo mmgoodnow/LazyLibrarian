@@ -13,9 +13,9 @@
 import inspect
 import logging
 import os
+from typing import Optional
 
-import lazylibrarian
-from lazylibrarian import formatter
+from lazylibrarian.configtypes import ConfigDict
 
 
 # Simple rotating log handler that uses RotatingFileHandler
@@ -24,15 +24,20 @@ class RotatingLogger(object):
     __LOGGER_INITIALIZED__ = False
     SHOW_LINE_NO = True
     DEBUG_LOG_LIMIT = 100
+    LOGTYPE = ''
+    LOGLEVEL_OVERRIDE = False # Remember if LOGLEVEL was overridden so it's not saved
+    LOGLEVEL = 1 # LOGLEVEL can differ from CONFIG['LOGLEVEL'] on command line override
+    LOGLIST = [] # Used for debug logging
 
     @classmethod
     def is_initialized(cls):
         return cls.__LOGGER_INITIALIZED__
 
-    def __init__(self, filename):
+    def __init__(self, filename: str, config: Optional[ConfigDict]=None):
         self.filename = filename
         self.filehandler = None
         self.consolehandler = None
+        self.config = config
 
     def stop_logger(self):
         lg = logging.getLogger(__name__)
@@ -44,13 +49,16 @@ class RotatingLogger(object):
         self.consolehandler = None
         RotatingLogger.__LOGGER_INITIALIZED__ = False
 
-    def init_logger(self, loglevel=1):
+    def init_logger(self, config: ConfigDict):
+        self.config = config
 
         lg = logging.getLogger(__name__)
         lg.setLevel(logging.DEBUG)
+        self.update_loglevel()
+        self.LOGLIST = []
 
-        self.filename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], self.filename)
-        RotatingLogger.DEBUG_LOG_LIMIT = lazylibrarian.CONFIG.get_int('LOGLIMIT') # We must not access the config when logging, so init it here
+        self.filename = os.path.join(self.config['LOGDIR'], self.filename)
+        RotatingLogger.DEBUG_LOG_LIMIT = self.config.get_int('LOGLIMIT') # We must not access the config when logging, so init it here
 
         if RotatingLogger.__LOGGER_INITIALIZED__:
             return # Do not set handlers again
@@ -60,18 +68,18 @@ class RotatingLogger(object):
         if os.name == 'nt':
             try:
                 from lib.concurrent_log_handler import ConcurrentRotatingFileHandler as RotatingFileHandler
-                lazylibrarian.LOGTYPE = 'Concurrent'
+                self.LOGTYPE = 'Concurrent'
             except ImportError as e:
                 from logging.handlers import RotatingFileHandler
-                lazylibrarian.LOGTYPE = 'Rotating (%s)' % e
+                self.LOGTYPE = 'Rotating (%s)' % e
         else:
             from logging.handlers import RotatingFileHandler
-            lazylibrarian.LOGTYPE = 'Rotating'
+            self.LOGTYPE = 'Rotating'
 
         filehandler = RotatingFileHandler(
             self.filename,
-            maxBytes=lazylibrarian.CONFIG.get_int('LOGSIZE'),
-            backupCount=lazylibrarian.CONFIG.get_int('LOGFILES'))
+            maxBytes = self.config.get_int('LOGSIZE'),
+            backupCount = self.config.get_int('LOGFILES'))
 
         filehandler.setLevel(logging.DEBUG)
 
@@ -81,25 +89,45 @@ class RotatingLogger(object):
         lg.addHandler(filehandler)
         self.filehandler = filehandler
 
-        if loglevel:
-            consolehandler = logging.StreamHandler()
-            if loglevel == 1:
-                consolehandler.setLevel(logging.INFO)
-            if loglevel >= 2:
-                consolehandler.setLevel(logging.DEBUG)
-            consoleformatter = logging.Formatter('%(asctime)s - %(levelname)s :: %(message)s', '%d-%b-%Y %H:%M:%S')
-            consolehandler.setFormatter(consoleformatter)
-            lg.addHandler(consolehandler)
-            self.consolehandler = consolehandler
+        consolehandler = logging.StreamHandler()
+        if self.LOGLEVEL == 1:
+            consolehandler.setLevel(logging.INFO)
+        if self.LOGLEVEL >= 2:
+            consolehandler.setLevel(logging.DEBUG)
+        consoleformatter = logging.Formatter('%(asctime)s - %(levelname)s :: %(message)s', '%d-%b-%Y %H:%M:%S')
+        consolehandler.setFormatter(consoleformatter)
+        lg.addHandler(consolehandler)
+        self.consolehandler = consolehandler
 
         RotatingLogger.__LOGGER_INITIALIZED__ = True
 
+    def update_loglevel(self, override: Optional[int]=None) -> int:
+        """ Update the LOGLEVEL. Call this when the config changes during testing.
+        Once override has been specified, it no longer follows the CONFIG setting """
+        if override:
+            self.LOGLEVEL_OVERRIDE = True
+            self.LOGLEVEL = override
+        elif self.config:
+            if not self.LOGLEVEL_OVERRIDE:
+                self.LOGLEVEL = self.config.get_int('LOGLEVEL')
+        else:
+            if not self.LOGLEVEL_OVERRIDE:
+                self.LOGLEVEL = 1  # A reasonable default
+        return self.LOGLEVEL
+
+    def set_new_loglevel_from_ui(self, loglevel):
+        """ Update the LOGLEVEL, *and* update the configuration. Should be used
+        when the UI is used to set a new loglevel """
+        self.config.set_int('LOGLEVEL', loglevel)
+        self.LOGLEVEL_OVERRIDE = False # Even if overridden on command line, update it now
+        self.LOGLEVEL = loglevel
+
     @staticmethod
     def log(message, level):
+        from lazylibrarian.formatter import thread_name, unaccented, now
 
         logger = logging.getLogger(__name__)
-
-        threadname = formatter.thread_name()
+        threadname = thread_name()
 
         # Get the frame data of the method that made the original logger call
         if len(inspect.stack()) > 2:
@@ -113,15 +141,16 @@ class RotatingLogger(object):
             lineno = ""
 
         if os.name == 'nt':  # windows cp1252 can't handle some accents
-            message = formatter.unaccented(message)
+            message = unaccented(message)
         else:
             message = message.replace('\x98', '')  # invalid utf-8 eg La mosai\x98que Parsifal
 
-        if level != 'DEBUG' or lazylibrarian.LOGLEVEL >= 2:
-            # Limit the size of the "in-memory" log, as gets slow if too long
-            lazylibrarian.LOGLIST.insert(0, (formatter.now(), level, threadname, program, method, lineno, message))
-            if len(lazylibrarian.LOGLIST) > RotatingLogger.DEBUG_LOG_LIMIT:
-                del lazylibrarian.LOGLIST[-1]
+        if lazylibrarian_log:
+            if level != 'DEBUG' or lazylibrarian_log.LOGLEVEL >= 2:
+                # Limit the size of the "in-memory" log, as gets slow if too long
+                lazylibrarian_log.LOGLIST.insert(0, (now(), level, threadname, program, method, lineno, message))
+                if len(lazylibrarian_log.LOGLIST) > RotatingLogger.DEBUG_LOG_LIMIT:
+                    del lazylibrarian_log.LOGLIST[-1]
 
         if RotatingLogger.SHOW_LINE_NO:
             message = "%s : %s:%s:%s : %s" % (threadname, program, method, lineno, message)
@@ -138,16 +167,16 @@ class RotatingLogger(object):
             logger.error(message)
 
 
-lazylibrarian_log = RotatingLogger('lazylibrarian.log')
+lazylibrarian_log = RotatingLogger('lazylibrarian.log', config=None)
 
 
 def debug(message):
-    if lazylibrarian.LOGLEVEL > 1:
+    if lazylibrarian_log.LOGLEVEL > 1:
         lazylibrarian_log.log(message, level='DEBUG')
 
 
 def info(message):
-    if lazylibrarian.LOGLEVEL > 0:
+    if lazylibrarian_log.LOGLEVEL > 0:
         lazylibrarian_log.log(message, level='INFO')
 
 
@@ -160,10 +189,10 @@ def error(message):
 
 
 def logmessage(message, level):
-    if level == "DEBUG" and lazylibrarian.LOGLEVEL <= 1:
+    if level == "DEBUG" and lazylibrarian_log.LOGLEVEL <= 1:
         return
 
-    if level == "INFO" and lazylibrarian.LOGLEVEL <= 0:
+    if level == "INFO" and lazylibrarian_log.LOGLEVEL <= 0:
         return
 
     lazylibrarian_log.log(message, level)

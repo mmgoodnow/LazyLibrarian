@@ -2,6 +2,7 @@
 <%!
     import lazylibrarian
     from lazylibrarian import logger
+    from lazylibrarian.logger import lazylibrarian_log
 %>
 <%def name="headerIncludes()">
 <div id="subhead_container">
@@ -137,21 +138,21 @@
                         <label for="log_type" id="log_label" class="input-group-addon">Level</label>
                         <select id="log_type" name="log_type" class="form-control">
                           <%
-                            if lazylibrarian.LOGLEVEL == 0:
+                            if lazylibrarian_log.LOGLEVEL == 0:
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Quiet" ${selected}>Quiet</option>
                           <%
-                            if lazylibrarian.LOGLEVEL == 1:
+                            if lazylibrarian_log.LOGLEVEL == 1:
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
                           %>
                           <option value="Normal" ${selected}>Normal</option>
                           <%
-                            if lazylibrarian.LOGLEVEL > 1:
+                            if lazylibrarian_log.LOGLEVEL > 1:
                                 selected = 'selected="selected"'
                             else:
                                 selected = ''
@@ -185,14 +186,14 @@
                       <label for="hostredact" class="control-label">
                       <input type="checkbox" id="hostredact" name="hostredact" value="1" ${checked} />
                       Also redact hostnames</label>
-                      %if lazylibrarian.LOGLEVEL > 1:
+                      %if lazylibrarian_log.LOGLEVEL > 1:
                       <br>
                       <fieldset id=debug_options>
                       <legend>Detailed Debug Options</legend>
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_matching:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_matching:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -203,7 +204,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_searching:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -216,7 +217,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_dlcomms:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -227,7 +228,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_dbcomms:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -240,7 +241,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_postprocess:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -251,7 +252,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_fuzz:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -264,7 +265,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_serverside:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -275,7 +276,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_fileperms:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -288,7 +289,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_grsync:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_grsync:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -299,7 +300,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_cache:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_cache:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -312,7 +313,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_libsync:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -323,7 +324,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_admin:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_admin:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -336,7 +337,7 @@
                       <div class="row checkbox">
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_cherrypy:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_cherrypy:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -347,7 +348,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_requests:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_requests:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -358,7 +359,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_configread:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_configread:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''
@@ -369,7 +370,7 @@
                         </div>
                         <div class="col-md-6">
                           <%
-                            if lazylibrarian.LOGLEVEL & logger.log_configwrite:
+                            if lazylibrarian_log.LOGLEVEL & logger.log_configwrite:
                                 checked = 'checked="checked"'
                             else:
                                 checked = ''

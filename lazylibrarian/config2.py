@@ -19,6 +19,7 @@ from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsens
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
+from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.filesystem import syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
@@ -367,6 +368,7 @@ class LLConfigHandler(ConfigDict):
 
     def post_save_actions(self, restart_jobs: bool=True, clear_counters: bool=False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
+        lazylibrarian_log.update_loglevel()
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
         if interface.get_writes() > 0: # It's changed

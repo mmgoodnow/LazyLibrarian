@@ -111,12 +111,12 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
 
     options, _ = p.parse_args(args)
 
-    lazylibrarian.LOGLEVEL = 1
+    lazylibrarian_log.update_loglevel()
     if options.debug:
-        lazylibrarian.LOGLEVEL = 2
+        lazylibrarian_log.update_loglevel(override=2)
 
     if options.quiet:
-        lazylibrarian.LOGLEVEL = 0
+        lazylibrarian_log.update_loglevel(override=0)
 
     if options.noipv6:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
@@ -173,13 +173,13 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
 
     if options.loglevel:
         try:
-            lazylibrarian.LOGLEVEL = int(options.loglevel)
-            if lazylibrarian.LOGLEVEL & logger.log_cherrypy:
+            lazylibrarian_log.update_loglevel(override=int(options.loglevel))
+            if lazylibrarian_log.LOGLEVEL & logger.log_cherrypy:
                 lazylibrarian.CHERRYPYLOG = 1
-            if lazylibrarian.LOGLEVEL & logger.log_requests:
+            if lazylibrarian_log.LOGLEVEL & logger.log_requests:
                 lazylibrarian.REQUESTSLOG = 1
         except ValueError:
-            lazylibrarian.LOGLEVEL = 2
+            lazylibrarian_log.update_loglevel(override=2)
 
     if config_override:
         lazylibrarian.CONFIGFILE = config_override
@@ -221,28 +221,17 @@ def init_logs():
         except OSError as e:
             print('%s : Unable to create folder for logs: %s' % (lazylibrarian.CONFIG['LOGDIR'], str(e)))
 
-    lazylibrarian.LOGLEVEL = lazylibrarian.CONFIG.get_int('LOGLEVEL')
-
-    lazylibrarian_log.init_logger(loglevel=lazylibrarian.CONFIG.get_int('LOGLEVEL'))
-    info("Log (%s) Level set to [%s]- Log Directory is [%s]" % (
-        lazylibrarian.LOGTYPE, lazylibrarian.CONFIG['LOGLEVEL'],
-        lazylibrarian.CONFIG['LOGDIR']))
-    if lazylibrarian.CONFIG.get_int('LOGLEVEL') > 2:
+    lazylibrarian_log.init_logger(config=lazylibrarian.CONFIG)
+    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL}- Log Directory is [lazylibrarian.CONFIG['LOGDIR']]")
+    if lazylibrarian_log.LOGLEVEL > 2:
         info("Screen Log set to EXTENDED DEBUG")
-    elif lazylibrarian.CONFIG.get_int('LOGLEVEL') == 2:
+    elif lazylibrarian_log.LOGLEVEL == 2:
         info("Screen Log set to DEBUG")
-    elif lazylibrarian.CONFIG.get_int('LOGLEVEL') == 1:
+    elif lazylibrarian_log.LOGLEVEL == 1:
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
     debug("%s %s" % (lazylibrarian.FULL_PATH, str(lazylibrarian.ARGS)))
-
-    # Provide filesystem with info it needs to avoid depending on logger
-    filesystem.set_logger(
-        loglevel=lazylibrarian.LOGLEVEL,
-        logfileperms=lazylibrarian.LOGLEVEL & logger.log_fileperms > 0,
-        logcalls={'debug': logger.debug, 'info': logger.info, 'warn': logger.warn, 'error': logger.error}
-    )
 
 
 def init_config():
@@ -740,7 +729,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
         logmsg('info', "Cherrypy state %s" % state)
     shutdownscheduler()
     if not testing:
-        if lazylibrarian.LOGLEVEL >= 2:
+        if lazylibrarian_log.LOGLEVEL >= 2:
             lazylibrarian.CONFIG.create_access_summary(syspath(os.path.join(CONFIG['LOGDIR'],'configaccess.log')))
         lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=False)
 
@@ -805,7 +794,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 popen_list.remove('--update')
             while '--upgrade' in popen_list:
                 popen_list.remove('--upgrade')
-            if lazylibrarian.LOGLEVEL:
+            if lazylibrarian_log.LOGLEVEL:
                 for item in ['--quiet', '-q', '--debug']:
                     if item in popen_list:
                         popen_list.remove(item)
