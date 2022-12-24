@@ -72,7 +72,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
-from lazylibrarian.telemetry import TELEMETRY, telemetry_send
+from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.logger import lazylibrarian_log
 from deluge_client import DelugeRPCClient
 from mako import exceptions
@@ -88,10 +88,10 @@ lastcomic = ''
 def clear_mako_cache(userid=0):
     if userid:
         logger.warn("Clearing mako cache %s" % userid)
-        makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
+        makocache = os.path.join(DIRS.CACHEDIR, 'mako', str(userid))
     else:
         logger.warn("Clearing mako cache")
-        makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
+        makocache = os.path.join(DIRS.CACHEDIR, 'mako')
     try:
         rmtree(makocache, ignore_errors=True)
         # noinspection PyArgumentList
@@ -113,7 +113,7 @@ def serve_template(templatename, **kwargs):
         # don't cache these so we can change refresh rate
         module_directory = None
     else:
-        module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako')
+        module_directory = os.path.join(DIRS.CACHEDIR, 'mako')
     _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
                                module_directory=module_directory)
     # noinspection PyBroadException
@@ -229,7 +229,7 @@ def serve_template(templatename, **kwargs):
                 lazylibrarian.CONFIG.set_str('HTTP_LOOK', 'bookstrap')
                 template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
 
-            module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
+            module_directory = os.path.join(DIRS.CACHEDIR, 'mako', str(userid))
             _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
                                        module_directory=module_directory)
         try:
@@ -3253,7 +3253,7 @@ class WebInterface(object):
                     else:
                         extn = os.path.splitext(authorimg)[1].lower()
                         if extn and extn in ['.jpg', '.jpeg', '.png', '.webp']:
-                            destfile = os.path.join(lazylibrarian.CACHEDIR, 'author', authorid + '.jpg')
+                            destfile = os.path.join(DIRS.CACHEDIR, 'author', authorid + '.jpg')
                             try:
                                 copyfile(authorimg, destfile)
                                 logger.debug("%s->%s" % (authorimg, destfile))
@@ -3294,7 +3294,7 @@ class WebInterface(object):
             else:
                 logger.debug('Author [%s] has not been changed' % authorname)
 
-        icrawlerdir = os.path.join(lazylibrarian.CACHEDIR, 'icrawler', authorid)
+        icrawlerdir = os.path.join(DIRS.CACHEDIR, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 
@@ -3466,7 +3466,7 @@ class WebInterface(object):
                     covertype = '_cover'
 
                 if covertype:
-                    cachedir = lazylibrarian.CACHEDIR
+                    cachedir = DIRS.CACHEDIR
                     coverid = uuid.uuid4().hex
                     coverlink = 'cache/book/' + coverid + '.jpg'
                     coverfile = os.path.join(cachedir, "book", coverid + '.jpg')
@@ -3828,15 +3828,15 @@ class WebInterface(object):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
                     fname, extn = os.path.splitext(this_issue['Cover'])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                     if path_isfile(imgfile):
-                        this_issue['Cover'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        this_issue['Cover'] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
+                        imgfile = os.path.join(DIRS.CACHEDIR, this_issue['Cover'][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                                                            imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 this_issue['Title'] = issue['Title'].replace('&amp;', '&')
                 mod_issues.append(this_issue)
                 count += 1
@@ -3873,16 +3873,16 @@ class WebInterface(object):
                     this_issue['Cover'] = 'images/nocover.jpg'
                 else:
                     fname, extn = os.path.splitext(this_issue['Cover'])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                     if path_isfile(imgfile):
                         this_issue['Cover'] = "%s%s" % ('cache/',
-                                                        imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                                                        imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, this_issue['Cover'][6:])
+                        imgfile = os.path.join(DIRS.CACHEDIR, this_issue['Cover'][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             this_issue['Cover'] = "%s%s" % ('cache/',
-                                                            imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                                                            imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 mod_issues.append(this_issue)
                 count += 1
                 if maxcount and count >= maxcount:
@@ -3922,14 +3922,14 @@ class WebInterface(object):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
                 fname, extn = os.path.splitext(item['BookImg'])
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                 if path_isfile(imgfile):
-                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 else:
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['BookImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
@@ -3957,14 +3957,14 @@ class WebInterface(object):
                 item['AuthorImg'] = 'images/nocover.jpg'
             else:
                 fname, extn = os.path.splitext(item['AuthorImg'])
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                 if path_isfile(imgfile):
-                    item['AuthorImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    item['AuthorImg'] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 else:
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['AuthorImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, item['AuthorImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['AuthorImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        item['AuthorImg'] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
@@ -3990,14 +3990,14 @@ class WebInterface(object):
                 item['BookImg'] = 'images/nocover.jpg'
             else:
                 fname, extn = os.path.splitext(item['BookImg'])
-                imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                 if path_isfile(imgfile):
-                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                    item['BookImg'] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 else:
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, item['BookImg'][6:])
+                    imgfile = os.path.join(DIRS.CACHEDIR, item['BookImg'][6:])
                     imgthumb = createthumb(imgfile, 200, False)
                     if imgthumb:
-                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        item['BookImg'] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
@@ -4197,14 +4197,14 @@ class WebInterface(object):
                         row[1] = 'images/nocover.jpg'
                     else:
                         fname, extn = os.path.splitext(row[1])
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                        imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                         if path_isfile(imgfile):
-                            row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                            row[1] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                         else:
-                            imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                            imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
-                                row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                                row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
@@ -4389,14 +4389,14 @@ class WebInterface(object):
                     row[1] = 'images/nocover.jpg'
                 else:
                     fname, extn = os.path.splitext(row[1])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                     if path_isfile(imgfile):
-                        row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        row[1] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                        imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                            row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
                 row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
 
@@ -4731,14 +4731,14 @@ class WebInterface(object):
                         row[1] = 'images/nocover.jpg'
                     else:
                         fname, extn = os.path.splitext(row[1])
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                        imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                         if path_isfile(imgfile):
-                            row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                            row[1] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                         else:
-                            imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                            imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
-                                row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                                row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     row[0] = quote_plus(make_utf8bytes(row[0])[0])
 
             if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
@@ -4828,14 +4828,14 @@ class WebInterface(object):
                     row[1] = 'images/nocover.jpg'
                 else:
                     fname, extn = os.path.splitext(row[1])
-                    imgfile = os.path.join(lazylibrarian.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
+                    imgfile = os.path.join(DIRS.CACHEDIR, '%s_w200%s' % (fname[6:], extn))
                     if path_isfile(imgfile):
-                        row[1] = "%s%s" % ('cache/', imgfile[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                        row[1] = "%s%s" % ('cache/', imgfile[len(DIRS.CACHEDIR):].lstrip(os.sep))
                     else:
-                        imgfile = os.path.join(lazylibrarian.CACHEDIR, row[1][6:])
+                        imgfile = os.path.join(DIRS.CACHEDIR, row[1][6:])
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
-                            row[1] = "%s%s" % ('cache/', imgthumb[len(lazylibrarian.CACHEDIR):].lstrip(os.sep))
+                            row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
                 row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
@@ -5120,7 +5120,7 @@ class WebInterface(object):
                         coverfile = create_mag_cover(issue['IssueFile'], refresh=True,
                                                      pagenum=check_int(action[-1], 1))
                         myhash = uuid.uuid4().hex
-                        hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                        hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                         copyfile(coverfile, hashname)
                         setperm(hashname)
                         control_value_dict = {"IssueFile": issue['IssueFile']}
@@ -5153,7 +5153,7 @@ class WebInterface(object):
                                 coverfile = create_mag_cover(issue['IssueFile'], refresh=True, pagenum=1)
                         if coverfile:
                             myhash = uuid.uuid4().hex
-                            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                             copyfile(coverfile, hashname)
                             setperm(hashname)
                             control_value_dict = {"IssueFile": issue['IssueFile']}
@@ -5442,7 +5442,7 @@ class WebInterface(object):
         logger.debug('(webServe-Update) - Performing update')
         lazylibrarian.SIGNAL = 'update'
         message = 'Updating...'
-        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
             remove(icon)
@@ -5644,7 +5644,7 @@ class WebInterface(object):
         # lazylibrarian.config_write()
         lazylibrarian.SIGNAL = 'shutdown'
         message = 'closing ...'
-        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
             remove(icon)
@@ -5656,7 +5656,7 @@ class WebInterface(object):
         self.label_thread('RESTART')
         lazylibrarian.SIGNAL = 'restart'
         message = 'reopening ...'
-        icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
             remove(icon)

@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent, proxy_list, listdir, remove
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
@@ -189,7 +189,7 @@ def cache_img(img_type, img_id, img_url, refresh=False):
         logger.error('Internal error in cache_img, img_type = [%s]' % img_type)
         img_type = 'book'
 
-    cachefile = os.path.join(lazylibrarian.CACHEDIR, img_type, img_id + '.jpg')
+    cachefile = os.path.join(DIRS.CACHEDIR, img_type, img_id + '.jpg')
     link = 'cache/%s/%s.jpg' % (img_type, img_id)
     if path_isfile(cachefile) and not refresh:  # overwrite any cached image
         if lazylibrarian_log.LOGLEVEL & logger.log_cache:
@@ -247,7 +247,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     # return the result, and boolean True if source was cache
     #
     cache_location = cache + "Cache"
-    cache_location = os.path.join(lazylibrarian.CACHEDIR, cache_location)
+    cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
     myhash = md5_utf8(url)
     valid_cache = False
     source = None
@@ -379,7 +379,7 @@ def clean_cache():
     db.upsert("jobs", {"Start": time.time()}, {"Name": "CLEANCACHE"})
     result = []
     expiry = check_int(lazylibrarian.IRC_CACHE_EXPIRY, 0)
-    cache = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
+    cache = os.path.join(DIRS.CACHEDIR, "IRCCache")
     cleaned = 0
     kept = 0
     if expiry and path_isdir(cache):
@@ -400,7 +400,7 @@ def clean_cache():
     expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE')
     expire_caches = ["JSONCache", "XMLCache"]
     for cache in expire_caches:
-        cache = os.path.join(lazylibrarian.CACHEDIR, cache)
+        cache = os.path.join(DIRS.CACHEDIR, cache)
         cleaned = 0
         kept = 0
         time_now = time.time()
@@ -420,7 +420,7 @@ def clean_cache():
         result.append(msg)
         logger.debug(msg)
 
-    cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
+    cache = os.path.join(DIRS.CACHEDIR, "WorkCache")
     cleaned = 0
     kept = 0
     if path_isdir(cache):
@@ -443,7 +443,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    cache = os.path.join(lazylibrarian.CACHEDIR, "SeriesCache")
+    cache = os.path.join(DIRS.CACHEDIR, "SeriesCache")
     cleaned = 0
     kept = 0
     if path_isdir(cache):
@@ -464,7 +464,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    cache = os.path.join(lazylibrarian.CACHEDIR, "magazine")
+    cache = os.path.join(DIRS.CACHEDIR, "magazine")
     cleaned = 0
     kept = 0
     if path_isdir(cache):
@@ -482,7 +482,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    cache = lazylibrarian.CACHEDIR
+    cache = DIRS.CACHEDIR
     cleaned = 0
     kept = 0
     cachedir = os.path.join(cache, 'author')
@@ -544,7 +544,7 @@ def clean_cache():
 
     # verify the cover images referenced in the database are present
     images = db.select('select BookImg,BookName,BookID from books')
-    cachedir = os.path.join(lazylibrarian.CACHEDIR, 'book')
+    cachedir = os.path.join(DIRS.CACHEDIR, 'book')
     cleaned = 0
     kept = 0
     for item in images:
@@ -571,7 +571,7 @@ def clean_cache():
 
     # verify the author images referenced in the database are present
     images = db.action('select AuthorImg,AuthorName,AuthorID from authors')
-    cachedir = os.path.join(lazylibrarian.CACHEDIR, 'author')
+    cachedir = os.path.join(DIRS.CACHEDIR, 'author')
     cleaned = 0
     kept = 0
     if images:

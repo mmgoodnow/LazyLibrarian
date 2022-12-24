@@ -113,7 +113,7 @@ def coverswap(sourcefile):
         # so work on a local copy, then move it over.
         original = sourcefile
         logger.debug("Copying %s" % original)
-        srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, os.path.basename(sourcefile)))
+        srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, os.path.basename(sourcefile)))
         output = PdfFileWriter()
         with open(srcfile, "rb") as f:
             input1 = PdfFileReader(f)
@@ -258,7 +258,7 @@ def get_book_cover(bookid=None, src=None):
     # noinspection PyBroadException
     try:
         db = database.DBConnection()
-        cachedir = lazylibrarian.CACHEDIR
+        cachedir = DIRS.CACHEDIR
         item = db.match('select BookImg from books where bookID=?', (bookid,))
         if item:
             coverlink = item['BookImg']
@@ -506,7 +506,7 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
         logger.error("get_author_image: No authorid")
         return None
 
-    cachedir = lazylibrarian.CACHEDIR
+    cachedir = DIRS.CACHEDIR
     coverfile = os.path.join(cachedir, "author", authorid + '.jpg')
 
     if path_isfile(coverfile) and max_num == 1 and not refresh:  # use cached image if there is one

@@ -27,7 +27,7 @@ from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.common import opf_file,walk, listdir, any_file
-from lazylibrarian.filesystem import path_exists, path_isdir, path_isfile
+from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
     clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
@@ -1254,7 +1254,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         # update cover file to any .jpg in book folder, prefer cover.jpg
                                         if book_filename:
                                             bookdir = os.path.dirname(book_filename)
-                                            cachedir = lazylibrarian.CACHEDIR
+                                            cachedir = DIRS.CACHEDIR
                                             cacheimg = os.path.join(cachedir, 'book', bookid + '.jpg')
                                             coverimg = os.path.join(bookdir, 'cover.jpg')
                                             if not path_isfile(coverimg):

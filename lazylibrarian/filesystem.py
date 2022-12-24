@@ -12,9 +12,10 @@ from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
 class DirectoryHolder:
-    DATADIR: str                    # Where LL stores its data files
-    CACHEDIR: str = ''              # Where LL stores its cache
-    TMPDIR: str                     # Where LL will store temporary files
+    """ Holds all the global directories used by LL """
+    DATADIR: str        # Where LL stores its data files
+    CACHEDIR: str = ''  # Where LL stores its cache
+    TMPDIR: str         # Where LL will store temporary files
 
     def __init__(self):
         self.DATADIR = ''
@@ -22,17 +23,38 @@ class DirectoryHolder:
         self.TMPDIR = ''
 
     def set_datadir(self, datadir: str):
-        """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable """
-        if not path_isdir(datadir):
-            try:
-                os.makedirs(datadir)
-            except OSError:
-                raise SystemExit(f'Could not create data directory: {datadir}. Exit ...')
-        if not os.access(datadir, os.W_OK):
-            raise SystemExit(f'Cannot write to the data directory: {datadir}. Exit ...')
+        """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable.
+        This also updates CACHEDIR and TMPDIR """
+        ok, msg = self.ensure_dir_is_writeable(datadir)
+        if not ok:
+            raise SystemExit(f'{msg} Exiting.')
         self.DATADIR = datadir
-        self.CACHEDIR = datadir
-        self.TMPDIR = datadir
+        self.CACHEDIR = os.path.join(self.DATADIR, 'cache')
+        ok, msg = self.ensure_dir_is_writeable(self.CACHEDIR)
+        if not ok:
+            lazylibrarian_log.error(msg)
+            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for the cache')
+            self.CACHEDIR = self.DATADIR
+        self.TMPDIR = os.path.join(self.DATADIR, 'tmp')
+        if not ok:
+            lazylibrarian_log.error(msg)
+            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for temporary files')
+            self.TMPDIR = self.DATADIR
+
+    @staticmethod
+    def ensure_dir_is_writeable(dirname: str) -> (bool, str):
+        if not path_isdir(dirname):
+            try:
+                os.makedirs(dirname)
+            except OSError:
+                return False, f'Could not create directory: {dirname}.'
+        if not os.access(dirname, os.W_OK):
+            return False, f'Cannot write to the directory: {dirname}.'
+
+        return True, 'ok'
+
+    def get_mako_cachedir(self):
+        return os.path.join(self.CACHEDIR, 'mako')
 
 """ Global access to directories """
 DIRS = DirectoryHolder()

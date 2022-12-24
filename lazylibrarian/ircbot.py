@@ -24,7 +24,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
 from lazylibrarian.common import remove
-from lazylibrarian.filesystem import path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.logger import lazylibrarian_log
 
 
@@ -280,7 +280,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
         cmd = provider['SEARCH']
 
     if cache:
-        cache_location = os.path.join(lazylibrarian.CACHEDIR, "IRCCache")
+        cache_location = os.path.join(DIRS.CACHEDIR, "IRCCache")
         if searchstring:
             myhash = md5_utf8(provider['SERVER'] + provider['CHANNEL'] + searchstring)
         else:

@@ -22,7 +22,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list, quotes, remove
-from lazylibrarian.filesystem import path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 from lazylibrarian.logger import lazylibrarian_log
@@ -382,7 +382,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
         cache_location = "SeriesCache"
         item = db.match(cmd, (seriesid,))
     if item:
-        cache_location = os.path.join(lazylibrarian.CACHEDIR, cache_location)
+        cache_location = os.path.join(DIRS.CACHEDIR, cache_location)
         if bookid:
             workfile = os.path.join(cache_location, str(bookid) + '.html')
         else:

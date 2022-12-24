@@ -41,7 +41,7 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     remove, calibre_prg
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists
 from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
@@ -145,7 +145,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
         coverfile = create_mag_cover(dest_file, pagenum=check_int(maginfo['CoverPage'], 1))
         if coverfile:
             myhash = uuid.uuid4().hex
-            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
             shutil.copyfile(coverfile, hashname)
             setperm(hashname)
             coverfile = 'cache/magazine/%s.jpg' % myhash
@@ -1246,7 +1246,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 coverfile = create_mag_cover(dest_file, refresh=True)
                                 if coverfile:
                                     myhash = uuid.uuid4().hex
-                                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
                                     shutil.copyfile(coverfile, hashname)
                                     setperm(hashname)
                                     coverfile = 'cache/comic/%s.jpg' % myhash
@@ -1285,7 +1285,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             coverfile = create_mag_cover(dest_file, pagenum=coverpage)
                             if coverfile:
                                 myhash = uuid.uuid4().hex
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                                 shutil.copyfile(coverfile, hashname)
                                 setperm(hashname)
                                 coverfile = 'cache/magazine/%s.jpg' % myhash
@@ -3106,13 +3106,13 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
         img = bookimg.replace('cache/', '')
         if os.path.__name__ == 'ntpath':
             img = img.replace('/', '\\')
-        cachefile = os.path.join(lazylibrarian.CACHEDIR, img)
+        cachefile = os.path.join(DIRS.CACHEDIR, img)
     else:
         link, success, _ = cache_img(cache, bookid, bookimg, False)
         if not success:
             logger.error('Error caching cover from %s, %s' % (bookimg, link))
             return
-        cachefile = os.path.join(lazylibrarian.CACHEDIR, cache, bookid + '.jpg')
+        cachefile = os.path.join(DIRS.CACHEDIR, cache, bookid + '.jpg')
 
     try:
         coverfile = os.path.join(dest_path, global_name + '.jpg')

@@ -8,6 +8,7 @@ import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
+from lazylibrarian.filesystem import DIRS
 from lazylibrarian import dbupgrade, startup, config2, configdefs
 
 class LLTestCase(unittest.TestCase):
@@ -68,10 +69,10 @@ class LLTestCase(unittest.TestCase):
     @classmethod
     def removetestCache(cls):
         # Delete the database that was created for unit testing
-        if len(lazylibrarian.CACHEDIR):
+        if len(DIRS.CACHEDIR):
             logger.debug("Deleting unit test cache directory")
             try:
-                rmtree(lazylibrarian.CACHEDIR)
+                rmtree(DIRS.CACHEDIR)
             except:
                 pass
 

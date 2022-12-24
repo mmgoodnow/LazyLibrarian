@@ -23,7 +23,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_genres
 from lazylibrarian.common import pwd_generator, setperm
-from lazylibrarian.filesystem import  syspath
+from lazylibrarian.filesystem import DIRS, syspath
 from lazylibrarian.scheduling import restart_jobs
 from lazylibrarian.formatter import plural, md5_utf8, get_list, check_int
 from lazylibrarian.importer import update_totals
@@ -870,7 +870,7 @@ def db_v56(db, upgradelog):
             if not path_exists(coverfile):
                 coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
-            hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+            hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
             cachefile = 'cache/magazine/%s.jpg' % myhash
             copyfile(coverfile, hashname)
             setperm(hashname)
@@ -894,7 +894,7 @@ def db_v56(db, upgradelog):
             if not path_exists(coverfile):
                 coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
-            hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+            hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
             cachefile = 'cache/comic/%s.jpg' % myhash
             copyfile(coverfile, hashname)
             setperm(hashname)

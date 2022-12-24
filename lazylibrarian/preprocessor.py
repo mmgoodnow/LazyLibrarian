@@ -19,6 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.filesystem import DIRS
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
@@ -505,7 +506,7 @@ def preprocess_magazine(bookfolder, cover=0):
         # reordering or shrinking pages is quite slow if the source is on a networked drive
         # so work on a local copy, then move it over.
         original = os.path.join(bookfolder, sourcefile)
-        srcfile = safe_copy(original, os.path.join(lazylibrarian.CACHEDIR, sourcefile))
+        srcfile = safe_copy(original, os.path.join(DIRS.CACHEDIR, sourcefile))
 
         if dpi:
             logger.debug("Resizing %s to %s dpi" % (srcfile, dpi))

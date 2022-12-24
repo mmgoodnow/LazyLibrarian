@@ -35,7 +35,7 @@ from shutil import rmtree
 from lazylibrarian.common import remove, listdir, log_header
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
-from lazylibrarian import database, versioncheck, logger, filesystem
+from lazylibrarian import database, versioncheck, logger
 from lazylibrarian import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -153,8 +153,8 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
             'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
         ])
-        if lazylibrarian.CACHEDIR == '':
-            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
+        if DIRS.CACHEDIR == '': # TODO: Move PROG_DIR and this logic to DIRS
+            DIRS.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
         lazylibrarian.CONFIG['LOGDIR'] = os.path.join(DIRS.DATADIR, 'Logs')
         if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
             try:
@@ -194,7 +194,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
     time.sleep(seconds_to_sleep)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
 
-    icon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+    icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
     if path_isfile(icon):
         remove(icon)
 
@@ -245,17 +245,9 @@ def init_caches():
     if lazylibrarian.CONFIG['SYS_ENCODING']:
         lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
 
-    # Put the cache dir in the data dir for now
-    lazylibrarian.CACHEDIR = os.path.join(DIRS.DATADIR, 'cache')
-    if not path_isdir(lazylibrarian.CACHEDIR):
-        try:
-            os.makedirs(lazylibrarian.CACHEDIR)
-        except OSError as e:
-            error('Could not create cachedir; %s' % e)
-
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
-        cachelocation = os.path.join(lazylibrarian.CACHEDIR, item)
+        cachelocation = os.path.join(DIRS.CACHEDIR, item)
         try:
             os.makedirs(cachelocation)
         except OSError as e:
@@ -265,7 +257,7 @@ def init_caches():
     # nest these caches 2 levels to make smaller/faster directory lists
     caches = ["XMLCache", "JSONCache", "WorkCache", "HTMLCache"]
     for item in caches:
-        pth = os.path.join(lazylibrarian.CACHEDIR, item)
+        pth = os.path.join(DIRS.CACHEDIR, item)
         for i in '0123456789abcdef':
             for j in '0123456789abcdef':
                 cachelocation = os.path.join(pth, i, j)
@@ -599,7 +591,7 @@ def build_monthtable():
 def create_version_file(filename):
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
     old_file = os.path.join(lazylibrarian.PROG_DIR, filename)
-    version_file = os.path.join(lazylibrarian.CACHEDIR, filename)
+    version_file = os.path.join(DIRS.CACHEDIR, filename)
     if path_isfile(old_file):
         if not path_isfile(version_file):
             try:
@@ -745,7 +737,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
             updated = versioncheck.update()
             if updated:
                 logmsg('info', 'Lazylibrarian version updated')
-                makocache = os.path.join(lazylibrarian.CACHEDIR, 'mako')
+                makocache = os.path.join(DIRS.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
                 lazylibrarian.CONFIG.set_int('GIT_UPDATED', int(time.time()))

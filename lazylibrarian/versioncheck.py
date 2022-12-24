@@ -25,7 +25,7 @@ import lazylibrarian
 
 from lazylibrarian import logger, version, database
 from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir
-from lazylibrarian.filesystem import path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 
 import urllib3
@@ -161,7 +161,7 @@ def get_current_version() -> str:
 
     elif lazylibrarian.CONFIG['INSTALL_TYPE'] in ['source']:
 
-        version_file = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
+        version_file = os.path.join(DIRS.CACHEDIR, 'version.txt')
 
         if not os.path.isfile(version_file):
             version_string = 'No Version File'
@@ -444,7 +444,7 @@ def get_commit_difference_from_git():
 
 def update_version_file(new_version_id):
     # Update version.txt located in LL cache dir.
-    version_path = os.path.join(lazylibrarian.CACHEDIR, 'version.txt')
+    version_path = os.path.join(DIRS.CACHEDIR, 'version.txt')
 
     try:
         # noinspection PyBroadException

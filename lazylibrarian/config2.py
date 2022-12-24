@@ -360,11 +360,9 @@ class LLConfigHandler(ConfigDict):
 
         return warnings
 
-    def get_mako_cachedir(self):
-        return path.join(lazylibrarian.CACHEDIR, 'mako')
-
-    def get_mako_versionfile(self):
-        return path.join(self.get_mako_cachedir(), 'python_version.txt')
+    @staticmethod
+    def get_mako_versionfile():
+        return path.join(DIRS.get_mako_cachedir(), 'python_version.txt')
 
     def post_save_actions(self, restart_jobs: bool=True, clear_counters: bool=False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
@@ -372,7 +370,7 @@ class LLConfigHandler(ConfigDict):
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
         if interface.get_writes() > 0: # It's changed
-            mako_dir = self.get_mako_cachedir()
+            mako_dir = DIRS.get_mako_cachedir()
             logger.debug("Clearing mako cache")
             shutil.rmtree(mako_dir)
             os.makedirs(mako_dir)

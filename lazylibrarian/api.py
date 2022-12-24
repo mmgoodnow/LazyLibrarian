@@ -1292,7 +1292,7 @@ class Api(object):
         q = 'SELECT BookID from books where length(WorkPage) < 4'
         res = self._dic_from_query(q)
         # now the ones with an error page
-        cache = os.path.join(lazylibrarian.CACHEDIR, "WorkCache")
+        cache = os.path.join(DIRS.CACHEDIR, "WorkCache")
         if path_isdir(cache):
             for cached_file in listdir(cache):
                 target = os.path.join(cache, cached_file)
@@ -2083,7 +2083,7 @@ class Api(object):
         if path_isfile(img):
             extn = os.path.splitext(img)[1].lower()
             if extn and extn in ['.jpg', '.jpeg', '.png']:
-                destfile = os.path.join(lazylibrarian.CACHEDIR, table, itemid + '.jpg')
+                destfile = os.path.join(DIRS.CACHEDIR, table, itemid + '.jpg')
                 try:
                     shutil.copy(img, destfile)
                     setperm(destfile)

@@ -30,7 +30,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
     remove
-from lazylibrarian.filesystem import path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -166,7 +166,7 @@ def nzb_dl_method(bookid=None, nzbtitle=None, nzburl=None, library='eBook', labe
                 download_id = ''
             else:
                 logger.debug("Got %s bytes data" % len(data))
-                temp_filename = os.path.join(lazylibrarian.CACHEDIR, "nzbfile.nzb")
+                temp_filename = os.path.join(DIRS.CACHEDIR, "nzbfile.nzb")
                 with open(syspath(temp_filename), 'wb') as f:
                     f.write(data)
                 logger.debug("Data written to file")
@@ -473,7 +473,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                 except Exception as e:
                     return False, "An error occurred parsing %s: %s" % (r.url, str(e))
             else:
-                cache_location = os.path.join(lazylibrarian.CACHEDIR, "HTMLCache")
+                cache_location = os.path.join(DIRS.CACHEDIR, "HTMLCache")
                 myhash = md5_utf8(dl_url)
                 hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + ".html")
                 with open(syspath(hashfilename), "wb") as cachefile:

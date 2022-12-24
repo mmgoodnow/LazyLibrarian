@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.common import walk, setperm
-from lazylibrarian.filesystem import path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
@@ -222,7 +222,7 @@ def comic_scan(comicid=None):
                                 logger.debug("Adding issue %s %s" % (title, issue))
                                 coverfile = create_mag_cover(issuefile, refresh=True)
                                 if coverfile and path_isfile(coverfile):
-                                    hashname = os.path.join(lazylibrarian.CACHEDIR, 'comic', '%s.jpg' % myhash)
+                                    hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
                                     copyfile(coverfile, hashname)
                                     setperm(hashname)
                                     new_value_dict['Cover'] = 'cache/comic/%s.jpg' % myhash

@@ -27,7 +27,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
-from lazylibrarian.filesystem import syspath, path_exists
+from lazylibrarian.filesystem import DIRS, syspath, path_exists
 
 cp_ver = getattr(cherrypy, '__version__', None)
 if cp_ver and int(cp_ver.split('.')[0]) >= 10:
@@ -99,7 +99,7 @@ def initialize(options=None):
         },
         '/cache': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': lazylibrarian.CACHEDIR
+            'tools.staticdir.dir': DIRS.CACHEDIR
         },
         '/css': {
             'tools.staticdir.on': True,
@@ -116,36 +116,36 @@ def initialize(options=None):
         },
         '/opensearch.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearch.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearch.xml')
         },
         '/opensearchbooks.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchbooks.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchbooks.xml')
         },
         '/opensearchcomics.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchcomics.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchcomics.xml')
         },
         '/opensearchgenres.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchgenres.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchgenres.xml')
         },
         '/opensearchmagazines.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchmagazines.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchmagazines.xml')
         },
         '/opensearchseries.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchseries.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchseries.xml')
         },
         '/opensearchauthors.xml': {
             'tools.staticfile.on': True,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'opensearchauthors.xml')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'opensearchauthors.xml')
         },
         '/nzbfile.nzb': {
             'tools.staticfile.on': True,
             'tools.auth_basic.on': False,
-            'tools.staticfile.filename': os.path.join(lazylibrarian.CACHEDIR, 'nzbfile.nzb')
+            'tools.staticfile.filename': os.path.join(DIRS.CACHEDIR, 'nzbfile.nzb')
         }
     }
 
@@ -220,7 +220,7 @@ def initialize(options=None):
                      ('Comics', 'RecentComics'),
                      ('Genres', 'Genres'),
                      ('Series', 'Series')]:
-            with open(syspath(os.path.join(lazylibrarian.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
+            with open(syspath(os.path.join(DIRS.CACHEDIR, 'opensearch%s.xml' % item[0].lower())), 'w') as t:
                 for lyne in data:
                     t.write(lyne.replace('{label}', item[0]).replace(
                                       '{func}', 't=%s&amp;' % item[1]).replace(
@@ -268,7 +268,7 @@ def initialize(options=None):
 
     icon = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll.png')
     if path_exists(icon):
-        newicon = os.path.join(lazylibrarian.CACHEDIR, 'alive.png')
+        newicon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         copyfile(icon, newicon)
     cherrypy.server.wait()
 

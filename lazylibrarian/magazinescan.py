@@ -21,7 +21,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.common import safe_move, walk, make_dirs, setperm
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists
 from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
@@ -286,7 +286,7 @@ def magazine_scan(title=None):
                         if not iss_entry or iss_entry['IssueFile'] != issuefile:
                             coverfile = create_mag_cover(issuefile, pagenum=magcoverpage, refresh=new_entry)
                             if coverfile:
-                                hashname = os.path.join(lazylibrarian.CACHEDIR, 'magazine', '%s.jpg' % myhash)
+                                hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
                                 copyfile(coverfile, hashname)
                                 setperm(hashname)
                                 cover = 'cache/magazine/%s.jpg' % myhash
