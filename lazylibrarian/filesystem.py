@@ -11,26 +11,31 @@ import sys
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
-DATADIR: str                    # Where LL stores its data files
-CACHEDIR: str = ''              # Where LL stores its cache
-TMPDIR: str                     # Where LL will store temporary files
+class DirectoryHolder:
+    DATADIR: str                    # Where LL stores its data files
+    CACHEDIR: str = ''              # Where LL stores its cache
+    TMPDIR: str                     # Where LL will store temporary files
 
-## INITIALIZATION FUNCTIONS
+    def __init__(self):
+        self.DATADIR = ''
+        self.CACHEDIR = ''
+        self.TMPDIR = ''
 
-def set_datadir(datadir: str):
-    """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable """
-    global DATADIR, CACHEDIR, TMPDIR
-    if not path_isdir(datadir):
-        try:
-            os.makedirs(datadir)
-        except OSError:
-            raise SystemExit(f'Could not create data directory: {datadir}. Exit ...')
-    if not os.access(datadir, os.W_OK):
-        raise SystemExit(f'Cannot write to the data directory: {datadir}. Exit ...')
-    DATADIR = datadir
-    CACHEDIR = DATADIR
-    TMPDIR = DATADIR
+    def set_datadir(self, datadir: str):
+        """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable """
+        if not path_isdir(datadir):
+            try:
+                os.makedirs(datadir)
+            except OSError:
+                raise SystemExit(f'Could not create data directory: {datadir}. Exit ...')
+        if not os.access(datadir, os.W_OK):
+            raise SystemExit(f'Cannot write to the data directory: {datadir}. Exit ...')
+        self.DATADIR = datadir
+        self.CACHEDIR = datadir
+        self.TMPDIR = datadir
 
+""" Global access to directories """
+DIRS = DirectoryHolder()
 
 ## PATH FUNCTIONS
 
@@ -83,7 +88,7 @@ def syspath(path: str, prefix:bool=True) -> str:
         return path
 
     # the html cache addressing uses forwardslash as a separator but Windows file system needs backslash
-    s = path.find(CACHEDIR)
+    s = path.find(DIRS.CACHEDIR)
     if s >= 0 and '/' in path:
         path = path.replace('/', '\\')
         # logger.debug("cache path changed [%s] to [%s]" % (opath, path))

@@ -33,7 +33,7 @@ import requests
 from shutil import rmtree
 
 from lazylibrarian.common import remove, listdir, log_header
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger, filesystem
 from lazylibrarian import CONFIG
@@ -141,11 +141,9 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         lazylibrarian.STOPTHREADS = False
 
     if options.datadir:
-        lazylibrarian.DATADIR = str(options.datadir)
+        DIRS.set_datadir(str(options.datadir))
     else:
-        lazylibrarian.DATADIR = lazylibrarian.PROG_DIR
-
-    filesystem.set_datadir(lazylibrarian.DATADIR)
+        DIRS.set_datadir(lazylibrarian.PROG_DIR)
 
     if options.update:
         lazylibrarian.SIGNAL = 'update'
@@ -157,7 +155,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         ])
         if lazylibrarian.CACHEDIR == '':
             lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
-        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(lazylibrarian.DATADIR, 'Logs')
+        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(DIRS.DATADIR, 'Logs')
         if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
             try:
                 os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
@@ -186,7 +184,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     elif options.config:
         lazylibrarian.CONFIGFILE = syspath(str(options.config))
     else:
-        lazylibrarian.CONFIGFILE = syspath(os.path.join(lazylibrarian.DATADIR, "config.ini"))
+        lazylibrarian.CONFIGFILE = syspath(os.path.join(DIRS.DATADIR, "config.ini"))
 
     if options.pidfile:
         if lazylibrarian.DAEMON:
@@ -201,7 +199,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         remove(icon)
 
     # create database and config
-    lazylibrarian.DBFILE = os.path.join(lazylibrarian.DATADIR, 'lazylibrarian.db')
+    lazylibrarian.DBFILE = os.path.join(DIRS.DATADIR, 'lazylibrarian.db')
 
     lazylibrarian.CONFIG.load_configfile(lazylibrarian.CONFIGFILE)
     lazylibrarian.CONFIG.post_load_fixup()
@@ -212,7 +210,7 @@ def init_logs():
     # Initialize log files. Until this is done, do not use the logger
 
     if not lazylibrarian.CONFIG['LOGDIR'] or lazylibrarian.CONFIG['LOGDIR'][0] == '.':
-        lazylibrarian.CONFIG.set_str('LOGDIR', os.path.join(lazylibrarian.DATADIR, 'Logs'))
+        lazylibrarian.CONFIG.set_str('LOGDIR', os.path.join(DIRS.DATADIR, 'Logs'))
 
     # Create logdir
     if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
@@ -248,7 +246,7 @@ def init_caches():
         lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
 
     # Put the cache dir in the data dir for now
-    lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.DATADIR, 'cache')
+    lazylibrarian.CACHEDIR = os.path.join(DIRS.DATADIR, 'cache')
     if not path_isdir(lazylibrarian.CACHEDIR):
         try:
             os.makedirs(lazylibrarian.CACHEDIR)
@@ -446,7 +444,7 @@ def build_logintemplate():
     default_msg = "Your lazylibrarian username is {username}\nYour password is {password}\n"
     default_msg += "You can log in to lazylibrarian and change these to something more memorable\n"
     default_msg += "You have been given {permission} access\n"
-    msg_file = os.path.join(lazylibrarian.DATADIR, 'logintemplate.text')
+    msg_file = os.path.join(DIRS.DATADIR, 'logintemplate.text')
     if path_isfile(msg_file):
         try:
             # noinspection PyArgumentList
@@ -466,7 +464,7 @@ def build_logintemplate():
 
 def build_filetemplate():
     default_msg = "{name}{method}{link}"
-    msg_file = os.path.join(lazylibrarian.DATADIR, 'filetemplate.text')
+    msg_file = os.path.join(DIRS.DATADIR, 'filetemplate.text')
     if path_isfile(msg_file):
         try:
             with open(syspath(msg_file), 'r', encoding='utf-8') as msg_data:
@@ -484,7 +482,7 @@ def build_filetemplate():
 
 
 def build_genres():
-    for json_file in [os.path.join(lazylibrarian.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
+    for json_file in [os.path.join(DIRS.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
         if path_isfile(json_file):
             try:
                 with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
@@ -499,7 +497,7 @@ def build_genres():
 
 def build_monthtable():
     table = []
-    json_file = os.path.join(lazylibrarian.DATADIR, 'monthnames.json')
+    json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
     if path_isfile(json_file):
         try:
             with open(syspath(json_file)) as json_data:

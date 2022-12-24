@@ -3,14 +3,12 @@
 # Purpose:
 #   Testing the functions in filesystem.py
 
-from typing import List, Dict
-from collections import Counter
 import os
 import mock
 
 from unittesthelpers import LLTestCase
-import lazylibrarian
-from lazylibrarian import filesystem, logger
+from lazylibrarian import filesystem
+from lazylibrarian.filesystem import DIRS
 
 class FilesystemTest(LLTestCase):
 
@@ -31,7 +29,7 @@ class FilesystemTest(LLTestCase):
             [ '\\\\SERVER\\SHARE\\dir', '\\\\?\\UNC\\SERVER\\SHARE\\dir'],
             [ '\\\\SERVER\\SHARE/dir', '\\\\?\\UNC\\SERVER\\SHARE/dir'],
             # If CACHEDIR is part of it, / is replaced with \\ in Windows
-            [f'{filesystem.CACHEDIR}/test', f'\\\\?\\{filesystem.CACHEDIR}\\test'],
+            [f'{DIRS.CACHEDIR}/test', f'\\\\?\\{DIRS.CACHEDIR}\\test'],
         ]
         with mock.patch('os.path.__name__', 'posixpath'):
             for path1, _ in paths_input_windows:
@@ -51,7 +49,7 @@ class FilesystemTest(LLTestCase):
         testdir = 'Pretend-it-exists'
         mock_path_isdir.return_value = True
         mock_os_access.return_value = True
-        filesystem.set_datadir(testdir)
+        DIRS.set_datadir(testdir)
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_not_called()
         mock_os_access.assert_called_once_with(testdir, os.W_OK)
@@ -64,7 +62,7 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.return_value = True
         mock_os_access.return_value = False
         with self.assertRaises(expected_exception=SystemExit):
-            filesystem.set_datadir(testdir)
+            DIRS.set_datadir(testdir)
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_not_called()
         mock_os_access.assert_called_once_with(testdir, os.W_OK)
@@ -76,7 +74,7 @@ class FilesystemTest(LLTestCase):
         testdir = 'Pretend-it-exists'
         mock_path_isdir.return_value = False
         mock_os_access.return_value = True
-        filesystem.set_datadir(testdir)
+        DIRS.set_datadir(testdir)
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_called_once_with(testdir)
         mock_os_access.assert_called_once_with(testdir, os.W_OK)
@@ -89,7 +87,7 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.return_value = False
         mock_os_makedirs.side_effect = OSError
         with self.assertRaises(expected_exception=SystemExit):
-            filesystem.set_datadir(testdir)
+            DIRS.set_datadir(testdir)
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_called_once_with(testdir)
         mock_os_access.assert_not_called()

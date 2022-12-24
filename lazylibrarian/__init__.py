@@ -24,7 +24,7 @@ import threading
 import time
 
 from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
-from lazylibrarian.filesystem import path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.providers import provider_is_blocked
 
@@ -37,7 +37,6 @@ ARGS = []
 DAEMON = False
 SIGNAL = None
 PIDFILE = ''
-DATADIR = ''
 CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGINUSER = None
@@ -193,15 +192,15 @@ def directory(dirname):
             os.makedirs(syspath(usedir))
             logger.info("Created new %s folder: %s" % (dirname, usedir))
         except OSError as e:
-            logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DATADIR))
-            usedir = DATADIR
+            logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
+            usedir = DIRS.DATADIR
     if usedir and path_isdir(usedir):
         try:
             with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
                 f.write('test')
             os.remove(syspath(os.path.join(usedir, 'll_temp')))
         except Exception as why:
-            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DATADIR, str(why)))
+            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
             usedir = syspath(usedir)
             logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
                                                                                     oct(os.stat(usedir).st_mode),
@@ -209,10 +208,10 @@ def directory(dirname):
                                                                                     os.stat(usedir).st_gid,
                                                                                     os.access(usedir, os.W_OK),
                                                                                     os.access(usedir, os.X_OK)))
-            usedir = DATADIR
+            usedir = DIRS.DATADIR
     else:
-        logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DATADIR))
-        usedir = DATADIR
+        logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
+        usedir = DIRS.DATADIR
 
     return make_unicode(usedir)
 

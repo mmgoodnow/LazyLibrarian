@@ -17,7 +17,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move, remove
-from lazylibrarian.filesystem import path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
     make_unicode, split_title
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
@@ -40,7 +40,7 @@ def dump_table(table, savedir=None, status=None):
             return 0
 
         if not path_isdir(savedir):
-            savedir = lazylibrarian.DATADIR
+            savedir = DIRS.DATADIR
         else:
             savedir = str(savedir)
 
@@ -88,7 +88,7 @@ def restore_table(table, savedir=None, status=None):
             return 0
 
         if not path_isdir(savedir):
-            savedir = lazylibrarian.DATADIR
+            savedir = DIRS.DATADIR
         else:
             savedir = str(savedir)
 

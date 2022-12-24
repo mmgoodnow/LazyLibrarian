@@ -22,7 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
 from lazylibrarian.common import safe_copy, setperm, jpg_file
-from lazylibrarian.filesystem import path_isfile, syspath
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.cache import cache_img, fetch_url
 from lazylibrarian.providers import provider_is_blocked, block_provider
 from urllib.parse import quote_plus
@@ -221,7 +221,7 @@ def use_img(img, bookid, src, suffix=''):
 
     # if librarything has no image they return a 1x1 gif
     data = ''
-    coverfile = os.path.join(lazylibrarian.DATADIR, coverlink)
+    coverfile = os.path.join(DIRS.DATADIR, coverlink)
     if path_isfile(coverfile):
         with open(syspath(coverfile), 'rb') as f:
             data = f.read()
@@ -264,7 +264,7 @@ def get_book_cover(bookid=None, src=None):
             coverlink = item['BookImg']
             coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
             if coverlink != 'images/nocover.png' and 'nocover' in coverlink or 'nophoto' in coverlink:
-                coverfile = os.path.join(lazylibrarian.DATADIR, 'images', 'nocover.png')
+                coverfile = os.path.join(DIRS.DATADIR, 'images', 'nocover.png')
                 coverlink = 'images/nocover.png'
                 db.action("UPDATE books SET BookImg=? WHERE BookID=?", (coverlink, bookid))
         else:

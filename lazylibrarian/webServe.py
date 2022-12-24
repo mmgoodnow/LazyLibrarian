@@ -43,7 +43,7 @@ from lazylibrarian.common import show_stats, clear_log, \
     setperm, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, book_file, \
     remove, get_calibre_id, safe_move, opf_file, safe_copy
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
@@ -1408,7 +1408,7 @@ class WebInterface(object):
     @cherrypy.expose
     def save_filters(self):
         self.label_thread('WEBSERVER')
-        savedir = lazylibrarian.DATADIR
+        savedir = DIRS.DATADIR
         mags = dump_table('magazines', savedir)
         msg = "%d %s exported" % (mags, plural(mags, "magazine"))
         return msg
@@ -1416,7 +1416,7 @@ class WebInterface(object):
     @cherrypy.expose
     def save_users(self):
         self.label_thread('WEBSERVER')
-        savedir = lazylibrarian.DATADIR
+        savedir = DIRS.DATADIR
         users = dump_table('users', savedir)
         msg = "%d %s exported" % (users, plural(users, "user"))
         return msg
@@ -1424,7 +1424,7 @@ class WebInterface(object):
     @cherrypy.expose
     def load_filters(self):
         self.label_thread('WEBSERVER')
-        savedir = lazylibrarian.DATADIR
+        savedir = DIRS.DATADIR
         mags = restore_table('magazines', savedir)
         msg = "%d %s imported" % (mags, plural(mags, "magazine"))
         return msg
@@ -1432,7 +1432,7 @@ class WebInterface(object):
     @cherrypy.expose
     def load_users(self):
         self.label_thread('WEBSERVER')
-        savedir = lazylibrarian.DATADIR
+        savedir = DIRS.DATADIR
         users = restore_table('users', savedir)
         msg = "%d %s imported" % (users, plural(users, "user"))
         return msg
@@ -1596,7 +1596,7 @@ class WebInterface(object):
                 'genreExcludeParts': lazylibrarian.GRGENRES['genreExcludeParts'],
                 'genreReplace': lazylibrarian.GRGENRES['genreReplace'],
             }
-            with open(syspath(os.path.join(lazylibrarian.DATADIR, 'genres.json')), 'w') as f:
+            with open(syspath(os.path.join(DIRS.DATADIR, 'genres.json')), 'w') as f:
                 json.dump(newdict, f, indent=4)
             logger.debug("Applying genre changes")
             check_db()
@@ -2867,9 +2867,9 @@ class WebInterface(object):
                 if res:
                     logger.debug("Itemid %s matches ebook" % itemid)
                     if size:
-                        target = createthumb(os.path.join(lazylibrarian.DATADIR, res['BookImg']), size, False)
+                        target = createthumb(os.path.join(DIRS.DATADIR, res['BookImg']), size, False)
                     if not target:
-                        target = os.path.join(lazylibrarian.DATADIR, res['BookImg'])
+                        target = os.path.join(DIRS.DATADIR, res['BookImg'])
                     if path_isfile(target):
                         return self.send_file(target, name=res['BookName'] + os.path.splitext(res['BookImg'])[1])
                 else:
@@ -2877,9 +2877,9 @@ class WebInterface(object):
                     if res:
                         logger.debug("Itemid %s matches issue" % itemid)
                         if size:
-                            target = createthumb(os.path.join(lazylibrarian.DATADIR, res['Cover']), size, False)
+                            target = createthumb(os.path.join(DIRS.DATADIR, res['Cover']), size, False)
                         if not target:
-                            target = os.path.join(lazylibrarian.DATADIR, res['Cover'])
+                            target = os.path.join(DIRS.DATADIR, res['Cover'])
                         if path_isfile(target):
                             return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
                     else:
@@ -2893,9 +2893,9 @@ class WebInterface(object):
                         if res:
                             logger.debug("Itemid %s matches comicid" % itemid)
                             if size:
-                                target = createthumb(os.path.join(lazylibrarian.DATADIR, res['Cover']), size, False)
+                                target = createthumb(os.path.join(DIRS.DATADIR, res['Cover']), size, False)
                             if not target:
-                                target = os.path.join(lazylibrarian.DATADIR, res['Cover'])
+                                target = os.path.join(DIRS.DATADIR, res['Cover'])
                             if path_isfile(target):
                                 return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
 
@@ -3167,7 +3167,7 @@ class WebInterface(object):
             images = []
             res = get_author_image(authorid=authorid, refresh=False, max_num=5)
             if res and path_isdir(res):
-                basedir = res.replace(lazylibrarian.DATADIR, '').lstrip('/')
+                basedir = res.replace(DIRS.DATADIR, '').lstrip('/')
                 for item in listdir(res):
                     images.append([item, os.path.join(basedir, item)])
             return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
@@ -3201,7 +3201,7 @@ class WebInterface(object):
                     if authorimg and (authdata["AuthorImg"] != authorimg):
                         edited += "Image manual"
                 elif kwargs['cover'] != "current":
-                    authorimg = os.path.join(lazylibrarian.DATADIR, kwargs['cover'])
+                    authorimg = os.path.join(DIRS.DATADIR, kwargs['cover'])
                     edited += "Image %s " % kwargs['cover']
 
             if authdata["About"] != editordata:

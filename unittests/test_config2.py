@@ -14,7 +14,7 @@ import lazylibrarian
 from lazylibrarian import config2, configdefs, configtypes, logger
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access, TimeUnit
-from lazylibrarian.filesystem import syspath
+from lazylibrarian.filesystem import DIRS, syspath
 
 # Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones
@@ -264,7 +264,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
 
         try:
-            ci = configtypes.ConfigScheduler('', '', '', 10, TimeUnit.HOUR, 'run', '', '', True)
+            _ = configtypes.ConfigScheduler('', '', '', 10, TimeUnit.HOUR, 'run', '', '', True)
             self.assertTrue(False, 'Expected RuntimeError to be raised because schedule is empty')
         except RuntimeError:
             pass # This is what we expect
@@ -337,7 +337,7 @@ class Config2Test(LLTestCase):
 
     def do_access_compare(self, got: Dict[str, Counter], expected: Dict[str, Counter], exclude: List[Access], error: str):
         """ Helper function, validates that two access lists are the same """
-        if exclude == []:
+        if not exclude:
             self.assertEqual(len(got), len(expected))
         for key in got:
             for access in got[key]:
@@ -538,7 +538,7 @@ class Config2Test(LLTestCase):
         self.do_access_compare(acs, {}, [], 'Loading ini without defaults should not load anything')
 
     def test_configread_defaultini(self):
-        """ Test reading a near-default ini file, with all of the base definitions loads """
+        """ Test reading a near-default ini file, with all the base definitions loads """
         self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         acs = cfg.get_all_accesses() # We just want to know the right things were updated
@@ -710,7 +710,7 @@ class Config2Test(LLTestCase):
 
         try:
             TESTFILE = 'test-all.ini'
-            count = cfg.save_config(TESTFILE, True) # Save everything.
+            _ = cfg.save_config(TESTFILE, True) # Save everything.
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
         finally:
@@ -777,7 +777,7 @@ class Config2Test(LLTestCase):
         """ Test that the things done after saving and backing up are done correctly """
         self.set_loglevel(1)
         if lazylibrarian.CACHEDIR == '':
-            lazylibrarian.CACHEDIR = os.path.join(lazylibrarian.DATADIR, 'cache')
+            lazylibrarian.CACHEDIR = os.path.join(DIRS.DATADIR, 'cache')
 
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 

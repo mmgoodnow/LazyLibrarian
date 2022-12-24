@@ -21,7 +21,7 @@ from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
-from lazylibrarian.filesystem import syspath, path_exists
+from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
 
 """ Main configuration handler for LL """
@@ -326,7 +326,7 @@ class LLConfigHandler(ConfigDict):
         warnings = 0
         logger.debug('Performing post-load fixup on config')
         if str(self.config['LOGDIR']) == '':
-            self.config['LOGDIR'].set_str(path.join(lazylibrarian.DATADIR, 'Logs'))
+            self.config['LOGDIR'].set_str(path.join(DIRS.DATADIR, 'Logs'))
 
         if str(self.config['AUDIOBOOK_DEST_FOLDER']) == 'None':
             self.config['AUDIOBOOK_DEST_FOLDER'].set_str(self.config['EBOOK_DEST_FOLDER'].get_str())

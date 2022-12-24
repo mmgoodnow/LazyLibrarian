@@ -6,6 +6,7 @@
 import unittesthelpers
 import lazylibrarian
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.filesystem import DIRS
 
 class SetupTest(unittesthelpers.LLTestCase):
 
@@ -34,21 +35,21 @@ class SetupTest(unittesthelpers.LLTestCase):
         # Test the directory() function
         # The directories should all have values from unittest/testdata/config-defaults.ini, and differ from the default
         bookdir = lazylibrarian.directory("eBook")
-        self.assertNotEqual(bookdir, lazylibrarian.DATADIR, "BookDir and Datadir cannot be the same")
+        self.assertNotEqual(bookdir, DIRS.DATADIR, "BookDir and Datadir cannot be the same")
         self.assertEndsWith(bookdir, "eBooks")
 
         audiobookdir = lazylibrarian.directory("AudioBook")
         audiodir = lazylibrarian.directory("Audio")
         self.assertEqual(audiobookdir, audiodir)
-        self.assertNotEqual(audiobookdir, lazylibrarian.DATADIR)
+        self.assertNotEqual(audiobookdir, DIRS.DATADIR)
         self.assertEndsWith(audiobookdir, "Audiobooks")
 
         downloaddir = lazylibrarian.directory("Download")
-        self.assertNotEqual(downloaddir, lazylibrarian.DATADIR)
+        self.assertNotEqual(downloaddir, DIRS.DATADIR)
         self.assertEndsWith(downloaddir, "Downloads")
 
         altdir = lazylibrarian.directory("Alternate")
-        self.assertNotEqual(altdir, lazylibrarian.DATADIR)
+        self.assertNotEqual(altdir, DIRS.DATADIR)
         self.assertEndsWith(altdir, "Alternative")
 
         faultydir = lazylibrarian.directory("This is invalid")

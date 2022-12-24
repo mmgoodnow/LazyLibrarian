@@ -98,7 +98,6 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.DAEMON = False
         lazylibrarian.SIGNAL = None
         lazylibrarian.PIDFILE = ''
-        lazylibrarian.DATADIR = ''
         lazylibrarian.CONFIGFILE = ''
         lazylibrarian.SYS_ENCODING = ''
         logger.lazylibrarian_log.update_loglevel(1)
