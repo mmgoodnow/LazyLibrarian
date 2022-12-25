@@ -26,7 +26,6 @@ from lazylibrarian.common import quotes
 from lazylibrarian.filesystem import path_isfile
 from urllib.parse import quote_plus
 
-import html5lib
 from bs4 import BeautifulSoup
 
 

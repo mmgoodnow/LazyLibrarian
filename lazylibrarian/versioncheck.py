@@ -22,14 +22,11 @@ import time
 from shutil import rmtree
 
 import lazylibrarian
-
+import requests
 from lazylibrarian import logger, version, database
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir, walk
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
-
-import urllib3
-import requests
 
 
 def logmsg(level, msg):

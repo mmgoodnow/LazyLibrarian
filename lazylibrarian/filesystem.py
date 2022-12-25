@@ -205,7 +205,7 @@ def listdir(name: str):
 
 def walk(top, topdown=True, onerror=None, followlinks=False):
     """
-    duplicate of os.walk, except for unix we use bytestrings for listdir
+    Duplicate of os.walk, except that in unix we use bytestrings for listdir
     return top, dirs, nondirs as unicode
     """
     islink, join, isdir = path_islink, os.path.join, path_isdir

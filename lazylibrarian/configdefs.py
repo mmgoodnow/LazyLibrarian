@@ -1,7 +1,7 @@
 #  This file is part of Lazylibrarian.
 #
 # Purpose:
-#    Contain all of the config settings and defaults used across LazyLibrarian
+#    Contain all the config settings and defaults used across LazyLibrarian
 
 from typing import List, Dict, Tuple
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
@@ -463,7 +463,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('API', 'GR_FOLLOW', 0),  # follow authors on goodreads
     ConfigBool('API', 'GR_FOLLOWNEW', 0),  # follow new authors on goodreads
     ConfigStr('API', 'GB_API', ''),  # API key has daily limits, each user needs their own
-    ConfigStr('API', 'GB_COUNTRY', ''),  # optional two letter country code for geographically restricted results
+    ConfigStr('API', 'GB_COUNTRY', ''),  # optional two-letter country code for geographically restricted results
     ConfigStr('FMT', 'FMT_SERNAME', '$SerName'),
     ConfigStr('FMT', 'FMT_SERNUM', 'Book #$SerNum -$$'),
     ConfigStr('FMT', 'FMT_SERIES', '( $FmtName $FmtNum )'),

@@ -62,12 +62,12 @@ class LazyTelemetry(object):
         """ Get unique, anonymous ID for self installation """
         server = self._data["server"]
         if "id" not in server:
-            id = _config['SERVER_ID']
-            if not id:
+            serverid = _config['SERVER_ID']
+            if not serverid:
                 import uuid
-                id = uuid.uuid4().hex
-                _config['SERVER_ID'] = id
-            server["id"] = id
+                serverid = uuid.uuid4().hex
+                _config['SERVER_ID'] = serverid
+            server["id"] = serverid
 
         return server["id"]
 
@@ -161,8 +161,7 @@ class LazyTelemetry(object):
         usg.clear()
 
     def get_json(self, send_config: bool, send_usage: bool, pretty=False):
-        senddata = {}
-        senddata['server'] = self._data['server']
+        senddata = {'server': self._data['server']}
         if send_config:
             senddata['config'] = self._data['config']
         if send_usage:
@@ -191,7 +190,8 @@ class LazyTelemetry(object):
     def get_data_url(self, server: str, send_config: bool, send_usage: bool):
         return f"{server}/send?{self.construct_data_string(send_config, send_usage)}"
 
-    def _send_url(self, url: str):
+    @staticmethod
+    def _send_url(url: str):
         """ Sends url to the telemetry server, returns result """
 
         proxies = proxy_list()
@@ -229,15 +229,15 @@ class LazyTelemetry(object):
     def test_server(self, server: str) -> str:
         """ Try to connect to the configured server """
         try:
-            ID, ok = self._send_url(server)
-            if ok and ID:
+            serverid, ok = self._send_url(server)
+            if ok and serverid:
                 status, ok = self._send_url(f'{server}/status')
                 # Use just the first line of both, in case there is an error
-                ID1 = ID.split('\n')[0]
+                id1 = serverid.split('\n')[0]
                 status1 = status.split('\n')[0] if status else ''
-                return f"Server ID: {ID1}\n\nStatus:\n{status1}"
+                return f"Server ID: {id1}\n\nStatus:\n{status1}"
             else:
-                return f"Error connecting to server: {ID}"
+                return f"Error connecting to server: {serverid}"
         except:
             return "Error connecting to server"
 

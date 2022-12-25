@@ -32,8 +32,6 @@ from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, t
     torrent_trf, torrent_lime
 
 import lib.feedparser as feedparser
-
-import html5lib
 from bs4 import BeautifulSoup
 
 
@@ -1852,25 +1850,16 @@ def cancel_search_type(search_type: str, error_msg: str, provider: ConfigDict):
 
             if msg:
                 count = 0
-                # CFG2DO p3 Quite inelegant duplication here
-                for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
-                    while count < len(provider):
-                        if provider['HOST'] == provider['HOST']:
-                            if not provider['MANUAL']:
-                                logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
-                                provider[msg] = ""
-                                lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
-                                return True
-                        count += 1
-                for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
-                    while count < len(provider):
-                        if provider['HOST'] == provider['HOST']:
-                            if not provider['MANUAL']:
-                                logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
-                                provider[msg] = ""
-                                lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
-                                return True
-                        count += 1
+                for providertype in ['NEWZNAB', 'TORZNAB']:
+                    for provider in lazylibrarian.CONFIG.providers(providertype):
+                        while count < len(provider):
+                            if provider['HOST'] == provider['HOST']:
+                                if not provider['MANUAL']:
+                                    logger.error("Disabled %s=%s for %s" % (msg, provider[msg], provider['DISPNAME']))
+                                    provider[msg] = ""
+                                    lazylibrarian.CONFIG.save_config_and_backup_old(section=provider['NAME'])
+                                    return True
+                            count += 1
             logger.error('Unable to disable searchtype [%s] for %s' % (search_type, provider['DISPNAME']))
     return False
 

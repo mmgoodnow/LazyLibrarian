@@ -21,7 +21,6 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
     make_utf8bytes, seconds_to_midnight
 
-import html5lib
 from bs4 import BeautifulSoup
 
 

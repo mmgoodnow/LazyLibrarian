@@ -29,7 +29,6 @@ from lazylibrarian.logger import lazylibrarian_log
 
 from thefuzz import fuzz
 
-import urllib3
 import requests
 
 

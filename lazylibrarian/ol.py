@@ -22,7 +22,6 @@ from lazylibrarian.formatter import check_float, check_int, now, is_valid_isbn, 
 from lazylibrarian.bookwork import librarything_wait, isbn_from_words, get_gb_info, genre_filter, get_status, \
     thinglang
 
-import html5lib
 from bs4 import BeautifulSoup
 from urllib.parse import quote_plus
 from lazylibrarian.images import get_book_cover

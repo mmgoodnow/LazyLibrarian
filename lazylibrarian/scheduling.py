@@ -23,7 +23,7 @@ from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
 from lazylibrarian import database, logger, importer, bookwork
-from lazylibrarian.formatter import thread_name, plural, check_int
+from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.configtypes import ConfigScheduler
 
 # Notification Types

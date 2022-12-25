@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.csvfile import finditem
-from lazylibrarian.formatter import plural, unaccented, format_author_name, check_int, split_title, thread_name
+from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list

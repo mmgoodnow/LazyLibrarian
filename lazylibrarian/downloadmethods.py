@@ -25,7 +25,6 @@ except Exception:  # magic might fail for multiple reasons
 import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
-from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list, make_dirs
@@ -40,10 +39,7 @@ from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
 from lib.bencode import bencode, bdecode
 
-import html5lib
 from bs4 import BeautifulSoup
-
-import urllib3
 import requests
 
 
@@ -266,7 +262,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
     dl_url = make_unicode(dl_url)
     s = requests.Session()
     if provider == 'zlibrary':
-        # do we need to login?
+        # do we need to log in?
         if lazylibrarian.CONFIG['BOK_USER'] and lazylibrarian.CONFIG['BOK_PASS']:
             bok_login_url = lazylibrarian.CONFIG['BOK_LOGIN']
             data = {
@@ -692,7 +688,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
                 logger.debug("Sending %s url to Transmission:%s" % (tor_title, directory))
                 download_id, res = transmission.add_torrent(tor_url, directory=directory)  # returns id or False
             if download_id:
-                # transmission returns it's own int, but we store hashid instead
+                # transmission returns its own int, but we store hashid instead
                 download_id = hashid
                 if label:
                     transmission.set_label(download_id, label)
@@ -782,7 +778,7 @@ def tor_dl_method(bookid=None, tor_title=None, tor_url=None, library='eBook', la
             else:
                 tor_title = unaccented(tor_title, only_ascii=False)
                 # need to check against reject words list again as the name may have changed
-                # library = magazine eBook AudioBook to determine which reject list
+                # library = magazine eBook AudioBook to determine which reject list,
                 # but we can't easily do the per-magazine rejects
                 if library == 'magazine':
                     reject_list = get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')

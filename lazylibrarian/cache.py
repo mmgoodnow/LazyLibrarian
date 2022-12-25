@@ -24,7 +24,6 @@ from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, rem
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
-import urllib3
 import requests
 import http.client
 

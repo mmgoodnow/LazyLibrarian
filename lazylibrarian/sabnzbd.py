@@ -18,7 +18,6 @@ from lazylibrarian.common import proxy_list
 from lazylibrarian.formatter import make_utf8bytes, versiontuple
 from urllib.parse import urlencode
 
-import urllib3
 import requests
 
 

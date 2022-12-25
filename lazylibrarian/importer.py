@@ -68,7 +68,7 @@ def get_preferred_author_name(author):
             aka = item['AKA']
             if aka:
                 match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
-                if match_fuzz >= lazylibrarian.CONFIGget_int('NAME_RATIO'):
+                if match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
                     logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
                     author = item['AuthorName']
                     match = True

@@ -119,7 +119,7 @@ def upgrade_needed():
     """
     Check if database needs upgrading
     Return zero if up-to-date
-    Return current version if needs upgrade
+    Return current version if LazyLibrarian needs upgrade
     """
 
     db = database.DBConnection()

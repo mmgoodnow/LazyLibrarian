@@ -10,7 +10,7 @@ from lazylibrarian.configtypes import ConfigItem, ConfigDict
 from lazylibrarian.configdefs import DefaultArrayDef, configitem_from_default
 from lazylibrarian import logger
 
-class ArrayConfig():
+class ArrayConfig:
     """ Handle an array-config, such as for a list of notifiers """
     _name: str    # e.g. 'APPRISE'
     _secstr: str  # e.g. 'APPRISE_%i'

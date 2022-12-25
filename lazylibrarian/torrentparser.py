@@ -20,7 +20,6 @@ from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_by
     replace_all, get_list, month2num, check_year, make_utf8bytes
 from urllib.parse import quote, urlencode, quote_plus
 from thefuzz import fuzz
-import html5lib
 from bs4 import BeautifulSoup
 import lib.feedparser as feedparser
 
