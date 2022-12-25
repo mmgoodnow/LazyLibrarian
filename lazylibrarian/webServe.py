@@ -6788,9 +6788,7 @@ class WebInterface(object):
         try:
             if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 ffmpeg_env = os.environ.copy()
-                ffmpeg_env["FFREPORT"] = "file=" + os.path.join(lazylibrarian.CONFIG['LOGDIR'],
-                                                                "ffmpeg-test-%s.log" %
-                                                                now().replace(':', '-').replace(' ', '-'))
+                ffmpeg_env["FFREPORT"] = DIRS.get_logfile("ffmpeg-test-%s.log" % now().replace(':', '-').replace(' ', '-'))
                 params = [ffmpeg, "-version", "-report"]
             else:
                 params = [ffmpeg, "-version"]

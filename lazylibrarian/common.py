@@ -624,8 +624,8 @@ def save_log():
     if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 
-    basename = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'lazylibrarian.log')
-    outfile = os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'debug')
+    basename = DIRS.get_logfile('lazylibrarian.log')
+    outfile = DIRS.get_logfile('debug')
 
     out = open(syspath(outfile + '.tmp'), 'w', encoding='utf-8')
 

@@ -45,7 +45,7 @@ class DBConnection:
             self.connection.execute("PRAGMA foreign_keys = ON")
             self.connection.execute("PRAGMA temp_store = 2")  # memory
             self.connection.row_factory = sqlite3.Row
-            self.dblog = syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
+            self.dblog = syspath(DIRS.get_logfile('database.log'))
         except Exception as e:
             logger.debug(str(e))
             logger.debug(DIRS.get_dbfile())

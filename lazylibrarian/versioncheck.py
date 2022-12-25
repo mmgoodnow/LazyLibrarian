@@ -466,7 +466,7 @@ def update_version_file(new_version_id):
 
 
 def update():
-    with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
+    with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
         if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'win':
             msg = 'Windows .exe updating not supported yet.'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))

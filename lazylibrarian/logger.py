@@ -17,7 +17,6 @@ from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
 
-
 # Simple rotating log handler that uses RotatingFileHandler
 class RotatingLogger(object):
     # Class variables
@@ -57,6 +56,7 @@ class RotatingLogger(object):
         self.update_loglevel()
         self.LOGLIST = []
 
+        # Don't import filesystem.DIRS to avoid circular reference
         self.filename = os.path.join(self.config['LOGDIR'], self.filename)
         RotatingLogger.DEBUG_LOG_LIMIT = self.config.get_int('LOGLIMIT') # We must not access the config when logging, so init it here
 

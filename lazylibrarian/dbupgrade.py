@@ -153,7 +153,7 @@ def has_column(db, table, column):
 
 
 def db_upgrade(current_version):
-    with open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a') as upgradelog:
+    with open(syspath(DIRS.get_logfile('dbupgrade.log'), 'a')) as upgradelog:
         # noinspection PyBroadException
         try:
             db = database.DBConnection()
@@ -308,7 +308,7 @@ def check_db(upgradelog=None):
 
     closefile = False
     if not upgradelog:
-        upgradelog = open(syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'dbupgrade.log')), 'a')
+        upgradelog = open(DIRS.get_logfile('dbupgrade.log'), 'a')
         closefile = True
     db_changes = update_schema(db, upgradelog)
 

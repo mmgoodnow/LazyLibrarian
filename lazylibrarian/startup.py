@@ -152,12 +152,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
         ])
         DIRS.ensure_cache_dir()
-        lazylibrarian.CONFIG['LOGDIR'] = os.path.join(DIRS.DATADIR, 'Logs')
-        if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
-            try:
-                os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
-            except OSError:
-                raise SystemExit('Could not create log directory: ' + lazylibrarian.CONFIG['LOGDIR'] + '. Exit ...')
+        lazylibrarian.CONFIG['LOGDIR'] = DIRS.ensure_data_subdir('Logs')
 
         versioncheck.get_install_type()
         if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
@@ -203,19 +198,10 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
 
 def init_logs():
     # Initialize log files. Until this is done, do not use the logger
-
-    if not lazylibrarian.CONFIG['LOGDIR'] or lazylibrarian.CONFIG['LOGDIR'][0] == '.':
-        lazylibrarian.CONFIG.set_str('LOGDIR', os.path.join(DIRS.DATADIR, 'Logs'))
-
-    # Create logdir
-    if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
-        try:
-            os.makedirs(lazylibrarian.CONFIG['LOGDIR'])
-        except OSError as e:
-            print('%s : Unable to create folder for logs: %s' % (lazylibrarian.CONFIG['LOGDIR'], str(e)))
+    DIRS.ensure_log_dir()
 
     lazylibrarian_log.init_logger(config=lazylibrarian.CONFIG)
-    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL}- Log Directory is [lazylibrarian.CONFIG['LOGDIR']]")
+    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {lazylibrarian.CONFIG['LOGDIR']}")
     if lazylibrarian_log.LOGLEVEL > 2:
         info("Screen Log set to EXTENDED DEBUG")
     elif lazylibrarian_log.LOGLEVEL == 2:
@@ -715,7 +701,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
     shutdownscheduler()
     if not testing:
         if lazylibrarian_log.LOGLEVEL >= 2:
-            lazylibrarian.CONFIG.create_access_summary(syspath(os.path.join(CONFIG['LOGDIR'],'configaccess.log')))
+            lazylibrarian.CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
         lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=False)
 
     if not restart and not update:
@@ -786,7 +772,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
             if '--nolaunch' not in popen_list:
                 popen_list += ['--nolaunch']
 
-            with open(syspath(os.path.join(CONFIG['LOGDIR'], 'upgrade.log')), 'a') as upgradelog:
+            with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
                 if updated:
                     upgradelog.write("%s %s\n" % (time.ctime(),
                                      'Restarting LazyLibrarian with ' + str(popen_list)))

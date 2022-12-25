@@ -325,8 +325,8 @@ class LLConfigHandler(ConfigDict):
         """
         warnings = 0
         logger.debug('Performing post-load fixup on config')
-        if str(self.config['LOGDIR']) == '':
-            self.config['LOGDIR'].set_str(path.join(DIRS.DATADIR, 'Logs'))
+        DIRS.set_config(self)
+        DIRS.ensure_log_dir()
 
         if str(self.config['AUDIOBOOK_DEST_FOLDER']) == 'None':
             self.config['AUDIOBOOK_DEST_FOLDER'].set_str(self.config['EBOOK_DEST_FOLDER'].get_str())
@@ -358,7 +358,6 @@ class LLConfigHandler(ConfigDict):
             self.config['SSL_CERTS'].set_str('')
             warnings += 1
 
-        DIRS.set_config(self)
         return warnings
 
     @staticmethod

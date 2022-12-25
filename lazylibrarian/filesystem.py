@@ -49,6 +49,18 @@ class DirectoryHolder:
         self.CACHEDIR = self.ensure_data_subdir('cache')
         self.TMPDIR = self.ensure_data_subdir('tmp')
 
+    @staticmethod
+    def ensure_dir_is_writeable(dirname: str) -> (bool, str):
+        if not path_isdir(dirname):
+            try:
+                os.makedirs(dirname)
+            except OSError:
+                return False, f'Could not create directory: {dirname}.'
+        if not os.access(dirname, os.W_OK):
+            return False, f'Cannot write to the directory: {dirname}.'
+
+        return True, 'ok'
+
     def ensure_data_subdir(self, subdir: str) -> str:
         """ Returns writeable directory. Tries to make it subdir, but falls back to DATADIR if needed """
         dirname =  os.path.join(self.DATADIR, subdir)
@@ -65,20 +77,17 @@ class DirectoryHolder:
         if self.CACHEDIR == '':
             self.CACHEDIR = self.ensure_data_subdir('cache')
 
+    def ensure_log_dir(self) -> str:
+        """ Make sure the LOGDIR is set correctly, and is writeable """
+        ok = False
+        if self.config['LOGDIR'] != '':
+            ok, _ = self.ensure_dir_is_writeable(self.config['LOGDIR'])
+        if not ok: # Can't make configured logdir writable, pick another one
+            self.config['LOGDIR'] = self.ensure_data_subdir('Logs')
+        return self.config['LOGDIR']
+
     def set_config(self, config: ConfigDict):
         self.config = config
-
-    @staticmethod
-    def ensure_dir_is_writeable(dirname: str) -> (bool, str):
-        if not path_isdir(dirname):
-            try:
-                os.makedirs(dirname)
-            except OSError:
-                return False, f'Could not create directory: {dirname}.'
-        if not os.access(dirname, os.W_OK):
-            return False, f'Cannot write to the directory: {dirname}.'
-
-        return True, 'ok'
 
     def get_mako_cachedir(self):
         """ Return the name of the mako cache dir """
@@ -87,6 +96,10 @@ class DirectoryHolder:
     def get_dbfile(self):
         """ Return the name of the LL database file """
         return os.path.join(self.DATADIR, 'lazylibrarian.db')
+
+    def get_logfile(self, filename: str) -> str:
+        """ Return the full name of filename in the LOG directory """
+        return os.path.join(self.config['LOGDIR'], filename)
 
     def get_tmpfilename(self, base: Optional[str]=None) -> str:
         """ Get a file named base in the tmp directory.
