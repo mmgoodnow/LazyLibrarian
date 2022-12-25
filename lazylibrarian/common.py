@@ -23,7 +23,6 @@ import random
 import string
 import sys
 import time
-import traceback
 import subprocess
 
 import zipfile
@@ -47,9 +46,8 @@ except ImportError:
 import lazylibrarian
 from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
-    get_list, make_unicode
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath, path_exists, remove_file, \
+from lazylibrarian.formatter import plural, check_int, get_list, make_unicode
+from lazylibrarian.filesystem import DIRS, syspath, path_exists, remove_file, \
     listdir, walk, setperm
 
 # list of all ascii and non-ascii quotes/apostrophes
@@ -210,34 +208,6 @@ def pwd_check(password):
     if any(char.isspace() for char in password):
         return False
     return True
-
-
-def book_file(search_dir=None, booktype=None, recurse=False):
-    # find a book/mag file in this directory (tree), any book will do
-    # return full pathname of book/mag as bytes, or empty bytestring if none found
-    if booktype is None:
-        return ""
-
-    if path_isdir(search_dir):
-        if recurse:
-            # noinspection PyBroadException
-            try:
-                for r, _, f in walk(search_dir):
-                    # our walk returns unicode
-                    for item in f:
-                        if is_valid_booktype(item, booktype=booktype):
-                            return os.path.join(r, item)
-            except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-        else:
-            # noinspection PyBroadException
-            try:
-                for fname in listdir(search_dir):
-                    if is_valid_booktype(fname, booktype=booktype):
-                        return os.path.join(make_unicode(search_dir), fname)
-            except Exception:
-                logger.error('Unhandled exception in book_file: %s' % traceback.format_exc())
-    return ""
 
 
 def mime_type(filename):

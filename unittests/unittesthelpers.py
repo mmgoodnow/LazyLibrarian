@@ -8,7 +8,7 @@ import lazylibrarian
 from os import remove
 from shutil import rmtree
 from lazylibrarian.common import logger
-from lazylibrarian.filesystem import DIRS
+from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian import dbupgrade, startup, config2, configdefs
 
 class LLTestCase(unittest.TestCase):
@@ -78,7 +78,6 @@ class LLTestCase(unittest.TestCase):
 
     @classmethod
     def delete_test_logs(cls):
-        from lazylibrarian.common import path_isdir
         if path_isdir(lazylibrarian.CONFIG['LOGDIR']) and len(lazylibrarian.CONFIG['LOGDIR']) > 3:
             try: # Do not delete if there is a risk that it's the root of somewhere important
 #                logger.debug("Deleting Logs")
