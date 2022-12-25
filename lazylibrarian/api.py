@@ -34,8 +34,8 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, setperm, log_header, show_stats, cpu_use
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir
+from lazylibrarian.common import clear_log, log_header, show_stats, cpu_use
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table

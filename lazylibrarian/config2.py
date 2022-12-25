@@ -358,6 +358,7 @@ class LLConfigHandler(ConfigDict):
             self.config['SSL_CERTS'].set_str('')
             warnings += 1
 
+        DIRS.set_config(self)
         return warnings
 
     @staticmethod

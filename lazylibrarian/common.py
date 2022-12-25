@@ -50,8 +50,8 @@ from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, namedic
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, \
-    listdir, walk
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, path_exists, remove_file, \
+    listdir, walk, setperm
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -315,59 +315,6 @@ def pwd_check(password):
     if any(char.isspace() for char in password):
         return False
     return True
-
-
-def octal(value, default):
-    if not value:
-        return default
-    try:
-        value = int(str(value), 8)
-        return value
-    except ValueError:
-        return default
-
-
-def setperm(file_or_dir):
-    """
-    Force newly created directories to rwxr-xr-x and files to rw-r--r--
-    or other value as set in config
-    """
-    if not file_or_dir:
-        return False
-
-    if path_isdir(file_or_dir):
-        perm = octal(lazylibrarian.CONFIG['DIR_PERM'], 0o755)
-    elif path_isfile(file_or_dir):
-        perm = octal(lazylibrarian.CONFIG['FILE_PERM'], 0o644)
-    else:
-        # not a file or a directory (symlink?)
-        return False
-
-    want_perm = oct(perm)[-3:].zfill(3)
-    st = os.stat(syspath(file_or_dir))
-    old_perm = oct(st.st_mode)[-3:].zfill(3)
-    if old_perm == want_perm:
-        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
-            logger.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
-        return True
-
-    try:
-        os.chmod(syspath(file_or_dir), perm)
-    except Exception as err:
-        logger.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
-                                                                    type(err).__name__, str(err)))
-        return False
-
-    st = os.stat(syspath(file_or_dir))
-    new_perm = oct(st.st_mode)[-3:].zfill(3)
-
-    if new_perm == want_perm:
-        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
-            logger.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
-        return True
-    else:
-        logger.debug("Failed to set permission %s for %s, got %s" % (want_perm, file_or_dir, new_perm))
-    return False
 
 
 def any_file(search_dir=None, extn=None):

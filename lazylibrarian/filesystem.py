@@ -11,6 +11,7 @@ import sys
 from datetime import datetime
 from typing import Optional
 
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import make_bytestr, make_unicode
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
@@ -20,6 +21,7 @@ class DirectoryHolder:
     CACHEDIR: str = ''  # Where LL stores its cache
     TMPDIR: str         # Where LL will store temporary files
     FULL_PATH: str      # Fully qualified name of executable running
+    config: ConfigDict  # A reference to the config being used
 
     def __init__(self):
         self.DATADIR = ''
@@ -46,6 +48,9 @@ class DirectoryHolder:
             lazylibrarian_log.error(msg)
             lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for temporary files')
             self.TMPDIR = self.DATADIR
+
+    def set_config(self, config: ConfigDict):
+        self.config = config
 
     @staticmethod
     def ensure_dir_is_writeable(dirname: str) -> (bool, str):
@@ -235,3 +240,57 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
                 yield x
     if not topdown:
         yield top, dirs, nondirs
+
+
+def setperm(file_or_dir):
+    """
+    Force newly created directories to rwxr-xr-x and files to rw-r--r--
+    or other value as set in config
+    """
+    if not file_or_dir:
+        return False
+
+    if path_isdir(file_or_dir):
+        perm = octal(DIRS.config['DIR_PERM'], 0o755)
+    elif path_isfile(file_or_dir):
+        perm = octal(DIRS.configG['FILE_PERM'], 0o644)
+    else:
+        # not a file or a directory (symlink?)
+        return False
+
+    want_perm = oct(perm)[-3:].zfill(3)
+    st = os.stat(syspath(file_or_dir))
+    old_perm = oct(st.st_mode)[-3:].zfill(3)
+    if old_perm == want_perm:
+        if lazylibrarian_log.LOGLEVEL & log_fileperms:
+            lazylibrarian_log.debug("Permission for %s is already %s" % (file_or_dir, want_perm))
+        return True
+
+    try:
+        os.chmod(syspath(file_or_dir), perm)
+    except Exception as err:
+        lazylibrarian_log.debug("Error setting permission %s for %s: %s %s" % (want_perm, file_or_dir,
+                                                                    type(err).__name__, str(err)))
+        return False
+
+    st = os.stat(syspath(file_or_dir))
+    new_perm = oct(st.st_mode)[-3:].zfill(3)
+
+    if new_perm == want_perm:
+        if lazylibrarian_log.LOGLEVEL & log_fileperms:
+            lazylibrarian_log.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
+        return True
+    else:
+        lazylibrarian_log.debug("Failed to set permission %s for %s, got %s" % (want_perm, file_or_dir, new_perm))
+    return False
+
+
+def octal(value, default: int) -> int:
+    """ Return value as int, if it's a valid base-8 number, otherwise default """
+    if not value:
+        return default
+    try:
+        value = int(str(value), 8)
+        return value
+    except ValueError:
+        return default
