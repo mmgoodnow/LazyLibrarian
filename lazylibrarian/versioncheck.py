@@ -24,8 +24,8 @@ from shutil import rmtree
 import lazylibrarian
 
 from lazylibrarian import logger, version, database
-from lazylibrarian.common import get_user_agent, proxy_list, walk, listdir
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath
+from lazylibrarian.common import get_user_agent, proxy_list, walk
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
 
 import urllib3

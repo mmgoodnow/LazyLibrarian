@@ -50,7 +50,8 @@ from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink, remove_file
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, path_islink, remove_file, \
+    listdir
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -165,26 +166,6 @@ def multibook(foldername, recurse=False):
                     if counter > 1:
                         return item
     return ''
-
-
-def listdir(name):
-    """
-    listdir ensuring bytestring for unix,
-    so we don't baulk if filename doesn't fit utf-8 on return
-    and ensuring utf-8 and adding path requirements for windows
-    All returns are unicode
-    """
-    if os.path.__name__ == 'ntpath':
-        dname = syspath(name)
-        if not dname.endswith('\\'):
-            dname = dname + '\\'
-        try:
-            return os.listdir(dname)
-        except Exception as err:
-            logger.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
-            return []
-
-    return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
 
 
 def walk(top, topdown=True, onerror=None, followlinks=False):

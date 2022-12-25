@@ -32,8 +32,8 @@ import requests
 
 from shutil import rmtree
 
-from lazylibrarian.common import listdir, log_header
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file
+from lazylibrarian.common import log_header
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
 from lazylibrarian import CONFIG

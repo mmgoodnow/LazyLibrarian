@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.formatter import make_bytestr, make_unicode
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
 class DirectoryHolder:
@@ -176,3 +177,23 @@ def remove_dir(name: str) -> bool:
     except Exception as err:
         lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
     return ok
+
+
+def listdir(name: str):
+    """
+    listdir ensuring bytestring for unix,
+    so we don't baulk if filename doesn't fit utf-8 on return
+    and ensuring utf-8 and adding path requirements for windows
+    All returns are unicode
+    """
+    if os.path.__name__ == 'ntpath':
+        dname = syspath(name)
+        if not dname.endswith('\\'):
+            dname = dname + '\\'
+        try:
+            return os.listdir(dname)
+        except Exception as err:
+            lazylibrarian_log.error("Listdir [%s][%s] failed: %s" % (name, dname, str(err)))
+            return []
+
+    return [make_unicode(item) for item in os.listdir(make_bytestr(name))]
