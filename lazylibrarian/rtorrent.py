@@ -16,6 +16,7 @@ import ssl
 from time import sleep
 
 import lazylibrarian
+from lazylibrarian.filesystem import get_directory
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from xmlrpc.client import Binary, ServerProxy
@@ -100,7 +101,7 @@ def add_torrent(tor_url, hash_id, data=None):
         directory = lazylibrarian.CONFIG['RTORRENT_DIR']
         if directory:
             if version.startswith('0.9') or version.startswith('1.'):
-                server.d.directory.set(hash_id, directory)
+                get_directory.set(hash_id, directory)
             else:
                 server.d.set_directory(hash_id, directory)
 
@@ -116,7 +117,7 @@ def add_torrent(tor_url, hash_id, data=None):
     name = get_name(hash_id)
     if name:
         if version.startswith('0.9') or version.startswith('1.'):
-            directory = server.d.directory(hash_id)
+            directory = get_directory(hash_id)
             label = server.d.custom1(hash_id)
         else:
             directory = server.d.get_directory(hash_id)
@@ -199,7 +200,7 @@ def get_folder(hash_id):
             name = ''
             while retries:
                 if version.startswith('0.9') or version.startswith('1.'):
-                    name = server.d.directory(tor)
+                    name = get_directory(tor)
                 else:
                     name = server.d.get_directory(tor)
                 if tor.upper() not in name:

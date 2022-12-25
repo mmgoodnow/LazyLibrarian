@@ -508,3 +508,55 @@ def book_file(search_dir: str, booktype: str, recurse=False) -> str:
             except Exception:
                 lazylibrarian_log.error('Unhandled exception in book_file: %s' % traceback.format_exc())
     return ""
+
+
+def get_directory(dirname):
+    usedir = ''
+    if dirname == "eBook":
+        usedir = DIRS.config['EBOOK_DIR']
+    elif dirname == "AudioBook" or dirname == "Audio":
+        usedir = DIRS.config['AUDIO_DIR']
+    elif dirname == "Download":
+        try:
+            usedir = DIRS.config.get_list('DOWNLOAD_DIR')[0]
+        except IndexError:
+            usedir = ''
+    elif dirname == "Alternate":
+        usedir = DIRS.config['ALTERNATE_DIR']
+    elif dirname == "Testdata":
+        usedir = DIRS.config['TESTDATA_DIR']
+    else:
+        return usedir
+    # ./ and .\ denotes relative to program path, useful for testing
+    if usedir and len(usedir) >= 2 and usedir[0] == ".":
+        if usedir[1] == "/" or usedir[1] == "\\":
+           usedir = DIRS.PROG_DIR + "/" + usedir[2:]
+           if os.path.__name__ == 'ntpath':
+               usedir = usedir.replace('/', '\\')
+    if usedir and not path_isdir(usedir):
+        try:
+            os.makedirs(syspath(usedir))
+            lazylibrarian_log.info("Created new %s folder: %s" % (dirname, usedir))
+        except OSError as e:
+            lazylibrarian_log.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
+            usedir = DIRS.DATADIR
+    if usedir and path_isdir(usedir):
+        try:
+            with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
+                f.write('test')
+            os.remove(syspath(os.path.join(usedir, 'll_temp')))
+        except Exception as why:
+            lazylibrarian_log.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
+            usedir = syspath(usedir)
+            lazylibrarian_log.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
+                                                                                    oct(os.stat(usedir).st_mode),
+                                                                                    os.stat(usedir).st_uid,
+                                                                                    os.stat(usedir).st_gid,
+                                                                                    os.access(usedir, os.W_OK),
+                                                                                    os.access(usedir, os.X_OK)))
+            usedir = DIRS.DATADIR
+    else:
+        lazylibrarian_log.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
+        usedir = DIRS.DATADIR
+
+    return make_unicode(usedir)

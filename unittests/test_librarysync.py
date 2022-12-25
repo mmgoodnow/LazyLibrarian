@@ -5,7 +5,9 @@
 
 import unittesthelpers
 import os
-from lazylibrarian import directory, librarysync
+from lazylibrarian import librarysync
+from lazylibrarian.filesystem import get_directory
+
 
 class LibrarySyncTest(unittesthelpers.LLTestCase):
  
@@ -20,7 +22,7 @@ class LibrarySyncTest(unittesthelpers.LLTestCase):
         self.assertEqual(librarysync.get_book_info("BookWithNoExtension"), {})
 
     def getTestBook(self, name):
-        return directory("Testdata") + os.path.sep + name
+        return get_directory("Testdata") + os.path.sep + name
 
     def testGetBookInfo_Epub(self):
         expected_meta = {'type': 'epub', 'title': 'Test Title', 'creator': 'Bob Builder', 'publisher': 'Testing, Inc', 

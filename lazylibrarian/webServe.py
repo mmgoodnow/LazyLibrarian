@@ -42,7 +42,7 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_stats, clear_log, save_log, log_header, pwd_generator, pwd_check, \
     is_valid_email, mime_type, zip_audio, run_script, get_calibre_id
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
-    setperm, safe_move, safe_copy, opf_file, csv_file, book_file
+    setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
@@ -2003,9 +2003,9 @@ class WebInterface(object):
                 library = kwargs['library']
 
             if library == 'AudioBook':
-                authordir = safe_unicode(os.path.join(lazylibrarian.directory('AudioBook'), author_name))
+                authordir = safe_unicode(os.path.join(get_directory('AudioBook'), author_name))
             else:  # if library == 'eBook':
-                authordir = safe_unicode(os.path.join(lazylibrarian.directory('eBook'), author_name))
+                authordir = safe_unicode(os.path.join(get_directory('eBook'), author_name))
             if not path_isdir(authordir):
                 # books might not be in exact same authorname folder due to capitalisation
                 # or accent stripping etc.

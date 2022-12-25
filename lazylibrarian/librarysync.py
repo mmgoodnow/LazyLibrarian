@@ -26,7 +26,8 @@ from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file
+from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file, \
+    get_directory
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
     clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
@@ -482,7 +483,7 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
 def library_scan(startdir=None, library='eBook', authid=None, remove=True):
     """ Scan a directory tree adding new books into database
         Return how many books you added """
-    destdir = lazylibrarian.directory(library)
+    destdir = get_directory(library)
     if not startdir:
         if not destdir:
             logger.warn('Cannot find destination directory: %s. Not scanning' % destdir)

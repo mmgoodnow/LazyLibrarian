@@ -3,6 +3,7 @@ import sys
 import os
 import subprocess
 import lazylibrarian
+from lazylibrarian.filesystem import get_directory
 from lazylibrarian.common import calibre_prg
 
 
@@ -27,7 +28,7 @@ def convert(input_file, output_format):
     if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER'):
         ebook_directory = lazylibrarian.CONFIG['CALIBRE_SERVER']
     else:
-        ebook_directory = lazylibrarian.directory('eBook')
+        ebook_directory = get_directory('eBook')
 
     basename, extn = os.path.splitext(input_file)
 

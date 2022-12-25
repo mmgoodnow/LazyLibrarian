@@ -20,7 +20,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
 from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
@@ -48,7 +48,7 @@ def comic_scan(comicid=None):
             mag_path = os.path.dirname(mag_path)
 
         if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
-            mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
+            mag_path = os.path.join(get_directory('eBook'), mag_path)
 
         if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
             cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '

@@ -40,7 +40,7 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, setperm, \
-    make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file
+    make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
@@ -104,7 +104,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             '$IssueDate', issuenum).replace('$Title', title)
 
         if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
-            dest_dir = lazylibrarian.directory('eBook')
+            dest_dir = get_directory('eBook')
             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
             dest_path = make_utf8bytes(dest_path)[0]
         else:
@@ -198,7 +198,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
         if not source_dir or not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
-        if source_dir.startswith(lazylibrarian.directory(library)):
+        if source_dir.startswith(get_directory(library)):
             logger.warn('Source directory must not be the same as or inside library')
             return False
 
@@ -343,7 +343,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
         if not path_isdir(source_dir):
             logger.warn("%s is not a directory" % source_dir)
             return False
-        if source_dir.startswith(lazylibrarian.directory('eBook')):
+        if source_dir.startswith(get_directory('eBook')):
             logger.warn('Alternate directory must not be the same as or inside Destination')
             return False
 
@@ -775,8 +775,8 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             templist = [startdir]
         else:
             templist = get_list(lazylibrarian.CONFIG['DOWNLOAD_DIR'], ',')
-            if len(templist) and lazylibrarian.directory("Download") != templist[0]:
-                templist.insert(0, lazylibrarian.directory("Download"))
+            if len(templist) and get_directory("Download") != templist[0]:
+                templist.insert(0, get_directory("Download"))
         dirlist = []
         for item in templist:
             if path_isdir(item):
@@ -1104,12 +1104,12 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             #             'AUDIOBOOK_DEST_FOLDER'].replace('/', '\\')
                             # Default destination path, should be allowed change per config file.
                             namevars = name_vars(book['BookID'])
-                            if booktype == 'AudioBook' and lazylibrarian.directory('Audio'):
+                            if booktype == 'AudioBook' and get_directory('Audio'):
                                 dest_path = namevars['AudioFolderName']
-                                dest_dir = lazylibrarian.directory('Audio')
+                                dest_dir = get_directory('Audio')
                             else:
                                 dest_path = namevars['FolderName']
-                                dest_dir = lazylibrarian.directory('eBook')
+                                dest_dir = get_directory('eBook')
 
                             dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                             dest_path = make_utf8bytes(dest_path)[0]
@@ -1150,7 +1150,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     '$IssueDate', iss_date).replace('$Title', mag_name)
 
                                 if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
-                                    dest_dir = lazylibrarian.directory('eBook')
+                                    dest_dir = get_directory('eBook')
                                     dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                     dest_path = make_utf8bytes(dest_path)[0]
                                 else:
@@ -1191,7 +1191,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     data = {'Title': comic_name, 'IssueDate': issueid, 'BookID': comicid}
 
                                     if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
-                                        dest_dir = lazylibrarian.directory('eBook')
+                                        dest_dir = get_directory('eBook')
                                         dest_path = stripspaces(os.path.join(dest_dir, dest_path))
                                         dest_path = make_utf8bytes(dest_path)[0]
                                     else:
@@ -2314,9 +2314,9 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 return False
 
             if booktype == "AudioBook":
-                dest_dir = lazylibrarian.directory('Audio')
+                dest_dir = get_directory('Audio')
             else:
-                dest_dir = lazylibrarian.directory('eBook')
+                dest_dir = get_directory('eBook')
 
             # CFG2DO Check that path handling no longer necessary
             # if os.name == 'nt':
@@ -2782,7 +2782,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             # Ask calibre for the author/title, so we can construct the likely location
             target_dir = ''
             calibre_authorname = ''
-            dest_dir = lazylibrarian.directory('eBook')
+            dest_dir = get_directory('eBook')
             res, err, rc = calibredb('list', ['--fields', 'title,authors', '--search', 'id:%s' % calibre_id],
                                      ['--for-machine'])
             if not rc:
@@ -2792,11 +2792,11 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                     if booktype == 'magazine':
                         dest_dir = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
                         if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
-                            dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+                            dest_dir = os.path.join(get_directory('eBook'), dest_dir)
                     elif booktype == 'comic':
                         dest_dir = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
                         if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
-                            dest_dir = os.path.join(lazylibrarian.directory('eBook'), dest_dir)
+                            dest_dir = os.path.join(get_directory('eBook'), dest_dir)
 
                     while '$' in dest_dir:
                         dest_dir = os.path.dirname(dest_dir)

@@ -18,7 +18,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import multibook, only_punctuation
-from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file
+from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file, get_directory
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.logger import lazylibrarian_log
@@ -362,7 +362,7 @@ def audio_rename(bookid, rename=False, playlist=False):
     seriesinfo = name_vars(bookid, abridged)
     logger.debug(str(seriesinfo))
     dest_path = seriesinfo['AudioFolderName']
-    dest_dir = lazylibrarian.directory('Audio')
+    dest_dir = get_directory('Audio')
     dest_path = os.path.join(dest_dir, dest_path)
     # check for windows case-insensitive
     if os.name == 'nt' and r.lower() == dest_path.lower():
@@ -503,7 +503,7 @@ def book_rename(bookid):
 
     namevars = name_vars(bookid)
     dest_path = namevars['FolderName']
-    dest_dir = lazylibrarian.directory('eBook')
+    dest_dir = get_directory('eBook')
     dest_path = os.path.join(dest_dir, dest_path)
     dest_path = stripspaces(dest_path)
     oldpath = r

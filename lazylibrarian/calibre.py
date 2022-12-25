@@ -20,6 +20,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
 from lazylibrarian.librarysync import find_book_in_db
+from lazylibrarian.filesystem import get_directory
 from thefuzz import fuzz
 from lazylibrarian.common import run_script
 
@@ -432,7 +433,7 @@ def calibredb(cmd=None, prelib=None, postlib=None):
             params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],
                            '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])
     else:
-        dest_url = lazylibrarian.directory('eBook')
+        dest_url = get_directory('eBook')
     if prelib:
         params.extend(prelib)
 

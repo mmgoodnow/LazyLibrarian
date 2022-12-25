@@ -158,59 +158,6 @@ isbn_978_dict = {
 }
 
 
-def directory(dirname):
-    usedir = ''
-    if dirname == "eBook":
-        usedir = CONFIG['EBOOK_DIR']
-    elif dirname == "AudioBook" or dirname == "Audio":
-        usedir = CONFIG['AUDIO_DIR']
-    elif dirname == "Download":
-        try:
-            usedir = get_list(CONFIG['DOWNLOAD_DIR'], ',')[0]
-        except IndexError:
-            usedir = ''
-    elif dirname == "Alternate":
-        usedir = CONFIG['ALTERNATE_DIR']
-    elif dirname == "Testdata":
-        usedir = CONFIG['TESTDATA_DIR']
-    else:
-        return usedir
-    # ./ and .\ denotes relative to program path, useful for testing
-    if usedir and len(usedir) >= 2 and usedir[0] == ".":
-        if usedir[1] == "/" or usedir[1] == "\\":
-           usedir = DIRS.PROG_DIR + "/" + usedir[2:]
-           if os.path.__name__ == 'ntpath':
-               usedir = usedir.replace('/', '\\')
-    if usedir and not path_isdir(usedir):
-        try:
-            os.makedirs(syspath(usedir))
-            logger.info("Created new %s folder: %s" % (dirname, usedir))
-        except OSError as e:
-            logger.warn('Unable to create folder %s: %s, using %s' % (usedir, str(e), DIRS.DATADIR))
-            usedir = DIRS.DATADIR
-    if usedir and path_isdir(usedir):
-        try:
-            with open(syspath(os.path.join(usedir, 'll_temp')), 'w') as f:
-                f.write('test')
-            os.remove(syspath(os.path.join(usedir, 'll_temp')))
-        except Exception as why:
-            logger.warn("%s dir [%s] not writeable, using %s: %s" % (dirname, repr(usedir), DIRS.DATADIR, str(why)))
-            usedir = syspath(usedir)
-            logger.debug("Folder: %s Mode: %s UID: %s GID: %s W_OK: %s X_OK: %s" % (usedir,
-                                                                                    oct(os.stat(usedir).st_mode),
-                                                                                    os.stat(usedir).st_uid,
-                                                                                    os.stat(usedir).st_gid,
-                                                                                    os.access(usedir, os.W_OK),
-                                                                                    os.access(usedir, os.X_OK)))
-            usedir = DIRS.DATADIR
-    else:
-        logger.warn("%s dir [%s] not found, using %s" % (dirname, repr(usedir), DIRS.DATADIR))
-        usedir = DIRS.DATADIR
-
-    return make_unicode(usedir)
-
-
-
 def wishlist_type(host: str):
     """
     Return type of wishlist at host, or empty string if host is not a wishlist
@@ -265,7 +212,7 @@ def count_in_use(provider: str, wishlist: Optional[bool]=None, config: config2.L
             for inx in range(0, len(array)):
                 host = array.primary_host(inx)
                 ok = array.is_in_use(inx) and not provider_is_blocked(host)
-                if wishlist != None:
+                if wishlist is not None:
                     ok = ok and wishlist_type(host) == wishlist
                 if ok:
                     count += 1

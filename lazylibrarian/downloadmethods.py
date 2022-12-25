@@ -28,7 +28,7 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, setperm, make_dirs
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, setperm, make_dirs, get_directory
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
@@ -106,7 +106,7 @@ def irc_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', prov
 
     if fname and data:
         fname = sanitize(fname)
-        destdir = os.path.join(lazylibrarian.directory('Download'), fname)
+        destdir = os.path.join(get_directory('Download'), fname)
         if not path_isdir(destdir):
             _ = make_dirs(destdir)
 
@@ -375,7 +375,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
             logger.debug("File download got %s bytes for %s" % (len(r.content), basename))
 
             basename = sanitize(basename)
-            destdir = os.path.join(lazylibrarian.directory('Download'), basename)
+            destdir = os.path.join(get_directory('Download'), basename)
             if not path_isdir(destdir):
                 _ = make_dirs(destdir)
 

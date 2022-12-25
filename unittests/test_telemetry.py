@@ -69,7 +69,7 @@ class TelemetryTest(unittesthelpers.LLTestCase):
         lazylibrarian.CONFIG.save_config_and_backup_old(section='Telemetry')
 
         # Test that writing went right
-        cfg = config2.LLConfigHandler(configdefs.BASE_DEFAULTS, lazylibrarian.CONFIGFILE)
+        cfg = config2.LLConfigHandler(configdefs.BASE_DEFAULTS, lazylibrarian.CONFIG.configfilename)
         id_from_file = cfg['Server_id']
         self.assertEqual(my_id, id_from_file, 'ID written to config.ini does not match')
 

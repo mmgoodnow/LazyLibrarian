@@ -21,7 +21,7 @@ from shutil import copyfile
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
-    safe_move
+    safe_move, get_directory
 from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
     replace_all, check_year
 from lazylibrarian.images import create_mag_cover
@@ -42,7 +42,7 @@ def magazine_scan(title=None):
         db = database.DBConnection()
         mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
         if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
-            mag_path = os.path.join(lazylibrarian.directory('eBook'), mag_path)
+            mag_path = os.path.join(get_directory('eBook'), mag_path)
 
         onetitle = title
         if onetitle and '$Title' in mag_path:
@@ -252,7 +252,7 @@ def magazine_scan(title=None):
                             new_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
                                                                                        '$IssueDate', filedate)
                             if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
-                                new_path = os.path.join(lazylibrarian.directory('eBook'), new_path)
+                                new_path = os.path.join(get_directory('eBook'), new_path)
 
                             newissuefile = os.path.join(new_path, newfname)
                             # check for windows case-insensitive
