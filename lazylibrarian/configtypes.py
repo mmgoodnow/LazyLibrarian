@@ -418,8 +418,7 @@ class ConfigCSV(ConfigStr):
 
     def get_list(self) -> List[str]:
         """ Return a list like ['abc', 'def'] from 'abc, def'' """
-        st = self.get_str().replace(',', ' ').replace('+', ' ')
-        return ','.join(st.split()).split()
+        return self.get_csv().split(',')
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
@@ -654,6 +653,10 @@ class ConfigDict:
     """ CSV strings """
     def get_csv(self, key: str) -> str:
         return self.get_str(key)
+
+    def get_list(self, key: str) -> List[str]:
+        """ Return the items as a list """
+        return self.config[key.upper()].get_list()
 
     def set_csv(self, key: str, value: str):
         if key.upper() in self.config:

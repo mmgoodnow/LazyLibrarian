@@ -398,6 +398,11 @@ class Config2Test(LLTestCase):
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV4]: read_error'
         ])
 
+        # Test CSV as list
+        csv_list = cfg.get_list('csv')
+        self.assertEqual(csv_list, ['allan', 'bob', 'fred'])
+
+
     def test_read_error_counters(self):
         """ Test that read error counters are correct in lots of cases """
         cfg = config2.LLConfigHandler()
