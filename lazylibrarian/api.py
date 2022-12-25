@@ -16,15 +16,14 @@ import os
 import shutil
 import sys
 import threading
-import re
 
 import configparser
 from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
-# CFG2DO: API needs updating to use config2, and needs thorough testing
 import cherrypy
 import lazylibrarian
-from lazylibrarian import logger, database, configdefs
+from lazylibrarian import logger, database
+from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
 from lazylibrarian.bookwork import set_work_pages, get_work_series, get_work_page, set_all_book_series, \
     get_series_members, get_series_authors, delete_empty_series, get_book_authors, set_all_book_authors, \
@@ -37,7 +36,8 @@ from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import clear_log, log_header, show_stats, cpu_use
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update
+from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
+    author_update, series_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks
@@ -376,9 +376,9 @@ class Api(object):
         for provider in array:
             thisprov = {}
             for key in provider:
-                if key in ['ENABLED', 'MANUAL']:
+                if isinstance(key, ConfigBool):
                     thisprov[key] = provider.get_bool(key)
-                elif key in ['DLPRIORITY', 'EXTENDED', 'APILIMIT', 'APICOUNT', 'RATELIMIT', 'LASTUSED']:
+                elif isinstance(key, ConfigInt):
                     thisprov[key] = provider.get_int(key)
                 else:
                     thisprov[key] = provider.get_str(key)
@@ -415,7 +415,7 @@ class Api(object):
                         item['Categories'] += ','
                     item['Categories'] += item[key]
 
-        torzlist = providers = self._provider_array('TORZNAB')
+        torzlist = self._provider_array('TORZNAB')
         for item in torzlist:
             item['Categories'] = ''
             for key in ['BOOKCAT', 'MAGCAT', 'AUDIOCAT', 'COMICCAT']:
@@ -817,7 +817,7 @@ class Api(object):
         if not res:
             self.data = 'Invalid userid'
             return
-        for provider in lazylibrarian.RSS_PROV:
+        for provider in lazylibrarian.CONFIG.providers('RSS'):
             if provider['DISPNAME'] == kwargs['feed']:
                 if lazylibrarian.wishlist_type(provider['HOST']):
                     db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
@@ -849,13 +849,13 @@ class Api(object):
             self.data = 'Missing parameter: provider'
             return
         match = False
-        for provider in lazylibrarian.NEWZNAB_PROV:
+        for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
             if prov == provider['HOST']:
                 prov = provider
                 match = True
                 break
         if not match:
-            for provider in lazylibrarian.TORZNAB_PROV:
+            for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
                 if prov == provider['HOST']:
                     prov = provider
                     match = True
@@ -1955,11 +1955,10 @@ class Api(object):
                 self.data = 'Missing parameter: ' + item
                 return
         try:
-            self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
-            lazylibrarian.CFG.set(kwargs['group'], kwargs['name'], kwargs['value'])
-            with open(syspath(lazylibrarian.CONFIGFILE), "w") as configfile:
-                lazylibrarian.CFG.write(configfile)
-            lazylibrarian.config_read(reloaded=True)
+            item = lazylibrarian.CONFIG.get_item(kwargs['name'])
+            if item:
+                item.set_from_ui(kwargs['value'])
+            lazylibrarian.CONFIG.save_config_and_backup_old(save_all=False, section=kwargs['group'])
         except Exception as e:
             self.data = 'Unable to update CFG entry for %s: %s, %s' % (kwargs['group'], kwargs['name'], str(e))
 
@@ -1969,13 +1968,14 @@ class Api(object):
                 self.data = 'Missing parameter: ' + item
                 return
         try:
-            self.data = '["%s"]' % lazylibrarian.CFG.get(kwargs['group'], kwargs['name'])
+            self.data = f"[{lazylibrarian.CONFIG.get_str(kwargs['name'])}]"
         except configparser.Error:
-            self.data = 'No CFG entry for %s: %s' % (kwargs['group'], kwargs['name'])
+            self.data = 'No config entry for %s: %s' % (kwargs['group'], kwargs['name'])
 
     @staticmethod
     def _loadcfg():
-        lazylibrarian.config_read(reloaded=True)
+        # No need to reload the config
+        pass
 
     def _getseriesauthors(self, **kwargs):
         self.id = kwargs.get('id')
