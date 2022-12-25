@@ -8,6 +8,7 @@
 
 import os
 import sys
+
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
@@ -55,7 +56,16 @@ class DirectoryHolder:
         return True, 'ok'
 
     def get_mako_cachedir(self):
+        """ Return the name of the mako cache dir """
         return os.path.join(self.CACHEDIR, 'mako')
+
+    def get_dbfile(self):
+        """ Return the name of the LL database file """
+        return os.path.join(self.DATADIR, 'lazylibrarian.db')
+
+    def get_tmpfilename(self, base: str) -> str:
+        """ Get a file named base in the tmp directory """
+        return os.path.join(self.TMPDIR, base)
 
 """ Global access to directories """
 DIRS = DirectoryHolder()
@@ -126,3 +136,17 @@ def syspath(path: str, prefix:bool=True) -> str:
             path = WINDOWS_MAGIC_PREFIX + path
 
     return path
+
+
+def remove(name):
+    try:
+        os.remove(syspath(name))
+    except OSError as err:
+        if err.errno == 2:  # does not exist is ok
+            pass
+        else:
+            lazylibrarian_log.warn("Failed to remove %s : %s" % (name, err.strerror))
+            pass
+    except Exception as err:
+        lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
+        pass

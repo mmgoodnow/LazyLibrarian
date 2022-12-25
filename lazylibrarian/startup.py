@@ -32,8 +32,8 @@ import requests
 
 from shutil import rmtree
 
-from lazylibrarian.common import remove, listdir, log_header
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath
+from lazylibrarian.common import listdir, log_header
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
 from lazylibrarian import CONFIG
@@ -199,8 +199,6 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         remove(icon)
 
     # create database and config
-    lazylibrarian.DBFILE = os.path.join(DIRS.DATADIR, 'lazylibrarian.db')
-
     lazylibrarian.CONFIG.load_configfile(lazylibrarian.CONFIGFILE)
     lazylibrarian.CONFIG.post_load_fixup()
 

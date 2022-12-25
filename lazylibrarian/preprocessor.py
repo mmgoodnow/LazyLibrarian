@@ -19,9 +19,9 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.filesystem import DIRS
+from lazylibrarian.filesystem import DIRS, remove, path_exists
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
-from lazylibrarian.common import listdir, path_exists, safe_copy, safe_move, remove, calibre_prg, setperm, zip_audio
+from lazylibrarian.common import listdir, safe_copy, safe_move, calibre_prg, setperm, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrink_mag
 
@@ -223,8 +223,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         logger.debug(str(params))
                         ffmpeg_env = os.environ.copy()
                         ffmpeg_env["FFREPORT"] = "file=" + \
-                                                 lazylibrarian.DBFILE.replace('.db', "_ffmpeg-tag-%s.log" %
-                                                                              now().replace(':', '-').replace(' ', '-'))
+                            DIRS.get_tmpfilename("ffmpeg-tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
                     else:
                         ffmpeg_env = None
                     try:
@@ -262,8 +261,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-meta-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-meta-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             try:
@@ -289,8 +287,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     logger.debug(str(params))
                     ffmpeg_env = os.environ.copy()
                     ffmpeg_env["FFREPORT"] = "file=" + \
-                        lazylibrarian.DBFILE.replace('.db', "_ffmpeg-part-%s.log" %
-                                                     now().replace(':', '-').replace(' ', '-'))
+                        DIRS.get_tmpfilename("ffmpeg-part-%s.log" % now().replace(':', '-').replace(' ', '-'))
                 else:
                     ffmpeg_env = None
                 try:
@@ -350,9 +347,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db',
-                                                                      "_ffmpeg-merge-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-merge-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             res = ''
@@ -449,8 +444,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.debug(str(params))
                 ffmpeg_env = os.environ.copy()
                 ffmpeg_env["FFREPORT"] = "file=" + \
-                                         lazylibrarian.DBFILE.replace('.db', "_ffmpeg-merge_tag-%s.log" %
-                                                                      now().replace(':', '-').replace(' ', '-'))
+                    DIRS.get_tmpfilename("ffmpeg-merge_tag-%s.log" % now().replace(':', '-').replace(' ', '-'))
             else:
                 ffmpeg_env = None
             try:

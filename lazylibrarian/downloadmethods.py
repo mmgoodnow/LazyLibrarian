@@ -28,9 +28,8 @@ from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, 
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
-from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs, \
-    remove
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath
+from lazylibrarian.common import setperm, get_user_agent, proxy_list, make_dirs
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents

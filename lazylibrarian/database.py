@@ -21,13 +21,12 @@ import threading
 import time
 import traceback
 import inspect
-from typing import List
 
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 # DO NOT import from common in this module, circular import
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath
+from lazylibrarian.filesystem import DIRS, syspath
 
 db_lock = threading.Lock()
 
@@ -35,7 +34,7 @@ db_lock = threading.Lock()
 class DBConnection:
     def __init__(self):
         try:
-            self.connection = sqlite3.connect(lazylibrarian.DBFILE, 20)
+            self.connection = sqlite3.connect(DIRS.get_dbfile(), 20)
             # journal disabled since we never do rollbacks
             self.connection.execute("PRAGMA journal_mode = WAL")
             # sync less often as using WAL mode
@@ -49,8 +48,8 @@ class DBConnection:
             self.dblog = syspath(os.path.join(lazylibrarian.CONFIG['LOGDIR'], 'database.log'))
         except Exception as e:
             logger.debug(str(e))
-            logger.debug(lazylibrarian.DBFILE)
-            logger.debug(str(os.stat(lazylibrarian.DBFILE)))
+            logger.debug(DIRS.get_dbfile())
+            logger.debug(str(os.stat(DIRS.get_dbfile())))
 
     def close(self):
         if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:

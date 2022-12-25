@@ -40,8 +40,8 @@ from lazylibrarian.cache import cache_img
 from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
-    remove, calibre_prg
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists
+    calibre_prg
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove
 from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name

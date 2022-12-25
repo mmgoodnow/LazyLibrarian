@@ -50,8 +50,7 @@ from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink
-
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink, remove
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -166,20 +165,6 @@ def multibook(foldername, recurse=False):
                     if counter > 1:
                         return item
     return ''
-
-
-def remove(name):
-    try:
-        os.remove(syspath(name))
-    except OSError as err:
-        if err.errno == 2:  # does not exist is ok
-            pass
-        else:
-            logger.warn("Failed to remove %s : %s" % (name, err.strerror))
-            pass
-    except Exception as err:
-        logger.warn("Failed to remove %s : %s" % (name, str(err)))
-        pass
 
 
 def listdir(name):

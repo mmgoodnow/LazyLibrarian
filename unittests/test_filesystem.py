@@ -17,6 +17,10 @@ class FilesystemTest(LLTestCase):
         super().setDoAll(False)
         return super().setUpClass()
 
+    def tearDown(self) -> None:
+        #filesystem.remove(DIRS.TMPDIR)
+        return super().tearDown()
+
     def test_syspath(self):
         """ Test that syspath returns a proper path in both Linux and Windows"""
         paths_input_windows = [
@@ -91,3 +95,8 @@ class FilesystemTest(LLTestCase):
         mock_path_isdir.assert_called_once_with(testdir)
         mock_os_makedirs.assert_called_once_with(testdir)
         mock_os_access.assert_not_called()
+
+    def test_get_tmpfilename(self):
+        tmpname = DIRS.get_tmpfilename('test.tmp')
+        self.assertEqual(tmpname, os.path.join(DIRS.TMPDIR, 'test.tmp'))
+

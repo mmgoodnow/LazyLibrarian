@@ -18,8 +18,8 @@ import traceback
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook, listdir, only_punctuation, \
-    opf_file, remove
-from lazylibrarian.filesystem import path_isdir, syspath
+    opf_file
+from lazylibrarian.filesystem import path_isdir, syspath, remove
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.logger import lazylibrarian_log

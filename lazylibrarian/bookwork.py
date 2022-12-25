@@ -21,8 +21,8 @@ from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
-from lazylibrarian.common import proxy_list, quotes, remove
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.common import proxy_list, quotes
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 from lazylibrarian.logger import lazylibrarian_log

@@ -41,7 +41,6 @@ CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGINUSER = None
 CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
-DBFILE = ''
 COMMIT_LIST = ''
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0
