@@ -4,13 +4,13 @@
 #   Testing parsing XML from providers
 
 import unittest
-import unittesthelpers
 from xml.etree import ElementTree
 
 from lazylibrarian import providers
+from unittests.unittesthelpers import LLTestCase
 
 
-class ProvidersTest(unittesthelpers.LLTestCase):
+class ProvidersTest(LLTestCase):
  
     def test_ReturnResultsFieldsBySearchTypeForBook(self):
         book = {"bookid": 'input_bookid', "bookName": 'input_bookname',

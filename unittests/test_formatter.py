@@ -3,12 +3,13 @@
 # Purpose:
 #   Test functions in formatter.py
 
-import unittesthelpers
+import unittests.unittesthelpers
 
 import lazylibrarian
 from lazylibrarian import formatter
+from unittests.unittesthelpers import LLTestCase
 
-class FormatterTest(unittesthelpers.LLTestCase):
+class FormatterTest(LLTestCase):
     # Initialisation code that needs to run only once
 
     def test_sanitize(self):

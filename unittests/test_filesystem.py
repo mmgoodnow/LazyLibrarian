@@ -6,7 +6,7 @@
 import os
 import mock
 
-from unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import filesystem
 from lazylibrarian.filesystem import DIRS
 

@@ -3,12 +3,13 @@
 # Purpose:
 #   Testing functionality in importer.py
 
-import unittesthelpers
+import unittests.unittesthelpers
 import lazylibrarian
 from lazylibrarian import startup, importer, postprocess
+from unittests.unittesthelpers import LLTestCase
 
 
-class ImporterTest(unittesthelpers.LLTestCase):
+class ImporterTest(LLTestCase):
     bookapi = ''
 
     # Initialisation code that needs to run only once

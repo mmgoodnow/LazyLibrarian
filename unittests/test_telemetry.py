@@ -3,17 +3,17 @@
 # Purpose:
 #   Testing the anaonymous telemetry collection
 
-import unittesthelpers
 import json
 import pytest
 import pytest_order # Needed to force unit test order
 import mock
 
 import lazylibrarian
-from lazylibrarian import telemetry, common, config2, configdefs
+from lazylibrarian import telemetry, config2, configdefs
+from unittests.unittesthelpers import LLTestCase
 
 
-class TelemetryTest(unittesthelpers.LLTestCase):
+class TelemetryTest(LLTestCase):
 
     # Initialisation code that needs to run only once
     @classmethod

@@ -3,13 +3,14 @@
 # Purpose:
 #   Testing functionality in librarysync.py
 
-import unittesthelpers
+import unittests.unittesthelpers
 import os
 from lazylibrarian import librarysync
 from lazylibrarian.filesystem import get_directory
+from unittests.unittesthelpers import LLTestCase
 
 
-class LibrarySyncTest(unittesthelpers.LLTestCase):
+class LibrarySyncTest(LLTestCase):
  
     # Initialisation code that needs to run only once
     @classmethod

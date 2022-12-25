@@ -3,14 +3,12 @@
 # Purpose:
 #   Test functions in scheduling.py
 
-import unittesthelpers
-
-import lazylibrarian
+from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import scheduling
 import datetime
 
 
-class SchedulingTest(unittesthelpers.LLTestCase):
+class SchedulingTest(LLTestCase):
 
     def test_next_run_time(self):
         testnow = datetime.datetime(2023, 11, 30, 17, 42, 31)

@@ -8,7 +8,7 @@ from typing import List, Dict
 from collections import Counter
 import mock
 
-from unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import config2, configdefs, configtypes, logger
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access, TimeUnit
@@ -251,7 +251,7 @@ class Config2Test(LLTestCase):
 
     def test_ConfigScheduler(self):
         """ Tests for config holding scheduler information """
-        ci = configtypes.ConfigScheduler('', '', 'Test', 10, TimeUnit.MIN, 'run', 'unittesthelpers.false_method', 'Description', needs_provider=False)
+        ci = configtypes.ConfigScheduler('', '', 'Test', 10, TimeUnit.MIN, 'run', 'unittests.unittesthelpers.false_method', 'Description', needs_provider=False)
         self.assertEqual(ci.get_schedule_name(), 'Test', 'Schedule name not stored correctly')
         self.assertEqual(ci.get_int(), 10, 'Schedule interval not stored correctly')
         self.assertIsNotNone(ci.get_method(), 'Cannot find schedule method to run')

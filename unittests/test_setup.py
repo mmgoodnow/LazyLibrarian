@@ -3,12 +3,12 @@
 # Purpose:
 #   Testing the startup sequence
 
-import unittesthelpers
 import lazylibrarian
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.filesystem import DIRS, get_directory
+from unittests.unittesthelpers import LLTestCase
 
-class SetupTest(unittesthelpers.LLTestCase):
+class SetupTest(LLTestCase):
 
     # Initialisation code that needs to run only once
     @classmethod
