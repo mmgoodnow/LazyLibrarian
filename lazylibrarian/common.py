@@ -49,9 +49,9 @@ import lazylibrarian
 from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
-    get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, path_islink, remove_file, \
-    listdir
+    get_list, make_unicode, unaccented, replace_all, namedic
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, \
+    listdir, walk
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -166,45 +166,6 @@ def multibook(foldername, recurse=False):
                     if counter > 1:
                         return item
     return ''
-
-
-def walk(top, topdown=True, onerror=None, followlinks=False):
-    """
-    duplicate of os.walk, except for unix we use bytestrings for listdir
-    return top, dirs, nondirs as unicode
-    """
-    islink, join, isdir = path_islink, os.path.join, path_isdir
-
-    try:
-        top = make_unicode(top)
-        if os.path.__name__ != 'ntpath':
-            names = os.listdir(make_bytestr(top))
-            names = [make_unicode(name) for name in names]
-        else:
-            names = os.listdir(top)
-    except (os.error, TypeError) as err:  # Windows can return TypeError if path is too long
-        if onerror is not None:
-            onerror(err)
-        return
-
-    dirs, nondirs = [], []
-    for name in names:
-        try:
-            if isdir(join(top, name)):
-                dirs.append(name)
-            else:
-                nondirs.append(name)
-        except Exception as err:
-            logger.error("[%s][%s] %s" % (repr(top), repr(name), str(err)))
-    if topdown:
-        yield top, dirs, nondirs
-    for name in dirs:
-        new_path = join(top, name)
-        if followlinks or not islink(new_path):
-            for x in walk(new_path, topdown, onerror, followlinks):
-                yield x
-    if not topdown:
-        yield top, dirs, nondirs
 
 
 def make_dirs(dest_path, new=False):

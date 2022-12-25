@@ -41,9 +41,9 @@ from lazylibrarian.comicid import cv_identify, cx_identify, name_words, title_wo
 from lazylibrarian.comicsearch import search_comics
 from lazylibrarian.common import show_stats, clear_log, \
     setperm, csv_file, save_log, log_header, pwd_generator, pwd_check, is_valid_email, \
-    mime_type, zip_audio, run_script, walk, book_file, \
+    mime_type, zip_audio, run_script, book_file, \
     get_calibre_id, safe_move, opf_file, safe_copy
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table

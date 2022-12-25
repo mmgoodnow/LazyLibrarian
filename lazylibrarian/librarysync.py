@@ -26,8 +26,8 @@ from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import set_work_pages
 from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
-from lazylibrarian.common import opf_file,walk, any_file
-from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir
+from lazylibrarian.common import opf_file, any_file
+from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk
 from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
     clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
