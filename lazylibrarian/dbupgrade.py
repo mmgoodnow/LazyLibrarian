@@ -868,7 +868,7 @@ def db_v56(db, upgradelog):
                                                                             calc_eta(start_time, tot, cnt))
             coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
             if not path_exists(coverfile):
-                coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
+                coverfile = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
             hashname = os.path.join(DIRS.CACHEDIR, 'magazine', '%s.jpg' % myhash)
             cachefile = 'cache/magazine/%s.jpg' % myhash
@@ -892,7 +892,7 @@ def db_v56(db, upgradelog):
                                                                                           tot, cnt))
             coverfile = os.path.splitext(issue['IssueFile'])[0] + '.jpg'
             if not path_exists(coverfile):
-                coverfile = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg')
+                coverfile = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nocover.jpg')
             myhash = uuid.uuid4().hex
             hashname = os.path.join(DIRS.CACHEDIR, 'comic', '%s.jpg' % myhash)
             cachefile = 'cache/comic/%s.jpg' % myhash

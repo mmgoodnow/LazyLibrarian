@@ -29,8 +29,8 @@ import traceback
 from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import is_valid_email, run_script, mime_type
-from lazylibrarian.filesystem import path_isfile, syspath
-from lazylibrarian.formatter import check_int, get_list, make_utf8bytes, unaccented
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath
+from lazylibrarian.formatter import check_int, get_list, unaccented
 
 
 class EmailNotifier:
@@ -52,7 +52,7 @@ class EmailNotifier:
                 message = MIMEMultipart("related")
                 message.attach(MIMEText(text, 'html'))
                 if 'cid:logo' in text:
-                    image_location = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
+                    image_location = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
                     with open(image_location, "rb") as fp:
                         img = MIMEImage(fp.read())
                     img.add_header("Content-ID", "<logo>")
@@ -198,7 +198,7 @@ class EmailNotifier:
                     custom_typelist = get_list(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
                     typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
 
-                    if not lazylibrarian.get_bool('USER_ACCOUNTS'):
+                    if not lazylibrarian.CONFIG['USER_ACCOUNTS'].get_bool():
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)

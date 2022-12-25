@@ -445,7 +445,7 @@ def clear_log():
 def log_header(online=True):
 
     popen_list = [sys.executable, DIRS.FULL_PATH]
-    popen_list += lazylibrarian.ARGS
+    popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
     header += "config file: %s\n" % lazylibrarian.CONFIGFILE
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']

@@ -873,7 +873,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
 
     # if not recognised extension or cover creation failed
     try:
-        coverfile = safe_copy(os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nocover.jpg'), coverfile)
+        coverfile = safe_copy(os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nocover.jpg'), coverfile)
         setperm(coverfile)
         return coverfile
     except Exception as why:

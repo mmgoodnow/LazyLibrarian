@@ -101,7 +101,7 @@ def clear_mako_cache(userid=0):
 
 def serve_template(templatename, **kwargs):
     thread_name("WEBSERVER")
-    interface_dir = os.path.join(str(lazylibrarian.PROG_DIR), 'data', 'interfaces')
+    interface_dir = os.path.join(str(DIRS.PROG_DIR), 'data', 'interfaces')
     template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
         logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
@@ -1439,7 +1439,7 @@ class WebInterface(object):
     @cherrypy.expose
     def config(self):
         self.label_thread('CONFIG')
-        http_look_dir = os.path.join(lazylibrarian.PROG_DIR, 'data' + os.path.sep + 'interfaces')
+        http_look_dir = os.path.join(DIRS.PROG_DIR, 'data' + os.path.sep + 'interfaces')
         http_look_list = [name for name in listdir(http_look_dir)
                           if path_isdir(os.path.join(http_look_dir, name))]
         status_list = ['Skipped', 'Wanted', 'Have', 'Ignored']
@@ -2899,7 +2899,7 @@ class WebInterface(object):
                                 return self.send_file(target, name=res['Title'] + os.path.splitext(res['Cover'])[1])
 
             logger.debug("Itemid %s no match" % itemid)
-            target = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll192.png')
+            target = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll192.png')
             if path_isfile(target):
                 return self.send_file(target, name='lazylibrarian.png')
 
@@ -3242,7 +3242,7 @@ class WebInterface(object):
                     authorimg = authdata["AuthorImg"]
                 else:
                     if authorimg == 'none':
-                        authorimg = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'nophoto.png')
+                        authorimg = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'nophoto.png')
 
                     rejected = True
 

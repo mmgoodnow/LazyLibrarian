@@ -674,8 +674,8 @@ class Config2Test(LLTestCase):
         """ Test saving config file """
         self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
+        testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
-            testfile = DIRS.get_tmpfilename('test-small.ini')
             count = cfg.save_config(testfile, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
@@ -710,8 +710,8 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         initial = cfg['Unpersisted_test']
         cfg.set_int('Unpersisted_test', 17)
+        testfile = DIRS.get_tmpfilename('test-small.ini')
         try:
-            testfile = DIRS.get_tmpfilename('test-small.ini')
             count = cfg.save_config(testfile, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)

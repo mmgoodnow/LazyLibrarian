@@ -65,9 +65,9 @@ def run_git(args):
 
         cmd = make_unicode(cmd)
         try:
-            logmsg('debug', 'Execute: "%s" with shell in %s' % (cmd, lazylibrarian.PROG_DIR))
+            logmsg('debug', 'Execute: "%s" with shell in %s' % (cmd, DIRS.PROG_DIR))
             p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                 shell=True, cwd=lazylibrarian.PROG_DIR)
+                                 shell=True, cwd=DIRS.PROG_DIR)
             output, err = p.communicate()
             output = make_unicode(output).strip('\n')
 
@@ -120,7 +120,7 @@ def get_install_type():
         lazylibrarian.CONFIG.set_str('INSTALL_TYPE', 'package')
         lazylibrarian.CONFIG.set_str('GIT_BRANCH', 'master')
 
-    elif path_isdir(os.path.join(lazylibrarian.PROG_DIR, '.git')):
+    elif path_isdir(os.path.join(DIRS.PROG_DIR, '.git')):
         lazylibrarian.CONFIG.set_str('INSTALL_TYPE', 'git')
         lazylibrarian.CONFIG.set_str('GIT_BRANCH', get_current_git_branch())
     else:
@@ -485,7 +485,7 @@ def update():
 
         try:
             # try to create a backup in case the upgrade is faulty...
-            backup_file = os.path.join(lazylibrarian.PROG_DIR, "backup.tgz")
+            backup_file = os.path.join(DIRS.PROG_DIR, "backup.tgz")
             msg = 'Backing up prior to upgrade'
             upgradelog.write("%s %s\n" % (time.ctime(), msg))
             logmsg('info', msg)
@@ -496,21 +496,21 @@ def update():
             lib_folders = ['bs4', 'cherrypy', 'deluge_client', 'html5lib', 'httpagentparser', 'magic',
                            'mako', 'PyPDF3', 'requests', 'thefuzz', 'urllib3', 'webencodings']
             for folder in lib_folders:
-                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                path = os.path.join(DIRS.PROG_DIR, folder)
                 if os.path.exists(path):
                     prog_folders.append(folder)
             for folder in prog_folders:
-                path = os.path.join(lazylibrarian.PROG_DIR, folder)
+                path = os.path.join(DIRS.PROG_DIR, folder)
                 for root, _, files in walk(path):
                     for item in files:
                         if not item.endswith('.pyc'):
-                            base = root[len(lazylibrarian.PROG_DIR) + 1:]
+                            base = root[len(DIRS.PROG_DIR) + 1:]
                             zf.add(os.path.join(root, item), arcname=os.path.join(base, item))
             for item in ['LazyLibrarian.py', 'cherrypy_cors.py', 'epubandmobi.py', 'example_custom_notification.py',
                          'example_custom_notification.sh', 'example_ebook_convert.py', 'example_filetemplate.txt',
                          'example.genres.json', 'example_html_filetemplate.txt', 'example_logintemplate.txt',
                          'example.monthnames.json', 'updater.py', 'pyproject.toml']:
-                path = os.path.join(lazylibrarian.PROG_DIR, item)
+                path = os.path.join(DIRS.PROG_DIR, item)
                 if os.path.exists(path):
                     zf.add(path, arcname=item)
             zf.close()
@@ -570,7 +570,7 @@ def update():
                 lazylibrarian.GITLAB_TOKEN, lazylibrarian.CONFIG['GIT_USER'],
                 lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'],
                 lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
-            update_dir = os.path.join(lazylibrarian.PROG_DIR, 'update')
+            update_dir = os.path.join(DIRS.PROG_DIR, 'update')
 
             rmtree(update_dir, ignore_errors=True)
             os.mkdir(update_dir)
@@ -603,7 +603,7 @@ def update():
 
             download_name = r.url.split('/')[-1]
 
-            tar_download_path = os.path.join(lazylibrarian.PROG_DIR, download_name)
+            tar_download_path = os.path.join(DIRS.PROG_DIR, download_name)
 
             # Save tar to disk
             with open(syspath(tar_download_path), 'wb') as f:
@@ -644,10 +644,10 @@ def update():
                 rootdir = rootdir[len(content_dir) + 1:]
                 for curfile in filenames:
                     old_path = os.path.join(content_dir, rootdir, curfile)
-                    new_path = os.path.join(lazylibrarian.PROG_DIR, rootdir, curfile)
+                    new_path = os.path.join(DIRS.PROG_DIR, rootdir, curfile)
                     if old_path == new_path:
                         msg = "PROG_DIR [%s] content_dir [%s] rootdir [%s] curfile [%s]" % (
-                               lazylibrarian.PROG_DIR, content_dir, rootdir, curfile)
+                               DIRS.PROG_DIR, content_dir, rootdir, curfile)
                         upgradelog.write("%s %s\n" % (time.ctime(), msg))
                         logmsg('error', msg)
                     if curfile.endswith('.dll'):

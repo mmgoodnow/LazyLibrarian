@@ -46,13 +46,11 @@ from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
-        DIRS.FULL_PATH = os.path.abspath(sys.executable)
+        DIRS.set_fullpath_args(os.path.abspath(sys.executable), str(sys.argv[1:]))
     else:
-        DIRS.FULL_PATH = os.path.abspath(mainfile)
+        DIRS.set_fullpath_args(os.path.abspath(mainfile), str(sys.argv[1:]))
 
-    lazylibrarian.PROG_DIR = os.path.dirname(DIRS.FULL_PATH)
-    lazylibrarian.ARGS = sys.argv[1:]
-    lazylibrarian.DOCKER = '/config' in lazylibrarian.ARGS and DIRS.FULL_PATH.startswith('/app/')
+    lazylibrarian.DOCKER = '/config' in DIRS.ARGS and DIRS.FULL_PATH.startswith('/app/')
 
     lazylibrarian.SYS_ENCODING = None
 
@@ -143,7 +141,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
     if options.datadir:
         DIRS.set_datadir(str(options.datadir))
     else:
-        DIRS.set_datadir(lazylibrarian.PROG_DIR)
+        DIRS.set_datadir(DIRS.PROG_DIR)
 
     if options.update:
         lazylibrarian.SIGNAL = 'update'
@@ -153,8 +151,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
             'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
         ])
-        if DIRS.CACHEDIR == '': # TODO: Move PROG_DIR and this logic to DIRS
-            DIRS.CACHEDIR = os.path.join(lazylibrarian.PROG_DIR, 'cache')
+        DIRS.ensure_cache_dir()
         lazylibrarian.CONFIG['LOGDIR'] = os.path.join(DIRS.DATADIR, 'Logs')
         if not path_isdir(lazylibrarian.CONFIG['LOGDIR']):
             try:
@@ -227,7 +224,7 @@ def init_logs():
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
-    debug("%s %s" % (DIRS.FULL_PATH, str(lazylibrarian.ARGS)))
+    debug(f"{DIRS.FULL_PATH} {DIRS.ARGS}")
 
 
 def init_config():
@@ -373,7 +370,7 @@ def init_build_lists():
     lazylibrarian.MONTHNAMES = build_monthtable()
     lazylibrarian.NEWUSER_MSG = build_logintemplate()
     lazylibrarian.NEWFILE_MSG = build_filetemplate()
-    lazylibrarian.BOOKSTRAP_THEMELIST = build_bookstrap_themes(lazylibrarian.PROG_DIR)
+    lazylibrarian.BOOKSTRAP_THEMELIST = build_bookstrap_themes(DIRS.PROG_DIR)
 
 
 def get_unrarlib():
@@ -472,7 +469,7 @@ def build_filetemplate():
 
 
 def build_genres():
-    for json_file in [os.path.join(DIRS.DATADIR, 'genres.json'), os.path.join(lazylibrarian.PROG_DIR, 'example.genres.json')]:
+    for json_file in [os.path.join(DIRS.DATADIR, 'genres.json'), os.path.join(DIRS.PROG_DIR, 'example.genres.json')]:
         if path_isfile(json_file):
             try:
                 with open(syspath(json_file), 'r', encoding='utf-8') as json_data:
@@ -588,7 +585,7 @@ def build_monthtable():
 
 def create_version_file(filename):
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
-    old_file = os.path.join(lazylibrarian.PROG_DIR, filename)
+    old_file = os.path.join(DIRS.PROG_DIR, filename)
     version_file = os.path.join(DIRS.CACHEDIR, filename)
     if path_isfile(old_file):
         if not path_isfile(version_file):
@@ -777,7 +774,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 executable = 'python'  # default if not found
 
             popen_list = [executable, DIRS.FULL_PATH]
-            popen_list += lazylibrarian.ARGS
+            popen_list += DIRS.ARGS
             while '--update' in popen_list:
                 popen_list.remove('--update')
             while '--upgrade' in popen_list:

@@ -23,6 +23,8 @@ class DirectoryHolder:
     CACHEDIR: str = ''  # Where LL stores its cache
     TMPDIR: str         # Where LL will store temporary files
     FULL_PATH: str      # Fully qualified name of executable running
+    PROG_DIR = ''       # The path of LazyLibrarian
+    ARGS: str           # Command line arguments
     config: ConfigDict  # A reference to the config being used
 
     def __init__(self):
@@ -31,6 +33,12 @@ class DirectoryHolder:
         self.TMPDIR = ''
         self.tmpsequence = 0
 
+    def set_fullpath_args(self, fullpath: str, args: str):
+        """ Sets the full path of the main program file, plus cmdline args """
+        self.FULL_PATH = fullpath
+        self.ARGS = args
+        self.PROG_DIR = os.path.dirname(self.FULL_PATH)
+
     def set_datadir(self, datadir: str):
         """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable.
         This also updates CACHEDIR and TMPDIR """
@@ -38,18 +46,24 @@ class DirectoryHolder:
         if not ok:
             raise SystemExit(f'{msg} Exiting.')
         self.DATADIR = datadir
-        self.CACHEDIR = os.path.join(self.DATADIR, 'cache')
-        ok, msg = self.ensure_dir_is_writeable(self.CACHEDIR)
+        self.CACHEDIR = self.ensure_data_subdir('cache')
+        self.TMPDIR = self.ensure_data_subdir('tmp')
+
+    def ensure_data_subdir(self, subdir: str) -> str:
+        """ Returns writeable directory. Tries to make it subdir, but falls back to DATADIR if needed """
+        dirname =  os.path.join(self.DATADIR, subdir)
+        ok, msg = self.ensure_dir_is_writeable(dirname)
         if not ok:
             lazylibrarian_log.error(msg)
-            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for the cache')
-            self.CACHEDIR = self.DATADIR
-        self.TMPDIR = os.path.join(self.DATADIR, 'tmp')
-        ok, msg = self.ensure_dir_is_writeable(self.TMPDIR)
-        if not ok:
-            lazylibrarian_log.error(msg)
-            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for temporary files')
-            self.TMPDIR = self.DATADIR
+            lazylibrarian_log.warn(f'Falling back to {self.DATADIR} for {subdir}')
+            return self.DATADIR
+        else:
+            return dirname
+
+    def ensure_cache_dir(self):
+        """ Make sure the CACHEDIR is not empty """
+        if self.CACHEDIR == '':
+            self.CACHEDIR = self.ensure_data_subdir('cache')
 
     def set_config(self, config: ConfigDict):
         self.config = config

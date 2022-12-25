@@ -2,7 +2,7 @@ import os
 import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-from lazylibrarian.filesystem import syspath
+from lazylibrarian.filesystem import DIRS, syspath
 
 try:
     import gntp.notifier as gntp_notifier
@@ -70,7 +70,7 @@ class GrowlNotifier:
             return False
 
         # Send it, including an image if available
-        image_file = os.path.join(lazylibrarian.PROG_DIR, "data/images/ll.png")
+        image_file = os.path.join(DIRS.PROG_DIR, "data", "images", "ll.png")
         if os.path.exists(image_file):
             with open(syspath(image_file), 'rb') as f:
                 image = f.read()

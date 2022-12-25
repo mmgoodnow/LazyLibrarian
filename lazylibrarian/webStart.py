@@ -79,8 +79,8 @@ def initialize(options=None):
     conf = {
         '/': {
             # 'tools.staticdir.on': True,
-            # 'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data'),
-            'tools.staticdir.root': os.path.join(lazylibrarian.PROG_DIR, 'data'),
+            # 'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data'),
+            'tools.staticdir.root': os.path.join(DIRS.PROG_DIR, 'data'),
             'tools.proxy.on': options['http_proxy']  # pay attention to X-Forwarded-Proto header
         },
         '/api': {
@@ -91,11 +91,11 @@ def initialize(options=None):
         },
         '/interfaces': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'interfaces')
+            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'interfaces')
         },
         '/images': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'images')
+            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'images')
         },
         '/cache': {
             'tools.staticdir.on': True,
@@ -103,16 +103,16 @@ def initialize(options=None):
         },
         '/css': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'css')
+            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'css')
         },
         '/js': {
             'tools.staticdir.on': True,
-            'tools.staticdir.dir': os.path.join(lazylibrarian.PROG_DIR, 'data', 'js')
+            'tools.staticdir.dir': os.path.join(DIRS.PROG_DIR, 'data', 'js')
         },
         '/favicon.ico': {
             'tools.staticfile.on': True,
             # 'tools.staticfile.filename': "images/favicon.ico"
-            'tools.staticfile.filename': os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'favicon.ico')
+            'tools.staticfile.filename': os.path.join(DIRS.PROG_DIR, 'data', 'images', 'favicon.ico')
         },
         '/opensearch.xml': {
             'tools.staticfile.on': True,
@@ -209,7 +209,7 @@ def initialize(options=None):
     else:
         conf['/opds'] = {'tools.auth_basic.on': False}
 
-    opensearch = os.path.join(lazylibrarian.PROG_DIR, 'data', 'opensearch.template')
+    opensearch = os.path.join(DIRS.PROG_DIR, 'data', 'opensearch.template')
     if path_exists(opensearch):
         with open(syspath(opensearch), 'r') as s:
             data = s.read().splitlines()
@@ -266,7 +266,7 @@ def initialize(options=None):
         print(str(e))
         sys.exit(1)
 
-    icon = os.path.join(lazylibrarian.PROG_DIR, 'data', 'images', 'll.png')
+    icon = os.path.join(DIRS.PROG_DIR, 'data', 'images', 'll.png')
     if path_exists(icon):
         newicon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         copyfile(icon, newicon)
