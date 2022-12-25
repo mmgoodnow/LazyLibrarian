@@ -50,7 +50,7 @@ from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
     get_list, make_unicode, unaccented, replace_all, make_bytestr, namedic
-from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink, remove
+from lazylibrarian.filesystem import path_isfile, path_isdir, syspath, path_exists, path_islink, remove_file
 
 # list of all ascii and non-ascii quotes/apostrophes
 # quote list: https://en.wikipedia.org/wiki/Quotation_mark
@@ -988,12 +988,12 @@ def save_log():
         logfile.write(line)
         linecount += 1
     logfile.close()
-    remove(outfile + '.tmp')
+    remove_file(outfile + '.tmp')
     logger.debug("Redacted %s passwords/apikeys" % redacts)
     logger.debug("%s log lines written to %s" % (linecount, outfile + '.log'))
     with zipfile.ZipFile(outfile + '.zip', 'w') as myzip:
         myzip.write(outfile + '.log', 'debug.log')
-    remove(outfile + '.log')
+    remove_file(outfile + '.log')
     return "Debug log saved as %s" % (outfile + '.zip')
 
 

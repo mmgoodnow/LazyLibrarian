@@ -19,7 +19,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.common import safe_move, multibook, listdir, only_punctuation, \
     opf_file
-from lazylibrarian.filesystem import path_isdir, syspath, remove
+from lazylibrarian.filesystem import path_isdir, syspath, remove_file
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
     make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.logger import lazylibrarian_log
@@ -110,7 +110,7 @@ def id3read(filename):
         opffile = opf_file(os.path.dirname(filename))
         if os.path.exists(opffile):
             opf_template, replaces = opf_read(opffile)
-            remove(opf_template)
+            remove_file(opf_template)
             for item in replaces:
                 if item[0] == 'author':
                     author = item[1]

@@ -23,7 +23,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
-from lazylibrarian.common import remove
+from lazylibrarian.common import remove_file
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath
 from lazylibrarian.logger import lazylibrarian_log
 
@@ -299,7 +299,7 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
                 # Cache entry is too old, delete it
                 if lazylibrarian_log.LOGLEVEL & logger.log_cache:
                     logger.debug("Expiring %s" % myhash)
-                remove(hashfilename)
+                remove_file(hashfilename)
             else:
                 valid_cache = True
 

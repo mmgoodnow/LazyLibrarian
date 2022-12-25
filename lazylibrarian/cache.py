@@ -20,7 +20,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent, proxy_list, listdir
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file
 from lazylibrarian.formatter import check_int, md5_utf8, make_bytestr, seconds_to_midnight, plural, make_unicode, \
     thread_name
 
@@ -277,7 +277,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
                 logger.error("Error decoding json from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
                 if not (lazylibrarian_log.LOGLEVEL & logger.log_cache):
-                    remove(hashfilename)
+                    remove_file(hashfilename)
                 return None, False
         elif cache == "HTML":
             with open(syspath(hashfilename), "rb") as cachefile:
@@ -303,7 +303,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
                 logger.error("Error reading xml from %s" % hashfilename)
                 # normally delete bad data, but keep for inspection if debug logging cache
                 if not (lazylibrarian_log.LOGLEVEL & logger.log_cache):
-                    remove(hashfilename)
+                    remove_file(hashfilename)
                 return None, False
     else:
         lazylibrarian.CACHE_MISS = int(lazylibrarian.CACHE_MISS) + 1
@@ -389,7 +389,7 @@ def clean_cache():
             cache_modified_time = os.stat(target).st_mtime
             if cache_modified_time < time_now - expiry:
                 # Cache is old, delete entry
-                remove(target)
+                remove_file(target)
                 cleaned += 1
             else:
                 kept += 1
@@ -412,7 +412,7 @@ def clean_cache():
                         cache_modified_time = os.stat(target).st_mtime
                         if cache_modified_time < time_now - (expiry * 24 * 60 * 60):  # expire after this many seconds
                             # Cache is old, delete entry
-                            remove(target)
+                            remove_file(target)
                             cleaned += 1
                         else:
                             kept += 1
@@ -435,7 +435,7 @@ def clean_cache():
                     item = db.match('select BookID from books where BookID=?', (bookid,))
                     if not item:
                         # WorkPage no longer referenced in database, delete cached_file
-                        remove(os.path.join(cache, i, j, cached_file))
+                        remove_file(os.path.join(cache, i, j, cached_file))
                         cleaned += 1
                     else:
                         kept += 1
@@ -456,7 +456,7 @@ def clean_cache():
             item = db.match('select SeriesID from series where SeriesID=?', (seriesid,))
             if not item:
                 # SeriesPage no longer referenced in database, delete cached_file
-                remove(os.path.join(cache, cached_file))
+                remove_file(os.path.join(cache, cached_file))
                 cleaned += 1
             else:
                 kept += 1
@@ -474,7 +474,7 @@ def clean_cache():
             target = fname.split('_')[0] + extn
             item = db.match('select * from issues where cover=?', ('cache/magazine/%s' % target,))
             if not item:
-                remove(os.path.join(cache, cached_file))
+                remove_file(os.path.join(cache, cached_file))
                 cleaned += 1
             else:
                 kept += 1
@@ -496,7 +496,7 @@ def clean_cache():
             for cached_file in listdir(cachedir):
                 if cached_file not in images:
                     # Author Image no longer referenced in database, delete cached_file
-                    remove(os.path.join(cachedir, cached_file))
+                    remove_file(os.path.join(cachedir, cached_file))
                     cleaned += 1
                 else:
                     kept += 1
@@ -518,7 +518,7 @@ def clean_cache():
             logger.debug("Checking %s book images" % len(images))
             for cached_file in listdir(cachedir):
                 if cached_file not in images:
-                    remove(os.path.join(cachedir, cached_file))
+                    remove_file(os.path.join(cachedir, cached_file))
                     cleaned += 1
                 else:
                     kept += 1
@@ -534,7 +534,7 @@ def clean_cache():
     kept = 0
     for cached_file in listdir(cache):
         if cached_file.endswith('.jpg'):
-            remove(os.path.join(cache, cached_file))
+            remove_file(os.path.join(cache, cached_file))
             cleaned += 1
         else:
             kept += 1

@@ -8,6 +8,8 @@
 
 import os
 import sys
+from datetime import datetime
+from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
@@ -22,6 +24,7 @@ class DirectoryHolder:
         self.DATADIR = ''
         self.CACHEDIR = ''
         self.TMPDIR = ''
+        self.tmpsequence = 0
 
     def set_datadir(self, datadir: str):
         """ Sets the DATADIR from config, and exits the program if it cannot be created or is not writeable.
@@ -63,9 +66,16 @@ class DirectoryHolder:
         """ Return the name of the LL database file """
         return os.path.join(self.DATADIR, 'lazylibrarian.db')
 
-    def get_tmpfilename(self, base: str) -> str:
-        """ Get a file named base in the tmp directory """
-        return os.path.join(self.TMPDIR, base)
+    def get_tmpfilename(self, base: Optional[str]=None) -> str:
+        """ Get a file named base in the tmp directory.
+        If base is not specified, return a unique filename """
+        if not base:
+            timestr = datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            randomstr = str(self.tmpsequence)
+            self.tmpsequence += 1
+            if self.tmpsequence < 0: self.tmpsequence = 0
+            base = f'LL-temp-{timestr}-{randomstr}.tmp'
+        return syspath(os.path.join(self.TMPDIR, base))
 
 """ Global access to directories """
 DIRS = DirectoryHolder()
@@ -86,9 +96,6 @@ def path_exists(name: str) -> bool:
 
 def path_islink(name: str) -> bool:
     return os.path.islink(syspath(name))
-
-def new_temp_filename() -> str:
-    return 'hello'
 
 WINDOWS_MAGIC_PREFIX = u'\\\\?\\'
 
@@ -138,15 +145,33 @@ def syspath(path: str, prefix:bool=True) -> str:
     return path
 
 
-def remove(name):
+def remove_file(name: str) -> bool:
+    """ Remove the file. On error, log an error message. Returns True if successful """
+    ok = False
     try:
         os.remove(syspath(name))
+        ok = True
     except OSError as err:
         if err.errno == 2:  # does not exist is ok
             pass
         else:
             lazylibrarian_log.warn("Failed to remove %s : %s" % (name, err.strerror))
-            pass
     except Exception as err:
         lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
-        pass
+    return ok
+
+
+def remove_dir(name: str) -> bool:
+    """ Remove the directory. On error, log an error message. Returns True if successful """
+    ok = False
+    try:
+        os.rmdir(syspath(name))
+        ok = True
+    except OSError as err:
+        if err.errno == 2:  # does not exist is ok
+            pass
+        else:
+            lazylibrarian_log.warn("Failed to remove %s : %s" % (name, err.strerror))
+    except Exception as err:
+        lazylibrarian_log.warn("Failed to remove %s : %s" % (name, str(err)))
+    return ok

@@ -17,7 +17,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian import database, logger
 from lazylibrarian.common import csv_file, safe_move
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
     make_unicode, split_title
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
@@ -412,7 +412,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
             if skipcount == 0:
                 logger.info("Deleting %s on successful completion" % csvfile)
                 try:
-                    remove(csvfile)
+                    remove_file(csvfile)
                 except OSError as why:
                     logger.warn('Unable to delete %s: %s' % (csvfile, why.strerror))
             else:
@@ -436,7 +436,7 @@ def import_csv(search_dir=None, status='Wanted', library=''):
                     try:
                         with open(syspath(os.path.join(parent, 'll_temp')), 'w') as f:
                             f.write('test')
-                        remove(os.path.join(parent, 'll_temp'))
+                        remove_file(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
     except Exception:

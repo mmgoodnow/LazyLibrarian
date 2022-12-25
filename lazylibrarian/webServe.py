@@ -43,7 +43,7 @@ from lazylibrarian.common import show_stats, clear_log, \
     setperm, csv_file, save_log, log_header, listdir, pwd_generator, pwd_check, is_valid_email, \
     mime_type, zip_audio, run_script, walk, book_file, \
     get_calibre_id, safe_move, opf_file, safe_copy
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
     ensure_running, all_author_update
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
@@ -3335,7 +3335,7 @@ class WebInterface(object):
                 opffile = ''
             if opffile and path_isfile(opffile):
                 opf_template, replaces = opf_read(opffile)
-                remove(opf_template)  # we don't need the template file yet
+                remove_file(opf_template)  # we don't need the template file yet
             else:
                 replaces = []
             subs = []
@@ -3566,8 +3566,8 @@ class WebInterface(object):
 
                     if edited:
                         new_opf = opf_write(opf_template, subs)
-                        remove(opf_template)
-                        remove(opffile)
+                        remove_file(opf_template)
+                        remove_file(opffile)
                         safe_move(new_opf, opffile)
                 if edited:
                     logger.info('Updated [ %s] for %s' % (edited, bookname))
@@ -5237,10 +5237,10 @@ class WebInterface(object):
     def delete_issue(issuefile):
         try:
             # delete the magazine file and any cover image / opf
-            remove(issuefile)
+            remove_file(issuefile)
             fname, extn = os.path.splitext(issuefile)
             for extn in ['.opf', '.jpg']:
-                remove(fname + extn)
+                remove_file(fname + extn)
             # if the directory is now empty, delete that too
             if lazylibrarian.CONFIG.get_bool('MAG_DELFOLDER'):
                 try:
@@ -5445,7 +5445,7 @@ class WebInterface(object):
         icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
-            remove(icon)
+            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Updating",
                               message=message, timer=90)
 
@@ -5647,7 +5647,7 @@ class WebInterface(object):
         icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
-            remove(icon)
+            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Close library",
                               message=message, timer=30)
 
@@ -5659,7 +5659,7 @@ class WebInterface(object):
         icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
         if path_isfile(icon):
             logger.debug("remove %s" % icon)
-            remove(icon)
+            remove_file(icon)
         return serve_template(templatename="shutdown.html", prefix='LazyLibrarian is ', title="Reopen library",
                               message=message, timer=50)
 

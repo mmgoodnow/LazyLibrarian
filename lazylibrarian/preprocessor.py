@@ -19,7 +19,7 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.filesystem import DIRS, remove, path_exists
+from lazylibrarian.filesystem import DIRS, remove_file, path_exists
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
 from lazylibrarian.common import listdir, safe_copy, safe_move, calibre_prg, setperm, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
@@ -91,7 +91,7 @@ def preprocess_ebook(bookfolder):
             filename, extn = os.path.splitext(fname)
             if not extn or extn.lstrip('.').lower() not in wanted_formats:
                 logger.debug("Deleting %s" % fname)
-                remove(os.path.join(bookfolder, fname))
+                remove_file(os.path.join(bookfolder, fname))
     if created:
         logger.debug("Created %s from %s" % (created, source_extn))
     else:
@@ -233,7 +233,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                         else:
                             _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
-                        remove(os.path.join(bookfolder, part[3]))
+                        remove_file(os.path.join(bookfolder, part[3]))
                         os.rename(os.path.join(bookfolder, "tempaudio%s" % extn),
                                   os.path.join(bookfolder, part[3]))
                         logger.debug("Metadata written to %s" % part[3])
@@ -325,7 +325,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                                 if not lyne.startswith('START=') and not lyne.startswith('END='):
                                     if not lyne.startswith('title='):
                                         o.write(lyne)
-                    remove(metadata)
+                    remove_file(metadata)
                     os.rename(os.path.join(bookfolder, "newmetadata.ll"), metadata)
 
                 with open(metadata, 'a', encoding="utf-8") as f:
@@ -455,7 +455,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     _ = subprocess.check_output(params, stderr=subprocess.STDOUT, env=ffmpeg_env)
 
                 outfile = os.path.join(bookfolder, outfile)
-                remove(outfile)
+                remove_file(outfile)
                 if b2a:
                     tempfile.replace('.m4a', '.m4b')
                 os.rename(tempfile, outfile)
@@ -470,10 +470,10 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
         if not lazylibrarian.CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
-                remove(os.path.join(bookfolder, part[3]))
+                remove_file(os.path.join(bookfolder, part[3]))
 
-    remove(partslist)
-    remove(metadata)
+    remove_file(partslist)
+    remove_file(metadata)
 
 
 def preprocess_magazine(bookfolder, cover=0):
@@ -512,11 +512,11 @@ def preprocess_magazine(bookfolder, cover=0):
                 new_size = 0
             logger.debug("New size %s, was %s" % (human_size(new_size), human_size(old_size)))
             if new_size and new_size < old_size:
-                remove(srcfile)
+                remove_file(srcfile)
                 os.rename(shrunkfile, srcfile)
                 _ = setperm(srcfile)
             elif shrunkfile:
-                remove(shrunkfile)
+                remove_file(shrunkfile)
 
         if lazylibrarian.CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
             if not PdfFileWriter:
@@ -542,7 +542,7 @@ def preprocess_magazine(bookfolder, cover=0):
                     sz = 0
                     logger.warn("Unable to get size of %s: %s" % (srcfile + 'new', str(e)))
                 if sz:
-                    remove(srcfile)
+                    remove_file(srcfile)
                     newcopy = safe_move(srcfile + 'new', original + 'new')
                     os.rename(newcopy, original)
                     _ = setperm(original)

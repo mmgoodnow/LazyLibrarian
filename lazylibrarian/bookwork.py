@@ -22,7 +22,7 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list, quotes
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
 from lazylibrarian.logger import lazylibrarian_log
@@ -398,7 +398,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
                     if NEW_WHATWORK:
-                        remove(workfile)
+                        remove_file(workfile)
 
         if path_isfile(workfile):
             # use cached file if possible to speed up refreshactiveauthors and librarysync re-runs

@@ -17,9 +17,21 @@ class FilesystemTest(LLTestCase):
         super().setDoAll(False)
         return super().setUpClass()
 
-    def tearDown(self) -> None:
-        #filesystem.remove(DIRS.TMPDIR)
+    @classmethod
+    def tearDownClass(cls) -> None:
+        filesystem.remove_dir(DIRS.TMPDIR)
+        return super().tearDownClass()
+
+    def setUp(self):
+        # Save this, as some tests change it
+        self.datadir = DIRS.DATADIR
+        return super().setUp()
+
+    def tearDown(self):
+        # Save this, as some tests change it
+        DIRS.set_datadir(self.datadir)
         return super().tearDown()
+
 
     def test_syspath(self):
         """ Test that syspath returns a proper path in both Linux and Windows"""
@@ -46,9 +58,8 @@ class FilesystemTest(LLTestCase):
     ### Tests for set_datadir
 
     @mock.patch.object(filesystem, 'path_isdir')
-    @mock.patch.object(os, 'makedirs')
     @mock.patch.object(os, 'access')
-    def test_set_datadir_exists_writeable(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
+    def test_set_datadir_exists_writeable(self, mock_os_access, mock_path_isdir):
         """ Test set_datadir, which will raise a SystemExit exception on error """
         testdir = 'Pretend-it-exists'
         mock_path_isdir.return_value = True
@@ -77,6 +88,7 @@ class FilesystemTest(LLTestCase):
     def test_set_datadir_doesnot_exist_created(self, mock_os_access, mock_os_makedirs, mock_path_isdir):
         testdir = 'Pretend-it-exists'
         mock_path_isdir.return_value = False
+        mock_os_makedirs.return_value = True
         mock_os_access.return_value = True
         DIRS.set_datadir(testdir)
         self.assertEqual(DIRS.DATADIR, testdir)
@@ -97,6 +109,26 @@ class FilesystemTest(LLTestCase):
         mock_os_access.assert_not_called()
 
     def test_get_tmpfilename(self):
-        tmpname = DIRS.get_tmpfilename('test.tmp')
-        self.assertEqual(tmpname, os.path.join(DIRS.TMPDIR, 'test.tmp'))
+        # Create lots of temp filenames, make sure they are unique
+        tmpnames = {}
+        for i in range(10000):
+            tmpname = DIRS.get_tmpfilename()
+            self.assertFalse(tmpname in tmpnames, f'Temp file name not unique: {tmpname} duplicated!')
+            tmpnames[tmpname] = 1
 
+    def test_remove_file(self):
+        tmpname = DIRS.get_tmpfilename()
+        with open(tmpname, 'x') as f:
+            f.write('test')
+        self.assertTrue(filesystem.path_isfile(tmpname), f'Should be a file: {tmpname}')
+        ok = filesystem.remove_file(tmpname)
+        self.assertTrue(ok, f'Could not remove temp file {tmpname}')
+        self.assertFalse(filesystem.path_isfile(tmpname), f'Should have been removed: {tmpname}')
+
+    def test_remove_dir(self):
+        tmpname = DIRS.get_tmpfilename()
+        DIRS.ensure_dir_is_writeable(tmpname)
+        self.assertTrue(filesystem.path_isdir(tmpname), f'Should be a dir: {tmpname}')
+        ok = filesystem.remove_dir(tmpname)
+        self.assertTrue(ok, f'Could not remove temp file {tmpname}')
+        self.assertFalse(filesystem.path_isdir(tmpname), f'Should have been removed: {tmpname}')

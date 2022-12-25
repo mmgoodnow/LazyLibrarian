@@ -41,7 +41,7 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import book_file, opf_file, setperm, bts_file, jpg_file, \
     safe_copy, safe_move, make_dirs, run_script, multibook, listdir, \
     calibre_prg
-from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove
+from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file
 from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
@@ -131,7 +131,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.error("Unable to import %s: %s" % (source_file, dest_file))
             return False
 
-        remove(source_file)
+        remove_file(source_file)
         if mostrecentissue:
             if mostrecentissue.isdigit() and str(issuenum).isdigit():
                 older = (int(mostrecentissue) > int(issuenum))  # issuenumber
@@ -1451,7 +1451,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                 try:
                                     with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
                                         f.write(u'test')
-                                    remove(os.path.join(parent, 'll_temp'))
+                                    remove_file(os.path.join(parent, 'll_temp'))
                                 except Exception as why:
                                     logger.error("Parent Directory %s is not writeable: %s" % (parent, why))
                                 logger.warn('Residual files remain in %s' % pp_path)
@@ -2410,7 +2410,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     try:
                         with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
                             f.write(u'test')
-                        remove(os.path.join(parent, 'll_temp'))
+                        remove_file(os.path.join(parent, 'll_temp'))
                     except Exception as why:
                         logger.error("Directory %s is not writeable: %s" % (parent, why))
                     logger.warn('Residual files remain in %s' % pp_path)
@@ -2583,7 +2583,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                     if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
                         logger.debug("Removing %s as not %s" % (fname, bestmatch))
-                        remove(srcfile)
+                        remove_file(srcfile)
                     else:
                         dstfile = os.path.join(pp_path, global_name.replace('"', '_') + extn)
                         # calibre does not like quotes in author names
@@ -2591,7 +2591,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 else:
                     logger.debug('Removing %s as not wanted' % fname)
                     if path_isfile(srcfile):
-                        remove(srcfile)
+                        remove_file(srcfile)
                     elif path_isdir(srcfile):
                         shutil.rmtree(srcfile)
 
@@ -2885,7 +2885,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         elif not path_isdir(dest_path):
             logger.debug('%s exists but is not a directory, deleting it' % dest_path)
             try:
-                remove(dest_path)
+                remove_file(dest_path)
             except OSError as why:
                 return False, 'Unable to delete %s: %s' % (dest_path, why.strerror), pp_path
         if path_isdir(dest_path):
@@ -2926,7 +2926,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         try:
                             with open(syspath(os.path.join(parent, 'll_temp')), 'w', encoding='utf-8') as f:
                                 f.write(u'test')
-                            remove(os.path.join(parent, 'll_temp'))
+                            remove_file(os.path.join(parent, 'll_temp'))
                         except Exception as w:
                             logger.error("Destination Directory [%s] is not writeable: %s" % (parent, w))
                         return False, "Unable to copy file %s to %s: %s %s" % (srcfile, destfile,
