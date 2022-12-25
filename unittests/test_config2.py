@@ -7,14 +7,12 @@
 from typing import List, Dict
 from collections import Counter
 import mock
-import os
 
 from unittesthelpers import LLTestCase
-import lazylibrarian
 from lazylibrarian import config2, configdefs, configtypes, logger
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access, TimeUnit
-from lazylibrarian.filesystem import DIRS, syspath
+from lazylibrarian.filesystem import DIRS, syspath, remove_file, path_isfile, safe_copy
 
 # Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones
@@ -326,7 +324,7 @@ class Config2Test(LLTestCase):
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
         ])
 
-    def single_access_compare(self, got: Counter, expected: Counter, exclude: List[Access]=[], error: str=''):
+    def single_access_compare(self, got: Counter, expected: Counter, exclude: List[Access], error: str=''):
         """ Helper function, validates that two access counters are the same """
         for access in got:
             if not access in exclude:
@@ -672,49 +670,39 @@ class Config2Test(LLTestCase):
         }
         self.assertEqual(summary, expectedSummary, 'Access Summary is not as expected')
 
-    def remove_test_file(self, filename) -> bool:
-        """ Remove a file used for testing. Returns True if a file was removed """
-        import os
-        try:
-            os.remove(filename)
-            return True
-        except OSError as e:
-            self.assertEqual(e.errno, 2, 'Error removing test file is not as expected')
-            return False
-
     def test_save_config(self):
         """ Test saving config file """
         self.set_loglevel(1)
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=SMALL_INI_FILE)
         try:
-            TESTFILE = 'test-small.ini'
-            count = cfg.save_config(TESTFILE, False) # Save only non-default values
+            testfile = DIRS.get_tmpfilename('test-small.ini')
+            count = cfg.save_config(testfile, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {testfile} is not the same as original file!')
         finally:
-            self.assertEqual(self.remove_test_file('test-small.ini'), True, 'Could not remove test-small.ini')
+            self.assertTrue(remove_file(testfile), 'Could not remove test-small.ini')
 
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         with self.assertLogs('lazylibrarian.logger', level='WARN'):
             count = cfg.save_config('?*/\\invalid<>file', False) # Save only non-default values
         self.assertEqual(count, -1, 'Should not be able to save to invalid file name')
         try:
-            TESTFILE = 'test-changed.ini'
-            count = cfg.save_config(TESTFILE, False) # Save only non-default values
+            testfile = DIRS.get_tmpfilename('test-changed.ini')
+            count = cfg.save_config(testfile, False) # Save only non-default values
             self.assertEqual(count, 38, 'Saving config.ini has unexpected # of non-default items')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {testfile} is not the same as original file!')
         finally:
-            self.assertEqual(self.remove_test_file(TESTFILE), True, 'Could not remove test-changed.ini')
+            self.assertTrue(remove_file(testfile), 'Could not remove test-changed.ini')
 
         try:
-            TESTFILE = 'test-all.ini'
-            _ = cfg.save_config(TESTFILE, True) # Save everything.
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
-            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is not the same as original file!')
+            testfile = DIRS.get_tmpfilename('test-all.ini')
+            _ = cfg.save_config(testfile, True) # Save everything.
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {testfile} is not the same as original file!')
         finally:
-            self.assertTrue(self.remove_test_file(TESTFILE), 'Could not remove test-all.ini')
+            self.assertTrue(remove_file(testfile), 'Could not remove test-all.ini')
 
     def test_persistence_flag(self):
         """ Test whether the persist flag is obeyed when saving """
@@ -723,35 +711,34 @@ class Config2Test(LLTestCase):
         initial = cfg['Unpersisted_test']
         cfg.set_int('Unpersisted_test', 17)
         try:
-            TESTFILE = 'test-small.ini'
-            count = cfg.save_config(TESTFILE, False) # Save only non-default values
+            testfile = DIRS.get_tmpfilename('test-small.ini')
+            count = cfg.save_config(testfile, False) # Save only non-default values
             self.assertEqual(count, 7, 'Saving default config.ini has unexpected # of changes')
-            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TESTFILE)
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
             with self.assertLogs('lazylibrarian.logger', level='WARN'):
-                self.assertFalse(config2.are_equivalent(cfg, cfgnew), f'Save error: {TESTFILE} is identical to the original')
+                self.assertFalse(config2.are_equivalent(cfg, cfgnew), f'Save error: {testfile} is identical to the original')
         finally:
-            self.assertTrue(self.remove_test_file('test-small.ini'), 'Could not remove test-small.ini')
+            self.assertTrue(remove_file(testfile), 'Could not remove test-small.ini')
 
         self.assertEqual(cfgnew['Unpersisted_test'], initial, 'The unpersisted item was persisted!')
 
     def test_save_config_and_backup_old(self):
         """ Test saving config file while keeping the old one as a .bak file """
         self.set_loglevel(1)
-        import os.path, shutil
-        TEST_FILE = syspath('./unittests/testdata/test.ini')
-        shutil.copyfile(COMPLEX_INI_FILE, TEST_FILE)
-        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=TEST_FILE)
+        test_file = DIRS.get_tmpfilename('test.ini')
+        safe_copy(COMPLEX_INI_FILE, test_file)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=test_file)
 
         # delete potential backup file before starting
         backupfile = syspath(cfg.configfilename + '.bak')
-        self.remove_test_file(backupfile)
+        remove_file(backupfile)
 
         try:
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm: # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
             self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
-            self.assertTrue(os.path.isfile(backupfile), 'Backup file does not exist')
+            self.assertTrue(path_isfile(backupfile), 'Backup file does not exist')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
 
@@ -763,12 +750,12 @@ class Config2Test(LLTestCase):
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
             self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
-            self.assertTrue(self.remove_test_file(backupfile), 'Could not delete backup file')
+            self.assertTrue(remove_file(backupfile), 'Could not delete backup file')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
         finally:
-            self.remove_test_file(TEST_FILE)
-            self.remove_test_file(backupfile)
+            remove_file(test_file)
+            remove_file(backupfile)
 
     @mock.patch('shutil.rmtree')
     @mock.patch('os.makedirs')
