@@ -19,9 +19,9 @@ import subprocess
 import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm
+from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
 from lazylibrarian.bookrename import audio_parts, name_vars, id3read
-from lazylibrarian.common import safe_copy, safe_move, calibre_prg, zip_audio
+from lazylibrarian.common import calibre_prg, zip_audio
 from lazylibrarian.formatter import get_list, make_unicode, check_int, human_size, now, check_float
 from lazylibrarian.images import shrink_mag
 

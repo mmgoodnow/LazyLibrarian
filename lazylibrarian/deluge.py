@@ -31,8 +31,7 @@ import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import make_unicode
-from lazylibrarian.common import make_dirs
-from lazylibrarian.filesystem import path_isdir, syspath
+from lazylibrarian.filesystem import path_isdir, syspath, make_dirs
 
 import urllib3
 import requests

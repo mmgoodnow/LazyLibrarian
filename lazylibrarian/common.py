@@ -20,7 +20,6 @@ import mako
 import os
 import platform
 import random
-import shutil
 import string
 import sys
 import time
@@ -49,7 +48,7 @@ import lazylibrarian
 from lazylibrarian import logger, database, configdefs
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import plural, is_valid_booktype, check_int, \
-    get_list, make_unicode, unaccented, replace_all, namedic
+    get_list, make_unicode
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, path_exists, remove_file, \
     listdir, walk, setperm
 
@@ -166,110 +165,6 @@ def multibook(foldername, recurse=False):
                     if counter > 1:
                         return item
     return ''
-
-
-def make_dirs(dest_path, new=False):
-    """ os.makedirs only seems to set the right permission on the final leaf directory
-        not any intermediate parents it creates on the way, so we'll try to do it ourselves
-        setting permissions as we go. Could use recursion but probably aren't many levels to do...
-        Build a list of missing intermediate directories in reverse order, exit when we encounter
-        an existing directory or hit root level. Set permission on any directories we create.
-        If new, try to remove any pre-existing directory and contents.
-        return True or False """
-
-    to_make = []
-    dest_path = syspath(dest_path)
-    if new:
-        shutil.rmtree(dest_path, ignore_errors=True)
-
-    while not path_isdir(dest_path):
-        # noinspection PyUnresolvedReferences
-        to_make.insert(0, dest_path)
-        parent = os.path.dirname(dest_path)
-        if parent == dest_path:
-            break
-        else:
-            dest_path = parent
-
-    for entry in to_make:
-        if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
-            logger.debug("mkdir: [%s]" % repr(entry))
-        try:
-            os.mkdir(entry)  # mkdir uses umask, so set perm ourselves
-            _ = setperm(entry)  # failing to set perm might not be fatal
-        except OSError as why:
-            # os.path.isdir() has some odd behaviour on Windows, says the directory does NOT exist
-            # then when you try to mkdir complains it already exists.
-            # Ignoring the error might just move the problem further on?
-            # Something similar seems to occur on Google Drive filestream
-            # but that returns Error 5 Access is denied
-            # Trap errno 17 (linux file exists) and 183 (windows already exists)
-            if why.errno in [17, 183]:
-                if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
-                    logger.debug("Ignoring mkdir already exists errno %s: [%s]" % (why.errno, repr(entry)))
-                pass
-            elif 'exists' in str(why):
-                if lazylibrarian_log.LOGLEVEL & logger.log_fileperms:
-                    logger.debug("Ignoring %s: [%s]" % (why, repr(entry)))
-                pass
-            else:
-                logger.error('Unable to create directory %s: [%s]' % (why, repr(entry)))
-                return False
-    return True
-
-
-def safe_move(src, dst, action='move'):
-    """ Move or copy src to dst
-        Retry without accents if unicode error as some file systems can't handle (some) accents
-        Retry with some characters stripped if bad filename
-        e.g. Windows can't handle <>?"*:| (and maybe others) in filenames
-        Return (new) dst if success """
-
-    if src == dst:  # nothing to do
-        return dst
-
-    while action:  # might have more than one problem...
-        try:
-            if action == 'copy':
-                shutil.copyfile(syspath(src), syspath(dst))
-            elif path_isdir(src) and dst.startswith(src):
-                shutil.copytree(syspath(src), syspath(dst))
-            else:
-                shutil.move(syspath(src), syspath(dst))
-            return dst
-
-        except UnicodeEncodeError:
-            newdst = unaccented(dst)
-            if newdst != dst:
-                dst = newdst
-            else:
-                raise
-
-        except (IOError, OSError) as err:  # both needed for different python versions
-            if err.errno == 22:  # bad mode or filename
-                logger.debug("src=[%s] dst=[%s]" % (src, dst))
-                drive, path = os.path.splitdrive(dst)
-                logger.debug("drive=[%s] path=[%s]" % (drive, path))
-                # strip some characters windows can't handle
-                newpath = replace_all(path, namedic)
-                # windows filenames can't end in space or dot
-                while newpath and newpath[-1] in '. ':
-                    newpath = newpath[:-1]
-                # anything left? has it changed?
-                if newpath and newpath != path:
-                    dst = os.path.join(drive, newpath)
-                    logger.debug("dst=[%s]" % dst)
-                else:
-                    raise
-            else:
-                raise
-        except Exception:
-            raise
-    return dst
-
-
-def safe_copy(src, dst):
-    return safe_move(src, dst, action='copy')
 
 
 def proxy_list():

@@ -21,8 +21,8 @@ import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
-from lazylibrarian.common import safe_copy, jpg_file
-from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm
+from lazylibrarian.common import jpg_file
+from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy
 from lazylibrarian.cache import cache_img, fetch_url
 from lazylibrarian.providers import provider_is_blocked, block_provider
 from urllib.parse import quote_plus
