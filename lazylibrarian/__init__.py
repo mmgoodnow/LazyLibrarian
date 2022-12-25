@@ -31,7 +31,6 @@ from lazylibrarian.providers import provider_is_blocked
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
-FULL_PATH = None
 PROG_DIR = ''
 ARGS = []
 DAEMON = False

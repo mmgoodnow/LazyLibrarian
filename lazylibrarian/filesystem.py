@@ -19,6 +19,7 @@ class DirectoryHolder:
     DATADIR: str        # Where LL stores its data files
     CACHEDIR: str = ''  # Where LL stores its cache
     TMPDIR: str         # Where LL will store temporary files
+    FULL_PATH: str      # Fully qualified name of executable running
 
     def __init__(self):
         self.DATADIR = ''

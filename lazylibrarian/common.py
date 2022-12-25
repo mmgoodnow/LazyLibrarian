@@ -748,7 +748,7 @@ def clear_log():
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True):
 
-    popen_list = [sys.executable, lazylibrarian.FULL_PATH]
+    popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += lazylibrarian.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
     header += "config file: %s\n" % lazylibrarian.CONFIGFILE

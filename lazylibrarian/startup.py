@@ -46,13 +46,13 @@ from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
-        lazylibrarian.FULL_PATH = os.path.abspath(sys.executable)
+        DIRS.FULL_PATH = os.path.abspath(sys.executable)
     else:
-        lazylibrarian.FULL_PATH = os.path.abspath(mainfile)
+        DIRS.FULL_PATH = os.path.abspath(mainfile)
 
-    lazylibrarian.PROG_DIR = os.path.dirname(lazylibrarian.FULL_PATH)
+    lazylibrarian.PROG_DIR = os.path.dirname(DIRS.FULL_PATH)
     lazylibrarian.ARGS = sys.argv[1:]
-    lazylibrarian.DOCKER = '/config' in lazylibrarian.ARGS and lazylibrarian.FULL_PATH.startswith('/app/')
+    lazylibrarian.DOCKER = '/config' in lazylibrarian.ARGS and DIRS.FULL_PATH.startswith('/app/')
 
     lazylibrarian.SYS_ENCODING = None
 
@@ -227,7 +227,7 @@ def init_logs():
         info("Screen Log set to INFO")
     else:
         info("Screen Log set to WARN/ERROR")
-    debug("%s %s" % (lazylibrarian.FULL_PATH, str(lazylibrarian.ARGS)))
+    debug("%s %s" % (DIRS.FULL_PATH, str(lazylibrarian.ARGS)))
 
 
 def init_config():
@@ -776,7 +776,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
             if not executable:
                 executable = 'python'  # default if not found
 
-            popen_list = [executable, lazylibrarian.FULL_PATH]
+            popen_list = [executable, DIRS.FULL_PATH]
             popen_list += lazylibrarian.ARGS
             while '--update' in popen_list:
                 popen_list.remove('--update')

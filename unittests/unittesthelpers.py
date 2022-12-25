@@ -93,7 +93,6 @@ class LLTestCase(unittest.TestCase):
     @classmethod
     def clearGlobals(cls):
         # Clear configuration variables to ahve a clean slate for any further test runs
-        lazylibrarian.FULL_PATH = None
         lazylibrarian.PROG_DIR = ''
         lazylibrarian.ARGS = []
         lazylibrarian.DAEMON = False
