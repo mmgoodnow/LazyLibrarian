@@ -16,8 +16,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian import database, logger
-from lazylibrarian.common import csv_file
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move
+from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
     make_unicode, split_title
 from lazylibrarian.importer import search_for, import_book, add_author_name_to_db, update_totals
@@ -252,11 +251,11 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-def import_csv(search_dir=None, status='Wanted', library=''):
+def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
-        Optionally delete the file on successful completion
+        Delete the file on successful completion if 'DELETE_CSV' is True
     """
     msg = 'Import CSV'
     if not library:

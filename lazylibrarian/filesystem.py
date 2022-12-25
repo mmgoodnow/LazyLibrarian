@@ -399,3 +399,68 @@ def safe_move(src, dst, action='move'):
 
 def safe_copy(src, dst):
     return safe_move(src, dst, action='copy')
+
+
+def any_file(search_dir: str, extn: str) -> str:
+    """ Find a file with specified extension in a directory, any will do.
+    Return full pathname of file, or empty string if none found """
+    if search_dir is None or extn is None:
+        return ""
+    if path_isdir(search_dir):
+        for fname in listdir(search_dir):
+            if fname.endswith(extn):
+                return os.path.join(search_dir, fname)
+    return ""
+
+
+def opf_file(search_dir: str) -> str:
+    """ Look for .opf files in search_dir, returning the file name.
+    If metadata.opf exists and no other opf file does, return metatadata.
+    If metadata.opf and another .opf file exists, return the other one.
+    If two or more other .opf files exist, return '' - we don't know which one to use. """
+    cnt = 0
+    res = ''
+    meta = ''
+    if path_isdir(search_dir):
+        for fname in listdir(search_dir):
+            if fname.endswith('.opf'):
+                if fname == 'metadata.opf':
+                    meta = os.path.join(search_dir, fname)
+                else:
+                    res = os.path.join(search_dir, fname)
+                cnt += 1
+        if cnt > 2 or cnt == 2 and not meta:
+            lazylibrarian_log.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
+            res = ''
+        elif res:  # prefer bookname.opf over metadata.opf
+            return res
+        elif meta:
+            return meta
+    return res
+
+
+def bts_file(search_dir: str) -> str:
+    """ Find the first .bts file in search_dir, unless .bts files are 'skipped' in config """
+    if 'bts' in DIRS.config['SKIPPED_EXT']:
+        return ''
+    return any_file(search_dir, '.bts')
+
+
+def csv_file(search_dir: str, library: str) -> str:
+    """ Returns the first CSV file in search_dir that matches the library name.
+    The library name is 'eBook', 'audio', etc.
+    If library name is blank, just return the first CSV file. """
+    if search_dir and path_isdir(search_dir):
+        try:
+            for fname in listdir(search_dir):
+                if fname.endswith('.csv'):
+                    if not library or library in fname:
+                        return os.path.join(search_dir, fname)
+        except Exception as err:
+            lazylibrarian_log.warn('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
+    return ''
+
+
+def jpg_file(search_dir: str) -> str:
+    """ Returns the name of the first .jpg file in search_dir """
+    return any_file(search_dir, '.jpg')

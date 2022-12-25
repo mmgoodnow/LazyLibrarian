@@ -27,8 +27,8 @@ from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
-from lazylibrarian.common import mime_type, zip_audio, any_file
-from lazylibrarian.filesystem import path_isfile, listdir
+from lazylibrarian.common import mime_type, zip_audio
+from lazylibrarian.filesystem import path_isfile, listdir, any_file
 from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
 from urllib.parse import quote_plus
 

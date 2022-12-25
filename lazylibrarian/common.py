@@ -212,64 +212,6 @@ def pwd_check(password):
     return True
 
 
-def any_file(search_dir=None, extn=None):
-    # find a file with specified extension in a directory, any will do
-    # return full pathname of file, or empty string if none found
-    if search_dir is None or extn is None:
-        return ""
-    if path_isdir(search_dir):
-        for fname in listdir(search_dir):
-            if fname.endswith(extn):
-                return os.path.join(search_dir, fname)
-    return ""
-
-
-def opf_file(search_dir=None):
-    if search_dir is None:
-        return ""
-    cnt = 0
-    res = ''
-    meta = ''
-    if path_isdir(search_dir):
-        for fname in listdir(search_dir):
-            if fname.endswith('.opf'):
-                if fname == 'metadata.opf':
-                    meta = os.path.join(search_dir, fname)
-                else:
-                    res = os.path.join(search_dir, fname)
-                cnt += 1
-        if cnt > 2 or cnt == 2 and not meta:
-            logger.debug("Found %d conflicting opf in %s" % (cnt, search_dir))
-            res = ''
-        elif res:  # prefer bookname.opf over metadata.opf
-            return res
-        elif meta:
-            return meta
-    return res
-
-
-def bts_file(search_dir=None):
-    if 'bts' not in get_list(lazylibrarian.CONFIG['SKIPPED_EXT']):
-        return ''
-    return any_file(search_dir, '.bts')
-
-
-def csv_file(search_dir=None, library=None):
-    if search_dir and path_isdir(search_dir):
-        try:
-            for fname in listdir(search_dir):
-                if fname.endswith('.csv'):
-                    if not library or library in fname:
-                        return os.path.join(search_dir, fname)
-        except Exception as err:
-            logger.warn('Listdir error [%s]: %s %s' % (search_dir, type(err).__name__, str(err)))
-    return ''
-
-
-def jpg_file(search_dir=None):
-    return any_file(search_dir, '.jpg')
-
-
 def book_file(search_dir=None, booktype=None, recurse=False):
     # find a book/mag file in this directory (tree), any book will do
     # return full pathname of book/mag as bytes, or empty bytestring if none found
