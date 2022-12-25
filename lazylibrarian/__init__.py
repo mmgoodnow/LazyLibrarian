@@ -34,7 +34,6 @@ from lazylibrarian.providers import provider_is_blocked
 DAEMON = False
 SIGNAL = None
 PIDFILE = ''
-CONFIGFILE = ''
 SYS_ENCODING = ''
 LOGINUSER = None
 CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)

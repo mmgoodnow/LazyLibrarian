@@ -264,6 +264,8 @@ def telemetry_send() -> str:
             send_config = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_CONFIG')
             send_usage = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_USAGE')
             result, status = TELEMETRY.submit_data(server, send_config, send_usage)
+            if result:
+                result = result.splitlines()[0]  # Return only the first line
         logger.debug(f'Telemetry data sending: {result}, {status}')
     finally:
         thread_name(threadname)

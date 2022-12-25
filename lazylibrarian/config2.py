@@ -46,7 +46,7 @@ class LLConfigHandler(ConfigDict):
             self.configfilename = configfile
             parser = ConfigParser(dict_type=CaseInsensitiveDict)
             parser.optionxform = lambda optionstr: optionstr.upper()
-            parser.read(configfile)
+            parser.read(syspath(configfile))
             for section in parser.sections():
                 if section[-1:].isdigit():
                     self._load_array_section(section, parser)

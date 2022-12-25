@@ -447,7 +447,7 @@ def log_header(online=True):
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
-    header += "config file: %s\n" % lazylibrarian.CONFIGFILE
+    header += "config file: %s\n" % lazylibrarian.CONFIG.configfilename
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian_log.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
@@ -665,9 +665,9 @@ def save_log():
                 linecount += 1
             extn += 1
 
-    if path_exists(lazylibrarian.CONFIGFILE):
+    if path_exists(lazylibrarian.CONFIG.configfilename):
         out.write(u'---END-CONFIG---------------------------------\n')
-        lines = reversed(list(open(syspath(lazylibrarian.CONFIGFILE), 'r', encoding="utf-8")))
+        lines = reversed(list(open(syspath(lazylibrarian.CONFIG.configfilename), 'r', encoding="utf-8")))
         for line in lines:
             for item in lazylibrarian.CONFIG.REDACTLIST:
                 if item in line:

@@ -46,9 +46,9 @@ from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug
 def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
-        DIRS.set_fullpath_args(os.path.abspath(sys.executable), str(sys.argv[1:]))
+        DIRS.set_fullpath_args(os.path.abspath(sys.executable), sys.argv[1:])
     else:
-        DIRS.set_fullpath_args(os.path.abspath(mainfile), str(sys.argv[1:]))
+        DIRS.set_fullpath_args(os.path.abspath(mainfile), sys.argv[1:])
 
     lazylibrarian.DOCKER = '/config' in DIRS.ARGS and DIRS.FULL_PATH.startswith('/app/')
 
@@ -177,11 +177,11 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             lazylibrarian_log.update_loglevel(override=2)
 
     if config_override:
-        lazylibrarian.CONFIGFILE = config_override
+        configfile = config_override
     elif options.config:
-        lazylibrarian.CONFIGFILE = syspath(str(options.config))
+        configfile = str(options.config)
     else:
-        lazylibrarian.CONFIGFILE = syspath(os.path.join(DIRS.DATADIR, "config.ini"))
+        configfile = os.path.join(DIRS.DATADIR, "config.ini")
 
     if options.pidfile:
         if lazylibrarian.DAEMON:
@@ -196,7 +196,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         remove_file(icon)
 
     # create database and config
-    lazylibrarian.CONFIG.load_configfile(lazylibrarian.CONFIGFILE)
+    lazylibrarian.CONFIG.load_configfile(configfile=configfile)
     lazylibrarian.CONFIG.post_load_fixup()
 
     return options
