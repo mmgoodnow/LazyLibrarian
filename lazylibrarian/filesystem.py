@@ -196,10 +196,13 @@ def remove_file(name: str) -> bool:
     return ok
 
 
-def remove_dir(name: str) -> bool:
+def remove_dir(name: str, remove_contents: bool=False) -> bool:
     """ Remove the directory. On error, log an error message. Returns True if successful """
     ok = False
     try:
+        if remove_contents:
+            shutil.rmtree(syspath(name))# , ignore_errors=True)
+
         os.rmdir(syspath(name))
         ok = True
     except OSError as err:
@@ -271,7 +274,7 @@ def walk(top, topdown=True, onerror=None, followlinks=False):
         yield top, dirs, nondirs
 
 
-def setperm(file_or_dir):
+def setperm(file_or_dir) -> bool:
     """
     Force newly created directories to rwxr-xr-x and files to rw-r--r--
     or other value as set in config
@@ -310,7 +313,11 @@ def setperm(file_or_dir):
             lazylibrarian_log.debug("Set permission %s for %s, was %s" % (want_perm, file_or_dir, old_perm))
         return True
     else:
-        lazylibrarian_log.debug("Failed to set permission %s for %s, got %s" % (want_perm, file_or_dir, new_perm))
+        if os.name == 'nt':
+            lazylibrarian_log.debug(f"Windows can't set permission {want_perm} for {file_or_dir}; this is expected")
+            return True
+        else:
+            lazylibrarian_log.debug(f"Failed to set permission {want_perm} for {file_or_dir}, got {new_perm}")
     return False
 
 
@@ -325,7 +332,7 @@ def octal(value, default: int) -> int:
         return default
 
 
-def make_dirs(dest_path, new=False):
+def make_dirs(dest_path, new=False) -> bool:
     """ os.makedirs only seems to set the right permission on the final leaf directory
         not any intermediate parents it creates on the way, so we'll try to do it ourselves
         setting permissions as we go. Could use recursion but probably aren't many levels to do...

@@ -166,6 +166,19 @@ class RotatingLogger(object):
         else:
             logger.error(message)
 
+    def debug(self, message):
+       self.log(message, level='DEBUG')
+
+    def info(self, message):
+        if self.LOGLEVEL > 0:
+            self.log(message, level='INFO')
+
+    def warn(self, message):
+        self.log(message, level='WARNING')
+
+    def error(self, message):
+        self.log(message, level='ERROR')
+
 
 lazylibrarian_log = RotatingLogger('lazylibrarian.log', config=None)
 

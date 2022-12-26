@@ -26,35 +26,7 @@ class SetupTest(LLTestCase):
         # Validate that APPRISE is defined properly; it's set up uniquely
         self.assertIsNotNone(lazylibrarian.APPRISE)
 
-    def assertEndsWith(self, teststr, end):
-        self.assertEqual(teststr[-len(end):],end)
-
     # Test global functions declared in __init__.py
-    # They should probably move somewhere else at some point.
-    def test_directory(self):
-        # Test the directory() function
-        # The directories should all have values from unittest/testdata/config-defaults.ini, and differ from the default
-        bookdir = get_directory("eBook")
-        self.assertNotEqual(bookdir, DIRS.DATADIR, "BookDir and Datadir cannot be the same")
-        self.assertEndsWith(bookdir, "eBooks")
-
-        audiobookdir = get_directory("AudioBook")
-        audiodir = get_directory("Audio")
-        self.assertEqual(audiobookdir, audiodir)
-        self.assertNotEqual(audiobookdir, DIRS.DATADIR)
-        self.assertEndsWith(audiobookdir, "Audiobooks")
-
-        downloaddir = get_directory("Download")
-        self.assertNotEqual(downloaddir, DIRS.DATADIR)
-        self.assertEndsWith(downloaddir, "Downloads")
-
-        altdir = get_directory("Alternate")
-        self.assertNotEqual(altdir, DIRS.DATADIR)
-        self.assertEndsWith(altdir, "Alternative")
-
-        faultydir = get_directory("This is invalid")
-        self.assertEqual(faultydir, "")
-
     def test_wishlist_type(self):
         providers = [
             ('https://www.goodreads.com/review/list_rss/userid','goodreads'),

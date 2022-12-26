@@ -1,4 +1,4 @@
-#  This file is part of Lazylibrarian.
+# This file is part of Lazylibrarian.
 #
 # Purpose:
 #   Testing the functions in filesystem.py
@@ -8,7 +8,8 @@ import mock
 
 from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import filesystem
-from lazylibrarian.filesystem import DIRS
+from lazylibrarian.filesystem import DIRS, get_directory, syspath, remove_dir
+from lazylibrarian.logger import lazylibrarian_log
 
 class FilesystemTest(LLTestCase):
 
@@ -19,12 +20,13 @@ class FilesystemTest(LLTestCase):
 
     @classmethod
     def tearDownClass(cls) -> None:
-        filesystem.remove_dir(DIRS.TMPDIR)
+        filesystem.remove_dir(DIRS.TMPDIR, remove_contents=True)
         return super().tearDownClass()
 
     def setUp(self):
         # Save this, as some tests change it
         self.datadir = DIRS.DATADIR
+
         return super().setUp()
 
     def tearDown(self):
@@ -44,8 +46,6 @@ class FilesystemTest(LLTestCase):
             ['D:\\','D:\\'],
             [ '\\\\SERVER\\SHARE\\dir', '\\\\?\\UNC\\SERVER\\SHARE\\dir'],
             [ '\\\\SERVER\\SHARE/dir', '\\\\?\\UNC\\SERVER\\SHARE/dir'],
-            # If CACHEDIR is part of it, / is replaced with \\ in Windows
-            [f'{DIRS.CACHEDIR}/test', f'\\\\?\\{DIRS.CACHEDIR}\\test'],
         ]
         with mock.patch('os.path.__name__', 'posixpath'):
             for path1, _ in paths_input_windows:
@@ -132,3 +132,131 @@ class FilesystemTest(LLTestCase):
         ok = filesystem.remove_dir(tmpname)
         self.assertTrue(ok, f'Could not remove temp file {tmpname}')
         self.assertFalse(filesystem.path_isdir(tmpname), f'Should have been removed: {tmpname}')
+
+    def test_get_directory_ok(self):
+        # Test the get_directory() function
+        # The directories should all have values from unittest/testdata/config-defaults.ini, and differ from the default
+        bookdir = get_directory("eBook")
+        self.assertNotEqual(bookdir, DIRS.DATADIR, "BookDir and Datadir cannot be the same")
+        self.assertEndsWith(bookdir, "eBooks")
+
+        audiobookdir = get_directory("AudioBook")
+        audiodir = get_directory("Audio")
+        self.assertEqual(audiobookdir, audiodir)
+        self.assertNotEqual(audiobookdir, DIRS.DATADIR)
+        self.assertEndsWith(audiobookdir, "Audiobooks")
+
+        downloaddir = get_directory("Download")
+        self.assertNotEqual(downloaddir, DIRS.DATADIR)
+        self.assertEndsWith(downloaddir, "Downloads")
+
+        altdir = get_directory("Alternate")
+        self.assertNotEqual(altdir, DIRS.DATADIR)
+        self.assertEndsWith(altdir, "Alternative")
+
+        testdir = get_directory("Testdata")
+        self.assertNotEqual(testdir, DIRS.DATADIR)
+        self.assertEndsWith(testdir, "testdata")
+
+        faultydir = get_directory("This is invalid")
+        self.assertEqual(faultydir, "")
+
+    def test_get_directory_cannot_be_valid(self):
+        # Test the get_directory() function for invalid paths
+        lazylibrarian_log.update_loglevel(override=2)
+        save = get_directory("Testdata")
+        try:
+            DIRS.config['TESTDATA_DIR'] = 'Cannot*Be*?V"al/id&Nope'
+            with self.assertLogs('lazylibrarian.logger', level='WARN'):
+                testdir = get_directory("Testdata")
+            self.assertEqual(testdir, DIRS.DATADIR)
+        finally:
+            DIRS.config['TESTDATA_DIR'] = save
+
+    def test_get_directory_create_ok(self):
+        lazylibrarian_log.update_loglevel(override=2)
+        save = get_directory("Testdata")
+        try:
+            newdir = DIRS.get_tmpfilename('newdirtocreate')
+            DIRS.config['TESTDATA_DIR'] = newdir
+            try:
+                with self.assertLogs('lazylibrarian.logger', level='INFO'):
+                    testdir = get_directory("Testdata")
+                self.assertEqual(syspath(testdir), newdir)
+            finally:
+                self.assertTrue(remove_dir(testdir))
+        finally:
+            DIRS.config['TESTDATA_DIR'] = save
+
+    def test_setperm(self):
+        lazylibrarian_log.update_loglevel(override=2)
+        afile = DIRS.get_tmpfilename()
+        self.assertFalse(filesystem.setperm(afile), 'setperm should not work on file that does not exist')
+
+        with open(afile, 'x') as f:
+            f.write('test')
+        perm1 = os.stat(syspath(afile))
+        ok = filesystem.setperm(afile)
+        perm2 = os.stat(syspath(afile))
+        self.assertTrue(ok, f'setperm should work on a new file, {afile}: {perm1}, {perm2}')
+
+        self.assertTrue(filesystem.setperm(filesystem.get_directory("Testdata")), 'setperm should work on a dir')
+
+
+    def test_make_dirs(self):
+        lazylibrarian_log.update_loglevel(override=1)
+        basedir = DIRS.TMPDIR
+        deepdir = os.path.join(basedir, 'testmake', 'level', 'three', 'deepest')
+        self.assertTrue(filesystem.make_dirs(deepdir), 'Cannot create deep directory tree')
+        self.assertTrue(filesystem.path_isdir(deepdir), 'Expected directory to be a dir')
+
+        self.assertTrue(filesystem.make_dirs(deepdir, new=True), 'Cannot re-create deep directory tree')
+
+
+    def test_safe_move_and_copy(self):
+        lazylibrarian_log.update_loglevel(override=1)
+        startfile = filesystem.any_file(get_directory("Testdata"), 'ini')
+        file1 = DIRS.get_tmpfilename('tst-move')
+        self.assertFalse(filesystem.path_isfile(file1), 'File1 must not exist to start')
+
+        filesystem.safe_copy(startfile, file1)
+        self.assertTrue(filesystem.path_isfile(file1), 'File1 must exist after copy')
+
+        file2 = DIRS.get_logfile('tstmove2')
+        filesystem.safe_move(file1, file2)
+        self.assertFalse(filesystem.path_isfile(file1), 'File1 must not exist after moving to file2')
+        self.assertTrue(filesystem.path_isfile(file2), 'File2 must exist after move')
+
+    def test_any_file(self):
+        anyfile = filesystem.any_file(get_directory("Testdata"), 'ini')
+        self.assertNotEqual(anyfile, '', 'Expected to find an ini file!')
+
+        anyfile = filesystem.any_file(get_directory("Testdata"), 'fred')
+        self.assertEqual(anyfile, '', 'Expected to not find any .fred files')
+
+        anyfile = filesystem.any_file(get_directory("Testdata"), '')
+        self.assertNotEqual(anyfile, '', 'Expected to not a file without an extension')
+
+        newdir = os.path.join(get_directory("Testdata"), 'a_new_dir')
+        anyfile = filesystem.any_file(newdir, '')
+        self.assertEqual(anyfile, '', 'Expected to not find any files in a dir that does not exist')
+
+    def test_opf_file(self):
+        opf = filesystem.opf_file(get_directory("Testdata"))
+        self.assertEndsWith(opf, 'metadata.opf')
+
+        opf = filesystem.opf_file(DIRS.DATADIR)
+        self.assertEqual(opf, '')
+
+    def test_book_file(self):
+        book = filesystem.book_file(get_directory("Testdata"), None)
+        self.assertEqual(book, '', 'Searching for type None should not find a book')
+
+        book = filesystem.book_file(get_directory("Testdata"), 'book', recurse=False)
+        self.assertTrue(book != '', 'Expected to find a book file in the testdata dir')
+
+        book = filesystem.book_file(DIRS.DATADIR, 'book', recurse=False)
+        self.assertEqual(book, '', 'Did not expect to find a book file in the DATADIR')
+
+        book = filesystem.book_file(DIRS.DATADIR, 'book', recurse=True)
+        self.assertTrue(book != '', 'Expected to find a book file below the DATADIR')

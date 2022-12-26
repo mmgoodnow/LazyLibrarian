@@ -119,6 +119,9 @@ class LLTestCase(unittest.TestCase):
         if curr_ver:
             dbupgrade.db_upgrade(curr_ver)
 
+    def assertEndsWith(self, teststr, end):
+        self.assertEqual(teststr[-len(end):],end)
+
 def false_method() -> bool:
     """ A method that returns False. used for testing. """
     return False
