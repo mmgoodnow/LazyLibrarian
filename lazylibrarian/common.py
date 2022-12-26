@@ -44,9 +44,10 @@ except ImportError:
     PSUTIL = False
 
 import lazylibrarian
-from lazylibrarian import logger, database, configdefs
+from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.formatter import plural, check_int, get_list, make_unicode
+from lazylibrarian.configdefs import CONFIG_GIT
+from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.filesystem import DIRS, syspath, path_exists, remove_file, \
     listdir, walk, setperm
 
@@ -292,133 +293,6 @@ def get_calibre_id(data):
     return calibre_id
 
 
-def show_stats():
-    gb_status = "Active"
-    for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-        if entry["name"] == 'googleapis':
-            if int(time.time()) < int(entry['resume']):
-                gb_status = "Blocked"
-            break
-
-    result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
-                                          plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
-                                          check_int(lazylibrarian.CACHE_MISS, 0)),
-              "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
-                  lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
-                  lazylibrarian.TIMERS['SLEEP_CV']),
-              "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
-
-    db = database.DBConnection()
-    snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")
-    if snatched['counter']:
-        result.append("%i Snatched %s" % (snatched['counter'], plural(snatched['counter'], "item")))
-    else:
-        result.append("No Snatched items")
-
-    series_stats = []
-    res = db.match("SELECT count(*) as counter FROM series")
-    series_stats.append(['Series', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 and Have=0")
-    series_stats.append(['Empty', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total>0 AND Have=Total")
-    series_stats.append(['Full', res['counter']])
-    res = db.match('SELECT count(*) as counter FROM series WHERE Status="Ignored"')
-    series_stats.append(['Ignored', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Total=0")
-    series_stats.append(['Blank', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM series WHERE Updated>0")
-    series_stats.append(['Monitor', res['counter']])
-    overdue = lazylibrarian.scheduling.is_overdue('series')[0]
-    series_stats.append(['Overdue', overdue])
-
-    mag_stats = []
-    if lazylibrarian.SHOW_MAGS:
-        res = db.match("SELECT count(*) as counter FROM magazines")
-        mag_stats.append(['Magazine', res['counter']])
-        res = db.match("SELECT count(*) as counter FROM issues")
-        mag_stats.append(['Issues', res['counter']])
-        cmd = 'select (select count(*) as counter from issues where magazines.title = issues.title) '
-        cmd += 'as counter from magazines where counter=0'
-        res = db.match(cmd)
-        mag_stats.append(['Empty', len(res)])
-
-    if lazylibrarian.SHOW_COMICS:
-        res = db.match("SELECT count(*) as counter FROM comics")
-        mag_stats.append(['Comics', res['counter']])
-        res = db.match("SELECT count(*) as counter FROM comicissues")
-        mag_stats.append(['Issues', res['counter']])
-        cmd = 'select (select count(*) as counter from comicissues where comics.comicid = comicissues.comicid) '
-        cmd += 'as counter from comics where counter=0'
-        res = db.match(cmd)
-        mag_stats.append(['Empty', len(res)])
-
-    book_stats = []
-    audio_stats = []
-    missing_stats = []
-    res = db.match("SELECT count(*) as counter FROM books")
-    book_stats.append(['eBooks', res['counter']])
-    audio_stats.append(['Audio', res['counter']])
-    res = db.select("SELECT Status,count(*) as counter from books group by Status")
-    statusdict = {}
-    for item in res:
-        statusdict[item['Status']] = item['counter']
-    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
-        book_stats.append([item, statusdict.get(item, 0)])
-    res = db.select("SELECT AudioStatus,count(*) as counter from books group by AudioStatus")
-    statusdict = {}
-    for item in res:
-        statusdict[item['AudioStatus']] = item['counter']
-    for item in ['Have', 'Open', 'Wanted', 'Ignored']:
-        audio_stats.append([item, statusdict.get(item, 0)])
-    for column in ['BookGenre', 'BookDesc']:
-        cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and "
-        cmd += "(%s is null or %s = '')"
-        res = db.match(cmd % (column, column))
-        missing_stats.append([column.replace('Book', 'No'), res['counter']])
-    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookGenre='Unknown'"
-    res = db.match(cmd)
-    missing_stats.append(['X_Genre', res['counter']])
-    cmd = "SELECT count(*) as counter FROM books WHERE Status != 'Ignored' and BookDesc='No Description'"
-    res = db.match(cmd)
-    missing_stats.append(['X_Desc', res['counter']])
-    for column in ['BookISBN', 'BookLang']:
-        cmd = "SELECT count(*) as counter FROM books WHERE "
-        cmd += "(%s is null or %s = '' or %s = 'Unknown')"
-        res = db.match(cmd % (column, column, column))
-        missing_stats.append([column.replace('Book', 'No'), res['counter']])
-    cmd = "SELECT count(*) as counter FROM genres"
-    res = db.match(cmd)
-    missing_stats.append(['Genres', res['counter']])
-
-    if not lazylibrarian.SHOW_AUDIO:
-        audio_stats = []
-
-    author_stats = []
-    res = db.match("SELECT count(*) as counter FROM authors")
-    author_stats.append(['Authors', res['counter']])
-    for status in ['Active', 'Wanted', 'Ignored', 'Paused']:
-        res = db.match('SELECT count(*) as counter FROM authors WHERE Status="%s"' % status)
-        author_stats.append([status, res['counter']])
-    res = db.match("SELECT count(*) as counter FROM authors WHERE HaveEBooks+HaveAudioBooks=0")
-    author_stats.append(['Empty', res['counter']])
-    res = db.match("SELECT count(*) as counter FROM authors WHERE TotalBooks=0")
-    author_stats.append(['Blank', res['counter']])
-    overdue = lazylibrarian.scheduling.is_overdue('author')[0]
-    author_stats.append(['Overdue', overdue])
-    for stats in [author_stats, book_stats, missing_stats, series_stats, audio_stats, mag_stats]:
-        if len(stats):
-            header = ''
-            data = ''
-            for item in stats:
-                header += "%8s" % item[0]
-                data += "%8i" % item[1]
-            result.append('')
-            result.append(header)
-            result.append(data)
-    return result
-
-
-
 def clear_log():
     error = False
     if os.name == 'nt':
@@ -451,7 +325,7 @@ def log_header(online=True):
     header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian_log.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
-    for item in configdefs.CONFIG_GIT:
+    for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
             timestamp = lazylibrarian.CONFIG.get_int(item)
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
