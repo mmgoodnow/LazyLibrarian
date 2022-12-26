@@ -121,9 +121,7 @@ def search_book(books=None, library=None):
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             return
 
-        nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
-        nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
-
+        nprov = lazylibrarian.CONFIG.total_active_providers()
         if nprov == 0:
             msg = "SearchBooks - No providers to search"
             blocked = len(lazylibrarian.PROVIDER_BLOCKLIST)
@@ -136,15 +134,15 @@ def search_book(books=None, library=None):
             return
 
         modelist = []
-        if lazylibrarian.use_nzb():
+        if lazylibrarian.CONFIG.use_nzb():
             modelist.append('nzb')
-        if lazylibrarian.use_tor():
+        if lazylibrarian.CONFIG.use_tor():
             modelist.append('tor')
-        if lazylibrarian.use_direct():
+        if lazylibrarian.CONFIG.use_direct():
             modelist.append('direct')
-        if lazylibrarian.use_rss():
+        if lazylibrarian.CONFIG.use_rss():
             modelist.append('rss')
-        if lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_irc():
             modelist.append('irc')
 
         logger.info('Searching %s %s %s for %i %s' %
@@ -209,7 +207,7 @@ def search_book(books=None, library=None):
 
         # only get rss results once per run, as they are not search specific
         rss_resultlist = None
-        if lazylibrarian.use_rss():
+        if lazylibrarian.CONFIG.use_rss():
             rss_resultlist, nprov, dltypes = iterate_over_rss_sites()
             if not nprov or (library == 'Audiobook' and 'A' not in dltypes) or \
                             (library == 'eBook' and 'E' not in dltypes) or \
@@ -248,7 +246,7 @@ def search_book(books=None, library=None):
                 else:
                     searchtype = 'book'
 
-                if lazylibrarian.use_nzb():
+                if lazylibrarian.CONFIG.use_nzb():
                     resultlist, nprov = iterate_over_newznab_sites(book, searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -262,7 +260,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_tor():
+                if lazylibrarian.CONFIG.use_tor():
                     resultlist, nprov = iterate_over_torrent_sites(book, searchtype)
                     if not nprov:
                         warn_mode('tor')
@@ -276,7 +274,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_direct():
+                if lazylibrarian.CONFIG.use_direct():
                     resultlist, nprov = iterate_over_direct_sites(book, searchtype)
                     if not nprov:
                         warn_mode('direct')
@@ -290,7 +288,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_irc():
+                if lazylibrarian.CONFIG.use_irc():
                     resultlist, nprov = iterate_over_irc_sites(book, searchtype)
                     if not nprov:
                         warn_mode('irc')
@@ -304,7 +302,7 @@ def search_book(books=None, library=None):
                                         (searchtype, match[0], match[1]['NZBprov'], match[3]))
                             matches.append(match)
 
-                if lazylibrarian.use_rss() and rss_resultlist:
+                if lazylibrarian.CONFIG.use_rss() and rss_resultlist:
                     match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                     if not good_enough(match):
                         logger.info("RSS search for %s %s returned no results." %
@@ -316,7 +314,7 @@ def search_book(books=None, library=None):
 
                 # if you can't find the book, try author/title without any "(extended details, series etc)"
                 if not matches and '(' in book['bookName']:
-                    if lazylibrarian.use_nzb():
+                    if lazylibrarian.CONFIG.use_nzb():
                         resultlist, nprov = iterate_over_newznab_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
@@ -330,7 +328,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_tor():
+                    if lazylibrarian.CONFIG.use_tor():
                         resultlist, nprov = iterate_over_torrent_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('tor')
@@ -344,7 +342,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_direct():
+                    if lazylibrarian.CONFIG.use_direct():
                         resultlist, nprov = iterate_over_direct_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('direct')
@@ -358,7 +356,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_irc():
+                    if lazylibrarian.CONFIG.use_irc():
                         resultlist, nprov = iterate_over_irc_sites(book, 'short' + searchtype)
                         if not nprov:
                             warn_mode('irc')
@@ -372,7 +370,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_rss() and rss_resultlist:
+                    if lazylibrarian.CONFIG.use_rss() and rss_resultlist:
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
                             logger.info("RSS short search for %s %s returned no results." %
@@ -384,7 +382,7 @@ def search_book(books=None, library=None):
 
                 # if you can't find the book under "books", you might find under general search
                 # general search is the same as booksearch for torrents, irc and rss, no need to check again
-                if not matches and lazylibrarian.use_nzb():
+                if not matches and lazylibrarian.CONFIG.use_nzb():
                     resultlist, nprov = iterate_over_newznab_sites(book, 'general' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -400,7 +398,7 @@ def search_book(books=None, library=None):
 
                 # if still not found, try general search again without any "(extended details, series etc)"
                 # shortgeneral is the same as shortbook for torrents, irc and rss, no need to check again
-                if not matches and lazylibrarian.use_nzb() and '(' in book['searchterm']:
+                if not matches and lazylibrarian.CONFIG.use_nzb() and '(' in book['searchterm']:
                     resultlist, nprov = iterate_over_newznab_sites(book, 'shortgeneral' + searchtype)
                     if not nprov:
                         warn_mode('nzb')
@@ -416,7 +414,7 @@ def search_book(books=None, library=None):
 
                 # if still not found, try general search again with title only
                 if not matches:
-                    if lazylibrarian.use_nzb():
+                    if lazylibrarian.CONFIG.use_nzb():
                         resultlist, nprov = iterate_over_newznab_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('nzb')
@@ -430,7 +428,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_tor():
+                    if lazylibrarian.CONFIG.use_tor():
                         resultlist, nprov = iterate_over_torrent_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('tor')
@@ -444,7 +442,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_direct():
+                    if lazylibrarian.CONFIG.use_direct():
                         resultlist, nprov = iterate_over_direct_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('direct')
@@ -460,7 +458,7 @@ def search_book(books=None, library=None):
 
                     # irchighway says search results without both author and title will be
                     # silently rejected but that doesn't seem to be actioned...
-                    if lazylibrarian.use_irc():
+                    if lazylibrarian.CONFIG.use_irc():
                         resultlist, nprov = iterate_over_irc_sites(book, 'title' + searchtype)
                         if not nprov:
                             warn_mode('irc')
@@ -474,7 +472,7 @@ def search_book(books=None, library=None):
                                             (searchtype, match[0], match[1]['NZBprov'], match[3]))
                                 matches.append(match)
 
-                    if lazylibrarian.use_rss():
+                    if lazylibrarian.CONFIG.use_rss():
                         match = find_best_result(rss_resultlist, book, searchtype, 'rss')
                         if not good_enough(match):
                             logger.info("RSS title search for %s %s returned no results." %

@@ -171,6 +171,21 @@ class ProvidersTest(LLTestCase):
              'nzburl': 'https://www.usenet-crawler.com/getnzb/6814309804e3648c58a9f23345c2a28a.nzb&i=155518&r=78c0509bc6bb91742ae0a0b6231e75e4', 
              'nzbprov': 'hostname', 'nzbmode': None, 'priority': 0}, result)
 
+    def test_wishlist_type(self):
+        provs = [
+            ('https://www.goodreads.com/review/list_rss/userid','goodreads'),
+            ('https://www.goodreads.com/list/show/143500.Best_Books_of_the_Decade_2020_s', 'listopia'),
+            ('https://www.goodreads.com/book/show/title', 'listopia'),
+            ('https://www.amazon.co.uk/charts', 'amazon'),
+            ('https://www.nytimes.com/books/best-sellers/', 'ny_times'),
+            ('https://best-books.publishersweekly.com/pw/best-books/2022/top-10', 'publishersweekly'),
+            ('https://apps.npr.org/best-books/#year=2022', 'apps.npr.org'),
+            ('https://www.penguinrandomhouse.com/books/all-best-sellers', 'penguinrandomhouse'),
+            ('https://www.barnesandnoble.com/b/books/_/N-1fZ29Z8q8', 'barnesandnoble'),
+            ('https://somewhere-else.com/', '')
+        ]
+        for p in provs:
+            self.assertEqual(providers.wishlist_type(p[0]), p[1])
 
 if __name__ == '__main__':
     unittest.main()

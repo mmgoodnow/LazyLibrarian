@@ -490,7 +490,7 @@ def get_capabilities(provider: ConfigDict, force=False):
     return provider
 
 
-def provider_is_blocked(name: str):
+def provider_is_blocked(name: str) -> bool:
     """ Check if provider is blocked because of previous errors """
     # Reset api counters if it's a new day
     if lazylibrarian.NABAPICOUNT != today():
@@ -817,7 +817,7 @@ def iterate_over_rss_sites():
         if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
             logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
-        if provider['ENABLED'] and not lazylibrarian.wishlist_type(provider['HOST']):
+        if provider['ENABLED'] and not wishlist_type(provider['HOST']):
             if provider_is_blocked(provider['HOST']):
                 logger.debug('%s is BLOCKED' % provider['HOST'])
             else:
@@ -838,7 +838,7 @@ def iterate_over_wishlists():
             logger.debug("DLTYPES: %s: %s %s %s" % (provider['DISPNAME'], provider['ENABLED'],
                                                 provider['DLTYPES'], provider['LABEL']))
         if provider['ENABLED']:
-            wishtype = lazylibrarian.wishlist_type(provider['HOST'])
+            wishtype = wishlist_type(provider['HOST'])
             if wishtype == 'goodreads':
                 if provider_is_blocked(provider['HOST']):
                     logger.debug('%s is BLOCKED' % provider['HOST'])
@@ -934,6 +934,39 @@ def iterate_over_wishlists():
                                           provider['DLTYPES'], False, provider['LABEL'])
     return resultslist, providers
 
+
+def wishlist_type(host: str) -> str:
+    """
+    Return type of wishlist at host, or empty string if host is not a wishlist
+    (Quite fragile, take care)
+    """
+    # GoodReads rss feeds
+    if 'goodreads' in host and 'list_rss' in host:
+        return 'goodreads'
+    # GoodReads Listopia html pages
+    if 'goodreads' in host and '/list/show/' in host:
+        return 'listopia'
+    # GoodReads most_read html pages (Listopia format)
+    if 'goodreads' in host and '/book/' in host:
+        return 'listopia'
+    # Amazon charts html pages
+    if 'amazon' in host and '/charts' in host:
+        return 'amazon'
+    # NYTimes best-sellers html pages
+    if 'nytimes' in host and 'best-sellers' in host:
+        return 'ny_times'
+    # Publisherweekly best-seller in category
+    if 'publishersweekly' in host and '/pw/' in host:
+        return 'publishersweekly'
+    # Publisherweekly best-seller in category
+    if 'apps.npr.org' in host and '/best-books/' in host:
+        return 'apps.npr.org'
+    if 'penguinrandomhouse' in host:
+        return 'penguinrandomhouse'
+    if 'barnesandnoble' in host:
+        return 'barnesandnoble'
+
+    return ''
 
 def iterate_over_irc_sites(book=None, search_type=None):
     resultslist = []

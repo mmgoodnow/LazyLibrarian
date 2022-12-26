@@ -23,6 +23,7 @@ from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.providers import provider_is_blocked, wishlist_type
 
 """ Main configuration handler for LL """
 class LLConfigHandler(ConfigDict):
@@ -209,9 +210,7 @@ class LLConfigHandler(ConfigDict):
         """ Return True if the scheduler's requirements are satisfied """
         ok = scheduler.get_int() > 0 # 0 means schedule is disabled
         if ok and scheduler.needs_provider:
-            ok = lazylibrarian.use_tor() or lazylibrarian.use_nzb() \
-                or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                or lazylibrarian.use_irc()
+            ok = self.use_any()
         if ok and scheduler.run_name == 'GRSYNC': # Special case, should maybe add option to object
             ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
         if ok and scheduler.run_name == 'TELEMETRYSEND': # Special case for telemetry
@@ -486,8 +485,68 @@ class LLConfigHandler(ConfigDict):
         logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
                                                 plural(len(self.REDACTLIST), "entry")))
 
-### Global config related methods that are not part of the config object
+    def use_any(self, rss=True) -> bool:
+        """ Checks for TOR, NZB, Direct and IRC providers (optionally also RSS) """
+        ok = bool(self.use_tor() or self.use_nzb() or self.use_direct() or self.use_irc())
+        if not ok and rss:
+            ok = bool(self.use_rss())
+        return ok
 
+    def total_active_providers(self) -> int:
+        """ Count total number of valid providers of type TOR, NZB, RSS, Direct and IRC """
+        return self.use_tor() + self.use_nzb() + self.use_rss() + self.use_direct() + self.use_irc()
+
+
+    def count_in_use(self, provider: str, wishlist: Optional[bool] = None) -> int:
+        """ Returns # of providers named provider are in use """
+        count = 0
+        if provider in self.arrays:
+            array = self.get_array(provider)
+            if array:
+                for inx in range(0, len(array)):
+                    host = array.primary_host(inx)
+                    ok = array.is_in_use(inx) and not provider_is_blocked(host)
+                    if wishlist is not None:
+                        ok = ok and wishlist_type(host) == wishlist
+                    if ok:
+                        count += 1
+        return count
+
+    def use_rss(self) -> int:
+        """ Returns number of RSS providers that are not wishlists, and are not blocked """
+        return self.count_in_use('RSS', wishlist=False)
+
+    def use_irc(self) -> int:
+        """ Returns number of IRC active providers that are not blocked """
+        return self.count_in_use('IRC')
+
+    def use_wishlist(self) -> int:
+        """Returns number of RSS providers that are wishlists and not blocked """
+        return self.count_in_use('RSS', wishlist=True)
+
+    def use_nzb(self) -> int:
+        """ Returns number of nzb active providers that are not blocked
+        (Includes Newznab and Torznab providers) """
+        return self.count_in_use('NEWZNAB') + self.count_in_use('TORZNAB')
+
+    def use_tor(self) -> int:
+        """ Returns number of TOR providers that are not blocked """
+        count = 0
+        for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
+            if self.get_bool(provider) and not provider_is_blocked(provider):
+                count += 1
+        return count
+
+    def use_direct(self) -> int:
+        """ Returns number of enabled direct book providers """
+        count = self.count_in_use('GEN')
+        if self.get_bool('BOK') and not provider_is_blocked('BOK'):
+             count += 1
+        if self.get_bool('BFI') and not provider_is_blocked('BFI'):
+             count += 1
+        return count
+
+### Global config related methods that are not part of the config object
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """

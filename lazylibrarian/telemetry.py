@@ -145,10 +145,10 @@ class LazyTelemetry(object):
 
         # Count how many of each provider are configured
         for provider in ["NEWZNAB", "TORZNAB", "RSS", "IRC", "GEN"]:
-            cfg_telemetry[provider] = lazylibrarian.count_in_use(provider, config=_config)
+            cfg_telemetry[provider] = _config.count_in_use(provider)
 
         # Count how many Apprise notifications are configured
-        cfg_telemetry["APPRISE"] = lazylibrarian.count_in_use('APPRISE', config=_config)
+        cfg_telemetry["APPRISE"] = _config.count_in_use('APPRISE')
 
 
     def record_usage_data(self, counter: str):

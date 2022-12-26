@@ -66,7 +66,7 @@ from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
     create_opf, process_book_from_dir, process_issues
-from lazylibrarian.providers import test_provider
+from lazylibrarian.providers import test_provider, wishlist_type
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist
@@ -746,7 +746,7 @@ class WebInterface(object):
             cnt = 0
             feeds = db.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
             for provider in lazylibrarian.CONFIG.providers('RSS'):
-                wishtype = lazylibrarian.wishlist_type(provider['HOST'])
+                wishtype = wishlist_type(provider['HOST'])
                 if wishtype:
                     cnt += 1
                     subscribed = False
@@ -2171,8 +2171,7 @@ class WebInterface(object):
     @cherrypy.expose
     def count_providers(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        count = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
-        count += lazylibrarian.use_direct() + lazylibrarian.use_irc()
+        count = lazylibrarian.CONFIG.total_active_providers()
         return "Searching %s providers, please wait..." % count
 
     @cherrypy.expose
@@ -2705,9 +2704,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_book_search(self, books=None, library=None, force=False):
         if books:
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 if force:
                     name = 'FORCE-SEARCHBOOK'
                 else:
@@ -3775,9 +3772,7 @@ class WebInterface(object):
             for arg in args:
                 books.append({"bookid": arg})
 
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 if check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
                     logger.debug("Starting search threads, library=%s, action=%s" %
                                  (library, action))
@@ -4098,9 +4093,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_comic_search(self, comicid=None):
         if comicid:
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 threading.Thread(target=search_comics, name='SEARCHCOMIC', args=[comicid]).start()
                 logger.debug("Searching for comic ID %s" % comicid)
             else:
@@ -5341,9 +5334,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_magazine_search(self, mags=None):
         if mags:
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 threading.Thread(target=search_magazines, name='SEARCHMAG', args=[mags, False]).start()
                 logger.debug("Searching for magazine with title: %s" % mags[0]["bookid"])
             else:
@@ -6493,7 +6484,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def force_wish(self, source=None):
-        if lazylibrarian.use_wishlist():
+        if lazylibrarian.CONFIG.use_wishlist():
             search_wishlist()
         else:
             logger.warn('WishList search called but no wishlist providers set')
@@ -6504,9 +6495,7 @@ class WebInterface(object):
     @cherrypy.expose
     def force_search(self, source=None, title=None):
         if source in ["magazines", 'comics']:
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 if title:
                     title = title.replace('&amp;', '&')
                     if source == 'magazines':
@@ -6524,13 +6513,11 @@ class WebInterface(object):
             else:
                 logger.warn('Search called but no download providers set')
         elif source in ["books", "audio"]:
-            if lazylibrarian.use_nzb() or lazylibrarian.use_tor() \
-                    or lazylibrarian.use_rss() or lazylibrarian.use_direct() \
-                    or lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_any():
                 if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
                     schedule_job("Stop", "search_book")
                     schedule_job("StartNow", "search_book")
-                if lazylibrarian.use_rss():
+                if lazylibrarian.CONFIG.use_rss():
                     schedule_job("Stop", "search_rss_book")
                     schedule_job("StartNow", "search_rss_book")
             else:

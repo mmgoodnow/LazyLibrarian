@@ -347,21 +347,19 @@ def check_running_jobs():
     if snatched or seeding:
         ensure_running('PostProcessor')
     if wanted:
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_direct() or \
-                lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_any(rss=False):
             ensure_running('search_book')
-        if lazylibrarian.use_rss():
+        if lazylibrarian.CONFIG.use_rss():
             ensure_running('search_rss_book')
     else:
         schedule_job('Stop', 'search_book')
         schedule_job('Stop', 'search_rss_book')
-    if lazylibrarian.use_wishlist():
+    if lazylibrarian.CONFIG.use_wishlist():
         ensure_running('search_wishlist')
     else:
         schedule_job('Stop', 'search_wishlist')
 
-    if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-            lazylibrarian.use_direct() or lazylibrarian.use_irc():
+    if lazylibrarian.CONFIG.use_any():
         ensure_running('search_magazines')
         ensure_running('search_comics')
     else:

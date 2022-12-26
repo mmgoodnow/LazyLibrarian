@@ -301,7 +301,7 @@ def search_rss_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
-    if not (lazylibrarian.use_rss()):
+    if not (lazylibrarian.CONFIG.use_rss()):
         logger.warn('rss search is disabled')
         schedule_job(action='Stop', target='search_rss_book')
         return

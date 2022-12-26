@@ -914,3 +914,36 @@ class Config2Test(LLTestCase):
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
         ], 'Unexpected log messages when testing tolerance')
+
+    def test_use_rss(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_rss())
+
+    def test_use_wishlist(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_wishlist())
+
+    def test_use_irc(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_irc())
+
+    def test_use_nzb(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_nzb())
+
+    def test_use_tor(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_tor())
+
+    def test_use_direct(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertFalse(cfg.use_direct())
+
+    def test_use_any(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        self.assertTrue(cfg.use_any(), 'There should be some providers in use')
+
+    def test_count_all_providers(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        count = cfg.total_active_providers()
+        self.assertEqual(count, 2, 'Expected 2 active providers from ini file')

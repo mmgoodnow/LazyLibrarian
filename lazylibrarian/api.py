@@ -53,7 +53,7 @@ from lazylibrarian.manualbook import search_item
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
-from lazylibrarian.providers import get_capabilities
+from lazylibrarian.providers import get_capabilities, wishlist_type
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
@@ -819,7 +819,7 @@ class Api(object):
             return
         for provider in lazylibrarian.CONFIG.providers('RSS'):
             if provider['DISPNAME'] == kwargs['feed']:
-                if lazylibrarian.wishlist_type(provider['HOST']):
+                if wishlist_type(provider['HOST']):
                     db.action('INSERT into subscribers (UserID , Type, WantID ) VALUES (?, ?, ?)',
                               (kwargs['user'], 'feed', kwargs['feed']))
                     self.data = 'OK'
@@ -1519,8 +1519,7 @@ class Api(object):
             threading.Thread(target=all_author_update, name='API-AAUPDATE', args=[refresh]).start()
 
     def _forcemagsearch(self, **kwargs):
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_any():
             if 'wait' in kwargs:
                 search_magazines(None, True)
             else:
@@ -1529,7 +1528,7 @@ class Api(object):
             self.data = 'No search methods set, check config'
 
     def _forcersssearch(self, **kwargs):
-        if lazylibrarian.use_rss():
+        if lazylibrarian.CONFIG.use_rss():
             if 'wait' in kwargs:
                 search_rss_book()
             else:
@@ -1538,8 +1537,7 @@ class Api(object):
             self.data = 'No rss feeds set, check config'
 
     def _forcecomicsearch(self, **kwargs):
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_any():
             if 'wait' in kwargs:
                 search_comics()
             else:
@@ -1548,7 +1546,7 @@ class Api(object):
             self.data = 'No search methods set, check config'
 
     def _forcewishlistsearch(self, **kwargs):
-        if lazylibrarian.use_wishlist():
+        if lazylibrarian.CONFIG.use_wishlist():
             if 'wait' in kwargs:
                 search_wishlist()
             else:
@@ -1558,8 +1556,7 @@ class Api(object):
 
     def _forcebooksearch(self, **kwargs):
         library = kwargs.get('type')
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_any():
             if 'wait' in kwargs:
                 search_book(library=library)
             else:
@@ -1928,8 +1925,7 @@ class Api(object):
             return
         books = [{"bookid": kwargs['id']}]
         library = kwargs.get('type')
-        if lazylibrarian.use_nzb() or lazylibrarian.use_tor() or lazylibrarian.use_rss() or \
-                lazylibrarian.use_direct() or lazylibrarian.use_irc():
+        if lazylibrarian.CONFIG.use_any():
             if 'wait' in kwargs:
                 search_book(books=books, library=library)
             else:

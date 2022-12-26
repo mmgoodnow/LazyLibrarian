@@ -59,27 +59,26 @@ def search_item(comicid=None):
         searchterm = match['Title']
     book['searchterm'] = searchterm.replace('+', ' ')
 
-    nprov = lazylibrarian.use_nzb() + lazylibrarian.use_tor() + lazylibrarian.use_rss()
-    nprov += lazylibrarian.use_direct() + lazylibrarian.use_irc()
+    nprov = lazylibrarian.CONFIG.total_active_providers()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.use_nzb():
+    if lazylibrarian.CONFIG.use_nzb():
         resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_tor():
+    if lazylibrarian.CONFIG.use_tor():
         resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_direct():
+    if lazylibrarian.CONFIG.use_direct():
         resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_irc():
+    if lazylibrarian.CONFIG.use_irc():
         resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.use_rss():
+    if lazylibrarian.CONFIG.use_rss():
         resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'C':
             results += resultlist

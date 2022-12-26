@@ -94,7 +94,7 @@ def search_magazines(mags=None, reset=False):
 
             resultlist = []
 
-            if lazylibrarian.use_nzb():
+            if lazylibrarian.CONFIG.use_nzb():
                 resultlist, nproviders = iterate_over_newznab_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -106,7 +106,7 @@ def search_magazines(mags=None, reset=False):
                     # prefer larger nzb over smaller ones which may be par2 repair files?
                     resultlist = sorted(resultlist, key=lambda d: check_int(d['nzbsize'], 0), reverse=True)
 
-            if lazylibrarian.use_direct():
+            if lazylibrarian.CONFIG.use_direct():
                 dir_resultlist, nproviders = iterate_over_direct_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -127,7 +127,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'direct'
                         })
 
-            if lazylibrarian.use_irc():
+            if lazylibrarian.CONFIG.use_irc():
                 irc_resultlist, nproviders = iterate_over_irc_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -148,7 +148,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'irc'
                         })
 
-            if lazylibrarian.use_tor():
+            if lazylibrarian.CONFIG.use_tor():
                 tor_resultlist, nproviders = iterate_over_torrent_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -169,7 +169,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'torrent'
                         })
 
-            if lazylibrarian.use_rss():
+            if lazylibrarian.CONFIG.use_rss():
                 rss_resultlist, nproviders, dltypes = iterate_over_rss_sites()
                 if not nproviders or 'M' not in dltypes:
                     # don't nag. Show warning message no more than every 20 mins

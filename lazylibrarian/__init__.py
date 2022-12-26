@@ -15,17 +15,12 @@
 #   Hold a few basic routines used widely, until they can be moved out
 
 
-from __future__ import print_function
-from __future__ import with_statement
-
 import os
 import sys
 import threading
 
-from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
-from lazylibrarian.filesystem import DIRS, path_isdir, syspath
-from lazylibrarian.formatter import get_list, make_unicode
-from lazylibrarian.providers import provider_is_blocked
+from lazylibrarian import logger, config2, configdefs, notifiers # Must keep notifiers here
+from lazylibrarian.filesystem import syspath
 
 
 # Transient globals NOT stored in config
@@ -155,108 +150,6 @@ isbn_978_dict = {
     "91": "swe",
     "93": "ind"
 }
-
-
-def wishlist_type(host: str):
-    """
-    Return type of wishlist at host, or empty string if host is not a wishlist
-    (Quite fragile, take care)
-    """
-    # GoodReads rss feeds
-    if 'goodreads' in host and 'list_rss' in host:
-        return 'goodreads'
-    # GoodReads Listopia html pages
-    if 'goodreads' in host and '/list/show/' in host:
-        return 'listopia'
-    # GoodReads most_read html pages (Listopia format)
-    if 'goodreads' in host and '/book/' in host:
-        return 'listopia'
-    # Amazon charts html pages
-    if 'amazon' in host and '/charts' in host:
-        return 'amazon'
-    # NYTimes best-sellers html pages
-    if 'nytimes' in host and 'best-sellers' in host:
-        return 'ny_times'
-    # Publisherweekly best-seller in category
-    if 'publishersweekly' in host and '/pw/' in host:
-        return 'publishersweekly'
-    # Publisherweekly best-seller in category
-    if 'apps.npr.org' in host and '/best-books/' in host:
-        return 'apps.npr.org'
-    if 'penguinrandomhouse' in host:
-        return 'penguinrandomhouse'
-    if 'barnesandnoble' in host:
-        return 'barnesandnoble'
-
-    return ''
-
-
-from typing import Optional
-
-def count_in_use(provider: str, wishlist: Optional[bool]=None, config: config2.LLConfigHandler=CONFIG) -> int:
-    count = 0
-    if provider in config.arrays:
-        array = config.get_array(provider)
-        if array:
-            for inx in range(0, len(array)):
-                host = array.primary_host(inx)
-                ok = array.is_in_use(inx) and not provider_is_blocked(host)
-                if wishlist is not None:
-                    ok = ok and wishlist_type(host) == wishlist
-                if ok:
-                    count += 1
-    return count
-
-def use_rss():
-    """
-    Returns number of RSS providers that are not wishlists, and are not blocked
-    """
-    return count_in_use('RSS', wishlist=False)
-
-
-def use_irc():
-    """
-    Returns number of IRC active providers that are not blocked
-    """
-    return count_in_use('IRC')
-
-
-def use_wishlist():
-    """
-    Returns number of RSS providers that are wishlists and not blocked
-    """
-    return count_in_use('RSS', wishlist=True)
-
-
-def use_nzb():
-    """
-    Returns number of nzb active providers that are not blocked
-    (Includes Newznab and Torznab providers)
-    """
-    return count_in_use('NEWZNAB') + count_in_use('TORZNAB')
-
-
-def use_tor():
-    """
-    Returns number of TOR providers that are not blocked
-    """
-    count = 0
-    for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-        if CONFIG.get_bool(provider) and not provider_is_blocked(provider):
-             count += 1
-    return count
-
-
-def use_direct():
-    """
-    Returns number of enabled direct book providers
-    """
-    count = count_in_use('GEN')
-    if CONFIG.get_bool('BOK') and not provider_is_blocked('BOK'):
-         count += 1
-    if CONFIG.get_bool('BFI') and not provider_is_blocked('BFI'):
-         count += 1
-    return count
 
 
 def daemonize():
