@@ -30,6 +30,7 @@ from lazylibrarian.ircbot import irc_connect, irc_search, irc_results, irc_leave
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.torrentparser import torrent_kat, torrent_tpb, torrent_wwt, torrent_zoo, torrent_tdl, \
     torrent_trf, torrent_lime
+from lazylibrarian.directparser import bok_dlcount
 
 import lib.feedparser as feedparser
 from bs4 import BeautifulSoup
@@ -765,7 +766,7 @@ def iterate_over_direct_sites(book=None, search_type=None):
                 if error:
                     # use a short delay for site unavailable etc
                     delay = lazylibrarian.CONFIG.get_int('BLOCKLIST_TIMER')
-                    count, oldest = lazylibrarian.bok_dlcount()
+                    count, oldest = bok_dlcount()
                     if count and count >= lazylibrarian.CONFIG.get_int('BOK_DLLIMIT'):
                         # rolling 24hr delay if limit reached
                         delay = oldest + 24*60*60 - time.time()

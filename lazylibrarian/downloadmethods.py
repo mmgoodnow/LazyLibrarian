@@ -34,6 +34,7 @@ from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unico
 from lazylibrarian.postprocess import delete_task, check_contents
 from lazylibrarian.providers import block_provider
 from lazylibrarian.ircbot import irc_connect, irc_search
+from lazylibrarian.directparser import bok_dlcount
 
 from deluge_client import DelugeRPCClient
 from .magnet2torrent import magnet2torrent
@@ -290,7 +291,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
 
         # zlibrary needs a referer header from a zlibrary host
         headers['Referer'] = dl_url
-        count, oldest = lazylibrarian.bok_dlcount()
+        count, oldest = bok_dlcount()
         limit = lazylibrarian.CONFIG.get_int('BOK_DLLIMIT')
         if limit and count >= limit:
             res = 'Reached Daily download limit (%s)' % limit

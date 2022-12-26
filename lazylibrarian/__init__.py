@@ -21,7 +21,6 @@ from __future__ import with_statement
 import os
 import sys
 import threading
-import time
 
 from lazylibrarian import logger, database, config2, configdefs, notifiers # Must keep notifiers here
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath
@@ -191,16 +190,6 @@ def wishlist_type(host: str):
 
     return ''
 
-
-def bok_dlcount():
-    db = database.DBConnection()
-    yesterday = time.time() - 24*60*60
-    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
-                      (yesterday,))
-    db.close()
-    if grabs:
-        return len(grabs), grabs[0]['completed']
-    return 0, 0
 
 from typing import Optional
 

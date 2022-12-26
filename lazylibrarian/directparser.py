@@ -9,13 +9,14 @@
 #  GNU General Public License for more details.
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
+from __future__ import print_function
 
 import time
 import traceback
 from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, format_author_name, make_unicode, size_in_bytes, url_fix, \
@@ -76,7 +77,7 @@ def direct_bok(book=None, prov=None, test=False):
             return False
         return [], "provider is already blocked"
 
-    bok_today = lazylibrarian.bok_dlcount()[0]
+    bok_today = bok_dlcount()[0]
     if bok_today and bok_today >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
         if test:
             return False
@@ -188,7 +189,7 @@ def direct_bok(book=None, prov=None, test=False):
                                     if 'WARNING' in res and '24 hours' in res:
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
-                                        count, oldest = lazylibrarian.bok_dlcount()
+                                        count, oldest = bok_dlcount()
                                         if count and count >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
                                             # rolling 24hr delay if limit reached
                                             delay = oldest + 24*60*60 - time.time()
@@ -692,3 +693,14 @@ def direct_gen(book=None, prov=None, test=False):
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
     return results, errmsg
+
+
+def bok_dlcount() -> (int, int):
+    db = database.DBConnection()
+    yesterday = time.time() - 24*60*60
+    grabs = db.select('SELECT completed from wanted WHERE nzbprov="zlibrary" and completed > ? order by completed',
+                      (yesterday,))
+    db.close()
+    if grabs:
+        return len(grabs), grabs[0]['completed']
+    return 0, 0
