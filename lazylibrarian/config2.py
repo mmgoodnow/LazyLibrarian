@@ -1,4 +1,4 @@
-#  This file will be part of Lazylibrarian.
+#  This file is part of Lazylibrarian.
 #
 # Purpose:
 #   Type-aware handling config.ini, access to its properties, etc.
@@ -22,6 +22,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
+from lazylibrarian.blockhandler import BLOCKHANDLER
 
 """ Main configuration handler for LL """
 class LLConfigHandler(ConfigDict):
@@ -506,14 +507,14 @@ class LLConfigHandler(ConfigDict):
 
     def count_in_use(self, provider: str, wishlist: Optional[bool] = None) -> int:
         """ Returns # of providers named provider are in use """
-        from lazylibrarian.providers import provider_is_blocked, wishlist_type
+        from lazylibrarian.providers import wishlist_type
         count = 0
         if provider in self.arrays:
             array = self.get_array(provider)
             if array:
                 for inx in range(0, len(array)):
                     host = array.primary_host(inx)
-                    ok = array.is_in_use(inx) and not provider_is_blocked(host)
+                    ok = array.is_in_use(inx) and not BLOCKHANDLER.is_blocked(host)
                     if wishlist is not None:
                         ok = ok and wishlist_type(host) == wishlist
                     if ok:
@@ -539,20 +540,18 @@ class LLConfigHandler(ConfigDict):
 
     def use_tor(self) -> int:
         """ Returns number of TOR providers that are not blocked """
-        from lazylibrarian.providers import provider_is_blocked
         count = 0
         for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
-            if self.get_bool(provider) and not provider_is_blocked(provider):
+            if self.get_bool(provider) and not BLOCKHANDLER.is_blocked(provider):
                 count += 1
         return count
 
     def use_direct(self) -> int:
         """ Returns number of enabled direct book providers """
-        from lazylibrarian.providers import provider_is_blocked
         count = self.count_in_use('GEN')
-        if self.get_bool('BOK') and not provider_is_blocked('BOK'):
+        if self.get_bool('BOK') and not BLOCKHANDLER.is_blocked('BOK'):
              count += 1
-        if self.get_bool('BFI') and not provider_is_blocked('BFI'):
+        if self.get_bool('BFI') and not BLOCKHANDLER.is_blocked('BFI'):
              count += 1
         return count
 

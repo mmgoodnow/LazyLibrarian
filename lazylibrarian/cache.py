@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent, proxy_list
@@ -81,14 +82,9 @@ def fetch_url(url, headers=None, retry=True, raw=None):
 
     url = make_unicode(url)
     if 'googleapis' in url:
-        lazylibrarian.GB_CALLS += 1
-        for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-            if entry["name"] == 'googleapis':
-                if int(time.time()) < int(entry['resume']):
-                    return "Blocked", False
-                else:
-                    lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
-                    lazylibrarian.GB_CALLS = 0
+        msg, ok = BLOCKHANDLER.add_gb_call()
+        if not ok:
+            return msg, ok
 
     if raw is None:
         raw = False
@@ -165,11 +161,7 @@ def fetch_url(url, headers=None, retry=True, raw=None):
             # eg "Cannot determine user location for geographically restricted operation"
             delay = 3600
 
-        for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-            if entry["name"] == 'googleapis':
-                lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
-        newentry = {"name": 'googleapis', "resume": int(time.time()) + delay, "reason": msg}
-        lazylibrarian.PROVIDER_BLOCKLIST.append(newentry)
+        BLOCKHANDLER.replace_provider_entry('googleapis', delay, msg)
 
     # noinspection PyBroadException
     try:

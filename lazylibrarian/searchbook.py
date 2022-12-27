@@ -22,6 +22,7 @@ from lazylibrarian.formatter import plural, check_int, thread_name
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
+from lazylibrarian.blockhandler import BLOCKHANDLER
 
 
 def cron_search_book():
@@ -126,7 +127,7 @@ def search_book(books=None, library=None):
         nprov = CONFIG.total_active_providers()
         if nprov == 0:
             msg = "SearchBooks - No providers to search"
-            blocked = len(lazylibrarian.PROVIDER_BLOCKLIST)
+            blocked = BLOCKHANDLER.number_blocked()
             if blocked:
                 msg += " (there %s %s in blocklist)" % (plural(blocked, "is"), blocked)
             else:
@@ -150,8 +151,8 @@ def search_book(books=None, library=None):
         logger.info('Searching %s %s %s for %i %s' %
                     (nprov, plural(nprov, "provider"), str(modelist), len(searchbooks),
                      plural(len(searchbooks), library)))
-        logger.info("Provider Blocklist contains %s %s" % (len(lazylibrarian.PROVIDER_BLOCKLIST),
-                                                           plural(len(lazylibrarian.PROVIDER_BLOCKLIST), 'entry')))
+        logger.info("Provider Blocklist contains %s %s" % (BLOCKHANDLER.number_blocked(),
+                                                           plural(BLOCKHANDLER.number_blocked(), 'entry')))
 
         for searchbook in searchbooks:
             if lazylibrarian.STOPTHREADS and threadname == "SEARCHALLBOOKS":

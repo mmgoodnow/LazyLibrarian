@@ -36,6 +36,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, rem
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
@@ -218,6 +219,7 @@ def init_logs(config: ConfigDict):
 
 def init_misc(config: ConfigDict):
     """ Other initialization."""
+    BLOCKHANDLER.set_config(CONFIG, CONFIG.providers("NEWZNAB"), CONFIG.providers("TORZNAB"))
     initscheduler()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib(config)
 
@@ -300,7 +302,6 @@ def init_caches(config: LLConfigHandler):
     lazylibrarian.TIMERS['SLEEP_LT'] = 0.0
     lazylibrarian.TIMERS['SLEEP_CV'] = 0.0
     lazylibrarian.TIMERS['SLEEP_BOK'] = 0.0
-    lazylibrarian.GB_CALLS = 0
 
     if config['BOOK_API'] != 'GoodReads':
         config.set_bool('GR_SYNC', False)

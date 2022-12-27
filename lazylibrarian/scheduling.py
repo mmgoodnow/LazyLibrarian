@@ -29,6 +29,7 @@ from lazylibrarian.formatter import thread_name, plural, check_int
 from lazylibrarian.configtypes import ConfigScheduler
 from lazylibrarian.bookwork import add_series_members
 from lazylibrarian.importer import add_author_to_db
+from lazylibrarian.blockhandler import BLOCKHANDLER
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -501,12 +502,7 @@ def show_jobs():
 
 def show_stats() -> List[str]:
     """ Return status of activity suitable for display. """
-    gb_status = "Active"
-    for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-        if entry["name"] == 'googleapis':
-            if int(time.time()) < int(entry['resume']):
-                gb_status = "Blocked"
-            break
+    gb_status = "Blocked" if BLOCKHANDLER.is_blocked('googleapis') else "Active"
 
     result = ["Cache %i %s, %i miss, " % (check_int(lazylibrarian.CACHE_HIT, 0),
                                           plural(check_int(lazylibrarian.CACHE_HIT, 0), "hit"),
@@ -514,7 +510,7 @@ def show_stats() -> List[str]:
               "Sleep %.3f goodreads, %.3f librarything, %.3f comicvine" % (
                   lazylibrarian.TIMERS['SLEEP_GR'], lazylibrarian.TIMERS['SLEEP_LT'],
                   lazylibrarian.TIMERS['SLEEP_CV']),
-              "GoogleBooks API %i calls, %s" % (lazylibrarian.GB_CALLS, gb_status)]
+              "GoogleBooks API %i calls, %s" % (BLOCKHANDLER.get_gb_calls(), gb_status)]
 
     db = database.DBConnection()
     snatched = db.match("SELECT count(*) as counter from wanted WHERE Status = 'Snatched'")

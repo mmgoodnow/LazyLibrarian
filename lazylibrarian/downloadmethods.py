@@ -22,10 +22,10 @@ try:
 except Exception:  # magic might fail for multiple reasons
     magic = None
 
-import lazylibrarian
 from lazylibrarian import logger, database, nzbget, sabnzbd, classes, utorrent, transmission, qbittorrent, \
     deluge, rtorrent, synology
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.telemetry import record_usage_data
 from lazylibrarian.common import get_user_agent, proxy_list
@@ -33,7 +33,6 @@ from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, set
 from lazylibrarian.formatter import clean_name, unaccented, get_list, make_unicode, md5_utf8, \
     seconds_to_midnight, check_int, sanitize
 from lazylibrarian.postprocess import delete_task, check_contents
-from lazylibrarian.providers import block_provider
 from lazylibrarian.ircbot import irc_connect, irc_search
 from lazylibrarian.directparser import bok_dlcount
 
@@ -297,7 +296,7 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
         if limit and count >= limit:
             res = 'Reached Daily download limit (%s)' % limit
             delay = oldest + 24*60*60 - time.time()
-            block_provider(provider, res, delay=delay)
+            BLOCKHANDLER.block_provider(provider, res, delay=delay)
             return False, res
 
     redirects = 0
@@ -423,12 +422,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                     except IndexError:
                         limit = 'unknown'
                     msg = "Daily limit (%s) reached" % limit
-                    block_provider(provider, msg, delay=seconds_to_midnight())
+                    BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
                     logger.warn(msg)
                     return False, msg
                 elif b'Too many requests' in r.content:
                     msg = "Too many requests"
-                    block_provider(provider, msg)
+                    BLOCKHANDLER.block_provider(provider, msg)
                     logger.warn(msg)
                     return False, msg
 
@@ -453,12 +452,12 @@ def direct_dl_method(bookid=None, dl_title=None, dl_url=None, library='eBook', p
                         link = ''
                         if b'Daily limit reached' in res:
                             msg = "Daily limit reached"
-                            block_provider(provider, msg, delay=seconds_to_midnight())
+                            BLOCKHANDLER.block_provider(provider, msg, delay=seconds_to_midnight())
                             logger.warn(msg)
                             return False, msg
                         elif b'Too many requests' in res:
                             msg = "Too many requests"
-                            block_provider(provider, msg)
+                            BLOCKHANDLER.block_provider(provider, msg)
                             logger.warn(msg)
                             return False, msg
                     else:

@@ -17,6 +17,7 @@ from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import fetch_url
@@ -73,7 +74,7 @@ def direct_bok(book=None, prov=None, test=False):
     provider = "zlibrary"
     if not prov:
         prov = 'BOK'
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         if test:
             return False
         return [], "provider is already blocked"
@@ -120,7 +121,7 @@ def direct_bok(book=None, prov=None, test=False):
                 # may have ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                lazylibrarian.providers.block_provider(provider, errmsg)
+                BLOCKHANDLER.block_provider(provider, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -153,7 +154,7 @@ def direct_bok(book=None, prov=None, test=False):
 
                 logger.debug("Found %s rows for %s" % (len(rows), book['searchterm']))
                 for row in rows:
-                    if lazylibrarian.providers.provider_is_blocked(provider):
+                    if BLOCKHANDLER.is_blocked(provider):
                         next_page = False
                         break
                     url = None
@@ -196,11 +197,11 @@ def direct_bok(book=None, prov=None, test=False):
                                             delay = oldest + 24*60*60 - time.time()
                                         else:
                                             delay = seconds_to_midnight()
-                                        lazylibrarian.providers.block_provider(provider, msg, delay=delay)
+                                        BLOCKHANDLER.block_provider(provider, msg, delay=delay)
                                         logger.warn(msg)
                                         url = None
                                     elif 'Too many requests' in res:
-                                        lazylibrarian.providers.block_provider(provider, res)
+                                        BLOCKHANDLER.block_provider(provider, res)
                                         logger.warn(res)
                                         url = None
                                 else:
@@ -250,7 +251,7 @@ def direct_bok(book=None, prov=None, test=False):
         else:
             bok_sleep()
 
-        if lazylibrarian.providers.provider_is_blocked(provider):
+        if BLOCKHANDLER.is_blocked(provider):
             errmsg = "provider_is_blocked"
             next_page = False
 
@@ -263,7 +264,7 @@ def direct_bfi(book=None, prov=None, test=False):
     provider = "BookFi"
     if not prov:
         prov = 'BFI'
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         if test:
             return False
         return [], "provider_is_blocked"
@@ -297,7 +298,7 @@ def direct_bfi(book=None, prov=None, test=False):
             # may have ip based access limits
             logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
             errmsg = result
-            lazylibrarian.providers.block_provider(provider, errmsg)
+            BLOCKHANDLER.block_provider(provider, errmsg)
         else:
             logger.debug(search_url)
             logger.debug('Error fetching page data from %s: %s' % (provider, result))
@@ -317,7 +318,7 @@ def direct_bfi(book=None, prov=None, test=False):
                 rows = []
 
             for row in rows:
-                if lazylibrarian.providers.provider_is_blocked(provider):
+                if BLOCKHANDLER.is_blocked(provider):
                     break
                 rowsoup = BeautifulSoup(str(row), 'html5lib')
                 title = rowsoup.find('h3', itemprop='name').text
@@ -362,7 +363,7 @@ def direct_bfi(book=None, prov=None, test=False):
         logger.debug("Test found %s %s (%s removed)" % (len(results), plural(len(results), "result"), removed))
         return len(results)
 
-    if lazylibrarian.providers.provider_is_blocked(provider):
+    if BLOCKHANDLER.is_blocked(provider):
         errmsg = "provider_is_blocked"
 
     logger.debug("Found %i %s from %s for %s" % (len(results), plural(len(results), "result"), provider, sterm))
@@ -377,7 +378,7 @@ def direct_gen(book=None, prov=None, test=False):
     provider = "libgen"
     if not prov:
         prov = 'GEN_0'
-    if lazylibrarian.providers.provider_is_blocked(prov):
+    if BLOCKHANDLER.is_blocked(prov):
         if test:
             return False
         return [], "provider_is_blocked"
@@ -467,7 +468,7 @@ def direct_gen(book=None, prov=None, test=False):
                 # looks like libgen has ip based access limits
                 logger.error('Access forbidden. Please wait a while before trying %s again.' % provider)
                 errmsg = result
-                lazylibrarian.providers.block_provider(prov, errmsg)
+                BLOCKHANDLER.block_provider(prov, errmsg)
             else:
                 logger.debug(search_url)
                 logger.debug('Error fetching page data from %s: %s' % (provider, result))

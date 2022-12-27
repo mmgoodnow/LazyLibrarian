@@ -21,6 +21,7 @@ import zipfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
@@ -96,7 +97,7 @@ class IRC:
         except Exception as e:
             logger.debug("Exception sending %s" % msg)
             logger.debug(str(e))
-            lazylibrarian.providers.block_provider(server, msg, 600)
+            BLOCKHANDLER.block_provider(server, msg, 600)
 
     def ison(self, msg):
         try:
@@ -104,7 +105,7 @@ class IRC:
         except Exception as e:
             logger.debug("Exception sending %s" % msg)
             logger.debug(str(e))
-            lazylibrarian.providers.block_provider(self.server, msg, 600)
+            BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def pong(self, msg):
         reply = msg.replace('PING', 'PONG')
@@ -114,7 +115,7 @@ class IRC:
         except Exception as e:
             logger.debug("Exception sending %s" % msg)
             logger.debug(str(e))
-            lazylibrarian.providers.block_provider(self.server, msg, 600)
+            BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def version(self):
         reply = "VERSION " + self.ver
@@ -124,7 +125,7 @@ class IRC:
         except Exception as e:
             logger.debug("Exception sending %s" % reply)
             logger.debug(str(e))
-            lazylibrarian.providers.block_provider(self.server, reply, 600)
+            BLOCKHANDLER.block_provider(self.server, reply, 600)
 
     def join(self, channel):
         try:
@@ -133,7 +134,7 @@ class IRC:
             msg = "Exception sending JOIN %s" % channel
             logger.debug(msg)
             logger.debug(str(e))
-            lazylibrarian.providers.block_provider(self.server, msg, 600)
+            BLOCKHANDLER.block_provider(self.server, msg, 600)
 
     def leave(self, provider: ConfigDict):
         if provider.get_connection():
@@ -201,7 +202,7 @@ class IRC:
 
 
 def irc_connect(provider: ConfigDict, retries=10):
-    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
+    if BLOCKHANDLER.is_blocked(provider['SERVER']):
         logger.warn("%s is blocked" % provider['SERVER'])
         return None
 
@@ -221,9 +222,7 @@ def irc_connect(provider: ConfigDict, retries=10):
             provider.set_connection(None)
             # if the attempt to join failed it will block us,
             # and we were not blocked before the attempt
-            for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                if entry["name"] == provider['SERVER']:
-                    lazylibrarian.PROVIDER_BLOCKLIST.remove(entry)
+            BLOCKHANDLER.remove_provider_entry(provider['SERVER'])
     retried = 0
     irc = IRC()
     e = ''
@@ -272,7 +271,7 @@ def irc_connect(provider: ConfigDict, retries=10):
 
 
 def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=10):
-    if lazylibrarian.providers.provider_is_blocked(provider['SERVER']):
+    if BLOCKHANDLER.is_blocked(provider['SERVER']):
         msg = "%s is blocked" % provider['SERVER']
         logger.warn(msg)
         return '', msg
@@ -392,13 +391,13 @@ def irc_search(provider: ConfigDict, searchstring, cmd="", cache=True, retries=1
             if 'KICK' in lyne:
                 msg = "Kick: %s" % lyne.rsplit(':', 1)[1]
                 logger.debug(msg)
-                lazylibrarian.providers.block_provider(provider['SERVER'], "Kick", 600)
+                BLOCKHANDLER.block_provider(provider['SERVER'], "Kick", 600)
                 return '', msg
 
             elif ' 474 ' in lyne:  # banned
                 msg = "Banned: %s" % lyne.rsplit(':', 1)[1]
                 logger.debug(msg)
-                lazylibrarian.providers.block_provider(provider['SERVER'], "Banned", 24*60*60)
+                BLOCKHANDLER.block_provider(provider['SERVER'], "Banned", 24*60*60)
                 return '', msg
 
             elif ' 404 ' in lyne:  # cannot send to channel

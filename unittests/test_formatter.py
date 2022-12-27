@@ -564,3 +564,17 @@ class FormatterTest(LLTestCase):
         newstr = formatter.replace_quotes_with(allchars, '')
         self.assertEqual(len(newstr), 218)
 
+    def test_pretty_approx_time(self):
+        testdata = {
+            10: '10 seconds',
+            200: '3 minutes, 20 seconds',
+            2000: '33 minutes, 20 seconds',
+            20000: '5 hours, 33 minutes, 20 seconds',
+            200000: '2 days, 7 hours, 33 minutes, 20 seconds',
+            2000000: '23 days, 3 hours, 33 minutes, 20 seconds',
+            20000020: '231 days, 11 hours, 33 minutes, 40 seconds',
+        }
+        for seconds in testdata:
+            with self.subTest(seconds=seconds):
+                pretty = formatter.pretty_approx_time(seconds)
+                self.assertEqual(pretty, testdata[seconds])

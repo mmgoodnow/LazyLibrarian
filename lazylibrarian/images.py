@@ -24,7 +24,7 @@ from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, setperm, safe_copy, jpg_file
 from lazylibrarian.cache import cache_img, fetch_url
-from lazylibrarian.providers import provider_is_blocked, block_provider
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from urllib.parse import quote_plus
 from shutil import rmtree
 
@@ -393,7 +393,7 @@ def get_book_cover(bookid=None, src=None):
 
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
-            if not provider_is_blocked("openlibrary") and item and item['BookISBN']:
+            if not BLOCKHANDLER.is_blocked("openlibrary") and item and item['BookISBN']:
                 baseurl = '/'.join([CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetch_url(baseurl + item['BookISBN'])
@@ -422,7 +422,7 @@ def get_book_cover(bookid=None, src=None):
                             return coverlink, 'openlibrary'
                 else:
                     logger.debug("OpenLibrary error: %s" % result)
-                    block_provider("openlibrary", result)
+                    BLOCKHANDLER.block_provider("openlibrary", result)
             if src:
                 return None, src
 

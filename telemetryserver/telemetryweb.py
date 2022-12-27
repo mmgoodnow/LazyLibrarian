@@ -3,7 +3,7 @@
 from bottle import route, run, request
 import time
 import logging
-from telemetryutils import pretty_approx_time
+from lazylibrarian.formatter import pretty_approx_time
 
 @route('/')
 def hello():

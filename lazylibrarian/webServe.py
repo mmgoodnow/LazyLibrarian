@@ -73,6 +73,7 @@ from lazylibrarian.searchmag import search_magazines, download_maglist
 from lazylibrarian.searchrss import search_wishlist
 from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from deluge_client import DelugeRPCClient
 from mako import exceptions
 from mako.lookup import TemplateLookup
@@ -1488,13 +1489,7 @@ class WebInterface(object):
                     'CoverPage': coverpage
                 })
 
-        # Reset api counters if it's a new day
-        if lazylibrarian.NABAPICOUNT != today():
-            lazylibrarian.NABAPICOUNT = today()
-            for provider in CONFIG.providers('NEWZNAB'):
-                provider.set_int('APICOUNT', 0)
-            for provider in CONFIG.providers('TORZNAB'):
-                provider.set_int('APICOUNT', 0)
+        BLOCKHANDLER.check_day()
 
         # Don't pass the whole config, no need to pass the
         # lazylibrarian.globals
@@ -6116,8 +6111,7 @@ class WebInterface(object):
     def clearblocked(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         # clear any currently blocked providers
-        num = len(lazylibrarian.PROVIDER_BLOCKLIST)
-        lazylibrarian.PROVIDER_BLOCKLIST = []
+        num = BLOCKHANDLER.clear_all()
         result = 'Cleared %s blocked %s' % (num, plural(num, "provider"))
         logger.debug(result)
         return result
@@ -6126,22 +6120,7 @@ class WebInterface(object):
     def showblocked(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         # show any currently blocked providers
-        result = ''
-        for line in lazylibrarian.PROVIDER_BLOCKLIST:
-            resume = int(line['resume']) - int(time.time())
-            if resume > 0:
-                resume = int(resume / 60) + (resume % 60 > 0)
-                if resume > 180:
-                    resume = int(resume / 60) + (resume % 60 > 0)
-                    new_entry = "%s blocked for %s %s, %s\n" % (line['name'], resume,
-                                                                plural(resume, "hour"), line['reason'])
-                else:
-                    new_entry = "%s blocked for %s %s, %s\n" % (line['name'], resume,
-                                                                plural(resume, "minute"), line['reason'])
-                result = result + new_entry
-
-        if result == '':
-            result = 'No blocked providers'
+        result = BLOCKHANDLER.get_text_list_of_blocks()
         logger.debug(result)
         return result
 

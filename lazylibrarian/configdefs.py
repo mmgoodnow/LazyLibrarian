@@ -519,7 +519,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigStr('', "UPDATED", ''),
     ConfigBool('', "MANUAL", False),
     ConfigInt('', "APILIMIT", 0),
-    ConfigInt('', "APICOUNT", 0),
+    ConfigInt('', "APICOUNT", 0, persist=False),
     ConfigInt('', "RATELIMIT", 0),
     ConfigInt('', "DLPRIORITY", 0),
     ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),

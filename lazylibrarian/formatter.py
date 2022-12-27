@@ -185,7 +185,7 @@ def now():
     return dtnow.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def today():
+def today() -> str:
     dtnow = datetime.datetime.now()
     return dtnow.strftime("%Y-%m-%d")
 
@@ -442,6 +442,17 @@ def check_float(var, default):
             return float(default)
         except (ValueError, TypeError):
             return 0.0
+
+
+def pretty_approx_time(seconds: int) -> str:
+    """ Return a string representing the parameter in a nice human readable (approximate) way """
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    locals_ = locals()
+    magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
+                    for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
+    return ", ".join(magnitudes_str)
 
 
 def human_size(num):
