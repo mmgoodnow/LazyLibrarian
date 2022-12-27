@@ -73,7 +73,7 @@ class LLConfigHandler(ConfigDict):
         for option in parser.options(section):
             if option in config:
                 config_item = config.get_item(option)
-                if not config_item or not config_item.update_from_parser(parser, option):
+                if not config_item or not config_item.update_from_parser(parser, section, option):
                     logger.warn(f"Error loading {section}.{option} as {parser.get(section, option)}")
             else:
                 logger.warn(f"Unknown option {section}.{option} in config")
@@ -147,6 +147,14 @@ class LLConfigHandler(ConfigDict):
         else:
             self._handle_access_error(name, Access.READ_ERR)
             raise Exception(f'Cannot iterate over non-existent array {name}')
+
+    @staticmethod
+    def provider_names() -> List[str]:
+        """ Return the list of all base provider names that can be passed to providers(name) """
+        names = []
+        for name, _ in ARRAY_DEFS.items():
+            names.append(name)
+        return names
 
     def get_schedulers(self, name:str='') -> Generator[Tuple[str, ConfigScheduler], None, None]:
         """ Return an iterable list of schedulers that matches name, or all """

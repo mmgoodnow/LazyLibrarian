@@ -18,6 +18,7 @@ from lazylibrarian.filesystem import DIRS, syspath, remove_file, path_isfile, sa
 # If these change, many test cases need to be updated. Run to find out which ones
 SMALL_INI_FILE = './unittests/testdata/testconfig-defaults.ini'
 COMPLEX_INI_FILE = './unittests/testdata/testconfig-complex.ini'
+ERROR_INI_FILE = './unittests/testdata/testconfig-errors.ini'
 
 class Config2Test(LLTestCase):
 
@@ -602,6 +603,36 @@ class Config2Test(LLTestCase):
             'APPRISE.0.URL': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
         }
         self.do_access_compare(acs, expectedacs, [Access.READ_OK], 'Loading complex ini file did not modify the expected values')
+
+    def test_configread_witherrors(self):
+        """ Test reading a config.ini file with errors we should be able to correct """
+        self.set_loglevel(2)
+        with self.assertLogs('lazylibrarian.logger', level='DEBUG'):
+            cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=ERROR_INI_FILE)
+        # The ini file had array sections without _ in the name - check it's correct now
+        for name in cfg.provider_names():
+            array = cfg.get_array(name)
+            for inx in range(len(array)):
+                arrayitem = array[inx]
+                secstr = array.get_section_str(inx)
+                self.assertTrue('_' in secstr, 'All array sections must have an underscore')
+                for key, item in arrayitem.items():
+                    self.assertEqual(secstr, item.section, f"The item {key} has a wrong section value")
+
+    def test_configread_correcterrors(self):
+        """ Read config file with errors and make sure they are gone on save/reload """
+        self.set_loglevel(1)
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=ERROR_INI_FILE)
+
+        testfile = DIRS.get_tmpfilename('test-fixed.ini')
+        try:
+            count = cfg.save_config(testfile, False) # Save only non-default values
+            self.assertTrue(count > 20, 'Saving default config.ini has unexpected # of changes')
+            cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
+            self.assertTrue(config2.are_equivalent(cfg, cfgnew), f'Save error: {testfile} is not the same as original file!')
+        finally:
+            self.assertTrue(remove_file(testfile), 'Could not remove test-fixed.ini')
+
 
     def test_provider_iterator(self):
         """ Test the iterator function used to access providers """

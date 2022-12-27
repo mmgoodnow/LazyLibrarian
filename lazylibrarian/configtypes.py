@@ -69,8 +69,10 @@ class ConfigItem:
     def is_key(self, key: str) -> bool:
         return key.upper() == self.key
 
-    def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
-        return self.set_str(parser.get(self.section, name))
+    def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
+        if tmpsection != self.section:
+            logger.debug(f'Loading section {tmpsection} into section {self.section}')
+        return self.set_str(parser.get(tmpsection, name))
 
     def get_str(self) -> str:
         self._on_read(True)
@@ -236,9 +238,11 @@ class ConfigInt(ConfigItem):
     def set_bool(self, value: bool) -> bool:
         return self._on_type_mismatch(value)
 
-    def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
+    def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
+        if tmpsection != self.section:
+            logger.debug(f'Loading int {name} from section {tmpsection} into section {self.section}')
         try:
-            value = parser.getint(self.section, name, fallback=0)
+            value = parser.getint(tmpsection, name, fallback=0)
         except:
             value = 0
         return self.set_int(value)
@@ -384,8 +388,10 @@ class ConfigBool(ConfigInt):
     def is_enabled(self) -> bool:
         return self.get_bool()
 
-    def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
-        return self.set_bool(parser.getboolean(self.section, name, fallback=False))
+    def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
+        if tmpsection != self.section:
+            logger.debug(f'Loading bool {name} from section {tmpsection} into section {self.section}')
+        return self.set_bool(parser.getboolean(tmpsection, name, fallback=False))
 
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
@@ -482,9 +488,11 @@ class ConfigFolder(ConfigStr):
     def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False, persist: bool=True):
         super().__init__(section, key, self.fix_separator(default), force_lower, is_new, persist)
 
-    def update_from_parser(self, parser: ConfigParser, name: str) -> bool:
+    def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
         """ For Folders, save the config as-is to be able to preserve relative paths """
-        self.asLoaded = parser.get(self.section, name)
+        if tmpsection != self.section:
+            logger.debug(f'Loading folder {name} from section {tmpsection} into section {self.section}')
+        self.asLoaded = parser.get(tmpsection, name)
         return self.set_str(self.asLoaded)
 
     def set_str(self, value: str) -> bool:

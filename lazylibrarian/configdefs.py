@@ -500,7 +500,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
 DefaultArrayDef = Tuple[str, str, List[ConfigItem]]
 
 ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
-    'NEWZNAB': ('HOST', 'Newznab%i', [
+    'NEWZNAB': ('HOST', 'Newznab_%i', [
     ConfigStr('', 'NAME', 'Newznab', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
@@ -525,7 +525,7 @@ ARRAY_DEFS: Dict[str, DefaultArrayDef] = {
     ConfigDownloadTypes('', "DLTYPES", 'A,E,M'),
     ConfigInt('', "LASTUSED", 0),
     ]),
-    'TORZNAB': ('HOST', 'Torznab%i', [
+    'TORZNAB': ('HOST', 'Torznab_%i', [
     ConfigStr('', 'NAME', 'Torznab', persist=False),
     ConfigStr('', "DISPNAME", ''),
     ConfigBool('', "ENABLED", False),
