@@ -593,28 +593,6 @@ def is_valid_type(filename: str, extensions: List[str], extras='jpg, opf') -> bo
     return extn and extn.lower() in type_list
 
 
-def is_valid_booktype(filename: str, booktype: str, config: Optional[ConfigDict]=None) -> bool:
-    """
-    Check if filename extension is one we want
-    """
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
-
-    if booktype.startswith('mag'):  # default is book
-        booktype_list = get_list(config['MAG_TYPE'])
-    elif booktype.startswith('audio'):
-        booktype_list = get_list(config['AUDIOBOOK_TYPE'])
-    elif booktype == 'comic':
-        booktype_list = get_list(config['COMIC_TYPE'])
-    else:
-        booktype_list = get_list(config['EBOOK_TYPE'])
-    extn = os.path.splitext(filename)[1].lstrip('.')
-    if extn and extn.lower() in booktype_list:
-        return True
-    return False
-
-
 def get_list(st, c=None):
     """
     Split a string/unicode into a list on whitespace or plus or comma

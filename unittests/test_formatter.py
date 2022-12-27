@@ -373,26 +373,29 @@ class FormatterTest(LLTestCase):
             self.assertEqual(formatter.is_valid_isbn(isbn[0]), isbn[1], isbn[0])
 
     def test_is_valid_type(self):
-        filenames = [
-            ("book.opf", True),      # Book metadata
-            ("cover.jpg", True),     # Cover images
-            ("A volume.pdf", True),  # Magazines and ebooks
-            ("Audio.mp3", True),     # Audiobook
-            ("Adio.m4b", True),      # Modern audiobook
-            ("TEST.EPUB", True),     # eBook
-            ("Book 2.mobi", True),   # eBook
-            ("Marvel.Cbr", True),    # Comic
-            ("DC.cbZ", True),        # Comic
-            # Not valid extensions:
-            ("", False),
-            ("Hello", False),
-            ("jpg", False),
-            (".mobi", False),        # eBook without a name
-            ("Allan.test", False),
-         ]
+        validfilenames = [
+            "book.opf",      # Book metadata
+            "cover.jpg",     # Cover images
+            "A volume.pdf",  # Magazines and ebooks
+            "Audio.mp3",     # Audiobook
+            "Adio.m4b",      # Modern audiobook
+            "TEST.EPUB",     # eBook
+            "Book 2.mobi",   # eBook
+            "Marvel.Cbr",    # Comic
+            "DC.cbZ",        # Comic
+        ]
+        invalidfilenames = [
+            "",
+            "Hello",
+            "jpg",
+            ".mobi",        # eBook without a name
+            "Allan.test",
+        ]
         allowlist = CONFIG.get_all_types_list()
-        for name in filenames:
-            self.assertEqual(formatter.is_valid_type(name[0], extensions=allowlist), name[1], name[0])
+        for name in validfilenames:
+            self.assertTrue(formatter.is_valid_type(name, extensions=allowlist))
+        for name in invalidfilenames:
+            self.assertFalse(formatter.is_valid_type(name, extensions=allowlist))
 
     def test_is_valid_booktype(self):
         types = ["book", "mag", "audio", "comic"]
@@ -414,7 +417,7 @@ class FormatterTest(LLTestCase):
             fn = name[0]
             valid_types = name[1]
             for t in types:
-                self.assertEqual(formatter.is_valid_booktype(fn, t), t in valid_types, f"{fn} ({valid_types}, {t})")
+                self.assertEqual(CONFIG.is_valid_booktype(fn, t), t in valid_types, f"{fn} ({valid_types}, {t})")
 
     def test_get_list(self):
         lists = [

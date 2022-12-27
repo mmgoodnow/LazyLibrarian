@@ -19,8 +19,7 @@ from  lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.common import multibook, only_punctuation
 from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file, get_directory
-from lazylibrarian.formatter import plural, is_valid_booktype, check_int, get_list, \
-    make_unicode, sort_definite, surname_first, sanitize
+from lazylibrarian.formatter import plural, check_int, get_list, make_unicode, sort_definite, surname_first, sanitize
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.opfedit import opf_read
 
@@ -167,7 +166,7 @@ def audio_parts(folder, bookname, authorname):
     total = 0
     wholebook = ''
     for f in listdir(folder):
-        if is_valid_booktype(f, booktype='audiobook'):
+        if CONFIG.is_valid_booktype(f, booktype='audiobook'):
             # if no number_period or number_space in filename assume its whole-book
             if not re.findall(r'\d+\b', f):
                 wholebook = f
@@ -533,7 +532,7 @@ def book_rename(bookid):
         # only rename bookname.type, bookname.jpg, bookname.opf, not cover.jpg or metadata.opf
         for fname in listdir(dest_path):
             extn = ''
-            if is_valid_booktype(fname, booktype='ebook'):
+            if CONFIG.is_valid_booktype(fname, booktype='ebook'):
                 extn = os.path.splitext(fname)[1]
             elif fname.endswith('.opf') and not fname == 'metadata.opf':
                 extn = '.opf'

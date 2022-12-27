@@ -29,7 +29,7 @@ from lazylibrarian.bookrename import book_rename, audio_rename, id3read
 from lazylibrarian.cache import cache_img, gr_xml_request
 from lazylibrarian.filesystem import DIRS, path_exists, path_isdir, path_isfile, listdir, walk, any_file, opf_file, \
     get_directory
-from lazylibrarian.formatter import plural, is_valid_isbn, is_valid_booktype, get_list, unaccented, \
+from lazylibrarian.formatter import plural, is_valid_isbn, get_list, unaccented, \
     clean_name, replace_all, replace_quotes_with, split_title, now, make_unicode, format_author_name, make_utf8bytes
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -673,8 +673,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                     # to merge author aliases together
                     # If all else fails, try pattern match for author/title
                     # and look up isbn/lang from LT or GR later
-                    if (library == 'eBook' and is_valid_booktype(files, 'ebook')) or \
-                            (library == 'AudioBook' and is_valid_booktype(files, 'audiobook')):
+                    if (library == 'eBook' and CONFIG.is_valid_booktype(files, 'ebook')) or \
+                            (library == 'AudioBook' and CONFIG.is_valid_booktype(files, 'audiobook')):
 
                         logger.debug("[%s] Now scanning subdirectory %s" % (startdir, subdirectory))
 
@@ -759,7 +759,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                         if not author or not book:
                             # no author/book from metadata file, and not embedded either
                             # or audiobook which may have id3 tags
-                            if is_valid_booktype(files, 'audiobook'):
+                            if CONFIG.is_valid_booktype(files, 'audiobook'):
                                 filename = os.path.join(rootdir, files)
                                 id3tags = id3read(filename)
                                 author = id3tags['author']
@@ -1221,7 +1221,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 if tokmatch:
                                                     break
                                                 for e in listdir(rootdir):
-                                                    if is_valid_booktype(e, booktype='audiobook') and token in e:
+                                                    if CONFIG.is_valid_booktype(e, booktype='audiobook') and token in e:
                                                         book_filename = os.path.join(rootdir, e)
                                                         logger.debug("Librarysync link to preferred part %s: %s" %
                                                                      (token, book_filename))

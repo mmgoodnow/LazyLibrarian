@@ -93,7 +93,7 @@ class ConfigItem:
             return False
 
     def get_list(self) -> List[str]:
-        return [self.get_str()]
+        return [self.get_str().strip()]
 
     def get_force_lower(self):
         return False
@@ -417,8 +417,8 @@ class ConfigCSV(ConfigStr):
         return self.get_str()
 
     def get_list(self) -> List[str]:
-        """ Return a list like ['abc', 'def'] from 'abc, def'' """
-        return self.get_csv().split(',')
+        """ Return a list like ['abc', 'def'] from 'abc, def'. Leading and trailing spaces are stripped. """
+        return [item.strip() for item in self.get_csv().split(',')]
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         if isinstance(value, str):
@@ -728,3 +728,16 @@ class ConfigDict:
 
     def clear_error_counters(self):
         self.errors.clear()
+
+    def is_valid_booktype(self, filename: str, booktype: str) -> bool:
+        """ Check if filename extension is one that is of the right type """
+        if booktype.startswith('mag'):  # default is book
+            booktype_list = self.get_list('MAG_TYPE')
+        elif booktype.startswith('audio'):
+            booktype_list = self.get_list('AUDIOBOOK_TYPE')
+        elif booktype == 'comic':
+            booktype_list = self.get_list('COMIC_TYPE')
+        else:
+            booktype_list = self.get_list('EBOOK_TYPE')
+        extn = os.path.splitext(filename)[1].lstrip('.')
+        return extn and booktype_list and extn.lower() in booktype_list

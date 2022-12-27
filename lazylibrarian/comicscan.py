@@ -22,7 +22,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
-from lazylibrarian.formatter import is_valid_booktype, plural, check_int, now, get_list, unaccented, sanitize
+from lazylibrarian.formatter import plural, check_int, now, get_list, unaccented, sanitize
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.postprocess import create_comic_opf
 
@@ -93,7 +93,7 @@ def comic_scan(comicid=None):
 
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
-                if is_valid_booktype(fname, booktype='comic'):
+                if CONFIG.is_valid_booktype(fname, booktype='comic'):
                     title = ''
                     issue = ''
                     start = ''

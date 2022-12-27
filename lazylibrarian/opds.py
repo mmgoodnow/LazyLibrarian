@@ -21,16 +21,16 @@ import datetime
 import os
 import cherrypy
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 
 from cherrypy.lib.static import serve_file
 from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookrename import name_vars
 from lazylibrarian.cache import cache_img
 from lazylibrarian.common import mime_type, zip_audio
 from lazylibrarian.filesystem import path_isfile, listdir, any_file
-from lazylibrarian.formatter import make_unicode, check_int, plural, get_list, is_valid_booktype
+from lazylibrarian.formatter import make_unicode, check_int, plural, get_list
 from urllib.parse import quote_plus
 
 
@@ -1760,7 +1760,7 @@ class OPDS(object):
                     # noinspection PyBroadException
                     try:
                         for fname in listdir(foldername):
-                            if is_valid_booktype(fname, booktype='audio'):
+                            if CONFIG.is_valid_booktype(fname, booktype='audio'):
                                 cnt += 1
                                 target = fname
                                 bname, extn = os.path.splitext(fname)

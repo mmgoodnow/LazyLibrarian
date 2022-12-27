@@ -52,7 +52,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
     irc_dl_method
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, disp_name, is_valid_booktype, replace_quotes_with, format_author_name, \
+    md5_utf8, date_format, check_year, disp_name, replace_quotes_with, format_author_name, \
     check_float, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
@@ -2928,7 +2928,7 @@ class WebInterface(object):
                     parentdir = os.path.dirname(myfile)
                     for _, _, filenames in walk(parentdir):
                         for filename in filenames:
-                            if is_valid_booktype(filename, 'audiobook'):
+                            if CONFIG.is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
 
                 if cnt > 1 and not CONFIG.get_bool('RSS_PODCAST'):
@@ -3019,7 +3019,7 @@ class WebInterface(object):
                         # noinspection PyBroadException
                         try:
                             for fname in listdir(parentdir):
-                                if is_valid_booktype(fname, booktype='audio'):
+                                if CONFIG.is_valid_booktype(fname, booktype='audio'):
                                     bname, extn = os.path.splitext(fname)
                                     if bname == singlename:
                                         # found name matching the AudioSingleFile
@@ -3365,9 +3365,9 @@ class WebInterface(object):
                 elif path_isdir(source):
                     folder = source
                 if folder:
-                    if book_file(folder, booktype='audiobook'):
+                    if book_file(folder, booktype='audiobook', config=CONFIG):
                         library = 'Audio'
-                    elif book_file(folder, booktype='ebook'):
+                    elif book_file(folder, booktype='ebook', config=CONFIG):
                         library = 'eBook'
                 if library:
                     res = process_book_from_dir(folder, library, bookid)

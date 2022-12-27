@@ -42,7 +42,7 @@ from lazylibrarian.calibre import calibredb
 from lazylibrarian.common import run_script, multibook, calibre_prg
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, setperm, \
     make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
-from lazylibrarian.formatter import unaccented, plural, now, today, is_valid_booktype, \
+from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
     make_utf8bytes, disp_name, sanitize, thread_name
 from lazylibrarian.images import createthumbs
@@ -368,7 +368,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                 logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
                 return False
 
-            new_book = book_file(source_dir, booktype='ebook')
+            new_book = book_file(source_dir, booktype='ebook', config=CONFIG)
             if not new_book:
                 # check if an archive in this directory
                 for f in listdir(source_dir):
@@ -378,7 +378,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                         if res:
                             source_dir = res
                             break
-                new_book = book_file(source_dir, booktype='ebook')
+                new_book = book_file(source_dir, booktype='ebook', config=CONFIG)
             if not new_book:
                 logger.warn("No book file found in %s" % source_dir)
                 return False
@@ -405,7 +405,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
                     except Exception as e:
                         logger.warn('No metadata found in %s, %s %s' % (new_book, type(e).__name__, str(e)))
         else:
-            new_book = book_file(source_dir, booktype='audiobook')
+            new_book = book_file(source_dir, booktype='audiobook', config=CONFIG)
             if not new_book:
                 logger.warn("No audiobook file found in %s" % source_dir)
                 return False
@@ -1003,7 +1003,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                             found_score = 0
                                             # find the best match
                                             for f in listdir(pp_path):
-                                                if is_valid_booktype(f, booktype="book"):
+                                                if CONFIG.is_valid_booktype(f, booktype="book"):
                                                     bookmatch = fuzz.token_set_ratio(matchtitle, f)
                                                     if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                                                         logger.debug("%s%% match %s : %s" % (bookmatch,
@@ -1026,7 +1026,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                     for f in listdir(pp_path):
                                                         base, extn = os.path.splitext(f)
                                                         if base == found_file:
-                                                            if is_valid_booktype(f, booktype="book") or \
+                                                            if CONFIG.is_valid_booktype(f, booktype="book") or \
                                                                     extn in ['.opf', '.jpg']:
                                                                 shutil.copyfile(os.path.join(pp_path, f),
                                                                                 os.path.join(targetdir, f))
@@ -1036,21 +1036,21 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                                 logger.debug("Skipping %s, found multiple %s with no good match" %
                                                              (pp_path, mult))
                                         else:
-                                            result = book_file(pp_path, 'ebook', recurse=True)
+                                            result = book_file(pp_path, 'ebook', recurse=True, config=CONFIG)
                                             if result:
                                                 pp_path = os.path.dirname(result)
                                             else:
                                                 logger.debug("Skipping %s, no ebook found" % pp_path)
                                                 skipped = True
                                     elif booktype == 'AudioBook':
-                                        result = book_file(pp_path, 'audiobook', recurse=True)
+                                        result = book_file(pp_path, 'audiobook', recurse=True, config=CONFIG)
                                         if result:
                                             pp_path = os.path.dirname(result)
                                         else:
                                             logger.debug("Skipping %s, no audiobook found" % pp_path)
                                             skipped = True
                                     elif booktype == 'Magazine':
-                                        result = book_file(pp_path, 'mag', recurse=True)
+                                        result = book_file(pp_path, 'mag', recurse=True, config=CONFIG)
                                         if result:
                                             pp_path = os.path.dirname(result)
                                         else:
@@ -1737,8 +1737,8 @@ def check_residual(download_dir):
                 logger.debug("Book with id: %s found in download directory" % book_id)
                 pp_path = os.path.join(download_dir, entry)
                 # At this point we don't know if we want audio or ebook or both since it wasn't snatched
-                is_audio = (book_file(pp_path, "audiobook") != '')
-                is_ebook = (book_file(pp_path, "ebook") != '')
+                is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
+                is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
                 logger.debug("Contains ebook=%s audio=%s" % (is_ebook, is_audio))
                 data = db.match('SELECT BookFile,AudioFile from books WHERE BookID=?', (book_id,))
                 have_ebook = (data and data['BookFile'] and path_isfile(data['BookFile']))
@@ -2273,8 +2273,8 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
         # Called from "import_alternate" or if we find a "LL.(xxx)" folder that doesn't match a snatched book/mag
         if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
             logger.debug("process_book %s" % pp_path)
-        is_audio = (book_file(pp_path, "audiobook") != '')
-        is_ebook = (book_file(pp_path, "ebook") != '')
+        is_audio = (book_file(pp_path, "audiobook", config=CONFIG) != '')
+        is_ebook = (book_file(pp_path, "ebook", config=CONFIG) != '')
 
         cmd = 'SELECT AuthorName,BookName,BookID,books.Status,AudioStatus from books,authors '
         cmd += 'WHERE BookID=? and books.AuthorID = authors.AuthorID'
@@ -2531,7 +2531,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     else:  # mag, comic or audiobook or multi-format book
         match = False
         for fname in listdir(pp_path):
-            if is_valid_booktype(fname, booktype=booktype):
+            if CONFIG.is_valid_booktype(fname, booktype=booktype):
                 match = True
                 break
 
@@ -2585,7 +2585,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             for fname in listdir(pp_path):
                 extn = os.path.splitext(fname)[1]
                 srcfile = os.path.join(pp_path, fname)
-                if is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
+                if CONFIG.is_valid_booktype(fname, booktype=booktype) or extn in ['.opf', '.jpg']:
                     if bestmatch and not fname.endswith(bestmatch) and extn not in ['.opf', '.jpg']:
                         logger.debug("Removing %s as not %s" % (fname, bestmatch))
                         remove_file(srcfile)
@@ -2617,7 +2617,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             if booktype == 'magazine':
                 issueid = create_id("%s %s" % (title, issuedate))
                 identifier = "lazylibrarian:%s" % issueid
-                magfile = book_file(pp_path, "magazine")
+                magfile = book_file(pp_path, "magazine", config=CONFIG)
                 jpgfile = os.path.splitext(magfile)[0] + '.jpg'
                 if path_isfile(jpgfile):
                     # calibre likes "cover.jpg"
@@ -2854,7 +2854,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 logger.debug('Scanning directory [%s]' % target_dir)
                 _ = library_scan(target_dir, remove=remv)
 
-            newbookfile = book_file(target_dir, booktype=booktype)
+            newbookfile = book_file(target_dir, booktype=booktype, config=CONFIG)
             # should we be setting permissions on calibres directories and files?
             if newbookfile:
                 setperm(target_dir)
@@ -2906,10 +2906,10 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
         # ok, we've got a target directory, try to copy only the files we want, renaming them on the fly.
         firstfile = ''  # try to keep track of "preferred" ebook type or the first part of multipart audiobooks
         for fname in listdir(pp_path):
-            if bestmatch and is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
+            if bestmatch and CONFIG.is_valid_booktype(fname, booktype=booktype) and not fname.endswith(bestmatch):
                 logger.debug("Ignoring %s as not %s" % (fname, bestmatch))
             else:
-                if is_valid_booktype(fname, booktype=booktype) or \
+                if CONFIG.is_valid_booktype(fname, booktype=booktype) or \
                         (fname.lower().endswith(".jpg") or fname.lower().endswith(".opf")):
                     srcfile = os.path.join(pp_path, fname)
                     if booktype in ['audiobook', 'comic']:
@@ -2923,7 +2923,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                         logger.debug('Copying %s to directory %s' % (fname, udest_path))
                         destfile = safe_copy(srcfile, destfile)
                         setperm(destfile)
-                        if is_valid_booktype(make_unicode(destfile), booktype=booktype):
+                        if CONFIG.is_valid_booktype(make_unicode(destfile), booktype=booktype):
                             newbookfile = destfile
                     except Exception as why:
                         # extra debugging to see if we can figure out a windows encoding issue
@@ -2964,7 +2964,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
             tokmatch = ''
             for f in listdir(dest_path):
                 # if no number_period or number_space in filename assume its whole-book
-                if not re.findall(r'\d+\b', f) and is_valid_booktype(f, booktype='audiobook'):
+                if not re.findall(r'\d+\b', f) and CONFIG.is_valid_booktype(f, booktype='audiobook'):
                     firstfile = os.path.join(udest_path, f)
                     tokmatch = 'whole'
                     break
@@ -2972,7 +2972,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
                 if tokmatch:
                     break
                 for f in listdir(dest_path):
-                    if is_valid_booktype(f, booktype='audiobook'):
+                    if CONFIG.is_valid_booktype(f, booktype='audiobook'):
                         if not firstfile:
                             firstfile = os.path.join(udest_path, f)
                             logger.debug("Primary link to %s" % f)
@@ -3055,13 +3055,13 @@ def process_auto_add(src_path=None, booktype='book'):
                             break
         copied = False
         for name in names:
-            if match and is_valid_booktype(name, booktype=booktype) and not name.endswith(match):
+            if match and CONFIG.is_valid_booktype(name, booktype=booktype) and not name.endswith(match):
                 logger.debug('Skipping %s' % os.path.splitext(name)[1])
             elif booktype == 'book' and CONFIG.get_bool('IMP_AUTOADD_BOOKONLY') and not \
-                    is_valid_booktype(name, booktype="book"):
+                    CONFIG.is_valid_booktype(name, booktype="book"):
                 logger.debug('Skipping %s' % name)
             elif booktype == 'mag' and CONFIG.get_bool('IMP_AUTOADD_MAGONLY') and not \
-                    is_valid_booktype(name, booktype="mag"):
+                    CONFIG.is_valid_booktype(name, booktype="mag"):
                 logger.debug('Skipping %s' % name)
             else:
                 srcname = os.path.join(src_path, name)
@@ -3374,7 +3374,7 @@ def write_meta(book_folder, opf):
 
     flist = listdir(book_folder)
     for fname in flist:
-        if is_valid_booktype(fname, booktype='ebook'):
+        if CONFIG.is_valid_booktype(fname, booktype='ebook'):
             book = os.path.join(book_folder, fname)
             params = [ebook_meta, book, "--write_meta", opf]
             logger.debug("Writing metadata to [%s]" % fname)

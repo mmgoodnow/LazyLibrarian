@@ -8,6 +8,7 @@ import mock
 
 from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import filesystem
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, get_directory, syspath, remove_dir
 from lazylibrarian.logger import lazylibrarian_log
 
@@ -249,14 +250,14 @@ class FilesystemTest(LLTestCase):
         self.assertEqual(opf, '')
 
     def test_book_file(self):
-        book = filesystem.book_file(get_directory("Testdata"), None)
+        book = filesystem.book_file(get_directory("Testdata"), '', config=CONFIG)
         self.assertEqual(book, '', 'Searching for type None should not find a book')
 
-        book = filesystem.book_file(get_directory("Testdata"), 'book', recurse=False)
+        book = filesystem.book_file(get_directory("Testdata"), 'book', config=CONFIG, recurse=False)
         self.assertTrue(book != '', 'Expected to find a book file in the testdata dir')
 
-        book = filesystem.book_file(DIRS.DATADIR, 'book', recurse=False)
+        book = filesystem.book_file(DIRS.DATADIR, 'book', config=CONFIG, recurse=False)
         self.assertEqual(book, '', 'Did not expect to find a book file in the DATADIR')
 
-        book = filesystem.book_file(DIRS.DATADIR, 'book', recurse=True)
+        book = filesystem.book_file(DIRS.DATADIR, 'book', config=CONFIG, recurse=True)
         self.assertTrue(book != '', 'Expected to find a book file below the DATADIR')

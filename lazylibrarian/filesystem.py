@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic, is_valid_booktype
+from lazylibrarian.formatter import make_bytestr, make_unicode, unaccented, replace_all, namedic
 from lazylibrarian.logger import lazylibrarian_log, log_fileperms
 
 class DirectoryHolder:
@@ -501,11 +501,11 @@ def jpg_file(search_dir: str) -> str:
     return any_file(search_dir, '.jpg')
 
 
-def book_file(search_dir: str, booktype: str, recurse=False) -> str:
+def book_file(search_dir: str, booktype: str, config: ConfigDict, recurse=False) -> str:
     """ Find the first book/mag file in this directory (tree), any book will do.
     Return full pathname of book/mag as bytes, or empty bytestring if none found
     """
-    if booktype is None:
+    if booktype == '':
         return ""
 
     if path_isdir(search_dir):
@@ -515,7 +515,7 @@ def book_file(search_dir: str, booktype: str, recurse=False) -> str:
                 for r, _, f in walk(search_dir):
                     # our walk returns unicode
                     for item in f:
-                        if is_valid_booktype(item, booktype=booktype):
+                        if config.is_valid_booktype(item, booktype=booktype):
                             return os.path.join(r, item)
             except Exception:
                 lazylibrarian_log.error('Unhandled exception in book_file: %s' % traceback.format_exc())
@@ -523,7 +523,7 @@ def book_file(search_dir: str, booktype: str, recurse=False) -> str:
             # noinspection PyBroadException
             try:
                 for fname in listdir(search_dir):
-                    if is_valid_booktype(fname, booktype=booktype):
+                    if config.is_valid_booktype(fname, booktype=booktype):
                         return os.path.join(make_unicode(search_dir), fname)
             except Exception:
                 lazylibrarian_log.error('Unhandled exception in book_file: %s' % traceback.format_exc())

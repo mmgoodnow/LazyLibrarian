@@ -23,8 +23,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory
-from lazylibrarian.formatter import get_list, is_valid_booktype, plural, make_bytestr, \
-    replace_all, check_year
+from lazylibrarian.formatter import get_list, plural, make_bytestr, replace_all, check_year
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.logger import lazylibrarian_log
 
@@ -120,7 +119,7 @@ def magazine_scan(title=None):
             for rootdir, _, filenames in walk(mag_path):
                 for fname in filenames:
                     # maybe not all magazines will be pdf?
-                    if is_valid_booktype(fname, booktype='mag'):
+                    if CONFIG.is_valid_booktype(fname, booktype='mag'):
                         issuedate = ''
                         # noinspection PyBroadException
                         try:
