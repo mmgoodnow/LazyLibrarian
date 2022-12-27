@@ -18,7 +18,7 @@ import os
 import re
 import unicodedata
 import threading
-from typing import Optional
+from typing import Optional, List
 
 import lazylibrarian
 from lazylibrarian import logger
@@ -583,27 +583,17 @@ def is_valid_isbn(isbn):
     return False
 
 
-def is_valid_type(filename: str, extras='jpg, opf', config: Optional[ConfigDict]=None) -> str:
+def is_valid_type(filename: str, extensions: List[str], extras='jpg, opf') -> bool:
     """
     Check if filename has an extension we can process.
     returns True or False
     """
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
-
-    type_list = list(set(get_list(config['MAG_TYPE']) +
-                         get_list(config['AUDIOBOOK_TYPE']) +
-                         get_list(config['EBOOK_TYPE']) +
-                         get_list(config['COMIC_TYPE']) +
-                         get_list(extras)))
+    type_list = extensions + get_list(extras)
     extn = os.path.splitext(filename)[1].lstrip('.')
-    if extn and extn.lower() in type_list:
-        return True
-    return False
+    return extn and extn.lower() in type_list
 
 
-def is_valid_booktype(filename: str, booktype: str, config: Optional[ConfigDict]=None) -> str:
+def is_valid_booktype(filename: str, booktype: str, config: Optional[ConfigDict]=None) -> bool:
     """
     Check if filename extension is one we want
     """

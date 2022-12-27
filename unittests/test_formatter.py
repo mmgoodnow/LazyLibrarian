@@ -2,10 +2,9 @@
 #
 # Purpose:
 #   Test functions in formatter.py
-from lazylibrarian.config2 import CONFIG
-import unittests.unittesthelpers
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import formatter
 from unittests.unittesthelpers import LLTestCase
 
@@ -391,8 +390,9 @@ class FormatterTest(LLTestCase):
             (".mobi", False),        # eBook without a name
             ("Allan.test", False),
          ]
+        allowlist = CONFIG.get_all_types_list()
         for name in filenames:
-            self.assertEqual(formatter.is_valid_type(name[0]), name[1], name[0])
+            self.assertEqual(formatter.is_valid_type(name[0], extensions=allowlist), name[1], name[0])
 
     def test_is_valid_booktype(self):
         types = ["book", "mag", "audio", "comic"]

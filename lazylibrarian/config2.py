@@ -487,6 +487,11 @@ class LLConfigHandler(ConfigDict):
         logger.debug("Redact list has %d %s" % (len(self.REDACTLIST),
                                                 plural(len(self.REDACTLIST), "entry")))
 
+    def get_all_types_list(self) -> List[str]:
+        """ Return a list of extensions that includes all types of items """
+        return self.get_list('MAG_TYPE') + self.get_list('AUDIOBOOK_TYPE') + \
+            self.get_list('EBOOK_TYPE') + self.get_list('COMIC_TYPE')
+
     def use_any(self, rss=True) -> bool:
         """ Checks for TOR, NZB, Direct and IRC providers (optionally also RSS) """
         ok = bool(self.use_tor() or self.use_nzb() or self.use_direct() or self.use_irc())
@@ -534,6 +539,7 @@ class LLConfigHandler(ConfigDict):
 
     def use_tor(self) -> int:
         """ Returns number of TOR providers that are not blocked """
+        from lazylibrarian.providers import provider_is_blocked
         count = 0
         for provider in ['KAT', 'WWT', 'TPB', 'ZOO', 'LIME', 'TDL', 'TRF']:
             if self.get_bool(provider) and not provider_is_blocked(provider):
@@ -542,6 +548,7 @@ class LLConfigHandler(ConfigDict):
 
     def use_direct(self) -> int:
         """ Returns number of enabled direct book providers """
+        from lazylibrarian.providers import provider_is_blocked
         count = self.count_in_use('GEN')
         if self.get_bool('BOK') and not provider_is_blocked('BOK'):
              count += 1

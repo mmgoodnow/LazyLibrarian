@@ -372,7 +372,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             if not new_book:
                 # check if an archive in this directory
                 for f in listdir(source_dir):
-                    if not is_valid_type(f):
+                    if not is_valid_type(f, extensions=CONFIG.get_all_types_list()):
                         # Is file an archive, if so look inside and extract to new dir
                         res = unpack_archive(os.path.join(source_dir, f), source_dir, f)
                         if res:
@@ -558,9 +558,10 @@ def move_into_subdir(sourcedir, targetdir, fname, move='move'):
     # return how many files you moved
     cnt = 0
     list_dir = listdir(sourcedir)
+    valid_extensions = CONFIG.get_all_types_list()
     for ourfile in list_dir:
         if ourfile.startswith(fname):  # or is_valid_booktype(ourfile, booktype="audiobook"):
-            if is_valid_type(ourfile):
+            if is_valid_type(ourfile, extensions=valid_extensions):
                 try:
                     srcfile = os.path.join(sourcedir, ourfile)
                     dstfile = os.path.join(targetdir, ourfile)
@@ -610,7 +611,7 @@ def unpack_archive(archivename, download_dir, title):
             logger.debug("Created target %s" % targetdir)
             # Look for any wanted files (inc jpg for cbr/cbz)
             for item in z.namelist():
-                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -639,7 +640,7 @@ def unpack_archive(archivename, download_dir, title):
 
             logger.debug("Created target %s" % targetdir)
             for item in z.getnames():
-                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -668,7 +669,7 @@ def unpack_archive(archivename, download_dir, title):
 
             logger.debug("Created target %s" % targetdir)
             for item in z.namelist():
-                if is_valid_type(item) and not item.endswith('/'):  # not if it's a directory
+                if is_valid_type(item, extensions=CONFIG.get_all_types_list()) and not item.endswith('/'):  # not if it's a directory
                     logger.debug('Extracting %s to %s' % (item, targetdir))
                     if os.path.__name__ == 'ntpath':
                         dst = os.path.join(targetdir, item.replace('/', '\\'))
@@ -701,7 +702,7 @@ def unpack_archive(archivename, download_dir, title):
                 logger.debug("Created target %s" % targetdir)
                 wanted_files = []
                 for item in z.infoiter():
-                    if not item.isdir and is_valid_type(item.filename):
+                    if not item.isdir and is_valid_type(item.filename, extensions=CONFIG.get_all_types_list()):
                         wanted_files.append(item.filename)
 
                 data = z.read_files("*")
@@ -905,7 +906,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                             elif path_isdir(os.path.join(download_dir, fname)):
                                 # obfuscated folder might contain our file
                                 for f in listdir(os.path.join(download_dir, fname)):
-                                    if is_valid_type(f, extras='cbr, cbz'):
+                                    if is_valid_type(f, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
                                         matchname = unaccented(f, only_ascii=False)
                                         matchname = matchname.split(' LL.(')[0].replace('_', ' ')
                                         matchname = sanitize(matchname)
@@ -927,7 +928,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # things that aren't ours
                                     # note that epub are zipfiles so check booktype first
                                     # and don't unpack cbr/cbz comics'
-                                    if is_valid_type(fname, extras='cbr, cbz'):
+                                    if is_valid_type(fname, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
                                         if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                                             logger.debug('file [%s] is a valid book/mag' % fname)
                                         if bts_file(download_dir):
@@ -972,7 +973,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
 
                                     found = False
                                     for f in listdir(pp_path):
-                                        if is_valid_type(f, extras='cbr, cbz'):
+                                        if is_valid_type(f, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
                                             found = True
                                             break
 
@@ -980,7 +981,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                                     # only unpack first archive, we are only matching one download
                                     if not found:
                                         for f in listdir(pp_path):
-                                            if not is_valid_type(f, extras='cbr, cbz'):
+                                            if not is_valid_type(f, extensions=CONFIG.get_all_types_list(), extras='cbr, cbz'):
                                                 res = unpack_archive(os.path.join(pp_path, f), download_dir, f)
                                                 if res:
                                                     pp_path = res
