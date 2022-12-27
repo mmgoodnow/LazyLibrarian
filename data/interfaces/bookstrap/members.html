@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
@@ -75,7 +76,7 @@
           %for item in ["Wanted", "Have", "Ignored", "Skipped", "Remove", "Delete"]:
             <option value="${item}">${item}</option>
           %endfor
-          %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+          %if CONFIG['USER_ACCOUNTS']:
             <option value="Unread">Unread</option>
             <option value="Read">Read</option>
             <option value="ToRead">To Read</option>
@@ -86,7 +87,7 @@
       </div>
       <input type="submit" class="mark_books btn btn-sm btn-primary" value="Go">
       %endif
-    %if lazylibrarian.CONFIG['TOGGLES']:
+    %if CONFIG['TOGGLES']:
     &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1">  Cover</a>
     <a class="toggle-vis" data-column="2"> Title</a>
     <a class="toggle-vis"  data-column="4"> Num</a>
@@ -203,7 +204,7 @@
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[4, 'asc']],
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
             });
         $('.dataTables_filter input').attr("placeholder", "Results filter");
         //$(window).resize(function() {oTable.draw(false)});

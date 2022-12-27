@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
     <div id="subhead_container" class="row">
@@ -11,7 +12,7 @@
         %else:
           <label class="control-label"> </label>
         %endif
-            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+            %if CONFIG['USER_ACCOUNTS']:
               %if pref&lazylibrarian.pref_myseries:
                 <a href="toggle_my_series" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="All, or just mine"><i class="fa fa-user-circle"></i></a>
               %else:
@@ -55,7 +56,7 @@
           </select>
         </div>
       </div>
-      %if lazylibrarian.CONFIG['TOGGLES']:
+      %if CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Author</a>
           <a class="toggle-vis" data-column="2"> Series</a>
@@ -84,7 +85,7 @@
         </thead>
       </table>
     </div>
-    %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
+    %if perm&lazylibrarian.perm_status or CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
       <label for="mark_series" class="control-label">Change selected series to: </label>
       <select id="mark_series" class="mark_series form-control input-sm" name="action">
@@ -93,7 +94,7 @@
         <option value="${item}">${item}</option>
         %endfor
         %endif
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        %if CONFIG['USER_ACCOUNTS']:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>
@@ -199,7 +200,7 @@
                 "sAjaxSource": 'get_series?whichStatus=${whichStatus}&AuthorID=${authorid}',
                 "bFilter": true,
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     %if perm&lazylibrarian.perm_status == 0:
                       $('td', nRow).eq(0).addClass("hidden");

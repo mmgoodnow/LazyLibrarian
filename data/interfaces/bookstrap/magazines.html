@@ -1,6 +1,7 @@
 <%inherit file="base.html" />
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container" class="row">
@@ -14,8 +15,8 @@
         <a href="past_issues?which_status=Skipped" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-alt"></i> Past Issues</a>
         %endif
         <a href="mag_wall" class="button btn btn-sm btn-primary"><i class="fa fa-calendar-check"></i> Recent Issues</a>
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
-          %if lazylibrarian.CONFIG['RSS_ENABLED']:
+        %if CONFIG['USER_ACCOUNTS']:
+          %if CONFIG['RSS_ENABLED']:
             <a href="rss_feed?user=${user}&type=Magazine&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent downloads"><i class="fa fa-rss"></i></a>
             <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest magazines" href="rss_feed?user=${user}&type=Magazine&limit=10.xml">
           %endif
@@ -50,7 +51,7 @@
   %endif
   <form name="mark_magazines" id="mark_magazines" action="mark_magazines" method="get" class="form-inline" onsubmit="return false;">
     <div class="row">
-      % if perm%lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
+      % if perm%lazylibrarian.perm_status or CONFIG['USER_ACCOUNTS']:
       <div class="col-xs-12 col-sm-5">
         <div class="form-group">
           <label for="action" class="">Mark selected as</label>
@@ -62,7 +63,7 @@
             <option value="Remove">Remove</option>
             <option value="Delete">Delete</option>
             %endif
-            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+            %if CONFIG['USER_ACCOUNTS']:
             <option value="Subscribe">Subscribe</option>
             <option value="Unsubscribe">Unsubscribe</option>
             %endif
@@ -71,7 +72,7 @@
         <button type="submit" class="btn btn-sm btn-primary" onclick="validateForm()">Go</button>
       </div>
       %endif
-      %if lazylibrarian.CONFIG['TOGGLES']:
+      %if CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
           <a class="toggle-vis" data-column="2"> Title</a>
@@ -118,7 +119,7 @@
         var intjob = 0;
         $('#magfilter').val(getUrlVars()['mag_filter']);
 
-        var show = ""+${lazylibrarian.CONFIG['MAG_IMG']};
+        var show = ""+${CONFIG['MAG_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
@@ -165,7 +166,7 @@
                         if ( btn.indexOf('Open') >= 0 ) {
                                 btn = '<a class="button green btn btn-xs btn-warning" href="open_mag?bookid=' +
                                         row[0] + '" target="_self"><i class="fa fa-book"></i>'
-                                %if lazylibrarian.CONFIG['MAG_SINGLE']:
+                                %if CONFIG['MAG_SINGLE']:
                                     if ( row[3] == 1) {
                                         btn = btn + ' Open</a>'
                                         %if len(email):
@@ -204,7 +205,7 @@
                 "bServerSide": true,
                 "sAjaxSource": 'get_mags',
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "bFilter": true,
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     %if perm&lazylibrarian.perm_status == 0:

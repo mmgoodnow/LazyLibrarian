@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
     <div id="subhead_container">
@@ -24,7 +25,7 @@
             &nbsp;
           </div>
         </div>
-        %if lazylibrarian.CONFIG['TOGGLES']:
+        %if CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
         Toggle: <a class="toggle-vis" data-column="0"> Title</a>
         <a class="toggle-vis" data-column="1"> Type</a>
@@ -183,7 +184,7 @@
                 "bFilter": true,
                 "sPaginationType": "full_numbers",
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "fnRowCallback": function (nRow, aData, iDisplayIndex, iDisplayIndexFull) {
                     $('td', nRow).eq(7).addClass('hidden');
                     return nRow;

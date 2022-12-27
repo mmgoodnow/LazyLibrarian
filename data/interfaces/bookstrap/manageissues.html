@@ -1,6 +1,7 @@
 <%inherit file="base.html" />
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headerIncludes()">
   <div id="subhead_container">
@@ -25,7 +26,7 @@
       </select>
     </div>
 
-    %if lazylibrarian.CONFIG['TOGGLES']:
+    %if CONFIG['TOGGLES']:
     &nbsp;&nbsp;Toggle: <a class="toggle-vis" data-column="1"> Title</a>
     <a class="toggle-vis" data-column="2"> Date</a>
     <a class="toggle-vis" data-column="3"> Issue</a>
@@ -101,7 +102,7 @@
                     "sInfoFiltered":"(filtered from _MAX_ total rows)"},
                 "sPaginationType": "full_numbers",
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "aaSorting": [[1, 'asc']],
                 "bServerSide": true,
                 // need to pass requested status filter

@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <%def name="headIncludes()">
 </%def>
@@ -33,7 +34,7 @@
     </div>
     <div class="col-sm-6 col-sm-offset-3">
       <button class="pull-left button btn btn-sm btn-primary" type="button" value="pwd" name="pwd" id="pwd">Reset Password</button>
-      %if lazylibrarian.CONFIG['ADMIN_EMAIL'] != '':
+      %if CONFIG['ADMIN_EMAIL'] != '':
         <a href="user_register" class="pull-right button btn btn-sm btn-primary">Register</a>
       %endif
     </div>

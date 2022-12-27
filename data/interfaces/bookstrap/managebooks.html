@@ -1,6 +1,7 @@
 <%inherit file="base.html" />
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 
 <%def name="headerIncludes()">
@@ -11,7 +12,7 @@
             %if library != 'AudioBook':
               <a href="import_alternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Import eBooks</a>
               <a href="include_alternate" class="button btn btn-sm btn-primary"><i class="fa fa-book"></i> Include eBooks</a>
-              %if lazylibrarian.CONFIG['USER_ACCOUNTS'] and lazylibrarian.CONFIG['IMP_CALIBREDB']:
+              %if CONFIG['USER_ACCOUNTS'] and CONFIG['IMP_CALIBREDB']:
                 <button class="button btn btn-sm btn-primary" type="button" value="synctocalibre" id="synctocalibre">
                 <i class="fa fa-link"></i> Calibre Sync</button>
               %endif
@@ -24,7 +25,7 @@
             <i class="fa fa-download"></i> Import CSV</button>
             <button class="button btn btn-sm btn-primary" type="button" value="exportcsv" id="exportcsv">
             <i class="fa fa-upload"></i> Export CSV</button>
-            %if lazylibrarian.CONFIG['GR_SYNC']:
+            %if CONFIG['GR_SYNC']:
               <button class="button btn btn-sm btn-primary" type="button" value="synctogoodreads" id="synctogoodreads">
               <i class="fa fa-link"></i> Goodreads Sync</button>
             %endif
@@ -65,7 +66,7 @@
                     %endif
                 >${item}</option>
             %endfor
-            %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+            %if CONFIG['USER_ACCOUNTS']:
             <option value="Read"
                 %if whichStatus == "Read":
                     selected = "selected"
@@ -91,7 +92,7 @@
         </div>
       </div>
 
-      %if lazylibrarian.CONFIG['TOGGLES']:
+      %if CONFIG['TOGGLES']:
         <div class="toggles col-xs-12 col-sm-7 text-right">
           Toggle: <a class="toggle-vis" data-column="1"> Cover</a>
           <a class="toggle-vis" data-column="2"> Author</a>
@@ -100,7 +101,7 @@
           <a class="toggle-vis hidden-sm hidden-xs" data-column="5"> Rating</a>
           <a class="toggle-vis" data-column="6"> Released</a>
           <a class="toggle-vis" data-column="7"> Listed</a>
-          %if lazylibrarian.CONFIG['DELAYSEARCH']:
+          %if CONFIG['DELAYSEARCH']:
             <a class="toggle-vis" data-column="8"> Delay</a>
             <a class="toggle-vis" data-column="9"> Search</a>
           %endif
@@ -124,7 +125,7 @@
             <th class="stars text-center hidden-sm hidden-xs">Rating</th>
             <th class="date text-center">Released</th>
             <th class="date text-center">Listed</th>
-            %if lazylibrarian.CONFIG['DELAYSEARCH']:
+            %if CONFIG['DELAYSEARCH']:
                 %if whichStatus == 'Wanted':
                     <th class="stars text-center no-sort">Delay</th>
                     <th class="date text-center no-sort">Last Search</th>
@@ -134,7 +135,7 @@
         </thead>
       </table>
     </div>
-    %if perm&lazylibrarian.perm_status or lazylibrarian.CONFIG['USER_ACCOUNTS']:
+    %if perm&lazylibrarian.perm_status or CONFIG['USER_ACCOUNTS']:
     <div class="form-group">
       <label for="mark_books" class="control-label">Mark selected ${library}s as</label>
       <select id="mark_books" class="mark_books form-control input-sm" name="action">
@@ -156,14 +157,14 @@
             <option value="${item}">${item}</option>
           %endfor
         %endif
-        %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+        %if CONFIG['USER_ACCOUNTS']:
         <option value="Unread">Unread</option>
         <option value="Read">Read</option>
         <option value="ToRead">To Read</option>
         <option value="Reading">Reading</option>
         <option value="Abandoned">Abandoned</option>
         %endif
-        %if lazylibrarian.CONFIG['DELAYSEARCH']:
+        %if CONFIG['DELAYSEARCH']:
         <option value="NoDelay">No Delay</option>
         %endif
       </select>
@@ -181,7 +182,7 @@
     {
         var selected = [];
 
-        var show = ""+${lazylibrarian.CONFIG['BOOK_IMG']};
+        var show = ""+${CONFIG['BOOK_IMG']};
             if ( show != '1' ) { showimg = false }
             else { showimg = true }
 
@@ -311,7 +312,7 @@
                         }
                         return output.join('<br>');
                     }},
-                    %if lazylibrarian.CONFIG['RATESTARS']:
+                    %if CONFIG['RATESTARS']:
                     { targets: [5],
                         'class': 'text-center',
                         'render': function(data, type, row) {
@@ -323,7 +324,7 @@
                         'class': 'text-center',
                         'render': function(data, type, row) {
                             return row[16] + '<br>' + row[17];} },
-                    %if lazylibrarian.CONFIG['DELAYSEARCH']:
+                    %if CONFIG['DELAYSEARCH']:
                         %if whichStatus == 'Wanted':
                             { targets: [8],
                                 'class': 'text-center',
@@ -344,7 +345,7 @@
                     "sInfoEmpty":"Showing 0 to 0 of 0 rows",
                     "sInfoFiltered":"(filtered from _MAX_ total rows)"},
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "sPaginationType": "full_numbers",
                 "aaSorting": [[2, 'asc']],
                 "bServerSide": true,

@@ -1,6 +1,7 @@
 <%inherit file="base.html"/>
 <%!
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
     from lazylibrarian import formatter
     from lazylibrarian.logger import lazylibrarian_log
 %>
@@ -37,7 +38,7 @@
         </select>
       </div>
     </div>
-    %if lazylibrarian.CONFIG['TOGGLES']:
+    %if CONFIG['TOGGLES']:
       <div class="toggles col-xs-12 col-sm-7 text-right">
         Toggle: <a class="toggle-vis" data-column="0"> Timestamp</a>
         <a class="toggle-vis" data-column="1"> Level</a>
@@ -95,7 +96,7 @@
                     "sInfoFiltered":"(filtered from _MAX_ total rows)"
                 },
                 "aLengthMenu": [[5, 10, 15, 25, 50, 100, -1], [5, 10, 15, 25, 50, 100, "All"]],
-                "iDisplayLength": ${lazylibrarian.CONFIG['DISPLAYLENGTH']},
+                "iDisplayLength": ${CONFIG['DISPLAYLENGTH']},
                 "sPaginationType": "full_numbers",
                 "aaSorting": [],
                 "bServerSide": true,

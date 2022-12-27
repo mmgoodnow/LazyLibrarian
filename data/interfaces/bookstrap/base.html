@@ -1,5 +1,6 @@
 <%
     import lazylibrarian
+    from lazylibrarian.config2 import CONFIG
 %>
 <!doctype html>
 <html>
@@ -185,7 +186,7 @@
               <ul class="nav navbar-nav">
                 <!--li><a href="home" class="navbarele">Authors</a></li-->
                 %if perm > 0:
-                  %if lazylibrarian.CONFIG['USER_ACCOUNTS']:
+                  %if CONFIG['USER_ACCOUNTS']:
                     %if lazylibrarian.SHOWLOGOUT == 1:
                       <li><a href="logout" class="navbarele" id="logout">Logout</a></li>
                     %endif
@@ -194,24 +195,24 @@
                     %endif
                   %endif
                 %endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Authors':
+                % if CONFIG['HOMEPAGE'] != 'Authors':
                   <li><a id="authors" href="authors" class="navbarele">Authors</a></li>
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'eBooks':
+                % if CONFIG['HOMEPAGE'] != 'eBooks':
                 % if lazylibrarian.SHOW_EBOOK:
                   % if perm&lazylibrarian.perm_ebook:
                   <li><a id="books" href="books" class="navbarele">eBooks</a></li>
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Series':
+                % if CONFIG['HOMEPAGE'] != 'Series':
                 % if lazylibrarian.SHOW_SERIES:
                   %if perm&lazylibrarian.perm_series:
                   <li><a id="series" href="series" class="navbarele">Series</a></li>
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'AudioBooks':
+                % if CONFIG['HOMEPAGE'] != 'AudioBooks':
                 % if lazylibrarian.SHOW_AUDIO:
                   %if perm&lazylibrarian.perm_audio:
                   <li><a id="audio" href="audio" class="navbarele">
@@ -222,7 +223,7 @@
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Magazines':
+                % if CONFIG['HOMEPAGE'] != 'Magazines':
                 % if lazylibrarian.SHOW_MAGS:
                   %if perm&lazylibrarian.perm_magazines:
                   <li><a id="magazines" href="magazines" class="navbarele">
@@ -233,7 +234,7 @@
                   % endif
                 % endif
                 % endif
-                % if lazylibrarian.CONFIG['HOMEPAGE'] != 'Comics':
+                % if CONFIG['HOMEPAGE'] != 'Comics':
                 % if lazylibrarian.SHOW_COMICS:
                   %if perm&lazylibrarian.perm_comics:
                   <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
@@ -275,19 +276,19 @@
     <script type="text/javascript">
       msg = '';
       % if not lazylibrarian.SUPPRESS_UPDATE:
-      % if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' or lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+      % if CONFIG['INSTALL_TYPE'] == 'git' or CONFIG['INSTALL_TYPE'] == 'source':
           title = 'LazyLibrarian Update'
-          % if not lazylibrarian.CONFIG['CURRENT_VERSION']:
+          % if not CONFIG['CURRENT_VERSION']:
               msg = '<div class="input-group">You are running an unknown version of lazylibrarian</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release">Update</a></div>'
-          % elif (lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source' and lazylibrarian.CONFIG['CURRENT_VERSION'] == 'No Version File' ):
+          % elif (CONFIG['INSTALL_TYPE'] == 'source' and CONFIG['CURRENT_VERSION'] == 'No Version File' ):
               msg = '<div class="input-group">You are running an unknown version via source install</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the message for 24 hours" id="ignoreUpdate">Ignore</a>&nbsp;<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release">Update</a></div>'
-          % elif lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION']:
-              % if lazylibrarian.CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
+          % elif CONFIG['CURRENT_VERSION'] != CONFIG['LATEST_VERSION']:
+              % if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
                   msg = '<div class="input-group">Unable to get the latest version from git</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') < 0:
+              % elif CONFIG.get_int('COMMITS_BEHIND') < 0:
                   msg = '<div class="input-group">Running a local updated version. Push changes to git or rollback to Master release</div><div class="pull-right"><a href="#" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Ignore the warning for 24 hours" id="ignoreUpdate">Ignore</a></div>'
-              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') > 1:
-                  msg = '<div class="input-group">New version available. You are ${lazylibrarian.CONFIG['COMMITS_BEHIND']} commits behind.'
+              % elif CONFIG.get_int('COMMITS_BEHIND') > 1:
+                  msg = '<div class="input-group">New version available. You are ${CONFIG['COMMITS_BEHIND']} commits behind.'
                   % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
                     msg += '</div> <strong>Manual update is required</strong>'
                   % endif
@@ -296,7 +297,7 @@
                     msg += '<a href="update" class="btn btn-xs btn-primary" data-toggle="tooltip" title="Update to the latest release" id="doUpdate">Update</a>&nbsp;'
                   % endif
                   msg += '<button class="btn btn-xs btn-primary" type="button" id="getChangelog">Changes</button></div>'
-              % elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 1:
+              % elif CONFIG.get_int('COMMITS_BEHIND') == 1:
                   msg = '<div class="input-group">New version available. You are one commit behind.'
                   % if "**MANUAL**" in lazylibrarian.COMMIT_LIST:
                     msg += '</div> <strong>Manual update is required</strong>'
