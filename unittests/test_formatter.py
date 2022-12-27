@@ -36,12 +36,12 @@ class FormatterTest(LLTestCase):
                 pass # P37: unicodedata.is_normalized is not valid in Python 3.7
 
     def test_url_fix(self):
-        URLs = [
+        urls = [
             ("http://www.random.com/query?test=123", 'http://www.random.com/query?test=123'),
             ("https://10.11.12.13:1234/query?test=I am :a pup/py:&x y", 'https://10.11.12.13:1234/query?test=I+am+:a+pup%2Fpy:&x+y'),
             ("I am not an Über URL '+chr(8)", 'I%20am%20not%20an%20U%CC%88ber%20URL%20%27%2Bchr%288%29'),
         ]
-        for url in URLs:
+        for url in urls:
             self.assertEqual(formatter.url_fix(url[0]), url[1])
 
     def test_make_bytestr(self):
@@ -234,10 +234,10 @@ class FormatterTest(LLTestCase):
 
     def test_age(self):
         dates = [
-            ("2000-01-02"),
-            ("2000-1-3"),
-            ("99-01-04"),
-            ("99-01-01"),
+            "2000-01-02",
+            "2000-1-3",
+            "99-01-04",
+            "99-01-01",
         ]
         for date in dates:
             self.assertEqual(formatter.age(date), formatter.datecompare(formatter.today(), date))
@@ -330,8 +330,8 @@ class FormatterTest(LLTestCase):
             ("This is a test", "ce114e4501d2f4e2dcea3e17b546f339"),
             ("Using ÆØÅ, æøå and ½é", "93addf1c05adc126200c25b512a3cdbd"),
         ]
-        for str in strings:
-            self.assertEqual(formatter.md5_utf8(str[0]), str[1])
+        for teststr in strings:
+            self.assertEqual(formatter.md5_utf8(teststr[0]), teststr[1])
 
     def test_make_utf8bytes(self):
         strings = [
@@ -339,9 +339,9 @@ class FormatterTest(LLTestCase):
             ("This is a test", b'This is a test', ""),
             ("ÆØÅ, æøå and ½é", b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', "ISO-8859-15"),
         ]
-        for str in strings:
-            encoded, name = formatter.make_utf8bytes(str[0])
-            self.assertEqual((encoded, name), (str[1], str[2]))
+        for teststr in strings:
+            encoded, name = formatter.make_utf8bytes(teststr[0])
+            self.assertEqual((encoded, name), (teststr[1], teststr[2]))
 
     def test_make_unicode(self):
         strings = [
@@ -354,8 +354,8 @@ class FormatterTest(LLTestCase):
             (b'\xc3\x28', 'Ã(' ), # Invalid 2-byte sequence
 
         ]
-        for str in strings:
-            self.assertEqual(formatter.make_unicode(str[0]), str[1])
+        for teststr in strings:
+            self.assertEqual(formatter.make_unicode(teststr[0]), teststr[1])
 
     def test_is_valid_isbn(self):
         isbns = [
@@ -402,14 +402,14 @@ class FormatterTest(LLTestCase):
         filenames_ok = [
             # Books: 'epub, mobi, pdf'
             ("A volume.pdf", ("book", "mag")),
-            ("TEST.EPUB", ("book")),
-            ("Book 2.mobi", ("book")),
+            ("TEST.EPUB", "book"),
+            ("Book 2.mobi", "book"),
             # Audiobooks: mp3, m4b
-            ("Audio.mp3", ("audio")),
-            ("Adio.m4b", ("audio")),
+            ("Audio.mp3", "audio"),
+            ("Adio.m4b", "audio"),
             # Comics: cbr, cbz
-            ("Marvel.Cbr", ("comic")),
-            ("DC.cbZ", ("comic")),
+            ("Marvel.Cbr", "comic"),
+            ("DC.cbZ", "comic"),
             # Magazines: .pdf
             ("My mag.pdf", ("mag", "book"))
         ]
@@ -471,7 +471,7 @@ class FormatterTest(LLTestCase):
             ("Allan Testing Pedersen Snr", "Pedersen Snr, Allan Testing"),
         ]
         for name in testnames:
-            authorname = formatter.surname_first(name[0])
+            authorname = formatter.surname_first(name[0], postfixes=CONFIG.get_list('NAME_POSTFIX'))
             self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_format_author_name(self):

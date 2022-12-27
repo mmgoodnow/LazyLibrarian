@@ -390,7 +390,7 @@ class WebInterface(object):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     arow = list(row)
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        arow[1] = surname_first(arow[1])
+                        arow[1] = surname_first(arow[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     if CONFIG.get_bool('SORT_DEFINITE'):
                         arow[2] = sort_definite(arow[2])
                     arow[3] = date_format(arow[3], '')
@@ -1169,7 +1169,7 @@ class WebInterface(object):
 
                 for row in filtered:
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        row[1] = surname_first(row[1])
+                        row[1] = surname_first(row[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     have = check_int(row[6], 0)
                     total = check_int(row[7], 0)
                     if total:
@@ -2419,7 +2419,7 @@ class WebInterface(object):
                     if entry[16] is None:
                         entry[16] = ""
                     if CONFIG.get_bool('SORT_SURNAME'):
-                        entry[1] = surname_first(entry[1])
+                        entry[1] = surname_first(entry[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     if CONFIG.get_bool('SORT_DEFINITE'):
                         entry[2] = sort_definite(entry[2])
                     rows.append(entry)  # add each rowlist to the masterlist

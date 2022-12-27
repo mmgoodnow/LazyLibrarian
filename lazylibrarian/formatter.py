@@ -739,17 +739,14 @@ def sort_definite(title: str, config: Optional[ConfigDict]=None) -> str:
     return title
 
 
-def surname_first(authorname: str, config: Optional[ConfigDict]=None) -> str:
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
-    """ swap authorname round into surname, forenames for display and sorting"""
+def surname_first(authorname: str, postfixes: List[str]) -> str:
+    """ Swap authorname round into surname, forenames for display and sorting"""
     words = get_list(authorname)
     if len(words) < 2:
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower() in get_list(config['NAME_POSTFIX']):
+    if res.strip('.').lower() in postfixes:
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 

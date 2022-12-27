@@ -3294,7 +3294,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                 entries.append([name.strip(), role.strip()])
                 if names:
                     names = names + ' &amp; '
-                names = names + surname_first(name)
+                names = names + surname_first(name, postfixes=CONFIG.get_list('NAME_POSTFIX'))
         for entry in entries:
             opfinfo += '        <dc:creator opf:file-as="%s" opf:role="%s">%s</dc:creator>\n' % \
                        (names, entry[1], entry[0])
@@ -3303,7 +3303,7 @@ def create_opf(dest_path=None, data=None, global_name=None, overwrite=False):
                    (data['FileAs'], data['FileAs'])
     else:
         opfinfo += '        <dc:creator opf:file-as="%s" opf:role="aut">%s</dc:creator>\n' % \
-                   (surname_first(data['AuthorName']), data['AuthorName'])
+                   (surname_first(data['AuthorName'], postfixes=CONFIG.get_list('NAME_POSTFIX')), data['AuthorName'])
     if data.get('BookIsbn', ''):
         opfinfo += '        <dc:identifier opf:scheme="ISBN">%s</dc:identifier>\n' % data['BookIsbn']
 

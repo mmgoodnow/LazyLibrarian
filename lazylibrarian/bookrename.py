@@ -586,7 +586,7 @@ def name_vars(bookid, abridged=''):
         seriesname = 'The Lord of the Rings'
         mydict['Author'] = 'J.R.R. Tolkien'
         mydict['Title'] = 'The Fellowship of the Ring'
-        mydict['SortAuthor'] = surname_first(mydict['Author'])
+        mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
         mydict['SortTitle'] = sort_definite(mydict['Title'])
         mydict['Part'] = '1'
         mydict['Total'] = '3'
@@ -713,7 +713,7 @@ def name_vars(bookid, abridged=''):
         if exists:
             mydict['Author'] = exists['AuthorName']
             mydict['Title'] = exists['BookName']
-            mydict['SortAuthor'] = surname_first(mydict['Author'])
+            mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
             mydict['SortTitle'] = sort_definite(mydict['Title'])
         else:
             mydict['Author'] = ''
