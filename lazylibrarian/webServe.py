@@ -52,8 +52,7 @@ from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_d
     irc_dl_method
 from lazylibrarian.formatter import unaccented, plural, now, today, check_int, \
     safe_unicode, clean_name, surname_first, sort_definite, get_list, make_unicode, make_utf8bytes, \
-    md5_utf8, date_format, check_year, disp_name, replace_quotes_with, format_author_name, \
-    check_float, thread_name
+    md5_utf8, date_format, check_year, replace_quotes_with, format_author_name, check_float, thread_name
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.images import get_book_cover, create_mag_cover, coverswap, get_author_image, createthumb
@@ -2216,7 +2215,7 @@ class WebInterface(object):
                 logger.info('Downloading %s %s from %s' % (library, bookdata["BookName"], provider))
                 custom_notify_snatch("%s %s" % (bookid, library))
                 notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"], only_ascii=False),
-                                                    disp_name(provider), now()))
+                                                    CONFIG.disp_name(provider), now()))
                 schedule_job(action='Start', target='PostProcessor')
             else:
                 db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?', (res, url))
@@ -5864,7 +5863,7 @@ class WebInterface(object):
                         row[0] = title
                     # provider name needs to be shorter and with spaces for column resizing
                     if row[3]:
-                        row[3] = disp_name(row[3].strip('/'))
+                        row[3] = CONFIG.disp_name(row[3].strip('/'))
                     # separate out rowid and other additions, so we don't break legacy interface
                     rowid = row[9]
                     row = row[:9]
@@ -6004,7 +6003,7 @@ class WebInterface(object):
             message += "Type: %s %s<br>" % (match['NZBmode'], dltype)
             message += "Date: %s<br>" % match['NZBdate']
             message += "Size: %s Mb<br>" % match['NZBsize']
-            message += "Provider: %s<br>" % disp_name(match['NZBprov'])
+            message += "Provider: %s<br>" % CONFIG.disp_name(match['NZBprov'])
             message += "Downloader: %s<br>" % match['Source']
             message += "DownloadID: %s<br>" % match['DownloadID']
             message += "URL: %s<br>" % match['NZBurl']
@@ -6169,7 +6168,7 @@ class WebInterface(object):
         result = ''
         downloads = db.select('SELECT Count,Provider FROM downloads ORDER BY Count DESC')
         for line in downloads:
-            provname = disp_name(line['Provider'].strip('/'))
+            provname = CONFIG.disp_name(line['Provider'].strip('/'))
             new_entry = "%4d - %s\n" % (line['Count'], provname)
             result = result + new_entry
 

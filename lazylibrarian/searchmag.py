@@ -24,7 +24,7 @@ from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
-    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, disp_name, thread_name
+    nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -555,7 +555,7 @@ def download_maglist(maglist, table='wanted'):
                 logger.info('Downloading %s from %s' % (magazine['nzbtitle'], magazine["nzbprov"]))
                 custom_notify_snatch("%s %s" % (magazine['bookid'], magazine['nzburl']))
                 notify_snatch("Magazine %s from %s at %s" % (unaccented(magazine['nzbtitle'], only_ascii=False),
-                              disp_name(magazine["nzbprov"]), now()))
+                              CONFIG.disp_name(magazine["nzbprov"]), now()))
             else:
                 db.action('UPDATE ' + table + ' SET status="Failed",DLResult=? WHERE NZBurl=?',
                           (res, magazine["nzburl"]))

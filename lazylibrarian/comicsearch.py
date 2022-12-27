@@ -18,7 +18,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
-    now, disp_name, thread_name
+    now, thread_name
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
@@ -336,7 +336,7 @@ def download_comiclist(foundissues):
                 custom_notify_snatch("%s %s" % (bookid, item['url']))
                 notify_snatch("Comic %s from %s at %s" %
                               (unaccented(item['title'], only_ascii=False),
-                               disp_name(item["provider"]), now()))
+                               CONFIG.disp_name(item["provider"]), now()))
             else:
                 db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                           (res, item["url"]))

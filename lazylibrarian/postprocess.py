@@ -44,7 +44,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, pat
     make_dirs, safe_move, safe_copy, opf_file, bts_file, jpg_file, book_file, get_directory
 from lazylibrarian.formatter import unaccented, plural, now, today, \
     replace_all, get_list, surname_first, make_unicode, check_int, is_valid_type, split_title, \
-    make_utf8bytes, disp_name, sanitize, thread_name
+    make_utf8bytes, sanitize, thread_name
 from lazylibrarian.images import createthumbs
 from lazylibrarian.importer import add_author_to_db, add_author_name_to_db, update_totals, search_for, import_book
 from lazylibrarian.librarysync import get_book_info, find_book_in_db, library_scan, get_book_meta
@@ -1396,7 +1396,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         logger.info('Successfully processed: %s' % global_name)
 
                         ppcount += 1
-                        dispname = disp_name(book['NZBprov'])
+                        dispname = CONFIG.disp_name(book['NZBprov'])
                         if CONFIG.get_bool('NOTIFY_WITH_TITLE'):
                             dispname = "%s: %s" % (dispname, book['NZBtitle'])
                         if CONFIG.get_bool('NOTIFY_WITH_URL'):
@@ -1415,7 +1415,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
                         update_downloads(book['NZBprov'])
                     else:
                         logger.error('Postprocessing for %s has failed: %s' % (repr(global_name), repr(dest_file)))
-                        dispname = disp_name(book['NZBprov'])
+                        dispname = CONFIG.disp_name(book['NZBprov'])
                         custom_notify_snatch("%s %s" % (book['BookID'], booktype), fail=True)
                         notify_snatch("%s %s from %s at %s" %
                                       (booktype, global_name, dispname, now()), fail=True)
@@ -2353,7 +2353,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 # update nzbs
                 dest_file = make_unicode(dest_file)
                 if was_snatched:
-                    snatched_from = disp_name(was_snatched[0]['NZBprov'])
+                    snatched_from = CONFIG.disp_name(was_snatched[0]['NZBprov'])
                     if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                         logger.debug("%s was snatched from %s" % (global_name, snatched_from))
                     control_value_dict = {"BookID": bookid}
@@ -2394,7 +2394,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                 notify_download("%s %s %s%s at %s" % (booktype, global_name, frm, snatched_from, now()), bookid)
                 mailing_list(booktype, global_name, bookid)
                 if was_snatched:
-                    update_downloads(disp_name(was_snatched[0]['NZBprov']))
+                    update_downloads(CONFIG.disp_name(was_snatched[0]['NZBprov']))
                 else:
                     update_downloads("manually added")
                 return True
