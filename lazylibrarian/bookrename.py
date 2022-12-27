@@ -587,7 +587,7 @@ def name_vars(bookid, abridged=''):
         mydict['Author'] = 'J.R.R. Tolkien'
         mydict['Title'] = 'The Fellowship of the Ring'
         mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
-        mydict['SortTitle'] = sort_definite(mydict['Title'])
+        mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
         mydict['Part'] = '1'
         mydict['Total'] = '3'
         res = {}
@@ -714,7 +714,7 @@ def name_vars(bookid, abridged=''):
             mydict['Author'] = exists['AuthorName']
             mydict['Title'] = exists['BookName']
             mydict['SortAuthor'] = surname_first(mydict['Author'], postfixes=CONFIG.get_list('NAME_POSTFIX'))
-            mydict['SortTitle'] = sort_definite(mydict['Title'])
+            mydict['SortTitle'] = sort_definite(mydict['Title'], articles=CONFIG.get_list('NAME_DEFINITE'))
         else:
             mydict['Author'] = ''
             mydict['Title'] = ''

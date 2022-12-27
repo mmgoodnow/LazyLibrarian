@@ -446,7 +446,7 @@ class FormatterTest(LLTestCase):
             ("A", "A"),
         ]
         for s in strings:
-            self.assertEqual(formatter.sort_definite(s[0]), s[1])
+            self.assertEqual(formatter.sort_definite(s[0], articles=['the', 'a']), s[1])
 
     def test_surname_first(self):
         testnames = [

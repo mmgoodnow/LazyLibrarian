@@ -718,10 +718,7 @@ def format_author_name(author: str, postfix: List[str]) -> str:
     return res
 
 
-def sort_definite(title: str, config: Optional[ConfigDict]=None) -> str:
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
+def sort_definite(title: str, articles=List[str]) -> str:
     """
     Return the sort string for a title, moving prefixes
     we want to ignore to the end, like The or A
@@ -730,7 +727,7 @@ def sort_definite(title: str, config: Optional[ConfigDict]=None) -> str:
     if len(words) < 2:
         return title
     word = words.pop(0)
-    if word.lower() in get_list(config['NAME_DEFINITE']):
+    if word.lower() in articles:
         return ' '.join(words) + ', ' + word
     return title
 

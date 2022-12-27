@@ -392,7 +392,7 @@ class WebInterface(object):
                     if CONFIG.get_bool('SORT_SURNAME'):
                         arow[1] = surname_first(arow[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     if CONFIG.get_bool('SORT_DEFINITE'):
-                        arow[2] = sort_definite(arow[2])
+                        arow[2] = sort_definite(arow[2], articles=CONFIG.get_list('NAME_DEFINITE'))
                     arow[3] = date_format(arow[3], '')
                     nrow = arow[:4]
                     havebooks = check_int(arow[7], 0)
@@ -2421,7 +2421,7 @@ class WebInterface(object):
                     if CONFIG.get_bool('SORT_SURNAME'):
                         entry[1] = surname_first(entry[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     if CONFIG.get_bool('SORT_DEFINITE'):
-                        entry[2] = sort_definite(entry[2])
+                        entry[2] = sort_definite(entry[2], articles=CONFIG.get_list('NAME_DEFINITE'))
                     rows.append(entry)  # add each rowlist to the masterlist
                 if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                     logger.debug("get_books surname/definite completed")
