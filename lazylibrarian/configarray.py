@@ -54,7 +54,7 @@ class ArrayConfig:
         else:
             return ''
 
-    # Allow ArrayConfig to be iterated over
+    # Allow ArrayConfig to be iterated over, ignoring the index
     def __iter__(self):
         return self._configs.values().__iter__()
 

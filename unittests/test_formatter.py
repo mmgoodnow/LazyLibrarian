@@ -550,7 +550,7 @@ class FormatterTest(LLTestCase):
         ]
         for p in providers:
             with self.subTest(f"Transforming {p[0]}"):
-                self.assertEqual(formatter.disp_name(p[0]), p[1])
+                self.assertEqual(CONFIG.disp_name(p[0]), p[1])
 
     def test_replace_quotes_with(self):
         allchars = ''

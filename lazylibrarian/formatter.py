@@ -18,11 +18,10 @@ import os
 import re
 import unicodedata
 import threading
-from typing import Optional, List
+from typing import List
 
 import lazylibrarian
 from lazylibrarian import logger
-from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
@@ -838,30 +837,3 @@ def replace_quotes_with(text, char):
     replaces = re.compile('[%s]' % re.escape(''.join(lazylibrarian.common.quotes)))
     return replaces.sub(char, text)
 
-
-def disp_name(provider: str) -> str:
-    # TODO: Move this method to a place where config2 can be imported
-    """
-    Strange function. Returns the display name of a provider that
-    matches the host name provided as parameter, if any.
-    If not, returns the host name provided, shortened if too long.
-    """
-    from lazylibrarian import configdefs
-    from lazylibrarian.config2 import CONFIG
-    provname = ''
-    for name, definitions in configdefs.ARRAY_DEFS.items():
-        key = definitions[0] # Primary key for this array type
-        array = CONFIG.providers(name)
-        if array and not provname:
-            for index, config in array._configs.items():
-                if config[key].strip('/') == provider:
-                    provname = config['DISPNAME']
-                    break
-
-    if not provname:
-        provname = provider
-    if len(provname) > 20:
-        while len(provname) > 20 and '/' in provname:
-            provname = provname.split('/', 1)[1]
-        provname = provname.replace('/', ' ')
-    return provname

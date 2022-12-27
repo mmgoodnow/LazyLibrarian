@@ -556,6 +556,31 @@ class LLConfigHandler(ConfigDict):
              count += 1
         return count
 
+    def disp_name(self, provider: str) -> str:
+        """
+        Strange function. Returns the display name of a provider that
+        matches the host name provided as parameter, if any.
+        If not, returns the host name provided, shortened if too long.
+        """
+        provname = ''
+        # Iterate over each type of provider
+        for name, definitions in ARRAY_DEFS.items():
+            key = definitions[0] # Primary key for this array type
+            array = self.providers(name)
+            if array and not provname: # If we have not yet got a result...
+                 for config in array:
+                     if config[key].strip('/') == provider:
+                        provname = config['DISPNAME']
+                        break
+
+        if not provname:
+            provname = provider
+        if len(provname) > 20:
+            while len(provname) > 20 and '/' in provname:
+                provname = provname.split('/', 1)[1]
+            provname = provname.replace('/', ' ')
+        return provname
+
 ### Global configuration holder
 CONFIG = LLConfigHandler(defaults=BASE_DEFAULTS)
 
