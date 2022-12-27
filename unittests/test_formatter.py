@@ -521,15 +521,11 @@ class FormatterTest(LLTestCase):
             ('Test ' + u'\xdf', 'Test ss'),
         ]
         # no_umlauts only does something if German is a language used
-        lang = CONFIG['IMP_PREFLANG']
-        CONFIG.set_str('IMP_PREFLANG', 'eng')
         # First test that nothing changes without German
         for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0]), s[0])
-        CONFIG.set_str('IMP_PREFLANG', 'de')
+            self.assertEqual(formatter.no_umlauts(s[0], ['en', 'da', 'languageX']), s[0])
         for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0]), s[1])
-        CONFIG.set_str('IMP_PREFLANG', lang)
+            self.assertEqual(formatter.no_umlauts(s[0], ['en', 'de']), s[1])
 
     def test_disp_name(self):
         # Add some dummy data to test on

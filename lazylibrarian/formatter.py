@@ -759,11 +759,9 @@ def clean_name(name, extras=None):
     return name
 
 
-def no_umlauts(s: str, config: Optional[ConfigDict]=None) -> str:
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
-    if 'de' not in get_list(config['IMP_PREFLANG']):
+def no_umlauts(s: str, languages: List[str]) -> str:
+    """ Replace umlauts from the string, unless German is a preferred language """
+    if 'de' not in languages:
         return s
 
     s = replace_all(s, umlaut_dict)

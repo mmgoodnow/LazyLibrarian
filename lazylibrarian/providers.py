@@ -646,7 +646,7 @@ def iterate_over_torrent_sites(book=None, search_type=None):
             book['searchterm'] = bookname
         else:
             book['searchterm'] = authorname + ' ' + bookname
-        book['searchterm'] = no_umlauts(book['searchterm'])
+        book['searchterm'] = no_umlauts(book['searchterm'], languages=CONFIG.get_list('IMP_PREFLANG'))
 
     for prov in ['KAT', 'TPB', 'WWT', 'ZOO', 'TDL', 'TRF', 'LIME']:
         if lazylibrarian_log.LOGLEVEL & logger.log_iterateproviders:
@@ -2064,7 +2064,7 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
     params = None
     if search_type in ["book", "shortbook", 'titlebook']:
         authorname, bookname = get_searchterm(book, search_type)
-        bookname = no_umlauts(bookname)
+        bookname = no_umlauts(bookname, languages=CONFIG.get_list('IMP_PREFLANG'))
         if provider['BOOKSEARCH'] and provider['BOOKCAT']:  # if specific booksearch, use it
             if provider['BOOKSEARCH'] == 'bibliotik':
                 params = {
@@ -2090,7 +2090,7 @@ def return_search_structure(provider: ConfigDict, api_key, book, search_type, se
             }
     elif search_type in ["audio", "shortaudio"]:
         authorname, bookname = get_searchterm(book, search_type)
-        bookname = no_umlauts(bookname)
+        bookname = no_umlauts(bookname, languages=CONFIG.get_list('IMP_PREFLANG'))
         if provider['AUDIOSEARCH'] and provider['AUDIOCAT']:  # if specific audiosearch, use it
             params = {
                 "t": provider['AUDIOSEARCH'],
