@@ -23,7 +23,8 @@ import os
 import sys
 import requests
 from collections import defaultdict
-import lazylibrarian
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import LLConfigHandler
@@ -169,8 +170,8 @@ class LazyTelemetry(object):
         return json.dumps(senddata, indent = 2 if pretty else None)
 
     def get_data_for_ui_preview(self, send_config: bool, send_usage: bool):
-        self.set_install_data(lazylibrarian.CONFIG, testing=False)
-        self.set_config_data(lazylibrarian.CONFIG)
+        self.set_install_data(CONFIG, testing=False)
+        self.set_config_data(CONFIG)
         return self.get_json(send_config, send_usage, pretty=True)
 
     def construct_data_string(self, send_config: bool, send_usage: bool, send_server: bool=True):
@@ -255,14 +256,14 @@ def telemetry_send() -> str:
     if "Thread-" in threadname:
         thread_name("TELEMETRYSEND")
     try:
-        TELEMETRY.set_install_data(lazylibrarian.CONFIG, testing=False)
-        TELEMETRY.set_config_data(lazylibrarian.CONFIG)
-        if lazylibrarian.CONFIG['TELEMETRY_SERVER'] == '':
+        TELEMETRY.set_install_data(CONFIG, testing=False)
+        TELEMETRY.set_config_data(CONFIG)
+        if CONFIG['TELEMETRY_SERVER'] == '':
             result, status = 'No telemetry server configured', False
         else:
-            server = lazylibrarian.CONFIG['TELEMETRY_SERVER']
-            send_config = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_CONFIG')
-            send_usage = lazylibrarian.CONFIG.get_bool('TELEMETRY_SEND_USAGE')
+            server = CONFIG['TELEMETRY_SERVER']
+            send_config = CONFIG.get_bool('TELEMETRY_SEND_CONFIG')
+            send_usage = CONFIG.get_bool('TELEMETRY_SEND_USAGE')
             result, status = TELEMETRY.submit_data(server, send_config, send_usage)
             if result:
                 result = result.splitlines()[0]  # Return only the first line

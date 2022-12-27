@@ -18,8 +18,8 @@ import time
 import datetime
 import traceback
 
-import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import mime_type, path_exists
 from urllib.parse import unquote_plus
 
@@ -32,7 +32,7 @@ except ImportError:
 
 def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
     res = ''
-    if not lazylibrarian.CONFIG.get_bool('RSS_ENABLED'):
+    if not CONFIG.get_bool('RSS_ENABLED'):
         return res
     # noinspection PyBroadException
     try:
@@ -44,7 +44,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             cmd += "BookLibrary != '' and books.AuthorID = authors.AuthorID order by BookLibrary desc limit ?"
             baselink = baseurl + '/book_wall&have=1'
         elif ftype == 'AudioBook':
-            podcast = lazylibrarian.CONFIG.get_bool('RSS_PODCAST')
+            podcast = CONFIG.get_bool('RSS_PODCAST')
             cmd = "select AuthorName,BookName,BookSub,BookDesc,AudioLibrary,AudioFile,BookID "
             cmd += "from books,authors where "
             if authorid:
@@ -181,7 +181,7 @@ def gen_feed(ftype, limit=10, user=0, baseurl='', authorid=None, onetitle=None):
             image='%s/serve_img/%s%s.png' % (baseurl, user, ''),
             explicit="clean",
             categories=iTunesCategory(name='AudioBooks', subcategory='Recent AudioBooks'),
-            owner=iTunesOwner(name='LazyLibrarian', email=lazylibrarian.CONFIG['ADMIN_EMAIL']))
+            owner=iTunesOwner(name='LazyLibrarian', email=CONFIG['ADMIN_EMAIL']))
 
         title = "%s Recent Downloads" % ftype
         if authorid and results:

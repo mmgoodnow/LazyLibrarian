@@ -18,6 +18,7 @@ import uuid
 from shutil import copyfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata, cv_issue, cx_issue
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, walk, setperm, get_directory
@@ -36,7 +37,7 @@ def comic_scan(comicid=None):
             mags = db.match('select Title from comics WHERE ComicID=?', (comicid,))
             if mags:
                 title = mags['Title']
-        mag_path = lazylibrarian.CONFIG['COMIC_DEST_FOLDER']
+        mag_path = CONFIG['COMIC_DEST_FOLDER']
         if title and '$Title' in mag_path:
             comic_name = unaccented(sanitize(title), only_ascii=False)
             mag_path = mag_path.replace('$Title', comic_name)
@@ -47,10 +48,10 @@ def comic_scan(comicid=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if lazylibrarian.CONFIG.get_bool('COMIC_RELATIVE'):
+        if CONFIG.get_bool('COMIC_RELATIVE'):
             mag_path = os.path.join(get_directory('eBook'), mag_path)
 
-        if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
+        if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             cmd = 'select Title,IssueID,IssueFile,comics.ComicID from comics,comicissues '
             cmd += 'WHERE comics.ComicID = comicissues.ComicID'
             mags = db.select(cmd)
@@ -76,7 +77,7 @@ def comic_scan(comicid=None):
                     logger.debug('Comic %s (%s) details reset' % (title, comicid))
 
             # now check the comic titles and delete any with no issues
-            if lazylibrarian.CONFIG.get_bool('COMIC_DELFOLDER'):
+            if CONFIG.get_bool('COMIC_DELFOLDER'):
                 cmd = 'select Title,ComicID,(select count(*) as counter from comicissues '
                 cmd += 'where comics.comicid = comicissues.comicid) as issues from comics order by Title'
                 mags = db.select(cmd)
@@ -88,7 +89,7 @@ def comic_scan(comicid=None):
                         logger.debug('Comic %s deleted as no issues found' % title)
                         db.action('DELETE from comics WHERE ComicID=?', (comicid,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['COMIC_TYPE']))
+        logger.info(' Checking [%s] for %s' % (mag_path, CONFIG['COMIC_TYPE']))
 
         for rootdir, _, filenames in walk(mag_path):
             for fname in filenames:
@@ -254,7 +255,7 @@ def comic_scan(comicid=None):
                                 data.update(new_value_dict)
                                 data['Title'] = title
                                 data['Publisher'] = publisher
-                                if not lazylibrarian.CONFIG.get_bool('IMP_COMICOPF'):
+                                if not CONFIG.get_bool('IMP_COMICOPF'):
                                     logger.debug('create_comic_opf is disabled')
                                 else:
                                     _ = create_comic_opf(dest_path, data, global_name, overwrite=True)
@@ -295,7 +296,7 @@ def comic_scan(comicid=None):
                             db.upsert("comics", new_value_dict, control_value_dict)
                     else:
                         logger.debug("No match for %s" % fname)
-        if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
+        if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             magcount = db.match("select count(*) from comics")
             isscount = db.match("select count(*) from comicissues")
             logger.info("Comic scan complete, found %s %s, %s %s" %

@@ -20,6 +20,7 @@ import uuid
 from shutil import copyfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_genres
 from lazylibrarian.common import pwd_generator
@@ -153,7 +154,7 @@ def has_column(db, table, column):
 
 
 def db_upgrade(current_version):
-    with open(syspath(DIRS.get_logfile('dbupgrade.log'), 'a')) as upgradelog:
+    with open(syspath(DIRS.get_logfile('dbupgrade.log')), 'a') as upgradelog:
         # noinspection PyBroadException
         try:
             db = database.DBConnection()
@@ -335,7 +336,7 @@ def check_db(upgradelog=None):
 
     try:
         # check information provider matches database
-        info = lazylibrarian.CONFIG.get_str('BOOK_API')
+        info = CONFIG.get_str('BOOK_API')
         if info in ['OpenLibrary', 'GoogleBooks']:
             tot = db.select('SELECT * from authors')
             res = db.select('SELECT * from authors WHERE AuthorID LIKE "OL%A"')
@@ -413,7 +414,7 @@ def check_db(upgradelog=None):
             cnt += tot
             msg = 'Updating %s %s with multiple language' % (tot, plural(tot, "book"))
             logger.warn(msg)
-            wantedlanguages = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+            wantedlanguages = get_list(CONFIG['IMP_PREFLANG'])
             for bk in res:
                 lang = 'Unknown'
                 languages = get_list(bk[1])
@@ -927,17 +928,17 @@ def db_v58(db, upgradelog):
 
 # noinspection PyUnusedLocal
 def db_v59(db, upgradelog):
-    seeders = lazylibrarian.CONFIG.get_int('NUMBEROFSEEDERS')
+    seeders = CONFIG.get_int('NUMBEROFSEEDERS')
     if seeders:
         lazylibrarian.UPDATE_MSG = 'Setting up SEEDERS'
         upgradelog.write("%s v58: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
-        for entry in lazylibrarian.CONFIG.providers('TORZNAB'):
+        for entry in CONFIG.providers('TORZNAB'):
             entry['SEEDERS'].set_int(seeders)
         for item in ['KAT_SEEDERS', 'WWT_SEEDERS', 'TPB_SEEDERS', 'ZOO_SEEDERS', 'TRF_SEEDERS',
                      'TDL_SEEDERS', 'LIME_SEEDERS']:
-            lazylibrarian.CONFIG.set_int(item, seeders)
-    lazylibrarian.CONFIG.set_int('NUMBEROFSEEDERS', 0)
-    lazylibrarian.CONFIG.save_config_and_backup_old()
+            CONFIG.set_int(item, seeders)
+    CONFIG.set_int('NUMBEROFSEEDERS', 0)
+    CONFIG.save_config_and_backup_old()
     upgradelog.write("%s v59: complete\n" % time.ctime())
 
 

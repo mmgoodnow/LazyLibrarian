@@ -30,7 +30,7 @@ import shutil
 import tempfile
 from time import sleep
 
-import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 
 
@@ -44,7 +44,7 @@ def magnet2torrent(magnet, output_name=None):
             from lib.libtorrent import libtorrent as lt
         except ImportError:
             logger.error("Unable to import libtorrent, disabling magnet conversion")
-            lazylibrarian.CONFIG.set_bool('TOR_CONVERT_MAGNET', False)
+            CONFIG.set_bool('TOR_CONVERT_MAGNET', False)
             return False
 
     if output_name and \

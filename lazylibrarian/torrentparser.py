@@ -13,8 +13,8 @@
 
 import traceback
 
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import plural, unaccented, make_unicode, size_in_bytes, url_fix, \
     replace_all, get_list, month2num, check_year, make_utf8bytes
@@ -27,7 +27,7 @@ import lib.feedparser as feedparser
 def torrent_trf(book=None, test=False):
     errmsg = ''
     provider = "Torrof"
-    host = lazylibrarian.CONFIG['TRF_HOST']
+    host = CONFIG['TRF_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -50,7 +50,7 @@ def torrent_trf(book=None, test=False):
     sterm = make_unicode("%s %s" % (book['searchterm'], cat))
 
     results = []
-    minimumseeders = lazylibrarian.CONFIG.get_int('TRF_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('TRF_SEEDERS') - 1
 
     search_url = "%s/%s" % (host, quote_plus(make_utf8bytes(sterm)[0]))
 
@@ -153,7 +153,7 @@ def torrent_trf(book=None, test=False):
                                         'tor_url': magnet,
                                         'tor_size': str(size),
                                         'tor_type': 'magnet',
-                                        'priority': lazylibrarian.CONFIG['TRF_DLPRIORITY']
+                                        'priority': CONFIG['TRF_DLPRIORITY']
                                     }
                                     # date style: Dec 2015
                                     if age:
@@ -191,7 +191,7 @@ def torrent_trf(book=None, test=False):
 def torrent_tpb(book=None, test=False):
     errmsg = ''
     provider = "torrent_tpb"
-    host = lazylibrarian.CONFIG['TPB_HOST']
+    host = CONFIG['TPB_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -212,7 +212,7 @@ def torrent_tpb(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = lazylibrarian.CONFIG.get_int('TPB_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('TPB_SEEDERS') - 1
     next_page = True
 
     while next_page:
@@ -290,7 +290,7 @@ def torrent_tpb(book=None, test=False):
                                     'tor_url': magnet,
                                     'tor_size': str(size),
                                     'tor_type': 'magnet',
-                                    'priority': lazylibrarian.CONFIG['TPB_DLPRIORITY']
+                                    'priority': CONFIG['TPB_DLPRIORITY']
                                 }
                                 # dates are either mm dd yyyy or mm dd hh:mm if yyyy is this year
                                 try:
@@ -321,7 +321,7 @@ def torrent_tpb(book=None, test=False):
                                                               "result"), provider, sterm))
             return len(results)
 
-        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
         else:
@@ -334,7 +334,7 @@ def torrent_tpb(book=None, test=False):
 def torrent_kat(book=None, test=False):
     errmsg = ''
     provider = "torrent_kat"
-    host = lazylibrarian.CONFIG['KAT_HOST']
+    host = CONFIG['KAT_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -366,7 +366,7 @@ def torrent_kat(book=None, test=False):
 
     if result:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
-        minimumseeders = lazylibrarian.CONFIG.get_int('KAT_SEEDERS') - 1
+        minimumseeders = CONFIG.get_int('KAT_SEEDERS') - 1
         soup = BeautifulSoup(result, 'html5lib')
         rows = []
         try:
@@ -405,7 +405,7 @@ def torrent_kat(book=None, test=False):
                     except IndexError:
                         pass
 
-                    if not url or (magnet and url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
+                    if not url or (magnet and url and CONFIG.get_bool('PREFER_MAGNET')):
                         url = magnet
                         mode = 'magnet'
 
@@ -430,7 +430,7 @@ def torrent_kat(book=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': mode,
-                            'priority': lazylibrarian.CONFIG['KAT_DLPRIORITY']
+                            'priority': CONFIG['KAT_DLPRIORITY']
                         })
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
@@ -448,7 +448,7 @@ def torrent_kat(book=None, test=False):
 def torrent_wwt(book=None, test=False):
     errmsg = ''
     provider = "WorldWideTorrents"
-    host = lazylibrarian.CONFIG['WWT_HOST']
+    host = CONFIG['WWT_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -469,7 +469,7 @@ def torrent_wwt(book=None, test=False):
 
     page = 0
     results = []
-    minimumseeders = lazylibrarian.CONFIG.get_int('WWT_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('WWT_SEEDERS') - 1
     next_page = True
 
     while next_page:
@@ -536,7 +536,7 @@ def torrent_wwt(book=None, test=False):
                         except IndexError:
                             pass
 
-                        if not url or (magnet and url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
+                        if not url or (magnet and url and CONFIG.get_bool('PREFER_MAGNET')):
                             url = magnet
                             mode = 'magnet'
 
@@ -560,7 +560,7 @@ def torrent_wwt(book=None, test=False):
                                 'tor_url': url,
                                 'tor_size': str(size),
                                 'tor_type': mode,
-                                'priority': lazylibrarian.CONFIG['WWT_DLPRIORITY']
+                                'priority': CONFIG['WWT_DLPRIORITY']
                             })
                             logger.debug('Found %s. Size: %s' % (title, size))
                             next_page = True
@@ -576,7 +576,7 @@ def torrent_wwt(book=None, test=False):
             return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 
@@ -587,7 +587,7 @@ def torrent_wwt(book=None, test=False):
 def torrent_zoo(book=None, test=False):
     errmsg = ''
     provider = "zooqle"
-    host = lazylibrarian.CONFIG['ZOO_HOST']
+    host = CONFIG['ZOO_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -617,7 +617,7 @@ def torrent_zoo(book=None, test=False):
 
     results = []
 
-    minimumseeders = lazylibrarian.CONFIG.get_int('ZOO_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('ZOO_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
@@ -636,7 +636,7 @@ def torrent_zoo(book=None, test=False):
                         url = link
                         mode = 'torrent'
                     if magnet:
-                        if not url or (url and lazylibrarian.CONFIG.get_bool('PREFER_MAGNET')):
+                        if not url or (url and CONFIG.get_bool('PREFER_MAGNET')):
                             url = magnet
                             mode = 'magnet'
 
@@ -650,7 +650,7 @@ def torrent_zoo(book=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': mode,
-                            'priority': lazylibrarian.CONFIG['ZOO_DLPRIORITY']
+                            'priority': CONFIG['ZOO_DLPRIORITY']
                         })
                         logger.debug('Found %s. Size: %s' % (title, size))
                     else:
@@ -673,7 +673,7 @@ def torrent_zoo(book=None, test=False):
 def torrent_lime(book=None, test=False):
     errmsg = ''
     provider = "Limetorrent"
-    host = lazylibrarian.CONFIG['LIME_HOST']
+    host = CONFIG['LIME_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -700,7 +700,7 @@ def torrent_lime(book=None, test=False):
 
     results = []
 
-    minimumseeders = lazylibrarian.CONFIG.get_int('LIME_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('LIME_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
@@ -740,7 +740,7 @@ def torrent_lime(book=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': 'torrent',
-                            'priority': lazylibrarian.CONFIG['LIME_DLPRIORITY']
+                            'priority': CONFIG['LIME_DLPRIORITY']
                         }
                         if pubdate:
                             res['tor_date'] = pubdate
@@ -766,7 +766,7 @@ def torrent_lime(book=None, test=False):
 def torrent_tdl(book=None, test=False):
     errmsg = ''
     provider = "torrentdownloads"
-    host = lazylibrarian.CONFIG['TDL_HOST']
+    host = CONFIG['TDL_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -796,7 +796,7 @@ def torrent_tdl(book=None, test=False):
 
     results = []
 
-    minimumseeders = lazylibrarian.CONFIG.get_int('TDL_SEEDERS') - 1
+    minimumseeders = CONFIG.get_int('TDL_SEEDERS') - 1
     if data:
         logger.debug('Parsing results from <a href="%s">%s</a>' % (search_url, provider))
         d = feedparser.parse(data)
@@ -836,7 +836,7 @@ def torrent_tdl(book=None, test=False):
                                 'tor_url': url,
                                 'tor_size': str(size),
                                 'tor_type': 'magnet',
-                                'priority': lazylibrarian.CONFIG['TDL_DLPRIORITY']
+                                'priority': CONFIG['TDL_DLPRIORITY']
                             }
                             if pubdate:
                                 res['tor_date'] = pubdate

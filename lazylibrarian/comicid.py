@@ -18,6 +18,7 @@ from xml.etree import ElementTree
 import zipfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
@@ -106,7 +107,7 @@ def title_words(words):
 
 
 def cv_identify(fname, best=True):
-    apikey = lazylibrarian.CONFIG['CV_APIKEY']
+    apikey = CONFIG['CV_APIKEY']
     if not apikey:
         # don't nag. Show warning message no more than every 20 mins
         timenow = int(time.time())
@@ -129,14 +130,14 @@ def cv_identify(fname, best=True):
     results = []
     offset = 0
     next_page = True
-    max_pages = lazylibrarian.CONFIG.get_int('MAX_PAGES')
+    max_pages = CONFIG.get_int('MAX_PAGES')
     page_number = 0
     while next_page:
         if offset:
             off = "&offset=%s" % offset
         else:
             off = ''
-        url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
+        url = '/'.join([CONFIG['CV_URL'], 'api/volumes/?api_key=%s' % apikey])
         if fname.startswith('CV'):
             url += '&format=json&sort=name:asc&filter=id:%s%s' % (fname[2:], off)
         else:
@@ -253,7 +254,7 @@ def cv_identify(fname, best=True):
         if results:
             return results[0]
 
-    if not lazylibrarian.CONFIG.get_bool('CV_WEBSEARCH'):
+    if not CONFIG.get_bool('CV_WEBSEARCH'):
         if lazylibrarian_log.LOGLEVEL & logger.log_matching:
             logger.debug('No match for %s' % fname)
         return []
@@ -262,7 +263,7 @@ def cv_identify(fname, best=True):
         logger.debug('No api match for %s, trying websearch' % fname)
     # fortunately comicvine sorts the resuts and gives us "best match first"
     # so we only scrape the first page (could add &page=2)
-    url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'search/?i=volume&q=%s' % matchwords])
+    url = '/'.join([CONFIG['CV_URL'], 'search/?i=volume&q=%s' % matchwords])
     data, in_cache = html_request(url)
     if not data:
         if lazylibrarian_log.LOGLEVEL & logger.log_matching:
@@ -360,7 +361,7 @@ def get_volumes_from_search(page_content):
                             "seriesid": "CV%s" % seriesid,
                             "description": description,
                             "searchterm": matchwords.replace('+', ' '),
-                            "link": lazylibrarian.CONFIG['CV_URL'] + href
+                            "link": CONFIG['CV_URL'] + href
                             })
     return choices
 
@@ -423,9 +424,9 @@ def cx_identify(fname, best=True):
     matchwords = '+'.join(titlewords)
     if '+' in matchwords:
         minmatch = 2
-    max_pages = lazylibrarian.CONFIG.get_int('MAX_PAGES')
+    max_pages = CONFIG.get_int('MAX_PAGES')
 
-    url = '/'.join([lazylibrarian.CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
+    url = '/'.join([CONFIG['CX_URL'], 'search/series?search=%s' % matchwords])
     data, _ = html_request(url)
 
     if not data:
@@ -675,8 +676,8 @@ def meta_dict(data):
 
 def cv_issue(seriesid, issuenum):
     res = {'Description': '', 'Link': '', 'Contributors': ''}
-    apikey = lazylibrarian.CONFIG['CV_APIKEY']
-    url = '/'.join([lazylibrarian.CONFIG['CV_URL'], 'api/issues/?api_key=%s' % apikey])
+    apikey = CONFIG['CV_APIKEY']
+    url = '/'.join([CONFIG['CV_URL'], 'api/issues/?api_key=%s' % apikey])
     url += '&format=json&filter=volume:%s,issue_number:%s' % (seriesid, issuenum)
     cv_api_sleep()
     data, _ = json_request(url)

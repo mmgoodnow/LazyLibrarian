@@ -16,6 +16,7 @@ import traceback
 import unicodedata
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
@@ -37,9 +38,9 @@ class GoodReads:
     def __init__(self, name=None):
         self.name = make_unicode(name)
         # self.type = type
-        if not lazylibrarian.CONFIG['GR_API']:
+        if not CONFIG['GR_API']:
             logger.warn('No Goodreads API key, check config')
-        self.params = {"key": lazylibrarian.CONFIG['GR_API']}
+        self.params = {"key": CONFIG['GR_API']}
 
     def find_results(self, searchterm=None, queue=None):
         # noinspection PyBroadException
@@ -55,7 +56,7 @@ class GoodReads:
                 searchtitle = searchtitle.split(' (')[0]  # without any series info
 
             url = quote_plus(make_utf8bytes(searchterm)[0])
-            set_url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+            set_url = '/'.join([CONFIG['GR_URL'],
                                 'search.xml?q=' + url + '&' + urlencode(self.params)])
             logger.debug('Now searching GoodReads API with searchterm: %s' % searchterm)
             if lazylibrarian_log.LOGLEVEL & logger.log_searching:
@@ -131,7 +132,7 @@ class GoodReads:
                         workid = ''
 
                         try:
-                            booklink = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+                            booklink = '/'.join([CONFIG['GR_URL'],
                                                 'book/show/' + author.find('./best_book/id').text])
                         except (KeyError, AttributeError):
                             booklink = ""
@@ -210,7 +211,7 @@ class GoodReads:
 
                     loop_count += 1
 
-                    if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < loop_count:
+                    if 0 < CONFIG.get_int('MAX_PAGES') < loop_count:
                         resultxml = None
                         logger.warn('Maximum results page search reached, still more results available')
                     elif totalresults and resultcount >= totalresults:
@@ -264,7 +265,7 @@ class GoodReads:
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
         logger.debug("Searching for author with name: %s" % author)
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'api/author_url/'])
+        url = '/'.join([CONFIG['GR_URL'], 'api/author_url/'])
         try:
             url += quote(make_utf8bytes(author)[0]) + '?' + urlencode(self.params)
             if lazylibrarian_log.LOGLEVEL & logger.log_searching:
@@ -293,7 +294,7 @@ class GoodReads:
             authorname = res.find('name').text
             authorname = format_author_name(unaccented(authorname, only_ascii=False))
             match = fuzz.ratio(author, authorname)
-            if match >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+            if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
             else:
                 logger.debug("Fuzz failed: %s [%s][%s]" % (match, author, authorname))
@@ -301,7 +302,7 @@ class GoodReads:
 
     def get_author_info(self, authorid=None):
 
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+        url = '/'.join([CONFIG['GR_URL'],
                         'author/show/' + authorid + '.xml?' + urlencode(self.params)])
 
         try:
@@ -395,7 +396,7 @@ class GoodReads:
             if not gr_id:
                 gr_id = authorid
 
-            url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
+            url = '/'.join([CONFIG['GR_URL'],
                             'author/list/' + gr_id + '.xml?' + urlencode(self.params)])
 
             try:
@@ -413,7 +414,7 @@ class GoodReads:
 
             resultxml = rootxml.iter('book')
 
-            valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+            valid_langs = get_list(CONFIG['IMP_PREFLANG'])
 
             removed_results = 0
             duplicates = 0
@@ -431,7 +432,7 @@ class GoodReads:
             auth_start = time.time()
             # these are reject reasons we might want to override, so optionally add to database as "ignored"
             ignorable = ['future', 'date', 'isbn', 'word', 'set']
-            if lazylibrarian.CONFIG.get_bool('NO_LANG'):
+            if CONFIG.get_bool('NO_LANG'):
                 ignorable.append('lang')
 
             if resultxml is None:
@@ -491,7 +492,7 @@ class GoodReads:
                             rejected = 'name', 'No bookname'
 
                         if bookpub:
-                            if bookpub.lower() in get_list(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
+                            if bookpub.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
                                 logger.warn("Ignoring %s: Publisher %s" % (bookname, bookpub))
                                 rejected = 'publisher', bookpub
 
@@ -552,7 +553,7 @@ class GoodReads:
                                 # still  no earlier match, we'll have to search the goodreads api
                                 try:
                                     if book.find(find_field).text:
-                                        book_url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show?id=' +
+                                        book_url = '/'.join([CONFIG['GR_URL'], 'book/show?id=' +
                                                              book.find(find_field).text + '&' +
                                                              urlencode(self.params)])
                                         logger.debug("Book URL: " + book_url)
@@ -627,7 +628,7 @@ class GoodReads:
                                     logger.error("Goodreads language search failed: %s %s" %
                                                  (type(e).__name__, str(e)))
 
-                            if not isbnhead and lazylibrarian.CONFIG.get_bool('ISBN_LOOKUP'):
+                            if not isbnhead and CONFIG.get_bool('ISBN_LOOKUP'):
                                 # try lookup by name
                                 if bookname or shortname:
                                     if shortname:
@@ -651,7 +652,7 @@ class GoodReads:
                                         else:
                                             isbnhead = res[0:3]
 
-                            if not isbnhead and lazylibrarian.CONFIG.get_bool('NO_ISBN'):
+                            if not isbnhead and CONFIG.get_bool('NO_ISBN'):
                                 rejected = 'isbn', 'No ISBN'
                                 logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
@@ -671,7 +672,7 @@ class GoodReads:
                             # remove extra spaces if they're in a row
                             name = " ".join(name.split())
                             namewords = name.split(' ')
-                            badwords = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
+                            badwords = get_list(CONFIG['REJECT_WORDS'], ',')
                             for word in badwords:
                                 if (' ' in word and word in name) or word in namewords:
                                     rejected = 'word', 'Contains [%s]' % word
@@ -680,7 +681,7 @@ class GoodReads:
 
                         if not rejected:
                             name = unaccented(bookname, only_ascii=False)
-                            if lazylibrarian.CONFIG.get_bool('NO_SETS'):
+                            if CONFIG.get_bool('NO_SETS'):
                                 # allow date ranges eg 1981-95
                                 m = re.search(r'(\d+)-(\d+)', name)
                                 if m:
@@ -813,7 +814,7 @@ class GoodReads:
                         if rejected and rejected[0] not in ignorable:
                             removed_results += 1
                         if not rejected or (rejected and rejected[0] in ignorable and
-                                            lazylibrarian.CONFIG.get_bool('IMP_IGNORE')):
+                                            CONFIG.get_bool('IMP_IGNORE')):
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,'
                             cmd += 'OriginalPubDate,BookDesc,BookGenre,ScanResult FROM books WHERE BookID=?'
                             existing = db.match(cmd, (bookid,))
@@ -822,7 +823,7 @@ class GoodReads:
                                 audio_status = existing['AudioStatus']
                                 bookdesc = existing['BookDesc']
                                 bookgenre = existing['BookGenre']
-                                if lazylibrarian.CONFIG['FOUND_STATUS'] == 'Open':
+                                if CONFIG['FOUND_STATUS'] == 'Open':
                                     if book_status == 'Have' and existing['BookFile']:
                                         book_status = 'Open'
                                     if audio_status == 'Have' and existing['AudioFile']:
@@ -855,7 +856,7 @@ class GoodReads:
                             if originalpubdate:
                                 bookdate = originalpubdate
 
-                            if not rejected and lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
+                            if not rejected and CONFIG.get_bool('NO_FUTURE'):
                                 if bookdate > today()[:len(bookdate)]:
                                     if not_rejectable:
                                         logger.debug("Not rejecting %s (future pub date %s) as %s" %
@@ -864,7 +865,7 @@ class GoodReads:
                                         rejected = 'future', 'Future publication date [%s]' % bookdate
                                         logger.debug('Rejecting %s, %s' % (bookname, rejected[1]))
 
-                            if not rejected and lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
+                            if not rejected and CONFIG.get_bool('NO_PUBDATE'):
                                 if not bookdate or bookdate == '0000':
                                     if not_rejectable:
                                         logger.debug("Not rejecting %s (no pub date) as %s" %
@@ -954,7 +955,7 @@ class GoodReads:
                                 serieslist = []
                                 if series:
                                     serieslist = [('', series_num, clean_name(series, '&/'))]
-                                if lazylibrarian.CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+                                if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
                                     newserieslist = get_work_series(workid, 'GR', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
@@ -1031,10 +1032,10 @@ class GoodReads:
                                     msg += " audio %s" % audio_status
                                 logger.debug(msg)
                     loop_count += 1
-                    if 0 < lazylibrarian.CONFIG.get_int('MAX_BOOKPAGES') < loop_count:
+                    if 0 < CONFIG.get_int('MAX_BOOKPAGES') < loop_count:
                         resultxml = None
                     else:
-                        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'author/list/' + gr_id + '.xml?' +
+                        url = '/'.join([CONFIG['GR_URL'], 'author/list/' + gr_id + '.xml?' +
                                         urlencode(self.params) + '&page=' + str(loop_count)])
                         resultxml = None
                         try:
@@ -1157,7 +1158,7 @@ class GoodReads:
         pagecount = 0
         for page in pages:
             pagecount += 1
-            url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
+            url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' +
                             urlencode(self.params)])
             try:
                 if lazylibrarian_log.LOGLEVEL & logger.log_searching:
@@ -1197,7 +1198,7 @@ class GoodReads:
         for bookid in notfound:
             res = db.match("SELECT BookName,Status,AudioStatus from books WHERE gr_id=?", (bookid,))
             if res:
-                if lazylibrarian.CONFIG.get_bool('FULL_SCAN'):
+                if CONFIG.get_bool('FULL_SCAN'):
                     if res['Status'] in ['Wanted', 'Open', 'Have']:
                         logger.warn("Keeping unknown goodreads bookid %s: %s, Status is %s" %
                                     (bookid, res['BookName'], res['Status']))
@@ -1257,7 +1258,7 @@ class GoodReads:
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gr.find_book'):
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         db = database.DBConnection()
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
+        url = '/'.join([CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(self.params)])
         try:
             if lazylibrarian_log.LOGLEVEL & logger.log_searching:
                 logger.debug(url)
@@ -1270,10 +1271,10 @@ class GoodReads:
             return
 
         if not bookstatus:
-            bookstatus = lazylibrarian.CONFIG['NEWBOOK_STATUS']
+            bookstatus = CONFIG['NEWBOOK_STATUS']
             logger.debug("No bookstatus passed, using default %s" % bookstatus)
         if not audiostatus:
-            audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
+            audiostatus = CONFIG['NEWAUDIO_STATUS']
             logger.debug("No audiostatus passed, using default %s" % audiostatus)
         logger.debug("bookstatus=%s, audiostatus=%s" % (bookstatus, audiostatus))
         book_language = rootxml.find('./book/language_code').text
@@ -1285,7 +1286,7 @@ class GoodReads:
         # user has said they want this book, don't block for unwanted language etc
         # Ignore book if adding as part of a series, else just warn and include it
         #
-        valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+        valid_langs = get_list(CONFIG['IMP_PREFLANG'])
         if book_language not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s Language [%s] does not match preference' % (bookname, book_language)
             logger.warn(msg)
@@ -1318,14 +1319,14 @@ class GoodReads:
                     pass
             bookdate = originalpubdate
 
-        if lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
+        if CONFIG.get_bool('NO_PUBDATE'):
             if not bookdate or bookdate == '0000':
                 msg = 'Book %s Publication date [%s] does not match preference' % (bookname, bookdate)
                 logger.warn(msg)
                 if reason.startswith("Series:"):
                     return
 
-        if lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
+        if CONFIG.get_bool('NO_FUTURE'):
             # may have yyyy or yyyy-mm-dd
             if bookdate > today()[:len(bookdate)]:
                 msg = 'Book %s Future publication date [%s] does not match preference' % (bookname, bookdate)
@@ -1333,7 +1334,7 @@ class GoodReads:
                 if reason.startswith("Series:"):
                     return
 
-        if lazylibrarian.CONFIG.get_bool('NO_SETS'):
+        if CONFIG.get_bool('NO_SETS'):
             if re.search(r'\d+ of \d+', bookname) or re.search(r'\d+/\d+', bookname):
                 msg = 'Book %s Set or Part' % bookname
                 logger.warn(msg)
@@ -1394,7 +1395,7 @@ class GoodReads:
                 # no author but request to add book, add author with newauthor status
                 # User hit "add book" button from a search, or a wishlist import, or api call
                 newauthor_status = 'Active'
-                if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
+                if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                     newauthor_status = 'Paused'
                 # also pause author if adding as a series contributor/wishlist/grsync
                 if reason.startswith("Series:") or "grsync" in reason or "wishlist" in reason:
@@ -1421,8 +1422,8 @@ class GoodReads:
                 db.upsert("authors", new_value_dict, control_value_dict)
                 db.commit()  # shouldn't really be necessary as context manager commits?
                 authorname = author['authorname']
-                if lazylibrarian.CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                    self.get_author_books(author_id, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
+                if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                    self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
                                           reason=reason)
         else:
             logger.warn("No AuthorID for %s, unable to add book %s" % (authorname, bookname))
@@ -1521,7 +1522,7 @@ class GoodReads:
             serieslist = []
             if series:
                 serieslist = [('', series_num, clean_name(series, '&/'))]
-            if lazylibrarian.CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+            if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
                 newserieslist = get_work_series(workid, 'GR', reason=reason)
                 if newserieslist:
                     serieslist = newserieslist

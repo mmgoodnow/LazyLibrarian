@@ -12,6 +12,7 @@
 
 import os
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.common import run_script
 from lazylibrarian.filesystem import path_exists, syspath
@@ -20,7 +21,7 @@ from lazylibrarian.notifiers import email_notifier
 
 
 def mailing_list(book_type, global_name, book_id):
-    if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
+    if not CONFIG.get_bool('USER_ACCOUNTS'):
         return
     db = database.DBConnection()
     columns = db.select('PRAGMA table_info(subscribers)')
@@ -124,14 +125,14 @@ def mailing_list(book_type, global_name, book_id):
 
     filename = data['filename']
     fsize = check_int(os.path.getsize(syspath(filename)), 0)
-    limit = lazylibrarian.CONFIG.get_int('EMAIL_LIMIT')
+    limit = CONFIG.get_int('EMAIL_LIMIT')
     link = None
     if limit and fsize > limit * 1024 * 1024:
         msg = '%s is too large (%s) to email' % (os.path.split(filename)[1], fsize)
         logger.debug(msg)
-        if lazylibrarian.CONFIG['CREATE_LINK']:
+        if CONFIG['CREATE_LINK']:
             logger.debug("Creating link to %s" % filename)
-            params = [lazylibrarian.CONFIG['CREATE_LINK'], filename]
+            params = [CONFIG['CREATE_LINK'], filename]
             rc, res, err = run_script(params)
             if res and res.startswith('http'):
                 msg = "%s is available to download, %s" % (

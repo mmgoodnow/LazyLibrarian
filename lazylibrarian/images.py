@@ -18,6 +18,7 @@ import json
 import io
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_bookwork, NEW_WHATWORK
 from lazylibrarian.formatter import plural, make_unicode, make_bytestr, safe_unicode, check_int, make_utf8bytes
@@ -307,12 +308,12 @@ def get_book_cover(bookid=None, src=None):
 
         # see if librarything  has a cover
         if not src or src == 'librarything':
-            if lazylibrarian.CONFIG['LT_DEVKEY']:
+            if CONFIG['LT_DEVKEY']:
                 cmd = 'select BookISBN from books where bookID=?'
                 item = db.match(cmd, (bookid,))
                 if item and item['BookISBN']:
-                    img = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
-                           lazylibrarian.CONFIG['LT_DEVKEY'], item['BookISBN'])])
+                    img = '/'.join([CONFIG['LT_URL'], 'devkey/%s/large/isbn/%s' % (
+                        CONFIG['LT_DEVKEY'], item['BookISBN'])])
                     coverlink = use_img(img, bookid, src, suffix='_lt')
                     if coverlink:
                         return coverlink, 'librarything'
@@ -393,7 +394,7 @@ def get_book_cover(bookid=None, src=None):
         # try to get a cover from openlibrary
         if not src or src == 'openlibrary':
             if not provider_is_blocked("openlibrary") and item and item['BookISBN']:
-                baseurl = '/'.join([lazylibrarian.CONFIG['OL_URL'],
+                baseurl = '/'.join([CONFIG['OL_URL'],
                                    'api/books?format=json&jscmd=data&bibkeys=ISBN:'])
                 result, success = fetch_url(baseurl + item['BookISBN'])
                 if success:
@@ -558,7 +559,7 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
 
 
 def create_mag_covers(refresh=False):
-    if not lazylibrarian.CONFIG.get_bool('IMP_MAGCOVER'):
+    if not CONFIG.get_bool('IMP_MAGCOVER'):
         logger.info('Cover creation is disabled in config')
         return ''
     db = database.DBConnection()
@@ -686,7 +687,7 @@ def shrink_mag(issuefile, dpi=0):
 # noinspection PyUnresolvedReferences
 def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
     global GS, GS_VER, generator
-    if not lazylibrarian.CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
+    if not CONFIG.get_bool('IMP_MAGCOVER') or not pagenum:
         logger.warn('No cover required for %s' % issuefile)
         return ''
     if not issuefile or not path_isfile(issuefile):
@@ -765,13 +766,13 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
             logger.error("Failed to extract image from %s, %s %s" % (issuefile, type(why).__name__, str(why)))
 
     elif extn == '.pdf':
-        if len(lazylibrarian.CONFIG['IMP_CONVERT']):  # allow external convert to override libraries
-            generator = "external program: %s" % lazylibrarian.CONFIG['IMP_CONVERT']
-            if "gsconvert.py" in lazylibrarian.CONFIG['IMP_CONVERT']:
+        if len(CONFIG['IMP_CONVERT']):  # allow external convert to override libraries
+            generator = "external program: %s" % CONFIG['IMP_CONVERT']
+            if "gsconvert.py" in CONFIG['IMP_CONVERT']:
                 msg = "Use of gsconvert.py is deprecated, equivalent functionality is now built in. "
                 msg += "Support for gsconvert.py may be removed in a future release. See wiki for details."
                 logger.warn(msg)
-            converter = lazylibrarian.CONFIG['IMP_CONVERT']
+            converter = CONFIG['IMP_CONVERT']
             postfix = ''
             # if not path_isfile(converter):  # full path given, or just program_name?
             #     converter = os.path.join(os.getcwd(), lazylibrarian.CONFIG['IMP_CONVERT'])
@@ -789,7 +790,7 @@ def create_mag_cover(issuefile=None, refresh=False, pagenum=1):
 
                 res = make_unicode(res).strip()
                 if res:
-                    logger.debug('%s reports: %s' % (lazylibrarian.CONFIG['IMP_CONVERT'], res))
+                    logger.debug('%s reports: %s' % (CONFIG['IMP_CONVERT'], res))
             except Exception as e:
                 if params:
                     logger.debug(params)

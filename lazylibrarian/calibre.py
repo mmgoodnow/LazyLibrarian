@@ -15,7 +15,8 @@ import re
 import json
 import time
 import cherrypy
-import lazylibrarian
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import unaccented, get_list
 from lazylibrarian.importer import add_author_name_to_db, search_for, import_book
@@ -140,8 +141,8 @@ def sync_calibre_list(col_read=None, col_toread=None, userid=None):
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     if results:
                         result = results[0]
-                        if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
-                                and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                        if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
+                                and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                             logger.debug("Found (%s%% %s%%) %s: %s" % (result['author_fuzz'], result['book_fuzz'],
                                                                        result['authorname'], result['bookname']))
                             bookid = result['bookid']
@@ -423,15 +424,15 @@ def calibredb(cmd=None, prelib=None, postlib=None):
         default library is used if no #library in the url
         or calibredb can talk to the database file as long as there is no running calibre """
 
-    if not lazylibrarian.CONFIG['IMP_CALIBREDB']:
+    if not CONFIG['IMP_CALIBREDB']:
         return "No calibredb set in config", '', 1
 
-    params = [lazylibrarian.CONFIG['IMP_CALIBREDB'], cmd]
-    if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER'):
-        dest_url = lazylibrarian.CONFIG['CALIBRE_SERVER']
-        if lazylibrarian.CONFIG['CALIBRE_USER'] and lazylibrarian.CONFIG['CALIBRE_PASS']:
-            params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],
-                           '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])
+    params = [CONFIG['IMP_CALIBREDB'], cmd]
+    if CONFIG.get_bool('CALIBRE_USE_SERVER'):
+        dest_url = CONFIG['CALIBRE_SERVER']
+        if CONFIG['CALIBRE_USER'] and CONFIG['CALIBRE_PASS']:
+            params.extend(['--username', CONFIG['CALIBRE_USER'],
+                           '--password', CONFIG['CALIBRE_PASS']])
     else:
         dest_url = get_directory('eBook')
     if prelib:

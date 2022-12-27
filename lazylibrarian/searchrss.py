@@ -15,6 +15,7 @@ import threading
 import traceback
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.scheduling import schedule_job
 from lazylibrarian.csvfile import finditem
@@ -196,7 +197,7 @@ def search_wishlist():
                 if authorname and book['rss_isbn']:
                     results = search_for(book['rss_isbn'])
                     for result in results:
-                        if result['isbn_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                        if result['isbn_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                             logger.info("Found %s (%s%%) %s: %s" %
                                         (result['bookid'], result['isbn_fuzz'], result['authorname'],
                                          result['bookname']))
@@ -221,8 +222,8 @@ def search_wishlist():
                     searchterm = "%s <ll> %s" % (book['rss_title'], authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
-                        if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
-                                and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                        if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
+                                and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                             logger.info("Found %s (%s%% %s%%) %s: %s" %
                                         (result['bookid'], result['author_fuzz'], result['book_fuzz'],
                                          result['authorname'], result['bookname']))
@@ -237,8 +238,8 @@ def search_wishlist():
                         searchterm = "%s <ll> %s" % (title, authorname)
                         results = search_for(unaccented(searchterm, only_ascii=False))
                         for result in results:
-                            if result['author_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
-                                    and result['book_fuzz'] > lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                            if result['author_fuzz'] > CONFIG.get_int('MATCH_RATIO') \
+                                    and result['book_fuzz'] > CONFIG.get_int('MATCH_RATIO'):
                                 logger.info("Found %s (%s%% %s%%) %s: %s" %
                                             (result['bookid'], result['author_fuzz'], result['book_fuzz'],
                                              result['authorname'], result['bookname']))
@@ -301,7 +302,7 @@ def search_rss_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
-    if not (lazylibrarian.CONFIG.use_rss()):
+    if not (CONFIG.use_rss()):
         logger.warn('rss search is disabled')
         schedule_job(action='Stop', target='search_rss_book')
         return

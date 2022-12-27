@@ -19,6 +19,7 @@ from hashlib import sha1
 from shutil import copyfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, walk, setperm, make_dirs, \
     safe_move, get_directory
@@ -40,8 +41,8 @@ def magazine_scan(title=None):
     # noinspection PyBroadException
     try:
         db = database.DBConnection()
-        mag_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER']
-        if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
+        mag_path = CONFIG['MAG_DEST_FOLDER']
+        if CONFIG.get_bool('MAG_RELATIVE'):
             mag_path = os.path.join(get_directory('eBook'), mag_path)
 
         onetitle = title
@@ -51,7 +52,7 @@ def magazine_scan(title=None):
         while '$' in mag_path:
             mag_path = os.path.dirname(mag_path)
 
-        if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
+        if CONFIG.get_bool('FULL_SCAN') and not onetitle:
             mags = db.select('select * from Issues')
             # check all the issues are still there, delete entry if not
             for mag in mags:
@@ -73,7 +74,7 @@ def magazine_scan(title=None):
                     logger.debug('Magazine %s details reset' % title)
 
             # now check the magazine titles and delete any with no issues
-            if lazylibrarian.CONFIG.get_bool('MAG_DELFOLDER'):
+            if CONFIG.get_bool('MAG_DELFOLDER'):
                 mags = db.select('SELECT Title,count(Title) as counter from issues group by Title')
                 for mag in mags:
                     title = mag['Title']
@@ -82,11 +83,11 @@ def magazine_scan(title=None):
                         logger.debug('Magazine %s deleted as no issues found' % title)
                         db.action('DELETE from magazines WHERE Title=?', (title,))
 
-        logger.info(' Checking [%s] for %s' % (mag_path, lazylibrarian.CONFIG['MAG_TYPE']))
+        logger.info(' Checking [%s] for %s' % (mag_path, CONFIG['MAG_TYPE']))
 
         booktypes = ''
         count = -1
-        booktype_list = get_list(lazylibrarian.CONFIG['MAG_TYPE'])
+        booktype_list = get_list(CONFIG['MAG_TYPE'])
         for book_type in booktype_list:
             count += 1
             if count == 0:
@@ -98,7 +99,7 @@ def magazine_scan(title=None):
         # with regular expression matching
         # only escape the non-alpha characters as python 3.7 reserves escaped alpha
         match_string = ''
-        matchto = lazylibrarian.CONFIG['MAG_DEST_FILE']
+        matchto = CONFIG['MAG_DEST_FILE']
         for char in matchto:
             if not char.isalpha():
                 match_string = match_string + '\\'
@@ -226,7 +227,7 @@ def magazine_scan(title=None):
                             magissuedate = str(magissuedate).zfill(4)
                             magcoverpage = mag_entry['CoverPage']
 
-                        if lazylibrarian.CONFIG.get_bool('MAG_RENAME'):
+                        if CONFIG.get_bool('MAG_RENAME'):
                             filedate = issuedate
                             if issuedate and issuedate.isdigit():
                                 if len(issuedate) == 8:
@@ -245,13 +246,13 @@ def magazine_scan(title=None):
                             # if re.match(r'\d+-\d\d-01', str(filedate)):
                             #    filedate = filedate[:-3]
 
-                            newfname = lazylibrarian.CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
+                            newfname = CONFIG['MAG_DEST_FILE'].replace('$Title', title).replace(
                                                                                      '$IssueDate', filedate)
                             newfname = newfname + extn
 
-                            new_path = lazylibrarian.CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
+                            new_path = CONFIG['MAG_DEST_FOLDER'].replace('$Title', title).replace(
                                                                                        '$IssueDate', filedate)
-                            if lazylibrarian.CONFIG.get_bool('MAG_RELATIVE'):
+                            if CONFIG.get_bool('MAG_RELATIVE'):
                                 new_path = os.path.join(get_directory('eBook'), new_path)
 
                             newissuefile = os.path.join(new_path, newfname)
@@ -316,10 +317,10 @@ def magazine_scan(title=None):
                         except IOError as e:
                             logger.warn("Unable to create/write to ignorefile: %s" % str(e))
 
-                        if not lazylibrarian.CONFIG.get_bool('IMP_MAGOPF'):
+                        if not CONFIG.get_bool('IMP_MAGOPF'):
                             logger.debug('create_mag_opf is disabled')
                         else:
-                            if lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
+                            if CONFIG.get_bool('IMP_CALIBRE_MAGTITLE'):
                                 authors = title
                             else:
                                 authors = 'magazines'
@@ -354,7 +355,7 @@ def magazine_scan(title=None):
                                 new_value_dict["LatestCover"] = cover
                             db.upsert("magazines", new_value_dict, control_value_dict)
 
-            if lazylibrarian.CONFIG.get_bool('FULL_SCAN') and not onetitle:
+            if CONFIG.get_bool('FULL_SCAN') and not onetitle:
                 magcount = db.match("select count(*) from magazines")
                 isscount = db.match("select count(*) from issues")
                 logger.info("Magazine scan complete, found %s %s, %s %s" %

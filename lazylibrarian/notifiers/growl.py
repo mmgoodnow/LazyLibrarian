@@ -1,6 +1,6 @@
 import os
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.filesystem import DIRS, syspath
 
@@ -20,14 +20,14 @@ class GrowlNotifier:
         title = "LazyLibrarian"
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG.get_bool('USE_GROWL') and not force:
+        if not CONFIG.get_bool('USE_GROWL') and not force:
             return False
 
         if not growl_host:
-            growl_host = lazylibrarian.CONFIG['GROWL_HOST']
+            growl_host = CONFIG['GROWL_HOST']
 
         if growl_password is None:
-            growl_password = lazylibrarian.CONFIG['GROWL_PASSWORD']
+            growl_password = CONFIG['GROWL_PASSWORD']
 
         logger.debug(u"Growl: title: " + title)
         logger.debug(u"Growl: event: " + event)
@@ -97,14 +97,14 @@ class GrowlNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG.get_bool('GROWL_ONSNATCH'):
+        if CONFIG.get_bool('GROWL_ONSNATCH'):
             if fail:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_FAIL], message=title)
             else:
                 self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_SNATCH], message=title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG.get_bool('GROWL_ONDOWNLOAD'):
+        if CONFIG.get_bool('GROWL_ONDOWNLOAD'):
             self._send_growl(growl_host='', growl_password=None, event=notifyStrings[NOTIFY_DOWNLOAD], message=title)
 
     # noinspection PyUnusedLocal

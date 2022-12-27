@@ -17,6 +17,7 @@ import time
 from xml.etree import ElementTree
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent, proxy_list
@@ -102,17 +103,17 @@ def fetch_url(url, headers=None, retry=True, raw=None):
     # jackett query all indexers needs a longer timeout
     # /torznab/all/api?q=  or v2.0/indexers/all/results/torznab/api?q=
     if '/torznab/' in url and ('/all/' in url or '/aggregate/' in url):
-        timeout = lazylibrarian.CONFIG.get_int('HTTP_EXT_TIMEOUT')
+        timeout = CONFIG.get_int('HTTP_EXT_TIMEOUT')
     else:
-        timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
+        timeout = CONFIG.get_int('HTTP_TIMEOUT')
 
     payload = {"timeout": timeout, "proxies": proxies}
     verify = False
     if url.startswith('https'):
-        if lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
+        if CONFIG.get_bool('SSL_VERIFY'):
             verify = True
-            if lazylibrarian.CONFIG['SSL_CERTS']:
-                verify = lazylibrarian.CONFIG['SSL_CERTS']
+            if CONFIG['SSL_CERTS']:
+                verify = CONFIG['SSL_CERTS']
     try:
         r = requests.get(url, verify=verify, params=payload, headers=headers)
     except requests.exceptions.TooManyRedirects as e:
@@ -252,7 +253,7 @@ def get_cached_request(url, use_cache=True, cache="XML", expire=True, expiry=0, 
     source = None
     hashfilename = os.path.join(cache_location, myhash[0], myhash[1], myhash + "." + cache.lower())
     if expire and not expiry:
-        expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
+        expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
 
     if use_cache and path_isfile(hashfilename):
         cache_modified_time = os.stat(hashfilename).st_mtime
@@ -396,7 +397,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+    expiry = CONFIG.get_int('CACHE_AGE')
     expire_caches = ["JSONCache", "XMLCache"]
     for cache in expire_caches:
         cache = os.path.join(DIRS.CACHEDIR, cache)
@@ -596,7 +597,7 @@ def clean_cache():
     result.append(msg)
     logger.debug(msg)
 
-    expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+    expiry = CONFIG.get_int('CACHE_AGE')
     if expiry:
         time_now = time.time()
         too_old = time_now - (expiry * 24 * 60 * 60)

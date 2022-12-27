@@ -17,7 +17,7 @@ import re
 import lazylibrarian
 from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, ConfigScheduler
 from lazylibrarian.configarray import ArrayConfig
-from lazylibrarian.configdefs import ARRAY_DEFS, configitem_from_default
+from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
@@ -212,7 +212,7 @@ class LLConfigHandler(ConfigDict):
         if ok and scheduler.needs_provider:
             ok = self.use_any()
         if ok and scheduler.run_name == 'GRSYNC': # Special case, should maybe add option to object
-            ok = lazylibrarian.CONFIG.get_bool('GR_SYNC')
+            ok = CONFIG.get_bool('GR_SYNC')
         if ok and scheduler.run_name == 'TELEMETRYSEND': # Special case for telemetry
             ok = self.config['TELEMETRY_ENABLE'].get_bool()
         return ok
@@ -546,6 +546,9 @@ class LLConfigHandler(ConfigDict):
              count += 1
         return count
 
+### Global configuration holder
+CONFIG = LLConfigHandler(defaults=BASE_DEFAULTS)
+
 ### Global config related methods that are not part of the config object
 
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
@@ -598,4 +601,3 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
                 return False
 
     return True
-

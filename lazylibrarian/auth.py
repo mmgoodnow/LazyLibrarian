@@ -20,7 +20,7 @@
 # from cherrypy/tools on github
 
 import cherrypy
-import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from html import escape
 
@@ -138,8 +138,8 @@ class AuthController(object):
     def get_loginform(username, msg="Enter login information", from_page="/"):
         from lazylibrarian.webServe import serve_template
         img = '/images/ll.png'
-        if lazylibrarian.CONFIG['HTTP_ROOT']:
-            img = '/%s%s' % (lazylibrarian.CONFIG['HTTP_ROOT'], img)
+        if CONFIG['HTTP_ROOT']:
+            img = '/%s%s' % (CONFIG['HTTP_ROOT'], img)
         return serve_template(templatename="formlogin.html", username=escape(username, True),
                               title='Login', img=img, from_page=from_page)
 
@@ -167,7 +167,7 @@ class AuthController(object):
             # cherrypy.session[SESSION_KEY] = {'user':    cherrypy.request.login,
             #                                 'expiry':  expiry}
             self.on_login(current_username)
-            raise cherrypy.HTTPRedirect(from_page or lazylibrarian.CONFIG['HTTP_ROOT'])
+            raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 
     @cherrypy.expose
     def logout(self, from_page="/"):
@@ -177,5 +177,5 @@ class AuthController(object):
         if username:
             cherrypy.request.login = None
             self.on_logout(username)
-            raise cherrypy.HTTPRedirect(from_page or lazylibrarian.CONFIG['HTTP_ROOT'])
+            raise cherrypy.HTTPRedirect(from_page or CONFIG['HTTP_ROOT'])
 

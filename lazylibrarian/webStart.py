@@ -25,6 +25,7 @@ except ImportError:
     import lib.cherrypy_cors as cherrypy_cors
 from shutil import copyfile
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.webServe import WebInterface
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
@@ -149,14 +150,14 @@ def initialize(options=None):
         }
     }
 
-    if lazylibrarian.CONFIG['PROXY_LOCAL']:
+    if CONFIG['PROXY_LOCAL']:
         conf['/'].update({
             # NOTE default if not specified is to use apache style X-Forwarded-Host
             # 'tools.proxy.local': 'X-Forwarded-Host'  # this is for apache2
             # 'tools.proxy.local': 'Host'  # this is for nginx
             # 'tools.proxy.local': 'X-Host'  # this is for lighthttpd
             # 'tools.proxy.local': 'X-Forwarded-For' or 'X-Real-IP' # this is for caddy
-            'tools.proxy.local': lazylibrarian.CONFIG['PROXY_LOCAL']
+            'tools.proxy.local': CONFIG['PROXY_LOCAL']
         })
     if options['http_pass'] != "":
         logger.info("Web server %s authentication is enabled, username is '%s'" %

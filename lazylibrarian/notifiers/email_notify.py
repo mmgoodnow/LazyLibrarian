@@ -26,6 +26,8 @@ from email.mime.image import MIMEImage
 import lazylibrarian
 import os
 import traceback
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database, ebook_convert
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import is_valid_email, run_script, mime_type
@@ -40,7 +42,7 @@ class EmailNotifier:
     @staticmethod
     def _notify(message, event, force=False, files=None, to_addr=None):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG.get_bool('USE_EMAIL') and not force:
+        if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
         subject = event
@@ -68,16 +70,16 @@ class EmailNotifier:
 
         message['Subject'] = subject
 
-        if is_valid_email(lazylibrarian.CONFIG['ADMIN_EMAIL']):
-            from_addr = lazylibrarian.CONFIG['ADMIN_EMAIL']
-        elif is_valid_email(lazylibrarian.CONFIG['EMAIL_FROM']):
-            from_addr = lazylibrarian.CONFIG['EMAIL_FROM']
+        if is_valid_email(CONFIG['ADMIN_EMAIL']):
+            from_addr = CONFIG['ADMIN_EMAIL']
+        elif is_valid_email(CONFIG['EMAIL_FROM']):
+            from_addr = CONFIG['EMAIL_FROM']
         else:
             logger.warn("Invalid FROM address, check config settings")
             return False
 
         if not to_addr:
-            to_addr = lazylibrarian.CONFIG['EMAIL_TO']
+            to_addr = CONFIG['EMAIL_TO']
             logger.debug("Using default to_addr=%s" % to_addr)
         if not is_valid_email(to_addr):
             logger.warn("Invalid TO address, check users email and/or config")
@@ -101,15 +103,15 @@ class EmailNotifier:
         if files:
             for f in files:
                 fsize = check_int(os.path.getsize(syspath(f)), 0)
-                limit = lazylibrarian.CONFIG.get_int('EMAIL_LIMIT')
+                limit = CONFIG.get_int('EMAIL_LIMIT')
                 title = unaccented(os.path.basename(f))
                 if limit and fsize > limit * 1024 * 1024:
                     oversize = True
                     msg = '%s is too large (%s) to email' % (title, fsize)
                     logger.debug(msg)
-                    if lazylibrarian.CONFIG['CREATE_LINK']:
+                    if CONFIG['CREATE_LINK']:
                         logger.debug("Creating link to %s" % f)
-                        params = [lazylibrarian.CONFIG['CREATE_LINK'], f]
+                        params = [CONFIG['CREATE_LINK'], f]
                         rc, res, err = run_script(params)
                         if res and res.startswith('http'):
                             msg = "%s is available to download, %s" % (title, res)
@@ -127,26 +129,26 @@ class EmailNotifier:
             # Create a secure SSL context
             context = ssl.create_default_context()
             # but allow no certificate check so self-signed work
-            if not lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
+            if not CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
 
-            if lazylibrarian.CONFIG.get_bool('EMAIL_SSL'):
-                mailserver = smtplib.SMTP_SSL(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                              lazylibrarian.CONFIG.get_int('EMAIL_SMTP_PORT'),
+            if CONFIG.get_bool('EMAIL_SSL'):
+                mailserver = smtplib.SMTP_SSL(CONFIG['EMAIL_SMTP_SERVER'],
+                                              CONFIG.get_int('EMAIL_SMTP_PORT'),
                                               context=context)
             else:
-                mailserver = smtplib.SMTP(lazylibrarian.CONFIG['EMAIL_SMTP_SERVER'],
-                                          lazylibrarian.CONFIG.get_int('EMAIL_SMTP_PORT'))
+                mailserver = smtplib.SMTP(CONFIG['EMAIL_SMTP_SERVER'],
+                                          CONFIG.get_int('EMAIL_SMTP_PORT'))
 
-            if lazylibrarian.CONFIG.get_bool('EMAIL_TLS'):
+            if CONFIG.get_bool('EMAIL_TLS'):
                 mailserver.starttls(context=context)
             else:
                 mailserver.ehlo()
 
-            if lazylibrarian.CONFIG['EMAIL_SMTP_USER']:
-                mailserver.login(lazylibrarian.CONFIG['EMAIL_SMTP_USER'],
-                                 lazylibrarian.CONFIG['EMAIL_SMTP_PASSWORD'])
+            if CONFIG['EMAIL_SMTP_USER']:
+                mailserver.login(CONFIG['EMAIL_SMTP_USER'],
+                                 CONFIG['EMAIL_SMTP_PASSWORD'])
 
             logger.debug("Sending email to %s" % to_addr)
             mailserver.sendmail(from_addr, to_addr, message.as_string())
@@ -173,7 +175,7 @@ class EmailNotifier:
         return res
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG.get_bool('EMAIL_NOTIFY_ONSNATCH'):
+        if CONFIG.get_bool('EMAIL_NOTIFY_ONSNATCH'):
             if fail:
                 return self._notify(message=title, event=notifyStrings[NOTIFY_FAIL])
             else:
@@ -182,23 +184,23 @@ class EmailNotifier:
 
     def notify_download(self, title, bookid=None, force=False):
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG.get_bool('USE_EMAIL') and not force:
+        if not CONFIG.get_bool('USE_EMAIL') and not force:
             return False
 
-        if lazylibrarian.CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
+        if CONFIG.get_bool('EMAIL_NOTIFY_ONDOWNLOAD') or force:
             files = None
             event = notifyStrings[NOTIFY_DOWNLOAD]
-            logger.debug('Email send attachment is %s' % lazylibrarian.CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
-            if lazylibrarian.CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
+            logger.debug('Email send attachment is %s' % CONFIG['EMAIL_SENDFILE_ONDOWNLOAD'])
+            if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
                 if not bookid:
                     logger.debug('Email request to attach book, but no bookid')
                 else:
                     filename = None
                     preftype = None
-                    custom_typelist = get_list(lazylibrarian.CONFIG['EMAIL_SEND_TYPE'])
-                    typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+                    custom_typelist = get_list(CONFIG['EMAIL_SEND_TYPE'])
+                    typelist = get_list(CONFIG['EBOOK_TYPE'])
 
-                    if not lazylibrarian.CONFIG['USER_ACCOUNTS'].get_bool():
+                    if not CONFIG['USER_ACCOUNTS'].get_bool():
                         if custom_typelist:
                             preftype = custom_typelist[0]
                             logger.debug('Preferred filetype = %s' % preftype)
@@ -246,7 +248,7 @@ class EmailNotifier:
                             else:
                                 # if there is a type we want to convert from in the available formats,
                                 # convert it
-                                for convertable_format in get_list(lazylibrarian.CONFIG['EMAIL_CONVERT_FROM']):
+                                for convertable_format in get_list(CONFIG['EMAIL_CONVERT_FROM']):
                                     if convertable_format in types:
                                         logger.debug('Converting %s to preferred filetype %s' %
                                                      (convertable_format, preftype))
@@ -294,7 +296,7 @@ class EmailNotifier:
         return False
 
     def test_notify(self, title='This is a test notification from LazyLibrarian'):
-        if lazylibrarian.CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
+        if CONFIG.get_bool('EMAIL_SENDFILE_ONDOWNLOAD'):
             db = database.DBConnection()
             data = db.match('SELECT bookid from books where bookfile <> ""')
             if data:

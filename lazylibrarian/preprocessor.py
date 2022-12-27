@@ -17,6 +17,7 @@ import os
 import subprocess
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.filesystem import DIRS, remove_file, path_exists, listdir, setperm, safe_move, safe_copy
@@ -54,8 +55,8 @@ def preprocess_ebook(bookfolder):
         return
 
     basename, source_extn = os.path.splitext(sourcefile)
-    logger.debug("Wanted formats: %s" % lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
-    wanted_formats = get_list(lazylibrarian.CONFIG['EBOOK_WANTED_FORMATS'])
+    logger.debug("Wanted formats: %s" % CONFIG['EBOOK_WANTED_FORMATS'])
+    wanted_formats = get_list(CONFIG['EBOOK_WANTED_FORMATS'])
     for ftype in wanted_formats:
         if not path_exists(os.path.join(bookfolder, basename + '.' + ftype)):
             logger.debug("No %s" % ftype)
@@ -82,10 +83,10 @@ def preprocess_ebook(bookfolder):
         else:
             logger.debug("Found %s" % ftype)
 
-    if wanted_formats and lazylibrarian.CONFIG.get_bool('DELETE_OTHER_FORMATS'):
-        if lazylibrarian.CONFIG.get_bool('KEEP_OPF'):
+    if wanted_formats and CONFIG.get_bool('DELETE_OTHER_FORMATS'):
+        if CONFIG.get_bool('KEEP_OPF'):
             wanted_formats.append('opf')
-        if lazylibrarian.CONFIG.get_bool('KEEP_JPG'):
+        if CONFIG.get_bool('KEEP_JPG'):
             wanted_formats.append('jpg')
         for fname in listdir(bookfolder):
             filename, extn = os.path.splitext(fname)
@@ -100,15 +101,15 @@ def preprocess_ebook(bookfolder):
 
 def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=None, tag=None, zipp=None):
     if merge is None:
-        merge = lazylibrarian.CONFIG.get_bool('CREATE_SINGLEAUDIO')
+        merge = CONFIG.get_bool('CREATE_SINGLEAUDIO')
     if tag is None:
-        tag = lazylibrarian.CONFIG.get_bool('WRITE_AUDIOTAGS')
+        tag = CONFIG.get_bool('WRITE_AUDIOTAGS')
     if zipp is None:
-        zipp = lazylibrarian.CONFIG.get_bool('ZIP_AUDIOPARTS')
+        zipp = CONFIG.get_bool('ZIP_AUDIOPARTS')
     if not merge and not tag and not zipp:
         return
 
-    ffmpeg = lazylibrarian.CONFIG['FFMPEG']
+    ffmpeg = CONFIG['FFMPEG']
     if not ffmpeg:
         logger.error("Check config setting for ffmpeg")
         return
@@ -172,13 +173,13 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
     # if we get here, looks like we have all the parts
     # output file will be the same type as the first input file
     # unless the user supplies a parameter to override it
-    if lazylibrarian.CONFIG['FFMPEG_OUT']:
-        out_type = '.' + lazylibrarian.CONFIG['FFMPEG_OUT'].lower().lstrip('.')
+    if CONFIG['FFMPEG_OUT']:
+        out_type = '.' + CONFIG['FFMPEG_OUT'].lower().lstrip('.')
     else:
         out_type = os.path.splitext(parts[0][3])[1]
 
-    if '-f ' in lazylibrarian.CONFIG['AUDIO_OPTIONS']:
-        force_type = '.' + lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
+    if '-f ' in CONFIG['AUDIO_OPTIONS']:
+        force_type = '.' + CONFIG['AUDIO_OPTIONS'].split('-f ', 1)[1].split(',')[0].split(' ')[0].strip()
     else:
         force_type = ''
 
@@ -196,21 +197,21 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
 
     if force_mp4 and force_type != 'mp4':
         if force_type:
-            pre, post = lazylibrarian.CONFIG['AUDIO_OPTIONS'].split('-f ', 1)
+            pre, post = CONFIG['AUDIO_OPTIONS'].split('-f ', 1)
             post = post.lstrip()
             post = post[len(force_type) + 1:]
             ffmpeg_options = pre + '-f mp4 ' + post
         else:
-            ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
+            ffmpeg_options = CONFIG['AUDIO_OPTIONS'] + ' -f mp4'
         logger.debug("ffmpeg options: %s" % ffmpeg_options)
     else:
-        ffmpeg_options = lazylibrarian.CONFIG['AUDIO_OPTIONS']
+        ffmpeg_options = CONFIG['AUDIO_OPTIONS']
 
     with open(partslist, 'w', encoding="utf-8") as f:
         for part in parts:
             f.write("file '%s'\n" % part[3])
 
-            if lazylibrarian.CONFIG.get_bool('KEEP_SEPARATEAUDIO') and ff_ver and tag and authorname and bookname:
+            if CONFIG.get_bool('KEEP_SEPARATEAUDIO') and ff_ver and tag and authorname and bookname:
                 if token or (part[2] != authorname) or (part[1] != bookname):
                     extn = os.path.splitext(part[3])[1]
                     params = [ffmpeg, '-i', os.path.join(bookfolder, part[3]),
@@ -415,7 +416,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                     title = "%s - %s" % (authorname, bookname)
                     if match['SeriesDisplay']:
                         series = match['SeriesDisplay'].split('<br>')[0].strip()
-                        if series and '$SerName' in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+                        if series and '$SerName' in CONFIG['AUDIOBOOK_DEST_FILE']:
                             title = "%s (%s)" % (title, series)
                             outfile, extn = os.path.splitext(outfile)
                             outfile = "%s (%s)%s" % (outfile, series, extn)
@@ -467,7 +468,7 @@ def preprocess_audio(bookfolder, bookid=0, authorname='', bookname='', merge=Non
                 logger.error("%s: %s" % (type(e).__name__, str(e)))
                 return
 
-        if not lazylibrarian.CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
+        if not CONFIG.get_bool('KEEP_SEPARATEAUDIO') and len(parts) > 1:
             logger.debug("Removing %d part files" % len(parts))
             for part in parts:
                 remove_file(os.path.join(bookfolder, part[3]))
@@ -490,10 +491,10 @@ def preprocess_magazine(bookfolder, cover=0):
             logger.error("No suitable sourcefile found in %s" % bookfolder)
             return
 
-        dpi = lazylibrarian.CONFIG.get_int('SHRINK_MAG')
+        dpi = CONFIG.get_int('SHRINK_MAG')
         cover = check_int(cover, 0)
 
-        if not dpi and not (lazylibrarian.CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1):
+        if not dpi and not (CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1):
             logger.debug("No preprocessing required")
             return
 
@@ -518,7 +519,7 @@ def preprocess_magazine(bookfolder, cover=0):
             elif shrunkfile:
                 remove_file(shrunkfile)
 
-        if lazylibrarian.CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
+        if CONFIG.get_bool('SWAP_COVERPAGE') and cover > 1:
             if not PdfFileWriter:
                 logger.error("PdfFileWriter not found")
             else:

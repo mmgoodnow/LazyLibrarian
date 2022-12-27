@@ -19,6 +19,7 @@ import traceback
 import time
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.bookwork import get_work_series, get_work_page, delete_empty_series, \
     set_series, get_status, thinglang, google_book_dict
@@ -35,16 +36,16 @@ from urllib.parse import quote, quote_plus, urlencode
 class GoogleBooks:
     def __init__(self, name=None):
         self.name = make_unicode(name)
-        if not lazylibrarian.CONFIG['GB_API']:
+        if not CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
-        self.url = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
+        self.url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes?q='])
         self.params = {
             'maxResults': 40,
             'printType': 'books',
         }
 
-        if lazylibrarian.CONFIG['GB_API']:
-            self.params['key'] = lazylibrarian.CONFIG['GB_API']
+        if CONFIG['GB_API']:
+            self.params['key'] = CONFIG['GB_API']
 
     # noinspection PyBroadException
     def find_results(self, searchterm=None, queue=None):
@@ -141,7 +142,7 @@ class GoogleBooks:
                                 logger.debug('Skipped a result without title.')
                                 continue
 
-                            valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+                            valid_langs = get_list(CONFIG['IMP_PREFLANG'])
                             if "All" not in valid_langs:  # don't care about languages, accept all
                                 try:
                                     # skip if language is not in valid list -
@@ -256,7 +257,7 @@ class GoogleBooks:
             total_count = 0
             number_results = 1
 
-            valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+            valid_langs = get_list(CONFIG['IMP_PREFLANG'])
             # Artist is loading
             db = database.DBConnection()
             control_value_dict = {"AuthorID": authorid}
@@ -373,7 +374,7 @@ class GoogleBooks:
                                 continue
 
                         ignorable = ['future', 'date', 'isbn']
-                        if lazylibrarian.CONFIG.get_bool('NO_LANG'):
+                        if CONFIG.get_bool('NO_LANG'):
                             ignorable.append('lang')
                         rejected = None
                         check_status = False
@@ -389,18 +390,18 @@ class GoogleBooks:
                             # logger.debug("[%s] removed book for bad characters" % bookname)
                             # rejected = 'chars', 'Bad characters in bookname'
 
-                        if not rejected and lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
+                        if not rejected and CONFIG.get_bool('NO_FUTURE'):
                             # googlebooks sometimes gives yyyy, sometimes yyyy-mm, sometimes yyyy-mm-dd
                             if book['date'] > today()[:len(book['date'])]:
                                 logger.debug('Rejecting %s, future publication date %s' % (bookname, book['date']))
                                 rejected = 'future', 'Future publication date [%s]' % book['date']
 
-                        if not rejected and lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
+                        if not rejected and CONFIG.get_bool('NO_PUBDATE'):
                             if not book['date']:
                                 logger.debug('Rejecting %s, no publication date' % bookname)
                                 rejected = 'date', 'No publication date'
 
-                        if not rejected and lazylibrarian.CONFIG.get_bool('NO_ISBN'):
+                        if not rejected and CONFIG.get_bool('NO_ISBN'):
                             if not isbnhead:
                                 logger.debug('Rejecting %s, no isbn' % bookname)
                                 rejected = 'isbn', 'No ISBN'
@@ -448,7 +449,7 @@ class GoogleBooks:
                         if rejected and rejected[0] not in ignorable:
                             removed_results += 1
                         if check_status or rejected is None or (
-                                lazylibrarian.CONFIG.get_bool('IMP_IGNORE') and rejected[0] in ignorable):  # dates, isbn
+                                CONFIG.get_bool('IMP_IGNORE') and rejected[0] in ignorable):  # dates, isbn
 
                             cmd = 'SELECT Status,AudioStatus,BookFile,AudioFile,Manual,BookAdded,BookName,ScanResult '
                             cmd += 'FROM books WHERE BookID=?'
@@ -456,7 +457,7 @@ class GoogleBooks:
                             if existing:
                                 book_status = existing['Status']
                                 audio_status = existing['AudioStatus']
-                                if lazylibrarian.CONFIG['FOUND_STATUS'] == 'Open':
+                                if CONFIG['FOUND_STATUS'] == 'Open':
                                     if book_status == 'Have' and existing['BookFile']:
                                         book_status = 'Open'
                                     if audio_status == 'Have' and existing['AudioFile']:
@@ -536,7 +537,7 @@ class GoogleBooks:
                                 serieslist = []
                                 if book['series']:
                                     serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
-                                if lazylibrarian.CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+                                if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
                                     newserieslist = get_work_series(bookid, 'LT', reason=reason)
                                     if newserieslist:
                                         serieslist = newserieslist
@@ -639,10 +640,10 @@ class GoogleBooks:
 
     def find_book(self, bookid=None, bookstatus=None, audiostatus=None, reason='gb.find_book'):
         db = database.DBConnection()
-        if not lazylibrarian.CONFIG['GB_API']:
+        if not CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
-        url = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes/' +
-                        str(bookid) + "?key=" + lazylibrarian.CONFIG['GB_API']])
+        url = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes/' +
+                        str(bookid) + "?key=" + CONFIG['GB_API']])
         jsonresults, _ = json_request(url)
 
         if not jsonresults:
@@ -650,9 +651,9 @@ class GoogleBooks:
             return
 
         if not bookstatus:
-            bookstatus = lazylibrarian.CONFIG['NEWBOOK_STATUS']
+            bookstatus = CONFIG['NEWBOOK_STATUS']
         if not audiostatus:
-            audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
+            audiostatus = CONFIG['NEWAUDIO_STATUS']
 
         book = google_book_dict(jsonresults)
         dic = {':': '.', '"': ''}
@@ -662,28 +663,28 @@ class GoogleBooks:
             logger.debug('Book %s does not contain author field, skipping' % bookname)
             return
         # warn if language is in ignore list, but user said they wanted this book
-        valid_langs = get_list(lazylibrarian.CONFIG['IMP_PREFLANG'])
+        valid_langs = get_list(CONFIG['IMP_PREFLANG'])
         if book['lang'] not in valid_langs and 'All' not in valid_langs:
             msg = 'Book %s googlebooks language does not match preference, %s' % (bookname, book['lang'])
             logger.warn(msg)
             if reason.startswith("Series:"):
                 return
 
-        if lazylibrarian.CONFIG.get_bool('NO_PUBDATE'):
+        if CONFIG.get_bool('NO_PUBDATE'):
             if not book['date'] or book['date'] == '0000':
                 msg = 'Book %s Publication date does not match preference, %s' % (bookname, book['date'])
                 logger.warn(msg)
                 if reason.startswith("Series:"):
                     return
 
-        if lazylibrarian.CONFIG.get_bool('NO_FUTURE'):
+        if CONFIG.get_bool('NO_FUTURE'):
             if book['date'] > today()[:4]:
                 msg = 'Book %s Future publication date does not match preference, %s' % (bookname, book['date'])
                 logger.warn(msg)
                 if reason.startswith("Series:"):
                     return
 
-        if lazylibrarian.CONFIG.get_bool('NO_SETS'):
+        if CONFIG.get_bool('NO_SETS'):
             # allow date ranges eg 1981-95
             m = re.search(r'(\d+)-(\d+)', bookname)
             if m:
@@ -723,7 +724,7 @@ class GoogleBooks:
                 else:  # no author but request to add book, add author with newauthor status
                     # User hit "add book" button from a search or a wishlist import
                     newauthor_status = 'Active'
-                    if lazylibrarian.CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
+                    if CONFIG['NEWAUTHOR_STATUS'] in ['Skipped', 'Ignored']:
                         newauthor_status = 'Paused'
                     # also set paused if adding author as a series contributor
                     if reason.startswith('Series:'):
@@ -742,8 +743,8 @@ class GoogleBooks:
                     }
                     authorname = author['authorname']
                     db.upsert("authors", new_value_dict, control_value_dict)
-                    if lazylibrarian.CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
-                        self.get_author_books(author_id, entrystatus=lazylibrarian.CONFIG['NEWAUTHOR_STATUS'],
+                    if CONFIG.get_bool('NEWAUTHOR_BOOKS') and newauthor_status != 'Paused':
+                        self.get_author_books(author_id, entrystatus=CONFIG['NEWAUTHOR_STATUS'],
                                               reason=reason)
         else:
             logger.warn("No AuthorID for %s, unable to add book %s" % (book['author'], bookname))
@@ -795,7 +796,7 @@ class GoogleBooks:
         serieslist = []
         if book['series']:
             serieslist = [('', book['seriesNum'], clean_name(book['series'], '&/'))]
-        if lazylibrarian.CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
+        if CONFIG.get_bool('ADD_SERIES') and "Ignored:" not in reason:
             newserieslist = get_work_series(bookid, 'LT', reason=reason)
             if newserieslist:
                 serieslist = newserieslist

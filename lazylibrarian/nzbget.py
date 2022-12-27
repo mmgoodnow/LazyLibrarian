@@ -23,6 +23,7 @@
 from base64 import standard_b64encode
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.formatter import make_unicode
 from xmlrpc.client import ServerProxy, ProtocolError
@@ -52,8 +53,8 @@ def delete_nzb(nzbid, remove_data=False):
 def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
     # we can send a new nzb, or commands to act on an existing nzbID (or array of nzbIDs)
     # by setting nzbID and cmd (we currently only use test, history, listgroups and delete)
-    host = lazylibrarian.CONFIG['NZBGET_HOST']
-    port = lazylibrarian.CONFIG.get_int('NZBGET_PORT')
+    host = CONFIG['NZBGET_HOST']
+    port = CONFIG.get_int('NZBGET_PORT')
     if not host or not port:
         res = 'Invalid NZBget host or port, check your config'
         logger.error(res)
@@ -69,9 +70,9 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
     hostparts = host.split('://')
 
     url = hostparts[0] + '://' + nzbget_xml_rpc % {"host": hostparts[1],
-                                                   "username": quote(lazylibrarian.CONFIG['NZBGET_USER'], safe=''),
+                                                   "username": quote(CONFIG['NZBGET_USER'], safe=''),
                                                    "port": port,
-                                                   "password": quote(lazylibrarian.CONFIG['NZBGET_PASS'], safe='')}
+                                                   "password": quote(CONFIG['NZBGET_PASS'], safe='')}
     try:
         nzb_get_rpc = ServerProxy(url)
     except Exception as e:
@@ -174,28 +175,28 @@ def send_nzb(nzb=None, cmd=None, nzbid=None, library='eBook', label=''):
         elif nzbget_version == 12:
             if nzbcontent64:
                 nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", label,
-                                                   lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False,
+                                                   CONFIG.get_int('NZBGET_PRIORITY'), False,
                                                    nzbcontent64, False, dupekey, dupescore, "score")
             else:
                 nzbget_result = nzb_get_rpc.appendurl(nzb.name + ".nzb", label,
-                                                      lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url, False,
+                                                      CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url, False,
                                                       dupekey, dupescore, "score")
         # v13+ has a new combined append method that accepts both (url and content)
         # also the return value has changed from boolean to integer
         # (Positive number representing NZBID of the queue item. 0 and negative numbers represent error codes.)
         elif nzbget_version >= 13:
             nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", nzbcontent64 if nzbcontent64 is not None else nzb.url,
-                                               label, lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, False, dupekey,
+                                               label, CONFIG.get_int('NZBGET_PRIORITY'), False, False, dupekey,
                                                dupescore, "score")
             if nzbget_result <= 0:
                 nzbget_result = False
         else:
             if nzbcontent64:
                 nzbget_result = nzb_get_rpc.append(nzb.name + ".nzb", label,
-                                                   lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzbcontent64)
+                                                   CONFIG.get_int('NZBGET_PRIORITY'), False, nzbcontent64)
             else:
                 nzbget_result = nzb_get_rpc.appendurl(nzb.name + ".nzb", label,
-                                                      lazylibrarian.CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url)
+                                                      CONFIG.get_int('NZBGET_PRIORITY'), False, nzb.url)
 
         if nzbget_result:
             logger.debug("NZB sent to NZBget successfully")

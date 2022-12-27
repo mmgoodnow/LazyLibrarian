@@ -4,9 +4,10 @@
 #   Hold helper functions only needed for testing
 
 import unittest
-import lazylibrarian
 from os import remove
 from shutil import rmtree
+
+import lazylibrarian
 from lazylibrarian.common import logger
 from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian import dbupgrade, startup, config2, configdefs
@@ -29,12 +30,11 @@ class LLTestCase(unittest.TestCase):
             cls.prepareTestDB()
             startup.init_build_debug_header(online = False)
         startup.init_build_lists()
-#        lazylibrarian.CONFIG.clear_access_counters()
         return super().setUpClass()
 
     @classmethod
     def tearDownClass(cls) -> None:
-        lazylibrarian.CONFIG.create_access_summary()
+        config2.CONFIG.create_access_summary()
 
         startup.shutdown(restart=False, update=False, exit=False, testing=True)
         if cls.ALLSETUP:
@@ -47,8 +47,8 @@ class LLTestCase(unittest.TestCase):
         return super().tearDownClass()
 
     @classmethod
-    def setDoAll(cls, all=None):
-        cls.ALLSETUP = all
+    def setDoAll(cls, doall=None):
+        cls.ALLSETUP = doall
 
     @classmethod
     def setConfigFile(cls, configfile):
@@ -57,12 +57,12 @@ class LLTestCase(unittest.TestCase):
     @classmethod
     def removetestDB(cls):
         # Delete the database that was created for unit testing
-        if len(lazylibrarian.DBFILE):
+        if len(DIRS.get_dbfile()):
             logger.debug("Deleting unit test database")
             try:
-                remove(lazylibrarian.DBFILE)
-                remove(lazylibrarian.DBFILE + "-shm")
-                remove(lazylibrarian.DBFILE + "-wal")
+                remove(DIRS.get_dbfile())
+                remove(DIRS.get_dbfile() + "-shm")
+                remove(DIRS.get_dbfile() + "-wal")
             except:
                 pass
 
@@ -78,10 +78,10 @@ class LLTestCase(unittest.TestCase):
 
     @classmethod
     def delete_test_logs(cls):
-        if path_isdir(lazylibrarian.CONFIG['LOGDIR']) and len(lazylibrarian.CONFIG['LOGDIR']) > 3:
+        if path_isdir(config2.CONFIG['LOGDIR']) and len(config2.CONFIG['LOGDIR']) > 3:
             try: # Do not delete if there is a risk that it's the root of somewhere important
 #                logger.debug("Deleting Logs")
-                rmtree(lazylibrarian.CONFIG['LOGDIR'], ignore_errors=False)
+                rmtree(config2.CONFIG['LOGDIR'], ignore_errors=False)
             except Exception as e:
                 print(str(e))
 
@@ -98,9 +98,8 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.SYS_ENCODING = ''
         logger.lazylibrarian_log.update_loglevel(1)
         logger.lazylibrarian_log.LOGLEVEL_OVERRIDE = False
+        config2.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         lazylibrarian.LOGINUSER = None
-        lazylibrarian.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
-        lazylibrarian.DBFILE = ''
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.SHOWLOGOUT = 1
         lazylibrarian.CHERRYPYLOG = 0

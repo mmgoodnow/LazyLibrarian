@@ -13,8 +13,6 @@
 # Purpose:
 #   Contains global startup and initialization code for LL
 
-import lazylibrarian
-
 import locale
 import os
 import sys
@@ -29,14 +27,14 @@ import tarfile
 import cherrypy
 import urllib3
 import requests
-
 from shutil import rmtree
 
+import lazylibrarian
 from lazylibrarian.common import log_header
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
-from lazylibrarian import CONFIG
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
 from lazylibrarian.cache import fetch_url
@@ -128,7 +126,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
             print("Daemonize not supported under Windows, starting normally")
 
     if options.nolaunch:
-        lazylibrarian.CONFIG.set_bool('LAUNCH_BROWSER', False)
+        CONFIG.set_bool('LAUNCH_BROWSER', False)
 
     if options.port:
         options.port = check_int(options.port, 0)
@@ -147,15 +145,15 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         lazylibrarian.SIGNAL = 'update'
         # This is the "emergency recovery" update in case lazylibrarian won't start.
         # Set up some dummy values for the update as we have not read the config file yet
-        lazylibrarian.CONFIG.reset_to_default([
+        CONFIG.reset_to_default([
             'GIT_PROGRAM', 'GIT_USER', 'GIT_REPO', 'GIT_REPO', 'USER_AGENT', 'HTTP_TIMEOUT', 'PROXY_HOST',
             'SSL_CERTS', 'SSL_VERIFY', 'LOGLIMIT',
         ])
         DIRS.ensure_cache_dir()
-        lazylibrarian.CONFIG['LOGDIR'] = DIRS.ensure_data_subdir('Logs')
+        CONFIG['LOGDIR'] = DIRS.ensure_data_subdir('Logs')
 
         versioncheck.get_install_type()
-        if lazylibrarian.CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
+        if CONFIG['INSTALL_TYPE'] not in ['git', 'source']:
             lazylibrarian.SIGNAL = None
             print('Cannot update, not a git or source installation')
         else:
@@ -191,8 +189,8 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         remove_file(icon)
 
     # create database and config
-    lazylibrarian.CONFIG.load_configfile(configfile=configfile)
-    lazylibrarian.CONFIG.post_load_fixup()
+    CONFIG.load_configfile(configfile=configfile)
+    CONFIG.post_load_fixup()
 
     return options
 
@@ -200,8 +198,8 @@ def init_logs():
     # Initialize log files. Until this is done, do not use the logger
     DIRS.ensure_log_dir()
 
-    lazylibrarian_log.init_logger(config=lazylibrarian.CONFIG)
-    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {lazylibrarian.CONFIG['LOGDIR']}")
+    lazylibrarian_log.init_logger(config=CONFIG)
+    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {CONFIG['LOGDIR']}")
     if lazylibrarian_log.LOGLEVEL > 2:
         info("Screen Log set to EXTENDED DEBUG")
     elif lazylibrarian_log.LOGLEVEL == 2:
@@ -217,14 +215,14 @@ def init_config():
     initscheduler()
     lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
-    if lazylibrarian.CONFIG.get_bool('NO_IPV6'):
+    if CONFIG.get_bool('NO_IPV6'):
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
         urllib3.util.connection.HAS_IPV6 = False # type: ignore
 
 def init_caches():
     # override detected encoding if required
-    if lazylibrarian.CONFIG['SYS_ENCODING']:
-        lazylibrarian.SYS_ENCODING = lazylibrarian.CONFIG['SYS_ENCODING']
+    if CONFIG['SYS_ENCODING']:
+        lazylibrarian.SYS_ENCODING = CONFIG['SYS_ENCODING']
 
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
@@ -254,7 +252,7 @@ def init_caches():
     last_run_version = None
     last_run_interface = None
     makocache = DIRS.get_mako_cachedir()
-    version_file = lazylibrarian.CONFIG.get_mako_versionfile()
+    version_file = CONFIG.get_mako_versionfile()
 
     if os.path.isfile(version_file):
         with open(version_file, 'r') as fp:
@@ -271,18 +269,18 @@ def init_caches():
         else:
             debug("Previous python version unknown, now %s" % sys.version.split()[0])
         clean_cache = True
-    if last_run_interface != lazylibrarian.CONFIG['HTTP_LOOK']:
+    if last_run_interface != CONFIG['HTTP_LOOK']:
         if last_run_interface:
-            debug("Interface change (%s to %s)" % (last_run_interface, lazylibrarian.CONFIG['HTTP_LOOK']))
+            debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
         else:
-            debug("Previous interface unknown, now %s" % lazylibrarian.CONFIG['HTTP_LOOK'])
+            debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
         clean_cache = True
     if clean_cache:
         debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
         with open(version_file, 'w') as fp:
-            fp.write(sys.version.split()[0] + ':' + lazylibrarian.CONFIG['HTTP_LOOK'])
+            fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
 
     # keep track of last api calls so we don't call more than once per second
     # to respect api terms, but don't wait un-necessarily either
@@ -298,10 +296,10 @@ def init_caches():
     lazylibrarian.TIMERS['SLEEP_BOK'] = 0.0
     lazylibrarian.GB_CALLS = 0
 
-    if lazylibrarian.CONFIG['BOOK_API'] != 'GoodReads':
-        lazylibrarian.CONFIG.set_bool('GR_SYNC', False)
-        lazylibrarian.CONFIG.set_bool('GR_FOLLOW', False)
-        lazylibrarian.CONFIG.set_bool('GR_FOLLOWNEW', False)
+    if CONFIG['BOOK_API'] != 'GoodReads':
+        CONFIG.set_bool('GR_SYNC', False)
+        CONFIG.set_bool('GR_FOLLOW', False)
+        CONFIG.set_bool('GR_FOLLOWNEW', False)
 
 
 def init_database():
@@ -368,18 +366,18 @@ def get_unrarlib():
     try:
         # noinspection PyUnresolvedReferences
         from unrar import rarfile
-        if lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 1:
+        if CONFIG.get_int('PREF_UNRARLIB') == 1:
             return 1, rarfile
     except Exception:
         # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
-            if lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 1:
+            if CONFIG.get_int('PREF_UNRARLIB') == 1:
                 return 1, rarfile
         except Exception:
             pass
 
-    if not rarfile or lazylibrarian.CONFIG.get_int('PREF_UNRARLIB') == 2:
+    if not rarfile or CONFIG.get_int('PREF_UNRARLIB') == 2:
         # noinspection PyBroadException
         try:
             from lib.UnRAR2 import RarFile
@@ -589,49 +587,49 @@ def create_version_file(filename):
     return version_file
 
 def init_version_checks(version_file):
-    if lazylibrarian.CONFIG.get_int('VERSIONCHECK_INTERVAL') == 0:
+    if CONFIG.get_int('VERSIONCHECK_INTERVAL') == 0:
         debug('Automatic update checks are disabled')
         # pretend we're up to date so we don't keep warning the user
         # version check button will still override this if you want to
-        lazylibrarian.CONFIG.set_str('LATEST_VERSION', lazylibrarian.CONFIG['CURRENT_VERSION'])
-        lazylibrarian.CONFIG.set_int('COMMITS_BEHIND', 0)
+        CONFIG.set_str('LATEST_VERSION', CONFIG['CURRENT_VERSION'])
+        CONFIG.set_int('COMMITS_BEHIND', 0)
     else:
         # Set the install type (win,git,source) &
         # check the version when the application starts
         versioncheck.check_for_updates()
 
         debug('Current Version [%s] - Latest remote version [%s] - Install type [%s]' % (
-            lazylibrarian.CONFIG['CURRENT_VERSION'], lazylibrarian.CONFIG['LATEST_VERSION'],
-            lazylibrarian.CONFIG['INSTALL_TYPE']))
+            CONFIG['CURRENT_VERSION'], CONFIG['LATEST_VERSION'],
+            CONFIG['INSTALL_TYPE']))
 
-        if lazylibrarian.CONFIG.get_int('GIT_UPDATED') == 0:
-            if lazylibrarian.CONFIG['CURRENT_VERSION'] == lazylibrarian.CONFIG['LATEST_VERSION']:
-                if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git' and lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
-                    lazylibrarian.CONFIG.set_int('GIT_UPDATED', int(time.time()))
+        if CONFIG.get_int('GIT_UPDATED') == 0:
+            if CONFIG['CURRENT_VERSION'] == CONFIG['LATEST_VERSION']:
+                if CONFIG['INSTALL_TYPE'] == 'git' and CONFIG.get_int('COMMITS_BEHIND') == 0:
+                    CONFIG.set_int('GIT_UPDATED', int(time.time()))
                     debug('Setting update timestamp to now')
 
     # if gitlab doesn't recognise a hash it returns 0 commits
-    if lazylibrarian.CONFIG['CURRENT_VERSION'] != lazylibrarian.CONFIG['LATEST_VERSION'] \
-            and lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
-        if lazylibrarian.CONFIG['INSTALL_TYPE'] == 'git':
+    if CONFIG['CURRENT_VERSION'] != CONFIG['LATEST_VERSION'] \
+            and CONFIG.get_int('COMMITS_BEHIND') == 0:
+        if CONFIG['INSTALL_TYPE'] == 'git':
             res, _ = versioncheck.run_git('remote -v')
             if 'gitlab.com' in str(res):
                 warn('Unrecognised version, LazyLibrarian may have local changes')
-        elif lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+        elif CONFIG['INSTALL_TYPE'] == 'source':
             warn('Unrecognised version [%s] to force upgrade delete %s' % (
-                        lazylibrarian.CONFIG['CURRENT_VERSION'], version_file))
+                CONFIG['CURRENT_VERSION'], version_file))
 
-    if not path_isfile(version_file) and lazylibrarian.CONFIG['INSTALL_TYPE'] == 'source':
+    if not path_isfile(version_file) and CONFIG['INSTALL_TYPE'] == 'source':
         # User may be running an old source zip, so try to force update
-        lazylibrarian.CONFIG.set_int('COMMITS_BEHIND', 1)
+        CONFIG.set_int('COMMITS_BEHIND', 1)
         lazylibrarian.SIGNAL = 'update'
         # but only once in case the update fails, don't loop
         with open(syspath(version_file), 'w') as f:
             f.write("UNKNOWN SOURCE")
 
-    if lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') <= 0:
+    if CONFIG.get_int('COMMITS_BEHIND') <= 0:
         lazylibrarian.SIGNAL = None
-        if lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
+        if CONFIG.get_int('COMMITS_BEHIND') == 0:
             debug('Not updating, LazyLibrarian is already up to date')
         else:
             debug('Not updating, LazyLibrarian has local changes')
@@ -646,7 +644,7 @@ def launch_browser(host, port, root):
     if host == '0.0.0.0':
         host = 'localhost'
 
-    if lazylibrarian.CONFIG.get_bool('HTTPS_ENABLED'):
+    if CONFIG.get_bool('HTTPS_ENABLED'):
         protocol = 'https'
     else:
         protocol = 'http'
@@ -659,18 +657,18 @@ def launch_browser(host, port, root):
 
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
-        lazylibrarian.SHOW_EBOOK = 1 if lazylibrarian.CONFIG.get_bool('EBOOK_TAB') else 0
-        lazylibrarian.SHOW_AUDIO = 1 if lazylibrarian.CONFIG.get_bool('AUDIO_TAB') else 0
-        lazylibrarian.SHOW_MAGS = 1 if lazylibrarian.CONFIG.get_bool('MAG_TAB') else 0
-        lazylibrarian.SHOW_COMICS = 1 if lazylibrarian.CONFIG.get_bool('COMIC_TAB') else 0
+        lazylibrarian.SHOW_EBOOK = 1 if CONFIG.get_bool('EBOOK_TAB') else 0
+        lazylibrarian.SHOW_AUDIO = 1 if CONFIG.get_bool('AUDIO_TAB') else 0
+        lazylibrarian.SHOW_MAGS = 1 if CONFIG.get_bool('MAG_TAB') else 0
+        lazylibrarian.SHOW_COMICS = 1 if CONFIG.get_bool('COMIC_TAB') else 0
 
-        if lazylibrarian.CONFIG.get_bool('ADD_SERIES'):
+        if CONFIG.get_bool('ADD_SERIES'):
             lazylibrarian.SHOW_SERIES = 1
-        if not lazylibrarian.CONFIG.get_bool('SERIES_TAB'):
+        if not CONFIG.get_bool('SERIES_TAB'):
             lazylibrarian.SHOW_SERIES = 0
 
-    if lazylibrarian.CONFIG['GR_URL'] == 'https://goodreads.org':
-        lazylibrarian.CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
+    if CONFIG['GR_URL'] == 'https://goodreads.org':
+        CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
     # Crons and scheduled jobs started here
     # noinspection PyUnresolvedReferences
     startscheduler()
@@ -701,8 +699,8 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
     shutdownscheduler()
     if not testing:
         if lazylibrarian_log.LOGLEVEL >= 2:
-            lazylibrarian.CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
-        lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=False)
+            CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
+        CONFIG.save_config_and_backup_old(restart_jobs=False)
 
     if not restart and not update:
         logmsg('info', 'LazyLibrarian (pid %s) is shutting down...' % os.getpid())
@@ -721,8 +719,8 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 makocache = os.path.join(DIRS.CACHEDIR, 'mako')
                 rmtree(makocache)
                 os.makedirs(makocache)
-                lazylibrarian.CONFIG.set_int('GIT_UPDATED', int(time.time()))
-                lazylibrarian.CONFIG.save_config_and_backup_old(section='Git')
+                CONFIG.set_int('GIT_UPDATED', int(time.time()))
+                CONFIG.save_config_and_backup_old(section='Git')
         except Exception as e:
             logmsg('warn', 'LazyLibrarian failed to update: %s %s. Restarting.' % (type(e).__name__, str(e)))
             logmsg('error', str(traceback.format_exc()))
@@ -781,7 +779,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                 if 'HTTP_HOST' in CONFIG:
                     # updating a running instance, not an --update
                     # wait for it to open the httpserver
-                    host = lazylibrarian.CONFIG['HTTP_HOST']
+                    host = CONFIG['HTTP_HOST']
                     if '0.0.0.0' in host:
                         host = 'localhost'  # windows doesn't like 0.0.0.0
 
@@ -789,12 +787,12 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
                         host = 'http://' + host
 
                     # depending on proxy might need host:port/root or just host/root
-                    if lazylibrarian.CONFIG['HTTP_ROOT']:
-                        server1 = "%s:%s/%s" % (host, lazylibrarian.CONFIG['HTTP_PORT'],
-                                                lazylibrarian.CONFIG['HTTP_ROOT'].lstrip('/'))
-                        server2 = "%s/%s" % (host, lazylibrarian.CONFIG['HTTP_ROOT'].lstrip('/'))
+                    if CONFIG['HTTP_ROOT']:
+                        server1 = "%s:%s/%s" % (host, CONFIG['HTTP_PORT'],
+                                                CONFIG['HTTP_ROOT'].lstrip('/'))
+                        server2 = "%s/%s" % (host, CONFIG['HTTP_ROOT'].lstrip('/'))
                     else:
-                        server1 = "%s:%s" % (host, lazylibrarian.CONFIG['HTTP_PORT'])
+                        server1 = "%s:%s" % (host, CONFIG['HTTP_PORT'])
                         server2 = ''
 
                     msg = "Waiting for %s to start" % server1

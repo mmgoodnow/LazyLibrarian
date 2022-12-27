@@ -2,7 +2,7 @@
 #
 # Purpose:
 #   Test functions in formatter.py
-
+from lazylibrarian.config2 import CONFIG
 import unittests.unittesthelpers
 
 import lazylibrarian
@@ -142,12 +142,12 @@ class FormatterTest(LLTestCase):
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
             ("Author Name", "Author Name: Book (TM)", ("Book", "", "")),
         ]
-        lazylibrarian.CONFIG.set_str('IMP_NOSPLIT', '')
+        CONFIG.set_str('IMP_NOSPLIT', '')
         for data in testdata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testdata: {data}")
 
-        lazylibrarian.CONFIG.set_csv('IMP_NOSPLIT', "unabridged,tm,annotated")
+        CONFIG.set_csv('IMP_NOSPLIT', "unabridged,tm,annotated")
         for data in testcommentarydata:
             name, sub, series = formatter.split_title(data[0], data[1])
             self.assertEqual((name, sub, series), data[2], f"Testcommentarydata: {data}")
@@ -498,23 +498,23 @@ class FormatterTest(LLTestCase):
             ('Test ' + u'\xdf', 'Test ss'),
         ]
         # no_umlauts only does something if German is a language used
-        lang = lazylibrarian.CONFIG['IMP_PREFLANG']
-        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', 'eng')
+        lang = CONFIG['IMP_PREFLANG']
+        CONFIG.set_str('IMP_PREFLANG', 'eng')
         # First test that nothing changes without German
         for s in teststrings:
             self.assertEqual(formatter.no_umlauts(s[0]), s[0])
-        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', 'de')
+        CONFIG.set_str('IMP_PREFLANG', 'de')
         for s in teststrings:
             self.assertEqual(formatter.no_umlauts(s[0]), s[1])
-        lazylibrarian.CONFIG.set_str('IMP_PREFLANG', lang)
+        CONFIG.set_str('IMP_PREFLANG', lang)
 
     def test_disp_name(self):
         # Add some dummy data to test on
-        rss = lazylibrarian.CONFIG.get_array('RSS')
+        rss = CONFIG.get_array('RSS')
         if rss:
             rss[0]['HOST'] = 'test-host'
             rss[0]['DISPNAME'] = 'short-rss-name'
-        irc = lazylibrarian.CONFIG.get_array('IRC')
+        irc = CONFIG.get_array('IRC')
         if irc:
             irc[0]['SERVER'] = 'irc-host'
             irc[0]['DISPNAME'] = '123456789012345/67890Thisistoolong'

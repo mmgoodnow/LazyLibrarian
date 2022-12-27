@@ -18,6 +18,7 @@ import traceback
 from operator import itemgetter
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.cache import cache_img
 from lazylibrarian.formatter import today, unaccented, format_author_name, make_unicode, \
@@ -36,10 +37,10 @@ def is_valid_authorid(authorid):
     if not authorid or not isinstance(authorid, str):
         return False # Reject blank, or non-string
     # GoogleBooks doesn't provide authorid so we use one of the other sources
-    if authorid.isdigit() and lazylibrarian.CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
+    if authorid.isdigit() and CONFIG['BOOK_API'] in ['GoodReads', 'GoogleBooks']:
         return True
     if authorid.startswith('OL') and authorid.endswith('A') and \
-            lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+            CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
         return True
     return False
 
@@ -60,7 +61,7 @@ def get_preferred_author_name(author):
             aname = item['AuthorName']
             if aname:
                 match_fuzz = fuzz.ratio(aname.lower().replace('.', ''), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+                if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                     logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AuthorName'], match_fuzz, author))
                     author = item['AuthorName']
                     match = True
@@ -68,7 +69,7 @@ def get_preferred_author_name(author):
             aka = item['AKA']
             if aka:
                 match_fuzz = fuzz.ratio(aka.lower().replace('.', ''), match_name)
-                if match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+                if match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                     logger.debug("Fuzzy match [%s] %s%% for [%s]" % (item['AKA'], match_fuzz, author))
                     author = item['AuthorName']
                     match = True
@@ -92,7 +93,7 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             reason = 'Unknown reason in add_author_name_to_db'
 
     if addbooks is None:  # we get passed True/False or None
-        addbooks = lazylibrarian.CONFIG.get_bool('NEWAUTHOR_BOOKS')
+        addbooks = CONFIG.get_bool('NEWAUTHOR_BOOKS')
 
     new = False
     author_info = {}
@@ -107,10 +108,10 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
         check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))
     else:
         check_exist_author = None
-    if not exists and (lazylibrarian.CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
+    if not exists and (CONFIG.get_bool('ADD_AUTHOR') or reason.startswith('API')):
         logger.debug('Author %s not found in database, trying to add' % author)
         # no match for supplied author, but we're allowed to add new ones
-        if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+        if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
             if title:
                 ol = OpenLibrary(author + '<ll>' + title)
             else:
@@ -146,13 +147,13 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
             # We stored GoodReads/OpenLibrary author name in author_info, so store in LL db under that
             # fuzz.ratio doesn't lowercase for us
             match_fuzz = fuzz.ratio(match_auth.lower(), match_name.lower())
-            if match_fuzz < lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+            if match_fuzz < CONFIG.get_int('NAME_RATIO'):
                 logger.debug("Failed to match author [%s] to authorname [%s] fuzz [%d]" %
                              (author, match_name, match_fuzz))
 
             # To save loading hundreds of books by unknown authors at GR or GB, ignore unknown
             if "unknown" not in author.lower() and 'anonymous' not in author.lower() and \
-                    match_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+                    match_fuzz >= CONFIG.get_int('NAME_RATIO'):
                 # use "intact" name for author that we stored in
                 # author_dict, not one of the various mangled versions
                 # otherwise the books appear to be by a different author!
@@ -305,7 +306,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                         author[item] = gr_author[item]
 
             # which id do we prefer
-            if author.get('ol_id') and lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+            if author.get('ol_id') and CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                 author['authorid'] = author['ol_id']
             elif author.get('gr_id'):
                 author['authorid'] = author['gr_id']
@@ -401,7 +402,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
             author = {}
             # which do we prefer
-            if lazylibrarian.CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
+            if CONFIG['BOOK_API'] in ['OpenLibrary', 'GoogleBooks']:
                 if ol_author.get('authorid'):
                     ol_author['ol_id'] = ol_author['authorid']
                     for item in ol_author:
@@ -531,57 +532,57 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
 
         if match and addbooks:
             if new_author:
-                bookstatus = lazylibrarian.CONFIG['NEWAUTHOR_STATUS']
-                audiostatus = lazylibrarian.CONFIG['NEWAUTHOR_AUDIO']
+                bookstatus = CONFIG['NEWAUTHOR_STATUS']
+                audiostatus = CONFIG['NEWAUTHOR_AUDIO']
             else:
-                bookstatus = lazylibrarian.CONFIG['NEWBOOK_STATUS']
-                audiostatus = lazylibrarian.CONFIG['NEWAUDIO_STATUS']
+                bookstatus = CONFIG['NEWBOOK_STATUS']
+                audiostatus = CONFIG['NEWAUDIO_STATUS']
 
             if entry_status not in ['Active', 'Wanted', 'Ignored', 'Paused']:
                 entry_status = 'Active'  # default for invalid/unknown or "loading"
             # process books
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and lazylibrarian.CONFIG['GB_API']:
+            if CONFIG['BOOK_API'] == "GoogleBooks" and CONFIG['GB_API']:
                 book_api = GoogleBooks()
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
+                if CONFIG.get_bool('MULTI_SOURCE'):
                     book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                    if lazylibrarian.CONFIG['GR_API']:
+                    if CONFIG['GR_API']:
                         book_api = GoodReads(authorname)
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
                                                   refresh=refresh, reason=reason)
-            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and lazylibrarian.CONFIG['GR_API']:
+            elif CONFIG['BOOK_API'] == "GoodReads" and CONFIG['GR_API']:
                 book_api = GoodReads(authorname)
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
+                if CONFIG.get_bool('MULTI_SOURCE'):
                     book_api = OpenLibrary()
                     book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                               audiostatus=audiostatus, entrystatus=entry_status,
                                               refresh=refresh, reason=reason)
-                    if lazylibrarian.CONFIG['GB_API']:
+                    if CONFIG['GB_API']:
                         book_api = GoogleBooks()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
                                                   refresh=refresh, reason=reason)
-            elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+            elif CONFIG['BOOK_API'] == "OpenLibrary":
                 book_api = OpenLibrary(authorname)
                 book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                           audiostatus=audiostatus, entrystatus=entry_status,
                                           refresh=refresh, reason=reason)
-                if lazylibrarian.CONFIG.get_bool('MULTI_SOURCE'):
-                    if lazylibrarian.CONFIG['GR_API']:
+                if CONFIG.get_bool('MULTI_SOURCE'):
+                    if CONFIG['GR_API']:
                         book_api = GoodReads()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
                                                   refresh=refresh, reason=reason)
-                    if lazylibrarian.CONFIG['GB_API']:
+                    if CONFIG['GB_API']:
                         book_api = GoogleBooks()
                         book_api.get_author_books(authorid, authorname, bookstatus=bookstatus,
                                                   audiostatus=audiostatus, entrystatus=entry_status,
@@ -591,7 +592,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
                 logger.debug(msg)
                 return msg
 
-            if new_author and lazylibrarian.CONFIG['GR_FOLLOWNEW']:
+            if new_author and CONFIG['GR_FOLLOWNEW']:
                 res = grfollow(authorid, True)
                 if res.startswith('Unable'):
                     logger.warn(res)
@@ -678,13 +679,13 @@ def update_totals(authorid):
 def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.import_book'):
     """ search goodreads or googlebooks for a bookid and import the book
         ebook/audio=None makes find_book use configured default """
-    if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+    if CONFIG['BOOK_API'] == "GoogleBooks":
         gb = GoogleBooks(bookid)
         if not wait:
             threading.Thread(target=gb.find_book, name='GB-IMPORT', args=[bookid, ebook, audio, reason]).start()
         else:
             gb.find_book(bookid, ebook, audio, reason)
-    elif lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+    elif CONFIG['BOOK_API'] == 'OpenLibrary':
         ol = OpenLibrary(bookid)
         logger.debug("bookstatus=%s, audiostatus=%s" % (ebook, audio))
         if not wait:
@@ -703,17 +704,17 @@ def import_book(bookid, ebook=None, audio=None, wait=False, reason='importer.imp
 def search_for(searchterm):
     """ search goodreads or googlebooks for a searchterm, return a list of results
     """
-    if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+    if CONFIG['BOOK_API'] == "GoogleBooks":
         gb = GoogleBooks(searchterm)
         myqueue = Queue()
         search_api = threading.Thread(target=gb.find_results, name='GB-RESULTS', args=[searchterm, myqueue])
         search_api.start()
-    elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+    elif CONFIG['BOOK_API'] == "GoodReads":
         myqueue = Queue()
         gr = GoodReads(searchterm)
         search_api = threading.Thread(target=gr.find_results, name='GR-RESULTS', args=[searchterm, myqueue])
         search_api.start()
-    elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+    elif CONFIG['BOOK_API'] == "OpenLibrary":
         myqueue = Queue()
         ol = OpenLibrary(searchterm)
         search_api = threading.Thread(target=ol.find_results, name='OL-RESULTS', args=[searchterm, myqueue])

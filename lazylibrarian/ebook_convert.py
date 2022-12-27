@@ -2,7 +2,8 @@
 import sys
 import os
 import subprocess
-import lazylibrarian
+
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import get_directory
 from lazylibrarian.common import calibre_prg
 
@@ -25,8 +26,8 @@ def convert(input_file, output_format):
         sys.stderr.write("Error, No calibredb found")
         raise ValueError("No calibredb found")
 
-    if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER'):
-        ebook_directory = lazylibrarian.CONFIG['CALIBRE_SERVER']
+    if CONFIG.get_bool('CALIBRE_USE_SERVER'):
+        ebook_directory = CONFIG['CALIBRE_SERVER']
     else:
         ebook_directory = get_directory('eBook')
 
@@ -53,10 +54,10 @@ def convert(input_file, output_format):
             params = [calibredb, "add_format", "--with-library", "%s" % ebook_directory]
 
             # Add user authentication if provided
-            if lazylibrarian.CONFIG.get_bool('CALIBRE_USE_SERVER') and lazylibrarian.CONFIG['CALIBRE_USER'] and \
-                    lazylibrarian.CONFIG['CALIBRE_PASS']:
-                params.extend(['--username', lazylibrarian.CONFIG['CALIBRE_USER'],
-                               '--password', lazylibrarian.CONFIG['CALIBRE_PASS']])
+            if CONFIG.get_bool('CALIBRE_USE_SERVER') and CONFIG['CALIBRE_USER'] and \
+                    CONFIG['CALIBRE_PASS']:
+                params.extend(['--username', CONFIG['CALIBRE_USER'],
+                               '--password', CONFIG['CALIBRE_PASS']])
 
             params.extend([calibreid, "%s" % basename + '.' + output_format])
             _ = subprocess.check_output(params, stderr=subprocess.STDOUT)

@@ -19,8 +19,8 @@ from urllib.parse import urljoin, urlencode
 from urllib.request import HTTPCookieProcessor, HTTPBasicAuthHandler, \
     build_opener, install_opener, Request
 
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import check_int, get_list
@@ -34,8 +34,8 @@ class UtorrentClient(object):
                  username='',  # lazylibrarian.CONFIG['UTORRENT_USER'],
                  password='',):  # lazylibrarian.CONFIG['UTORRENT_PASS']):
 
-        host = lazylibrarian.CONFIG['UTORRENT_HOST']
-        port = lazylibrarian.CONFIG.get_int('UTORRENT_PORT')
+        host = CONFIG['UTORRENT_HOST']
+        port = CONFIG.get_int('UTORRENT_PORT')
         if not host or not port:
             logger.error('Invalid Utorrent host or port, check your config')
 
@@ -47,14 +47,14 @@ class UtorrentClient(object):
         if host.endswith('/gui'):
             host = host[:-4]
 
-        if lazylibrarian.CONFIG['UTORRENT_BASE']:
-            host = "%s:%s/%s" % (host, port, lazylibrarian.CONFIG['UTORRENT_BASE'].strip('/'))
+        if CONFIG['UTORRENT_BASE']:
+            host = "%s:%s/%s" % (host, port, CONFIG['UTORRENT_BASE'].strip('/'))
         else:
             host = "%s:%s" % (host, port)
 
         self.base_url = host
-        self.username = lazylibrarian.CONFIG['UTORRENT_USER']
-        self.password = lazylibrarian.CONFIG['UTORRENT_PASS']
+        self.username = CONFIG['UTORRENT_USER']
+        self.password = CONFIG['UTORRENT_PASS']
         self.opener = self._make_opener('uTorrent', self.base_url, self.username, self.password)
         self.token = self._get_token()
         if self.token is not None:
@@ -188,9 +188,9 @@ class UtorrentClient(object):
         if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("uTorrent params %s" % str(params))
         request = Request(url)
-        if lazylibrarian.CONFIG['PROXY_HOST']:
-            for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
-                request.set_proxy(lazylibrarian.CONFIG['PROXY_HOST'], item)
+        if CONFIG['PROXY_HOST']:
+            for item in get_list(CONFIG['PROXY_TYPE']):
+                request.set_proxy(CONFIG['PROXY_HOST'], item)
         request.add_header('User-Agent', get_user_agent())
 
         if body:
@@ -226,7 +226,7 @@ def check_link():
             # we would also like to check lazylibrarian.utorrent_label
             # but uTorrent only sends us a list of labels that have active torrents
             # so we can't tell if our label is known, or does it get created anyway?
-            if lazylibrarian.CONFIG['UTORRENT_LABEL']:
+            if CONFIG['UTORRENT_LABEL']:
                 return "uTorrent login successful, label not checked"
             return "uTorrent login successful"
         return "uTorrent login FAILED\nCheck debug log"

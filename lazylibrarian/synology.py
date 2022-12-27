@@ -13,8 +13,9 @@
 
 import json
 import re
-import lazylibrarian
+
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.formatter import check_int, make_unicode
 from urllib.parse import urlencode
@@ -104,8 +105,8 @@ def _login(hosturl):
         "api": "SYNO.API.Auth",
         "version": "2",
         "method": "login",
-        "account": lazylibrarian.CONFIG['SYNOLOGY_USER'],
-        "passwd": lazylibrarian.CONFIG['SYNOLOGY_PASS'],
+        "account": CONFIG['SYNOLOGY_USER'],
+        "passwd": CONFIG['SYNOLOGY_PASS'],
         "session": "DownloadStation",
         "format": "sid"
     }
@@ -263,7 +264,7 @@ def _add_torrent_uri(task_cgi, sid, torurl):
         "method": "create",
         "session": "DownloadStation",
         "uri": torurl,
-        "destination": lazylibrarian.CONFIG['SYNOLOGY_DIR'],
+        "destination": CONFIG['SYNOLOGY_DIR'],
         "_sid": sid
     }
 
@@ -326,8 +327,8 @@ def _add_torrent_uri(task_cgi, sid, torurl):
 
 def _host_url():
     # Build webapi_url from config settings
-    host = lazylibrarian.CONFIG['SYNOLOGY_HOST']
-    port = lazylibrarian.CONFIG.get_int('SYNOLOGY_PORT')
+    host = CONFIG['SYNOLOGY_HOST']
+    port = CONFIG.get_int('SYNOLOGY_PORT')
     if not host or not port:
         logger.debug(f"Invalid Synology host or port, check your config: {host}:{port}")
         return False

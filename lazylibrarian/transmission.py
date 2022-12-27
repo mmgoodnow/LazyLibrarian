@@ -11,8 +11,9 @@
 #  along with LazyLibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 import time
-import lazylibrarian
+
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import proxy_list
 from urllib.parse import urlparse, urlunparse
@@ -35,10 +36,10 @@ def add_torrent(link, directory=None, metainfo=None):
     else:
         arguments = {'filename': link}
     if not directory:
-        directory = lazylibrarian.CONFIG['TRANSMISSION_DIR']
+        directory = CONFIG['TRANSMISSION_DIR']
     if directory:
         arguments['download-dir'] = directory
-    arguments['paused'] = lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED')
+    arguments['paused'] = CONFIG.get_bool('TORRENT_PAUSED')
 
     logger.debug('add_torrent args(%s)' % arguments)
     response, res = torrent_action(method, arguments)  # type: dict
@@ -249,7 +250,7 @@ def remove_torrent(torrentid, remove_data=False):
         if finished:
             logger.debug('%s has finished seeding, removing torrent and data' % name)
             remove = True
-        elif not lazylibrarian.CONFIG.get_bool('SEED_WAIT'):
+        elif not CONFIG.get_bool('SEED_WAIT'):
             if (rpc_version < 14 and status == 8) or (rpc_version >= 14 and status in [5, 6]):
                 logger.debug('%s is seeding, removing torrent and data anyway' % name)
                 remove = True
@@ -290,15 +291,15 @@ def check_link():
 def torrent_action(method, arguments):
     global session_id, host_url, rpc_version, tr_version
 
-    username = lazylibrarian.CONFIG['TRANSMISSION_USER']
-    password = lazylibrarian.CONFIG['TRANSMISSION_PASS']
+    username = CONFIG['TRANSMISSION_USER']
+    password = CONFIG['TRANSMISSION_PASS']
 
     if host_url:
         if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug("Using existing host %s" % host_url)
     else:
-        host = lazylibrarian.CONFIG['TRANSMISSION_HOST']
-        port = lazylibrarian.CONFIG.get_int('TRANSMISSION_PORT')
+        host = CONFIG['TRANSMISSION_HOST']
+        port = CONFIG.get_int('TRANSMISSION_PORT')
 
         if not host or not port:
             res = 'Invalid transmission host or port, check your config'
@@ -321,8 +322,8 @@ def torrent_action(method, arguments):
             parts[1] += ":%s" % port
 
         if not parts[2].endswith("/rpc"):
-            if lazylibrarian.CONFIG['TRANSMISSION_BASE']:
-                parts[2] += "/%s/rpc" % lazylibrarian.CONFIG['TRANSMISSION_BASE'].strip('/')
+            if CONFIG['TRANSMISSION_BASE']:
+                parts[2] += "/%s/rpc" % CONFIG['TRANSMISSION_BASE'].strip('/')
             else:
                 parts[2] += "/transmission/rpc"
 
@@ -333,7 +334,7 @@ def torrent_action(method, arguments):
     # blank username is valid
     auth = (username, password) if password else None
     proxies = proxy_list()
-    timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
+    timeout = CONFIG.get_int('HTTP_TIMEOUT')
     # Retrieve session id
     if session_id:
         if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
@@ -342,10 +343,10 @@ def torrent_action(method, arguments):
         if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
             logger.debug('Requesting session_id')
         try:
-            if host_url.startswith('https') and lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
+            if host_url.startswith('https') and CONFIG.get_bool('SSL_VERIFY'):
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout,
-                                        verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                        if lazylibrarian.CONFIG['SSL_CERTS'] else True)
+                                        verify=CONFIG['SSL_CERTS']
+                                        if CONFIG['SSL_CERTS'] else True)
             else:
                 response = requests.get(host_url, auth=auth, proxies=proxies, timeout=timeout, verify=False)
         except Exception as e:

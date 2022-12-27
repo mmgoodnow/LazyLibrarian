@@ -16,6 +16,7 @@
 #   Common, basic functions for LazyLibrary
 
 import glob
+
 import mako
 import os
 import platform
@@ -43,9 +44,10 @@ try:
 except ImportError:
     PSUTIL = False
 
-import lazylibrarian
+#import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configdefs import CONFIG_GIT
 from lazylibrarian.formatter import get_list, make_unicode
 from lazylibrarian.filesystem import DIRS, syspath, path_exists, remove_file, \
@@ -132,8 +134,8 @@ def cpu_use():
 
 def get_user_agent() -> str:
     # Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.116 Safari/537.36
-    if lazylibrarian.CONFIG['USER_AGENT']:
-        return lazylibrarian.CONFIG['USER_AGENT']
+    if CONFIG['USER_AGENT']:
+        return CONFIG['USER_AGENT']
     else:
         return 'LazyLibrarian' + ' (' + platform.system() + ' ' + platform.release() + ')'
 
@@ -142,7 +144,7 @@ def multibook(foldername, recurse=False):
     # Check for more than one book in the folder(tree). Note we can't rely on basename
     # being the same, so just check for more than one bookfile of the same type
     # Return which type we found multiples of, or empty string if no multiples
-    filetypes = lazylibrarian.CONFIG['EBOOK_TYPE']
+    filetypes = CONFIG['EBOOK_TYPE']
 
     if recurse:
         for _, _, f in walk(foldername):
@@ -168,11 +170,11 @@ def multibook(foldername, recurse=False):
 
 def proxy_list():
     proxies = None
-    if lazylibrarian.CONFIG['PROXY_HOST']:
+    if CONFIG['PROXY_HOST']:
         proxies = {}
-        for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
+        for item in get_list(CONFIG['PROXY_TYPE']):
             if item in ['http', 'https']:
-                proxies.update({item: lazylibrarian.CONFIG['PROXY_HOST']})
+                proxies.update({item: CONFIG['PROXY_HOST']})
     return proxies
 
 
@@ -299,20 +301,20 @@ def clear_log():
         return "Screen log cleared"
 
     logger.lazylibrarian_log.stop_logger()
-    for f in glob.glob(lazylibrarian.CONFIG['LOGDIR'] + "/*.log*"):
+    for f in glob.glob(CONFIG['LOGDIR'] + "/*.log*"):
         try:
             os.remove(syspath(f))
         except OSError as err:
             error = err.strerror
             logger.debug("Failed to remove %s : %s" % (f, error))
 
-    logger.lazylibrarian_log.init_logger(config=lazylibrarian.CONFIG)
+    logger.lazylibrarian_log.init_logger(config=CONFIG)
 
     if error:
         return 'Failed to clear logfiles: %s' % error
     else:
         return "Log cleared, level set to [%s]- Log Directory is [%s]" % (
-            lazylibrarian_log.LOGLEVEL, lazylibrarian.CONFIG['LOGDIR'])
+            lazylibrarian_log.LOGLEVEL, CONFIG['LOGDIR'])
 
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
@@ -321,16 +323,16 @@ def log_header(online=True):
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
-    header += "config file: %s\n" % lazylibrarian.CONFIG.configfilename
-    header += 'Interface: %s\n' % lazylibrarian.CONFIG['HTTP_LOOK']
+    header += "config file: %s\n" % CONFIG.configfilename
+    header += 'Interface: %s\n' % CONFIG['HTTP_LOOK']
     header += 'Loglevel: %s\n' % lazylibrarian_log.LOGLEVEL
     header += 'Sys_Encoding: %s\n' % lazylibrarian.SYS_ENCODING
     for item in CONFIG_GIT:
         if item == 'GIT_UPDATED':
-            timestamp = lazylibrarian.CONFIG.get_int(item)
+            timestamp = CONFIG.get_int(item)
             header += '%s: %s\n' % (item.lower(), time.ctime(timestamp))
         else:
-            header += '%s: %s\n' % (item.lower(), lazylibrarian.CONFIG[item])
+            header += '%s: %s\n' % (item.lower(), CONFIG[item])
     try:
         header += 'package version: %s\n' % lazylibrarian.version.PACKAGE_VERSION
     except AttributeError:
@@ -363,10 +365,10 @@ def log_header(online=True):
     header += "requests: %s\n" % getattr(requests, '__version__', None)
     if online:
         try:
-            if lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
+            if CONFIG.get_bool('SSL_VERIFY'):
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
-                                           verify=lazylibrarian.CONFIG['SSL_CERTS']
-                                           if lazylibrarian.CONFIG['SSL_CERTS'] else True).json()['tls_version']
+                                           verify=CONFIG['SSL_CERTS']
+                                           if CONFIG['SSL_CERTS'] else True).json()['tls_version']
             else:
                 logger.info('Checking TLS version, you can ignore any "InsecureRequestWarning" message')
                 tls_version = requests.get('https://www.howsmyssl.com/a/check', timeout=30,
@@ -495,7 +497,7 @@ def log_header(online=True):
 
 
 def save_log():
-    if not path_exists(lazylibrarian.CONFIG['LOGDIR']):
+    if not path_exists(CONFIG['LOGDIR']):
         return 'LOGDIR does not exist'
 
     basename = DIRS.get_logfile('lazylibrarian.log')
@@ -518,7 +520,7 @@ def save_log():
             linecount = 0
             lines = reversed(list(open(syspath(fname), 'r', encoding="utf-8")))
             for line in lines:
-                for item in lazylibrarian.CONFIG.REDACTLIST:
+                for item in CONFIG.REDACTLIST:
                     if item in line:
                         line = line.replace(item, '<redacted>')
                         redacts += 1
@@ -539,11 +541,11 @@ def save_log():
                 linecount += 1
             extn += 1
 
-    if path_exists(lazylibrarian.CONFIG.configfilename):
+    if path_exists(CONFIG.configfilename):
         out.write(u'---END-CONFIG---------------------------------\n')
-        lines = reversed(list(open(syspath(lazylibrarian.CONFIG.configfilename), 'r', encoding="utf-8")))
+        lines = reversed(list(open(syspath(CONFIG.configfilename), 'r', encoding="utf-8")))
         for line in lines:
-            for item in lazylibrarian.CONFIG.REDACTLIST:
+            for item in CONFIG.REDACTLIST:
                 if item in line:
                     line = line.replace(item, '<redacted>')
                     redacts += 1
@@ -623,9 +625,9 @@ def calibre_prg(prgname):
     # or in current path or system path
     target = ''
     if prgname == 'ebook-convert':
-        target = lazylibrarian.CONFIG['EBOOK_CONVERT']
+        target = CONFIG['EBOOK_CONVERT']
     if not target:
-        calibre = lazylibrarian.CONFIG['IMP_CALIBREDB']
+        calibre = CONFIG['IMP_CALIBREDB']
         if calibre:
             target = os.path.join(os.path.dirname(calibre), prgname)
         else:

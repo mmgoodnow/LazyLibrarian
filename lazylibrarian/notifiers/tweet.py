@@ -16,9 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-import lazylibrarian
 import lib.pythontwitter as twitter
-from lazylibrarian import logger, common, formatter
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian import logger
+from lazylibrarian.formatter import now, make_bytestr
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from urllib.parse import parse_qsl
 
@@ -39,18 +40,18 @@ class TwitterNotifier:
     SIGNIN_URL = 'https://api.twitter.com/oauth/authenticate'
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG.get_bool('TWITTER_NOTIFY_ONSNATCH'):
+        if CONFIG.get_bool('TWITTER_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify_twitter(notifyStrings[NOTIFY_FAIL] + ': ' + title)
             else:
                 self._notify_twitter(notifyStrings[NOTIFY_SNATCH] + ': ' + title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG.get_bool('TWITTER_NOTIFY_ONDOWNLOAD'):
+        if CONFIG.get_bool('TWITTER_NOTIFY_ONDOWNLOAD'):
             self._notify_twitter(notifyStrings[NOTIFY_DOWNLOAD] + ': ' + title)
 
     def test_notify(self):
-        return self._notify_twitter("This is a test notification from LazyLibrarian / " + formatter.now(), force=True)
+        return self._notify_twitter("This is a test notification from LazyLibrarian / " + now(), force=True)
 
     def _get_authorization(self):
         _ = oauth.SignatureMethod_HMAC_SHA1()
@@ -66,15 +67,16 @@ class TwitterNotifier:
         else:
             # noinspection PyDeprecation
             request_token = dict(parse_qsl(content))
-            lazylibrarian.CONFIG.set_str('TWITTER_USERNAME', request_token['oauth_token'])
-            lazylibrarian.CONFIG.set_str('TWITTER_PASSWORD', request_token['oauth_token_secret'])
-            logger.debug('Twitter oauth_token = %s oauth_secret = %s' % (lazylibrarian.CONFIG['TWITTER_USERNAME'],
-                                                                         lazylibrarian.CONFIG['TWITTER_PASSWORD']))
+            CONFIG.set_str('TWITTER_USERNAME', request_token['oauth_token'])
+            CONFIG.set_str('TWITTER_PASSWORD', request_token['oauth_token_secret'])
+            logger.debug('Twitter oauth_token = %s oauth_secret = %s' % (
+            CONFIG['TWITTER_USERNAME'],
+            CONFIG['TWITTER_PASSWORD']))
             return self.AUTHORIZATION_URL + "?oauth_token=" + request_token['oauth_token']
 
     def _get_credentials(self, key):
-        request_token = {'oauth_token': lazylibrarian.CONFIG['TWITTER_USERNAME'],
-                         'oauth_token_secret': lazylibrarian.CONFIG['TWITTER_PASSWORD'],
+        request_token = {'oauth_token': CONFIG['TWITTER_USERNAME'],
+                         'oauth_token_secret': CONFIG['TWITTER_PASSWORD'],
                          'oauth_callback_confirmed': 'true'}
         token = oauth.Token(request_token['oauth_token'], request_token['oauth_token_secret'])
         token.set_verifier(key)
@@ -96,16 +98,16 @@ class TwitterNotifier:
             logger.debug('access_token: ' + str(access_token))
             logger.debug('Your Twitter Access Token key: %s' % access_token['oauth_token'])
             logger.debug('Access Token secret: %s' % access_token['oauth_token_secret'])
-            lazylibrarian.CONFIG.set_str('TWITTER_USERNAME', access_token['oauth_token'])
-            lazylibrarian.CONFIG.set_str('TWITTER_PASSWORD', access_token['oauth_token_secret'])
+            CONFIG.set_str('TWITTER_USERNAME', access_token['oauth_token'])
+            CONFIG.set_str('TWITTER_PASSWORD', access_token['oauth_token_secret'])
             return True
 
     def _send_tweet(self, message=None):
 
         username = self.consumer_key
         password = self.consumer_secret
-        access_token_key = lazylibrarian.CONFIG['TWITTER_USERNAME']
-        access_token_secret = lazylibrarian.CONFIG['TWITTER_PASSWORD']
+        access_token_key = CONFIG['TWITTER_USERNAME']
+        access_token_secret = CONFIG['TWITTER_PASSWORD']
         if not access_token_key or not access_token_secret:
             logger.error("No authorization found for twitter")
             return False
@@ -113,7 +115,7 @@ class TwitterNotifier:
         logger.info("Sending tweet: " + message)
 
         api = twitter.Api(username, password, access_token_key, access_token_secret)
-        message = formatter.make_bytestr(message)
+        message = make_bytestr(message)
 
         try:
             api.PostUpdate(message)
@@ -123,9 +125,9 @@ class TwitterNotifier:
         return True
 
     def _notify_twitter(self, message='', force=False):
-        prefix = lazylibrarian.CONFIG['TWITTER_PREFIX']
+        prefix = CONFIG['TWITTER_PREFIX']
 
-        if not lazylibrarian.CONFIG.get_bool('USE_TWITTER') and not force:
+        if not CONFIG.get_bool('USE_TWITTER') and not force:
             return False
 
         return self._send_tweet(prefix + ": " + message)

@@ -15,8 +15,8 @@
 
 import traceback
 
-import lazylibrarian
 from lazylibrarian import logger, database
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import only_punctuation
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job
@@ -45,7 +45,7 @@ def process_result_list(resultlist, book, searchtype, source):
         # controlValueDict = match[3]
         # dlpriority = match[4]
 
-        if score < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+        if score < CONFIG.get_int('MATCH_RATIO'):
             return 0
         return download_result(match, book)
     return 0
@@ -79,15 +79,15 @@ def find_best_result(resultlist, book, searchtype, source):
             title = title.split('(')[0].strip()
 
         if book['library'] == 'AudioBook':
-            reject_list = get_list(lazylibrarian.CONFIG['REJECT_AUDIO'], ',')
-            maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXAUDIO')
-            minsize = lazylibrarian.CONFIG.get_int('REJECT_MINAUDIO')
+            reject_list = get_list(CONFIG['REJECT_AUDIO'], ',')
+            maxsize = CONFIG.get_int('REJECT_MAXAUDIO')
+            minsize = CONFIG.get_int('REJECT_MINAUDIO')
             auxinfo = 'AudioBook'
 
         else:  # elif book['library'] == 'eBook':
-            reject_list = get_list(lazylibrarian.CONFIG['REJECT_WORDS'], ',')
-            maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXSIZE')
-            minsize = lazylibrarian.CONFIG.get_int('REJECT_MINSIZE')
+            reject_list = get_list(CONFIG['REJECT_WORDS'], ',')
+            maxsize = CONFIG.get_int('REJECT_MAXSIZE')
+            minsize = CONFIG.get_int('REJECT_MINSIZE')
             auxinfo = 'eBook'
 
         if source == 'nzb':
@@ -127,7 +127,7 @@ def find_best_result(resultlist, book, searchtype, source):
                 rejected = True
                 logger.debug("Rejecting %s, no URL found" % result_title)
 
-            if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_FAILED'):
+            if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=? and Status="Failed"'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -146,7 +146,7 @@ def find_best_result(resultlist, book, searchtype, source):
                                      (res[prefix + 'title'], blacklisted['NZBprov']))
                         rejected = True
 
-            if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_PROCESSED'):
+            if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
                 cmd = 'SELECT * from wanted WHERE NZBurl=?'
                 args = (url,)
                 if res.get('tor_type', '') == 'irc':
@@ -238,7 +238,7 @@ def find_best_result(resultlist, book, searchtype, source):
                     new_value_dict['NZBprov'] = res['tor_feed']
                     new_value_dict['NZBtitle'] = res[prefix + 'title']
 
-                if author_match >= lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                if author_match >= CONFIG.get_int('MATCH_RATIO'):
                     score = book_match
                 else:
                     score = (book_match + author_match) / 2  # as a percentage
@@ -253,11 +253,11 @@ def find_best_result(resultlist, book, searchtype, source):
                 typelist = ''
 
                 if new_value_dict['AuxInfo'] == 'eBook':
-                    words = [x for x in words if x not in get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])]
-                    typelist = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+                    words = [x for x in words if x not in get_list(CONFIG['EBOOK_TYPE'])]
+                    typelist = get_list(CONFIG['EBOOK_TYPE'])
                 elif new_value_dict['AuxInfo'] == 'AudioBook':
-                    words = [x for x in words if x not in get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])]
-                    typelist = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+                    words = [x for x in words if x not in get_list(CONFIG['AUDIOBOOK_TYPE'])]
+                    typelist = get_list(CONFIG['AUDIOBOOK_TYPE'])
                 score -= len(words)
                 # prioritise titles that include the ebook types we want
                 # add more points for booktypes nearer the left in the list
@@ -278,7 +278,7 @@ def find_best_result(resultlist, book, searchtype, source):
             # controlValueDict = highest[2]
             dlpriority = highest[3]
 
-            if score < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+            if score < CONFIG.get_int('MATCH_RATIO'):
                 logger.info('Nearest match (%s%%): %s using %s search for %s %s' %
                             (score, new_value_dict['NZBtitle'], searchtype, book['authorName'], book['bookName']))
             else:

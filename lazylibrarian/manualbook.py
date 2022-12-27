@@ -11,7 +11,7 @@
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, unaccented, plural, date_format
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
@@ -55,26 +55,26 @@ def search_item(item=None, bookid=None, cat=None):
             logger.debug('Forcing general search')
             cat = 'general'
 
-    nprov = lazylibrarian.CONFIG.total_active_providers()
+    nprov = CONFIG.total_active_providers()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.CONFIG.use_nzb():
+    if CONFIG.use_nzb():
         resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_tor():
+    if CONFIG.use_tor():
         resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_direct():
+    if CONFIG.use_direct():
         resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_irc():
+    if CONFIG.use_irc():
         resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_rss():
+    if CONFIG.use_rss():
         resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'M':
             results += resultlist

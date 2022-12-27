@@ -15,7 +15,7 @@ import os
 import re
 import traceback
 
-import lazylibrarian
+from  lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.common import multibook, only_punctuation
 from lazylibrarian.filesystem import path_isdir, syspath, remove_file, listdir, safe_move, opf_file, get_directory
@@ -325,11 +325,11 @@ def audio_rename(bookid, rename=False, playlist=False):
     :return: filename of part 01 of the audiobook
     """
     if rename:
-        if '$Part' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+        if '$Part' not in CONFIG['AUDIOBOOK_DEST_FILE']:
             logger.error("Unable to rename, no $Part in AUDIOBOOK_DEST_FILE")
             return
-        if '$Title' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'] and \
-                '$SortTitle' not in lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
+        if '$Title' not in CONFIG['AUDIOBOOK_DEST_FILE'] and \
+                '$SortTitle' not in CONFIG['AUDIOBOOK_DEST_FILE']:
             logger.error("Unable to rename, no $Title or $SortTitle in AUDIOBOOK_DEST_FILE")
             return ''
 
@@ -481,7 +481,7 @@ def book_rename(bookid):
         return '', msg
 
     r = os.path.dirname(f)
-    if not lazylibrarian.CONFIG.get_bool('CALIBRE_RENAME'):
+    if not CONFIG.get_bool('CALIBRE_RENAME'):
         try:
             # noinspection PyTypeChecker
             calibreid = r.rsplit('(', 1)[1].split(')')[0]
@@ -663,7 +663,7 @@ def name_vars(bookid, abridged=''):
         seriesname = ''
 
     if seriesname:
-        fmtname = lazylibrarian.CONFIG['FMT_SERNAME'].replace('$SerName', seriesname).replace(
+        fmtname = CONFIG['FMT_SERNAME'].replace('$SerName', seriesname).replace(
                                                               '$PubYear', pubyear).replace(
                                                               '$SerYear', seryear).replace(
                                                               '$$', ' ')
@@ -674,7 +674,7 @@ def name_vars(bookid, abridged=''):
         fmtname = ''
 
     if seriesnum != '':  # allow 0
-        fmtnum = lazylibrarian.CONFIG['FMT_SERNUM'].replace('$SerNum', seriesnum).replace(
+        fmtnum = CONFIG['FMT_SERNUM'].replace('$SerNum', seriesnum).replace(
                                                             '$PubYear', pubyear).replace(
                                                             '$SerYear', seryear).replace(
                                                             '$PadNum', padnum).replace('$$', ' ')
@@ -685,7 +685,7 @@ def name_vars(bookid, abridged=''):
         fmtnum = ''
 
     if fmtnum != '' or fmtname:
-        fmtseries = lazylibrarian.CONFIG['FMT_SERIES'].replace('$SerNum', seriesnum).replace(
+        fmtseries = CONFIG['FMT_SERIES'].replace('$SerNum', seriesnum).replace(
                                                              '$SerName', seriesname).replace(
                                                              '$PadNum', padnum).replace(
                                                              '$PubYear', pubyear).replace(
@@ -722,17 +722,17 @@ def name_vars(bookid, abridged=''):
             mydict['SortAuthor'] = ''
             mydict['SortTitle'] = ''
 
-    mydict['FolderName'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FOLDER'],
+    mydict['FolderName'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FOLDER'],
                                                             mydict)))
-    mydict['AudioFolderName'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FOLDER'],
+    mydict['AudioFolderName'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FOLDER'],
                                                                  mydict)))
-    mydict['BookFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['EBOOK_DEST_FILE'],
+    mydict['BookFile'] = stripspaces(sanitize(replacevars(CONFIG['EBOOK_DEST_FILE'],
                                                           mydict)))
-    mydict['AudioFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE'],
+    mydict['AudioFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_DEST_FILE'],
                                                            mydict))).replace('sPart',
                                                                              '$Part').replace('sTotal',
                                                                                               '$Total')
-    mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(lazylibrarian.CONFIG['AUDIOBOOK_SINGLE_FILE'],
+    mydict['AudioSingleFile'] = stripspaces(sanitize(replacevars(CONFIG['AUDIOBOOK_SINGLE_FILE'],
                                                                  mydict))).replace('sPart',
                                                                                    '$Part').replace('sTotal',
                                                                                                     '$Total')

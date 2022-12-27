@@ -30,7 +30,6 @@ SIGNAL = None
 PIDFILE = ''
 SYS_ENCODING = ''
 LOGINUSER = None
-CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 COMMIT_LIST = ''
 SHOWLOGOUT = 1
 CHERRYPYLOG = 0

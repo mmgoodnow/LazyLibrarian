@@ -20,6 +20,7 @@ import os
 import zipfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import today, size_in_bytes, make_bytestr, md5_utf8, check_int
@@ -67,7 +68,7 @@ class IRC:
         if res:
             self.email = res['email']
             if not self.email:
-                self.email = lazylibrarian.CONFIG['ADMIN_EMAIL']
+                self.email = CONFIG['ADMIN_EMAIL']
             if not self.email:
                 logger.warn("No admin email, using default")
             if res['name']:

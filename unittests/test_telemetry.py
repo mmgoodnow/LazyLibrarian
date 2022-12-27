@@ -8,8 +8,8 @@ import pytest
 import pytest_order # Needed to force unit test order
 import mock
 
-import lazylibrarian
-from lazylibrarian import telemetry, config2, configdefs
+from lazylibrarian.config2 import CONFIG, LLConfigHandler
+from lazylibrarian import telemetry, configdefs
 from unittests.unittesthelpers import LLTestCase
 
 
@@ -19,7 +19,7 @@ class TelemetryTest(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         super().setConfigFile('./unittests/testdata/testconfig-nondefault.ini')
-        super().setDoAll(all=False)
+        super().setDoAll(doall=False)
         telemetry.TELEMETRY.clear_usage_data()
         return super().setUpClass()
 
@@ -30,8 +30,8 @@ class TelemetryTest(LLTestCase):
     def _do_ids_match(self):
         self.set_loglevel(1)
         t = telemetry.LazyTelemetry()
-        loaded_id = lazylibrarian.CONFIG['SERVER_ID']
-        id = t.ensure_server_id(lazylibrarian.CONFIG)
+        loaded_id = CONFIG['SERVER_ID']
+        id = t.ensure_server_id(CONFIG)
         self.assertIsNotNone(id)
         if loaded_id:
             self.assertEqual(id, loaded_id)
@@ -48,15 +48,15 @@ class TelemetryTest(LLTestCase):
         self.set_loglevel(1)
         saved_id = self._do_ids_match()
         # Pretend we don't have an ID to ensure generation works
-        telemetry.LazyTelemetry().clear_id(lazylibrarian.CONFIG)
+        telemetry.LazyTelemetry().clear_id(CONFIG)
 
         new_id = self._do_ids_match()
         self.assertNotEqual(saved_id, new_id, 'ID generation does not work')
         self.assertEqual(len(saved_id), len(new_id), 'Expect constant length IDs')
 
         # Restore to known good state
-        telemetry.LazyTelemetry().clear_id(lazylibrarian.CONFIG)
-        lazylibrarian.CONFIG['SERVER_ID'] = saved_id
+        telemetry.LazyTelemetry().clear_id(CONFIG)
+        CONFIG['SERVER_ID'] = saved_id
         check_id = self._do_ids_match()
         self.assertEqual(saved_id, check_id, 'Test logic is broken')
 
@@ -66,10 +66,10 @@ class TelemetryTest(LLTestCase):
         my_id = self._do_ids_match()
 
         # Check we can read the new ID and test again
-        lazylibrarian.CONFIG.save_config_and_backup_old(section='Telemetry')
+        CONFIG.save_config_and_backup_old(section='Telemetry')
 
         # Test that writing went right
-        cfg = config2.LLConfigHandler(configdefs.BASE_DEFAULTS, lazylibrarian.CONFIG.configfilename)
+        cfg = LLConfigHandler(configdefs.BASE_DEFAULTS, CONFIG.configfilename)
         id_from_file = cfg['Server_id']
         self.assertEqual(my_id, id_from_file, 'ID written to config.ini does not match')
 
@@ -77,17 +77,17 @@ class TelemetryTest(LLTestCase):
 
     def test_set_install_data(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(lazylibrarian.CONFIG, testing=True)
+        t.set_install_data(CONFIG, testing=True)
         srv = t.get_server_telemetry()
         self.assertIsInstance(srv, dict)
-        self.assertEqual(srv['id'], lazylibrarian.CONFIG['SERVER_ID'])
+        self.assertEqual(srv['id'], CONFIG['SERVER_ID'])
         self.assertIsInstance(srv['uptime_seconds'], int)
         self.assertEqual(srv['python_ver'], '3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]')
 
     def test_set_config_data(self):
         t = telemetry.LazyTelemetry()
 
-        t.set_config_data(lazylibrarian.CONFIG)
+        t.set_config_data(CONFIG)
         cfg = t.get_config_telemetry()
 
         self.assertIsInstance(cfg, dict)
@@ -121,7 +121,7 @@ class TelemetryTest(LLTestCase):
     @pytest.mark.order(after="test_record_usage_data")
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
-        t.set_install_data(lazylibrarian.CONFIG, testing=True)
+        t.set_install_data(CONFIG, testing=True)
         sGot = dict()
         sGot['server'] = t.construct_data_string(send_config=False, send_usage=False)
         sGot['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)

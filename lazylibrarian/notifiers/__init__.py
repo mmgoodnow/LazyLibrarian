@@ -17,6 +17,7 @@
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
 import traceback
+
 from . import androidpn
 from . import boxcar
 from . import custom_notify
@@ -29,8 +30,8 @@ from . import slack
 from . import tweet
 from . import telegram
 from . import apprise_notify
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 
 # online
 twitter_notifier = tweet.TwitterNotifier()
@@ -78,7 +79,7 @@ def custom_notify_snatch(bookid, fail=False):
 
 
 def notify_download(title, bookid=None):
-    for item in lazylibrarian.CONFIG.REDACTLIST:
+    for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
         for n in notifiers:
@@ -92,7 +93,7 @@ def notify_download(title, bookid=None):
 
 
 def notify_snatch(title, fail=False):
-    for item in lazylibrarian.CONFIG.REDACTLIST:
+    for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
         for n in notifiers:

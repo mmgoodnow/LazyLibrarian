@@ -15,6 +15,7 @@ import shutil
 import traceback
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
@@ -348,7 +349,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
                     searchterm = "%s <ll> %s" % (title, authorname)
                     results = search_for(unaccented(searchterm, only_ascii=False))
                     for result in results:
-                        if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
+                        if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
                                 and result['authorid'] == authorid:
                             bookmatch = result
                             break
@@ -359,7 +360,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
                             searchterm = "%s <ll> %s" % (title, authorname)
                             results = search_for(unaccented(searchterm, only_ascii=False))
                             for result in results:
-                                if result['book_fuzz'] >= lazylibrarian.CONFIG.get_int('MATCH_RATIO') \
+                                if result['book_fuzz'] >= CONFIG.get_int('MATCH_RATIO') \
                                         and result['authorid'] == authorid:
                                     bookmatch = result
                                     break
@@ -407,7 +408,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
               (authcount, plural(authcount, "author"), bookcount, plural(bookcount, library),
                status, skipcount, plural(skipcount, library))
         logger.info(msg)
-        if lazylibrarian.CONFIG.get_bool('DELETE_CSV'):
+        if CONFIG.get_bool('DELETE_CSV'):
             if skipcount == 0:
                 logger.info("Deleting %s on successful completion" % csvfile)
                 try:

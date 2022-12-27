@@ -20,6 +20,7 @@ import unicodedata
 import threading
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
@@ -586,10 +587,10 @@ def is_valid_type(filename, extras='jpg, opf'):
     Check if filename has an extension we can process.
     returns True or False
     """
-    type_list = list(set(get_list(lazylibrarian.CONFIG['MAG_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['EBOOK_TYPE']) +
-                         get_list(lazylibrarian.CONFIG['COMIC_TYPE']) +
+    type_list = list(set(get_list(CONFIG['MAG_TYPE']) +
+                         get_list(CONFIG['AUDIOBOOK_TYPE']) +
+                         get_list(CONFIG['EBOOK_TYPE']) +
+                         get_list(CONFIG['COMIC_TYPE']) +
                          get_list(extras)))
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in type_list:
@@ -602,13 +603,13 @@ def is_valid_booktype(filename, booktype=None):
     Check if filename extension is one we want
     """
     if booktype.startswith('mag'):  # default is book
-        booktype_list = get_list(lazylibrarian.CONFIG['MAG_TYPE'])
+        booktype_list = get_list(CONFIG['MAG_TYPE'])
     elif booktype.startswith('audio'):
-        booktype_list = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+        booktype_list = get_list(CONFIG['AUDIOBOOK_TYPE'])
     elif booktype == 'comic':
-        booktype_list = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
+        booktype_list = get_list(CONFIG['COMIC_TYPE'])
     else:
-        booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+        booktype_list = get_list(CONFIG['EBOOK_TYPE'])
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in booktype_list:
         return True
@@ -646,7 +647,7 @@ def split_title(author, book):
     if lazylibrarian_log.LOGLEVEL & logger.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
-    splitlist = get_list(lazylibrarian.CONFIG['IMP_NOSPLIT'], ',')
+    splitlist = get_list(CONFIG['IMP_NOSPLIT'], ',')
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
@@ -703,7 +704,7 @@ def format_author_name(author):
     if '& ' in author:
         author = author.split('& ')[0].strip()
     if "," in author:
-        postfix = get_list(lazylibrarian.CONFIG['NAME_POSTFIX'])
+        postfix = get_list(CONFIG['NAME_POSTFIX'])
         words = author.split(',')
         if len(words) == 2:
             # Need to handle names like "L. E. Modesitt, Jr." or "J. Springmann, Phd"
@@ -748,7 +749,7 @@ def sort_definite(title):
     if len(words) < 2:
         return title
     word = words.pop(0)
-    if word.lower() in get_list(lazylibrarian.CONFIG['NAME_DEFINITE']):
+    if word.lower() in get_list(CONFIG['NAME_DEFINITE']):
         return ' '.join(words) + ', ' + word
     return title
 
@@ -760,7 +761,7 @@ def surname_first(authorname):
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower() in get_list(lazylibrarian.CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower() in get_list(CONFIG['NAME_POSTFIX']):
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
@@ -781,7 +782,7 @@ def clean_name(name, extras=None):
 
 
 def no_umlauts(s):
-    if 'de' not in get_list(lazylibrarian.CONFIG['IMP_PREFLANG']):
+    if 'de' not in get_list(CONFIG['IMP_PREFLANG']):
         return s
 
     s = replace_all(s, umlaut_dict)
@@ -869,7 +870,7 @@ def disp_name(provider):
     provname = ''
     for name, definitions in configdefs.ARRAY_DEFS.items():
         key = definitions[0] # Primary key for this array type
-        array = lazylibrarian.CONFIG.providers(name)
+        array = CONFIG.providers(name)
         if array and not provname:
             for index, config in array._configs.items():
                 if config[key].strip('/') == provider:

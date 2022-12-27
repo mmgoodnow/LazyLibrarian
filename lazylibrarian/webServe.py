@@ -29,6 +29,7 @@ from cherrypy.lib.static import serve_file
 from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
 from lazylibrarian.configtypes import ConfigBool
@@ -102,11 +103,11 @@ def clear_mako_cache(userid=0):
 def serve_template(templatename, **kwargs):
     thread_name("WEBSERVER")
     interface_dir = os.path.join(str(DIRS.PROG_DIR), 'data', 'interfaces')
-    template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+    template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
     if not path_isdir(template_dir):
         logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
-        lazylibrarian.CONFIG.set_str('HTTP_LOOK', 'bookstrap')
-        template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+        CONFIG.set_str('HTTP_LOOK', 'bookstrap')
+        template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
 
     if templatename in ['logs.html', 'history.html']:
         # don't cache these so we can change refresh rate
@@ -117,13 +118,13 @@ def serve_template(templatename, **kwargs):
                                module_directory=module_directory)
     # noinspection PyBroadException
     try:
-        style = lazylibrarian.CONFIG['BOOKSTRAP_THEME']
+        style = CONFIG['BOOKSTRAP_THEME']
         if lazylibrarian.UPDATE_MSG:
             template = _hplookup.get_template("dbupdate.html")
             return template.render(perm=0, message="Database upgrade in progress, please wait...",
                                    title="Database Upgrade", timer=5, style=style)
 
-        if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
+        if not CONFIG.get_bool('USER_ACCOUNTS'):
             try:
                 template = _hplookup.get_template(templatename)
             except (AttributeError, KeyError):
@@ -165,7 +166,7 @@ def serve_template(templatename, **kwargs):
                     cnt = 0
                 else:
                     cnt = db.match("select count(*) as counter from users")
-                if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG.get_bool('SINGLE_USER') and \
+                if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
                         templatename not in ["register.html", "response.html", "opds.html"]:
                     res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
                     cherrypy.response.cookie['ll_uid'] = res['UserID']
@@ -190,7 +191,7 @@ def serve_template(templatename, **kwargs):
             userprefs = check_int(cookie['ll_prefs'].value, 0)
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-            if  lazylibrarian.CONFIG.get_item('auth_type') and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+            if  CONFIG.get_item('auth_type') and CONFIG['auth_type'] == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -212,7 +213,7 @@ def serve_template(templatename, **kwargs):
                 (templatename in ['manualsearch.html', 'searchresults.html']
                  and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
-            if 'auth_type' in lazylibrarian.CONFIG and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+            if 'auth_type' in CONFIG and CONFIG['auth_type'] == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -221,12 +222,12 @@ def serve_template(templatename, **kwargs):
             logger.debug("User %s: %s %s %s %s" % (username, perm, userprefs, usertheme, templatename))
 
         theme = usertheme.split('_', 1)[0]
-        if theme and theme != lazylibrarian.CONFIG['HTTP_LOOK']:
+        if theme and theme != CONFIG['HTTP_LOOK']:
             template_dir = os.path.join(str(interface_dir), theme)
             if not path_isdir(template_dir):
                 logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
-                lazylibrarian.CONFIG.set_str('HTTP_LOOK', 'bookstrap')
-                template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+                CONFIG.set_str('HTTP_LOOK', 'bookstrap')
+                template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
 
             module_directory = os.path.join(DIRS.CACHEDIR, 'mako', str(userid))
             _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
@@ -269,7 +270,7 @@ class WebInterface(object):
     def authors(self):
         title = 'Authors'
         if lazylibrarian.IGNORED_AUTHORS:
-            if lazylibrarian.CONFIG.get_bool('IGNORE_PAUSED'):
+            if CONFIG.get_bool('IGNORE_PAUSED'):
                 title = 'Inactive Authors'
             else:
                 title = 'Ignored Authors'
@@ -277,7 +278,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def home(self):
-        home = lazylibrarian.CONFIG.get_str('HOMEPAGE')
+        home = CONFIG.get_str('HOMEPAGE')
         logger.debug("Homepage [%s]" % home)
         if home == 'eBooks':
             raise cherrypy.HTTPRedirect("books")
@@ -332,7 +333,7 @@ class WebInterface(object):
                 for item in lazylibrarian.BOOKSTRAP_THEMELIST:
                     themelist.append('bookstrap_' + item)
                 return serve_template(templatename="profile.html", title=title, user=user, subs=subscriptions,
-                                      typelist=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']), themelist=themelist)
+                                      typelist=get_list(CONFIG['EBOOK_TYPE']), themelist=themelist)
         return serve_template(templatename="index.html", title=title)
 
     # noinspection PyUnusedLocal
@@ -355,17 +356,17 @@ class WebInterface(object):
             db = database.DBConnection()
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             cmd = 'SELECT AuthorImg,AuthorName,LastBook,LastDate,Status,AuthorLink,LastLink,'
             cmd += 'HaveBooks,UnignoredBooks,AuthorID,LastBookID,DateAdded,Reason from authors '
             if lazylibrarian.IGNORED_AUTHORS:
                 cmd += 'where Status == "Ignored" '
-                if lazylibrarian.CONFIG.get_bool('IGNORE_PAUSED'):
+                if CONFIG.get_bool('IGNORE_PAUSED'):
                     cmd += 'or Status == "Paused" '
             else:
                 cmd += 'where Status != "Ignored" '
-                if lazylibrarian.CONFIG.get_bool('IGNORE_PAUSED'):
+                if CONFIG.get_bool('IGNORE_PAUSED'):
                     cmd += 'and  Status != "Paused" '
 
             myauthors = []
@@ -388,9 +389,9 @@ class WebInterface(object):
             if len(rowlist):
                 for row in rowlist:  # iterate through the sqlite3.Row objects
                     arow = list(row)
-                    if lazylibrarian.CONFIG.get_bool('SORT_SURNAME'):
+                    if CONFIG.get_bool('SORT_SURNAME'):
                         arow[1] = surname_first(arow[1])
-                    if lazylibrarian.CONFIG.get_bool('SORT_DEFINITE'):
+                    if CONFIG.get_bool('SORT_DEFINITE'):
                         arow[2] = sort_definite(arow[2])
                     arow[3] = date_format(arow[3], '')
                     nrow = arow[:4]
@@ -685,7 +686,7 @@ class WebInterface(object):
             msg += line
         if 'email' in kwargs and kwargs['email']:
             result = notifiers.email_notifier.notify_message('Message from LazyLibrarian User',
-                                                             msg, lazylibrarian.CONFIG['ADMIN_EMAIL'])
+                                                             msg, CONFIG['ADMIN_EMAIL'])
             if result:
                 return "Message sent to admin, you will receive a reply by email"
             else:
@@ -745,7 +746,7 @@ class WebInterface(object):
             value = []
             cnt = 0
             feeds = db.select('SELECT * from subscribers where Type="feed" and UserID=?', (user,))
-            for provider in lazylibrarian.CONFIG.providers('RSS'):
+            for provider in CONFIG.providers('RSS'):
                 wishtype = wishlist_type(provider['HOST'])
                 if wishtype:
                     cnt += 1
@@ -1095,7 +1096,7 @@ class WebInterface(object):
             # kwargs is used by datatables to pass params
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             which_status = 'All'
             if kwargs['whichStatus']:
@@ -1167,7 +1168,7 @@ class WebInterface(object):
                     logger.debug("sortcolumn %d" % sortcolumn)
 
                 for row in filtered:
-                    if lazylibrarian.CONFIG.get_bool('SORT_SURNAME'):
+                    if CONFIG.get_bool('SORT_SURNAME'):
                         row[1] = surname_first(row[1])
                     have = check_int(row[6], 0)
                     total = check_int(row[7], 0)
@@ -1491,9 +1492,9 @@ class WebInterface(object):
         # Reset api counters if it's a new day
         if lazylibrarian.NABAPICOUNT != today():
             lazylibrarian.NABAPICOUNT = today()
-            for provider in lazylibrarian.CONFIG.providers('NEWZNAB'):
+            for provider in CONFIG.providers('NEWZNAB'):
                 provider.set_int('APICOUNT', 0)
-            for provider in lazylibrarian.CONFIG.providers('TORZNAB'):
+            for provider in CONFIG.providers('TORZNAB'):
                 provider.set_int('APICOUNT', 0)
 
         # Don't pass the whole config, no need to pass the
@@ -1509,7 +1510,7 @@ class WebInterface(object):
             "magazines_list": mags_list,
             "comics_list": comics_list,
             "namevars": testvars,
-            "updated": time.ctime(lazylibrarian.CONFIG.get_int('GIT_UPDATED'))
+            "updated": time.ctime(CONFIG.get_int('GIT_UPDATED'))
         }
         return serve_template(templatename="config.html", title="Settings", config=config)
 
@@ -1529,7 +1530,7 @@ class WebInterface(object):
                 if email and not is_valid_email(email):
                     adminmsg += 'Contact email looks invalid, please check<br>'
 
-                if lazylibrarian.CONFIG['HTTP_USER'] != '':
+                if CONFIG['HTTP_USER'] != '':
                     adminmsg += 'Please remove WEBSERVER USER as user accounts are active<br>'
 
                 admin = db.match('SELECT password from users where name="admin"')
@@ -1605,10 +1606,10 @@ class WebInterface(object):
             lazylibrarian.CURRENT_TAB = kwargs['current_tab']
 
         # now the config file entries
-        for key, item in lazylibrarian.CONFIG.config.items():
+        for key, item in CONFIG.config.items():
             if key.lower() in kwargs:
                 value = kwargs[key.lower()]
-                lazylibrarian.CONFIG.set_from_ui(key, value)
+                CONFIG.set_from_ui(key, value)
             else:
                 if isinstance(item, ConfigBool) and item.get_read_count() > 0:
                     item.set_from_ui(False) # Set other items to False that we've seen (i.e. are shown)
@@ -1662,7 +1663,7 @@ class WebInterface(object):
                 logger.info("Magazine %s filters updated" % count)
 
         count = 0
-        lazylibrarian.CONFIG.update_providers_from_UI(kwargs)
+        CONFIG.update_providers_from_UI(kwargs)
 
         # Convert legacy log settings
         logtype = kwargs.get('log_type', '')
@@ -1708,7 +1709,7 @@ class WebInterface(object):
             newloglevel = int(kwargs.get('loglevel', 0))
 
         lazylibrarian_log.set_new_loglevel_from_ui(newloglevel)
-        lazylibrarian.CONFIG.save_config_and_backup_old(restart_jobs=True)
+        CONFIG.save_config_and_backup_old(restart_jobs=True)
         if not lazylibrarian.STOPTHREADS:
             check_running_jobs()
 
@@ -1852,8 +1853,8 @@ class WebInterface(object):
         if not authorname:  # still loading?
             raise cherrypy.HTTPRedirect("authors")
 
-        author['AuthorBorn'] = date_format(author['AuthorBorn'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
-        author['AuthorDeath'] = date_format(author['AuthorDeath'], lazylibrarian.CONFIG['AUTHOR_DATE_FORMAT'])
+        author['AuthorBorn'] = date_format(author['AuthorBorn'], CONFIG['AUTHOR_DATE_FORMAT'])
+        author['AuthorDeath'] = date_format(author['AuthorDeath'], CONFIG['AUTHOR_DATE_FORMAT'])
 
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
@@ -2021,7 +2022,7 @@ class WebInterface(object):
                 bestmatch = [0, '']
                 for item in listdir(libdir):
                     match = fuzz.ratio(format_author_name(unaccented(item)).lower(), matchname)
-                    if match >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+                    if match >= CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, item)
                         if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                             logger.debug("Fuzzy match folder %s%% %s for %s" % (match, item, author_name))
@@ -2042,7 +2043,7 @@ class WebInterface(object):
                 if anybook:
                     authordir = safe_unicode(os.path.dirname(os.path.dirname(anybook[sourcefile])))
             if path_isdir(authordir):
-                remv = lazylibrarian.CONFIG.get_bool('FULL_SCAN')
+                remv = CONFIG.get_bool('FULL_SCAN')
                 try:
                     threading.Thread(target=library_scan, name='AUTHOR_SCAN_%s' % authorid,
                                      args=[authordir, library, authorid, remv]).start()
@@ -2171,7 +2172,7 @@ class WebInterface(object):
     @cherrypy.expose
     def count_providers(self):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
-        count = lazylibrarian.CONFIG.total_active_providers()
+        count = CONFIG.total_active_providers()
         return "Searching %s providers, please wait..." % count
 
     @cherrypy.expose
@@ -2271,7 +2272,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             to_read = set()
             have_read = set()
@@ -2281,7 +2282,7 @@ class WebInterface(object):
             flag_have = 0
             userid = None
             userprefs = 0
-            if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
+            if not CONFIG.get_bool('USER_ACCOUNTS'):
                 perm = lazylibrarian.perm_admin
             else:
                 perm = 0
@@ -2417,9 +2418,9 @@ class WebInterface(object):
                     entry = list(row)
                     if entry[16] is None:
                         entry[16] = ""
-                    if lazylibrarian.CONFIG.get_bool('SORT_SURNAME'):
+                    if CONFIG.get_bool('SORT_SURNAME'):
                         entry[1] = surname_first(entry[1])
-                    if lazylibrarian.CONFIG.get_bool('SORT_DEFINITE'):
+                    if CONFIG.get_bool('SORT_DEFINITE'):
                         entry[2] = sort_definite(entry[2])
                     rows.append(entry)  # add each rowlist to the masterlist
                 if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
@@ -2495,7 +2496,7 @@ class WebInterface(object):
                 for row in rows:
                     worklink = ''
                     sitelink = ''
-                    if lazylibrarian.CONFIG.get_bool('RATESTARS'):
+                    if CONFIG.get_bool('RATESTARS'):
                         bookrate = int(round(check_float(row[3], 0.0)))
                         if bookrate > 5:
                             bookrate = 5
@@ -2503,8 +2504,8 @@ class WebInterface(object):
                         bookrate = row[3]
 
                     if row[20]:  # is there a librarything workid
-                        worklink = '<a href="' + lazylibrarian.CONFIG['LT_URL'] + '/' + 'work/' + \
-                             row[20] + '" target="_new"><small><i>LibraryThing</i></small></a>'
+                        worklink = '<a href="' + CONFIG['LT_URL'] + '/' + 'work/' + \
+                                   row[20] + '" target="_new"><small><i>LibraryThing</i></small></a>'
                     elif row[10]:  # is there a workpage link
                         worklink = '<a href="' + row[10] + '" target="_new"><small><i>LibraryThing</i></small></a>'
                     else:
@@ -2517,7 +2518,7 @@ class WebInterface(object):
                     if not row[9]:
                         row[9] = ''
                     elif row[9].startswith('/works/OL'):
-                        ref = lazylibrarian.CONFIG['OL_URL'] + row[9]
+                        ref = CONFIG['OL_URL'] + row[9]
                         sitelink = '<a href="%s" target="_new"><small><i>OpenLibrary</i></small></a>' % ref
 
                     elif 'goodreads' in row[9]:
@@ -2535,7 +2536,7 @@ class WebInterface(object):
                     if perm & lazylibrarian.perm_edit:
                         title = title + ' ' + editpage
 
-                    if lazylibrarian.CONFIG.get_bool('SHOW_GENRES') and bookgenre and bookgenre != 'Unknown':
+                    if CONFIG.get_bool('SHOW_GENRES') and bookgenre and bookgenre != 'Unknown':
                         arr = bookgenre.split(',')
                         genres = ''
                         for a in arr:
@@ -2573,7 +2574,7 @@ class WebInterface(object):
                     # Need to pass bookid and status twice for legacy as datatables modifies first one
                     thisrow = [row[6], row[0], row[1], title, row[12], bookrate, date_format(row[4], ''),
                                row[5], row[11], row[6],
-                               date_format(row[13], lazylibrarian.CONFIG['DATE_FORMAT']),
+                               date_format(row[13], CONFIG['DATE_FORMAT']),
                                row[5], row[16], flag]
 
                     if kwargs['source'] == "Manage":
@@ -2590,7 +2591,7 @@ class WebInterface(object):
                             thisrow.append('')
                     elif kwargs['source'] == 'Author':
                         thisrow.append(row[14])
-                        thisrow.append(date_format(row[15], lazylibrarian.CONFIG['DATE_FORMAT']))
+                        thisrow.append(date_format(row[15], CONFIG['DATE_FORMAT']))
 
                     thisrow.append(row[18])
                     thisrow.append(row[19])
@@ -2671,12 +2672,12 @@ class WebInterface(object):
             author_id = match['AuthorID']
             update_totals(author_id)
         else:
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+            if CONFIG['BOOK_API'] == "GoogleBooks":
                 gb = GoogleBooks(bookid)
                 t = threading.Thread(target=gb.find_book, name='GB-BOOK',
                                      args=[bookid, ebook_status, audio_status, "Added by user"])
                 t.start()
-            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+            elif CONFIG['BOOK_API'] == "GoodReads":
                 gr = GoodReads(bookid)
                 t = threading.Thread(target=gr.find_book, name='GR-BOOK',
                                      args=[bookid, ebook_status, audio_status, "Added by user"])
@@ -2688,7 +2689,7 @@ class WebInterface(object):
                 t.start()
             t.join(timeout=10)  # 10 s to add book before redirect
 
-        if lazylibrarian.CONFIG.get_bool('IMP_AUTOSEARCH'):
+        if CONFIG.get_bool('IMP_AUTOSEARCH'):
             books = [{"bookid": bookid}]
             self.start_book_search(books)
 
@@ -2704,7 +2705,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_book_search(self, books=None, library=None, force=False):
         if books:
-            if lazylibrarian.CONFIG.use_any():
+            if CONFIG.use_any():
                 if force:
                     name = 'FORCE-SEARCHBOOK'
                 else:
@@ -2778,7 +2779,7 @@ class WebInterface(object):
 
                 if 'email' in kwargs and kwargs['email']:
                     result = notifiers.email_notifier.notify_message('Request from LazyLibrarian User',
-                                                                     msg, lazylibrarian.CONFIG['ADMIN_EMAIL'])
+                                                                     msg, CONFIG['ADMIN_EMAIL'])
                     if result:
                         prefix = "Message sent"
                         msg = "You will receive a reply by email"
@@ -2930,7 +2931,7 @@ class WebInterface(object):
                             if is_valid_booktype(filename, 'audiobook'):
                                 cnt += 1
 
-                if cnt > 1 and not lazylibrarian.CONFIG.get_bool('RSS_PODCAST'):
+                if cnt > 1 and not CONFIG.get_bool('RSS_PODCAST'):
                     target = zip_audio(os.path.dirname(myfile), res['BookName'], itemid)
                     if target and path_isfile(target):
                         logger.debug('Opening %s %s' % (ftype, target))
@@ -2946,7 +2947,7 @@ class WebInterface(object):
                 myfile = res['BookFile']
                 fname, extn = os.path.splitext(myfile)
                 types = []
-                for item in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+                for item in get_list(CONFIG['EBOOK_TYPE']):
                     target = fname + '.' + item
                     if path_isfile(target):
                         types.append(item)
@@ -2982,7 +2983,7 @@ class WebInterface(object):
         self.label_thread('OPEN_BOOK')
         # we need to check the user priveleges and see if they can download the book
         db = database.DBConnection()
-        if not lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
+        if not CONFIG.get_bool('USER_ACCOUNTS'):
             perm = lazylibrarian.perm_admin
             preftype = ''
         else:
@@ -3099,7 +3100,7 @@ class WebInterface(object):
                     if bookfile and path_isfile(bookfile):
                         fname, _ = os.path.splitext(bookfile)
                         types = []
-                        for item in get_list(lazylibrarian.CONFIG['EBOOK_TYPE']):
+                        for item in get_list(CONFIG['EBOOK_TYPE']):
                             target = fname + '.' + item
                             if path_isfile(target):
                                 types.append(item)
@@ -3118,7 +3119,7 @@ class WebInterface(object):
                                 return serve_template(templatename="choosetype.html",
                                                       title="Not Available", pop_message=msg,
                                                       pop_types=typestr, bookid=bookid,
-                                                      valid=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']),
+                                                      valid=get_list(CONFIG['EBOOK_TYPE']),
                                                       email=email)
                         elif len(types) > 1:
                             msg = "Please select format to "
@@ -3134,7 +3135,7 @@ class WebInterface(object):
                             return serve_template(templatename="choosetype.html",
                                                   title="Choose Type", pop_message=msg,
                                                   pop_types=typestr, bookid=bookid,
-                                                  valid=get_list(lazylibrarian.CONFIG['EBOOK_TYPE']),
+                                                  valid=get_list(CONFIG['EBOOK_TYPE']),
                                                   email=email)
                         if len(types) and bookfile and path_isfile(bookfile):
                             if email:
@@ -3731,8 +3732,8 @@ class WebInterface(object):
 
                                     if deleted:
                                         logger.info('eBook %s deleted from disc' % bookname)
-                                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and \
-                                                lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
+                                        if CONFIG['IMP_CALIBREDB'] and \
+                                                CONFIG.get_bool('IMP_CALIBRE_EBOOK'):
                                             self.delete_from_calibre(bookdata)
 
                         authorcheck = db.match('SELECT Status from authors WHERE AuthorID=?', (authorid,))
@@ -3772,8 +3773,8 @@ class WebInterface(object):
             for arg in args:
                 books.append({"bookid": arg})
 
-            if lazylibrarian.CONFIG.use_any():
-                if check_int(lazylibrarian.CONFIG['SEARCH_BOOKINTERVAL'], 0):
+            if CONFIG.use_any():
+                if check_int(CONFIG['SEARCH_BOOKINTERVAL'], 0):
                     logger.debug("Starting search threads, library=%s, action=%s" %
                                  (library, action))
                     if action == 'WantBoth' or (action == 'Wanted' and 'eBook' in library):
@@ -3815,7 +3816,7 @@ class WebInterface(object):
         else:
             mod_issues = []
             count = 0
-            maxcount = lazylibrarian.CONFIG.get_int('MAX_WALL')
+            maxcount = CONFIG.get_int('MAX_WALL')
             for issue in issues:
                 this_issue = dict(issue)
                 if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
@@ -3840,7 +3841,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="magazines",
-            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+            columns=CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
     def comic_wall(self, comicid=None):
@@ -3860,7 +3861,7 @@ class WebInterface(object):
         else:
             mod_issues = []
             count = 0
-            maxcount = lazylibrarian.CONFIG.get_int('MAX_WALL')
+            maxcount = CONFIG.get_int('MAX_WALL')
             for issue in issues:
                 this_issue = dict(issue)
                 if not this_issue.get('Cover') or not this_issue['Cover'].startswith('cache/'):
@@ -3885,7 +3886,7 @@ class WebInterface(object):
 
         return serve_template(
             templatename="coverwall.html", title=title, results=mod_issues, redirect="comic",
-            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+            columns=CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
     def book_wall(self, have='0'):
@@ -3900,7 +3901,7 @@ class WebInterface(object):
         results = db.select(cmd)
         if not len(results):
             raise cherrypy.HTTPRedirect("books")
-        maxcount = lazylibrarian.CONFIG.get_int('MAX_WALL')
+        maxcount = CONFIG.get_int('MAX_WALL')
         if maxcount and len(results) > maxcount:
             results = results[:maxcount]
             title = "%s (Top %i)" % (title, len(results))
@@ -3910,7 +3911,7 @@ class WebInterface(object):
             if not item['BookLink']:
                 item['BookLink'] = ''
             elif item['BookLink'].startswith('/works/OL'):
-                item['BookLink'] = lazylibrarian.CONFIG['OL_URL'] + item['BookLink']
+                item['BookLink'] = CONFIG['OL_URL'] + item['BookLink']
 
             if not item.get('BookImg') or not item['BookImg'].startswith('cache/'):
                 item['BookImg'] = 'images/nocover.jpg'
@@ -3927,7 +3928,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="books", have=have,
-            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+            columns=CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
     def author_wall(self, have='1'):
@@ -3962,7 +3963,7 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="authors", have=have,
-            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+            columns=CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
     def audio_wall(self):
@@ -3973,7 +3974,7 @@ class WebInterface(object):
         if not len(results):
             raise cherrypy.HTTPRedirect("audio")
         title = "Recent AudioBooks"
-        maxcount = lazylibrarian.CONFIG.get_int('MAX_WALL')
+        maxcount = CONFIG.get_int('MAX_WALL')
         if maxcount and len(results) > maxcount:
             results = results[:maxcount]
             title = "%s (Top %i)" % (title, len(results))
@@ -3995,17 +3996,17 @@ class WebInterface(object):
             ret.append(item)
         return serve_template(
             templatename="coverwall.html", title=title, results=ret, redirect="audio",
-            columns=lazylibrarian.CONFIG['WALL_COLUMNS'])
+            columns=CONFIG['WALL_COLUMNS'])
 
     @cherrypy.expose
     def wall_columns(self, redirect=None, count=None, have=0, title=''):
         title = title.split(' (')[0].replace(' ', '+')
-        columns = check_int(lazylibrarian.CONFIG['WALL_COLUMNS'], 6)
+        columns = check_int(CONFIG['WALL_COLUMNS'], 6)
         if count == 'up' and columns <= 12:
             columns += 1
         elif count == 'down' and columns > 1:
             columns -= 1
-        lazylibrarian.CONFIG.set_int('WALL_COLUMNS', columns)
+        CONFIG.set_int('WALL_COLUMNS', columns)
         if redirect == 'audio':
             raise cherrypy.HTTPRedirect('audio_wall')
         elif redirect == 'books':
@@ -4093,7 +4094,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_comic_search(self, comicid=None):
         if comicid:
-            if lazylibrarian.CONFIG.use_any():
+            if CONFIG.use_any():
                 threading.Thread(target=search_comics, name='SEARCHCOMIC', args=[comicid]).start()
                 logger.debug("Searching for comic ID %s" % comicid)
             else:
@@ -4110,7 +4111,7 @@ class WebInterface(object):
             user = 0
         # use server-side processing
         covers = 1
-        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
             covers = 0
         return serve_template(templatename="comics.html", title="Comics", comics=[],
                               covercount=covers, user=user, comic_filter=comic_filter)
@@ -4133,7 +4134,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             cmd = 'select comics.*,(select count(*) as counter from comicissues '
             cmd += 'where comics.comicid = comicissues.comicid) as Iss_Cnt from comics'
@@ -4197,7 +4198,7 @@ class WebInterface(object):
                             imgthumb = createthumb(imgfile, 200, False)
                             if imgthumb:
                                 row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                    row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -4207,7 +4208,7 @@ class WebInterface(object):
                         elif len(row[5]) == 12:
                             row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
                     else:
-                        row[5] = date_format(row[5], lazylibrarian.CONFIG['ISS_FORMAT'])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'])
 
             if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_comics returning %s to %s" % (displaystart, displaystart + displaylength))
@@ -4269,7 +4270,7 @@ class WebInterface(object):
         else:
             user = 0
         # use server-side processing
-        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG.get_bool('COMIC_IMG'):
+        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('COMIC_IMG'):
             covercount = 0
         else:
             covercount = 1
@@ -4311,7 +4312,7 @@ class WebInterface(object):
             logger.warn("No issues for comic %s" % comicid)
             raise cherrypy.HTTPRedirect("comics")
 
-        if len(iss_data) == 1 and lazylibrarian.CONFIG.get_bool('COMIC_SINGLE'):  # we only have one issue, get it
+        if len(iss_data) == 1 and CONFIG.get_bool('COMIC_SINGLE'):  # we only have one issue, get it
             title = iss_data[0]["Title"]
             issue_id = iss_data[0]["IssueID"]
             issue_file = iss_data[0]["IssueFile"]
@@ -4338,7 +4339,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             comicid = kwargs['comicid']
             db = database.DBConnection()
@@ -4389,8 +4390,8 @@ class WebInterface(object):
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
-                row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'])
+                row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
 
             if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_comic_issues returning %s to %s" % (displaystart, displaystart + displaylength))
@@ -4457,7 +4458,7 @@ class WebInterface(object):
     def add_comic(self, comicid=None, **kwargs):
         # add a comic from a list in comicresults.html
         global comicresults
-        apikey = lazylibrarian.CONFIG['CV_APIKEY']
+        apikey = CONFIG['CV_APIKEY']
         if not comicid or comicid == 'None':
             raise cherrypy.HTTPRedirect("comics")
         elif comicid.startswith('CV') and not apikey:
@@ -4523,7 +4524,7 @@ class WebInterface(object):
                         logger.debug('Failed to delete %s' % (issue['IssueFile']))
 
                 # if the directory is now empty, delete that too
-                if issuedir and lazylibrarian.CONFIG.get_bool('COMIC_DELFOLDER'):
+                if issuedir and CONFIG.get_bool('COMIC_DELFOLDER'):
                     magdir = os.path.dirname(issuedir)
                     try:
                         os.rmdir(syspath(magdir))
@@ -4649,7 +4650,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
             db = database.DBConnection()
             cmd = 'select magazines.*,(select count(*) as counter from issues where magazines.title = issues.title)'
             cmd += ' as Iss_Cnt from magazines'
@@ -4707,7 +4708,7 @@ class WebInterface(object):
                     rows = filtered[displaystart:(displaystart + displaylength)]
 
                 for row in rows:
-                    row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
                     if row[5] and row[5].isdigit():
                         if len(row[5]) == 8:
                             if check_year(row[5][:4]):
@@ -4717,7 +4718,7 @@ class WebInterface(object):
                         elif len(row[5]) == 12:
                             row[5] = 'Vol %d #%d %s' % (int(row[5][4:8]), int(row[5][8:]), row[5][:4])
                     else:
-                        row[5] = date_format(row[5], lazylibrarian.CONFIG['ISS_FORMAT'])
+                        row[5] = date_format(row[5], CONFIG['ISS_FORMAT'])
 
                     if not row[1] or not row[1].startswith('cache/'):
                         row[1] = 'images/nocover.jpg'
@@ -4764,7 +4765,7 @@ class WebInterface(object):
                     email = res['SendTo']
             # use server-side processing
             covers = 1
-            if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG.get_bool('MAG_IMG'):
+            if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
                 covers = 0
             return serve_template(templatename="magazines.html", title="Magazines", magazines=[],
                                   covercount=covers, user=user, email=email, mag_filter=mag_filter)
@@ -4779,7 +4780,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             title = kwargs['title'].replace('&amp;', '&')
             db = database.DBConnection()
@@ -4828,7 +4829,7 @@ class WebInterface(object):
                         imgthumb = createthumb(imgfile, 200, False)
                         if imgthumb:
                             row[1] = "%s%s" % ('cache/', imgthumb[len(DIRS.CACHEDIR):].lstrip(os.sep))
-                row[3] = date_format(row[3], lazylibrarian.CONFIG['DATE_FORMAT'])
+                row[3] = date_format(row[3], CONFIG['DATE_FORMAT'])
                 if row[2] and row[2].isdigit():
                     if len(row[2]) == 8:
                         # Year/Issue or Volume/Issue with no year
@@ -4839,7 +4840,7 @@ class WebInterface(object):
                     elif len(row[2]) == 12:
                         row[2] = 'Vol %d #%d %s' % (int(row[2][4:8]), int(row[2][8:]), row[2][:4])
                 else:
-                    row[2] = date_format(row[2], lazylibrarian.CONFIG['ISS_FORMAT'])
+                    row[2] = date_format(row[2], CONFIG['ISS_FORMAT'])
 
             if lazylibrarian_log.LOGLEVEL & logger.log_serverside:
                 logger.debug("get_issues returning %s to %s" % (displaystart, displaystart + displaylength))
@@ -4875,7 +4876,7 @@ class WebInterface(object):
             firstpage = 'true'
 
         # use server-side processing
-        if not lazylibrarian.CONFIG['TOGGLES'] and not lazylibrarian.CONFIG.get_bool('MAG_IMG'):
+        if not CONFIG['TOGGLES'] and not CONFIG.get_bool('MAG_IMG'):
             covercount = 0
         else:
             covercount = 1
@@ -4918,7 +4919,7 @@ class WebInterface(object):
             db = database.DBConnection()
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
             # need to filter on whichStatus and optional mag title
             cmd = 'SELECT NZBurl, NZBtitle, NZBdate, Auxinfo, NZBprov from pastissues WHERE Status=?'
             args = [kwargs['whichStatus']]
@@ -5010,7 +5011,7 @@ class WebInterface(object):
         #    logger.warn("No issues for magazine %s" % bookid)
         #    raise cherrypy.HTTPRedirect("magazines")
 
-        if len(mag_data) == 1 and lazylibrarian.CONFIG.get_bool('MAG_SINGLE'):  # we only have one issue, get it
+        if len(mag_data) == 1 and CONFIG.get_bool('MAG_SINGLE'):  # we only have one issue, get it
             issue_date = mag_data[0]["IssueDate"]
             issue_file = mag_data[0]["IssueFile"]
             if issue_file and path_isfile(issue_file):
@@ -5125,13 +5126,13 @@ class WebInterface(object):
                                 db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
                         issue['Cover'] = newcover
                         issue['CoverFile'] = coverfile  # for updating calibre cover
-                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                        if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                             self.update_calibre_issue_cover(issue)
 
                     if action == 'coverswap':
                         coverfile = None
-                        if lazylibrarian.CONFIG['MAG_COVERSWAP']:
-                            params = [lazylibrarian.CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
+                        if CONFIG['MAG_COVERSWAP']:
+                            params = [CONFIG['MAG_COVERSWAP'], issue['IssueFile']]
                             logger.debug("Coverswap %s" % params)
                             try:
                                 res = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -5158,14 +5159,14 @@ class WebInterface(object):
                                     db.action("UPDATE magazines SET LatestCover=? WHERE Title=?", (newcover, title))
                             issue['Cover'] = newcover
                             issue['CoverFile'] = coverfile  # for updating calibre cover
-                            if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                 self.update_calibre_issue_cover(issue)
 
                     if action == "Delete":
                         result = self.delete_issue(issue['IssueFile'])
                         if result:
                             logger.info('Issue %s of %s deleted from disc' % (issue['IssueDate'], issue['Title']))
-                            if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                            if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                                 self.delete_from_calibre(issue)
                     if action == "Remove" or action == "Delete":
                         db.action('DELETE from issues WHERE IssueID=?', (item,))
@@ -5234,7 +5235,7 @@ class WebInterface(object):
             for extn in ['.opf', '.jpg']:
                 remove_file(fname + extn)
             # if the directory is now empty, delete that too
-            if lazylibrarian.CONFIG.get_bool('MAG_DELFOLDER'):
+            if CONFIG.get_bool('MAG_DELFOLDER'):
                 try:
                     os.rmdir(syspath(os.path.dirname(issuefile)))
                 except OSError as e:
@@ -5264,14 +5265,14 @@ class WebInterface(object):
                     result = self.delete_issue(issue['IssueFile'])
                     if result:
                         logger.debug('Issue %s deleted from disc' % issue['IssueFile'])
-                        if lazylibrarian.CONFIG['IMP_CALIBREDB'] and lazylibrarian.CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
+                        if CONFIG['IMP_CALIBREDB'] and CONFIG.get_bool('IMP_CALIBRE_MAGAZINE'):
                             self.delete_from_calibre(issue)
                         issuedir = os.path.dirname(issue['IssueFile'])
                     else:
                         logger.debug('Failed to delete %s' % (issue['IssueFile']))
 
                 # if the directory is now empty, delete that too
-                if issuedir and lazylibrarian.CONFIG.get_bool('MAG_DELFOLDER'):
+                if issuedir and CONFIG.get_bool('MAG_DELFOLDER'):
                     magdir = os.path.dirname(issuedir)
                     try:
                         os.rmdir(syspath(magdir))
@@ -5334,7 +5335,7 @@ class WebInterface(object):
     @cherrypy.expose
     def start_magazine_search(self, mags=None):
         if mags:
-            if lazylibrarian.CONFIG.use_any():
+            if CONFIG.use_any():
                 threading.Thread(target=search_magazines, name='SEARCHMAG', args=[mags, False]).start()
                 logger.debug("Searching for magazine with title: %s" % mags[0]["bookid"])
             else:
@@ -5382,7 +5383,7 @@ class WebInterface(object):
                 }
                 db.upsert("magazines", new_value_dict, control_value_dict)
                 mags = [{"bookid": title}]
-                if lazylibrarian.CONFIG.get_bool('IMP_AUTOSEARCH'):
+                if CONFIG.get_bool('IMP_AUTOSEARCH'):
                     self.start_magazine_search(mags)
             if kwargs.get('magfilter'):
                 raise cherrypy.HTTPRedirect("magazines?mag_filter=" + kwargs.get('magfilter'))
@@ -5395,16 +5396,16 @@ class WebInterface(object):
     def check_for_updates(self):
         self.label_thread('UPDATES')
         versioncheck.check_for_updates()
-        if lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') == 0:
+        if CONFIG.get_int('COMMITS_BEHIND') == 0:
             if lazylibrarian.COMMIT_LIST:
                 message = "unknown status"
                 messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
                 message = message + '<br><small>' + messages
             else:
                 message = "up to date"
-        elif lazylibrarian.CONFIG.get_int('COMMITS_BEHIND') > 0:
-            message = "behind by %s %s" % (lazylibrarian.CONFIG.get_int('COMMITS_BEHIND'),
-                                           plural(lazylibrarian.CONFIG.get_int('COMMITS_BEHIND'), "commit"))
+        elif CONFIG.get_int('COMMITS_BEHIND') > 0:
+            message = "behind by %s %s" % (CONFIG.get_int('COMMITS_BEHIND'),
+                                           plural(CONFIG.get_int('COMMITS_BEHIND'), "commit"))
             messages = lazylibrarian.COMMIT_LIST.replace('\n', '<br>')
             message = message + '<br><small>' + messages
             if '**MANUAL**' in lazylibrarian.COMMIT_LIST:
@@ -5412,8 +5413,8 @@ class WebInterface(object):
         else:
             message = "unknown version"
             messages = "Your version is not recognized at<br>https://%s/%s/%s  Branch: %s" % (
-                lazylibrarian.CONFIG['GIT_HOST'], lazylibrarian.CONFIG['GIT_USER'],
-                lazylibrarian.CONFIG['GIT_REPO'], lazylibrarian.CONFIG['GIT_BRANCH'])
+                CONFIG['GIT_HOST'], CONFIG['GIT_USER'],
+                CONFIG['GIT_REPO'], CONFIG['GIT_BRANCH'])
             message = message + '<br><small>' + messages
 
         return "LazyLibrarian is %s" % message
@@ -5454,7 +5455,7 @@ class WebInterface(object):
         if 'library' in kwargs and kwargs['library'] in types:
             library = kwargs['library']
 
-        removed = lazylibrarian.CONFIG.get_bool('FULL_SCAN')
+        removed = CONFIG.get_bool('FULL_SCAN')
         threadname = "%s_SCAN" % library.upper()
         if threadname not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
@@ -5495,7 +5496,7 @@ class WebInterface(object):
         if 'ALT-LIBRARYSCAN' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 threading.Thread(target=library_scan, name='ALT-LIBRARYSCAN',
-                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library, None, False]).start()
+                                 args=[CONFIG['ALTERNATE_DIR'], library, None, False]).start()
             except Exception as e:
                 logger.error('Unable to complete the libraryscan: %s %s' % (type(e).__name__, str(e)))
         else:
@@ -5510,7 +5511,7 @@ class WebInterface(object):
         if 'IMPORTISSUES' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 threading.Thread(target=process_issues, name='IMPORTISSUES',
-                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], title]).start()
+                                 args=[CONFIG['ALTERNATE_DIR'], title]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
         else:
@@ -5522,7 +5523,7 @@ class WebInterface(object):
         if 'IMPORTALT' not in [n.name for n in [t for t in threading.enumerate()]]:
             try:
                 threading.Thread(target=process_alternate, name='IMPORTALT',
-                                 args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library, True]).start()
+                                 args=[CONFIG['ALTERNATE_DIR'], library, True]).start()
             except Exception as e:
                 logger.error('Unable to complete the import: %s %s' % (type(e).__name__, str(e)))
         else:
@@ -5569,7 +5570,7 @@ class WebInterface(object):
 
         scheme, netloc, path, qs, anchor = urlsplit(cherrypy.url())
 
-        my_ip = lazylibrarian.CONFIG['RSS_HOST']
+        my_ip = CONFIG['RSS_HOST']
         if not my_ip:
             my_ip = cherrypy.request.headers.get('X-Forwarded-Host')
         if not my_ip:
@@ -5604,13 +5605,13 @@ class WebInterface(object):
         if 'IMPORTCSV' not in [n.name for n in [t for t in threading.enumerate()]]:
             self.label_thread('IMPORTCSV')
             try:
-                csvfile = csv_file(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
+                csvfile = csv_file(CONFIG['ALTERNATE_DIR'], library=library)
                 if path_exists(csvfile):
                     message = "Importing books (background task) from %s" % csvfile
                     threading.Thread(target=import_csv, name='IMPORTCSV',
-                                     args=[lazylibrarian.CONFIG['ALTERNATE_DIR'], library]).start()
+                                     args=[CONFIG['ALTERNATE_DIR'], library]).start()
                 else:
-                    message = "No %s CSV file in [%s]" % (library, lazylibrarian.CONFIG['ALTERNATE_DIR'])
+                    message = "No %s CSV file in [%s]" % (library, CONFIG['ALTERNATE_DIR'])
             except Exception as e:
                 message = 'Unable to complete the import: %s %s' % (type(e).__name__, str(e))
                 logger.error(message)
@@ -5622,7 +5623,7 @@ class WebInterface(object):
     @cherrypy.expose
     def export_csv(self, library=''):
         self.label_thread('EXPORTCSV')
-        message = export_csv(lazylibrarian.CONFIG['ALTERNATE_DIR'], library=library)
+        message = export_csv(CONFIG['ALTERNATE_DIR'], library=library)
         message = message.replace('\n', '<br>')
         return message
 
@@ -5758,7 +5759,7 @@ class WebInterface(object):
         try:
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
 
             if sSearch:
                 filtered = [x for x in logger.lazylibrarian_log.LOGLIST[::] if sSearch.lower() in str(x).lower()]
@@ -5774,11 +5775,11 @@ class WebInterface(object):
             else:
                 rows = filtered[displaystart:(displaystart + displaylength)]
 
-            if lazylibrarian.CONFIG.get_bool('LOGREDACT'):
+            if CONFIG.get_bool('LOGREDACT'):
                 redacted = []
                 for line in rows:
                     line = list(line)
-                    for item in lazylibrarian.CONFIG.REDACTLIST:
+                    for item in CONFIG.REDACTLIST:
                         line[6] = line[6].replace(item, '**********')
                     redacted.append(line)
                 rows = redacted
@@ -5813,7 +5814,7 @@ class WebInterface(object):
             db = database.DBConnection()
             displaystart = int(iDisplayStart)
             displaylength = int(iDisplayLength)
-            lazylibrarian.CONFIG.set_int('DISPLAYLENGTH', displaylength)
+            CONFIG.set_int('DISPLAYLENGTH', displaylength)
             snatching = 0
             cmd = "SELECT NZBTitle,AuxInfo,BookID,NZBProv,NZBDate,NZBSize,Status,Source,DownloadID,rowid from wanted"
             rowlist = db.select(cmd)
@@ -5873,14 +5874,14 @@ class WebInterface(object):
                             progress, _ = get_download_progress(row[7], row[8])
                             row.append(progress)
                             if progress < 100:
-                                lazylibrarian.HIST_REFRESH = lazylibrarian.CONFIG.get_int('HIST_REFRESH')
+                                lazylibrarian.HIST_REFRESH = CONFIG.get_int('HIST_REFRESH')
                         else:
                             row.append(-1)
                     else:
                         row.append(-1)
                     row.append(rowid)
                     row.append(row[4])  # keep full datetime for tooltip
-                    row[4] = date_format(row[4], lazylibrarian.CONFIG['DATE_FORMAT'])
+                    row[4] = date_format(row[4], CONFIG['DATE_FORMAT'])
 
                     if row[1] in ['eBook', 'AudioBook']:
                         btn = '<button onclick="bookinfo(\'' + row[2]
@@ -6065,7 +6066,7 @@ class WebInterface(object):
                     elif book['AuxInfo'] == 'AudioBook':
                         db.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
                                   (book['BookID'], status))
-                    if lazylibrarian.CONFIG.get_bool('DEL_FAILED'):
+                    if CONFIG.get_bool('DEL_FAILED'):
                         delete_task(book['Source'], book['DownloadID'], True)
             db.action("DELETE from wanted")
         else:
@@ -6083,7 +6084,7 @@ class WebInterface(object):
                         elif book['AuxInfo'] == 'AudioBook':
                             db.action('UPDATE books SET AudioStatus="Wanted" WHERE Bookid=? AND AudioStatus=?',
                                       (book['BookID'], status))
-                    if lazylibrarian.CONFIG.get_bool('DEL_FAILED'):
+                    if CONFIG.get_bool('DEL_FAILED'):
                         delete_task(book['Source'], book['DownloadID'], True)
             db.action('DELETE from wanted WHERE Status=?', (status,))
         raise cherrypy.HTTPRedirect("history")
@@ -6104,10 +6105,10 @@ class WebInterface(object):
                 msg = "%s test FAILED, check debug log" % name
             elif result is True:
                 msg = "%s test PASSED" % name
-                lazylibrarian.CONFIG.save_config_and_backup_old(section=kwargs['name'])
+                CONFIG.save_config_and_backup_old(section=kwargs['name'])
             else:
                 msg = "%s test PASSED, found %s" % (name, result)
-                lazylibrarian.CONFIG.save_config_and_backup_old(section=kwargs['name'])
+                CONFIG.save_config_and_backup_old(section=kwargs['name'])
         else:
             msg = "Invalid or missing name in testprovider"
         return msg
@@ -6207,9 +6208,9 @@ class WebInterface(object):
     def grauth_step1(self, **kwargs):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'gr_api' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_API', kwargs['gr_api'])
+            CONFIG.set_str('GR_API', kwargs['gr_api'])
         if 'gr_secret' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
+            CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
         ga = grsync.GrAuth()
         res = ga.goodreads_oauth1()
         return res
@@ -6225,16 +6226,16 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'gr_api' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_API', kwargs['gr_api'])
+            CONFIG.set_str('GR_API', kwargs['gr_api'])
         if 'gr_secret' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
+            CONFIG.set_str('GR_SECRET', kwargs['gr_secret'])
         if 'gr_oauth_token' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_OAUTH_TOKEN', kwargs['gr_oauth_token'])
+            CONFIG.set_str('GR_OAUTH_TOKEN', kwargs['gr_oauth_token'])
         if 'gr_oauth_secret' in kwargs:
-            lazylibrarian.CONFIG.set_str('GR_OAUTH_SECRET', kwargs['gr_oauth_secret'])
+            CONFIG.set_str('GR_OAUTH_SECRET', kwargs['gr_oauth_secret'])
         res = grsync.test_auth()
         if res.startswith('Pass:'):
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='API')
+            CONFIG.save_config_and_backup_old(section='API')
         return res
 
     # NOTIFIERS #########################################################
@@ -6250,7 +6251,7 @@ class WebInterface(object):
         if key:
             result = notifiers.twitter_notifier._get_credentials(key)
             if result:
-                lazylibrarian.CONFIG.save_config_and_backup_old(section='Twitter')
+                CONFIG.save_config_and_backup_old(section='Twitter')
                 return "Key verification successful"
             else:
                 return "Unable to verify key"
@@ -6272,17 +6273,17 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'url' in kwargs:
-            lazylibrarian.CONFIG.set_str('ANDROIDPN_URL', kwargs['url'])
+            CONFIG.set_str('ANDROIDPN_URL', kwargs['url'])
         if 'username' in kwargs:
-            lazylibrarian.CONFIG.set_str('ANDROIDPN_USERNAME', kwargs['username'])
+            CONFIG.set_str('ANDROIDPN_USERNAME', kwargs['username'])
         if 'broadcast' in kwargs:
             if kwargs['broadcast'] == 'True':
-                lazylibrarian.CONFIG.set_bool('ANDROIDPN_BROADCAST', True)
+                CONFIG.set_bool('ANDROIDPN_BROADCAST', True)
             else:
-                lazylibrarian.CONFIG.set_bool('ANDROIDPN_BROADCAST', False)
+                CONFIG.set_bool('ANDROIDPN_BROADCAST', False)
         result = notifiers.androidpn_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='AndroidPN')
+            CONFIG.save_config_and_backup_old(section='AndroidPN')
             return "Test AndroidPN notice sent successfully"
         else:
             return "Test AndroidPN notice failed"
@@ -6292,10 +6293,10 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'token' in kwargs:
-            lazylibrarian.CONFIG.set_str('BOXCAR_TOKEN', kwargs['token'])
+            CONFIG.set_str('BOXCAR_TOKEN', kwargs['token'])
         result = notifiers.boxcar_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Boxcar')
+            CONFIG.save_config_and_backup_old(section='Boxcar')
             return "Boxcar notification successful,\n%s" % result
         else:
             return "Boxcar notification failed"
@@ -6305,12 +6306,12 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'token' in kwargs:
-            lazylibrarian.CONFIG.set_str('PUSHBULLET_TOKEN', kwargs['token'])
+            CONFIG.set_str('PUSHBULLET_TOKEN', kwargs['token'])
         if 'device' in kwargs:
-            lazylibrarian.CONFIG.set_str('PUSHBULLET_DEVICEID', kwargs['device'])
+            CONFIG.set_str('PUSHBULLET_DEVICEID', kwargs['device'])
         result = notifiers.pushbullet_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='PushBullet')
+            CONFIG.save_config_and_backup_old(section='PushBullet')
             return "Pushbullet notification successful,\n%s" % result
         else:
             return "Pushbullet notification failed"
@@ -6320,20 +6321,20 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'apitoken' in kwargs:
-            lazylibrarian.CONFIG.set_str('PUSHOVER_APITOKEN', kwargs['apitoken'])
+            CONFIG.set_str('PUSHOVER_APITOKEN', kwargs['apitoken'])
         if 'keys' in kwargs:
-            lazylibrarian.CONFIG.set_str('PUSHOVER_KEYS', kwargs['keys'])
+            CONFIG.set_str('PUSHOVER_KEYS', kwargs['keys'])
         if 'priority' in kwargs:
             res = check_int(kwargs['priority'], 0, positive=False)
             if res < -2 or res > 1:
                 res = 0
-            lazylibrarian.CONFIG.set_int('PUSHOVER_PRIORITY', res)
+            CONFIG.set_int('PUSHOVER_PRIORITY', res)
         if 'device' in kwargs:
-            lazylibrarian.CONFIG.set_str('PUSHOVER_DEVICE', kwargs['device'])
+            CONFIG.set_str('PUSHOVER_DEVICE', kwargs['device'])
 
         result = notifiers.pushover_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Pushover')
+            CONFIG.save_config_and_backup_old(section='Pushover')
             return "Pushover notification successful,\n%s" % result
         else:
             return "Pushover notification failed"
@@ -6343,13 +6344,13 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'token' in kwargs:
-            lazylibrarian.CONFIG.set_str('TELEGRAM_TOKEN', kwargs['token'])
+            CONFIG.set_str('TELEGRAM_TOKEN', kwargs['token'])
         if 'userid' in kwargs:
-            lazylibrarian.CONFIG.set_str('TELEGRAM_USERID', kwargs['userid'])
+            CONFIG.set_str('TELEGRAM_USERID', kwargs['userid'])
 
         result = notifiers.telegram_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Telegram')
+            CONFIG.save_config_and_backup_old(section='Telegram')
             return "Test Telegram notice sent successfully"
         else:
             return "Test Telegram notice failed"
@@ -6359,13 +6360,13 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'apikey' in kwargs:
-            lazylibrarian.CONFIG.set_str('PROWL_APIKEY', kwargs['apikey'])
+            CONFIG.set_str('PROWL_APIKEY', kwargs['apikey'])
         if 'priority' in kwargs:
-            lazylibrarian.CONFIG.set_int('PROWL_PRIORITY', check_int(kwargs['priority'], 0))
+            CONFIG.set_int('PROWL_PRIORITY', check_int(kwargs['priority'], 0))
 
         result = notifiers.prowl_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Prowl')
+            CONFIG.save_config_and_backup_old(section='Prowl')
             return "Test Prowl notice sent successfully"
         else:
             return "Test Prowl notice failed"
@@ -6375,13 +6376,13 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'apikey' in kwargs:
-            lazylibrarian.CONFIG.set_str('GROWL_HOST', kwargs['host'])
+            CONFIG.set_str('GROWL_HOST', kwargs['host'])
         if 'priority' in kwargs:
-            lazylibrarian.CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
+            CONFIG.set_str('GROWL_PASSWORD', kwargs['password'])
 
         result = notifiers.growl_notifier.test_notify()
         if result:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Growl')
+            CONFIG.save_config_and_backup_old(section='Growl')
             return "Test Growl notice sent successfully"
         else:
             return "Test Growl notice failed"
@@ -6391,15 +6392,15 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'token' in kwargs:
-            lazylibrarian.CONFIG.set_str('SLACK_TOKEN', kwargs['token'])
+            CONFIG.set_str('SLACK_TOKEN', kwargs['token'])
         if 'url' in kwargs:
-            lazylibrarian.CONFIG.set_str('SLACK_URL', kwargs['url'])
+            CONFIG.set_str('SLACK_URL', kwargs['url'])
 
         result = notifiers.slack_notifier.test_notify()
         if result != "ok":
             return "Slack notification failed,\n%s" % result
         else:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Slack')
+            CONFIG.save_config_and_backup_old(section='Slack')
             return "Slack notification successful"
 
     @cherrypy.expose
@@ -6407,12 +6408,12 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'script' in kwargs:
-            lazylibrarian.CONFIG.set_str('CUSTOM_SCRIPT', kwargs['script'])
+            CONFIG.set_str('CUSTOM_SCRIPT', kwargs['script'])
         result = notifiers.custom_notifier.test_notify()
         if result is False:
             return "Custom notification failed"
         else:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Custom')
+            CONFIG.save_config_and_backup_old(section='Custom')
             return "Custom notification successful"
 
     @cherrypy.expose
@@ -6421,37 +6422,37 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         if 'tls' in kwargs:
             if kwargs['tls'] == 'True':
-                lazylibrarian.CONFIG.set_bool('EMAIL_TLS', True)
+                CONFIG.set_bool('EMAIL_TLS', True)
             else:
-                lazylibrarian.CONFIG.set_bool('EMAIL_TLS', False)
+                CONFIG.set_bool('EMAIL_TLS', False)
         if 'ssl' in kwargs:
             if kwargs['ssl'] == 'True':
-                lazylibrarian.CONFIG.set_bool('EMAIL_SSL', True)
+                CONFIG.set_bool('EMAIL_SSL', True)
             else:
-                lazylibrarian.CONFIG.set_bool('EMAIL_SSL', False)
+                CONFIG.set_bool('EMAIL_SSL', False)
         if 'sendfile' in kwargs:
             if kwargs['sendfile'] == 'True':
-                lazylibrarian.CONFIG.set_bool('EMAIL_SENDFILE_ONDOWNLOAD', True)
+                CONFIG.set_bool('EMAIL_SENDFILE_ONDOWNLOAD', True)
             else:
-                lazylibrarian.CONFIG.set_bool('EMAIL_SENDFILE_ONDOWNLOAD', False)
+                CONFIG.set_bool('EMAIL_SENDFILE_ONDOWNLOAD', False)
         if 'emailfrom' in kwargs:
-            lazylibrarian.CONFIG.set_str('EMAIL_FROM', kwargs['emailfrom'])
+            CONFIG.set_str('EMAIL_FROM', kwargs['emailfrom'])
         if 'emailto' in kwargs:
-            lazylibrarian.CONFIG.set_str('EMAIL_TO', kwargs['emailto'])
+            CONFIG.set_str('EMAIL_TO', kwargs['emailto'])
         if 'server' in kwargs:
-            lazylibrarian.CONFIG.set_str('EMAIL_SMTP_SERVER', kwargs['server'])
+            CONFIG.set_str('EMAIL_SMTP_SERVER', kwargs['server'])
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('EMAIL_SMTP_USER', kwargs['user'])
+            CONFIG.set_str('EMAIL_SMTP_USER', kwargs['user'])
         if 'password' in kwargs:
-            lazylibrarian.CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
+            CONFIG.set_str('EMAIL_SMTP_PASSWORD', kwargs['password'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('EMAIL_SMTP_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('EMAIL_SMTP_PORT', check_int(kwargs['port'], 0))
 
         result = notifiers.email_notifier.test_notify()
         if not result:
             return "Email notification failed"
         else:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='Email')
+            CONFIG.save_config_and_backup_old(section='Email')
             return "Email notification successful, check your email"
 
     # API ###############################################################
@@ -6467,7 +6468,7 @@ class WebInterface(object):
     @cherrypy.expose
     def generate_api(self):
         api_key = hashlib.sha224(str(random.getrandbits(256)).encode('utf-8')).hexdigest()[0:32]
-        lazylibrarian.CONFIG.set_str('API_KEY', api_key)
+        CONFIG.set_str('API_KEY', api_key)
         logger.info("New API generated")
         return api_key
 
@@ -6484,7 +6485,7 @@ class WebInterface(object):
 
     @cherrypy.expose
     def force_wish(self, source=None):
-        if lazylibrarian.CONFIG.use_wishlist():
+        if CONFIG.use_wishlist():
             search_wishlist()
         else:
             logger.warn('WishList search called but no wishlist providers set')
@@ -6495,7 +6496,7 @@ class WebInterface(object):
     @cherrypy.expose
     def force_search(self, source=None, title=None):
         if source in ["magazines", 'comics']:
-            if lazylibrarian.CONFIG.use_any():
+            if CONFIG.use_any():
                 if title:
                     title = title.replace('&amp;', '&')
                     if source == 'magazines':
@@ -6513,11 +6514,11 @@ class WebInterface(object):
             else:
                 logger.warn('Search called but no download providers set')
         elif source in ["books", "audio"]:
-            if lazylibrarian.CONFIG.use_any():
+            if CONFIG.use_any():
                 if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
                     schedule_job("Stop", "search_book")
                     schedule_job("StartNow", "search_book")
-                if lazylibrarian.CONFIG.use_rss():
+                if CONFIG.use_rss():
                     schedule_job("Stop", "search_rss_book")
                     schedule_job("StartNow", "search_rss_book")
             else:
@@ -6552,22 +6553,22 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_HOST', kwargs['host'])
+            CONFIG.set_str('DELUGE_HOST', kwargs['host'])
         if 'base' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_BASE', kwargs['base'])
+            CONFIG.set_str('DELUGE_BASE', kwargs['base'])
         if 'cert' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_CERT', kwargs['cert'])
+            CONFIG.set_str('DELUGE_CERT', kwargs['cert'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('DELUGE_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('DELUGE_PORT', check_int(kwargs['port'], 0))
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
+            CONFIG.set_str('DELUGE_PASS', kwargs['pwd'])
         if 'label' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_LABEL', kwargs['label'])
+            CONFIG.set_str('DELUGE_LABEL', kwargs['label'])
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('DELUGE_USER', kwargs['user'])
+            CONFIG.set_str('DELUGE_USER', kwargs['user'])
 
         try:
-            if not lazylibrarian.CONFIG['DELUGE_USER']:
+            if not CONFIG['DELUGE_USER']:
                 # no username, talk to the webui
                 msg = deluge.check_link()
                 if 'FAILED' in msg:
@@ -6575,18 +6576,18 @@ class WebInterface(object):
             else:
                 # if there's a username, talk to the daemon directly
                 # if daemon, no cert used
-                lazylibrarian.CONFIG.set_str('DELUGE_CERT', '')
+                CONFIG.set_str('DELUGE_CERT', '')
                 # and host must not contain http:// or https://
-                host = lazylibrarian.CONFIG['DELUGE_HOST']
+                host = CONFIG['DELUGE_HOST']
                 host = host.replace('https://', '').replace('http://', '')
-                lazylibrarian.CONFIG.set_str('DELUGE_HOST', host)
-                client = DelugeRPCClient(lazylibrarian.CONFIG['DELUGE_HOST'],
-                                         check_int(lazylibrarian.CONFIG['DELUGE_PORT'], 0),
-                                         lazylibrarian.CONFIG['DELUGE_USER'],
-                                         lazylibrarian.CONFIG['DELUGE_PASS'])
+                CONFIG.set_str('DELUGE_HOST', host)
+                client = DelugeRPCClient(CONFIG['DELUGE_HOST'],
+                                         check_int(CONFIG['DELUGE_PORT'], 0),
+                                         CONFIG['DELUGE_USER'],
+                                         CONFIG['DELUGE_PASS'])
                 client.connect()
                 msg = "Deluge: Daemon connection Successful\n"
-                if lazylibrarian.CONFIG['DELUGE_LABEL']:
+                if CONFIG['DELUGE_LABEL']:
                     labels = client.call('label.get_labels')
                     if labels:
                         if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
@@ -6594,21 +6595,21 @@ class WebInterface(object):
                     else:
                         msg += "Deluge daemon seems to have no labels set\n"
 
-                    mylabel = lazylibrarian.CONFIG['DELUGE_LABEL'].lower()
-                    if mylabel != lazylibrarian.CONFIG['DELUGE_LABEL']:
-                        lazylibrarian.CONFIG.set_str('DELUGE_LABEL', mylabel)
+                    mylabel = CONFIG['DELUGE_LABEL'].lower()
+                    if mylabel != CONFIG['DELUGE_LABEL']:
+                        CONFIG.set_str('DELUGE_LABEL', mylabel)
 
                     labels = [make_unicode(s) for s in labels]
                     if mylabel not in labels:
                         res = client.call('label.add', mylabel)
                         if not res:
-                            msg += "Label [%s] was added" % lazylibrarian.CONFIG['DELUGE_LABEL']
+                            msg += "Label [%s] was added" % CONFIG['DELUGE_LABEL']
                         else:
                             msg = str(res)
                     else:
-                        msg += 'Label [%s] is valid' % lazylibrarian.CONFIG['DELUGE_LABEL']
+                        msg += 'Label [%s] is valid' % CONFIG['DELUGE_LABEL']
             # success, save settings
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='DELUGE')
+            CONFIG.save_config_and_backup_old(section='DELUGE')
             return msg
 
         except Exception as e:
@@ -6627,22 +6628,22 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_HOST', kwargs['host'])
+            CONFIG.set_str('SAB_HOST', kwargs['host'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('SAB_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('SAB_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_USER', kwargs['user'])
+            CONFIG.set_str('SAB_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_PASS', kwargs['pwd'])
+            CONFIG.set_str('SAB_PASS', kwargs['pwd'])
         if 'api' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_API', kwargs['api'])
+            CONFIG.set_str('SAB_API', kwargs['api'])
         if 'cat' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_CAT', kwargs['cat'])
+            CONFIG.set_str('SAB_CAT', kwargs['cat'])
         if 'subdir' in kwargs:
-            lazylibrarian.CONFIG.set_str('SAB_SUBDIR', kwargs['subdir'])
+            CONFIG.set_str('SAB_SUBDIR', kwargs['subdir'])
         msg = sabnzbd.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='sab_nzbd')
+            CONFIG.save_config_and_backup_old(section='sab_nzbd')
         return msg
 
     @cherrypy.expose
@@ -6650,20 +6651,20 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('NZBGET_HOST', kwargs['host'])
+            CONFIG.set_str('NZBGET_HOST', kwargs['host'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('NZBGET_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('NZBGET_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('NZBGET_USER', kwargs['user'])
+            CONFIG.set_str('NZBGET_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
+            CONFIG.set_str('NZBGET_PASS', kwargs['pwd'])
         if 'cat' in kwargs:
-            lazylibrarian.CONFIG.set_str('NZBGET_CATEGORY', kwargs['cat'])
+            CONFIG.set_str('NZBGET_CATEGORY', kwargs['cat'])
         if 'pri' in kwargs:
-            lazylibrarian.CONFIG.set_int('NZBGET_PRIORITY', check_int(kwargs['pri'], 0))
+            CONFIG.set_int('NZBGET_PRIORITY', check_int(kwargs['pri'], 0))
         msg = nzbget.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='NZBGet')
+            CONFIG.save_config_and_backup_old(section='NZBGet')
         return msg
 
     @cherrypy.expose
@@ -6671,18 +6672,18 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('TRANSMISSION_HOST', kwargs['host'])
+            CONFIG.set_str('TRANSMISSION_HOST', kwargs['host'])
         if 'base' in kwargs:
-            lazylibrarian.CONFIG.set_str('TRANSMISSION_BASE', kwargs['base'])
+            CONFIG.set_str('TRANSMISSION_BASE', kwargs['base'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('TRANSMISSION_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('TRANSMISSION_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('TRANSMISSION_USER', kwargs['user'])
+            CONFIG.set_str('TRANSMISSION_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
+            CONFIG.set_str('TRANSMISSION_PASS', kwargs['pwd'])
         msg = transmission.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='TRANSMISSION')
+            CONFIG.save_config_and_backup_old(section='TRANSMISSION')
         return msg
 
     @cherrypy.expose
@@ -6690,20 +6691,20 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('QBITTORRENT_HOST', kwargs['host'])
+            CONFIG.set_str('QBITTORRENT_HOST', kwargs['host'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('QBITTORRENT_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('QBITTORRENT_PORT', check_int(kwargs['port'], 0))
         if 'base' in kwargs:
-            lazylibrarian.CONFIG.set_str('QBITTORRENT_BASE', kwargs['base'])
+            CONFIG.set_str('QBITTORRENT_BASE', kwargs['base'])
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('QBITTORRENT_USER', kwargs['user'])
+            CONFIG.set_str('QBITTORRENT_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
+            CONFIG.set_str('QBITTORRENT_PASS', kwargs['pwd'])
         if 'label' in kwargs:
-            lazylibrarian.CONFIG.set_str('QBITTORRENT_LABEL', kwargs['label'])
+            CONFIG.set_str('QBITTORRENT_LABEL', kwargs['label'])
         msg = qbittorrent.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='QBITTORRENT')
+            CONFIG.save_config_and_backup_old(section='QBITTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6711,20 +6712,20 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('UTORRENT_HOST', kwargs['host'])
+            CONFIG.set_str('UTORRENT_HOST', kwargs['host'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('UTORRENT_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('UTORRENT_PORT', check_int(kwargs['port'], 0))
         if 'base' in kwargs:
-            lazylibrarian.CONFIG.set_str('UTORRENT_BASE', kwargs['base'])
+            CONFIG.set_str('UTORRENT_BASE', kwargs['base'])
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('UTORRENT_USER', kwargs['user'])
+            CONFIG.set_str('UTORRENT_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
+            CONFIG.set_str('UTORRENT_PASS', kwargs['pwd'])
         if 'label' in kwargs:
-            lazylibrarian.CONFIG.set_str('UTORRENT_LABEL', kwargs['label'])
+            CONFIG.set_str('UTORRENT_LABEL', kwargs['label'])
         msg = utorrent.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='UTORRENT')
+            CONFIG.save_config_and_backup_old(section='UTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6732,18 +6733,18 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('RTORRENT_HOST', kwargs['host'])
+            CONFIG.set_str('RTORRENT_HOST', kwargs['host'])
         if 'dir' in kwargs:
-            lazylibrarian.CONFIG.set_str('RTORRENT_DIR', kwargs['dir'])
+            CONFIG.set_str('RTORRENT_DIR', kwargs['dir'])
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('RTORRENT_USER', kwargs['user'])
+            CONFIG.set_str('RTORRENT_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
+            CONFIG.set_str('RTORRENT_PASS', kwargs['pwd'])
         if 'label' in kwargs:
-            lazylibrarian.CONFIG.set_str('RTORRENT_LABEL', kwargs['label'])
+            CONFIG.set_str('RTORRENT_LABEL', kwargs['label'])
         msg = rtorrent.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='RTORRENT')
+            CONFIG.save_config_and_backup_old(section='RTORRENT')
         return msg
 
     @cherrypy.expose
@@ -6751,18 +6752,18 @@ class WebInterface(object):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         thread_name("WEBSERVER")
         if 'host' in kwargs:
-            lazylibrarian.CONFIG.set_str('SYNOLOGY_HOST', kwargs['host'])
+            CONFIG.set_str('SYNOLOGY_HOST', kwargs['host'])
         if 'port' in kwargs:
-            lazylibrarian.CONFIG.set_int('SYNOLOGY_PORT', check_int(kwargs['port'], 0))
+            CONFIG.set_int('SYNOLOGY_PORT', check_int(kwargs['port'], 0))
         if 'user' in kwargs:
-            lazylibrarian.CONFIG.set_str('SYNOLOGY_USER', kwargs['user'])
+            CONFIG.set_str('SYNOLOGY_USER', kwargs['user'])
         if 'pwd' in kwargs:
-            lazylibrarian.CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
+            CONFIG.set_str('SYNOLOGY_PASS', kwargs['pwd'])
         if 'dir' in kwargs:
-            lazylibrarian.CONFIG.set_str('SYNOLOGY_DIR', kwargs['dir'])
+            CONFIG.set_str('SYNOLOGY_DIR', kwargs['dir'])
         msg = synology.check_link()
         if 'success' in msg:
-            lazylibrarian.CONFIG.save_config_and_backup_old(section='SYNOLOGY')
+            CONFIG.save_config_and_backup_old(section='SYNOLOGY')
         return msg
 
     @cherrypy.expose
@@ -6770,8 +6771,8 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            lazylibrarian.CONFIG.set_str('FFMPEG', kwargs['prg'])
-        ffmpeg = lazylibrarian.CONFIG['FFMPEG']
+            CONFIG.set_str('FFMPEG', kwargs['prg'])
+        ffmpeg = CONFIG['FFMPEG']
         try:
             if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 ffmpeg_env = os.environ.copy()
@@ -6799,8 +6800,8 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            lazylibrarian.CONFIG.set_str('EBOOK_CONVERT', kwargs['prg'])
-        prg = lazylibrarian.CONFIG['EBOOK_CONVERT']
+            CONFIG.set_str('EBOOK_CONVERT', kwargs['prg'])
+        prg = CONFIG['EBOOK_CONVERT']
         try:
             params = [prg, "--version"]
             res = subprocess.check_output(params, stderr=subprocess.STDOUT)
@@ -6814,7 +6815,7 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            lazylibrarian.CONFIG.set_str('IMP_CALIBREDB', kwargs['prg'])
+            CONFIG.set_str('IMP_CALIBREDB', kwargs['prg'])
         return calibre_test()
 
     @cherrypy.expose
@@ -6822,9 +6823,9 @@ class WebInterface(object):
         thread_name("WEBSERVER")
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         if 'prg' in kwargs and kwargs['prg']:
-            lazylibrarian.CONFIG.set_str('EXT_PREPROCESS', kwargs['prg'])
-        if len(lazylibrarian.CONFIG['EXT_PREPROCESS']):
-            params = [lazylibrarian.CONFIG['EXT_PREPROCESS'], 'test', '']
+            CONFIG.set_str('EXT_PREPROCESS', kwargs['prg'])
+        if len(CONFIG['EXT_PREPROCESS']):
+            params = [CONFIG['EXT_PREPROCESS'], 'test', '']
             rc, res, err = run_script(params)
             if rc:
                 return "Preprocessor returned %s: res[%s] err[%s]" % (rc, res, err)
@@ -6842,7 +6843,7 @@ class WebInterface(object):
 
     @staticmethod
     def send_file(myfile, name=None, email=False):
-        if lazylibrarian.CONFIG.get_bool('USER_ACCOUNTS'):
+        if CONFIG.get_bool('USER_ACCOUNTS'):
             db = database.DBConnection()
             cookie = cherrypy.request.cookie
             msg = ''

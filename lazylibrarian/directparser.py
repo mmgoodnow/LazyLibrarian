@@ -16,6 +16,7 @@ import traceback
 from urllib.parse import urlparse, urlencode
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import fetch_url
@@ -54,7 +55,7 @@ def redirect_url(genhost, url):
 def bok_sleep():
     time_now = time.time()
     delay = time_now - lazylibrarian.TIMERS['LAST_BOK']
-    limit = lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT')
+    limit = CONFIG.get_int('SEARCH_RATELIMIT')
     # make sure bok leaves at least a 2-second delay between calls to prevent "Too many requests from your IP"
     if limit < 2.0:
         limit = 2.0
@@ -78,12 +79,12 @@ def direct_bok(book=None, prov=None, test=False):
         return [], "provider is already blocked"
 
     bok_today = bok_dlcount()[0]
-    if bok_today and bok_today >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
+    if bok_today and bok_today >= CONFIG.get_int(prov + '_DLLIMIT'):
         if test:
             return False
         return [], "download limit reached"
 
-    host = lazylibrarian.CONFIG[prov + '_HOST']
+    host = CONFIG[prov + '_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -190,7 +191,7 @@ def direct_bok(book=None, prov=None, test=False):
                                         msg = res.split('WARNING')[1].split('24 hours')[0]
                                         msg = 'WARNING' + msg + '24 hours'
                                         count, oldest = bok_dlcount()
-                                        if count and count >= lazylibrarian.CONFIG.get_int(prov + '_DLLIMIT'):
+                                        if count and count >= CONFIG.get_int(prov + '_DLLIMIT'):
                                             # rolling 24hr delay if limit reached
                                             delay = oldest + 24*60*60 - time.time()
                                         else:
@@ -229,7 +230,7 @@ def direct_bok(book=None, prov=None, test=False):
                             'tor_url': url,
                             'tor_size': str(size),
                             'tor_type': 'direct',
-                            'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                            'priority': CONFIG[prov + '_DLPRIORITY']
                         })
                         logger.debug('Found %s, Size %s' % (title, size))
                     next_page = True
@@ -243,7 +244,7 @@ def direct_bok(book=None, prov=None, test=False):
             return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
         else:
@@ -267,7 +268,7 @@ def direct_bfi(book=None, prov=None, test=False):
             return False
         return [], "provider_is_blocked"
 
-    host = lazylibrarian.CONFIG['BFI_HOST']
+    host = CONFIG['BFI_HOST']
     if not host.startswith('http'):
         host = 'http://' + host
 
@@ -349,7 +350,7 @@ def direct_bfi(book=None, prov=None, test=False):
                         'tor_url': url,
                         'tor_size': str(size),
                         'tor_type': 'direct',
-                        'priority': lazylibrarian.CONFIG[prov + '_DLPRIORITY']
+                        'priority': CONFIG[prov + '_DLPRIORITY']
                     })
                     logger.debug('Found %s, Size %s' % (title, size))
 
@@ -380,7 +381,7 @@ def direct_gen(book=None, prov=None, test=False):
         if test:
             return False
         return [], "provider_is_blocked"
-    for entry in lazylibrarian.CONFIG.providers('GEN'):
+    for entry in CONFIG.providers('GEN'):
         if entry['NAME'].lower() == prov.lower():
             host = entry['HOST']
             if not host.startswith('http'):
@@ -671,7 +672,7 @@ def direct_gen(book=None, prov=None, test=False):
                 return len(results)
 
         page += 1
-        if 0 < lazylibrarian.CONFIG.get_int('MAX_PAGES') < page:
+        if 0 < CONFIG.get_int('MAX_PAGES') < page:
             logger.warn('Maximum results page search reached, still more results available')
             next_page = False
 

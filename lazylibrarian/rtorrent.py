@@ -15,8 +15,8 @@ import socket
 import ssl
 from time import sleep
 
-import lazylibrarian
 from lazylibrarian.filesystem import get_directory
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from xmlrpc.client import Binary, ServerProxy
@@ -24,7 +24,7 @@ from xmlrpc.client import Binary, ServerProxy
 
 
 def get_server():
-    host = lazylibrarian.CONFIG['RTORRENT_HOST']
+    host = CONFIG['RTORRENT_HOST']
     if not host:
         logger.error("rtorrent error: No host found, check your config")
         return False, ''
@@ -33,9 +33,9 @@ def get_server():
     if not host.startswith("http://") and not host.startswith("https://"):
         host = 'http://' + host
 
-    if lazylibrarian.CONFIG['RTORRENT_USER']:
-        user = lazylibrarian.CONFIG['RTORRENT_USER']
-        password = lazylibrarian.CONFIG['RTORRENT_PASS']
+    if CONFIG['RTORRENT_USER']:
+        user = CONFIG['RTORRENT_USER']
+        password = CONFIG['RTORRENT_PASS']
         parts = host.split('://')
         host = parts[0] + '://' + user + ':' + password + '@' + parts[1]
 
@@ -43,7 +43,7 @@ def get_server():
         socket.setdefaulttimeout(20)  # so we don't freeze if server is not there
         if host.startswith("https://"):
             context = ssl.create_default_context()
-            if not lazylibrarian.CONFIG.get_bool('SSL_VERIFY'):
+            if not CONFIG.get_bool('SSL_VERIFY'):
                 context.check_hostname = False
                 context.verify_mode = ssl.CERT_NONE
             server = ServerProxy(host, context=context)
@@ -91,21 +91,21 @@ def add_torrent(tor_url, hash_id, data=None):
             sleep(1)
             retries -= 1
 
-        label = lazylibrarian.CONFIG['RTORRENT_LABEL']
+        label = CONFIG['RTORRENT_LABEL']
         if label:
             if version.startswith('0.9') or version.startswith('1.'):
                 server.d.custom1.set(hash_id, label)
             else:
                 server.d.set_custom1(hash_id, label)
 
-        directory = lazylibrarian.CONFIG['RTORRENT_DIR']
+        directory = CONFIG['RTORRENT_DIR']
         if directory:
             if version.startswith('0.9') or version.startswith('1.'):
                 get_directory.set(hash_id, directory)
             else:
                 server.d.set_directory(hash_id, directory)
 
-        if not lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED'):
+        if not CONFIG.get_bool('TORRENT_PAUSED'):
             server.d.start(hash_id)
 
     except Exception as e:

@@ -19,9 +19,11 @@ from typing import Optional, List
 import time
 import datetime
 import traceback
+
 from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
 from lazylibrarian.formatter import thread_name, plural, check_int
 from lazylibrarian.configtypes import ConfigScheduler
@@ -156,13 +158,13 @@ def adjust_schedule(scheduler: ConfigScheduler):
     name = scheduler.get_schedule_name()
     if name in ['cache_update']:
         # Override the interval with the value from CACHE_AGE
-        cdays = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+        cdays = CONFIG.get_int('CACHE_AGE')
         scheduler.set_int(cdays)
 
     elif name in ['author_update', 'series_update']:
         # Disregard configured value of interval, use CACHE_AGE.
         # Then, shorten the interval depending on how much needs to be done
-        cdays = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+        cdays = CONFIG.get_int('CACHE_AGE')
         if cdays:
             maxhours = cdays*24
 
@@ -206,9 +208,9 @@ def schedule_job(action='Start', target:str=''):
                 logger.debug("%s %s job, already scheduled" % (action, target))
                 return  # return if already running, if not, start a new one
 
-        schedule = lazylibrarian.CONFIG.get_ConfigScheduler(target)
+        schedule = CONFIG.get_ConfigScheduler(target)
         if schedule:
-            if lazylibrarian.CONFIG.scheduler_can_run(schedule):
+            if CONFIG.scheduler_can_run(schedule):
                 # Perform local adjustments to the schedule before proceeding
                 adjust_schedule(schedule)
                 hours, minutes = schedule.get_hour_min_interval()
@@ -233,7 +235,7 @@ def author_update(restart=True, only_overdue=True):
     # noinspection PyBroadException
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
-        if lazylibrarian.CONFIG.get_int('CACHE_AGE'):
+        if CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('author')
             if not total:
                 msg = "There are no monitored authors"
@@ -267,7 +269,7 @@ def series_update(restart=True, only_overdue=True):
     # noinspection PyBroadException
     try:
         db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
-        if lazylibrarian.CONFIG.get_int('CACHE_AGE'):
+        if CONFIG.get_int('CACHE_AGE'):
             overdue, total, name, ident, days = is_overdue('series')
             if not total:
                 msg = "There are no monitored series"
@@ -318,7 +320,7 @@ def all_author_update(refresh=False):
 
 def restart_jobs(start='Restart'):
     lazylibrarian.STOPTHREADS = start == 'Stop'
-    for name, scheduler in lazylibrarian.CONFIG.get_schedulers():
+    for name, scheduler in CONFIG.get_schedulers():
         schedule_job(start, scheduler.get_schedule_name())
 
 def ensure_running(jobname):
@@ -349,19 +351,19 @@ def check_running_jobs():
     if snatched or seeding:
         ensure_running('PostProcessor')
     if wanted:
-        if lazylibrarian.CONFIG.use_any(rss=False):
+        if CONFIG.use_any(rss=False):
             ensure_running('search_book')
-        if lazylibrarian.CONFIG.use_rss():
+        if CONFIG.use_rss():
             ensure_running('search_rss_book')
     else:
         schedule_job('Stop', 'search_book')
         schedule_job('Stop', 'search_rss_book')
-    if lazylibrarian.CONFIG.use_wishlist():
+    if CONFIG.use_wishlist():
         ensure_running('search_wishlist')
     else:
         schedule_job('Stop', 'search_wishlist')
 
-    if lazylibrarian.CONFIG.use_any():
+    if CONFIG.use_any():
         ensure_running('search_magazines')
         ensure_running('search_comics')
     else:
@@ -377,13 +379,13 @@ def is_overdue(which="author"):
     name = ''
     ident = ''
     days = 0
-    maxage = lazylibrarian.CONFIG.get_int('CACHE_AGE')
+    maxage = CONFIG.get_int('CACHE_AGE')
     if maxage:
         db = database.DBConnection()
         if which == 'author':
             cmd = 'SELECT AuthorName,AuthorID,Updated from authors WHERE Status="Active" or Status="Loading"'
             cmd += ' or Status="Wanted" '
-            if lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            if CONFIG['BOOK_API'] == 'OpenLibrary':
                 cmd += 'and AuthorID LIKE "OL%A" '
             else:
                 cmd += 'and AuthorID NOT LIKE "OL%A" '
@@ -449,7 +451,7 @@ def show_jobs():
         job = str(job)
         jobname = ''
         threadname = ''
-        for _, scheduler in lazylibrarian.CONFIG.get_schedulers():
+        for _, scheduler in CONFIG.get_schedulers():
             if scheduler.method_name in job:
                 jobname = scheduler.friendly_name
                 threadname = scheduler.run_name
@@ -480,7 +482,7 @@ def show_jobs():
         result.append('Oldest author info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no authors needing update")
-    elif days == lazylibrarian.CONFIG.get_int('CACHE_AGE'):
+    elif days == CONFIG.get_int('CACHE_AGE'):
         result.append("Found %s %s from %s due update" % (overdue, plural(overdue, "author"), total))
     else:
         result.append("Found %s %s from %s overdue update" % (overdue, plural(overdue, "author"), total))
@@ -490,7 +492,7 @@ def show_jobs():
         result.append('Oldest series info (%s) is %s %s old' % (name, days, plural(days, "day")))
     if not overdue:
         result.append("There are no series needing update")
-    elif days == lazylibrarian.CONFIG.get_int('CACHE_AGE'):
+    elif days == CONFIG.get_int('CACHE_AGE'):
         result.append("Found %s series from %s due update" % (overdue, total))
     else:
         result.append("Found %s series from %s overdue update" % (overdue, total))

@@ -23,8 +23,8 @@ from urllib.error import URLError
 from urllib.parse import urlencode
 from urllib.request import HTTPCookieProcessor, build_opener, Request
 
-import lazylibrarian
 from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.common import get_user_agent
 from lazylibrarian.formatter import get_list, make_bytestr, make_unicode
@@ -36,8 +36,8 @@ class QbittorrentClient(object):
 
     def __init__(self):
 
-        host = lazylibrarian.CONFIG['QBITTORRENT_HOST']
-        port = lazylibrarian.CONFIG.get_int('QBITTORRENT_PORT')
+        host = CONFIG['QBITTORRENT_HOST']
+        port = CONFIG.get_int('QBITTORRENT_PORT')
         if not host or not port:
             logger.error('Invalid Qbittorrent host or port, check your config')
 
@@ -49,13 +49,13 @@ class QbittorrentClient(object):
         if host.endswith('/gui'):
             host = host[:-4]
 
-        if lazylibrarian.CONFIG['QBITTORRENT_BASE']:
-            host = "%s:%s/%s" % (host, port, lazylibrarian.CONFIG['QBITTORRENT_BASE'].strip('/'))
+        if CONFIG['QBITTORRENT_BASE']:
+            host = "%s:%s/%s" % (host, port, CONFIG['QBITTORRENT_BASE'].strip('/'))
         else:
             host = "%s:%s" % (host, port)
         self.base_url = host
-        self.username = lazylibrarian.CONFIG['QBITTORRENT_USER']
-        self.password = lazylibrarian.CONFIG['QBITTORRENT_PASS']
+        self.username = CONFIG['QBITTORRENT_USER']
+        self.password = CONFIG['QBITTORRENT_PASS']
         self.cookiejar = CookieJar()
         self.opener = self._make_opener()
         self.cmdset = 0
@@ -131,9 +131,9 @@ class QbittorrentClient(object):
 
         request = Request(url, data, headers)
 
-        if lazylibrarian.CONFIG['PROXY_HOST']:
-            for item in get_list(lazylibrarian.CONFIG['PROXY_TYPE']):
-                request.set_proxy(lazylibrarian.CONFIG['PROXY_HOST'], item)
+        if CONFIG['PROXY_HOST']:
+            for item in get_list(CONFIG['PROXY_TYPE']):
+                request.set_proxy(CONFIG['PROXY_HOST'], item)
         request.add_header('User-Agent', get_user_agent())
 
         try:
@@ -323,7 +323,7 @@ def remove_torrent(hashid, remove_data=False):
             if torrent['hash'].lower() == hashid:
                 remove = True
                 if torrent['state'] == 'uploading' or torrent['state'] == 'stalledUP':
-                    if not lazylibrarian.CONFIG.get_bool('SEED_WAIT'):
+                    if not CONFIG.get_bool('SEED_WAIT'):
                         logger.debug('%s is seeding, removing torrent and data anyway' % torrent['name'])
                     else:
                         logger.info('%s has not finished seeding yet, torrent will not be removed' % torrent['name'])
@@ -361,19 +361,19 @@ def add_torrent(link, hashid):
         res = "Failed to login to qBittorrent"
         logger.debug(res)
         return False, res
-    args['paused'] = 'true' if lazylibrarian.CONFIG.get_bool('TORRENT_PAUSED') else 'false'
-    dl_dir = lazylibrarian.CONFIG['QBITTORRENT_DIR']
+    args['paused'] = 'true' if CONFIG.get_bool('TORRENT_PAUSED') else 'false'
+    dl_dir = CONFIG['QBITTORRENT_DIR']
     if dl_dir:
         args['savepath'] = dl_dir
 
-    if lazylibrarian.CONFIG['QBITTORRENT_LABEL']:
+    if CONFIG['QBITTORRENT_LABEL']:
         if qbclient.cmdset == 2:
-            args['category'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
+            args['category'] = CONFIG['QBITTORRENT_LABEL']
         else:
             if 6 < qbclient.api < 10:
-                args['label'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
+                args['label'] = CONFIG['QBITTORRENT_LABEL']
             elif qbclient.api >= 10:
-                args['category'] = lazylibrarian.CONFIG['QBITTORRENT_LABEL']
+                args['category'] = CONFIG['QBITTORRENT_LABEL']
     if lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
         logger.debug('add_torrent args(%s)' % args)
     args['urls'] = link
@@ -442,8 +442,8 @@ def add_file(data, hashid, title):
                 if item.get('hash') == hashid:
                     if count > 1 and lazylibrarian_log.LOGLEVEL & logger.log_dlcomms:
                         logger.debug("hashid found in torrent list after %s seconds" % count)
-                    if qbclient.cmdset == 2 and lazylibrarian.CONFIG['QBITTORRENT_LABEL']:
-                        args = {'hash': hashid, 'category': lazylibrarian.CONFIG['QBITTORRENT_LABEL']}
+                    if qbclient.cmdset == 2 and CONFIG['QBITTORRENT_LABEL']:
+                        args = {'hash': hashid, 'category': CONFIG['QBITTORRENT_LABEL']}
                         # noinspection PyProtectedMember
                         qbclient._command('torrents/setCategory', args, 'application/x-www-form-urlencoded')
                     return True, ''

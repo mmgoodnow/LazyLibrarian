@@ -19,6 +19,7 @@ import traceback
 
 from urllib.parse import quote_plus, quote, urlencode
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
 from lazylibrarian.common import proxy_list, quotes
@@ -105,15 +106,15 @@ def set_all_book_series():
     if books:
         logger.info('Checking series for %s %s' % (len(books), plural(len(books), "book")))
         for book in books:
-            if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
+            if CONFIG['BOOK_API'] == 'GoodReads':
                 workid = book['WorkID']
                 if not workid:
                     logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
-            elif lazylibrarian.CONFIG['BOOK_API'] == 'GoogleBooks':
+            elif CONFIG['BOOK_API'] == 'GoogleBooks':
                 workid = book['BookID']
                 if not workid:
                     logger.debug("No bookid for book: %s" % book['BookName'])
-            elif lazylibrarian.CONFIG['BOOK_API'] == 'OpenLibrary':
+            elif CONFIG['BOOK_API'] == 'OpenLibrary':
                 workid = book['WorkID']
                 if not workid:
                     logger.debug("No workid for book %s: %s" % (book['BookID'], book['BookName']))
@@ -160,7 +161,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
                     res = check_int(cnt['counter'], 0)
                     seriesid = str(res + 1)
                     members = []
-                if len(members) < 2 and lazylibrarian.CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
+                if len(members) < 2 and CONFIG.get_bool('NO_SINGLE_BOOK_SERIES'):
                     logger.debug("Ignoring unknown single-book-series %s" % item[2])
                     continue
                 else:
@@ -177,7 +178,7 @@ def set_series(serieslist=None, bookid=None, reason=""):
 
                     reason = "Bookid %s: %s" % (bookid, reason)
                     db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                              (seriesid, item[2], lazylibrarian.CONFIG['NEWSERIES_STATUS'],
+                              (seriesid, item[2], CONFIG['NEWSERIES_STATUS'],
                                0, 0, 0, reason, ''), suppress='UNIQUE')
 
             book = db.match('SELECT AuthorID,WorkID,LT_WorkID from books where BookID=?', (bookid,))
@@ -310,9 +311,9 @@ def set_work_id(books=None):
                 pages.append(page)
 
     counter = 0
-    params = {"key": lazylibrarian.CONFIG['GR_API']}
+    params = {"key": CONFIG['GR_API']}
     for page in pages:
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
+        url = '/'.join([CONFIG['GR_URL'], 'book/id_to_work_id/' + page + '?' + urlencode(params)])
         try:
             rootxml, _ = gr_xml_request(url, use_cache=False)
             if rootxml is None:
@@ -393,7 +394,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             if seriesid or os.path.getsize(syspath(workfile)) < 500:
                 cache_modified_time = os.stat(syspath(workfile)).st_mtime
                 time_now = time.time()
-                expiry = lazylibrarian.CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
+                expiry = CONFIG.get_int('CACHE_AGE') * 24 * 60 * 60  # expire cache after this many seconds
                 if cache_modified_time < time_now - expiry:
                     # Cache entry is too old, delete it
                     if NEW_WHATWORK:
@@ -425,11 +426,11 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
             if bookid:
                 title = safe_unicode(item['BookName'])
                 author = safe_unicode(item['AuthorName'])
-                url = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'api/whatwork.php?author=%s&title=%s' %
-                               (quote_plus(author), quote_plus(title))])
+                url = '/'.join([CONFIG['LT_URL'], 'api/whatwork.php?author=%s&title=%s' %
+                                (quote_plus(author), quote_plus(title))])
             else:
                 seriesname = safe_unicode(item['seriesName'])
-                url = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'series/%s' % quote_plus(seriesname)])
+                url = '/'.join([CONFIG['LT_URL'], 'series/%s' % quote_plus(seriesname)])
 
             librarything_wait()
             result, success = fetch_url(url)
@@ -446,7 +447,7 @@ def get_bookwork(bookid=None, reason='', seriesid=None):
                         errmsg = "Unknown Error"
                     # if no workpage link, try isbn instead
                     if item['BookISBN']:
-                        url = '/'.join([lazylibrarian.CONFIG['LT_URL'],
+                        url = '/'.join([CONFIG['LT_URL'],
                                         'api/whatwork.php?isbn=' + item['BookISBN']])
                         librarything_wait()
                         result, success = fetch_url(url)
@@ -568,9 +569,9 @@ def get_all_series_authors():
 def get_book_authors(bookid):
     """ Get a list of authors contributing to a book from the goodreads bookpage or the librarything bookwork file """
     authorlist = []
-    if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
-        params = {"key": lazylibrarian.CONFIG['GR_API']}
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(params)])
+    if CONFIG['BOOK_API'] == 'GoodReads':
+        params = {"key": CONFIG['GR_API']}
+        url = '/'.join([CONFIG['GR_URL'], 'book/show/' + bookid + '?' + urlencode(params)])
         try:
             rootxml, _ = gr_xml_request(url)
             if rootxml is None:
@@ -741,8 +742,8 @@ def get_series_authors(seriesid):
             bookname = replace_all(bookname, quotes)
             if not authorid:
                 # goodreads gives us all the info we need, librarything/google doesn't
-                base_url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'search.xml?q='])
-                params = {"key": lazylibrarian.CONFIG['GR_API']}
+                base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
+                params = {"key": CONFIG['GR_API']}
                 searchname = "%s %s" % (clean_name(bookname), clean_name(authorname))
                 searchterm = quote_plus(make_utf8bytes(searchname)[0])
                 set_url = base_url + searchterm + '&' + urlencode(params)
@@ -841,9 +842,9 @@ def get_series_members(seriesid=None, seriesname=None):
                          (result['SeriesName'], result['Status']))
             return results, api_hits
 
-    if lazylibrarian.CONFIG['BOOK_API'] == 'GoodReads':
-        params = {"format": "xml", "key": lazylibrarian.CONFIG['GR_API']}
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
+    if CONFIG['BOOK_API'] == 'GoodReads':
+        params = {"format": "xml", "key": CONFIG['GR_API']}
+        url = '/'.join([CONFIG['GR_URL'], 'series/%s?%s' % (seriesid, urlencode(params))])
         try:
             rootxml, in_cache = gr_xml_request(url)
             if not in_cache:
@@ -925,7 +926,7 @@ def get_series_members(seriesid=None, seriesname=None):
             order = 0
             bookname = ''
             rejected = True
-        if not rejected and lazylibrarian.CONFIG.get_bool('NO_SETS'):
+        if not rejected and CONFIG.get_bool('NO_SETS'):
             if re.search(r'\d+ of \d+', str(order)) or \
                     re.search(r'\d+/\d+', str(order)):
                 rejected = 'Set or Part'
@@ -940,7 +941,7 @@ def get_series_members(seriesid=None, seriesname=None):
                         rejected = 'Set or Part %s' % m.group(0)
                         logger.debug('Rejected %s: %s, %s' % (bookname, order, rejected))
 
-        if not rejected and lazylibrarian.CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
+        if not rejected and CONFIG.get_bool('NO_NONINTEGER_SERIES') and '.' in str(item[0]):
             rejected = 'Rejected non-integer %s' % item[0]
             logger.debug('Rejected %s, %s' % (bookname, rejected))
         if not rejected and check_int(item[0], 0) == 1:
@@ -958,22 +959,22 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
         due to restrictive TOS from some providers, and goodreads may not have genre
         Try to get missing info from googlebooks
         Return info dictionary, None if error"""
-    if not author or not title or not lazylibrarian.CONFIG['GB_API']:
+    if not author or not title or not CONFIG['GB_API']:
         return {}
 
     author = clean_name(author)
     title = clean_name(title)
 
-    baseurl = '/'.join([lazylibrarian.CONFIG['GB_URL'], 'books/v1/volumes?q='])
+    baseurl = '/'.join([CONFIG['GB_URL'], 'books/v1/volumes?q='])
 
     urls = [baseurl + quote_plus('inauthor:%s intitle:%s' % (author, title))]
     if isbn:
         urls.insert(0, baseurl + quote_plus('isbn:' + isbn))
 
     for url in urls:
-        url += '&key=' + lazylibrarian.CONFIG['GB_API']
-        if lazylibrarian.CONFIG['GB_COUNTRY'] and len(lazylibrarian.CONFIG['GB_COUNTRY']) == 2:
-            url += '&country=' + lazylibrarian.CONFIG['GB_COUNTRY']
+        url += '&key=' + CONFIG['GB_API']
+        if CONFIG['GB_COUNTRY'] and len(CONFIG['GB_COUNTRY']) == 2:
+            url += '&country=' + CONFIG['GB_COUNTRY']
         results, cached = json_request(url, expire=expire)
         if results is None:  # there was an error
             return None
@@ -990,10 +991,10 @@ def get_gb_info(isbn=None, author=None, title=None, expire=False):
                 if total_fuzz > high_fuzz:
                     high_fuzz = total_fuzz
                     high_parts = [book_fuzz, auth_fuzz, res['name'], title, res['author'], author]
-                if book_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                if book_fuzz < CONFIG.get_int('MATCH_RATIO'):
                     if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                         logger.debug("Book fuzz failed, %i [%s][%s]" % (book_fuzz, res['name'], title))
-                elif auth_fuzz < lazylibrarian.CONFIG.get_int('MATCH_RATIO'):
+                elif auth_fuzz < CONFIG.get_int('MATCH_RATIO'):
                     if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:
                         logger.debug("Author fuzz failed, %i [%s][%s]" % (auth_fuzz, res['author'], author))
                 else:
@@ -1109,8 +1110,8 @@ def get_work_series(bookid=None, source='GR', reason=""):
         return serieslist
 
     if source == 'GR':
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'], "work/"])
-        seriesurl = url + bookid + "/series?format=xml&key=" + lazylibrarian.CONFIG['GR_API']
+        url = '/'.join([CONFIG['GR_URL'], "work/"])
+        seriesurl = url + bookid + "/series?format=xml&key=" + CONFIG['GR_API']
 
         rootxml, _ = gr_xml_request(seriesurl)
         if rootxml is None:
@@ -1127,13 +1128,13 @@ def get_work_series(bookid=None, source='GR', reason=""):
                 except (KeyError, AttributeError):
                     continue
 
-                if lazylibrarian.CONFIG.get_bool('NO_SINGLE_BOOK_SERIES') and seriescount == '1':
+                if CONFIG.get_bool('NO_SINGLE_BOOK_SERIES') and seriescount == '1':
                     logger.debug("Ignoring goodreads single-book-series (%s) %s" % (seriesid, seriesname))
-                elif lazylibrarian.CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
+                elif CONFIG.get_bool('NO_NONINTEGER_SERIES') and seriesnum and '.' in seriesnum:
                     logger.debug("Ignoring non-integer series member (%s) %s" % (seriesnum, seriesname))
-                elif lazylibrarian.CONFIG.get_bool('NO_SETS') and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
-                                                                        re.search(r'\d+/\d+', seriesnum) or
-                                                                        re.search(r'\d+-\d+', seriesnum)):
+                elif CONFIG.get_bool('NO_SETS') and seriesnum and (re.search(r'\d+ of \d+', seriesnum) or
+                                                                                         re.search(r'\d+/\d+', seriesnum) or
+                                                                                         re.search(r'\d+-\d+', seriesnum)):
                     logger.debug("Ignoring set or part (%s) %s" % (seriesnum, seriesname))
                 elif seriesname and seriesid:
                     seriesname = clean_name(seriesname, '&/')
@@ -1146,7 +1147,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
                             if not match:
                                 reason = "Bookid %s: %s" % (bookid, reason)
                                 db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                                          (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
+                                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
                                            0, 0, 0, reason, ''))
                             else:
                                 logger.warn("Name mismatch for series %s, [%s][%s]" % (
@@ -1158,7 +1159,7 @@ def get_work_series(bookid=None, source='GR', reason=""):
                             if not match:
                                 reason = "Bookid %s: %s" % (bookid, reason)
                                 db.action('INSERT INTO series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-                                          (seriesid, seriesname, lazylibrarian.CONFIG['NEWSERIES_STATUS'],
+                                          (seriesid, seriesname, CONFIG['NEWSERIES_STATUS'],
                                            0, 0, 0, reason, ''))
     else:
         work = get_bookwork(bookid, "Series")
@@ -1200,7 +1201,7 @@ def set_genres(genrelist=None, bookid=None):
                 match = db.match('SELECT GenreID from genres where GenreName=?', (item,))
             db.action('INSERT into genrebooks (GenreID, BookID) VALUES (?,?)',
                       (match['GenreID'], bookid), suppress='UNIQUE')
-        if lazylibrarian.CONFIG.get_bool('WISHLIST_GENRES'):
+        if CONFIG.get_bool('WISHLIST_GENRES'):
             book = db.match('SELECT Requester,AudioRequester from books WHERE BookID=?', (bookid,))
             if book['Requester'] is not None and book['Requester'] not in genrelist:
                 genrelist.insert(0, book['Requester'])
@@ -1272,8 +1273,8 @@ def get_gr_genres(bookid, refresh=False):
         genre_users = 10
         genre_limit = 3
 
-    url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
-                    'book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']])
+    url = '/'.join([CONFIG['GR_URL'],
+                    'book/show/' + bookid + '.xml?key=' + CONFIG['GR_API']])
     genres = []
     try:
         rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
@@ -1318,8 +1319,8 @@ def get_gr_genres(bookid, refresh=False):
 def get_book_pubdate(bookid, refresh=False):
     bookdate = "0000"
     if bookid.isdigit():  # goodreads bookid
-        url = '/'.join([lazylibrarian.CONFIG['GR_URL'],
-                        'book/show/' + bookid + '.xml?key=' + lazylibrarian.CONFIG['GR_API']])
+        url = '/'.join([CONFIG['GR_URL'],
+                        'book/show/' + bookid + '.xml?key=' + CONFIG['GR_API']])
         try:
             rootxml, in_cache = gr_xml_request(url, use_cache=not refresh)
         except Exception as e:
@@ -1352,12 +1353,12 @@ def get_book_pubdate(bookid, refresh=False):
         logger.debug("GoodReads bookid %s pubdate [%s] cached=%s" % (bookid, bookdate, in_cache))
         return bookdate, in_cache
     else:
-        if not lazylibrarian.CONFIG['GB_API']:
+        if not CONFIG['GB_API']:
             logger.warn('No GoogleBooks API key, check config')
             return bookdate, False
 
-        url = '/'.join([lazylibrarian.CONFIG['GB_URL'],
-                        'books/v1/volumes/%s?key=%s' % (bookid, lazylibrarian.CONFIG['GB_API'])])
+        url = '/'.join([CONFIG['GB_URL'],
+                        'books/v1/volumes/%s?key=%s' % (bookid, CONFIG['GB_API'])])
         jsonresults, in_cache = json_request(url)
         if not jsonresults:
             logger.debug('No results found for %s' % bookid)
@@ -1372,12 +1373,12 @@ def thinglang(isbn):
     # try searching librarything for a language code using the isbn
     # if no language found, librarything return value is "invalid" or "unknown"
     # librarything returns plain text, not xml
-    book_url = '/'.join([lazylibrarian.CONFIG['LT_URL'], 'api/thinglang.php?isbn=' + isbn])
+    book_url = '/'.join([CONFIG['LT_URL'], 'api/thinglang.php?isbn=' + isbn])
     proxies = proxy_list()
     booklang = ''
     try:
         librarything_wait()
-        timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
+        timeout = CONFIG.get_int('HTTP_TIMEOUT')
         r = requests.get(book_url, timeout=timeout, proxies=proxies)
         resp = r.text
         logger.debug("LibraryThing reports language [%s] for %s" % (resp, isbn))

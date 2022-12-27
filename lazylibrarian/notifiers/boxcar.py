@@ -17,13 +17,11 @@
 # You should have received a copy of the GNU General Public License
 # along with Sick Beard.  If not, see <http://www.gnu.org/licenses/>.
 
-import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.common import proxy_list
-from lazylibrarian.formatter import check_int
 
-import urllib3
 import requests
 
 # API_URL = "https://boxcar.io/devices/providers/MH0S7xOFSwVLNvNhTpiC/notifications"
@@ -72,7 +70,7 @@ class BoxcarNotifier:
         proxies = proxy_list()
         # send the request to boxcar
         try:
-            timeout = lazylibrarian.CONFIG.get_int('HTTP_TIMEOUT')
+            timeout = CONFIG.get_int('HTTP_TIMEOUT')
             r = requests.get(cur_url, params=data, timeout=timeout, proxies=proxies)
             status = str(r.status_code)
             if status.startswith('2'):
@@ -124,12 +122,12 @@ class BoxcarNotifier:
         """
 
         # suppress notifications if the notifier is disabled but the notify options are checked
-        if not lazylibrarian.CONFIG.get_bool('USE_BOXCAR') and not force:
+        if not CONFIG.get_bool('USE_BOXCAR') and not force:
             return False
 
         # if no username was given then use the one from the config
         if not username:
-            username = lazylibrarian.CONFIG['BOXCAR_TOKEN']
+            username = CONFIG['BOXCAR_TOKEN']
 
         return self._send_boxcar(message, title, username)
 
@@ -138,14 +136,14 @@ class BoxcarNotifier:
     #
 
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.CONFIG.get_bool('BOXCAR_NOTIFY_ONSNATCH'):
+        if CONFIG.get_bool('BOXCAR_NOTIFY_ONSNATCH'):
             if fail:
                 self._notify(notifyStrings[NOTIFY_FAIL], title)
             else:
                 self._notify(notifyStrings[NOTIFY_SNATCH], title)
 
     def notify_download(self, title):
-        if lazylibrarian.CONFIG.get_bool('BOXCAR_NOTIFY_ONDOWNLOAD'):
+        if CONFIG.get_bool('BOXCAR_NOTIFY_ONDOWNLOAD'):
             self._notify(notifyStrings[NOTIFY_DOWNLOAD], title)
 
     def test_notify(self, title="Test"):

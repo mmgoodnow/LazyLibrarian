@@ -22,7 +22,6 @@ import time
 import traceback
 import inspect
 
-import lazylibrarian
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 # DO NOT import from common in this module, circular import

@@ -15,6 +15,7 @@ import threading
 import traceback
 import time
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.formatter import get_list, plural, date_format, unaccented, replace_all, check_int, \
     now, disp_name, thread_name
@@ -59,26 +60,26 @@ def search_item(comicid=None):
         searchterm = match['Title']
     book['searchterm'] = searchterm.replace('+', ' ')
 
-    nprov = lazylibrarian.CONFIG.total_active_providers()
+    nprov = CONFIG.total_active_providers()
     logger.debug('Searching %s %s (%s) for %s' % (nprov, plural(nprov, "provider"), cat, searchterm))
 
-    if lazylibrarian.CONFIG.use_nzb():
+    if CONFIG.use_nzb():
         resultlist, nprov = iterate_over_newznab_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_tor():
+    if CONFIG.use_tor():
         resultlist, nprov = iterate_over_torrent_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_direct():
+    if CONFIG.use_direct():
         resultlist, nprov = iterate_over_direct_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_irc():
+    if CONFIG.use_irc():
         resultlist, nprov = iterate_over_irc_sites(book, cat)
         if nprov:
             results += resultlist
-    if lazylibrarian.CONFIG.use_rss():
+    if CONFIG.use_rss():
         resultlist, nprov, dltypes = iterate_over_rss_sites()
         if nprov and dltypes != 'C':
             results += resultlist
@@ -148,10 +149,10 @@ def search_item(comicid=None):
             rejected = False
             if score >= 40:  # ignore wildly wrong results?
 
-                maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAXCOMIC')
-                minsize = lazylibrarian.CONFIG.get_int('REJECT_MINCOMIC')
-                filetypes = get_list(lazylibrarian.CONFIG['COMIC_TYPE'])
-                banwords = lazylibrarian.CONFIG.get_csv('REJECT_COMIC')
+                maxsize = CONFIG.get_int('REJECT_MAXCOMIC')
+                minsize = CONFIG.get_int('REJECT_MINCOMIC')
+                filetypes = get_list(CONFIG['COMIC_TYPE'])
+                banwords = CONFIG.get_csv('REJECT_COMIC')
                 size_mb = check_int(size, 1000)
                 size_mb = round(float(size_mb) / 1048576, 2)
 
@@ -268,7 +269,7 @@ def search_comics(comicid=None):
                           sorted(foundissues.keys())))
             threading.Thread(target=download_comiclist, name='DL-COMICLIST', args=[foundissues]).start()
 
-            time.sleep(lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT'))
+            time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
         logger.info("ComicSearch for Wanted items complete")
         db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
     except Exception:

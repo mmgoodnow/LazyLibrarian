@@ -18,6 +18,7 @@ import time
 import traceback
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import schedule_job
@@ -94,7 +95,7 @@ def search_magazines(mags=None, reset=False):
 
             resultlist = []
 
-            if lazylibrarian.CONFIG.use_nzb():
+            if CONFIG.use_nzb():
                 resultlist, nproviders = iterate_over_newznab_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -106,7 +107,7 @@ def search_magazines(mags=None, reset=False):
                     # prefer larger nzb over smaller ones which may be par2 repair files?
                     resultlist = sorted(resultlist, key=lambda d: check_int(d['nzbsize'], 0), reverse=True)
 
-            if lazylibrarian.CONFIG.use_direct():
+            if CONFIG.use_direct():
                 dir_resultlist, nproviders = iterate_over_direct_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -127,7 +128,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'direct'
                         })
 
-            if lazylibrarian.CONFIG.use_irc():
+            if CONFIG.use_irc():
                 irc_resultlist, nproviders = iterate_over_irc_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -148,7 +149,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'irc'
                         })
 
-            if lazylibrarian.CONFIG.use_tor():
+            if CONFIG.use_tor():
                 tor_resultlist, nproviders = iterate_over_torrent_sites(book, 'mag')
                 if not nproviders:
                     # don't nag. Show warning message no more than every 20 mins
@@ -169,7 +170,7 @@ def search_magazines(mags=None, reset=False):
                             'nzbmode': 'torrent'
                         })
 
-            if lazylibrarian.CONFIG.use_rss():
+            if CONFIG.use_rss():
                 rss_resultlist, nproviders, dltypes = iterate_over_rss_sites()
                 if not nproviders or 'M' not in dltypes:
                     # don't nag. Show warning message no more than every 20 mins
@@ -233,13 +234,13 @@ def search_magazines(mags=None, reset=False):
                         bad_name += 1
                     else:
                         rejected = False
-                        maxsize = lazylibrarian.CONFIG.get_int('REJECT_MAGSIZE')
+                        maxsize = CONFIG.get_int('REJECT_MAGSIZE')
                         if maxsize and nzbsize > maxsize:
                             logger.debug("Rejecting %s, too large (%sMb)" % (nzbtitle, nzbsize))
                             rejected = True
 
                         if not rejected:
-                            minsize = lazylibrarian.CONFIG.get_int('REJECT_MAGMIN')
+                            minsize = CONFIG.get_int('REJECT_MAGMIN')
                             if minsize and nzbsize < minsize:
                                 logger.debug("Rejecting %s, too small (%sMb)" % (nzbtitle, nzbsize))
                                 rejected = True
@@ -280,14 +281,14 @@ def search_magazines(mags=None, reset=False):
                                 logger.debug("Magazine name too short (%s)" % len(nzbtitle_exploded))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_FAILED'):
+                        if not rejected and CONFIG.get_bool('BLACKLIST_FAILED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=? and Status="Failed"', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
                                              (nzbtitle_formatted, blocked['NZBprov']))
                                 rejected = True
 
-                        if not rejected and lazylibrarian.CONFIG.get_bool('BLACKLIST_PROCESSED'):
+                        if not rejected and CONFIG.get_bool('BLACKLIST_PROCESSED'):
                             blocked = db.match('SELECT * from wanted WHERE NZBurl=?', (nzburl,))
                             if blocked:
                                 logger.debug("Rejecting %s, blacklisted at %s" %
@@ -296,7 +297,7 @@ def search_magazines(mags=None, reset=False):
 
                         if not rejected:
                             reject_list = get_list(results['Reject'])
-                            reject_list += get_list(lazylibrarian.CONFIG['REJECT_MAGS'], ',')
+                            reject_list += get_list(CONFIG['REJECT_MAGS'], ',')
                             lower_title = unaccented(nzbtitle_formatted, only_ascii=False).lower().split()
                             lower_bookid = unaccented(bookid, only_ascii=False).lower().split()
                             if reject_list:
@@ -313,10 +314,10 @@ def search_magazines(mags=None, reset=False):
                             if not rejected:
                                 reject_list = get_list(results['Reject'])
                                 if '*' in reject_list:  # strict rejection mode, no extraneous words
-                                    nouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['VOLUME_NOUNS']))
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_NOUNS']))
-                                    nouns.extend(get_list(lazylibrarian.CONFIG['MAG_TYPE']))
+                                    nouns = get_list(CONFIG['ISSUE_NOUNS'])
+                                    nouns.extend(get_list(CONFIG['VOLUME_NOUNS']))
+                                    nouns.extend(get_list(CONFIG['MAG_NOUNS']))
+                                    nouns.extend(get_list(CONFIG['MAG_TYPE']))
                                     for word in lower_title:
                                         if word.islower():  # contains ANY lowercase letters
                                             if word not in lower_bookid and word not in nouns:
@@ -390,7 +391,7 @@ def search_magazines(mags=None, reset=False):
                                         control_date = 0
                                     elif re.match(r'\d+-\d\d-\d\d', str(issuedate)):
                                         start_time = time.time()
-                                        start_time -= lazylibrarian.CONFIG.get_int('MAG_AGE') * 24 * 60 * 60  # number of days in seconds
+                                        start_time -= CONFIG.get_int('MAG_AGE') * 24 * 60 * 60  # number of days in seconds
                                         if start_time < 0:  # limit of unixtime (1st Jan 1970)
                                             start_time = 0
                                         control_date = time.strftime("%Y-%m-%d", time.localtime(start_time))
@@ -401,7 +402,7 @@ def search_magazines(mags=None, reset=False):
 
                                 if str(control_date).isdigit() and str(issuedate).isdigit():
                                     if not control_date:
-                                        comp_date = lazylibrarian.CONFIG.get_int('MAG_AGE') - age(nzbdate)
+                                        comp_date = CONFIG.get_int('MAG_AGE') - age(nzbdate)
                                     else:
                                         comp_date = int(issuedate) - int(control_date)
                                 elif re.match(r'\d+-\d\d-\d\d', str(control_date)) and \
@@ -506,7 +507,7 @@ def search_magazines(mags=None, reset=False):
 
                 threading.Thread(target=download_maglist, name='DL-MAGLIST', args=[maglist, 'pastissues']).start()
 
-            time.sleep(lazylibrarian.CONFIG.get_int('SEARCH_RATELIMIT'))
+            time.sleep(CONFIG.get_int('SEARCH_RATELIMIT'))
 
         logger.info("Search for magazines complete")
         if reset:
@@ -590,8 +591,8 @@ def get_issue_date(nzbtitle_exploded, datetype=''):
     # 15 just a year (annual)
     # 16 to 18 internal issuedates used for filenames, YYYYIIII, VVVVIIII, YYYYVVVVIIII
     #
-    issuenouns = get_list(lazylibrarian.CONFIG['ISSUE_NOUNS'])
-    volumenouns = get_list(lazylibrarian.CONFIG['VOLUME_NOUNS'])
+    issuenouns = get_list(CONFIG['ISSUE_NOUNS'])
+    volumenouns = get_list(CONFIG['VOLUME_NOUNS'])
     nouns = issuenouns
     nouns.extend(volumenouns)
 

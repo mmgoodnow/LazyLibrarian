@@ -21,6 +21,7 @@ from xml.etree import ElementTree
 import zipfile
 
 import lazylibrarian
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.bookwork import set_work_pages
@@ -77,13 +78,13 @@ def get_book_meta(fdir, reason="get_book_meta"):
             cmd += ' and books.BookID=?'
             existing_book = db.match(cmd, (bookid,))
             if not existing_book:
-                if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                if CONFIG['BOOK_API'] == "GoogleBooks":
                     gb = GoogleBooks(bookid)
                     gb.find_book(bookid, None, None, reason)
-                elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                elif CONFIG['BOOK_API'] == "GoodReads":
                     gr = GoodReads(bookid)
                     gr.find_book(bookid, None, None, reason)
-                elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                elif CONFIG['BOOK_API'] == "OpenLibrary":
                     ol = OpenLibrary(bookid)
                     ol.find_book(bookid, None, None, reason)
                 existing_book = db.match(cmd, (bookid,))
@@ -399,9 +400,9 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
         digits = sum(c.isdigit() for c in difference)
         if digits == len(difference):
             # make sure we are below match threshold
-            ratio = lazylibrarian.CONFIG.get_int('NAME_RATIO') - 1
-            partial = lazylibrarian.CONFIG.get_int('NAME_PARTIAL') - 1
-            partname = lazylibrarian.CONFIG.get_int('NAME_PARTNAME') - 1
+            ratio = CONFIG.get_int('NAME_RATIO') - 1
+            partial = CONFIG.get_int('NAME_PARTIAL') - 1
+            partname = CONFIG.get_int('NAME_PARTNAME') - 1
         else:
             ratio -= abs(words)
             partial -= abs(words)
@@ -454,13 +455,13 @@ def find_book_in_db(author, book, ignored=None, library='eBook', reason='find_bo
             prefix_name = a_book['BookName']
             prefix_id = a_book['BookID']
 
-    if best_ratio >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+    if best_ratio >= CONFIG.get_int('NAME_RATIO'):
         logger.debug("Fuzz match ratio [%d] [%s] [%s] %s" % (best_ratio, book, ratio_name, ratio_id))
         return ratio_id, best_type
-    if best_partial >= lazylibrarian.CONFIG.get_int('NAME_PARTIAL'):
+    if best_partial >= CONFIG.get_int('NAME_PARTIAL'):
         logger.debug("Fuzz match partial [%d] [%s] [%s] %s" % (best_partial, book, partial_name, partial_id))
         return partial_id, partial_type
-    if best_partname >= lazylibrarian.CONFIG.get_int('NAME_PARTNAME'):
+    if best_partname >= CONFIG.get_int('NAME_PARTNAME'):
         logger.debug("Fuzz match partname [%d] [%s] [%s] %s" % (best_partname, book, partname_name, partname_id))
         return partname_id, partname_type
 
@@ -549,7 +550,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 if not startdir == destdir:
                     cmd += ' and BookFile like "' + startdir + '%"'
                 books = db.select(cmd)
-                status = lazylibrarian.CONFIG['NOTFOUND_STATUS']
+                status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing eBooks will be marked as %s' % status)
                 for book in books:
                     bookfile = book['BookFile']
@@ -566,7 +567,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 if not startdir == destdir:
                     cmd += ' and AudioFile like "' + startdir + '%"'
                 books = db.select(cmd)
-                status = lazylibrarian.CONFIG['NOTFOUND_STATUS']
+                status = CONFIG['NOTFOUND_STATUS']
                 logger.info('Missing AudioBooks will be marked as %s' % status)
                 for book in books:
                     bookfile = book['AudioFile']
@@ -584,7 +585,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
         booktypes = ''
         count = -1
         if library == 'eBook':
-            booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
             for book_type in booktype_list:
                 count += 1
                 if count == 0:
@@ -592,9 +593,9 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 else:
                     booktypes = booktypes + '|' + book_type
 
-            matchto = lazylibrarian.CONFIG['EBOOK_DEST_FILE']
+            matchto = CONFIG['EBOOK_DEST_FILE']
         else:
-            booktype_list = get_list(lazylibrarian.CONFIG['AUDIOBOOK_TYPE'])
+            booktype_list = get_list(CONFIG['AUDIOBOOK_TYPE'])
             for book_type in booktype_list:
                 count += 1
                 if count == 0:
@@ -602,7 +603,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 else:
                     booktypes = booktypes + '|' + book_type
 
-            matchto = lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']
+            matchto = CONFIG['AUDIOBOOK_DEST_FILE']
 
         match_string = ''
         for char in matchto:
@@ -655,7 +656,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 # Added new code to skip if we've done this directory before.
                 # Made this conditional with a switch in config.ini
                 # in case user keeps multiple different books in the same subdirectory
-                if library == 'eBook' and lazylibrarian.CONFIG.get_bool('IMP_SINGLEBOOK') and \
+                if library == 'eBook' and CONFIG.get_bool('IMP_SINGLEBOOK') and \
                         (subdirectory in processed_subdirectories):
                     if lazylibrarian_log.LOGLEVEL & logger.log_libsync:
                         logger.debug("[%s] already scanned" % subdirectory)
@@ -803,7 +804,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 logger.debug("Pattern match failed [%s]" % files)
 
                         if publisher:
-                            if publisher.lower() in get_list(lazylibrarian.CONFIG['REJECT_PUBLISHER']):
+                            if publisher.lower() in get_list(CONFIG['REJECT_PUBLISHER']):
                                 logger.warn("Ignoring %s: Publisher %s" % (files, publisher))
                                 author = ''  # suppress
 
@@ -855,11 +856,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 bookid = ''
                                 mtype = ''
                                 match = None
-                                if gr_id and lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                                if gr_id and CONFIG['BOOK_API'] == "GoodReads":
                                     bookid = gr_id
-                                elif gb_id and lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                                elif gb_id and CONFIG['BOOK_API'] == "GoogleBooks":
                                     bookid = gb_id
-                                elif ol_id and lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                                elif ol_id and CONFIG['BOOK_API'] == "OpenLibrary":
                                     bookid = ol_id
                                 if bookid:
                                     match = db.match('SELECT AuthorID,Status FROM books where BookID=?',
@@ -901,13 +902,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         bookid = oldbookid
                                         logger.warn("Metadata bookid [%s] not found in database, trying to add..." %
                                                     (bookid,))
-                                        if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads" and gr_id:
+                                        if CONFIG['BOOK_API'] == "GoodReads" and gr_id:
                                             finder = GoodReads(gr_id)
                                             finder.find_book(gr_id, None, None, "Added by librarysync")
-                                        elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
+                                        elif CONFIG['BOOK_API'] == "GoogleBooks" and gb_id:
                                             finder = GoogleBooks(gb_id)
                                             finder.find_book(gb_id, None, None, "Added by librarysync")
-                                        elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
+                                        elif CONFIG['BOOK_API'] == "OpenLibrary" and ol_id:
                                             finder = OpenLibrary(ol_id)
                                             finder.find_book(ol_id, None, None, "Added by librarysync")
 
@@ -961,13 +962,13 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                 # at this point if we still have no bookid, it looks like we
                                 # have author and book title but no database entry for it
                                 if not bookid:
-                                    if lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+                                    if CONFIG['BOOK_API'] == "GoodReads":
                                         # Either goodreads doesn't have the book or it didn't match language prefs
                                         # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
                                         rescan_count += 1
-                                        base_url = '/'.join([lazylibrarian.CONFIG['GR_URL'], 'search.xml?q='])
-                                        params = {"key": lazylibrarian.CONFIG['GR_API']}
+                                        base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
+                                        params = {"key": CONFIG['GR_API']}
                                         author = format_author_name(author)
                                         searchname = "%s %s" % (clean_name(author), clean_name(book))
                                         searchterm = quote_plus(make_utf8bytes(searchname)[0])
@@ -997,8 +998,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                                     book_fuzz = fuzz.ratio(booktitle, book)
                                                     author_fuzz = fuzz.ratio(bookauthor, author)
-                                                    if book_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO') and \
-                                                            author_fuzz >= lazylibrarian.CONFIG.get_int('NAME_RATIO'):
+                                                    if book_fuzz >= CONFIG.get_int('NAME_RATIO') and \
+                                                            author_fuzz >= CONFIG.get_int('NAME_RATIO'):
                                                         rescan_hits += 1
                                                         try:
                                                             bookid = item.find('./best_book/id').text
@@ -1079,11 +1080,11 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                     remiss.append(book)
                                         except Exception:
                                             logger.error('Error finding rescan results: %s' % traceback.format_exc())
-                                    elif lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+                                    elif CONFIG['BOOK_API'] == "GoogleBooks":
                                         # if we get here using googlebooks it's because googlebooks
                                         # doesn't have the book. No point in looking for it again.
                                         logger.warn("GoogleBooks doesn't know about %s" % book)
-                                    elif lazylibrarian.CONFIG['BOOK_API'] == "OpenLibrary":
+                                    elif CONFIG['BOOK_API'] == "OpenLibrary":
                                         # Either openlibrary doesn't have the book or it didn't match language prefs
                                         # or it's under a different author (pseudonym, series continuation author)
                                         # Since we have the book anyway, try and reload it
@@ -1145,7 +1146,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 new_book_count += 1
                                                 db.action(
                                                     'UPDATE books set Status=?, BookLibrary=? where BookID=?',
-                                                    (lazylibrarian.CONFIG['FOUND_STATUS'], now(), bookid))
+                                                    (CONFIG['FOUND_STATUS'], now(), bookid))
 
                                             # create an opf file if there isn't one
                                             book_filename = os.path.join(rootdir, files)
@@ -1157,7 +1158,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
 
                                             # check and store book location so we can check if it gets (re)moved
                                             book_basename = os.path.splitext(book_filename)[0]
-                                            booktype_list = get_list(lazylibrarian.CONFIG['EBOOK_TYPE'])
+                                            booktype_list = get_list(CONFIG['EBOOK_TYPE'])
                                             for book_type in booktype_list:
                                                 preferred_type = "%s.%s" % (book_basename, book_type)
                                                 if path_exists(preferred_type):
@@ -1169,7 +1170,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             db.action('UPDATE books set BookFile=? where BookID=?',
                                                       (book_filename, bookid))
 
-                                            if lazylibrarian.CONFIG.get_bool('IMP_RENAME'):
+                                            if CONFIG.get_bool('IMP_RENAME'):
                                                 book_filename, _ = book_rename(bookid)
 
                                             # location may have changed on rename
@@ -1205,7 +1206,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                                 new_book_count += 1
                                                 db.action(
                                                     'UPDATE books set AudioStatus=?, AudioLibrary=? where BookID=?',
-                                                    (lazylibrarian.CONFIG['FOUND_STATUS'], now(), bookid))
+                                                    (CONFIG['FOUND_STATUS'], now(), bookid))
 
                                             # store audiobook location so we can check if it gets (re)moved
                                             book_filename = os.path.join(rootdir, files)
@@ -1230,8 +1231,8 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                             db.action('UPDATE books set AudioFile=? where BookID=?',
                                                       (book_filename, bookid))
 
-                                            if lazylibrarian.CONFIG['AUDIOBOOK_DEST_FILE']:
-                                                if lazylibrarian.CONFIG.get_bool('IMP_RENAME'):
+                                            if CONFIG['AUDIOBOOK_DEST_FILE']:
+                                                if CONFIG.get_bool('IMP_RENAME'):
                                                     book_filename = audio_rename(bookid, rename=True, playlist=True)
                                                     preprocess_audio(os.path.dirname(book_filename), bookid,
                                                                      author, book, tag=True)
@@ -1269,7 +1270,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         logger.warn(
                                             "Failed to match audiobook [%s] by [%s] in database" % (book, author))
                             else:
-                                if not warned_no_new_authors and not lazylibrarian.CONFIG.get_bool('ADD_AUTHOR'):
+                                if not warned_no_new_authors and not CONFIG.get_bool('ADD_AUTHOR'):
                                     logger.warn("Add authors to database is disabled")
                                     warned_no_new_authors = True
 
@@ -1305,12 +1306,12 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                 if st[item] is None:
                     st[item] = 0
 
-            if lazylibrarian.CONFIG['BOOK_API'] == "GoogleBooks":
+            if CONFIG['BOOK_API'] == "GoogleBooks":
                 logger.debug("GoogleBooks was hit %s %s for books" %
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
                 logger.debug("GoogleBooks language was changed %s %s" %
                              (st['GB_lang_change'], plural(st['GB_lang_change'], "time")))
-            elif lazylibrarian.CONFIG['BOOK_API'] == "GoodReads":
+            elif CONFIG['BOOK_API'] == "GoodReads":
                 logger.debug("GoodReads was hit %s %s for books" %
                              (st['GR_book_hits'], plural(st['GR_book_hits'], "time")))
                 logger.debug("GoodReads was hit %s %s for languages" %
