@@ -22,10 +22,10 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.cache import fetch_url, gr_xml_request, json_request
-from lazylibrarian.common import proxy_list, quotes
+from lazylibrarian.common import proxy_list
 from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
-    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name
+    check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
 from lazylibrarian.logger import lazylibrarian_log
 
 from thefuzz import fuzz

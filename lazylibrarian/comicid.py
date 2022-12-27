@@ -22,8 +22,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.cache import html_request, json_request, cv_api_sleep
-from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural
-from lazylibrarian.common import quotes
+from lazylibrarian.formatter import check_int, check_year, make_unicode, make_utf8bytes, plural, quotes
 from lazylibrarian.filesystem import path_isfile
 from urllib.parse import quote_plus
 
