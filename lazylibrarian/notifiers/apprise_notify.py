@@ -1,3 +1,9 @@
+# This file is part of Lazylibrarian.
+#
+# Purpose:
+#  Handle the general purpose Apprise notification engine. It is optional and is
+#  only available if the Apprise module is installed.
+
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger

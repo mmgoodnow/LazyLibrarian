@@ -44,7 +44,7 @@ try:
 except ImportError:
     PSUTIL = False
 
-#import lazylibrarian
+import lazylibrarian
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.config2 import CONFIG

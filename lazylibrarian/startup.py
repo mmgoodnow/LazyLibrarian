@@ -27,6 +27,7 @@ import tarfile
 import cherrypy
 import urllib3
 import requests
+from typing import Any
 from shutil import rmtree
 
 import lazylibrarian
@@ -34,14 +35,16 @@ from lazylibrarian.common import log_header
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.config2 import CONFIG, LLConfigHandler
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.formatter import check_int, get_list, unaccented, make_unicode
 from lazylibrarian.dbupgrade import check_db, db_current_version, upgrade_needed, db_upgrade
 from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 
 
-def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_override = None):
+def startup_parsecommandline(mainfile, args, testing = False) -> (Any, str):
+    """ Parse command line, return options and configfile to use """
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
         DIRS.set_fullpath_args(os.path.abspath(sys.executable), sys.argv[1:])
@@ -125,9 +128,6 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         else:
             print("Daemonize not supported under Windows, starting normally")
 
-    if options.nolaunch:
-        CONFIG.set_bool('LAUNCH_BROWSER', False)
-
     if options.port:
         options.port = check_int(options.port, 0)
 
@@ -169,9 +169,7 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         except ValueError:
             lazylibrarian_log.update_loglevel(override=2)
 
-    if config_override:
-        configfile = config_override
-    elif options.config:
+    if options.config:
         configfile = str(options.config)
     else:
         configfile = os.path.join(DIRS.DATADIR, "config.ini")
@@ -180,26 +178,32 @@ def startup_parsecommandline(mainfile, args, seconds_to_sleep = 4, config_overri
         if lazylibrarian.DAEMON:
             lazylibrarian.PIDFILE = str(options.pidfile)
 
-    if not config_override:
+    if not testing:
         print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
-    time.sleep(seconds_to_sleep)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+        time.sleep(4)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
 
     icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
     if path_isfile(icon):
         remove_file(icon)
 
-    # create database and config
-    CONFIG.load_configfile(configfile=configfile)
-    CONFIG.post_load_fixup()
+    return options, configfile
 
-    return options
+def load_config(configfile: str, options: Any):
+    """ Load the config file, perform post-load fixups to ensure consistent state, and
+    apply any command line options that override loaded settings """
+    config = lazylibrarian.config2.CONFIG  # Don't create a new instance
+    config.load_configfile(configfile=configfile)
+    config.post_load_fixup()
 
-def init_logs():
-    # Initialize log files. Until this is done, do not use the logger
+    if options.nolaunch:
+        config.set_bool('LAUNCH_BROWSER', False)
+
+def init_logs(config: ConfigDict):
+    """ Initialize log files. Until this is done, do not use the logger """
     DIRS.ensure_log_dir()
 
-    lazylibrarian_log.init_logger(config=CONFIG)
-    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {CONFIG['LOGDIR']}")
+    lazylibrarian_log.init_logger(config=config)
+    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {config['LOGDIR']}")
     if lazylibrarian_log.LOGLEVEL > 2:
         info("Screen Log set to EXTENDED DEBUG")
     elif lazylibrarian_log.LOGLEVEL == 2:
@@ -211,18 +215,20 @@ def init_logs():
     debug(f"{DIRS.FULL_PATH} {DIRS.ARGS}")
 
 
-def init_config():
-    initscheduler()
-    lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib()
 
-    if CONFIG.get_bool('NO_IPV6'):
+def init_misc(config: ConfigDict):
+    """ Other initialization."""
+    initscheduler()
+    lazylibrarian.UNRARLIB, lazylibrarian.RARFILE = get_unrarlib(config)
+
+    if config.get_bool('NO_IPV6'):
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
         urllib3.util.connection.HAS_IPV6 = False # type: ignore
 
-def init_caches():
+def init_caches(config: LLConfigHandler):
     # override detected encoding if required
-    if CONFIG['SYS_ENCODING']:
-        lazylibrarian.SYS_ENCODING = CONFIG['SYS_ENCODING']
+    if config['SYS_ENCODING']:
+        lazylibrarian.SYS_ENCODING = config['SYS_ENCODING']
 
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
                     'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
@@ -252,7 +258,7 @@ def init_caches():
     last_run_version = None
     last_run_interface = None
     makocache = DIRS.get_mako_cachedir()
-    version_file = CONFIG.get_mako_versionfile()
+    version_file = config.get_mako_versionfile()
 
     if os.path.isfile(version_file):
         with open(version_file, 'r') as fp:
@@ -269,18 +275,18 @@ def init_caches():
         else:
             debug("Previous python version unknown, now %s" % sys.version.split()[0])
         clean_cache = True
-    if last_run_interface != CONFIG['HTTP_LOOK']:
+    if last_run_interface != config['HTTP_LOOK']:
         if last_run_interface:
-            debug("Interface change (%s to %s)" % (last_run_interface, CONFIG['HTTP_LOOK']))
+            debug("Interface change (%s to %s)" % (last_run_interface, config['HTTP_LOOK']))
         else:
-            debug("Previous interface unknown, now %s" % CONFIG['HTTP_LOOK'])
+            debug("Previous interface unknown, now %s" % config['HTTP_LOOK'])
         clean_cache = True
     if clean_cache:
         debug("Clearing mako cache")
         rmtree(makocache)
         os.makedirs(makocache)
         with open(version_file, 'w') as fp:
-            fp.write(sys.version.split()[0] + ':' + CONFIG['HTTP_LOOK'])
+            fp.write(sys.version.split()[0] + ':' + config['HTTP_LOOK'])
 
     # keep track of last api calls so we don't call more than once per second
     # to respect api terms, but don't wait un-necessarily either
@@ -296,13 +302,13 @@ def init_caches():
     lazylibrarian.TIMERS['SLEEP_BOK'] = 0.0
     lazylibrarian.GB_CALLS = 0
 
-    if CONFIG['BOOK_API'] != 'GoodReads':
-        CONFIG.set_bool('GR_SYNC', False)
-        CONFIG.set_bool('GR_FOLLOW', False)
-        CONFIG.set_bool('GR_FOLLOWNEW', False)
+    if config['BOOK_API'] != 'GoodReads':
+        config.set_bool('GR_SYNC', False)
+        config.set_bool('GR_FOLLOW', False)
+        config.set_bool('GR_FOLLOWNEW', False)
 
 
-def init_database():
+def init_database(config: LLConfigHandler):
     # Initialize the database
     try:
         db = database.DBConnection()
@@ -349,15 +355,15 @@ def init_build_debug_header(online):
             warn(item)
 
 
-def init_build_lists():
+def init_build_lists(config: ConfigDict):
     lazylibrarian.GRGENRES = build_genres()
-    lazylibrarian.MONTHNAMES = build_monthtable()
+    lazylibrarian.MONTHNAMES = build_monthtable(config)
     lazylibrarian.NEWUSER_MSG = build_logintemplate()
     lazylibrarian.NEWFILE_MSG = build_filetemplate()
     lazylibrarian.BOOKSTRAP_THEMELIST = build_bookstrap_themes(DIRS.PROG_DIR)
 
 
-def get_unrarlib():
+def get_unrarlib(config: ConfigDict):
     """ Detect presence of unrar library
         Return type of library and rarfile()
     """
@@ -366,18 +372,18 @@ def get_unrarlib():
     try:
         # noinspection PyUnresolvedReferences
         from unrar import rarfile
-        if CONFIG.get_int('PREF_UNRARLIB') == 1:
+        if config.get_int('PREF_UNRARLIB') == 1:
             return 1, rarfile
     except Exception:
         # noinspection PyBroadException
         try:
             from lib.unrar import rarfile
-            if CONFIG.get_int('PREF_UNRARLIB') == 1:
+            if config.get_int('PREF_UNRARLIB') == 1:
                 return 1, rarfile
         except Exception:
             pass
 
-    if not rarfile or CONFIG.get_int('PREF_UNRARLIB') == 2:
+    if not rarfile or config.get_int('PREF_UNRARLIB') == 2:
         # noinspection PyBroadException
         try:
             from lib.UnRAR2 import RarFile
@@ -466,7 +472,7 @@ def build_genres():
     return {"genreLimit": 4, "genreUsers": 10, "genreExclude": [], "genreExcludeParts": [], "genreReplace": {}}
 
 
-def build_monthtable():
+def build_monthtable(config: ConfigDict):
     table = []
     json_file = os.path.join(DIRS.DATADIR, 'monthnames.json')
     if path_isfile(json_file):
@@ -500,7 +506,7 @@ def build_monthtable():
             ['december', 'dec']
         ]
 
-    if len(get_list(CONFIG['IMP_MONTHLANG'])) == 0:  # any extra languages wanted?
+    if len(get_list(config['IMP_MONTHLANG'])) == 0:  # any extra languages wanted?
         return table
     try:
         current_locale = locale.setlocale(locale.LC_ALL, '')  # read current state.
@@ -527,7 +533,7 @@ def build_monthtable():
         info("Added month names for locale [%s], %s, %s ..." % (
             lang, table[1][len(table[1]) - 2], table[1][len(table[1]) - 1]))
 
-    for lang in get_list(CONFIG['IMP_MONTHLANG']):
+    for lang in get_list(config['IMP_MONTHLANG']):
         try:
             if lang in table[0] or ((lang.startswith('en_') or lang == 'C') and 'en_' in str(table[0])):
                 debug('Month names for %s already loaded' % lang)

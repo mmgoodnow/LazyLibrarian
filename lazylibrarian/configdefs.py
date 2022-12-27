@@ -4,10 +4,10 @@
 #    Contain all the config settings and defaults used across LazyLibrarian
 
 from typing import List, Dict, Tuple
-from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail
-from lazylibrarian.configtypes import ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder
-from lazylibrarian.configtypes import ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
 from copy import deepcopy
+from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, \
+    ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder, \
+    ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),

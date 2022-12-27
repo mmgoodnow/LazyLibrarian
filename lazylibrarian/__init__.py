@@ -19,7 +19,7 @@ import os
 import sys
 import threading
 
-from lazylibrarian import logger, config2, configdefs, notifiers # Must keep notifiers here
+from lazylibrarian import logger, config2, notifiers # Must keep notifiers here
 from lazylibrarian.filesystem import syspath
 
 

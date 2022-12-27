@@ -10,7 +10,7 @@ from shutil import rmtree
 import lazylibrarian
 from lazylibrarian.common import logger
 from lazylibrarian.filesystem import DIRS, path_isdir
-from lazylibrarian import dbupgrade, startup, config2, configdefs
+from lazylibrarian import dbupgrade, startup, config2
 
 class LLTestCase(unittest.TestCase):
     ALLSETUP = None
@@ -18,18 +18,16 @@ class LLTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls) -> None:
-        # Run startup code without command line arguments and no forced sleep
-        startup.startup_parsecommandline(__file__, args = [''],
-            seconds_to_sleep = 0, config_override=cls.CONFIGFILE)
-        startup.init_logs()
-        startup.init_config()
+        options, configfile = startup.startup_parsecommandline(__file__, args = [''], testing=True)
+        startup.load_config(cls.CONFIGFILE, options)
+        startup.init_misc(config2.CONFIG)
         if cls.ALLSETUP:
             LLTestCase.disableHTTPSWarnings()
-            startup.init_caches()
-            startup.init_database()
+            startup.init_caches(config2.CONFIG)
+            startup.init_database(config2.CONFIG)
             cls.prepareTestDB()
             startup.init_build_debug_header(online = False)
-        startup.init_build_lists()
+        startup.init_build_lists(config2.CONFIG)
         return super().setUpClass()
 
     @classmethod
@@ -44,6 +42,7 @@ class LLTestCase(unittest.TestCase):
         logger.lazylibrarian_log.stop_logger()
         cls.delete_test_logs()
         cls.clearGlobals()
+        cls.CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
         return super().tearDownClass()
 
     @classmethod
@@ -98,7 +97,6 @@ class LLTestCase(unittest.TestCase):
         lazylibrarian.SYS_ENCODING = ''
         logger.lazylibrarian_log.update_loglevel(1)
         logger.lazylibrarian_log.LOGLEVEL_OVERRIDE = False
-        config2.CONFIG = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         lazylibrarian.LOGINUSER = None
         lazylibrarian.COMMIT_LIST = None
         lazylibrarian.SHOWLOGOUT = 1

@@ -48,14 +48,15 @@ def main():
    # rename this thread
     thread_name("MAIN")
 
-    options = startup.startup_parsecommandline(__file__, args = sys.argv[1:], seconds_to_sleep = 2)
-
-    startup.init_logs()
-    startup.init_config()
-    startup.init_caches()
-    startup.init_database()
+    options, configfile = startup.startup_parsecommandline(__file__, args = sys.argv[1:])
+    startup.load_config(configfile, options)
+    # Run initialization that needs CONFIG to be loaded
+    startup.init_logs(lazylibrarian.config2.CONFIG)
+    startup.init_misc(lazylibrarian.config2.CONFIG)
+    startup.init_caches(lazylibrarian.config2.CONFIG)
+    startup.init_database(lazylibrarian.config2.CONFIG)
     startup.init_build_debug_header(online = True)
-    startup.init_build_lists()
+    startup.init_build_lists(lazylibrarian.config2.CONFIG)
 
     version_file = startup.create_version_file('version.txt')
     startup.init_version_checks(version_file)

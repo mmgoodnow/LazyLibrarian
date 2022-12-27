@@ -18,10 +18,11 @@ import os
 import re
 import unicodedata
 import threading
+from typing import Optional
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
@@ -582,15 +583,19 @@ def is_valid_isbn(isbn):
     return False
 
 
-def is_valid_type(filename, extras='jpg, opf'):
+def is_valid_type(filename: str, extras='jpg, opf', config: Optional[ConfigDict]=None) -> str:
     """
     Check if filename has an extension we can process.
     returns True or False
     """
-    type_list = list(set(get_list(CONFIG['MAG_TYPE']) +
-                         get_list(CONFIG['AUDIOBOOK_TYPE']) +
-                         get_list(CONFIG['EBOOK_TYPE']) +
-                         get_list(CONFIG['COMIC_TYPE']) +
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
+
+    type_list = list(set(get_list(config['MAG_TYPE']) +
+                         get_list(config['AUDIOBOOK_TYPE']) +
+                         get_list(config['EBOOK_TYPE']) +
+                         get_list(config['COMIC_TYPE']) +
                          get_list(extras)))
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in type_list:
@@ -598,18 +603,22 @@ def is_valid_type(filename, extras='jpg, opf'):
     return False
 
 
-def is_valid_booktype(filename, booktype=None):
+def is_valid_booktype(filename: str, booktype: str, config: Optional[ConfigDict]=None) -> str:
     """
     Check if filename extension is one we want
     """
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
+
     if booktype.startswith('mag'):  # default is book
-        booktype_list = get_list(CONFIG['MAG_TYPE'])
+        booktype_list = get_list(config['MAG_TYPE'])
     elif booktype.startswith('audio'):
-        booktype_list = get_list(CONFIG['AUDIOBOOK_TYPE'])
+        booktype_list = get_list(config['AUDIOBOOK_TYPE'])
     elif booktype == 'comic':
-        booktype_list = get_list(CONFIG['COMIC_TYPE'])
+        booktype_list = get_list(config['COMIC_TYPE'])
     else:
-        booktype_list = get_list(CONFIG['EBOOK_TYPE'])
+        booktype_list = get_list(config['EBOOK_TYPE'])
     extn = os.path.splitext(filename)[1].lstrip('.')
     if extn and extn.lower() in booktype_list:
         return True
@@ -644,6 +653,7 @@ def split_title(author, book):
     Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
+    from lazylibrarian.config2 import CONFIG
     if lazylibrarian_log.LOGLEVEL & logger.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
@@ -697,14 +707,18 @@ def split_title(author, book):
     return bookname, booksub, bookseries
 
 
-def format_author_name(author):
+def format_author_name(author: str, config: Optional[ConfigDict]=None) -> str:
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
+
     """ get authorname in a consistent format """
     author = make_unicode(author)
     # if multiple authors assume the first one is primary
     if '& ' in author:
         author = author.split('& ')[0].strip()
     if "," in author:
-        postfix = get_list(CONFIG['NAME_POSTFIX'])
+        postfix = get_list(config['NAME_POSTFIX'])
         words = author.split(',')
         if len(words) == 2:
             # Need to handle names like "L. E. Modesitt, Jr." or "J. Springmann, Phd"
@@ -740,7 +754,10 @@ def format_author_name(author):
     return res
 
 
-def sort_definite(title):
+def sort_definite(title: str, config: Optional[ConfigDict]=None) -> str:
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
     """
     Return the sort string for a title, moving prefixes
     we want to ignore to the end, like The or A
@@ -749,19 +766,22 @@ def sort_definite(title):
     if len(words) < 2:
         return title
     word = words.pop(0)
-    if word.lower() in get_list(CONFIG['NAME_DEFINITE']):
+    if word.lower() in get_list(config['NAME_DEFINITE']):
         return ' '.join(words) + ', ' + word
     return title
 
 
-def surname_first(authorname):
+def surname_first(authorname: str, config: Optional[ConfigDict]=None) -> str:
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
     """ swap authorname round into surname, forenames for display and sorting"""
     words = get_list(authorname)
     if len(words) < 2:
         return authorname
     res = words.pop()
 
-    if res.strip('.').lower() in get_list(CONFIG['NAME_POSTFIX']):
+    if res.strip('.').lower() in get_list(config['NAME_POSTFIX']):
         res = words.pop() + ' ' + res
     return res + ', ' + ' '.join(words)
 
@@ -781,8 +801,11 @@ def clean_name(name, extras=None):
     return name
 
 
-def no_umlauts(s):
-    if 'de' not in get_list(CONFIG['IMP_PREFLANG']):
+def no_umlauts(s: str, config: Optional[ConfigDict]=None) -> str:
+    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
+        from lazylibrarian.config2 import CONFIG
+        config = CONFIG
+    if 'de' not in get_list(config['IMP_PREFLANG']):
         return s
 
     s = replace_all(s, umlaut_dict)
@@ -860,13 +883,15 @@ def replace_quotes_with(text, char):
     return replaces.sub(char, text)
 
 
-def disp_name(provider):
+def disp_name(provider: str) -> str:
+    # TODO: Move this method to a place where config2 can be imported
     """
     Strange function. Returns the display name of a provider that
     matches the host name provided as parameter, if any.
     If not, returns the host name provided, shortened if too long.
     """
     from lazylibrarian import configdefs
+    from lazylibrarian.config2 import CONFIG
     provname = ''
     for name, definitions in configdefs.ARRAY_DEFS.items():
         key = definitions[0] # Primary key for this array type

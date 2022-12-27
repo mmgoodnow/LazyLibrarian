@@ -10,7 +10,11 @@ from lazylibrarian import formatter
 from unittests.unittesthelpers import LLTestCase
 
 class FormatterTest(LLTestCase):
-    # Initialisation code that needs to run only once
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        super().setDoAll(False)
+        return super().setUpClass()
 
     def test_sanitize(self):
         import unicodedata
@@ -484,7 +488,7 @@ class FormatterTest(LLTestCase):
             ("Allan Pedersen, General", "General Allan Pedersen"),
         ]
         for name in testnames:
-            authorname = formatter.format_author_name(name[0])
+            authorname = formatter.format_author_name(name[0], CONFIG)
             self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_no_umlauts(self):
@@ -510,14 +514,16 @@ class FormatterTest(LLTestCase):
 
     def test_disp_name(self):
         # Add some dummy data to test on
-        rss = CONFIG.get_array('RSS')
+        rss = CONFIG.providers('RSS')
+        self.assertIsNotNone(rss)
         if rss:
-            rss[0]['HOST'] = 'test-host'
-            rss[0]['DISPNAME'] = 'short-rss-name'
-        irc = CONFIG.get_array('IRC')
+            rss[0].set_str('HOST', 'test-host')
+            rss[0].set_str('DISPNAME', 'short-rss-name')
+        irc = CONFIG.providers('IRC')
+        self.assertIsNotNone(irc)
         if irc:
-            irc[0]['SERVER'] = 'irc-host'
-            irc[0]['DISPNAME'] = '123456789012345/67890Thisistoolong'
+            irc[0].set_str('SERVER', 'irc-host')
+            irc[0].set_str('DISPNAME', '123456789012345/67890Thisistoolong')
 
         providers = [
             ('test', 'test'),
@@ -528,7 +534,8 @@ class FormatterTest(LLTestCase):
             ('irc-host', '67890Thisistoolong'),
         ]
         for p in providers:
-            self.assertEqual(formatter.disp_name(p[0]), p[1])
+            with self.subTest(f"Transforming {p[0]}"):
+                self.assertEqual(formatter.disp_name(p[0]), p[1])
 
     def test_replace_quotes_with(self):
         allchars = ''

@@ -18,7 +18,7 @@ class SetupTest(LLTestCase):
 
     def testConfig(self):
         # Validate that basic global objects and configs have run
-        self.assertEqual(lazylibrarian_log.LOGLEVEL, 0)  # From config.ini
+        self.assertEqual(lazylibrarian_log.LOGLEVEL, 1)  # From config.ini
         self.assertIsNotNone(CONFIG)
         self.assertIsInstance(CONFIG.get_int('LOGLIMIT'), int)
 

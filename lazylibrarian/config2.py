@@ -22,8 +22,6 @@ from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
-from lazylibrarian.scheduling import schedule_job
-from lazylibrarian.providers import provider_is_blocked, wishlist_type
 
 """ Main configuration handler for LL """
 class LLConfigHandler(ConfigDict):
@@ -34,6 +32,7 @@ class LLConfigHandler(ConfigDict):
     def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
         super().__init__()
         self.arrays = dict()
+        self.defaults = defaults
         self._copydefaults(defaults)
         self.configfilename = ''
         self.load_configfile(configfile)
@@ -43,6 +42,8 @@ class LLConfigHandler(ConfigDict):
             # Clear existing before loading another setup, brute force.
             super().clear()
             self.arrays.clear()
+            # Re-setup the defaults
+            self._copydefaults(self.defaults)
         if configfile:
             self.configfilename = configfile
             parser = ConfigParser(dict_type=CaseInsensitiveDict)
@@ -212,7 +213,7 @@ class LLConfigHandler(ConfigDict):
         if ok and scheduler.needs_provider:
             ok = self.use_any()
         if ok and scheduler.run_name == 'GRSYNC': # Special case, should maybe add option to object
-            ok = CONFIG.get_bool('GR_SYNC')
+            ok = self.get_bool('GR_SYNC')
         if ok and scheduler.run_name == 'TELEMETRYSEND': # Special case for telemetry
             ok = self.config['TELEMETRY_ENABLE'].get_bool()
         return ok
@@ -379,6 +380,7 @@ class LLConfigHandler(ConfigDict):
 
         # Restart all scheduled jobs since the schedules may have changed
         if restart_jobs:
+            from lazylibrarian.scheduling import schedule_job
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
@@ -499,6 +501,7 @@ class LLConfigHandler(ConfigDict):
 
     def count_in_use(self, provider: str, wishlist: Optional[bool] = None) -> int:
         """ Returns # of providers named provider are in use """
+        from lazylibrarian.providers import provider_is_blocked, wishlist_type
         count = 0
         if provider in self.arrays:
             array = self.get_array(provider)

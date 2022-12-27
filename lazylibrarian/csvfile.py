@@ -16,6 +16,7 @@ import traceback
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.configtypes import ConfigDict
 from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
@@ -252,7 +253,7 @@ def finditem(item, preferred_authorname, library='eBook', reason='csv.finditem')
     return bookmatch
 
 
-def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
+def import_csv(search_dir: str, status: str='Wanted', library: str='', config: ConfigDict=CONFIG) -> str:
     """ Find a csv file in the search_dir and process all the books in it,
         adding authors to the database if not found
         and marking the books as "Wanted"
@@ -301,7 +302,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='') -> str:
             elif row:
                 total += 1
                 item = dict(list(zip(headers, row)))
-                authorname = format_author_name(item['Author'])
+                authorname = format_author_name(item['Author'], config)
                 title = make_unicode(item['Title'])
 
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
