@@ -969,7 +969,7 @@ def library_scan(startdir=None, library='eBook', authid=None, remove=True):
                                         rescan_count += 1
                                         base_url = '/'.join([CONFIG['GR_URL'], 'search.xml?q='])
                                         params = {"key": CONFIG['GR_API']}
-                                        author = format_author_name(author)
+                                        author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
                                         searchname = "%s %s" % (clean_name(author), clean_name(book))
                                         searchterm = quote_plus(make_utf8bytes(searchname)[0])
                                         set_url = base_url + searchterm + '&' + urlencode(params)

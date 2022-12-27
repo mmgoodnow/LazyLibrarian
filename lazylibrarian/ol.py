@@ -189,7 +189,7 @@ class OpenLibrary:
         title = ''
         if '<ll>' in authorname:
             authorname, title = authorname.split('<ll>')
-        authorname = format_author_name(authorname)
+        authorname = format_author_name(authorname, postfix=CONFIG.get_list('NAME_POSTFIX'))
         if title:
             authorbooks, in_cache = json_request(self.OL_SEARCH + "author=" + quote_plus(authorname) +
                                                  "&title=" + quote_plus(title), use_cache=not refresh)
@@ -199,7 +199,7 @@ class OpenLibrary:
 
         if authorbooks and authorbooks["docs"]:
             for book in authorbooks['docs']:
-                author_name = format_author_name(book.get('author_name')[0])
+                author_name = format_author_name(book.get('author_name')[0], postfix=CONFIG.get_list('NAME_POSTFIX'))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
@@ -216,7 +216,7 @@ class OpenLibrary:
                 logger.debug("No books found for %s" % authorname)
                 return {}
             for book in authorbooks['docs']:
-                author_name = format_author_name(book.get('author_name')[0])
+                author_name = format_author_name(book.get('author_name')[0], postfix=CONFIG.get_list('NAME_POSTFIX'))
                 if fuzz.token_set_ratio(author_name, authorname) >= CONFIG.get_int('NAME_RATIO'):
                     key = book.get('author_key')[0]
                     if key:
@@ -285,7 +285,7 @@ class OpenLibrary:
             'authordeath': author_died,
             'about': about,
             'totalbooks': '0',
-            'authorname': format_author_name(author_name)
+            'authorname': format_author_name(author_name, postfix=CONFIG.get_list('NAME_POSTFIX'))
         }
         return author_dict
 

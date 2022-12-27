@@ -33,7 +33,7 @@ from thefuzz import fuzz
 from queue import Queue
 
 
-def is_valid_authorid(authorid):
+def is_valid_authorid(authorid: str) -> bool:
     if not authorid or not isinstance(authorid, str):
         return False # Reject blank, or non-string
     # GoogleBooks doesn't provide authorid so we use one of the other sources
@@ -45,10 +45,10 @@ def is_valid_authorid(authorid):
     return False
 
 
-def get_preferred_author_name(author):
+def get_preferred_author_name(author: str) -> (str, bool):
     # Look up an authorname in the database, if not found try fuzzy match
     # Return possibly changed authorname and whether found in library
-    author = format_author_name(author)
+    author = format_author_name(author, postfix=CONFIG.get_list('NAME_POSTFIX'))
     match = False
     db = database.DBConnection()
     check_exist_author = db.match('SELECT * FROM authors where AuthorName=?', (author,))

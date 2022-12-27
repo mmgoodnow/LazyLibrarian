@@ -1688,7 +1688,7 @@ class Api(object):
         if 'name' not in kwargs:
             self.data = 'Missing parameter: name'
             return
-        authorname = format_author_name(kwargs['name'])
+        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
         gr = GoodReads(authorname)
         self.data = gr.find_author_id()
 
@@ -1697,7 +1697,7 @@ class Api(object):
             self.data = 'Missing parameter: name'
             return
 
-        authorname = format_author_name(kwargs['name'])
+        authorname = format_author_name(kwargs['name'], postfix=CONFIG.get_list('NAME_POSTFIX'))
         if CONFIG.get_str('BOOK_API') == "GoogleBooks":
             gb = GoogleBooks(authorname)
             myqueue = Queue()

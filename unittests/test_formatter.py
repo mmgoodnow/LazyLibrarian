@@ -475,7 +475,7 @@ class FormatterTest(LLTestCase):
             self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_format_author_name(self):
-        testnames = [
+        testnames_plain = [
             ("Allan Pedersen", "Allan Pedersen"),
             ("Allan & Mamta Pedersen", "Allan"),
             ("Pedersen, Allan", "Allan Pedersen"),
@@ -485,14 +485,30 @@ class FormatterTest(LLTestCase):
             ("aLLaN apPlEBy", "aLLaN apPlEBy"),
             ("A Pedersen", "A. Pedersen"),
             ("A. Pedersen", "A. Pedersen"),
-            # With suffix
+        ]
+        testnames_withsuffix = [
             ("Allan Pedersen, Jr.", "Allan Pedersen Jr."),
             ("Allan Pedersen PhD", "Allan Pedersen PhD"),
             ("Allan Pedersen, General", "General Allan Pedersen"),
         ]
-        for name in testnames:
-            authorname = formatter.format_author_name(name[0], CONFIG)
-            self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
+        # Test with a variety of postfixes on names without one
+        for postfix in [[], [''], ['phd', 'mr', 'jr']]:
+            for name in testnames_plain:
+                with self.subTest(msg=f'Testing "{name}" with "{postfix}"'):
+                    authorname = formatter.format_author_name(name[0], postfix=postfix)
+                    self.assertEqual(authorname, name[1])
+        # Test with a valid suffix list on names with suffixes
+        for name in testnames_withsuffix:
+            with self.subTest(msg=f'Testing suffixed "{name}" with "{postfix}"'):
+                authorname = formatter.format_author_name(name[0], postfix=['phd', 'mr', 'jr'])
+                self.assertEqual(authorname, name[1])
+
+        # Test with the config from ini file
+        postfix=CONFIG.get_list('NAME_POSTFIX')
+        for name in testnames_plain + testnames_withsuffix:
+            with self.subTest(msg=f'Testing "{name}" with ini file postfix "{postfix}"'):
+                authorname = formatter.format_author_name(name[0], postfix=postfix)
+                self.assertEqual(authorname, name[1], f"{name[0]} -> {authorname} instead of {name[1]}")
 
     def test_no_umlauts(self):
         teststrings = [

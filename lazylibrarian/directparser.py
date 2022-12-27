@@ -541,7 +541,7 @@ def direct_gen(book=None, prov=None, test=False):
 
                     elif ('fiction' in search or 'index.php' in search) and len(td) > 3:
                         try:
-                            author = format_author_name(td[0].text)
+                            author = format_author_name(td[0].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
                             newsoup = None
                             if '/' in td[4].text:
@@ -564,7 +564,7 @@ def direct_gen(book=None, prov=None, test=False):
                     elif 'search.php' in search and len(td) > 8:
                         # Non-fiction
                         try:
-                            author = format_author_name(td[1].text)
+                            author = format_author_name(td[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
                             title = td[2].text
                             size = td[7].text.upper()
                             extn = td[8].text

@@ -2021,7 +2021,7 @@ class WebInterface(object):
                 matchname = unaccented(matchname).lower()
                 bestmatch = [0, '']
                 for item in listdir(libdir):
-                    match = fuzz.ratio(format_author_name(unaccented(item)).lower(), matchname)
+                    match = fuzz.ratio(format_author_name(unaccented(item), CONFIG.get_list('NAME_POSTFIX')).lower(), matchname)
                     if match >= CONFIG.get_int('NAME_RATIO'):
                         authordir = os.path.join(libdir, item)
                         if lazylibrarian_log.LOGLEVEL & logger.log_fuzz:

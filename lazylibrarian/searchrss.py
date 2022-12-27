@@ -176,7 +176,7 @@ def search_wishlist():
                     new_audio.append({"bookid": bookmatch['BookID']})
             else:  # not in database yet
                 results = []
-                authorname = format_author_name(book['rss_author'])
+                authorname = format_author_name(book['rss_author'], postfix=CONFIG.get_list('NAME_POSTFIX'))
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))
                 if authmatch:
                     logger.debug("Author %s found in database, %s" % (authorname, authmatch['Status']))

@@ -302,7 +302,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
             elif row:
                 total += 1
                 item = dict(list(zip(headers, row)))
-                authorname = format_author_name(item['Author'], config)
+                authorname = format_author_name(item['Author'], postfix=config.get_list('NAME_POSTFIX'))
                 title = make_unicode(item['Title'])
 
                 authmatch = db.match('SELECT * FROM authors where AuthorName=?', (authorname,))

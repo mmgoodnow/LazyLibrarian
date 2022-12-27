@@ -675,10 +675,7 @@ def split_title(author, book):
     return bookname, booksub, bookseries
 
 
-def format_author_name(author: str, config: Optional[ConfigDict]=None) -> str:
-    if not config:  # TODO: Fix this hack when config is properly parameterised everywhere
-        from lazylibrarian.config2 import CONFIG
-        config = CONFIG
+def format_author_name(author: str, postfix: List[str]) -> str:
 
     """ get authorname in a consistent format """
     author = make_unicode(author)
@@ -686,7 +683,6 @@ def format_author_name(author: str, config: Optional[ConfigDict]=None) -> str:
     if '& ' in author:
         author = author.split('& ')[0].strip()
     if "," in author:
-        postfix = get_list(config['NAME_POSTFIX'])
         words = author.split(',')
         if len(words) == 2:
             # Need to handle names like "L. E. Modesitt, Jr." or "J. Springmann, Phd"

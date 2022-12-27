@@ -260,7 +260,7 @@ class GoodReads:
 
     def find_author_id(self, refresh=False):
         author = self.name
-        author = format_author_name(unaccented(author, only_ascii='_'))
+        author = format_author_name(unaccented(author, only_ascii='_'), postfix=CONFIG.get_list('NAME_POSTFIX'))
         # googlebooks gives us author names with long form unicode characters
         author = make_unicode(author)  # ensure it's unicode
         author = unicodedata.normalize('NFC', author)  # normalize to short form
@@ -292,7 +292,8 @@ class GoodReads:
         for res in resultxml:
             authorid = res.attrib.get("id")
             authorname = res.find('name').text
-            authorname = format_author_name(unaccented(authorname, only_ascii=False))
+            authorname = format_author_name(unaccented(authorname, only_ascii=False),
+                                            postfix=CONFIG.get_list('NAME_POSTFIX'))
             match = fuzz.ratio(author, authorname)
             if match >= CONFIG.get_int('NAME_RATIO'):
                 return self.get_author_info(authorid)
@@ -323,7 +324,7 @@ class GoodReads:
 
         # added authorname to author_dict - this holds the intact name preferred by GR
         # except GR messes up names like "L. E. Modesitt, Jr." where it returns <name>Jr., L. E. Modesitt</name>
-        authorname = format_author_name(resultxml[1].text)
+        authorname = format_author_name(resultxml[1].text, postfix=CONFIG.get_list('NAME_POSTFIX'))
         logger.debug("[%s] Processing info for authorID: %s" % (authorname, authorid))
         author_dict = {
             'authorid': resultxml[0].text,
