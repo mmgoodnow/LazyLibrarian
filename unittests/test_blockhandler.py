@@ -6,8 +6,7 @@
 import time
 
 from unittests.unittesthelpers import LLTestCase
-from lazylibrarian import blockhandler, logger
-import lazylibrarian.formatter
+from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.blockhandler import BLOCKHANDLER, BlockHandler

@@ -32,6 +32,7 @@ from shutil import rmtree
 
 import lazylibrarian
 from lazylibrarian.common import log_header
+from lazylibrarian.notifiers import APPRISE_VER
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
 from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
 from lazylibrarian import database, versioncheck, logger
@@ -216,7 +217,6 @@ def init_logs(config: ConfigDict):
     debug(f"{DIRS.FULL_PATH} {DIRS.ARGS}")
 
 
-
 def init_misc(config: ConfigDict):
     """ Other initialization."""
     BLOCKHANDLER.set_config(CONFIG, CONFIG.providers("NEWZNAB"), CONFIG.providers("TORZNAB"))
@@ -226,6 +226,13 @@ def init_misc(config: ConfigDict):
     if config.get_bool('NO_IPV6'):
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
         urllib3.util.connection.HAS_IPV6 = False # type: ignore
+
+    if APPRISE_VER: # If APPRISE can't be found, show old notifiers
+        logger.info("Apprise library (%s) installed" % APPRISE_VER)
+    else:
+        logger.warn("Did not find Apprise notifications library")
+        CONFIG.set_bool('HIDE_OLD_NOTIFIERS', False)
+
 
 def init_caches(config: LLConfigHandler):
     # override detected encoding if required

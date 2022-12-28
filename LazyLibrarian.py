@@ -61,13 +61,6 @@ def main():
     version_file = startup.create_version_file('version.txt')
     startup.init_version_checks(version_file)
 
-    if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
-        logger.info("Apprise library (%s) installed" % lazylibrarian.APPRISE)
-    else:
-        logger.warn("Looking for Apprise library: %s" % lazylibrarian.APPRISE)
-        lazylibrarian.APPRISE = ''
-        lazylibrarian.config2.CONFIG.set_bool('HIDE_OLD_NOTIFIERS', False)
-
     if lazylibrarian.DAEMON:
         lazylibrarian.daemonize()
 

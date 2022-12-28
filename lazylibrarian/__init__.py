@@ -19,9 +19,8 @@ import os
 import sys
 import threading
 
-from lazylibrarian import logger, config2, notifiers # Must keep notifiers here
+from lazylibrarian import logger, config2
 from lazylibrarian.filesystem import syspath
-
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
@@ -36,8 +35,6 @@ CHERRYPYLOG = 0
 REQUESTSLOG = 0
 DOCKER = False
 STOPTHREADS = False
-
-# APPRISE not defined here, but in notifiers
 
 # These are globals
 SUPPRESS_UPDATE = False

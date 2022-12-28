@@ -62,6 +62,8 @@ notifiers = [
     apprise_notifier,
 ]
 
+APPRISE_VER: str = apprise_notify.APPRISE_CANLOAD
+
 def custom_notify_download(bookid):
     try:
         custom_notifier.notify_download(bookid)

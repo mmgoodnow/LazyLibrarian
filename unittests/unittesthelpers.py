@@ -8,7 +8,7 @@ from os import remove
 from shutil import rmtree
 
 import lazylibrarian
-from lazylibrarian.common import logger
+from lazylibrarian import logger
 from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian import dbupgrade, startup, config2
 
@@ -26,7 +26,6 @@ class LLTestCase(unittest.TestCase):
             startup.init_caches(config2.CONFIG)
             startup.init_database(config2.CONFIG)
             cls.prepareTestDB()
-            startup.init_build_debug_header(online = False)
         startup.init_build_lists(config2.CONFIG)
         return super().setUpClass()
 

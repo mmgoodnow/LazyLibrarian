@@ -349,8 +349,9 @@ def log_header(online=True):
     header += "mako: %s\n" % getattr(mako, '__version__', None)
     header += "webencodings: %s\n" % getattr(webencodings, 'VERSION', None)
 
-    if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
-        header += "apprise: %s\n" % lazylibrarian.APPRISE
+    from lazylibrarian.notifiers import APPRISE_VER
+    if APPRISE_VER and APPRISE_VER[0].isdigit():
+        header += "apprise: %s\n" % APPRISE_VER
     else:
         header += "apprise: not found\n"
     if lazylibrarian.UNRARLIB == 1:

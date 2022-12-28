@@ -4,12 +4,10 @@
 #  Handle the general purpose Apprise notification engine. It is optional and is
 #  only available if the Apprise module is installed.
 
-import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
 from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 from lazylibrarian.formatter import plural
-
 
 try:
     # noinspection PyUnresolvedReferences
@@ -17,9 +15,9 @@ try:
     # noinspection PyUnresolvedReferences
     from apprise import NotifyType, AppriseAsset, Apprise
 
-    lazylibrarian.APPRISE = getattr(apprise, '__version__', 'Unknown Version')
+    APPRISE_CANLOAD = getattr(apprise, '__version__', 'Unknown Version')
 except ImportError as e:
-    lazylibrarian.APPRISE = str(e)
+    APPRISE_CANLOAD = ''
 
 
 # noinspection PyUnresolvedReferences
@@ -90,7 +88,7 @@ class AppriseNotifier:
     #
     # noinspection PyUnresolvedReferences
     def notify_snatch(self, title, fail=False):
-        if lazylibrarian.APPRISE:
+        if APPRISE_CANLOAD:
             if fail:
                 self._notify(event=notifyStrings[NOTIFY_FAIL], message=title, url=None)
             else:
@@ -100,7 +98,7 @@ class AppriseNotifier:
 
     def notify_download(self, title):
         # noinspection PyUnresolvedReferences
-        if lazylibrarian.APPRISE:
+        if APPRISE_CANLOAD:
             self._notify(event=notifyStrings[NOTIFY_DOWNLOAD], message=title, url=None)
         else:
             return True
@@ -112,7 +110,7 @@ class AppriseNotifier:
     @staticmethod
     def notify_types():
         res = []
-        if not lazylibrarian.APPRISE:
+        if not APPRISE_CANLOAD:
             return res
         try:
             apobj = Apprise()

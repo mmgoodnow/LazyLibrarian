@@ -4,6 +4,7 @@
     from lazylibrarian import logger
     from lazylibrarian.logger import lazylibrarian_log
     from lazylibrarian.config2 import CONFIG
+    from lazylibrarian.notifiers import APPRISE_VER
 %>
 <%def name="headerIncludes()">
 <div id="subhead_container">
@@ -801,7 +802,7 @@
                           <input type="checkbox" id="show_genres" name="show_genres" value="1" ${checked} />
                           Show genres</label>
                       </div>
-                      %if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
+                      %if APPRISE_VER and APPRISE_VER[0].isdigit():
                       <div class="col-md-6">
                         <%
                           if CONFIG['HIDE_OLD_NOTIFIERS']:
@@ -4047,7 +4048,7 @@
                   </fieldset>
                 </div>
               </div>
-              %if lazylibrarian.APPRISE and lazylibrarian.APPRISE[0].isdigit():
+              %if APPRISE_VER and APPRISE_VER[0].isdigit():
                 <div id="apprise">
                   <div class="col-md-12">
                     <legend>Apprise Notifiers

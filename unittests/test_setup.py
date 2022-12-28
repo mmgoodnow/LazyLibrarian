@@ -6,6 +6,7 @@
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.notifiers import APPRISE_VER
 from unittests.unittesthelpers import LLTestCase
 
 class SetupTest(LLTestCase):
@@ -23,5 +24,7 @@ class SetupTest(LLTestCase):
         self.assertIsInstance(CONFIG.get_int('LOGLIMIT'), int)
 
     def testApprise(self):
-        # Validate that APPRISE is defined properly; it's set up uniquely
-        self.assertIsNotNone(lazylibrarian.APPRISE)
+        # Validate that APPRISE is defined properly; it's set up as a global in notifiers,
+        # copied from the value received during load in apprise_notify. This allows us to
+        # avoid circular dependencies.
+        self.assertIsNotNone(APPRISE_VER)
