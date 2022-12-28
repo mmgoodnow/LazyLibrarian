@@ -182,7 +182,7 @@ def startup_parsecommandline(mainfile, args, testing = False) -> (Any, str):
 
     if not testing:
         print("Lazylibrarian (pid %s) is starting up..." % os.getpid())
-        time.sleep(4)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
+        time.sleep(2)  # allow a bit of time for old task to exit if restarting. Needs to free logfile and server port.
 
     icon = os.path.join(DIRS.CACHEDIR, 'alive.png')
     if path_isfile(icon):
@@ -674,7 +674,6 @@ def start_schedulers():
         lazylibrarian.SHOW_EBOOK = 1 if CONFIG.get_bool('EBOOK_TAB') else 0
         lazylibrarian.SHOW_AUDIO = 1 if CONFIG.get_bool('AUDIO_TAB') else 0
         lazylibrarian.SHOW_MAGS = 1 if CONFIG.get_bool('MAG_TAB') else 0
-        lazylibrarian.SHOW_COMICS = 1 if CONFIG.get_bool('COMIC_TAB') else 0
 
         if CONFIG.get_bool('ADD_SERIES'):
             lazylibrarian.SHOW_SERIES = 1

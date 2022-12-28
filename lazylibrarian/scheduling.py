@@ -546,7 +546,7 @@ def show_stats() -> List[str]:
         res = db.match(cmd)
         mag_stats.append(['Empty', len(res)])
 
-    if lazylibrarian.SHOW_COMICS:
+    if CONFIG['COMIC_TAB'].get_bool():
         res = db.match("SELECT count(*) as counter FROM comics")
         mag_stats.append(['Comics', res['counter']])
         res = db.match("SELECT count(*) as counter FROM comicissues")

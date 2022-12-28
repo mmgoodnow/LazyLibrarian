@@ -235,7 +235,7 @@
                 % endif
                 % endif
                 % if CONFIG['HOMEPAGE'] != 'Comics':
-                % if lazylibrarian.SHOW_COMICS:
+                % if CONFIG['COMIC_TAB']:
                   %if perm&lazylibrarian.perm_comics:
                   <li><a id="comics" href="comics" class="navbarele">Comics</a></li>
                   % endif
