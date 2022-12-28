@@ -39,7 +39,7 @@
               <div class="ptop21">
                 <button name='register' id='register' class="btn btn-primary btn-block btn-lg btn-inverse">Submit</button>
               </div>
-            <h4 id="message">${lazylibrarian.LOGIN_MSG}</h4>
+            <h4 id="loginmessage">${lazylibrarian.LOGIN_MSG}</h4>
           </div>
         </div>
       </div>
@@ -54,10 +54,10 @@
   <script type="text/javascript">
     $(document).ready(function(){
         $('#register').on('click', function(e) {
-            var fullname = $.trim($("#fullname").val());
-            var username = $.trim($("#username").val());
-            var email = $.trim($("#email").val());
-            var message = $.trim($("#message").val());
+            let fullname = $.trim($("#fullname").val());
+            let username = $.trim($("#username").val());
+            let email = $.trim($("#email").val());
+            let message = $.trim($("#message").val());
             $.get('user_contact', {'fullname': fullname, 'username': username, 'email': email, 'message': message},
                 function(data) {
                 bootbox.dialog({

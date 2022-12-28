@@ -1,4 +1,5 @@
 # Web server for LazyLibrarian telemetry server
+from typing import Callable
 
 from bottle import route, run, request
 import time
@@ -11,9 +12,9 @@ def hello():
     return "LazyLibrarian Telemetry Server"
 
 @route('/stats/<type:re:[a-z]+>')
-def stats(type):
-    logger.debug(f"Getting stats for {type}")
-    return f"Something needs to happen here: {type}"
+def stats(atype):
+    logger.debug(f"Getting stats for {atype}")
+    return f"Something needs to happen here: {atype}"
 
 @route('/help')
 def server_status():
@@ -37,7 +38,7 @@ def server_status():
 def server_status():
     logger.debug("Getting server status")
     uptime = time.time() - _starttime
-    pretty = pretty_approx_time(uptime)
+    pretty = pretty_approx_time(int(uptime))
     return {'status':'online', 'servertime':pretty, 'received': _received, 'success': _success}
 
 @route('/send', method='GET')
@@ -51,7 +52,7 @@ def process_telemetry():
 
     data = request.query.dict
     logger.debug(f"Processing telemetry {data}")
-    if len(data) >= 1 and len(data) <=4 and 'server' in data.keys():
+    if 1 <= len(data) <=4 and 'server' in data.keys():
         # In addition to data, we may also have a timeout parameter
         try:
             logger.debug(f"Add to database ({len(data)} elements)")
@@ -69,15 +70,15 @@ def run_server(add_to_db):
     global logger, _add_to_db
 
     logger = logging.getLogger(__name__)
-    PORT = 9174
-    logger.info(f"Starting web server on port {PORT}")
+    port = 9174
+    logger.info(f"Starting web server on port {port}")
     _add_to_db = add_to_db # Method handler
-    run(host='0.0.0.0', port=PORT, debug=True, quiet=True)
+    run(host='0.0.0.0', port=port, debug=True, quiet=True)
 
 
 _starttime = time.time()
-_add_to_db = None
+_add_to_db: Callable
 _received = 0
 _success = 0
-logger = None
+logger: logging.Logger
 
