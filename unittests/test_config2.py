@@ -824,7 +824,6 @@ class Config2Test(LLTestCase):
         # Ensure we are in a known state
         lazylibrarian.SHOW_EBOOK = 0
         lazylibrarian.SHOW_AUDIO = 1
-        lazylibrarian.SHOW_MAGS = 0
 
         # Set some values that trigger warnings/fixes
         import os
@@ -852,7 +851,7 @@ class Config2Test(LLTestCase):
 
         self.assertTrue(lazylibrarian.SHOW_EBOOK)
         self.assertFalse(lazylibrarian.SHOW_AUDIO)
-        self.assertTrue(lazylibrarian.SHOW_MAGS)
+        self.assertTrue(cfg.get_bool('MAG_TAB'))
         self.assertTrue(cfg.config['COMIC_TAB'].get_bool())
 
         self.assertEqual(str(cfg.config['HOMEPAGE']), '', 'HOMEPAGE cannot be audio if that is disabled')

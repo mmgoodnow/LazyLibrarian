@@ -536,7 +536,7 @@ def show_stats() -> List[str]:
     series_stats.append(['Overdue', overdue])
 
     mag_stats = []
-    if lazylibrarian.SHOW_MAGS:
+    if CONFIG.get_bool('MAG_TAB'):
         res = db.match("SELECT count(*) as counter FROM magazines")
         mag_stats.append(['Magazine', res['counter']])
         res = db.match("SELECT count(*) as counter FROM issues")
@@ -546,7 +546,7 @@ def show_stats() -> List[str]:
         res = db.match(cmd)
         mag_stats.append(['Empty', len(res)])
 
-    if CONFIG['COMIC_TAB'].get_bool():
+    if CONFIG.get_bool('COMIC_TAB'):
         res = db.match("SELECT count(*) as counter FROM comics")
         mag_stats.append(['Comics', res['counter']])
         res = db.match("SELECT count(*) as counter FROM comicissues")

@@ -673,7 +673,6 @@ def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
         lazylibrarian.SHOW_EBOOK = 1 if CONFIG.get_bool('EBOOK_TAB') else 0
         lazylibrarian.SHOW_AUDIO = 1 if CONFIG.get_bool('AUDIO_TAB') else 0
-        lazylibrarian.SHOW_MAGS = 1 if CONFIG.get_bool('MAG_TAB') else 0
 
         if CONFIG.get_bool('ADD_SERIES'):
             lazylibrarian.SHOW_SERIES = 1
