@@ -22,7 +22,8 @@ from queue import Queue
 from urllib.parse import urlsplit, urlunsplit
 import cherrypy
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.config2 import CONFIG, wishlist_type
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian import logger, database
 from lazylibrarian.configtypes import ConfigBool, ConfigInt
 from lazylibrarian.bookrename import audio_rename, name_vars, book_rename
@@ -54,7 +55,7 @@ from lazylibrarian.manualbook import search_item
 from lazylibrarian.postprocess import process_dir, process_alternate, create_opf, process_img, \
     process_book_from_dir, process_mag_from_file
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
-from lazylibrarian.providers import get_capabilities, wishlist_type
+from lazylibrarian.providers import get_capabilities
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
@@ -1179,10 +1180,8 @@ class Api(object):
                 logger.debug("Updated description for %s:%s" % (auth, book))
                 db.action('UPDATE books SET bookdesc=? WHERE bookid=?', (data['desc'], item['BookID']))
             elif data is None:  # error, see if it's because we are blocked
-                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                    if entry["name"] == 'googleapis':
-                        blocked = True
-                        break
+                if BLOCKHANDLER.is_blocked('googleapis'):
+                    blocked = True
                 if blocked:
                     break
         msg = "Scanned %d %s, found %d new %s from %d" % \
@@ -1220,10 +1219,8 @@ class Api(object):
                 logger.debug("Updated genre for %s:%s [%s]" % (auth, book, newgenre))
                 set_genres([newgenre], item['BookID'])
             elif data is None:
-                for entry in lazylibrarian.PROVIDER_BLOCKLIST:
-                    if entry["name"] == 'googleapis':
-                        blocked = True
-                        break
+                if BLOCKHANDLER.is_blocked('googleapis'):
+                    blocked = True
                 if blocked:
                     break
         msg = "Scanned %d %s, found %d new %s from %d" % (cnt, plural(cnt, "book"), genre,

@@ -29,7 +29,7 @@ from cherrypy.lib.static import serve_file
 from urllib.parse import quote_plus, unquote_plus, urlsplit, urlunsplit
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
+from lazylibrarian.config2 import CONFIG, wishlist_type
 from lazylibrarian import logger, database, notifiers, versioncheck, magazinescan, comicscan, \
     qbittorrent, utorrent, rtorrent, transmission, sabnzbd, nzbget, deluge, synology, grsync
 from lazylibrarian.configtypes import ConfigBool
@@ -66,7 +66,7 @@ from lazylibrarian.opds import OPDS
 from lazylibrarian.opfedit import opf_read, opf_write
 from lazylibrarian.postprocess import process_alternate, process_dir, delete_task, get_download_progress, \
     create_opf, process_book_from_dir, process_issues
-from lazylibrarian.providers import test_provider, wishlist_type
+from lazylibrarian.providers import test_provider
 from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, download_maglist

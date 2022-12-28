@@ -6,6 +6,7 @@
 import unittest
 from xml.etree import ElementTree
 
+from lazylibrarian.config2 import wishlist_type
 from lazylibrarian import providers
 from unittests.unittesthelpers import LLTestCase
 
@@ -185,7 +186,7 @@ class ProvidersTest(LLTestCase):
             ('https://somewhere-else.com/', '')
         ]
         for p in provs:
-            self.assertEqual(providers.wishlist_type(p[0]), p[1])
+            self.assertEqual(wishlist_type(p[0]), p[1])
 
 if __name__ == '__main__':
     unittest.main()
