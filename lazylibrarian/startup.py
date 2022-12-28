@@ -674,11 +674,6 @@ def start_schedulers():
         lazylibrarian.SHOW_EBOOK = 1 if CONFIG.get_bool('EBOOK_TAB') else 0
         lazylibrarian.SHOW_AUDIO = 1 if CONFIG.get_bool('AUDIO_TAB') else 0
 
-        if CONFIG.get_bool('ADD_SERIES'):
-            lazylibrarian.SHOW_SERIES = 1
-        if not CONFIG.get_bool('SERIES_TAB'):
-            lazylibrarian.SHOW_SERIES = 0
-
     if CONFIG['GR_URL'] == 'https://goodreads.org':
         CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
     # Crons and scheduled jobs started here

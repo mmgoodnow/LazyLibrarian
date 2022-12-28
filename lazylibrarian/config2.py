@@ -357,7 +357,7 @@ class LLConfigHandler(ConfigDict):
             str(self.config['HOMEPAGE']) == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO or \
             str(self.config['HOMEPAGE']) == 'Magazines' and not self.get_bool('MAG_TAB') or \
             str(self.config['HOMEPAGE']) == 'Comics' and not self.get_bool('COMIC_TAB') or \
-            str(self.config['HOMEPAGE']) == 'Series' and not lazylibrarian.SHOW_SERIES:
+            str(self.config['HOMEPAGE']) == 'Series' and not self.get_bool('SERIES_TAB'):
             self.config['HOMEPAGE'].set_str('')
 
         if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):

@@ -1853,7 +1853,7 @@ class WebInterface(object):
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
             author=author, languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
-            showseries=lazylibrarian.SHOW_SERIES, firstpage=firstpage, user=user, email=email, book_filter=book_filter)
+            showseries=CONFIG['SERIES_TAB'], firstpage=firstpage, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
     def set_author(self, authorid, status):
