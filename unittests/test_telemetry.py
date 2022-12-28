@@ -110,9 +110,13 @@ class TelemetryTest(LLTestCase):
         t.record_usage_data("Download/NZB")
 
         usg = t.get_usage_telemetry()
-        # TODO/AM: As for cfg, compare dicts for completeness' sake
         self.assertEqual(usg["API/getHelp"], 2)
         self.assertEqual(usg["web/test"], 1)
+
+        # Test automated recording:
+        t.record_usage_data()
+        self.assertEqual(usg["test_telemetry/test_record_usage_data"], 1)
+
         jsoncfg = json.dumps(obj=usg)
 
     @pytest.mark.order(after="test_ensure_server_id_generation")

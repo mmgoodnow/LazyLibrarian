@@ -22,7 +22,9 @@ import json
 import os
 import sys
 import requests
+import inspect
 from collections import defaultdict
+from typing import Optional
 
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger
@@ -152,8 +154,17 @@ class LazyTelemetry(object):
         cfg_telemetry["APPRISE"] = _config.count_in_use('APPRISE')
 
 
-    def record_usage_data(self, counter: str):
+    def record_usage_data(self, counter: Optional[str]=None):
         usg = self.get_usage_telemetry()
+        if not counter:
+            # Use the module/name of the caller
+            current_frame = inspect.currentframe()
+            caller_frame = current_frame.f_back
+            caller_info = inspect.getframeinfo(caller_frame)
+            filename = os.path.basename(caller_info.filename) # Remove the path
+            caller_module, _ = os.path.splitext(filename)
+            caller_function = caller_info.function
+            counter = f'{caller_module}/{caller_function}'
         assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
 
