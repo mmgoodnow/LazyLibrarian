@@ -703,6 +703,7 @@ def shutdown(restart=False, update=False, exit=False, testing=False):
     if not testing:
         if lazylibrarian_log.LOGLEVEL >= 2:
             CONFIG.create_access_summary(syspath(DIRS.get_logfile('configaccess.log')))
+        CONFIG.add_access_errors_to_log()
         CONFIG.save_config_and_backup_old(restart_jobs=False)
 
     if not restart and not update:

@@ -413,6 +413,30 @@ class LLConfigHandler(ConfigDict):
             # Clear all access counters, so we can tell if something has changed later
             self.clear_access_counters()
 
+    def add_access_errors_to_log(self):
+        """ For use at end of program. Add any access errors to the log file so they
+        are easy to find. """
+        for key, value in self.config.items(): # Access to regular items
+            accesses = value.get_accesses()
+            for aname, count in accesses.items():
+                if aname in [Access.READ_ERR, Access.WRITE_ERR, Access.FORMAT_ERR]:
+                    logger.error(f'Config {aname.name}: {key}, {count} times')
+        for key, errors in self.get_error_counters().items(): # Attempts to access non-existent items
+            for ename, count in errors.items():
+                logger.error(f'Config {ename.name}: {key}, {count} times')
+
+        for name, array in self.arrays.items(): # e.g. Apprise
+            for index, config in array._configs.items(): # e.g. Each Apprise
+                for key, item in config.items():
+                    accesses = item.get_accesses()
+                    for aname, count in accesses.items():
+                        if aname in [Access.READ_ERR, Access.WRITE_ERR, Access.FORMAT_ERR]:
+                            logger.error(f'Config {aname.name}: {name}.{index}.{key}, {count} times')
+                for key, errors in config.get_error_counters().items():
+                    for ename, count in errors.items():
+                        logger.error(f'Config {ename.name}: {name}.{index}.{key}, {count} times')
+
+
     def create_access_summary(self, saveto:str='') -> Dict:
         """ For debugging: Create a summary of all accesses, potentially
         highlighting places where config2 is used incorrectly or where things

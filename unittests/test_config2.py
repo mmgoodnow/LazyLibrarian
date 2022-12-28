@@ -35,7 +35,7 @@ class Config2Test(LLTestCase):
         # Test checking that a single message can be captured
         with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
             logger.error('test error')
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test error'
         ],'Did not log a message as expected')
 
@@ -45,7 +45,7 @@ class Config2Test(LLTestCase):
             logger.warn('test warn')
             logger.info('test info')
             logger.debug('test debug')
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test error',
             'WARNING:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test warn',
             'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test info'
@@ -56,7 +56,7 @@ class Config2Test(LLTestCase):
         with self.assertLogs('lazylibrarian.logger', level='DEBUG') as cm:
             logger.info('test info')
             logger.debug('test debug')
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test info',
             'DEBUG:lazylibrarian.logger:MainThread : test_config2.py:test_log_catching : test debug'
         ]
@@ -78,7 +78,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(ci.get_int(), 0)      # Read Error
             ci.set_bool(True)                      # Write Error
             self.assertEqual(ci.get_bool(), False) # Read Error
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[STRVALUE] to 2: incorrect type',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[STRVALUE] (Override)',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[STRVALUE] to True: incorrect type',
@@ -106,7 +106,7 @@ class Config2Test(LLTestCase):
             ci.set_bool(True)                      # Write Error
             self.assertEqual(ci.get_bool(), False) # Read Error
 
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_read : Type error reading config[INTVALUE] (42)',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[INTVALUE] to Override: incorrect type',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[INTVALUE] to True: incorrect type',
@@ -128,7 +128,7 @@ class Config2Test(LLTestCase):
             ci.set_int(100)
             self.assertEqual(int(ci), 100)
 
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RANGEDINTVALUE] to 5',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[RANGEDINTVALUE] to 1100',
         ])
@@ -152,7 +152,7 @@ class Config2Test(LLTestCase):
             ci.set_str('0o321')
             self.assertEqual(int(ci), 0o321)
 
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to 0o3641100',
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_set : Cannot set config[PERMISSIONVALUE] to -0o10',
         ])
@@ -180,7 +180,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(ci.get_bool(), False)
             self.assertEqual(ci.get_str(), '')
             self.assertEqual(ci.get_save_str(), 'False')
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : configtypes.py:_on_type_mismatch : Cannot set config[BOOLVALUE] to Override: incorrect type',
         ])
         expected = Counter({Access.READ_OK: 11, Access.WRITE_OK: 1, Access.WRITE_ERR: 1})
@@ -213,7 +213,7 @@ class Config2Test(LLTestCase):
                 goturl = cfg.get_url(url[0])                     # Read error
                 self.assertEqual(goturl, '')
         self.maxDiff = None
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_SPACES]: format_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_SPACES]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[INVALID_PROTO]: format_error',
@@ -309,7 +309,7 @@ class Config2Test(LLTestCase):
 
             cfg1.set_int('a-new-int', 1)
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_configdicts_equivalent : Array lengths differ: 6 != 5',
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
         ])
@@ -320,7 +320,7 @@ class Config2Test(LLTestCase):
 
             cfg2.set_str('another-str', 'help')
             self.assertFalse(config2.are_equivalent(cfg1, cfg2))
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_configdicts_equivalent : Array lengths differ: 6 != 7',
             'WARNING:lazylibrarian.logger:MainThread : config2.py:are_equivalent : Base configs differ'
         ])
@@ -361,7 +361,7 @@ class Config2Test(LLTestCase):
             self.assertTrue(cfg.get_bool('boo'))
             self.assertEqual('1', cfg['boo'])
             self.assertEqual('', cfg.get_email('mail2')) # Read Error
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[MAIL2]: read_error'
         ])
 
@@ -372,7 +372,7 @@ class Config2Test(LLTestCase):
             cfg.set_csv('csv3', ',,test') # Format error
             cfg.set_csv('csv4', '"fred" bob and alice,test') # Format error
             cfg.set_csv('csv5', 'single')
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV3]: format_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV4]: format_error'
         ])
@@ -394,7 +394,7 @@ class Config2Test(LLTestCase):
             self.assertEqual('single', cfg.get_csv('csv5'))
             self.assertEqual('', cfg.get_csv('csv3')) # Read error
             self.assertEqual('', cfg.get_csv('csv4')) # Read error
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV3]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[CSV4]: read_error'
         ])
@@ -415,7 +415,7 @@ class Config2Test(LLTestCase):
             self.assertEqual(False, cfg.get_bool('does-not-exist'))
             self.assertEqual('', cfg.get_csv('also-does-not'))
             self.assertEqual('', cfg['KeyDoesNotExist'])
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOES-NOT-EXIST]: read_error',
@@ -509,7 +509,7 @@ class Config2Test(LLTestCase):
             if cfg.scheduler_can_run(scheduler):
                 canruncount += 1
 
-        self.assertEqual(keynames, [
+        self.assertListEqual(keynames, [
             'TELEMETRY_INTERVAL', 'SEARCH_BOOKINTERVAL', 'SEARCH_MAGINTERVAL', # Disabled by default
             'SCAN_INTERVAL', 'SEARCHRSS_INTERVAL','WISHLIST_INTERVAL',
             'SEARCH_COMICINTERVAL',  # Disabled by default
@@ -665,7 +665,7 @@ class Config2Test(LLTestCase):
             self.assertTrue(False, 'Should never get here')
         except:
             if cm:
-                self.assertEqual(cm.output, [
+                self.assertListEqual(cm.output, [
                     'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[DOESNOTEXIST]: read_error',
                 ], 'message')
 
@@ -704,7 +704,7 @@ class Config2Test(LLTestCase):
             'CREATE_OK': [],
             'FORMAT_ERR': []
         }
-        self.assertListEqual(summary, expected_summary, 'Access Summary is not as expected')
+        self.assertDictEqual(summary, expected_summary, 'Access Summary is not as expected')
 
     def test_save_config(self):
         """ Test saving config file """
@@ -932,7 +932,7 @@ class Config2Test(LLTestCase):
                 self.assertEqual(test1, test2, 'Expected key lookup to be case insensitive')
                 self.assertEqual(test1, test3, 'Different ways of getting same key should be the same')
 
-        self.assertEqual(cm.output, [
+        self.assertListEqual(cm.output, [
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
             'ERROR:lazylibrarian.logger:MainThread : configtypes.py:_handle_access_error : Config[HELLO]: read_error',
@@ -971,3 +971,26 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
         count = cfg.total_active_providers()
         self.assertEqual(count, 2, 'Expected 2 active providers from ini file')
+
+    def test_add_access_errors_to_log(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        # Create some errors
+        _ = cfg.get_bool('HOMEPAGE') # Read error (type)
+        cfg.set_bool('HOMEPAGE', True) # Write error (type)
+        cfg.set_int('HOMEPAGE', 2) # Write error (type)
+        _ = cfg.get_str('NotAValidKey') # Read error (key)
+        rss = cfg.get_array_dict('RSS', 0)
+        rss.set_int('HOST', 2) # Write error (type)
+        _ = rss.get_str('NotAValidKey') # Read error (key)
+        with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
+            cfg.add_access_errors_to_log()
+        self.assertListEqual(cm.output, [
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: HOMEPAGE, 1 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: HOMEPAGE, 2 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: NOTAVALIDKEY, 1 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: RSS.0.HOST, 1 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: RSS.0.NOTAVALIDKEY, 1 times',
+        ])
+
+
+
