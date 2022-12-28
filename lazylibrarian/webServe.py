@@ -1827,7 +1827,7 @@ class WebInterface(object):
         types = []
         if lazylibrarian.SHOW_EBOOK:
             types.append('eBook')
-        if lazylibrarian.SHOW_AUDIO:
+        if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')
         if types and library not in types:
             library = types[0]
@@ -1989,7 +1989,7 @@ class WebInterface(object):
             types = []
             if lazylibrarian.SHOW_EBOOK:
                 types.append('eBook')
-            if lazylibrarian.SHOW_AUDIO:
+            if CONFIG.get_bool('AUDIO_TAB'):
                 types.append('AudioBook')
             if not types:
                 raise cherrypy.HTTPRedirect('authors')
@@ -2310,7 +2310,7 @@ class WebInterface(object):
             types = []
             if lazylibrarian.SHOW_EBOOK:
                 types.append('eBook')
-            if lazylibrarian.SHOW_AUDIO:
+            if CONFIG.get_bool('AUDIO_TAB'):
                 types.append('AudioBook')
             if types:
                 library = types[0]
@@ -2645,7 +2645,7 @@ class WebInterface(object):
             audio_status = "Wanted"
             ebook_status = "Wanted"
         else:
-            if lazylibrarian.SHOW_AUDIO:
+            if CONFIG.get_bool('AUDIO_TAB'):
                 audio_status = "Wanted"
             else:
                 audio_status = "Skipped"
@@ -2692,7 +2692,7 @@ class WebInterface(object):
         else:
             if lazylibrarian.SHOW_EBOOK:
                 raise cherrypy.HTTPRedirect("books")
-            elif lazylibrarian.SHOW_AUDIO:
+            elif CONFIG.get_bool('AUDIO_TAB'):
                 raise cherrypy.HTTPRedirect("audio")
         raise cherrypy.HTTPRedirect("authors")
 
@@ -2761,7 +2761,7 @@ class WebInterface(object):
                 types = []
                 if lazylibrarian.SHOW_EBOOK:
                     types.append('eBook')
-                if lazylibrarian.SHOW_AUDIO:
+                if CONFIG.get_bool('AUDIO_TAB'):
                     types.append('AudioBook')
 
                 booktype = 'book'
@@ -5441,7 +5441,7 @@ class WebInterface(object):
         types = []
         if lazylibrarian.SHOW_EBOOK:
             types.append('eBook')
-        if lazylibrarian.SHOW_AUDIO:
+        if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')
         if not types:
             raise cherrypy.HTTPRedirect('authors')
@@ -6511,7 +6511,7 @@ class WebInterface(object):
         types = []
         if lazylibrarian.SHOW_EBOOK:
             types.append('eBook')
-        if lazylibrarian.SHOW_AUDIO:
+        if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')
         if not types:
             raise cherrypy.HTTPRedirect('authors')

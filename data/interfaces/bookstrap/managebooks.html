@@ -143,12 +143,12 @@
           %if lazylibrarian.SHOW_EBOOK > 0 and library == 'AudioBook':
             <option value="WantEbook">eBook Wanted</option>
           %endif
-          %if lazylibrarian.SHOW_AUDIO > 0 and library != 'AudioBook':
+          %if CONFIG.get_int('AUDIO_TAB') > 0 and library != 'AudioBook':
             <option value="WantAudio">Audio Wanted</option>
           %endif
         %endif
         %if whichStatus not in ['Wanted', 'Snatched']:
-          %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+          %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
             <option value="WantBoth">both Wanted</option>
           %endif
         %endif

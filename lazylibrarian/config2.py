@@ -351,10 +351,9 @@ class LLConfigHandler(ConfigDict):
             warnings += 1
 
         lazylibrarian.SHOW_EBOOK = 1 if self.config['EBOOK_TAB'].get_bool() else 0
-        lazylibrarian.SHOW_AUDIO = 1 if self.config['AUDIO_TAB'].get_bool() else 0
 
         if  str(self.config['HOMEPAGE']) == 'eBooks' and not lazylibrarian.SHOW_EBOOK or \
-            str(self.config['HOMEPAGE']) == 'AudioBooks' and not lazylibrarian.SHOW_AUDIO or \
+            str(self.config['HOMEPAGE']) == 'AudioBooks' and not self.get_bool('AUDIO_TAB') or \
             str(self.config['HOMEPAGE']) == 'Magazines' and not self.get_bool('MAG_TAB') or \
             str(self.config['HOMEPAGE']) == 'Comics' and not self.get_bool('COMIC_TAB') or \
             str(self.config['HOMEPAGE']) == 'Series' and not self.get_bool('SERIES_TAB'):

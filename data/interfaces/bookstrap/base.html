@@ -213,7 +213,7 @@
                 % endif
                 % endif
                 % if CONFIG['HOMEPAGE'] != 'AudioBooks':
-                % if lazylibrarian.SHOW_AUDIO:
+                % if CONFIG['AUDIO_TAB']:
                   %if perm&lazylibrarian.perm_audio:
                   <li><a id="audio" href="audio" class="navbarele">
                   <div class="shorten" data-abbr="Audio">
@@ -242,7 +242,7 @@
                 % endif
                 % endif
                 %if perm&lazylibrarian.perm_managebooks:
-                  % if lazylibrarian.SHOW_AUDIO:
+                  % if CONFIG['AUDIO_TAB']:
                     <li><a id="amanage" href="manage" class="navbarele">Manage</a></li>
                   % elif lazylibrarian.SHOW_EBOOK:
                     <li><a id="emanage" href="manage" class="navbarele">Manage</a></li>

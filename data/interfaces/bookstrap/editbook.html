@@ -20,7 +20,7 @@
                 <option value="e_title">eBook Title</option>
                 <option value="e_author">eBook Author</option>
                 <option value="g_full">General Search</option>
-                % if lazylibrarian.SHOW_AUDIO != 0:
+                % if CONFIG.get_int('AUDIO_TAB') != 0:
                   <option value="a_full">Audio Title/Author</option>
                   <option value="a_title">Audio Title</option>
                   <option value="a_author">Audio Author</option>

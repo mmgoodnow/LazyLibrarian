@@ -152,7 +152,7 @@ def export_csv(search_dir=None, status="Wanted", library=''):
     """ Write a csv file to the search_dir containing all books marked as "Wanted" """
     msg = 'Export CSV'
     if not library:
-        if lazylibrarian.SHOW_AUDIO:
+        if CONFIG.get_bool('AUDIO_TAB'):
             library = 'AudioBook'
         else:
             library = 'eBook'
@@ -261,7 +261,7 @@ def import_csv(search_dir: str, status: str='Wanted', library: str='', config: C
     """
     msg = 'Import CSV'
     if not library:
-        library = 'audio' if lazylibrarian.SHOW_AUDIO else 'eBook'
+        library = 'audio' if CONFIG.get_bool('AUDIO_TAB') else 'eBook'
     # noinspection PyBroadException
     try:
         if not search_dir:

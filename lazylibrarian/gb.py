@@ -436,7 +436,7 @@ class GoogleBooks:
                             else:
                                 msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
                                        bookid, authorname, bookname, match['Status'])
-                                if lazylibrarian.SHOW_AUDIO:
+                                if CONFIG.get_bool('AUDIO_TAB'):
                                     msg += ",%s" % match['AudioStatus']
                                 msg += " %s" % match['ScanResult']
                                 logger.debug(msg)
@@ -577,7 +577,7 @@ class GoogleBooks:
                                     updated_count += 1
                                 msg = "[%s] %s book: %s [%s] status %s" % (authorname, typ, bookname,
                                                                            booklang, book_status)
-                                if lazylibrarian.SHOW_AUDIO:
+                                if CONFIG.get_bool('AUDIO_TAB'):
                                     msg += " audio %s" % audio_status
                                 logger.debug(msg)
             except KeyError:

@@ -230,7 +230,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
         if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
             if lazylibrarian.SHOW_EBOOK:
                 new_status = match['Status']
-            if lazylibrarian.SHOW_AUDIO:
+            if CONFIG.get_bool('AUDIO_TAB'):
                 new_astatus = match['Status']
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, series %s' % (bookname, match['Status'], item[2]))
@@ -246,7 +246,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
                 wanted_status = authstatus
             if lazylibrarian.SHOW_EBOOK:
                 new_status = wanted_status
-            if lazylibrarian.SHOW_AUDIO:
+            if CONFIG.get_bool('AUDIO_TAB'):
                 new_astatus = wanted_status
             if new_status or new_astatus:
                 logger.debug('Marking %s as %s, author %s' % (bookname, wanted_status, authstatus))
@@ -675,7 +675,7 @@ def add_series_members(seriesid, refresh=False):
                             db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                             logger.debug("Series [%s] set status to %s for %s" %
                                          (seriesname, wanted_status, member[1]))
-                        if lazylibrarian.SHOW_AUDIO and newbook['AudioStatus'] != wanted_status:
+                        if CONFIG.get_bool('AUDIO_TAB') and newbook['AudioStatus'] != wanted_status:
                             db.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
                             logger.debug("Series [%s] set audiostatus to %s for %s" %
                                          (seriesname, wanted_status, member[1]))
@@ -690,7 +690,7 @@ def add_series_members(seriesid, refresh=False):
                                 db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                                 logger.debug("Author %s set status to %s for %s" %
                                              (member[4], wanted_status, member[1]))
-                            if lazylibrarian.SHOW_AUDIO and newbook['AudioStatus'] != wanted_status:
+                            if CONFIG.get_bool('AUDIO_TAB') and newbook['AudioStatus'] != wanted_status:
                                 db.action("UPDATE books SET AudioStatus=? WHERE BookID=?", (wanted_status, bookid))
                                 logger.debug("Author %s set audiostatus to %s for %s" %
                                              (member[4], wanted_status, member[1]))

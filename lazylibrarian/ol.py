@@ -881,7 +881,7 @@ class OpenLibrary:
                                 updated_count += 1
                             msg = "[%s] %s book: %s [%s] status %s" % (auth_name, typ, title,
                                                                        lang, bookstatus)
-                            if lazylibrarian.SHOW_AUDIO:
+                            if CONFIG.get_bool('AUDIO_TAB'):
                                 msg += " audio %s" % audiostatus
                             logger.debug(msg)
 

@@ -506,7 +506,7 @@ def sync_to_gr():
                     if lazylibrarian.SHOW_EBOOK:
                         for item in to_ll:
                             new_books.append({"bookid": item})
-                    if lazylibrarian.SHOW_AUDIO:
+                    if CONFIG.get_bool('AUDIO_TAB'):
                         for item in to_ll:
                             new_audio.append({"bookid": item})
 
@@ -514,7 +514,7 @@ def sync_to_gr():
             if CONFIG['GR_OWNED'] and \
                     CONFIG['GR_WANTED'] == CONFIG['GR_OWNED']:
                 msg += "Unable to sync ebooks, WANTED and OWNED must be different shelves\n"
-            elif lazylibrarian.SHOW_AUDIO and CONFIG['GR_AOWNED'] and \
+            elif CONFIG.get_bool('AUDIO_TAB') and CONFIG['GR_AOWNED'] and \
                     CONFIG['GR_AOWNED'] == CONFIG['GR_AWANTED']:
                 msg += "Unable to sync audiobooks, WANTED and OWNED must be different shelves\n"
             else:
@@ -890,7 +890,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                         db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)
-                    if lazylibrarian.SHOW_AUDIO and res['AudioStatus'] not in ['Open', 'Have']:
+                    if CONFIG.get_bool('AUDIO_TAB') and res['AudioStatus'] not in ['Open', 'Have']:
                         db.action('UPDATE books SET AudioStatus="Wanted" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)

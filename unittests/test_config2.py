@@ -823,7 +823,6 @@ class Config2Test(LLTestCase):
         import lazylibrarian
         # Ensure we are in a known state
         lazylibrarian.SHOW_EBOOK = 0
-        lazylibrarian.SHOW_AUDIO = 1
 
         # Set some values that trigger warnings/fixes
         import os
@@ -850,7 +849,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(str(cfg.config['HTTP_LOOK']), 'bookstrap')
 
         self.assertTrue(lazylibrarian.SHOW_EBOOK)
-        self.assertFalse(lazylibrarian.SHOW_AUDIO)
+        self.assertFalse(cfg.get_bool('AUDIO_TAB'))
         self.assertTrue(cfg.get_bool('MAG_TAB'))
         self.assertTrue(cfg.config['COMIC_TAB'].get_bool())
 

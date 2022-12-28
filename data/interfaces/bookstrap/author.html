@@ -23,7 +23,7 @@
             %endif
             <a href="refresh_author?authorid=${author['AuthorID']}" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> Refresh Author</a>
             <a href="library_scan_author?authorid=${author['AuthorID']}&library=eBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> eBook Scan</a>
-            %if lazylibrarian.SHOW_AUDIO > 0:
+            %if CONFIG.get_int('AUDIO_TAB') > 0:
                 <a href="library_scan_author?authorid=${author['AuthorID']}&library=AudioBook" class="btn btn-sm btn-primary"><i class="fa fa-sync"></i> AudioBook Scan</a>
             %endif
             <button class="button btn btn-sm btn-primary" type="button" value="removeme" id="removeme"><i class="fa fa-times"></i> Remove Author</button>
@@ -84,7 +84,7 @@
              <a href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
              <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
-             %if lazylibrarian.SHOW_AUDIO > 0:
+             %if CONFIG.get_int('AUDIO_TAB') > 0:
              <a href="rss_feed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent audiobooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-headphones"></i></a>
              <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest AudioBooks" href="rss_feed?user=${user}&type=AudioBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
@@ -178,13 +178,13 @@
         <select class="mark_books form-control input-sm" id="action" name="action">
           %if perm&lazylibrarian.perm_status:
             <option value="Wanted">Wanted</option>
-            %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+            %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
               <option value="WantBoth">Both Wanted</option>
             %endif
             <option value="Have">Have</option>
             <option value="Ignored">Ignored</option>
             %endif
-            %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+            %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
               <option value="IgnoreBoth">Both Ignored</option>
             %endif
             <option value="Skipped">Skipped</option>
@@ -348,10 +348,10 @@
                         %if lazylibrarian.SHOW_EBOOK == 0:
                            edate = ""
                         %endif
-                        %if lazylibrarian.SHOW_AUDIO == 0:
+                        %if CONFIG.get_int('AUDIO_TAB') == 0:
                            adate = ""
                         %endif
-                        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+                        %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
                            edate = edate + '<br>'
                         %endif
                         return edate + adate ;} },
@@ -419,10 +419,10 @@
                         %if lazylibrarian.SHOW_EBOOK == 0:
                            btn = ''
                         %endif
-                        %if lazylibrarian.SHOW_AUDIO == 0:
+                        %if CONFIG.get_int('AUDIO_TAB') == 0:
                            btn2 = ''
                         %endif
-                        %if lazylibrarian.SHOW_EBOOK > 0 and lazylibrarian.SHOW_AUDIO > 0:
+                        %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
                            btn = btn + '<br>'
                         %endif
                         return btn + btn2;} }

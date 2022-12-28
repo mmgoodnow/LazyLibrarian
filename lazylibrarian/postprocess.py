@@ -1755,7 +1755,7 @@ def check_residual(download_dir):
 
                 if have_ebook and have_audio:
                     exists = True
-                elif have_ebook and not lazylibrarian.SHOW_AUDIO:
+                elif have_ebook and not CONFIG.get_bool('AUDIO_TAB'):
                     exists = True
                 else:
                     exists = False
@@ -2319,7 +2319,7 @@ def process_book(pp_path=None, bookid=None, library=None, automerge=False):
                     logger.debug('Bookid %s was not snatched so cannot check type, contains ebook:%s audio:%s' %
                                  (bookid, is_ebook, is_audio))
 
-                if is_audio and not lazylibrarian.SHOW_AUDIO:
+                if is_audio and not CONFIG.get_bool('AUDIO_TAB'):
                     is_audio = False
                 if is_audio:
                     booktype = "AudioBook"

@@ -672,7 +672,6 @@ def launch_browser(host, port, root):
 def start_schedulers():
     if not lazylibrarian.UPDATE_MSG:
         lazylibrarian.SHOW_EBOOK = 1 if CONFIG.get_bool('EBOOK_TAB') else 0
-        lazylibrarian.SHOW_AUDIO = 1 if CONFIG.get_bool('AUDIO_TAB') else 0
 
     if CONFIG['GR_URL'] == 'https://goodreads.org':
         CONFIG.set_url('GR_URL', 'https://www.goodreads.com')

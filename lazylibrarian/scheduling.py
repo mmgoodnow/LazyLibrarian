@@ -594,7 +594,7 @@ def show_stats() -> List[str]:
     res = db.match(cmd)
     missing_stats.append(['Genres', res['counter']])
 
-    if not lazylibrarian.SHOW_AUDIO:
+    if not CONFIG.get_bool('AUDIO_TAB'):
         audio_stats = []
 
     author_stats = []

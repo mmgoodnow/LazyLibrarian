@@ -774,7 +774,7 @@ class GoodReads:
 
                             msg = 'Bookid %s for [%s][%s] is in database marked %s' % (
                                    bookid, author_name_result, bookname, match['Status'])
-                            if lazylibrarian.SHOW_AUDIO:
+                            if CONFIG.get_bool('AUDIO_TAB'):
                                 msg += ",%s" % match['AudioStatus']
                             msg += " %s" % match['ScanResult']
                             logger.debug(msg)
@@ -1029,7 +1029,7 @@ class GoodReads:
                                     updated_count += 1
                                 msg = "[%s] %s book: %s [%s] status %s" % (authorname, typ, bookname,
                                                                            book_language, book_status)
-                                if lazylibrarian.SHOW_AUDIO:
+                                if CONFIG.get_bool('AUDIO_TAB'):
                                     msg += " audio %s" % audio_status
                                 logger.debug(msg)
                     loop_count += 1
