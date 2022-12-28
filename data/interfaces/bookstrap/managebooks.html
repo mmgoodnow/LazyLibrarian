@@ -140,7 +140,7 @@
       <label for="mark_books" class="control-label">Mark selected ${library}s as</label>
       <select id="mark_books" class="mark_books form-control input-sm" name="action">
         %if whichStatus != 'Wanted':
-          %if lazylibrarian.SHOW_EBOOK > 0 and library == 'AudioBook':
+          %if CONFIG.get_int('EBOOK_TAB') > 0 and library == 'AudioBook':
             <option value="WantEbook">eBook Wanted</option>
           %endif
           %if CONFIG.get_int('AUDIO_TAB') > 0 and library != 'AudioBook':
@@ -148,7 +148,7 @@
           %endif
         %endif
         %if whichStatus not in ['Wanted', 'Snatched']:
-          %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
+          %if CONFIG.get_int('EBOOK_TAB') > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
             <option value="WantBoth">both Wanted</option>
           %endif
         %endif

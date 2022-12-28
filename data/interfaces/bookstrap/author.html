@@ -80,7 +80,7 @@
          </div>
          %if CONFIG['USER_ACCOUNTS']:
            %if CONFIG['RSS_ENABLED']:
-             %if lazylibrarian.SHOW_EBOOK > 0:
+             %if CONFIG.get_int('EBOOK_TAB') > 0:
              <a href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml" class="button btn btn-sm btn-primary" data-toggle="tooltip" title="rss feed of recent ebooks"><i class="fa fa-rss"></i>&nbsp;<i class="fa fa-book"></i></a>
              <link rel="alternate" type="application/rss+xml" title="LazyLibrarian latest eBooks" href="rss_feed?user=${user}&type=eBook&authorid=${author['AuthorID']}&limit=10.xml">
              %endif
@@ -178,13 +178,13 @@
         <select class="mark_books form-control input-sm" id="action" name="action">
           %if perm&lazylibrarian.perm_status:
             <option value="Wanted">Wanted</option>
-            %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
+            %if CONFIG.get_int('EBOOK_TAB') > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
               <option value="WantBoth">Both Wanted</option>
             %endif
             <option value="Have">Have</option>
             <option value="Ignored">Ignored</option>
             %endif
-            %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
+            %if CONFIG.get_int('EBOOK_TAB') > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
               <option value="IgnoreBoth">Both Ignored</option>
             %endif
             <option value="Skipped">Skipped</option>
@@ -345,13 +345,13 @@
                         if (edate === "null"){ edate = ""}
                         var adate = row[15];
                         if (adate === "null"){ adate = ""}
-                        %if lazylibrarian.SHOW_EBOOK == 0:
+                        %if CONFIG.get_int('EBOOK_TAB') == 0:
                            edate = ""
                         %endif
                         %if CONFIG.get_int('AUDIO_TAB') == 0:
                            adate = ""
                         %endif
-                        %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
+                        %if CONFIG.get_int('EBOOK_TAB') > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
                            edate = edate + '<br>'
                         %endif
                         return edate + adate ;} },
@@ -416,13 +416,13 @@
                             btn2 = '<p><a class="button btn btn-xs btn-default grey" href="request_book?bookid=' + row[9] + '&library=AudioBook" target="_self"><i class="fa fa-headphones"></i> Request</a></p>'
                             %endif
                             }
-                        %if lazylibrarian.SHOW_EBOOK == 0:
+                        %if CONFIG.get_int('EBOOK_TAB') == 0:
                            btn = ''
                         %endif
                         %if CONFIG.get_int('AUDIO_TAB') == 0:
                            btn2 = ''
                         %endif
-                        %if lazylibrarian.SHOW_EBOOK > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
+                        %if CONFIG.get_int('EBOOK_TAB') > 0 and CONFIG.get_int('AUDIO_TAB') > 0:
                            btn = btn + '<br>'
                         %endif
                         return btn + btn2;} }

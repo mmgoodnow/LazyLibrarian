@@ -350,14 +350,7 @@ class LLConfigHandler(ConfigDict):
             self.config['HTTP_LOOK'].set_str('bookstrap')
             warnings += 1
 
-        lazylibrarian.SHOW_EBOOK = 1 if self.config['EBOOK_TAB'].get_bool() else 0
-
-        if  str(self.config['HOMEPAGE']) == 'eBooks' and not lazylibrarian.SHOW_EBOOK or \
-            str(self.config['HOMEPAGE']) == 'AudioBooks' and not self.get_bool('AUDIO_TAB') or \
-            str(self.config['HOMEPAGE']) == 'Magazines' and not self.get_bool('MAG_TAB') or \
-            str(self.config['HOMEPAGE']) == 'Comics' and not self.get_bool('COMIC_TAB') or \
-            str(self.config['HOMEPAGE']) == 'Series' and not self.get_bool('SERIES_TAB'):
-            self.config['HOMEPAGE'].set_str('')
+        self.ensure_valid_homepage()
 
         if self.config['SSL_CERTS'].get_str() != '' and not path_exists(str(self.config['SSL_CERTS'])):
             logger.warn("SSL_CERTS [%s] not found" % str(self.config['SSL_CERTS']))
@@ -365,6 +358,15 @@ class LLConfigHandler(ConfigDict):
             warnings += 1
 
         return warnings
+
+    def ensure_valid_homepage(self):
+        """ Make sure the HOMEPAGE is one that is included """
+        if str(self.config['HOMEPAGE']) == 'eBooks' and not self.get_bool('EBOOK_TAB') or \
+                str(self.config['HOMEPAGE']) == 'AudioBooks' and not self.get_bool('AUDIO_TAB') or \
+                str(self.config['HOMEPAGE']) == 'Magazines' and not self.get_bool('MAG_TAB') or \
+                str(self.config['HOMEPAGE']) == 'Comics' and not self.get_bool('COMIC_TAB') or \
+                str(self.config['HOMEPAGE']) == 'Series' and not self.get_bool('SERIES_TAB'):
+            self.config['HOMEPAGE'].set_str('')
 
     @staticmethod
     def get_mako_versionfile():

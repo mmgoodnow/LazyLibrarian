@@ -1607,6 +1607,7 @@ class WebInterface(object):
             else:
                 if isinstance(item, ConfigBool) and item.get_read_count() > 0:
                     item.set_from_ui(False) # Set other items to False that we've seen (i.e. are shown)
+        CONFIG.ensure_valid_homepage()
 
         magazines = db.select('SELECT * from magazines')
         if magazines:
@@ -1825,7 +1826,7 @@ class WebInterface(object):
         author = dict(db.match("SELECT * from authors WHERE AuthorID=?", (authorid,)))
 
         types = []
-        if lazylibrarian.SHOW_EBOOK:
+        if CONFIG.get_bool('EBOOK_TAB'):
             types.append('eBook')
         if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')
@@ -1853,7 +1854,7 @@ class WebInterface(object):
         return serve_template(
             templatename="author.html", title=quote_plus(make_utf8bytes(authorname)[0]),
             author=author, languages=languages, booklang=book_lang, types=types, library=library, ignored=ignored,
-            showseries=CONFIG['SERIES_TAB'], firstpage=firstpage, user=user, email=email, book_filter=book_filter)
+            showseries=CONFIG.get_int('SERIES_TAB'), firstpage=firstpage, user=user, email=email, book_filter=book_filter)
 
     @cherrypy.expose
     def set_author(self, authorid, status):
@@ -1987,7 +1988,7 @@ class WebInterface(object):
         if authorsearch:  # to stop error if try to refresh an author while they are still loading
             author_name = authorsearch['AuthorName']
             types = []
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 types.append('eBook')
             if CONFIG.get_bool('AUDIO_TAB'):
                 types.append('AudioBook')
@@ -2308,7 +2309,7 @@ class WebInterface(object):
             cmd += ' WHERE books.AuthorID = authors.AuthorID'
 
             types = []
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 types.append('eBook')
             if CONFIG.get_bool('AUDIO_TAB'):
                 types.append('AudioBook')
@@ -2649,7 +2650,7 @@ class WebInterface(object):
                 audio_status = "Wanted"
             else:
                 audio_status = "Skipped"
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 ebook_status = "Wanted"
             else:
                 ebook_status = "Skipped"
@@ -2690,7 +2691,7 @@ class WebInterface(object):
         if author_id:
             raise cherrypy.HTTPRedirect("author_page?authorid=%s" % author_id)
         else:
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 raise cherrypy.HTTPRedirect("books")
             elif CONFIG.get_bool('AUDIO_TAB'):
                 raise cherrypy.HTTPRedirect("audio")
@@ -2759,7 +2760,7 @@ class WebInterface(object):
                     msg += line
 
                 types = []
-                if lazylibrarian.SHOW_EBOOK:
+                if CONFIG.get_bool('EBOOK_TAB'):
                     types.append('eBook')
                 if CONFIG.get_bool('AUDIO_TAB'):
                     types.append('AudioBook')
@@ -5439,7 +5440,7 @@ class WebInterface(object):
     @cherrypy.expose
     def library_scan(self, **kwargs):
         types = []
-        if lazylibrarian.SHOW_EBOOK:
+        if CONFIG.get_bool('EBOOK_TAB'):
             types.append('eBook')
         if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')
@@ -6509,7 +6510,7 @@ class WebInterface(object):
     @cherrypy.expose
     def manage(self, **kwargs):
         types = []
-        if lazylibrarian.SHOW_EBOOK:
+        if CONFIG.get_bool('EBOOK_TAB'):
             types.append('eBook')
         if CONFIG.get_bool('AUDIO_TAB'):
             types.append('AudioBook')

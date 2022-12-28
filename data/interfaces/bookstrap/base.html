@@ -199,7 +199,7 @@
                   <li><a id="authors" href="authors" class="navbarele">Authors</a></li>
                 % endif
                 % if CONFIG['HOMEPAGE'] != 'eBooks':
-                % if lazylibrarian.SHOW_EBOOK:
+                % if CONFIG['EBOOK_TAB']:
                   % if perm&lazylibrarian.perm_ebook:
                   <li><a id="books" href="books" class="navbarele">eBooks</a></li>
                   % endif
@@ -244,7 +244,7 @@
                 %if perm&lazylibrarian.perm_managebooks:
                   % if CONFIG['AUDIO_TAB']:
                     <li><a id="amanage" href="manage" class="navbarele">Manage</a></li>
-                  % elif lazylibrarian.SHOW_EBOOK:
+                  % elif CONFIG['EBOOK_TAB']:
                     <li><a id="emanage" href="manage" class="navbarele">Manage</a></li>
                   % endif
                 % endif

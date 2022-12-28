@@ -155,7 +155,7 @@
                             value3 = "Add Audio"
                             but_class3 = "btn-success"
 
-                    if not lazylibrarian.SHOW_EBOOK:
+                    if not CONFIG.get_int('EBOOK_TAB'):
                         value2 = value
                         destination2 = "#"
                         but_class2 = "btn-info hidden"

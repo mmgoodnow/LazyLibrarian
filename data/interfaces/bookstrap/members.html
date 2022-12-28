@@ -45,7 +45,7 @@
       %if perm&lazylibrarian.perm_status:
       <div class="form-group">
 
-        % if CONFIG.get_int('AUDIO_TAB') != 0 and lazylibrarian.SHOW_EBOOK != 0:
+        % if CONFIG.get_int('AUDIO_TAB') != 0 and CONFIG.get_int('EBOOK_TAB') != 0:
           <label for="marktypes" class="">Mark selected </label>
           <select class="markTypes form-control input-sm" id="marktypes" name="marktype">
             // would be nice to use fontawesome icons here but options are not styleable
@@ -56,7 +56,7 @@
             %endfor
           </select>
         %else:
-          % if lazylibrarian.SHOW_EBOOK != 0:
+          % if CONFIG.get_int('EBOOK_TAB') != 0:
             <label for="marketype" class="">Mark selected eBook </label>
             <select class="markTypes form-control input-sm hidden" id="marketype" name="marktype">
               <option value="eBook">eBook</option>
@@ -142,7 +142,7 @@
             <td class="authorname hidden">${result['AuthorName']}</td>
             %endif
             <td class="date text-center">${result['SeriesNum']}</td>
-            % if lazylibrarian.SHOW_EBOOK != 0:
+            % if CONFIG.get_int('EBOOK_TAB') != 0:
               %if 'Open' in result['Status']:
                 <td class="status text-center">
                 <a class="button green btn btn-xs btn-warning" href="open_book?bookid=${result['BookID']}&library=eBook"
@@ -155,7 +155,7 @@
               %endif
             %endif
             % if CONFIG.get_int('AUDIO_TAB') != 0:
-              % if lazylibrarian.SHOW_EBOOK != 0:
+              % if CONFIG.get_int('EBOOK_TAB') != 0:
               <br>
               %else:
                 <td class="status text-center">

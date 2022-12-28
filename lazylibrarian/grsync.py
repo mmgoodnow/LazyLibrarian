@@ -503,7 +503,7 @@ def sync_to_gr():
                 msg += "%s %s to To-Read from GoodReads\n" % (len(to_ll), plural(len(to_ll), "change"))
                 perm = check_int(user['Perms'], 0)
                 if to_ll and perm & lazylibrarian.perm_search:
-                    if lazylibrarian.SHOW_EBOOK:
+                    if CONFIG.get_bool('EBOOK_TAB'):
                         for item in to_ll:
                             new_books.append({"bookid": item})
                     if CONFIG.get_bool('AUDIO_TAB'):
@@ -886,7 +886,7 @@ def grsync(status, shelf, library='eBook', reset=False, user=None):
                 shelf_changed += 1
                 perm = check_int(user['Perms'], 0)
                 if status == 'Wanted' and perm & lazylibrarian.perm_status:
-                    if lazylibrarian.SHOW_EBOOK and res['Status'] not in ['Open', 'Have']:
+                    if CONFIG.get_bool('EBOOK_TAB') and res['Status'] not in ['Open', 'Have']:
                         db.action('UPDATE books SET Status="Wanted" WHERE BookID=?', (book,))
                         ll_changed.append(book)
                         logger.debug("%10s set to Wanted" % book)

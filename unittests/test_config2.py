@@ -684,19 +684,19 @@ class Config2Test(LLTestCase):
             self.assertEqual(cfg.get_array_entries('DOESNOTEXIST'), 0, 'Expected no entries')
             self.assertEqual(cfg.get_array_entries('AlsoFake'), 0, 'Expected no entries')
 
-            NEWZNAB = cfg.get_array_dict('NEWZNAB', 0)
-            self.assertIsNotNone(NEWZNAB, 'Expected to get a NEWZNAB object')
-            if NEWZNAB:
-                self.assertEqual(NEWZNAB['DISPNAME'], 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
-                self.assertEqual(str(NEWZNAB['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
-                self.assertTrue(NEWZNAB.get_bool('ENABLED'), 'NEWZNAB.0.ENABLED not loaded correctly')
-                self.assertEqual(NEWZNAB.get_int('APILIMIT'), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
-                self.assertEqual(NEWZNAB['InvalidKey'], '') # Generate a read error
-                self.assertEqual(NEWZNAB['InvalidKey'], '') # Generate a read error
-                self.assertEqual(NEWZNAB['InvalidKey_2'], '') # Generate a read error
+            newznab = cfg.get_array_dict('NEWZNAB', 0)
+            self.assertIsNotNone(newznab, 'Expected to get a NEWZNAB object')
+            if newznab:
+                self.assertEqual(newznab['DISPNAME'], 'NZBtester', 'NEWZNAB.0.DISPNAME not loaded correctly')
+                self.assertEqual(str(newznab['DISPNAME']), 'NZBtester', 'Default string return on array is not working')
+                self.assertTrue(newznab.get_bool('ENABLED'), 'NEWZNAB.0.ENABLED not loaded correctly')
+                self.assertEqual(newznab.get_int('APILIMIT'), 12345, 'NEWZNAB.0.APILIMIT not loaded correctly')
+                self.assertEqual(newznab['InvalidKey'], '') # Generate a read error
+                self.assertEqual(newznab['InvalidKey'], '') # Generate a read error
+                self.assertEqual(newznab['InvalidKey_2'], '') # Generate a read error
 
         summary = cfg.create_access_summary(saveto = '')
-        expectedSummary = {
+        expected_summary = {
             'READ_OK': [('NEWZNAB.0.DISPNAME', 2), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.APILIMIT', 1)],
             'WRITE_OK': [],
             'READ_ERR': [('BASEINVALID', 1), ('DOESNOTEXIST', 1), ('ALSOFAKE', 1), ('NEWZNAB.0.INVALIDKEY', 2), ('NEWZNAB.0.INVALIDKEY_2', 1)],
@@ -704,7 +704,7 @@ class Config2Test(LLTestCase):
             'CREATE_OK': [],
             'FORMAT_ERR': []
         }
-        self.assertEqual(summary, expectedSummary, 'Access Summary is not as expected')
+        self.assertListEqual(summary, expected_summary, 'Access Summary is not as expected')
 
     def test_save_config(self):
         """ Test saving config file """
@@ -820,10 +820,6 @@ class Config2Test(LLTestCase):
         """ Verify that the post_load_fixup routine does the right thing """
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
 
-        import lazylibrarian
-        # Ensure we are in a known state
-        lazylibrarian.SHOW_EBOOK = 0
-
         # Set some values that trigger warnings/fixes
         import os
         for fname in ['EBOOK_DEST_FILE', 'MAG_DEST_FILE', 'AUDIOBOOK_DEST_FILE', 'AUDIOBOOK_SINGLE_FILE']:
@@ -848,7 +844,7 @@ class Config2Test(LLTestCase):
         self.assertEqual(str(cfg.config['AUDIOBOOK_DEST_FOLDER']), str(cfg.config['EBOOK_DEST_FOLDER']))
         self.assertEqual(str(cfg.config['HTTP_LOOK']), 'bookstrap')
 
-        self.assertTrue(lazylibrarian.SHOW_EBOOK)
+        self.assertTrue(cfg.get_bool('EBOOK_TAB'))
         self.assertFalse(cfg.get_bool('AUDIO_TAB'))
         self.assertTrue(cfg.get_bool('MAG_TAB'))
         self.assertTrue(cfg.config['COMIC_TAB'].get_bool())

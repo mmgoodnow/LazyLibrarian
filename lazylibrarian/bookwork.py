@@ -228,7 +228,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
     for item in serieslist:
         match = db.match('SELECT Status from series where SeriesName=? COLLATE NOCASE', (item[2],))
         if match and match['Status'] in ['Wanted', 'Skipped', 'Ignored']:
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 new_status = match['Status']
             if CONFIG.get_bool('AUDIO_TAB'):
                 new_astatus = match['Status']
@@ -244,7 +244,7 @@ def get_status(bookid=None, serieslist=None, default=None, adefault=None, authst
             wanted_status = 'Skipped'
             if authstatus == 'Wanted':
                 wanted_status = authstatus
-            if lazylibrarian.SHOW_EBOOK:
+            if CONFIG.get_bool('EBOOK_TAB'):
                 new_status = wanted_status
             if CONFIG.get_bool('AUDIO_TAB'):
                 new_astatus = wanted_status
@@ -671,7 +671,7 @@ def add_series_members(seriesid, refresh=False):
                         wanted_status = 'Skipped'
                         if series['Status'] == 'Wanted':
                             wanted_status = 'Wanted'
-                        if lazylibrarian.SHOW_EBOOK and newbook['Status'] != wanted_status:
+                        if CONFIG.get_bool('EBOOK_TAB') and newbook['Status'] != wanted_status:
                             db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                             logger.debug("Series [%s] set status to %s for %s" %
                                          (seriesname, wanted_status, member[1]))
@@ -686,7 +686,7 @@ def add_series_members(seriesid, refresh=False):
                             wanted_status = 'Skipped'
                             if author['Status'] == 'Wanted':
                                 wanted_status = 'Wanted'
-                            if lazylibrarian.SHOW_EBOOK and newbook['Status'] != wanted_status:
+                            if CONFIG.get_bool('EBOOK_TAB') and newbook['Status'] != wanted_status:
                                 db.action("UPDATE books SET Status=? WHERE BookID=?", (wanted_status, bookid))
                                 logger.debug("Author %s set status to %s for %s" %
                                              (member[4], wanted_status, member[1]))
