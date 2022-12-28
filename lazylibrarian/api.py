@@ -60,6 +60,7 @@ from lazylibrarian.rssfeed import gen_feed
 from lazylibrarian.searchbook import search_book
 from lazylibrarian.searchmag import search_magazines, get_issue_date
 from lazylibrarian.searchrss import search_rss_book, search_wishlist
+from lazylibrarian.telemetry import TELEMETRY, telemetry_send
 
 cmd_dict = {'help': 'list available commands. ' +
                     'Time consuming commands take an optional &wait parameter if you want to wait for completion, ' +
@@ -225,6 +226,8 @@ cmd_dict = {'help': 'list available commands. ' +
             'delProvider': '&name= Delete a provider',
             'renameBook': '&id= Rename a book to match configured pattern',
             'newAuthorid': '&id= &newid= update an authorid',
+            'telemetryShow': 'show the current telemetry data',
+            'telemetrySend': 'send the latest telemetry data, if configured',
             }
 
 
@@ -239,6 +242,7 @@ class Api(object):
         self.callback = None
 
     def check_params(self, **kwargs):
+        TELEMETRY.record_usage_data('API/CheckParams')
 
         if not CONFIG.get_bool('API_ENABLED'):
             self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'API not enabled'}}
@@ -277,6 +281,7 @@ class Api(object):
 
     @property
     def fetch_data(self):
+        TELEMETRY.record_usage_data('API/FetchData')
         thread_name("API")
         if self.data == 'OK':
             remote_ip = cherrypy.request.headers.get('X-Forwarded-For')  # apache2
@@ -323,6 +328,7 @@ class Api(object):
         return rows_as_dic
 
     def _renamebook(self, **kwargs):
+        TELEMETRY.record_usage_data('API/Renamebook')
         if 'id' not in kwargs:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: id'}}
@@ -332,6 +338,7 @@ class Api(object):
         return
 
     def _newauthorid(self, **kwargs):
+        TELEMETRY.record_usage_data('API/NewAuthorID')
         if 'id' not in kwargs:
             self.data = {'Success': False, 'Data': '', 'Error':  {'Code': 400,
                                                                   'Message': 'Missing parameter: id'}}
@@ -2173,3 +2180,12 @@ class Api(object):
             self.data = export_csv(usedir, status, library)
         else:
             threading.Thread(target=export_csv, name='API-EXPORTCSV', args=[usedir, status, library]).start()
+
+    def _telemetryshow(self, **kwargs):
+        TELEMETRY.record_usage_data('API/Telemetry/Show')
+        self.data = TELEMETRY.get_data_for_ui_preview()
+
+    def _telemetrysend(self, **kwargs):
+        TELEMETRY.record_usage_data('API/Telemetry/Send')
+        self.data = telemetry_send()
+

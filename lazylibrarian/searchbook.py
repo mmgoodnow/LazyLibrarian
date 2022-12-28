@@ -23,6 +23,7 @@ from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_tor
     iterate_over_direct_sites, iterate_over_irc_sites
 from lazylibrarian.resultlist import find_best_result, download_result
 from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_book():
@@ -76,6 +77,7 @@ def search_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
+    TELEMETRY.record_usage_data('Search/Book')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:

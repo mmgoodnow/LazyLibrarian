@@ -29,6 +29,7 @@ import zipfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
+from lazylibrarian.telemetry import TELEMETRY
 from lazylibrarian.gb import GoogleBooks
 from lazylibrarian.gr import GoodReads
 from lazylibrarian.ol import OpenLibrary
@@ -88,6 +89,7 @@ def process_mag_from_file(source_file=None, title=None, issuenum=None):
             logger.warn("No title for %s, rejecting" % source_file)
             return False
 
+        TELEMETRY.record_usage_data('Process/Magazine/FromFile')
         entry = db.match('SELECT * FROM magazines where Title=?', (title,))
         if not entry:
             logger.debug("Magazine title [%s] not found, adding it" % title)
@@ -203,6 +205,7 @@ def process_book_from_dir(source_dir=None, library='eBook', bookid=None, automer
             logger.warn('Source directory must not be the same as or inside library')
             return False
 
+        TELEMETRY.record_usage_data('Process/Book/FromDir')
         reject = multibook(source_dir)
         if reject:
             logger.debug("Not processing %s, found multiple %s" % (source_dir, reject))
@@ -247,6 +250,7 @@ def process_issues(source_dir=None, title=''):
             logger.warn("%s is not a directory" % source_dir)
             return False
 
+        TELEMETRY.record_usage_data('Process/Issues')
         logger.debug('Looking for %s issues in %s' % (title, source_dir))
         # first, recursively process any items in subdirectories
         flist = listdir(source_dir)
@@ -348,6 +352,7 @@ def process_alternate(source_dir=None, library='eBook', automerge=False):
             logger.warn('Alternate directory must not be the same as or inside Destination')
             return False
 
+        TELEMETRY.record_usage_data('Process/Alternate')
         logger.debug('Processing %s directory %s' % (library, source_dir))
         # first, recursively process any books in subdirectories
         flist = listdir(source_dir)
@@ -595,6 +600,7 @@ def unpack_archive(archivename, download_dir, title):
     # noinspection PyBroadException
     try:
         if zipfile.is_zipfile(archivename):
+            TELEMETRY.record_usage_data('Process/Archive')
             if lazylibrarian_log.LOGLEVEL & logger.log_postprocess:
                 logger.debug('%s is a zip file' % archivename)
             try:
@@ -794,6 +800,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
             snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
         logger.debug('Found %s %s marked "Snatched"' % (len(snatched), plural(len(snatched), "file")))
         if len(snatched):
+            TELEMETRY.record_usage_data('Process/Snatched')
             for book in snatched:
                 # see if we can get current status from the downloader as the name
                 # may have been changed once magnet resolved, or download started or completed
@@ -1729,6 +1736,7 @@ def check_residual(download_dir):
         logger.debug("Scanning %s %s in %s for LL.(num)" % (len(downloads),
                                                             plural(len(downloads), 'entry'),
                                                             download_dir))
+    TELEMETRY.record_usage_data('Process/Residual')
     for entry in downloads:
         if "LL.(" in entry:
             _, extn = os.path.splitext(entry)
@@ -1857,6 +1865,7 @@ def get_download_name(title, source, downloadid):
 
 def get_download_files(source, downloadid):
     dlfiles = None
+    TELEMETRY.record_usage_data('Get/DownloadFiles')
     try:
         if source == 'TRANSMISSION':
             dlfiles = transmission.get_torrent_files(downloadid)
@@ -1898,6 +1907,7 @@ def get_download_files(source, downloadid):
 def get_download_folder(source, downloadid):
     dlfolder = None
     # noinspection PyBroadException
+    TELEMETRY.record_usage_data('Get/DownloadFolder')
     try:
         if source == 'TRANSMISSION':
             dlfolder = transmission.get_torrent_folder(downloadid)
@@ -2266,6 +2276,7 @@ def delete_task(source, download_id, remove_data):
 
 
 def process_book(pp_path=None, bookid=None, library=None, automerge=False):
+    TELEMETRY.record_usage_data('Process/Book')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:
@@ -2446,6 +2457,7 @@ def process_extras(dest_file=None, global_name=None, bookid=None, booktype="eBoo
         logger.error('No dest_file supplied')
         return
 
+    TELEMETRY.record_usage_data('Process/Extras')
     db = database.DBConnection()
 
     control_value_dict = {"BookID": bookid}
@@ -2502,6 +2514,7 @@ def process_destination(pp_path=None, dest_path=None, global_name=None, data=Non
     """ Copy/move book/mag and associated files into target directory
         Return True, full_path_to_book, pp_path (which may have changed)  or False, error_message"""
 
+    TELEMETRY.record_usage_data('Process/Destination')
     logger.debug("%s [%s] %s" % (booktype, global_name, str(data)))
     booktype = booktype.lower()
     pp_path = make_unicode(pp_path)
@@ -3032,6 +3045,7 @@ def process_auto_add(src_path=None, booktype='book'):
         logger.error('AutoAdd directory for %s [%s] is missing or not set - cannot perform autoadd' % (
             booktype, autoadddir))
         return False
+    TELEMETRY.record_usage_data('Process/Autoadd')
     # Now try and copy all the book files into a single dir.
     try:
         names = listdir(src_path)
@@ -3107,6 +3121,7 @@ def process_img(dest_path=None, bookid=None, bookimg=None, global_name=None, cac
         logger.debug('Cover %s already exists' % coverfile)
         return
 
+    TELEMETRY.record_usage_data('Process/Image')
     if bookimg.startswith('cache/'):
         img = bookimg.replace('cache/', '')
         if os.path.__name__ == 'ntpath':

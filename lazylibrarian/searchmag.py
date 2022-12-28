@@ -28,6 +28,7 @@ from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.providers import iterate_over_newznab_sites, iterate_over_torrent_sites, iterate_over_rss_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_magazines():
@@ -37,6 +38,7 @@ def cron_search_magazines():
 
 def search_magazines(mags=None, reset=False):
     # produce a list of magazines to search for, tor, nzb, torznab, rss
+    TELEMETRY.record_usage_data('Search/Magazine')
     db = database.DBConnection()
     # noinspection PyBroadException
     try:

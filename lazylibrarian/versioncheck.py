@@ -28,6 +28,7 @@ from lazylibrarian import logger, version, database
 from lazylibrarian.common import get_user_agent, proxy_list
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, listdir, walk
 from lazylibrarian.formatter import check_int, make_unicode, thread_name
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def logmsg(level, msg):
@@ -467,6 +468,7 @@ def update_version_file(new_version_id):
 
 
 def update():
+    TELEMETRY.record_usage_data('Version/Update')
     with open(syspath(DIRS.get_logfile('upgrade.log')), 'a') as upgradelog:
         if CONFIG['INSTALL_TYPE'] == 'win':
             msg = 'Windows .exe updating not supported yet.'

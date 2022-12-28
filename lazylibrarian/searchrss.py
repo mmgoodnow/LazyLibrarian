@@ -23,6 +23,7 @@ from lazylibrarian.formatter import plural, unaccented, format_author_name, spli
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_wishlists
 from lazylibrarian.resultlist import process_result_list
+from lazylibrarian.telemetry import TELEMETRY
 
 
 def cron_search_rss_book():
@@ -129,6 +130,7 @@ def want_existing(bookmatch, book, search_start, ebook_status, audio_status):
 
 # noinspection PyBroadException
 def search_wishlist():
+    TELEMETRY.record_usage_data('Search/Wishlist')
     thread_name("SEARCHWISHLIST")
     new_books = []
     new_audio = []
@@ -302,6 +304,7 @@ def search_rss_book(books=None, library=None):
     books is a list of new books to add, or None for backlog search
     library is "eBook" or "AudioBook" or None to search all book types
     """
+    TELEMETRY.record_usage_data('Search/Book/RSS')
     if not (CONFIG.use_rss()):
         logger.warn('rss search is disabled')
         schedule_job(action='Stop', target='search_rss_book')

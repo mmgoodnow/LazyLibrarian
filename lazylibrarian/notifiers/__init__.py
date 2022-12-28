@@ -32,6 +32,7 @@ from . import telegram
 from . import apprise_notify
 from lazylibrarian import logger
 from lazylibrarian.config2 import CONFIG
+from ..telemetry import TELEMETRY
 
 # online
 twitter_notifier = tweet.TwitterNotifier()
@@ -66,6 +67,7 @@ APPRISE_VER: str = apprise_notify.APPRISE_CANLOAD
 
 def custom_notify_download(bookid):
     try:
+        TELEMETRY.record_usage_data('Notify/Download/Custom')
         custom_notifier.notify_download(bookid)
     except Exception as e:
         logger.warn('Custom notify download failed: %s' % str(e))
@@ -74,6 +76,7 @@ def custom_notify_download(bookid):
 
 def custom_notify_snatch(bookid, fail=False):
     try:
+        TELEMETRY.record_usage_data('Notify/Snatch/Custom')
         custom_notifier.notify_snatch(bookid, fail=fail)
     except Exception as e:
         logger.warn('Custom notify snatch failed: %s' % str(e))
@@ -84,6 +87,7 @@ def notify_download(title, bookid=None):
     for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
+        TELEMETRY.record_usage_data('Notify/Download')
         for n in notifiers:
             if 'EmailNotifier' in str(n):
                 n.notify_download(title, bookid=bookid)
@@ -98,6 +102,7 @@ def notify_snatch(title, fail=False):
     for item in CONFIG.REDACTLIST:
         title = title.replace(item, '******')
     try:
+        TELEMETRY.record_usage_data('Notify/Snatch')
         for n in notifiers:
             n.notify_snatch(title, fail=fail)
     except Exception as e:
