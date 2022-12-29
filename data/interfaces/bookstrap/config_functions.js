@@ -1,7 +1,7 @@
 <script type="text/javascript">
     (function() {
         document.addEventListener("DOMContentLoaded", function () {
-            // Toggle the checkbox, and either hide/show or slide it down/up
+            // Checkbox handler, plus either hide/show or slide it down/up
             function toggleElement(checkboxId, elementId, reverse=false) {
                 function updateState(state, useSlide) {
                     const showit = (state ? !reverse : reverse) //  XOR in js
@@ -11,13 +11,26 @@
                         $(elementId)[showit ? "show" : "hide"]();
                     }
                 }
-
                 const checked = $(checkboxId).is(":checked");
                 updateState(checked, false);
 
                 $(checkboxId).click(function () {
                     updateState(this.checked, true);
                 })
+            }
+
+            // Handler for dropdown that has a detailed element (Log options)
+            function toggleSelectElement(selectId, elementId, detailedValue) {
+                function updateState(state) {
+                    $(elementId)[state ? "show" : "hide"]();
+                }
+                const selectedValue = $(selectId).val();
+                const show_detailed = selectedValue === detailedValue;
+                updateState(show_detailed)
+
+                $(selectId).change(function() {
+                    updateState( $(selectId).val() === detailedValue);
+                });
             }
 
             // Register all the elements that need to react to change of state
@@ -30,6 +43,7 @@
             toggleElement("#api_enabled", "#api_options");
             toggleElement("#opds_enabled", "#opdsoptions");
             toggleElement("#audio_tab", "#graudio_options"); // A sub-setting on the Importing page
+            toggleSelectElement("#log_type", "#debug_options", "Debug");
 
             //Downloaders
             toggleElement("#tor_downloader_deluge", "#deluge_options");
