@@ -57,7 +57,6 @@ TIMERS = {
             'SLEEP_BOK': 0.0,
         }
 IGNORED_AUTHORS = 0
-CURRENT_TAB = '1'  # Used to remember the # of the current config tab when hitting save
 CACHE_HIT = 0
 CACHE_MISS = 0
 IRC_CACHE_EXPIRY = 2 * 24 * 3600

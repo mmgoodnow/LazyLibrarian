@@ -1,8 +1,6 @@
 <script type="text/javascript">
     (function() {
         document.addEventListener("DOMContentLoaded", function () {
-            console.log("Inside AddEventListener");
-
             // Toggle the checkbox, and either hide/show or slide it down/up
             function toggleElement(checkboxId, elementId, reverse=false) {
                 function updateState(state, useSlide) {
@@ -86,6 +84,29 @@
     function initThisPage()
     {
         "use strict";
+        // when the page first loads, hide all tab headers and panels
+        $("li[role='presentation']").attr("aria-selected", "false");
+        $("li[role='presentation']").removeClass('active');
+        //$("div[role='tabpanel']").attr("aria-hidden", "true");
+        $("div[role='tabpanel']").removeClass('active');
+        // which one do we want to show
+        const tabnum = $("#config_tab_num").val();
+        const tabid = $("#" + tabnum);
+        const tabpanel = tabid.attr('aria-controls');
+        const tabpanelid = $("#" + tabpanel);
+
+        // show the tab header and panel we want
+        tabpanelid.addClass('active');
+        tabid.attr("aria-selected", "true");
+        tabid.addClass('active');
+        $("div[role='tab-table']").removeClass('hidden');
+
+        // when a tab is clicked
+        $("li[role='presentation']").click(function(){
+            const tabnum = $(this).attr('id');
+            $("#config_tab_num").val(tabnum);
+            $.get('set_current_tabs', {'config_tab': tabnum });
+        });
 
         $('#showblocked').on('click', function() {
             $.get('showblocked', function(data) {
@@ -801,34 +822,6 @@
                 $('#bookstrap_options').addClass("hidden");
             }
         });
-
-        // when the page first loads, hide all tab headers and panels
-        $("li[role='presentation']").attr("aria-selected", "false");
-        $("li[role='presentation']").removeClass('active');
-        //$("div[role='tabpanel']").attr("aria-hidden", "true");
-        $("div[role='tabpanel']").removeClass('active');
-        // which one do we want to show
-        const tabnum = $("#current_tab").val();
-        const tabid = $("#" + tabnum);
-        const tabpanel = tabid.attr('aria-controls');
-        const tabpanelid = $("#" + tabpanel);
-        // show the tab header and panel we want
-        //tabpanelid.attr("aria-hidden", "false");
-        tabpanelid.addClass('active');
-        tabid.attr("aria-selected", "true");
-        tabid.addClass('active');
-        eraseCookie("configTab");
-        createCookie("configTab", tabnum, 0);
-        $("div[role='tab-table']").removeClass('hidden');
-
-        // when a tab is clicked
-        $("li[role='presentation']").click(function(){
-            const tabnum = $(this).attr('id');    // store current tab for python
-            eraseCookie("configTab");
-            createCookie("configTab", tabnum, 0);
-            $("#current_tab").val(tabnum);
-        });
-
 
        $('#checkforupdates').on('click', function() {
             eraseCookie("ignoreUpdate");

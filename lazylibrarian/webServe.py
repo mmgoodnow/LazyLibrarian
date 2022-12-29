@@ -1595,10 +1595,6 @@ class WebInterface(object):
             logger.debug("Applying genre changes")
             check_db()
 
-        # now the non-config options
-        if 'current_tab' in kwargs:
-            lazylibrarian.CURRENT_TAB = kwargs['current_tab']
-
         # now the config file entries
         for key, item in CONFIG.config.items():
             if key.lower() in kwargs:
@@ -6874,4 +6870,9 @@ class WebInterface(object):
     @cherrypy.expose
     def test_telemetry_server(self, **kwargs):
         return TELEMETRY.test_server(kwargs['server'])
+
+    @cherrypy.expose
+    def set_current_tabs(self, **kwargs):
+        if 'config_tab' in kwargs:
+            CONFIG.set_from_ui('CONFIG_TAB_NUM', kwargs['config_tab'])
 
