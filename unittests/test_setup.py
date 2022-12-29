@@ -3,7 +3,6 @@
 # Purpose:
 #   Testing the startup sequence
 
-import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.notifiers import APPRISE_VER

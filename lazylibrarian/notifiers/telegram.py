@@ -1,10 +1,8 @@
-import lazylibrarian
-from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
-from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
-
-import urllib3
 import requests
+
+from lazylibrarian import logger
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.scheduling import notifyStrings, NOTIFY_SNATCH, NOTIFY_DOWNLOAD, NOTIFY_FAIL
 
 
 class TelegramNotifier:

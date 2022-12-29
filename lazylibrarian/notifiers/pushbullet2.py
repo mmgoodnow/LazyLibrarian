@@ -12,7 +12,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import json
-import urllib3
+
 import requests
 from requests.auth import HTTPBasicAuth
 

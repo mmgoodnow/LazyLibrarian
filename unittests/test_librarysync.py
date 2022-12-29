@@ -3,8 +3,8 @@
 # Purpose:
 #   Testing functionality in librarysync.py
 
-import unittests.unittesthelpers
 import os
+
 from lazylibrarian import librarysync
 from lazylibrarian.filesystem import get_directory
 from unittests.unittesthelpers import LLTestCase

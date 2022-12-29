@@ -215,7 +215,7 @@ class LazyTelemetry(object):
         else:
             payload = {"timeout": timeout}
         try:
-            logger.debug(f'GETting URL {url}')
+            logger.debug(f'GET {url}')
             r = requests.get(url, verify=False, params=payload, headers=headers)
         except requests.exceptions.Timeout as e:
             logger.error("_send_url: Timeout sending telemetry %s" % url)
@@ -237,6 +237,7 @@ class LazyTelemetry(object):
         Returns status message and true/false depending on whether it was successful"""
 
         url = self.get_data_url(server, send_config, send_usage)
+        logger.info(f"Sending telemetry data ({len(url)} bytes)")
         return self._send_url(url)
 
     def test_server(self, server: str) -> str:

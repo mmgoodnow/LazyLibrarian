@@ -14,10 +14,9 @@ import os
 import shutil
 import traceback
 
-import lazylibrarian
+from lazylibrarian import database, logger
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.configtypes import ConfigDict
-from lazylibrarian import database, logger
 from lazylibrarian.filesystem import DIRS, path_isdir, syspath, remove_file, safe_move, csv_file
 from lazylibrarian.formatter import plural, is_valid_isbn, now, unaccented, format_author_name, \
     make_unicode, split_title

@@ -5,24 +5,23 @@
 #   Intended to entirely replace the previous file, config.py, as
 #   well as many global variables
 
-from typing import Dict, List, Optional, Generator, Tuple
-from configparser import ConfigParser
-from collections import Counter
-from os import path, sep
 import os
+import re
 import shutil
 import sys
-import re
+from collections import Counter
+from configparser import ConfigParser
+from os import path, sep
+from typing import Dict, List, Optional, Generator, Tuple
 
-import lazylibrarian
-from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, ConfigScheduler
+from lazylibrarian import logger, database
+from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
-from lazylibrarian import logger, database
-from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.formatter import thread_name, plural
+from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, ConfigScheduler
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
-from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.formatter import thread_name, plural
+from lazylibrarian.logger import lazylibrarian_log
 
 """ Main configuration handler for LL """
 class LLConfigHandler(ConfigDict):
