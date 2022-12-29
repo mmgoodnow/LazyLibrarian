@@ -92,16 +92,11 @@ class LLTestCase(unittest.TestCase):
         # Clear configuration variables to ahve a clean slate for any further test runs
         lazylibrarian.DAEMON = False
         lazylibrarian.SIGNAL = None
-        lazylibrarian.PIDFILE = ''
         lazylibrarian.SYS_ENCODING = ''
         logger.lazylibrarian_log.update_loglevel(1)
         logger.lazylibrarian_log.LOGLEVEL_OVERRIDE = False
         lazylibrarian.LOGINUSER = None
         lazylibrarian.COMMIT_LIST = None
-        lazylibrarian.SHOWLOGOUT = 1
-        lazylibrarian.CHERRYPYLOG = 0
-        lazylibrarian.REQUESTSLOG = 0
-        lazylibrarian.DOCKER = False
         lazylibrarian.STOPTHREADS = False
 
     @classmethod

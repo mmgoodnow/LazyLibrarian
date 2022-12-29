@@ -1565,10 +1565,10 @@
         //$("div[role='tabpanel']").attr("aria-hidden", "true");
         $("div[role='tabpanel']").removeClass('active');
         // which one do we want to show
-        var tabnum = $("#current_tab").val();
-        var tabid = $("#" + tabnum);
-        var tabpanel = tabid.attr('aria-controls');
-        var tabpanelid = $("#" + tabpanel);
+        const tabnum = $("#current_tab").val();
+        const tabid = $("#" + tabnum);
+        const tabpanel = tabid.attr('aria-controls');
+        const tabpanelid = $("#" + tabpanel);
         // show the tab header and panel we want
         //tabpanelid.attr("aria-hidden", "false");
         tabpanelid.addClass('active');
@@ -1580,7 +1580,7 @@
 
         // when a tab is clicked
         $("li[role='presentation']").click(function(){
-            var tabnum = $(this).attr('id');    // store current tab for python
+            const tabnum = $(this).attr('id');    // store current tab for python
             eraseCookie("configTab");
             createCookie("configTab", tabnum, 0);
             $("#current_tab").val(tabnum);

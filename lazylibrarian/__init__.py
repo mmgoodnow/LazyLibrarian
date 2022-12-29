@@ -24,17 +24,17 @@ from lazylibrarian.filesystem import syspath
 
 # Transient globals NOT stored in config
 # These are used/modified by LazyLibrarian.py before config.ini is read
-DAEMON = False
-SIGNAL = None
-PIDFILE = ''
-SYS_ENCODING = ''
-LOGINUSER = None
-COMMIT_LIST = ''
-SHOWLOGOUT = 1
-CHERRYPYLOG = 0
-REQUESTSLOG = 0
-DOCKER = False
-STOPTHREADS = False
+DAEMON = False  # True if running as a daemon
+SIGNAL = None  # Signals global state of LL to threads/scheduler. 'restart', 'update', 'shutdown' or ''/None
+PIDFILE = ''  # If running as a daemon, the name of the file holding the PID
+SYS_ENCODING = ''  # A copy of CONFIG['SYS_ENCODING'] that can be overridden
+LOGINUSER = None  # UserID of currently logged in user, if any
+COMMIT_LIST = ''  # List of git commits since last update. If it includes "**MANUAL**", don't update.
+SHOWLOGOUT = 1  # If 1, the Logout option is shown in the UI.
+CHERRYPYLOG = 0  # If 1, creates Cherrypy access and error log files. Can be set with log_cherrypy on command line
+REQUESTSLOG = 0  # If 1, sets http.client.HTTPConnection.debuglevel=1. Can be set with log_requests on command line
+DOCKER = False  # Set to True if we discover LL is running inside of Docker
+STOPTHREADS = False  # Part of the scheduling state machine. Should move to a scheduling class?
 
 # These are globals
 SUPPRESS_UPDATE = False
@@ -57,7 +57,7 @@ TIMERS = {
             'SLEEP_BOK': 0.0,
         }
 IGNORED_AUTHORS = 0
-CURRENT_TAB = '1'
+CURRENT_TAB = '1'  # Used to remember the # of the current config tab when hitting save
 CACHE_HIT = 0
 CACHE_MISS = 0
 IRC_CACHE_EXPIRY = 2 * 24 * 3600

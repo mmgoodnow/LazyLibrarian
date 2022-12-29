@@ -372,9 +372,10 @@ def get_latest_version_from_git():
     return latest_version
 
 
-def get_commit_difference_from_git():
-    # See how many commits behind we are
-    # Takes current latest version value and tries to diff it with the latest version in the current branch.
+def get_commit_difference_from_git() -> (int, str):
+    """ See how many commits behind we are.
+    Takes current latest version value and tries to diff it with the latest version in the current branch.
+    Returns # of commits behind, and the list of commits as a string """
     commit_list = ''
     commits = -1
     if CONFIG['LATEST_VERSION'] == 'Not_Available_From_Git':
