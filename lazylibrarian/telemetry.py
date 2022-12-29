@@ -18,6 +18,7 @@
 #   future development.
 
 import datetime
+import time
 import json
 import os
 import sys
@@ -27,7 +28,7 @@ from collections import defaultdict
 from typing import Optional
 
 from lazylibrarian.config2 import CONFIG
-from lazylibrarian import logger
+from lazylibrarian import logger, database
 from lazylibrarian.common import proxy_list
 from lazylibrarian.config2 import LLConfigHandler
 from lazylibrarian.formatter import thread_name
@@ -266,6 +267,8 @@ def telemetry_send() -> str:
     threadname = thread_name()
     if "Thread-" in threadname:
         thread_name("TELEMETRYSEND")
+    db = database.DBConnection()
+    db.upsert("jobs", {"Start": time.time()}, {"Name": thread_name()})
     try:
         TELEMETRY.set_install_data(CONFIG, testing=False)
         TELEMETRY.set_config_data(CONFIG)
@@ -280,5 +283,6 @@ def telemetry_send() -> str:
                 result = result.splitlines()[0]  # Return only the first line
         logger.debug(f'Telemetry data sending: {result}, {status}')
     finally:
+        db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
         thread_name(threadname)
     return result
