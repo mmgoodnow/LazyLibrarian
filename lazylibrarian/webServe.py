@@ -393,7 +393,7 @@ class WebInterface(object):
                         arow[1] = surname_first(arow[1], postfixes=CONFIG.get_list('NAME_POSTFIX'))
                     if CONFIG.get_bool('SORT_DEFINITE'):
                         arow[2] = sort_definite(arow[2], articles=CONFIG.get_list('NAME_DEFINITE'))
-                    arow[3] = date_format(arow[3], '')
+                    arow[3] = date_format(arow[3], '', f'{arow[1]}/{arow[2]}')
                     nrow = arow[:4]
                     havebooks = check_int(arow[7], 0)
                     totalbooks = check_int(arow[8], 0)

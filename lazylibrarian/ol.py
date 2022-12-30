@@ -555,7 +555,7 @@ class OpenLibrary:
                 if id_librarything:
                     id_librarything = id_librarything[0]
                 if publish_date:
-                    publish_date = date_format(publish_date[0])
+                    publish_date = date_format(publish_date[0], context=f"{auth_name}/{title}")
                 lang = ''
                 if isbns:
                     isbn = isbns[0]
@@ -1034,7 +1034,7 @@ class OpenLibrary:
                                                                 cover += '%s-M.jpg' % covers[0]
                                                             else:
                                                                 cover = 'images/nocover.png'
-                                                            publish_date = date_format(workinfo.get('publish_date', ''))
+                                                            publish_date = date_format(workinfo.get('publish_date', ''), context=title)
                                                             rating, genrelist, _ = self.lt_workinfo(member[4])
                                                             genrenames = []
                                                             for item in genrelist:
@@ -1246,7 +1246,7 @@ class OpenLibrary:
                 cover += '%s-M.jpg' % covers[0]
             else:
                 cover = 'images/nocover.png'
-            publish_date = date_format(workinfo.get('publish_date', ''))
+            publish_date = date_format(workinfo.get('publish_date', ''), context=title)
             lang = "Unknown"
             #
             # user has said they want this book, don't block for unwanted language etc

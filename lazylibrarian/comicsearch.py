@@ -127,7 +127,7 @@ def search_item(comicid=None):
             if not size:
                 size = '1000'
             if date:
-                date = date_format(date)
+                date = date_format(date, context=title)
             url = url.encode('utf-8')
             if mode == 'torznab':
                 # noinspection PyTypeChecker

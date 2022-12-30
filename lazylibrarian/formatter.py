@@ -234,7 +234,7 @@ def nzbdate2format(nzbdate):
         return "1970-01-01"
 
 
-def date_format(datestr, formatstr="$Y-$m-$d"):
+def date_format(datestr, formatstr="$Y-$m-$d", context=''):
     # return date formatted in requested style
     # $d	Day of the month as a zero-padded decimal number
     # $b	Month as abbreviated name
@@ -243,6 +243,7 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
     # $y	Year without century as a zero-padded decimal number
     # $Y	Year with century as a decimal number
     # datestr are stored in lazylibrarian as YYYY-MM-DD or YYYY-MM-DD HH:MM:SS or nnnn for issue number
+    # If context is provided as a parameter, it will be used to provide more informative error messages.
 
     # Dates from providers are in various formats, need to consolidate them so we can sort...
     # Newznab/Torznab Tue, 23 Aug 2016 17:33:26 +0100
@@ -315,7 +316,10 @@ def date_format(datestr, formatstr="$Y-$m-$d"):
         d, m, y, hh, mm = 0, 0, 0, 0, 0
 
     if not m:
-        lazylibrarian.logger.warn("Unrecognised datestr [%s]" % datestr)
+        msg = "Unrecognised datestr {datestr}"
+        if context:
+            msg = f'{msg} for {context}'
+        lazylibrarian.logger.warn(msg)
         return datestr
 
     try:
