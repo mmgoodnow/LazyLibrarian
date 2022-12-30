@@ -29,7 +29,7 @@ class ArrayConfig:
         for config_item in self._defaults:
             key = config_item.key.upper()
             if not index in self._configs:
-                self._configs[index] = ConfigDict()
+                self._configs[index] = ConfigDict(self.get_section_str(index))
             item = self._configs[index].set_item(key, configitem_from_default(config_item))
             item.section = self.get_section_str(index)
             if key == 'NAME': # Override name with section name

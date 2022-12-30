@@ -18,7 +18,8 @@ from lazylibrarian import logger, database
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from lazylibrarian.configarray import ArrayConfig
 from lazylibrarian.configdefs import BASE_DEFAULTS, ARRAY_DEFS, configitem_from_default
-from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, ConfigScheduler
+from lazylibrarian.configtypes import ConfigItem, ConfigBool, Access, CaseInsensitiveDict, ConfigDict, \
+    ConfigScheduler, ConfigDictListIterator, ErrorListIterator
 from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.logger import lazylibrarian_log
@@ -165,34 +166,34 @@ class LLConfigHandler(ConfigDict):
     def get_all_accesses(self) -> Dict[str, Counter]:
         """ Get a list of all config values that have been accessed  """
         result = dict()
-        for key, value in self.config.items():
+        for key, value in self.all_configs():
             a = value.get_accesses()
             if len(a):
-                if value.section:
-                    result[f"{value.section.upper()}.{key}"] = a
-                else:
-                    result[f"{key}"] = a
-
-        for name, array in self.arrays.items():
-            for index, config in array._configs.items():
-                for key, item in config.items():
-                    a = item.get_accesses()
-                    if len(a):
-                        result[f"{name}.{index}.{key}"] = a
-
+                result[value.get_full_name()] = a
         return result
+
+    def all_configs(self) -> ConfigDictListIterator:
+        """ Used to iterate over all of the config items, whether base or array """
+        alldicts = [self]
+        for array in self.arrays.values():
+            for inx in range(len(array)):
+                alldicts += [array[inx]]
+        return ConfigDictListIterator(alldicts)
+
+    def all_error_lists(self) -> ErrorListIterator:
+        alldicts = [self]
+        for array in self.arrays.values():
+            for inx in range(len(array)):
+                alldicts += [array[inx]]
+        return ErrorListIterator(alldicts)
 
     def clear_access_counters(self):
         """ Clear all counters. Used after sending telemetry or saving config """
-        for _, value in self.config.items():
+        for _, value in self.all_configs():
             value.get_accesses().clear()
-        self.clear_error_counters()
 
-        for _, array in self.arrays.items():
-            for _, config in array._configs.items():
-                for _, item in config.items():
-                    item.get_accesses().clear()
-                config.clear_error_counters()
+        for errors in self.all_error_lists():
+            errors.clear()
 
     def update_providers_from_UI(self, kwargs):
         """ Update all provider arrays with a settings array from the web UI.
@@ -415,26 +416,16 @@ class LLConfigHandler(ConfigDict):
     def add_access_errors_to_log(self):
         """ For use at end of program. Add any access errors to the log file so they
         are easy to find. """
-        for key, value in self.config.items(): # Access to regular items
+        for key, value in self.all_configs():
             accesses = value.get_accesses()
             for aname, count in accesses.items():
                 if aname in [Access.READ_ERR, Access.WRITE_ERR, Access.FORMAT_ERR]:
-                    logger.error(f'Config {aname.name}: {key}, {count} times')
-        for key, errors in self.get_error_counters().items(): # Attempts to access non-existent items
-            for ename, count in errors.items():
-                logger.error(f'Config {ename.name}: {key}, {count} times')
+                    logger.error(f'Config {aname.name}: {value.get_full_name()}, {count} times')
 
-        for name, array in self.arrays.items(): # e.g. Apprise
-            for index, config in array._configs.items(): # e.g. Each Apprise
-                for key, item in config.items():
-                    accesses = item.get_accesses()
-                    for aname, count in accesses.items():
-                        if aname in [Access.READ_ERR, Access.WRITE_ERR, Access.FORMAT_ERR]:
-                            logger.error(f'Config {aname.name}: {name}.{index}.{key}, {count} times')
-                for key, errors in config.get_error_counters().items():
-                    for ename, count in errors.items():
-                        logger.error(f'Config {ename.name}: {name}.{index}.{key}, {count} times')
-
+        for errorlist in self.all_error_lists():
+            for key, counter in errorlist.items():
+                for ename, count in counter.items():
+                    logger.error(f'Config {ename.name}: {key}, {count} times')
 
     def create_access_summary(self, saveto:str='') -> Dict:
         """ For debugging: Create a summary of all accesses, potentially
@@ -446,25 +437,15 @@ class LLConfigHandler(ConfigDict):
         for a in Access:
             access_summary[a.name] = []
 
-        for key, value in self.config.items():
+        for key, value in self.all_configs():
             accesses = value.get_accesses()
             for aname, count in accesses.items():
-                access_summary[aname.name].append((key, count)) # Accesstype = (key, counter)
-        for key, errors in self.get_error_counters().items():
-            for ename, count in errors.items():
-                access_summary[ename.name].append((key, count))
+                access_summary[aname.name].append((value.get_full_name(), count))
 
-        for name, array in self.arrays.items(): # e.g. Apprise
-            for index, config in array._configs.items(): # e.g. Each Apprise
-                # Add the normal access items
-                for key, item in config.items():
-                    accesses = item.get_accesses()
-                    for aname, count in accesses.items():
-                        access_summary[aname.name].append((f"{name}.{index}.{key}", count)) # Accesstype = (key, counter)
-                # Add any key error items
-                for key, errors in config.get_error_counters().items():
-                    for ename, count in errors.items():
-                        access_summary[ename.name].append((f"{name}.{index}.{key}", count))
+        for errorlist in self.all_error_lists():
+            for key, counter in errorlist.items():
+                for ename, count in counter.items():
+                    access_summary[ename.name].append((key, count))
 
         if saveto:
             self.save_access_summary(saveto, access_summary)

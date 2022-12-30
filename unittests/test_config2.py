@@ -403,7 +403,6 @@ class Config2Test(LLTestCase):
         csv_list = cfg.get_list('csv')
         self.assertEqual(csv_list, ['allan', 'bob', 'fred'])
 
-
     def test_read_error_counters(self):
         """ Test that read error counters are correct in lots of cases """
         cfg = config2.LLConfigHandler()
@@ -430,6 +429,27 @@ class Config2Test(LLTestCase):
             'ALSO-DOES-NOT': Counter({Access.READ_ERR: 1})
         }
         self.do_access_compare(ecs, expectedecs, [], 'Errors  not as expected')
+
+    def test_all_error_lists(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+
+        allerrorlists = cfg.all_error_lists()
+        for errorlist in allerrorlists:
+            self.assertEqual(len(errorlist), 0, 'Expect all error lists to be empty')
+
+        self.assertEqual(len(allerrorlists), 10, 'Expect there to be 1 base error list, plus one per array instance')
+
+    def test_all_configs(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        allconfigs = cfg.all_configs()
+        defaults = nondefaults = 0
+        for name, item in allconfigs:
+            if item.is_default():
+                defaults += 1
+            else:
+                nondefaults += 1
+        self.assertEqual(len(allconfigs), defaults + nondefaults, 'Inconsistent results from iterating in two ways')
+        self.assertEqual(nondefaults, 47, 'Unexpected number of non-default entries in config file')
 
     def test_access_counters(self):
         """ Test that read/create counters work correctly when there are no errors """
@@ -477,13 +497,13 @@ class Config2Test(LLTestCase):
             'CSV4': Counter({Access.FORMAT_ERR: 1}),
             'MAIL2': Counter({Access.FORMAT_ERR: 1}),
         }
-        self.assertEqual(errors, expectederrors, 'Errors were not as expected')
+        self.assertDictEqual(errors, expectederrors, 'Errors were not as expected')
 
         cfg.clear_access_counters()
         acs = cfg.get_all_accesses()
         errors = cfg.get_error_counters()
         self.do_access_compare(acs, {}, [], 'Clearing all access patterns did not work')
-        self.assertEqual(errors, {}, 'Clearing all access patterns did clear errors')
+        self.assertEqual(errors, {}, 'Clearing all access patterns did not clear errors')
 
     def test_LLdefaults(self):
         """ Test setting the default LL config """
@@ -584,23 +604,23 @@ class Config2Test(LLTestCase):
             "GENERAL.TESTDATA_DIR": Counter({Access.WRITE_OK: 1}),
             "GENERAL.DOWNLOAD_DIR": Counter({Access.WRITE_OK: 1}),
             "POSTPROCESS.AUDIOBOOK_DEST_FOLDER": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.DISPNAME": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.ENABLED": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.HOST": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.API": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.GENERALSEARCH": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.BOOKSEARCH": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.BOOKCAT": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.UPDATED": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.APILIMIT": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.RATELIMIT": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.0.DLTYPES": Counter({Access.WRITE_OK: 1}),
-            "NEWZNAB.1.DISPNAME": Counter({Access.WRITE_OK: 1}),
-            'NEWZNAB.1.HOST': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
-            'APPRISE.0.DISPNAME': Counter({Access.WRITE_OK: 1}),
-            'APPRISE.0.SNATCH': Counter({Access.WRITE_OK: 1}),
-            'APPRISE.0.DOWNLOAD': Counter({Access.WRITE_OK: 1}),
-            'APPRISE.0.URL': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
+            "NEWZNAB_0.DISPNAME": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.ENABLED": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.HOST": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.API": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.GENERALSEARCH": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.BOOKSEARCH": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.BOOKCAT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.UPDATED": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.APILIMIT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.RATELIMIT": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_0.DLTYPES": Counter({Access.WRITE_OK: 1}),
+            "NEWZNAB_1.DISPNAME": Counter({Access.WRITE_OK: 1}),
+            'NEWZNAB_1.HOST': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
+            'APPRISE_0.DISPNAME': Counter({Access.WRITE_OK: 1}),
+            'APPRISE_0.SNATCH': Counter({Access.WRITE_OK: 1}),
+            'APPRISE_0.DOWNLOAD': Counter({Access.WRITE_OK: 1}),
+            'APPRISE_0.URL': Counter({Access.WRITE_OK: 1, Access.READ_OK: 1}),
         }
         self.do_access_compare(acs, expectedacs, [Access.READ_OK], 'Loading complex ini file did not modify the expected values')
 
@@ -697,9 +717,9 @@ class Config2Test(LLTestCase):
 
         summary = cfg.create_access_summary(saveto = '')
         expected_summary = {
-            'READ_OK': [('NEWZNAB.0.DISPNAME', 2), ('NEWZNAB.0.ENABLED', 1), ('NEWZNAB.0.APILIMIT', 1)],
+            'READ_OK': [('NEWZNAB_0.DISPNAME', 2), ('NEWZNAB_0.ENABLED', 1), ('NEWZNAB_0.APILIMIT', 1)],
             'WRITE_OK': [],
-            'READ_ERR': [('BASEINVALID', 1), ('DOESNOTEXIST', 1), ('ALSOFAKE', 1), ('NEWZNAB.0.INVALIDKEY', 2), ('NEWZNAB.0.INVALIDKEY_2', 1)],
+            'READ_ERR': [('BASEINVALID', 1), ('DOESNOTEXIST', 1), ('ALSOFAKE', 1), ('NEWZNAB_0.INVALIDKEY', 2), ('NEWZNAB_0.INVALIDKEY_2', 1)],
             'WRITE_ERR': [],
             'CREATE_OK': [],
             'FORMAT_ERR': []
@@ -974,6 +994,10 @@ class Config2Test(LLTestCase):
 
     def test_add_access_errors_to_log(self):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+        # Make sure there are no errors from load
+        allerrorlists = cfg.all_error_lists()
+        for errorlist in allerrorlists:
+            self.assertEqual(len(errorlist), 0, 'Expect all error lists to be empty')
         # Create some errors
         _ = cfg.get_bool('HOMEPAGE') # Read error (type)
         cfg.set_bool('HOMEPAGE', True) # Write error (type)
@@ -981,15 +1005,16 @@ class Config2Test(LLTestCase):
         _ = cfg.get_str('NotAValidKey') # Read error (key)
         rss = cfg.get_array_dict('RSS', 0)
         rss.set_int('HOST', 2) # Write error (type)
-        _ = rss.get_str('NotAValidKey') # Read error (key)
+        _ = rss.get_str('NotAValidRSSKey') # Read error (key)
         with self.assertLogs('lazylibrarian.logger', level='ERROR') as cm:
             cfg.add_access_errors_to_log()
+        # The order is always type, then key errors
         self.assertListEqual(cm.output, [
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: HOMEPAGE, 1 times',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: HOMEPAGE, 2 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: GENERAL.HOMEPAGE, 1 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: GENERAL.HOMEPAGE, 2 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: RSS_0.HOST, 1 times',
             'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: NOTAVALIDKEY, 1 times',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config WRITE_ERR: RSS.0.HOST, 1 times',
-            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: RSS.0.NOTAVALIDKEY, 1 times',
+            'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: RSS_0.NOTAVALIDRSSKEY, 1 times',
         ])
 
 

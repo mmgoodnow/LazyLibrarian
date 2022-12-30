@@ -57,6 +57,12 @@ class ConfigItem:
         else:
             raise RuntimeError(f'Cannot initialize {section}.{key} as {default}')
 
+    def get_full_name(self) -> str:
+        if self.section:
+            return f"{self.section.upper()}.{self.key}"
+        else:
+            return self.key
+
     def get_default(self) -> ValidTypes:
         return self.default
 
@@ -553,9 +559,10 @@ class CaseInsensitiveDict(MutableMapping):
 
 class ConfigDict:
     """ A class for managing access to a dict of configs in a convenient way """
-    def __init__(self):
+    def __init__(self, single_section: str=''):
         self.config: Dict[str, ConfigItem] = CaseInsensitiveDict() # type: ignore
         self.errors: Dict[str, Counter] = dict()
+        self.single_section = single_section.upper()  # Set if the dict represents an array entry
 
     def clear(self):
         self.config.clear()
@@ -727,10 +734,14 @@ class ConfigDict:
         from lazylibrarian.telemetry import TELEMETRY
         TELEMETRY.record_usage_data(f'Config/AccessError/{status.name}')
         key = key.upper()
-        if key not in self.errors:
-            self.errors[key] = Counter()
-        self.errors[key][status] += 1
-        logger.error(f"Config[{key}]: {status.value}")
+        if self.single_section:
+            name = f"{self.single_section}.{key}"
+        else:
+            name = key
+        if name not in self.errors:
+            self.errors[name] = Counter()
+        self.errors[name][status] += 1
+        logger.error(f"Config[{name}]: {status.value}")
 
     def get_error_counters(self) -> Dict[str, Counter]:
         """ Get a list of all access errors """
@@ -751,3 +762,52 @@ class ConfigDict:
             booktype_list = self.get_list('EBOOK_TYPE')
         extn = os.path.splitext(filename)[1].lstrip('.')
         return extn and booktype_list and extn.lower() in booktype_list
+
+class ErrorListIterator:
+    """ Helper to iterate over all Error Lists in a list of ConfigDicts """
+    def __init__(self, config_dicts: List[ConfigDict]):
+        self.errordicts = []
+        for cd in config_dicts:
+            self.errordicts.append(cd.errors)
+        self.index = 0
+
+    def __len__(self):
+        return len(self.errordicts)
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Dict[str, Counter]:
+        if self.index >= len(self.errordicts):
+            raise StopIteration
+        item = self.errordicts[self.index]
+        self.index += 1
+        return item
+
+class ConfigDictListIterator:
+    """ Helper to iterate over all ConfigItems in a list of ConfigDicts """
+    def __init__(self, config_dicts: List[ConfigDict]):
+        self.config_dicts = config_dicts
+        self.dict_index = 0
+        self.item_index = 0
+
+    def __len__(self):
+        res = 0
+        for cd in self.config_dicts:
+            res += len(cd)
+        return res
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> Tuple[str, ConfigItem]:
+        if self.dict_index >= len(self.config_dicts):
+            raise StopIteration
+        config_dict = self.config_dicts[self.dict_index]
+        if self.item_index >= len(config_dict):
+            self.dict_index += 1
+            self.item_index = 0
+            return self.__next__()
+        name, item = list(config_dict.items())[self.item_index]
+        self.item_index += 1
+        return name, item

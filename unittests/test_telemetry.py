@@ -133,7 +133,7 @@ class TelemetryTest(LLTestCase):
         sExpect = [
             ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
             ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
-            ['usage',  'usage={"Config/Save":1,"API/getHelp":2,"web/test":1,"Download/NZB":1}'],
+            ['usage',  'usage={"Config/Save":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
         ]
         # Test individual strings
         for expect in sExpect:
