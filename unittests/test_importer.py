@@ -49,7 +49,6 @@ class ImporterTest(LLTestCase):
         self.assertEqual(importer.is_valid_authorid('123'), False)
         self.assertEqual(importer.is_valid_authorid('OLrandomA'), True)
 
-
     def test_get_preferred_author_name_NotInDB(self):
         testname = 'Allan Mertner'
         name, found = importer.get_preferred_author_name(testname)
@@ -60,7 +59,6 @@ class ImporterTest(LLTestCase):
         name, found = importer.get_preferred_author_name(longertestname)
         self.assertEqual(name, testname)
         self.assertEqual(found, False)
-
 
     def test_add_author_name_to_db_UnknownPerson(self):
         testname = 'Mr Allan Mertner The Tester'
@@ -85,9 +83,8 @@ class ImporterTest(LLTestCase):
         self.assertEqual(authorname, testname)
         self.assertEqual(authorid, 'OL272947A')
 
-
     def test_add_author_to_db_JustByID(self):
-        testid = 'OL2219179A' # Maud D. Davies
+        testid = 'OL2219179A'  # Maud D. Davies
         CONFIG.set_str('BOOK_API', 'OpenLibrary')
         authorid = importer.add_author_to_db(
             authorname=None, refresh=False, addbooks=False, reason='Testing', authorid=testid)
@@ -95,10 +92,6 @@ class ImporterTest(LLTestCase):
 
     def test_search_for(self):
         # Need to find a good way to test this
-        #s = importer.search_for("Douglas Adams")
-        #print(s)
+        # s = importer.search_for("Douglas Adams")
+        # print(s)
         pass
-
-
-
-

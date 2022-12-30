@@ -4,13 +4,16 @@
 #   Testing the functions in filesystem.py
 
 import os
+import sys
 import mock
+import unittest
 
 from unittests.unittesthelpers import LLTestCase
 from lazylibrarian import filesystem
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.filesystem import DIRS, get_directory, syspath, remove_dir
 from lazylibrarian.logger import lazylibrarian_log
+
 
 class FilesystemTest(LLTestCase):
 
@@ -35,7 +38,6 @@ class FilesystemTest(LLTestCase):
         DIRS.set_datadir(self.datadir)
         return super().tearDown()
 
-
     def test_syspath(self):
         """ Test that syspath returns a proper path in both Linux and Windows"""
         paths_input_windows = [
@@ -43,10 +45,10 @@ class FilesystemTest(LLTestCase):
             ['simple', '\\\\?\\simple'],
             ['./relative/path', './relative/path'],
             ['/absolute/path', '\\\\?\\/absolute/path'],
-            [ b'not a string', '\\\\?\\not a string'],
-            ['D:\\','D:\\'],
-            [ '\\\\SERVER\\SHARE\\dir', '\\\\?\\UNC\\SERVER\\SHARE\\dir'],
-            [ '\\\\SERVER\\SHARE/dir', '\\\\?\\UNC\\SERVER\\SHARE/dir'],
+            [b'not a string', '\\\\?\\not a string'],
+            ['D:\\', 'D:\\'],
+            ['\\\\SERVER\\SHARE\\dir', '\\\\?\\UNC\\SERVER\\SHARE\\dir'],
+            ['\\\\SERVER\\SHARE/dir', '\\\\?\\UNC\\SERVER\\SHARE/dir'],
         ]
         with mock.patch('os.path.__name__', 'posixpath'):
             for path1, _ in paths_input_windows:
@@ -56,7 +58,7 @@ class FilesystemTest(LLTestCase):
             for path1, path2 in paths_input_windows:
                 self.assertEqual(filesystem.syspath(path1), path2)
 
-    ### Tests for set_datadir
+    # Tests for set_datadir
 
     @mock.patch.object(filesystem, 'path_isdir')
     @mock.patch.object(os, 'access')
@@ -162,6 +164,7 @@ class FilesystemTest(LLTestCase):
         faultydir = get_directory("This is invalid")
         self.assertEqual(faultydir, "")
 
+    @unittest.skipUnless(sys.platform == 'win32', 'This test is only for Windows')
     def test_get_directory_cannot_be_valid(self):
         # Test the get_directory() function for invalid paths
         lazylibrarian_log.update_loglevel(override=2)
@@ -203,7 +206,6 @@ class FilesystemTest(LLTestCase):
 
         self.assertTrue(filesystem.setperm(filesystem.get_directory("Testdata")), 'setperm should work on a dir')
 
-
     def test_make_dirs(self):
         lazylibrarian_log.update_loglevel(override=1)
         basedir = DIRS.TMPDIR
@@ -212,7 +214,6 @@ class FilesystemTest(LLTestCase):
         self.assertTrue(filesystem.path_isdir(deepdir), 'Expected directory to be a dir')
 
         self.assertTrue(filesystem.make_dirs(deepdir, new=True), 'Cannot re-create deep directory tree')
-
 
     def test_safe_move_and_copy(self):
         lazylibrarian_log.update_loglevel(override=1)

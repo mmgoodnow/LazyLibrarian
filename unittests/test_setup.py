@@ -8,6 +8,7 @@ from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.notifiers import APPRISE_VER
 from unittests.unittesthelpers import LLTestCase
 
+
 class SetupTest(LLTestCase):
 
     # Initialisation code that needs to run only once

@@ -15,7 +15,7 @@ from lazylibrarian.blockhandler import BLOCKHANDLER, BlockHandler
 class BlockhandlerTest(LLTestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        logger.RotatingLogger.SHOW_LINE_NO = False # type: ignore # Hack used to make tests more robust
+        logger.RotatingLogger.SHOW_LINE_NO = False  # type: ignore # Hack used to make tests more robust
         super().setDoAll(False)
         return super().setUpClass()
 
@@ -25,7 +25,7 @@ class BlockhandlerTest(LLTestCase):
         return super().tearDownClass()
 
     def setUp(self):
-        BLOCKHANDLER.clear_all() # Clear before each test
+        BLOCKHANDLER.clear_all()  # Clear before each test
 
     def test_set_config(self):
         # Create a new, emppty handler for this
@@ -60,11 +60,10 @@ class BlockhandlerTest(LLTestCase):
         calls = BLOCKHANDLER.get_gb_calls()
         self.assertEqual(calls, 0, 'Count of gb calls should have been reset')
 
-
     def test_remove_provider_entry(self):
         name = 'test'
         with self.assertLogs('lazylibrarian.logger', 'DEBUG'):
-            delay = BLOCKHANDLER.block_provider(name, 'blocked', delay=120)
+            _ = BLOCKHANDLER.block_provider(name, 'blocked', delay=120)
         self.assertTrue(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(BLOCKHANDLER.number_blocked(), 1)
 
@@ -72,12 +71,11 @@ class BlockhandlerTest(LLTestCase):
         self.assertFalse(BLOCKHANDLER.is_blocked(name))
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
 
-
     def test_block_provider(self):
         logger.lazylibrarian_log.update_loglevel(2)
         name = 'someone'
         with self.assertLogs('lazylibrarian.logger', 'DEBUG') as cm:
-            delay = BLOCKHANDLER.block_provider(name, 'just because', delay=120) # Block for 2 minutes
+            delay = BLOCKHANDLER.block_provider(name, 'just because', delay=120)  # Block for 2 minutes
         self.assertListEqual(cm.output, [
             'INFO:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Blocking provider someone for 2 minutes because just because',
             'DEBUG:lazylibrarian.logger:MainThread : blockhandler.py:block_provider : Provider Blocklist contains 1 entry'
@@ -98,7 +96,7 @@ class BlockhandlerTest(LLTestCase):
         self.assertEqual(BLOCKHANDLER.number_blocked(), 1, 'Should be exactly one blocked')
 
         # Let the block be expired
-        time.sleep(newdelay+0.1)
+        time.sleep(newdelay + 0.1)
         self.assertFalse(BLOCKHANDLER.is_blocked(name), 'Expected this to be blocked')
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'There should be no more blocks')
 
@@ -109,10 +107,10 @@ class BlockhandlerTest(LLTestCase):
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0, 'Should not have added a block')
 
         # Add a block where the reason will be truncated to 80 chars
-        delay = BLOCKHANDLER.block_provider('short', 'X'*200)
+        _ = BLOCKHANDLER.block_provider('short', 'X' * 200)
         lines = BLOCKHANDLER.get_text_list_of_blocks().splitlines()
         self.assertListEqual(lines, [
-            f"short blocked for 1 hours: {'X'*80}",
+            f"short blocked for 1 hours: {'X' * 80}",
         ])
 
     def test_number_blocked(self):
@@ -120,7 +118,7 @@ class BlockhandlerTest(LLTestCase):
 
     def test_clear_all(self):
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
-        BLOCKHANDLER.block_provider('test', 'no reason',)
+        BLOCKHANDLER.block_provider('test', 'no reason', )
         self.assertEqual(BLOCKHANDLER.number_blocked(), 1)
         BLOCKHANDLER.clear_all()
         self.assertEqual(BLOCKHANDLER.number_blocked(), 0)
@@ -146,7 +144,6 @@ class BlockhandlerTest(LLTestCase):
             self.assertEqual(provider.get_int('APICOUNT'), 0)
         for provider in CONFIG.providers('TORZNAB'):
             self.assertEqual(provider.get_int('APICOUNT'), 0)
-
 
     def test_get_text_list_of_blocks(self):
         txt = BLOCKHANDLER.get_text_list_of_blocks()

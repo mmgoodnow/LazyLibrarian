@@ -12,13 +12,15 @@ from lazylibrarian import logger
 from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian import dbupgrade, startup, config2
 
+
+# noinspection PyBroadException
 class LLTestCase(unittest.TestCase):
     ALLSETUP = None
     CONFIGFILE = './unittests/testdata/testconfig-defaults.ini'
 
     @classmethod
     def setUpClass(cls) -> None:
-        options, configfile = startup.startup_parsecommandline(__file__, args = [''], testing=True)
+        options, configfile = startup.startup_parsecommandline(__file__, args=[''], testing=True)
         startup.load_config(cls.CONFIGFILE, options)
         startup.init_misc(config2.CONFIG)
         if cls.ALLSETUP:
@@ -61,7 +63,7 @@ class LLTestCase(unittest.TestCase):
                 remove(DIRS.get_dbfile())
                 remove(DIRS.get_dbfile() + "-shm")
                 remove(DIRS.get_dbfile() + "-wal")
-            except:
+            except Exception:
                 pass
 
     @classmethod
@@ -71,14 +73,14 @@ class LLTestCase(unittest.TestCase):
             logger.debug("Deleting unit test cache directory")
             try:
                 rmtree(DIRS.CACHEDIR)
-            except:
+            except Exception:
                 pass
 
     @classmethod
     def delete_test_logs(cls):
         if path_isdir(config2.CONFIG['LOGDIR']) and len(config2.CONFIG['LOGDIR']) > 3:
-            try: # Do not delete if there is a risk that it's the root of somewhere important
-#                logger.debug("Deleting Logs")
+            try:  # Do not delete if there is a risk that it's the root of somewhere important
+                #                logger.debug("Deleting Logs")
                 rmtree(config2.CONFIG['LOGDIR'], ignore_errors=False)
             except Exception as e:
                 print(str(e))
@@ -111,9 +113,9 @@ class LLTestCase(unittest.TestCase):
             dbupgrade.db_upgrade(curr_ver)
 
     def assertEndsWith(self, teststr, end):
-        self.assertEqual(teststr[-len(end):],end)
+        self.assertEqual(teststr[-len(end):], end)
+
 
 def false_method() -> bool:
     """ A method that returns False. used for testing. """
     return False
-

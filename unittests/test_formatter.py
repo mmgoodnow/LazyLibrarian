@@ -8,6 +8,7 @@ from lazylibrarian.config2 import CONFIG
 from lazylibrarian import formatter
 from unittests.unittesthelpers import LLTestCase
 
+
 class FormatterTest(LLTestCase):
 
     @classmethod
@@ -21,10 +22,10 @@ class FormatterTest(LLTestCase):
             ("", ""),
             ("C:\\My eBooks\\book.epub", 'C\\My eBooks\\book.epub'),
             ("My oddly named ÆØÅ ebook...", 'My oddly named AOÅ ebook'),
-            ("Stuff here "+chr(2)+">< |&!?-\\$|+`~=*", 'Stuff here  &!-\\s+~='),
+            ("Stuff here " + chr(2) + ">< |&!?-\\$|+`~=*", 'Stuff here  &!-\\s+~='),
             ("Not C:\\\\// usable [as a] file name.jpg", 'Not C\\/ usable [as a] file name.jpg'),
-            (u'\2160'+u'\0049', '\x8e09'),
-            ('Hello Über', 'Hello Über'), # Unicode-string in NFKD->NFC format
+            (u'\2160' + u'\0049', '\x8e09'),
+            ('Hello Über', 'Hello Über'),  # Unicode-string in NFKD->NFC format
             ("\\\\Server\\Test An odd one:2131", '\\Server\\Test An odd one2131'),
         ]
         for s in strings:
@@ -33,12 +34,13 @@ class FormatterTest(LLTestCase):
             try:
                 self.assertTrue(unicodedata.is_normalized("NFC", sn))
             except AttributeError:
-                pass # P37: unicodedata.is_normalized is not valid in Python 3.7
+                pass  # P37: unicodedata.is_normalized is not valid in Python 3.7
 
     def test_url_fix(self):
         urls = [
             ("http://www.random.com/query?test=123", 'http://www.random.com/query?test=123'),
-            ("https://10.11.12.13:1234/query?test=I am :a pup/py:&x y", 'https://10.11.12.13:1234/query?test=I+am+:a+pup%2Fpy:&x+y'),
+            ("https://10.11.12.13:1234/query?test=I am :a pup/py:&x y",
+             'https://10.11.12.13:1234/query?test=I+am+:a+pup%2Fpy:&x+y'),
             ("I am not an Über URL '+chr(8)", 'I%20am%20not%20an%20U%CC%88ber%20URL%20%27%2Bchr%288%29'),
         ]
         for url in urls:
@@ -59,18 +61,18 @@ class FormatterTest(LLTestCase):
     def test_safe_unicode(self):
         strings = [
             ("", ""),
-            ("Stuff here "+chr(2)+">< |&!?-\\$|+`~=*", "Stuff here "+chr(2)+">< |&!?-\\$|+`~=*"),
-            (u'\2160'+u'\0049', u'\2160'+u'\0049'),
+            ("Stuff here " + chr(2) + ">< |&!?-\\$|+`~=*", "Stuff here " + chr(2) + ">< |&!?-\\$|+`~=*"),
+            (u'\2160' + u'\0049', u'\2160' + u'\0049'),
             (u'\x8e09', u'\x8e09'),
             ('Hello Über', 'Hello Über'),
-            (b'\xc3\x28', "b'\\xc3('" ), # Invalid 2-byte sequence
-            (b"\xf0\x28\x8c\xbc", "b'\\xf0(\\x8c\\xbc'"), # Invalid 4-byte sequence
+            (b'\xc3\x28', "b'\\xc3('"),  # Invalid 2-byte sequence
+            (b"\xf0\x28\x8c\xbc", "b'\\xf0(\\x8c\\xbc'"),  # Invalid 4-byte sequence
         ]
         for s in strings:
             self.assertEqual(formatter.safe_unicode(s[0]), s[1])
 
     def test_book_series(self):
-        testseries =[
+        testseries = [
             # Single-series
             ("My Book (Toot, #40)", "Toot", '40'),
             ("Some series (Book 3)", "Book", '3'),
@@ -136,8 +138,10 @@ class FormatterTest(LLTestCase):
             ("Author Name", "Author Name: Book (Unabridged volume)", ("Book", "(Unabridged volume)", "")),
             ("Author Name", "Author Name: Book (TM)", ("Book", "(TM)", "")),
             # Books with a subtitle in a series
-            ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
-            ("Abraham Lincoln", "Abraham Lincoln: Vampire Hunter: A horrifying tale (Vampires #2)", ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
+            ("Abraham Lincoln", "Vampire Hunter: A horrifying tale (Vampires #2)",
+             ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
+            ("Abraham Lincoln", "Abraham Lincoln: Vampire Hunter: A horrifying tale (Vampires #2)",
+             ("Vampire Hunter", "A horrifying tale", "Vampires #2")),
         ]
         testcommentarydata = [
             # Titles with "commentary" in the title
@@ -215,7 +219,7 @@ class FormatterTest(LLTestCase):
             self.assertEqual(formatter.plural(value[0], value[1]), value[2])
 
     def test_datecompare(self):
-        datepairs = [ # Note all dates must be yyyy-mm-dd or yy-mm-dd
+        datepairs = [  # Note all dates must be yyyy-mm-dd or yy-mm-dd
             # Valid datepairs
             ("2000-01-02", "2000-01-01", 1),
             ("2000-1-3", "2000-1-1", 2),
@@ -276,14 +280,14 @@ class FormatterTest(LLTestCase):
     def test_date_format(self):
         dates = [
             ("Tue, 23 Aug 2016 17:33:26 +0100", "2016-08-23"),  # Newznab/Torznab
-            ("13 Nov 2014 05:01:18 +0200", "2014-11-13"),       # LimeTorrent
-            ("04-25 23:46", formatter.now()[:4] + "-04-25"),    # torrent_tpb - use current year
+            ("13 Nov 2014 05:01:18 +0200", "2014-11-13"),  # LimeTorrent
+            ("04-25 23:46", formatter.now()[:4] + "-04-25"),  # torrent_tpb - use current year
             ("2018-04-25", "2018-04-25"),
-            ("May 1995", "1995-05-01"),                         # openlibrary
+            ("May 1995", "1995-05-01"),  # openlibrary
             ("June 20, 2008", "2008-06-20"),
-            ("28Dec2008", "2008-12-28"),                        # Compressed into one string
-            ("XYZ is not a date", "XYZ-00-not a:date:00"),      # Error, but seen as a date
-            ("XYZ", "XYZ"),                                     # Error, just a string
+            ("28Dec2008", "2008-12-28"),  # Compressed into one string
+            ("XYZ is not a date", "XYZ-00-not a:date:00"),  # Error, but seen as a date
+            ("XYZ", "XYZ"),  # Error, just a string
             ("", ""),
         ]
         for d in dates:
@@ -291,11 +295,11 @@ class FormatterTest(LLTestCase):
 
     def test_versiontuple(self):
         versions = [
-            ("1.2", (1,2,0)),
-            ("2.3.4", (2,3,4)),
-            ("1.2.3-beta4", (1,2,3)),
-            ("gibberish", (0,0,0)),
-            ("8.x.y", (8,0,0)),
+            ("1.2", (1, 2, 0)),
+            ("2.3.4", (2, 3, 4)),
+            ("1.2.3-beta4", (1, 2, 3)),
+            ("gibberish", (0, 0, 0)),
+            ("8.x.y", (8, 0, 0)),
         ]
         for v in versions:
             self.assertEqual(formatter.versiontuple(v[0]), v[1])
@@ -304,10 +308,10 @@ class FormatterTest(LLTestCase):
         sizes = [
             (100, "100.00B"),
             (2000, "1.95KiB"),
-            (32*1024**2+8, "32.00MiB"),
-            (12*1024**3, "12.00GiB"),
-            (3*1024**4, "3.00TiB"),
-            (81*1024**5.2+10*1024**4, "324.01PiB"),
+            (32 * 1024 ** 2 + 8, "32.00MiB"),
+            (12 * 1024 ** 3, "12.00GiB"),
+            (3 * 1024 ** 4, "3.00TiB"),
+            (81 * 1024 ** 5.2 + 10 * 1024 ** 4, "324.01PiB"),
             ("bob", "0.00B"),
         ]
         for s in sizes:
@@ -318,7 +322,7 @@ class FormatterTest(LLTestCase):
             (100, "100"),
             (1996, "1.95KiB"),
             (33554432, "32.00MiB"),
-            (12*1024**3, "12.00GiB"),
+            (12 * 1024 ** 3, "12.00GiB"),
             (0, "bob"),
         ]
         for s in sizes:
@@ -337,7 +341,9 @@ class FormatterTest(LLTestCase):
         strings = [
             ("", b'', ""),
             ("This is a test", b'This is a test', ""),
-            ("ÆØÅ, æøå and ½é", b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9', "ISO-8859-15"),
+            ("ÆØÅ, æøå and ½é",
+             b'\xc3\x83\xc2\x86\xc3\x83\xc2\x98\xc3\x83\xc2\x85, \xc3\x83\xc5\xa0\xc3\x83\xc5\xbe\xc3\x83\xc2\xa5 and \xc3\x82\xc5\x93\xc3\x83\xc2\xa9',
+             "ISO-8859-15"),
         ]
         for teststr in strings:
             encoded, name = formatter.make_utf8bytes(teststr[0])
@@ -351,7 +357,7 @@ class FormatterTest(LLTestCase):
             ('Hello Über', 'Hello Über'),
             (123, "123"),
             ([False, None, "Allan"], "[False, None, 'Allan']"),
-            (b'\xc3\x28', 'Ã(' ), # Invalid 2-byte sequence
+            (b'\xc3\x28', 'Ã('),  # Invalid 2-byte sequence
 
         ]
         for teststr in strings:
@@ -374,21 +380,21 @@ class FormatterTest(LLTestCase):
 
     def test_is_valid_type(self):
         validfilenames = [
-            "book.opf",      # Book metadata
-            "cover.jpg",     # Cover images
+            "book.opf",  # Book metadata
+            "cover.jpg",  # Cover images
             "A volume.pdf",  # Magazines and ebooks
-            "Audio.mp3",     # Audiobook
-            "Adio.m4b",      # Modern audiobook
-            "TEST.EPUB",     # eBook
-            "Book 2.mobi",   # eBook
-            "Marvel.Cbr",    # Comic
-            "DC.cbZ",        # Comic
+            "Audio.mp3",  # Audiobook
+            "Adio.m4b",  # Modern audiobook
+            "TEST.EPUB",  # eBook
+            "Book 2.mobi",  # eBook
+            "Marvel.Cbr",  # Comic
+            "DC.cbZ",  # Comic
         ]
         invalidfilenames = [
             "",
             "Hello",
             "jpg",
-            ".mobi",        # eBook without a name
+            ".mobi",  # eBook without a name
             "Allan.test",
         ]
         allowlist = CONFIG.get_all_types_list()
@@ -423,11 +429,14 @@ class FormatterTest(LLTestCase):
         lists = [
             # Standard separations
             ("A few items, and some more", None, ["A", "few", "items", "and", "some", "more"]),
-            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",None, ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg", None,
+             ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # Separate just on comma
-            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',', ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg", ',',
+             ['C:\\Program Files\\Test\\Some File.jpg', 'D:\\Another file.jpg']),
             # Tricky: Tell it to separate on comma and space, and it separates on the default
-            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg",',;', ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
+            ("C:\\Program Files\\Test\\Some File.jpg,D:\\Another file.jpg", ',;',
+             ['C:\\Program', 'Files\\Test\\Some', 'File.jpg', 'D:\\Another', 'file.jpg']),
             # CSV content
             ('snr, jnr, jr, sr, phd', None, ['snr', 'jnr', 'jr', 'sr', 'phd']),
             # The empy list
@@ -504,7 +513,7 @@ class FormatterTest(LLTestCase):
                 self.assertEqual(authorname, name[1])
 
         # Test with the config from ini file
-        postfix=CONFIG.get_list('NAME_POSTFIX')
+        postfix = CONFIG.get_list('NAME_POSTFIX')
         for name in testnames_plain + testnames_withsuffix:
             with self.subTest(msg=f'Testing "{name}" with ini file postfix "{postfix}"'):
                 authorname = formatter.format_author_name(name[0], postfix=postfix)
@@ -556,8 +565,8 @@ class FormatterTest(LLTestCase):
         allchars = ''
         for ch in range(32, 255):
             allchars += chr(ch)
-        allchars += u'\uff02' # Add a single non-ascii quote to the test
-        self.assertEqual(len(allchars), 255-32+1)
+        allchars += u'\uff02'  # Add a single non-ascii quote to the test
+        self.assertEqual(len(allchars), 255 - 32 + 1)
 
         newstr = formatter.replace_quotes_with(allchars, 'x')
         self.assertEqual(newstr.count('x'), 7)

@@ -5,7 +5,7 @@
 
 import json
 import pytest
-import pytest_order # Needed to force unit test order
+import pytest_order  # Needed to force unit test order
 import mock
 
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
@@ -31,11 +31,11 @@ class TelemetryTest(LLTestCase):
         self.set_loglevel(1)
         t = telemetry.LazyTelemetry()
         loaded_id = CONFIG['SERVER_ID']
-        id = t.ensure_server_id(CONFIG)
-        self.assertIsNotNone(id)
+        serverid = t.ensure_server_id(CONFIG)
+        self.assertIsNotNone(serverid)
         if loaded_id:
-            self.assertEqual(id, loaded_id)
-        return id
+            self.assertEqual(serverid, loaded_id)
+        return serverid
 
     def test_getTelemetryObject(self):
         self.set_loglevel(1)
@@ -126,22 +126,25 @@ class TelemetryTest(LLTestCase):
     def test_construct_data_string(self):
         t = telemetry.LazyTelemetry()
         t.set_install_data(CONFIG, testing=True)
-        sGot = dict()
-        sGot['server'] = t.construct_data_string(send_config=False, send_usage=False)
-        sGot['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)
-        sGot['usage'] = t.construct_data_string(send_config=False, send_usage=True, send_server=False)
-        sExpect = [
-            ['server', 'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
-            ['config', 'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
-            ['usage',  'usage={"Config/Save":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
+        s_got = dict()
+        s_got['server'] = t.construct_data_string(send_config=False, send_usage=False)
+        s_got['config'] = t.construct_data_string(send_config=True, send_usage=False, send_server=False)
+        s_got['usage'] = t.construct_data_string(send_config=False, send_usage=True, send_server=False)
+        s_expect = [
+            ['server',
+             'server={"id":"5f6300cc949542f0bcde1ea110ba46a8","uptime_seconds":0,"install_type":"","version":"","os":"nt","python_ver":"3.11.0 (main, Oct 24 2022, 18:26:48) [MSC v.1933 64 bit (AMD64)]"}'],
+            ['config',
+             'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
+            ['usage',
+             'usage={"Config/Save":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
         ]
         # Test individual strings
-        for expect in sExpect:
+        for expect in s_expect:
             key = expect[0]
-            self.assertEqual(key, sGot[key][:len(key)], 'Data string does not start with key')
+            self.assertEqual(key, s_got[key][:len(key)], 'Data string does not start with key')
             # Remove the key prefix before converting
-            gotstr = sGot[key][len(key)+1:]
-            expstr = expect[1][len(key)+1:]
+            gotstr = s_got[key][len(key) + 1:]
+            expstr = expect[1][len(key) + 1:]
             # Don't just compare strings, compare if they are equivalent
             # even if order of elements is different
             gotdata = json.loads(gotstr)
@@ -149,9 +152,8 @@ class TelemetryTest(LLTestCase):
             self.assertEqual(gotdata, expdata)
 
         # Test they are concatenated correctly, excluding server key
-        sUC = t.construct_data_string(send_usage=True, send_config=True, send_server=False)
-        self.assertEqual(sUC, f"{sExpect[1][1]}&{sExpect[2][1]}", 'Strings concatenated incorrectly')
-
+        s_usage = t.construct_data_string(send_usage=True, send_config=True, send_server=False)
+        self.assertEqual(s_usage, f"{s_expect[1][1]}&{s_expect[2][1]}", 'Strings concatenated incorrectly')
 
     @pytest.mark.order(after="test_construct_data_string")
     @mock.patch('lazylibrarian.telemetry.requests')
@@ -170,7 +172,7 @@ class TelemetryTest(LLTestCase):
         mock_requests.get.return_value.status_code = 200
         msg, status = t.submit_data('http://testserver', False, False)
         self.assertEqual(mock_requests.get.call_count, 2, "request.get() was not called")
-        URLarg = mock_requests.get.call_args[0][0]
-        ExpectedURL = t.get_data_url(server='', send_config=True, send_usage=False)
+        _ = mock_requests.get.call_args[0][0]
+        _ = t.get_data_url(server='', send_config=True, send_usage=False)
         # self.assertEqual(URLarg, ExpectedURL, "Request URL not as expected")
         self.assertTrue(status, "Request call did not succeed")
