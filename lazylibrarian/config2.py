@@ -24,13 +24,14 @@ from lazylibrarian.filesystem import DIRS, syspath, path_exists
 from lazylibrarian.formatter import thread_name, plural
 from lazylibrarian.logger import lazylibrarian_log
 
-""" Main configuration handler for LL """
+
 class LLConfigHandler(ConfigDict):
-    arrays: Dict[str, ArrayConfig] # (section, array)
+    """ Main configuration handler for LL """
+    arrays: Dict[str, ArrayConfig]  # (section, array)
     configfilename: str
     REDACTLIST: List[str]
 
-    def __init__(self, defaults: Optional[List[ConfigItem]]=None, configfile: Optional[str]=None):
+    def __init__(self, defaults: Optional[List[ConfigItem]] = None, configfile: Optional[str] = None):
         super().__init__()
         self.arrays = dict()
         self.defaults = defaults
@@ -38,7 +39,7 @@ class LLConfigHandler(ConfigDict):
         self.configfilename = ''
         self.load_configfile(configfile)
 
-    def load_configfile(self, configfile: Optional[str]=None):
+    def load_configfile(self, configfile: Optional[str] = None):
         if self.configfilename:
             # Clear existing before loading another setup, brute force.
             super().clear()
@@ -60,7 +61,7 @@ class LLConfigHandler(ConfigDict):
             self.configfilename = ''
         self.ensure_arrays_have_empty_item()
 
-    def _copydefaults(self, defaults: Optional[List[ConfigItem]]=None):
+    def _copydefaults(self, defaults: Optional[List[ConfigItem]] = None):
         """ Copy the default values and settings for the given config """
         if defaults:
             for config_item in defaults:
@@ -68,7 +69,7 @@ class LLConfigHandler(ConfigDict):
                 self.config[key] = configitem_from_default(config_item)
 
     @staticmethod
-    def _load_section(section:str, parser:ConfigParser, config: ConfigDict):
+    def _load_section(section: str, parser: ConfigParser, config: ConfigDict):
         """ Load a section of an ini file """
         for option in parser.options(section):
             if option in config:
@@ -78,7 +79,7 @@ class LLConfigHandler(ConfigDict):
             else:
                 logger.warn(f"Unknown option {section}.{option} in config")
 
-    def _load_array_section(self, section:str, parser:ConfigParser):
+    def _load_array_section(self, section: str, parser: ConfigParser):
         """ Load a section of an ini file, where that section is part of an array """
         arrayname, index = re.split(r'(^\D+)', section)[1:]
         arrayname = arrayname.upper()
@@ -88,7 +89,7 @@ class LLConfigHandler(ConfigDict):
         defaults = ARRAY_DEFS[arrayname] if arrayname in ARRAY_DEFS else None
         if defaults:
             logger.debug(f"Loading array {arrayname} index {index}")
-            if not arrayname in self.arrays:
+            if arrayname not in self.arrays:
                 self.arrays[arrayname] = ArrayConfig(arrayname, defaults)
 
             self.arrays[arrayname].setupitem_at(index)
@@ -100,11 +101,12 @@ class LLConfigHandler(ConfigDict):
     def ensure_arrays_have_empty_item(self):
         """ Make sure every array has an empty item for users to configure """
         for name in ARRAY_DEFS:
-            if not name in self.arrays:
+            if name not in self.arrays:
                 self.arrays[name] = ArrayConfig(name, ARRAY_DEFS[name])
             self.arrays[name].ensure_empty_end_item()
 
     """ Handle array entries """
+
     def get_array_entries(self, wantname: str) -> int:
         """ Return number of entries in a particular array config """
         rc = 0
@@ -130,8 +132,9 @@ class LLConfigHandler(ConfigDict):
 
     def get_array_dict(self, wantname: str, wantindex: int) -> Optional[ConfigDict]:
         """ Return the complete config for an entry, like ('APPRISE', 0) """
-        if wantname in self.arrays and self.arrays[wantname.upper()].has_index(wantindex):
-            return self.arrays[wantname.upper()][wantindex]
+        wantname = wantname.upper()
+        if wantname in self.arrays and self.arrays[wantname].has_index(wantindex):
+            return self.arrays[wantname][wantindex]
         else:
             return None
 
@@ -156,7 +159,7 @@ class LLConfigHandler(ConfigDict):
             names.append(name)
         return names
 
-    def get_schedulers(self, name:str='') -> Generator[Tuple[str, ConfigScheduler], None, None]:
+    def get_schedulers(self, name: str = '') -> Generator[Tuple[str, ConfigScheduler], None, None]:
         """ Return an iterable list of schedulers that matches name, or all """
         for key, item in self.config.items():
             if name == '' or name.lower() in key.lower():
@@ -195,7 +198,7 @@ class LLConfigHandler(ConfigDict):
         for errors in self.all_error_lists():
             errors.clear()
 
-    def update_providers_from_UI(self, kwargs):
+    def update_providers_from_ui(self, **kwargs):
         """ Update all provider arrays with a settings array from the web UI.
             Assumes that all UI settings are of the form section_num_setting=value """
         for pname, array in self.arrays.items():
@@ -205,7 +208,7 @@ class LLConfigHandler(ConfigDict):
                     value = kwargs.get(setting)
                     if value is not None:
                         item.set_from_ui(value)
-                    elif isinstance(item, ConfigBool): # Bools that are not listed are False
+                    elif isinstance(item, ConfigBool):  # Bools that are not listed are False
                         item.set_from_ui(False)
 
     def reset_to_default(self, keys: List[str]):
@@ -218,16 +221,16 @@ class LLConfigHandler(ConfigDict):
 
     def scheduler_can_run(self, scheduler: ConfigScheduler) -> bool:
         """ Return True if the scheduler's requirements are satisfied """
-        ok = scheduler.get_int() > 0 # 0 means schedule is disabled
+        ok = scheduler.get_int() > 0  # 0 means schedule is disabled
         if ok and scheduler.needs_provider:
             ok = self.use_any()
-        if ok and scheduler.run_name == 'GRSYNC': # Special case, should maybe add option to object
+        if ok and scheduler.run_name == 'GRSYNC':  # Special case, should maybe add option to object
             ok = self.get_bool('GR_SYNC')
-        if ok and scheduler.run_name == 'TELEMETRYSEND': # Special case for telemetry
+        if ok and scheduler.run_name == 'TELEMETRYSEND':  # Special case for telemetry
             ok = self.config['TELEMETRY_ENABLE'].get_bool()
         return ok
 
-    def save_config(self, filename: str, save_all: bool=False):
+    def save_config(self, filename: str, save_all: bool = False):
         """
         Save the configuration to a new file. Return number of items stored, -1 if error.
         If save_all, saves all possible config items. If False, saves only changed items
@@ -236,7 +239,7 @@ class LLConfigHandler(ConfigDict):
         def add_to_parser(aparser: ConfigParser, asectionname: str, aitem: ConfigItem) -> int:
             """ Add item to parser, return 1 if added, 0 if ignored """
             if aitem.do_persist() and (save_all or not aitem.is_default()):
-                if not asectionname in aparser:
+                if asectionname not in aparser:
                     aparser[asectionname] = {}
                 aparser[asectionname][key] = aitem.get_save_str()
                 return 1
@@ -271,7 +274,8 @@ class LLConfigHandler(ConfigDict):
             for _, array in self.arrays.items():
                 array.ensure_empty_end_item()
 
-    def save_config_and_backup_old(self, save_all: bool=False, section:Optional[str]=None, restart_jobs:bool=False) -> int:
+    def save_config_and_backup_old(self, save_all: bool = False, section: Optional[str] = None,
+                                   restart_jobs: bool = False) -> int:
         """
         Renames the old config file to .bak and saves new config file.
         Return number of items stored, -1 if error.
@@ -296,18 +300,21 @@ class LLConfigHandler(ConfigDict):
                     os.remove(syspath(self.configfilename + '.bak'))
                 except OSError as e:
                     if e.errno != 2:  # doesn't exist is ok
-                        msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', self.configfilename, '.bak', e.strerror)
+                        msg = '{} {}{} {} {}'.format(type(e).__name__, 'deleting backup file:', self.configfilename,
+                                                     '.bak', e.strerror)
                         logger.warn(msg)
                 try:
                     os.rename(syspath(self.configfilename), syspath(self.configfilename + '.bak'))
                 except OSError as e:
                     if e.errno != 2:  # doesn't exist is ok as wouldn't exist until first save
-                        msg = '{} {} {} {}'.format('Unable to backup config file:', self.configfilename, type(e).__name__, e.strerror)
+                        msg = '{} {} {} {}'.format('Unable to backup config file:', self.configfilename,
+                                                   type(e).__name__, e.strerror)
                         logger.warn(msg)
                 try:
                     os.rename(syspath(self.configfilename + '.new'), syspath(self.configfilename))
                 except OSError as e:
-                    msg = '{} {} {} {}'.format('Unable to rename new config file:', self.configfilename, type(e).__name__, e.strerror)
+                    msg = '{} {} {} {}'.format('Unable to rename new config file:', self.configfilename,
+                                               type(e).__name__, e.strerror)
                     logger.warn(msg)
 
                 if not msg:
@@ -324,7 +331,7 @@ class LLConfigHandler(ConfigDict):
             record_usage_data('Config/Save')
             thread_name(currentname)
             # Only clear counters if we save the entire config
-            clear:bool = False if section and section != '' else True
+            clear: bool = False if section and section != '' else True
             self.post_save_actions(restart_jobs=restart_jobs, clear_counters=clear)
 
     def post_load_fixup(self) -> int:
@@ -372,12 +379,12 @@ class LLConfigHandler(ConfigDict):
     def get_mako_versionfile():
         return path.join(DIRS.get_mako_cachedir(), 'python_version.txt')
 
-    def post_save_actions(self, restart_jobs: bool=True, clear_counters: bool=False):
+    def post_save_actions(self, restart_jobs: bool = True, clear_counters: bool = False):
         """ Run activities after saving, such as rescheduling jobs that may have changed """
         lazylibrarian_log.update_loglevel()
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
-        if interface.get_writes() > 0: # It's changed
+        if interface.get_writes() > 0:  # It's changed
             mako_dir = DIRS.get_mako_cachedir()
             logger.debug("Clearing mako cache")
             shutil.rmtree(mako_dir)
@@ -427,7 +434,7 @@ class LLConfigHandler(ConfigDict):
                 for ename, count in counter.items():
                     logger.error(f'Config {ename.name}: {key}, {count} times')
 
-    def create_access_summary(self, saveto:str='') -> Dict:
+    def create_access_summary(self, saveto: str = '') -> Dict:
         """ For debugging: Create a summary of all accesses, potentially
         highlighting places where config2 is used incorrectly or where things
         are highly inefficient """
@@ -456,18 +463,17 @@ class LLConfigHandler(ConfigDict):
     def save_access_summary(saveto: str, access_summary):
         """ For debugging: Create a summary of all config accesses by type """
 
-        file = open(saveto,"w")
+        file = open(saveto, "w")
         try:
             file.write(f'*** Config Item Access Summary ***\n')
             for sumtype, summary in access_summary.items():
                 if len(summary) > 0:
                     file.writelines(f'Access type: {sumtype}\n')
                     for line in summary:
-                        #Format:  NameOfKey--------------------- Count--
+                        # Format:  NameOfKey--------------------- Count--
                         file.writelines(f'  {line[0]:30}: {line[1]:7}\n')
         finally:
             file.close()
-
 
     def _update_redactlist(self):
         """ Update REDACTLIST after config changes """
@@ -486,7 +492,7 @@ class LLConfigHandler(ConfigDict):
                 self.REDACTLIST.append(u"%s" % self[key])
 
         for name, definitions in ARRAY_DEFS.items():
-            key = definitions[0] # Primary key for this array type
+            key = definitions[0]  # Primary key for this array type
             array = self.get_array(name)
             if array:
                 for inx, config in array._configs.items():
@@ -514,7 +520,6 @@ class LLConfigHandler(ConfigDict):
     def total_active_providers(self) -> int:
         """ Count total number of valid providers of type TOR, NZB, RSS, Direct and IRC """
         return self.use_tor() + self.use_nzb() + self.use_rss() + self.use_direct() + self.use_irc()
-
 
     def count_in_use(self, provider: str, wishlist: Optional[bool] = None) -> int:
         """ Returns # of providers named provider are in use """
@@ -560,9 +565,9 @@ class LLConfigHandler(ConfigDict):
         """ Returns number of enabled direct book providers """
         count = self.count_in_use('GEN')
         if self.get_bool('BOK') and not BLOCKHANDLER.is_blocked('BOK'):
-             count += 1
+            count += 1
         if self.get_bool('BFI') and not BLOCKHANDLER.is_blocked('BFI'):
-             count += 1
+            count += 1
         return count
 
     def disp_name(self, provider: str) -> str:
@@ -574,11 +579,11 @@ class LLConfigHandler(ConfigDict):
         provname = ''
         # Iterate over each type of provider
         for name, definitions in ARRAY_DEFS.items():
-            key = definitions[0] # Primary key for this array type
+            key = definitions[0]  # Primary key for this array type
             array = self.providers(name)
-            if array and not provname: # If we have not yet got a result...
-                 for config in array:
-                     if config[key].strip('/') == provider:
+            if array and not provname:  # If we have not yet got a result...
+                for config in array:
+                    if config[key].strip('/') == provider:
                         provname = config['DISPNAME']
                         break
 
@@ -590,11 +595,14 @@ class LLConfigHandler(ConfigDict):
             provname = provname.replace('/', ' ')
         return provname
 
-### Global configuration holder
+
+# Global configuration holder
 CONFIG = LLConfigHandler(defaults=BASE_DEFAULTS)
 
-### Global config related methods that are not part of the config object
 
+# Global config related methods that are not part of the config object
+
+# noinspection PyBroadException
 def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
     """ Check that the two configs are logically equivalent by comparing all the keys and values """
 
@@ -618,8 +626,7 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
                 return False
         return True
 
-
-    if not cfg1 or not cfg2: # Both need to exist
+    if not cfg1 or not cfg2:  # Both need to exist
         return False
 
     # Compare base configs
@@ -637,7 +644,7 @@ def are_equivalent(cfg1: LLConfigHandler, cfg2: LLConfigHandler) -> bool:
             cd1 = array[inx]
             try:
                 cd2 = cfg2.arrays[name][inx]
-            except:
+            except Exception:
                 logger.warn(f"Error retrieving array config {name}.{inx}")
                 return False
             if not are_configdicts_equivalent(cd1, cd2):

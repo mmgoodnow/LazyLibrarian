@@ -1029,3 +1029,20 @@ class Config2Test(LLTestCase):
             'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: NOTAVALIDKEY, 1 times',
             'ERROR:lazylibrarian.logger:MainThread : config2.py:add_access_errors_to_log : Config READ_ERR: RSS_0.NOTAVALIDRSSKEY, 1 times',
         ])
+
+    def test_update_providers_from_ui(self):
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=COMPLEX_INI_FILE)
+
+        rss0 = cfg.get_array_dict('rss', 0)
+        self.assertIsNotNone(rss0, 'Config initialization error, expect an RSS entry')
+        # Validate values before assigning
+        self.assertEqual(rss0['dispname'], '')
+        self.assertEqual(rss0.get_bool('enabled'), False)
+        self.assertEqual(rss0.get_int('DLPriority'), 0)
+        cfg.update_providers_from_ui(rss_0_dispname='test', rss_0_enabled='1', rss_0_dlpriority=1)
+        # Validate that values were assigned
+        self.assertEqual(rss0['dispname'], 'test')
+        self.assertEqual(rss0.get_bool('enabled'), True)
+        self.assertEqual(rss0.get_int('DLPriority'), 1)
+
+

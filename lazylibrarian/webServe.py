@@ -1654,7 +1654,7 @@ class WebInterface(object):
                 logger.info("Magazine %s filters updated" % count)
 
         count = 0
-        CONFIG.update_providers_from_UI(kwargs)
+        CONFIG.update_providers_from_ui(kwargs)
 
         # Convert legacy log settings
         logtype = kwargs.get('log_type', '')
