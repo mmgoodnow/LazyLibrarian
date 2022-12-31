@@ -316,7 +316,7 @@ def date_format(datestr, formatstr="$Y-$m-$d", context=''):
         d, m, y, hh, mm = 0, 0, 0, 0, 0
 
     if not m:
-        msg = "Unrecognised datestr {datestr}"
+        msg = f"Unrecognised datestr {datestr}"
         if context:
             msg = f'{msg} for {context}'
         lazylibrarian.logger.warn(msg)
