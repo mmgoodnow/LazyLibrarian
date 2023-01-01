@@ -1039,10 +1039,9 @@ class Config2Test(LLTestCase):
         self.assertEqual(rss0['dispname'], '')
         self.assertEqual(rss0.get_bool('enabled'), False)
         self.assertEqual(rss0.get_int('DLPriority'), 0)
-        cfg.update_providers_from_ui(rss_0_dispname='test', rss_0_enabled='1', rss_0_dlpriority=1)
+        changes = {'rss_0_dispname': 'test', 'rss_0_enabled': '1', 'rss_0_dlpriority': 1}
+        cfg.update_providers_from_ui(changes)
         # Validate that values were assigned
         self.assertEqual(rss0['dispname'], 'test')
         self.assertEqual(rss0.get_bool('enabled'), True)
         self.assertEqual(rss0.get_int('DLPriority'), 1)
-
-

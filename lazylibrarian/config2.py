@@ -198,7 +198,7 @@ class LLConfigHandler(ConfigDict):
         for errors in self.all_error_lists():
             errors.clear()
 
-    def update_providers_from_ui(self, **kwargs):
+    def update_providers_from_ui(self, kwargs):
         """ Update all provider arrays with a settings array from the web UI.
             Assumes that all UI settings are of the form section_num_setting=value """
         for pname, array in self.arrays.items():
@@ -328,7 +328,7 @@ class LLConfigHandler(ConfigDict):
                     return -1
         finally:
             from lazylibrarian.telemetry import record_usage_data
-            record_usage_data('Config/Save')
+            record_usage_data()
             thread_name(currentname)
             # Only clear counters if we save the entire config
             clear: bool = False if section and section != '' else True
