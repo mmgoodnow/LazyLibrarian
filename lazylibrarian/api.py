@@ -35,7 +35,8 @@ from lazylibrarian.calibre import sync_calibre_list, calibre_list
 from lazylibrarian.comicid import cv_identify, cx_identify, comic_metadata
 from lazylibrarian.comicscan import comic_scan
 from lazylibrarian.comicsearch import search_comics
-from lazylibrarian.common import clear_log, log_header, cpu_use
+from lazylibrarian.common import clear_log, log_header
+from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
@@ -744,7 +745,9 @@ class Api(object):
         TELEMETRY.record_usage_data()
         """ Current Memory usage in kB """
         if os.name == 'nt':
-            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
+            ok, self.data = get_process_memory()
+            if not ok:
+                self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Needs psutil module installed'}}
         else:
             with open('/proc/self/status') as f:
                 memusage = f.read().split('VmRSS:')[1].split('\n')[0][:-3]
@@ -752,10 +755,9 @@ class Api(object):
 
     def _cpuuse(self):
         TELEMETRY.record_usage_data()
-        if os.name == 'nt':
-            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Unsupported in Windows'}}
-        else:
-            self.data = cpu_use()
+        ok, self.data = get_cpu_use()
+        if not ok:
+            self.data = {'Success': False, 'Data': '', 'Error': {'Code': 501, 'Message': 'Needs psutil module installed'}}
 
     def _nice(self):
         TELEMETRY.record_usage_data()

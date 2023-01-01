@@ -18,6 +18,18 @@
 
 import inspect
 import os
+import time
+from datetime import timedelta
+
+from lazylibrarian import logger
+
+try:
+    # noinspection PyUnresolvedReferences
+    import psutil
+
+    PSUTIL = True
+except ImportError:
+    PSUTIL = False
 
 
 def get_info_on_caller(depth=1, filenamewithoutpath=True, filenamewithoutext=True) -> (str, str, int):
@@ -37,3 +49,54 @@ def get_info_on_caller(depth=1, filenamewithoutpath=True, filenamewithoutext=Tru
         return filename, caller_function, lineno
     else:
         return '', '', 0
+
+
+def elapsed_since(start: float) -> str:
+    elapsed_time = time.perf_counter() - start
+    return str(timedelta(seconds=elapsed_time))
+
+
+def get_process_memory() -> (bool, int):
+    """ Return memory used by process, in bytes """
+    if PSUTIL:
+        process = psutil.Process(os.getpid())
+        return True, process.memory_info().rss
+    else:
+        return False, 0
+
+
+def track_resource_usage(func):
+    # decorator to show memory usage and running time of a function
+    # to use, from lazylibrarian.processcontrol import track_resource_usage
+    # then decorate the function(s) to track  eg...
+    # @track_resource_usage
+    # def search_book():
+    def wrapper(*args, **kwargs):
+        if PSUTIL:
+            mem_before = get_process_memory()
+            start = time.perf_counter()
+            result = func(*args, **kwargs)
+            elapsed_time = elapsed_since(start)
+            mem_after = get_process_memory()
+            logger.debug("{}: memory before: {:,}, after: {:,}, consumed: {:,}; exec time: {}".format(
+                func.__name__,
+                mem_before, mem_after, mem_after - mem_before,
+                elapsed_time))
+        else:
+            logger.debug("psutil is not installed")
+            result = func(*args, **kwargs)
+        return result
+
+    return wrapper
+
+
+def get_cpu_use() -> (bool, str):
+    """ Returns True if ok, False if it can't get the data.
+    If it can, returns CPU usage data for right now as a string. """
+    if PSUTIL:
+        p = psutil.Process()
+        blocking = p.cpu_percent(interval=1)
+        nonblocking = p.cpu_percent(interval=None)
+        return True, "Blocking %s%% Non-Blocking %s%% %s" % (blocking, nonblocking, p.cpu_times())
+    else:
+        return False, "Unknown - install psutil"
