@@ -1,11 +1,7 @@
 # Basic telemetry server for LazyLibrarian
 #
 # Listens for telemetry data from LL installations, and stores the
-# data in a MySQL database.
-#
-# Requires MySQL running somewhere
-#
-# Config in telemetry.ini
+# data in a sqlite database.
 
 import server
 

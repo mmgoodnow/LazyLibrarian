@@ -14,7 +14,11 @@ def hello():
 @route('/stats/<type:re:[a-z]+>')
 def stats(atype):
     logger.debug(f"Getting stats for {atype}")
-    return f"Something needs to happen here: {atype}"
+    valid_types = ['usage', 'configs', 'servers', 'switches', 'params', 'all']
+    if not atype or atype not in valid_types:
+        return ("Valid stats types: %s" % str(valid_types))
+    result = _read_from_db(type)
+    return result
 
 @route('/help')
 def server_status():
@@ -26,7 +30,7 @@ def server_status():
     <p>Please use one of the following:</p>
     <ul>
         <li><b>/status</b> - to get server status/uptime</li>
-        <li><b>/stats/</b>[type] - show stats of given type - to come</li>
+        <li><b>/stats/</b>[type] - show stats of given type (no type to list options)</li>
         <li><b>/send</b>?xxx - to send telemetry data (LL only)</li>
         <li><b>/help</b> - this page</li>
     <p>
@@ -55,7 +59,7 @@ def process_telemetry():
     if 1 <= len(data) <=4 and 'server' in data.keys():
         # In addition to data, we may also have a timeout parameter
         try:
-            logger.debug(f"Add to database ({len(data)} elements)")
+            logger.info(f"Add to database ({len(data)} elements)")
             status = _add_to_db(data)
             _success += 1
         except Exception as e:
@@ -66,18 +70,20 @@ def process_telemetry():
         logger.warning(status)
     return {'status': status}
 
-def run_server(add_to_db):
-    global logger, _add_to_db
+def run_server(add_to_db, read_from_db):
+    global logger, _add_to_db, _read_from_db
 
     logger = logging.getLogger(__name__)
     port = 9174
     logger.info(f"Starting web server on port {port}")
     _add_to_db = add_to_db # Method handler
-    run(host='0.0.0.0', port=port, debug=True, quiet=True)
+    _read_from_db = read_from_db # Method handler
+    run(host='0.0.0.0', port=PORT, debug=True, quiet=True)
 
 
 _starttime = time.time()
-_add_to_db: Callable
+_add_to_db = None
+_read_from_db = None
 _received = 0
 _success = 0
 logger: logging.Logger

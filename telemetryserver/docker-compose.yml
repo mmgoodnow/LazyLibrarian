@@ -1,26 +1,9 @@
-# Composes a LazyLibrarian set of docker images:
-# One for the DB, and one for the web server
+# Composes a LazyLibrarian  docker image for a web server
 version: '3'
 services:
-  db:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: secret789
-      MYSQL_DATABASE: LazyTelemetry
-      MYSQL_TCP_PORT: 3306
-    volumes:
-      - /data/db:/var/lib/mysql
-    ports:
-      - "3306:3306"
-
   server:
     build: .
-    depends_on:
-      - db
-    environment:
-      DATABASE_HOST: db
-      DATABASE_PASSWORD: secret789
     ports:
       - "9174:9174"
     volumes:
-      - /data:/data
+      - /home/phil/.lazylibrarian/serverdata:/data

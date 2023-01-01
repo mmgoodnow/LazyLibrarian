@@ -208,7 +208,7 @@ class TelemetryDB():
         result = ''
         try:
             cursor = self._connect()
-            if telemetry_data == 'usage':
+            if telemetry_data in ['usage', 'all']:
                 last_hour_date_time = datetime.datetime.now() - datetime.timedelta(hours = 1)
                 stmt = f"SELECT COUNT(*) as  last_hour from ll_telemetry where datetime > '{last_hour_date_time}'"
                 res = cursor.execute(stmt).fetchone()
@@ -224,8 +224,8 @@ class TelemetryDB():
                 stmt = f"SELECT COUNT(*) from ll_telemetry"
                 res = cursor.execute(stmt).fetchone()
                 all_time = res[0]
-                result = {'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week, 'All_Time':all_time} 
-            elif telemetry_data == 'servers':
+                result += {'Last_Hour': last_hour, 'Last_Day': last_day, 'Last_Week': last_week, 'All_Time':all_time} 
+            if telemetry_data in ['servers', 'all']:
                 versions = {}
                 for key in ['python_ver', 'll_version', 'll_installtype']:
                     stmt = f"select distinct {key} from ll_servers"
@@ -234,22 +234,27 @@ class TelemetryDB():
                         stmt = f"select count(*) as count from ll_servers where {key} = '{item[0]}'"
                         tot = cursor.execute(stmt).fetchone()
                         versions[item[0]] = tot[0]
-                result = versions
-            elif telemetry_data in ['switches', 'params']:
+                result += versions
+            if telemetry_data in ['switches', 'params', 'all']:
                 results = {}
                 last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days = 28)
-                stmt = f"""select {telemetry_data} as data from ll_configs,ll_servers 
-                            where ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
-                            and last_seen >= '{last_4wks_date_time}'"""
-                configs = cursor.execute(stmt).fetchall()
-                for conf in configs:
-                    for item in conf[0].split():
-                        if item not in results:
-                            results[item] = 1
-                        else:
-                            results[item] = results[item] + 1
-                result = results
-            elif telemetry_data == 'configs':
+                if telemetry_data == 'all':
+                	telemetry_types = ['switches', 'params']
+                else:
+                	telemetry_types = [telemetry_data]
+                for telemetry_type in telemetry_types:
+                	stmt = f"""select {telemetry_type} as data from ll_configs,ll_servers 
+                    	        where ll_configs.serverid = ll_servers.serverid and datetime = last_seen 
+                    	        and last_seen >= '{last_4wks_date_time}'"""
+                	configs = cursor.execute(stmt).fetchall()
+                	for conf in configs:
+                    	for item in conf[0].split():
+                    	    if item not in results:
+                    	        results[item] = 1
+                    	    else:
+                    	        results[item] = results[item] + 1
+                	result += results
+            if telemetry_data in ['configs', 'all']:
                 configs = {}
                 last_4wks_date_time = datetime.datetime.now() - datetime.timedelta(days = 28)
                 stmt = f"""select distinct book_api from ll_configs,ll_servers where 
@@ -268,7 +273,7 @@ class TelemetryDB():
                                 and last_seen >= '{last_4wks_date_time}'"""
                     tot = cursor.execute(stmt).fetchone()
                     configs[key] = tot[0]
-                result = configs
+                result += configs
         except Exception as e:
             raise Exception(f"Error reading data: {str(e)}")
         finally:
