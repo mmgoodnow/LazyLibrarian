@@ -16,6 +16,7 @@
 #   Common, basic functions for LazyLibrary
 
 import glob
+import inspect
 
 import mako
 import os
@@ -40,6 +41,7 @@ import html5lib
 try:
     # noinspection PyUnresolvedReferences
     import psutil
+
     PSUTIL = True
 except ImportError:
     PSUTIL = False
@@ -84,6 +86,7 @@ def track(func):
             logger.debug("psutil is not installed")
             result = func(*args, **kwargs)
         return result
+
     return wrapper
 
 
@@ -225,7 +228,6 @@ def module_available(module_name):
     return loader is not None
 
 
-
 def get_calibre_id(data):
     logger.debug(str(data))
     fname = data.get('BookFile', '')
@@ -284,7 +286,6 @@ def clear_log():
 
 # noinspection PyUnresolvedReferences,PyPep8Naming
 def log_header(online=True):
-
     popen_list = [sys.executable, DIRS.FULL_PATH]
     popen_list += DIRS.ARGS
     header = "Startup cmd: %s\n" % str(popen_list)
@@ -637,4 +638,3 @@ def only_punctuation(value):
         if c not in string.punctuation and c not in string.whitespace:
             return False
     return True
-

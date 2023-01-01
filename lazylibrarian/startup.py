@@ -45,7 +45,7 @@ from lazylibrarian.cache import fetch_url
 from lazylibrarian.logger import RotatingLogger, lazylibrarian_log, error, debug, warn, info
 
 
-def startup_parsecommandline(mainfile, args, testing = False) -> (Any, str):
+def startup_parsecommandline(mainfile, args, testing=False) -> (Any, str):
     """ Parse command line, return options and configfile to use """
     # All initializartion that needs to happen before logging starts
     if hasattr(sys, 'frozen'):
@@ -121,7 +121,7 @@ def startup_parsecommandline(mainfile, args, testing = False) -> (Any, str):
 
     if options.noipv6:
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        urllib3.util.connection.HAS_IPV6 = False # type: ignore
+        urllib3.util.connection.HAS_IPV6 = False  # type: ignore
 
     if options.daemon:
         if os.name != 'nt':
@@ -190,6 +190,7 @@ def startup_parsecommandline(mainfile, args, testing = False) -> (Any, str):
 
     return options, configfile
 
+
 def load_config(configfile: str, options: Any):
     """ Load the config file, perform post-load fixups to ensure consistent state, and
     apply any command line options that override loaded settings """
@@ -200,12 +201,14 @@ def load_config(configfile: str, options: Any):
     if options.nolaunch:
         config.set_bool('LAUNCH_BROWSER', False)
 
+
 def init_logs(config: ConfigDict):
     """ Initialize log files. Until this is done, do not use the logger """
     DIRS.ensure_log_dir()
 
     lazylibrarian_log.init_logger(config=config)
-    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL} - Log Directory is {config['LOGDIR']}")
+    info(f"Log ({lazylibrarian_log.LOGTYPE}) Level set to {lazylibrarian_log.LOGLEVEL}"
+         "- Log Directory is {config['LOGDIR']}")
     if lazylibrarian_log.LOGLEVEL > 2:
         info("Screen Log set to EXTENDED DEBUG")
     elif lazylibrarian_log.LOGLEVEL == 2:
@@ -225,9 +228,9 @@ def init_misc(config: ConfigDict):
 
     if config.get_bool('NO_IPV6'):
         # A hack, found here: https://stackoverflow.com/questions/33046733/force-requests-to-use-ipv4-ipv6
-        urllib3.util.connection.HAS_IPV6 = False # type: ignore
+        urllib3.util.connection.HAS_IPV6 = False  # type: ignore
 
-    if APPRISE_VER: # If APPRISE can't be found, show old notifiers
+    if APPRISE_VER:  # If APPRISE can't be found, show old notifiers
         logger.info("Apprise library (%s) installed" % APPRISE_VER)
     else:
         logger.warn("Did not find Apprise notifications library")
@@ -240,7 +243,7 @@ def init_caches(config: LLConfigHandler):
         lazylibrarian.SYS_ENCODING = config['SYS_ENCODING']
 
     for item in ['book', 'author', 'SeriesCache', 'JSONCache', 'XMLCache', 'WorkCache', 'HTMLCache',
-                    'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
+                 'magazine', 'comic', 'IRCCache', 'icrawler', 'mako']:
         cachelocation = os.path.join(DIRS.CACHEDIR, item)
         try:
             os.makedirs(cachelocation)
@@ -263,7 +266,7 @@ def init_caches(config: LLConfigHandler):
         for itm in listdir(pth):
             if len(itm) > 2:
                 os.rename(syspath(os.path.join(pth, itm)),
-                            syspath(os.path.join(pth, itm[0], itm[1], itm)))
+                          syspath(os.path.join(pth, itm[0], itm[1], itm)))
     last_run_version = None
     last_run_interface = None
     makocache = DIRS.get_mako_cachedir()
@@ -355,6 +358,7 @@ def init_database(config: LLConfigHandler):
                 sys.exit(0)
     except Exception as e:
         warn("Unable to parse sqlite3 version: %s %s" % (type(e).__name__, str(e)))
+
 
 def init_build_debug_header(online):
     debuginfo = log_header(online)
@@ -581,6 +585,7 @@ def build_monthtable(config: ConfigDict):
     #    json.dump(table, f)
     return table
 
+
 def create_version_file(filename):
     # flatpak insists on PROG_DIR being read-only so we have to move version.txt into CACHEDIR
     old_file = os.path.join(DIRS.PROG_DIR, filename)
@@ -599,6 +604,7 @@ def create_version_file(filename):
             pass
 
     return version_file
+
 
 def init_version_checks(version_file):
     if CONFIG.get_int('VERSIONCHECK_INTERVAL') == 0:
@@ -669,6 +675,7 @@ def launch_browser(host, port, root):
     except Exception as e:
         error('Could not launch browser:%s  %s' % (type(e).__name__, str(e)))
 
+
 def start_schedulers():
     if CONFIG['GR_URL'] == 'https://goodreads.org':
         CONFIG.set_url('GR_URL', 'https://www.goodreads.com')
@@ -692,6 +699,7 @@ def logmsg(level, msg):
             info(msg)
     else:
         print(level.upper(), msg)
+
 
 def shutdown(restart=False, update=False, exit=False, testing=False):
     if not testing:

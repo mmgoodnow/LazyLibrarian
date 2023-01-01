@@ -25,7 +25,6 @@ import lazylibrarian
 from lazylibrarian import startup, webStart, logger, notifiers
 from lazylibrarian.formatter import thread_name
 
-
 # The following should probably be made configurable at the settings level
 # This fix is put in place for systems with broken SSL (like QNAP)
 opt_out_of_certificate_verification = True
@@ -33,6 +32,7 @@ if opt_out_of_certificate_verification:
     # noinspection PyBroadException
     try:
         import ssl
+
         # noinspection PyProtectedMember
         ssl._create_default_https_context = ssl._create_unverified_context
     except Exception:
@@ -44,18 +44,19 @@ if sys.version[0] != '3':
     sys.stderr.write("This version of lazylibrarian requires python 3\n")
     exit(0)
 
+
 def main():
-   # rename this thread
+    # rename this thread
     thread_name("MAIN")
 
-    options, configfile = startup.startup_parsecommandline(__file__, args = sys.argv[1:])
+    options, configfile = startup.startup_parsecommandline(__file__, args=sys.argv[1:])
     startup.load_config(configfile, options)
     # Run initialization that needs CONFIG to be loaded
     startup.init_logs(lazylibrarian.config2.CONFIG)
     startup.init_misc(lazylibrarian.config2.CONFIG)
     startup.init_caches(lazylibrarian.config2.CONFIG)
     startup.init_database(lazylibrarian.config2.CONFIG)
-    startup.init_build_debug_header(online = True)
+    startup.init_build_debug_header(online=True)
     startup.init_build_lists(lazylibrarian.config2.CONFIG)
 
     version_file = startup.create_version_file('version.txt')
