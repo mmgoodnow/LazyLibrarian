@@ -6935,6 +6935,6 @@ class WebInterface(object):
     def enable_telemetry(self, **kwargs):
         CONFIG.set_bool('TELEMETRY_ENABLE', True)
         CONFIG.set_int('TELEMETRY_INTERVAL', 6)
-        CONFIG.set_str('TELEMETRY_SERVER', 'put server url here in webserve.py')
+        CONFIG.set_url('TELEMETRY_SERVER', 'https://telemetry-philborma.pitunnel.com')
         CONFIG.save_config_and_backup_old(section='Telemetry')
-        return "Telemetry is enabled"
+        return "Thank you for enabling Telemetry"

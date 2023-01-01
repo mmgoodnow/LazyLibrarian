@@ -3773,7 +3773,7 @@
                 </div>
               </div>
               <div class="col-md-6">
-              %if lazylibrarian.CONFIG.get_bool('HIDE_OLD_NOTIFIERS') == False:
+              %if CONFIG.get_bool('HIDE_OLD_NOTIFIERS') == False:
                 <div class="checkbox">
                   <%
                     if CONFIG['USE_PROWL']:

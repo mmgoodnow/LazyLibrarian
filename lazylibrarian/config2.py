@@ -198,7 +198,7 @@ class LLConfigHandler(ConfigDict):
         for errors in self.all_error_lists():
             errors.clear()
 
-    def update_providers_from_ui(self, **kwargs):
+    def update_providers_from_ui(self, kwargs):
         """ Update all provider arrays with a settings array from the web UI.
             Assumes that all UI settings are of the form section_num_setting=value """
         for pname, array in self.arrays.items():
