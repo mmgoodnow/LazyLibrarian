@@ -20,12 +20,12 @@ import sqlite3
 import threading
 import time
 import traceback
-import inspect
 
 from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 # DO NOT import from common in this module, circular import
 from lazylibrarian.filesystem import DIRS, syspath
+from lazylibrarian.processcontrol import get_info_on_caller
 
 db_lock = threading.Lock()
 
@@ -52,16 +52,7 @@ class DBConnection:
 
     def close(self):
         if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-            # Get the frame data of the method that made the original database call
-            program = ""
-            method = ""
-            lineno = ""
-            if len(inspect.stack()) > 1:
-                frame = inspect.getframeinfo(inspect.stack()[1][0])
-                program = os.path.basename(frame.filename)
-                method = frame.function
-                lineno = frame.lineno
-
+            program, method, lineno = get_info_on_caller(filenamewithoutpath=True, filenamewithoutext=False)
             with open(self.dblog, 'a', encoding='utf-8') as f:
                 f.write("%s close %s %s %s\n" % (time.asctime(), program, lineno, method))
 
@@ -70,16 +61,7 @@ class DBConnection:
 
     def commit(self):
         if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
-            # Get the frame data of the method that made the original database call
-            program = ""
-            method = ""
-            lineno = ""
-            if len(inspect.stack()) > 1:
-                frame = inspect.getframeinfo(inspect.stack()[1][0])
-                program = os.path.basename(frame.filename)
-                method = frame.function
-                lineno = frame.lineno
-
+            program, method, lineno = get_info_on_caller(filenamewithoutpath=True, filenamewithoutext=False)
             with open(self.dblog, 'a', encoding='utf-8') as f:
                 f.write("%s commit %s %s %s\n" % (time.asctime(), program, lineno, method))
 
@@ -94,7 +76,7 @@ class DBConnection:
             return self._action(query, args, suppress)
 
     # do not use directly, use through action() or upsert() which add lock
-    def _action(self, query, args=None, suppress=None):
+    def _action(self, query: str, args=None, suppress=None):
         sql_result = None
         attempt = 0
         start = 0
@@ -103,11 +85,7 @@ class DBConnection:
         lineno = ""
         if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
             # Get the frame data of the method that made the original database call
-            if len(inspect.stack()) > 3:
-                frame = inspect.getframeinfo(inspect.stack()[3][0])
-                program = os.path.basename(frame.filename)
-                method = frame.function
-                lineno = frame.lineno
+            program, method, lineno = get_info_on_caller(depth=3, filenamewithoutpath=True, filenamewithoutext=False)
             start = time.time()
         while attempt < 5:
             try:

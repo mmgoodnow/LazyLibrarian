@@ -1,4 +1,4 @@
-#  self file is part of Lazylibrarian.
+#  This file is part of Lazylibrarian.
 
 #  Lazylibrarian is free software':'you can redistribute it and/or modify
 #  it under the terms of the GNU General Public License as published by
@@ -18,20 +18,22 @@
 #   future development.
 
 import datetime
-import time
 import json
 import os
 import sys
-import requests
-import inspect
+import time
 from collections import defaultdict
 from typing import Optional
 
-from lazylibrarian.config2 import CONFIG
+import requests
+
 from lazylibrarian import logger, database
 from lazylibrarian.common import proxy_list
+from lazylibrarian.config2 import CONFIG
 from lazylibrarian.config2 import LLConfigHandler
 from lazylibrarian.formatter import thread_name
+from lazylibrarian.processcontrol import get_info_on_caller
+
 
 class LazyTelemetry(object):
     """Handles basic telemetry gathering for LazyLibrarian, helping
@@ -92,7 +94,7 @@ class LazyTelemetry(object):
 
     def set_install_data(self, _config: LLConfigHandler, testing=False):
         """ Update telemetry with data bout the installation """
-        self.ensure_server_id(_config) # Make sure it has an ID
+        self.ensure_server_id(_config)  # Make sure it has an ID
         server = self.get_server_telemetry()
         up = datetime.datetime.now() - self._boottime
         server["install_type"] = _config['INSTALL_TYPE']
@@ -131,7 +133,7 @@ class LazyTelemetry(object):
             'USE_TWITTER', 'USE_BOXCAR', 'USE_PUSHBULLET', 'USE_PUSHOVER',
             'USE_ANDROIDPN', 'USE_TELEGRAM', 'USE_PROWL', 'USE_GROWL',
             'USE_SLACK', 'USE_CUSTOM', 'USE_EMAIL',
-            ]:
+        ]:
             item = _config.get_item(key)
             if item and item.is_enabled():
                 cfg_telemetry['switches'] += f"{key} "
@@ -142,7 +144,7 @@ class LazyTelemetry(object):
 
         # Record whether these are configured differently from the default
         for key in ['GR_API', 'GB_API', 'LT_DEVKEY', 'IMP_PREFLANG',
-            'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
+                    'IMP_CALIBREDB', 'DOWNLOAD_DIR', 'ONE_FORMAT', 'API_KEY']:
             item = _config.get_item(key)
             if item and not item.is_default():
                 cfg_telemetry["params"] += f"{key} "
@@ -154,17 +156,14 @@ class LazyTelemetry(object):
         # Count how many Apprise notifications are configured
         cfg_telemetry["APPRISE"] = _config.count_in_use('APPRISE')
 
-
-    def record_usage_data(self, counter: Optional[str]=None):
+    def record_usage_data(self, counter: Optional[str] = None):
         usg = self.get_usage_telemetry()
         if not counter:
             # Use the module/name of the caller
-            current_frame = inspect.currentframe()
-            caller_frame = current_frame.f_back
-            caller_info = inspect.getframeinfo(caller_frame)
-            filename = os.path.basename(caller_info.filename) # Remove the path
-            caller_module, _ = os.path.splitext(filename)
-            caller_function = caller_info.function
+            caller_module, caller_function, _ = get_info_on_caller(depth=1)
+            if caller_module == 'telemetry' and caller_function == 'record_usage_data':
+                # We were called via the helper function, find the real caller:
+                caller_module, caller_function, _ = get_info_on_caller(depth=2)
             counter = f'{caller_module}/{caller_function}'
         assert not any([c in counter for c in ' "=']), "Counter must be plain text"
         usg[counter] += 1
@@ -179,23 +178,23 @@ class LazyTelemetry(object):
             senddata['config'] = self._data['config']
         if send_usage:
             senddata['usage'] = self._data['usage']
-        return json.dumps(senddata, indent = 2 if pretty else None)
+        return json.dumps(senddata, indent=2 if pretty else None)
 
     def get_data_for_ui_preview(self, send_config: bool, send_usage: bool):
         self.set_install_data(CONFIG, testing=False)
         self.set_config_data(CONFIG)
         return self.get_json(send_config, send_usage, pretty=True)
 
-    def construct_data_string(self, send_config: bool, send_usage: bool, send_server: bool=True):
+    def construct_data_string(self, send_config: bool, send_usage: bool, send_server: bool = True):
         """ Returns a data string to send to telemetry server.
         If components = None, includes all parts. Otherwise, includes specified parts only """
         data = []
         if send_server:
-            data.append(f"server={json.dumps(obj=self.get_server_telemetry(),separators=(',', ':'))}")
+            data.append(f"server={json.dumps(obj=self.get_server_telemetry(), separators=(',', ':'))}")
         if send_config:
-            data.append(f"config={json.dumps(obj=self.get_config_telemetry(),separators=(',', ':'))}")
+            data.append(f"config={json.dumps(obj=self.get_config_telemetry(), separators=(',', ':'))}")
         if send_usage:
-            data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(),separators=(',', ':'))}")
+            data.append(f"usage={json.dumps(obj=self.get_usage_telemetry(), separators=(',', ':'))}")
 
         datastr = '&'.join(data)
         return datastr
@@ -224,7 +223,7 @@ class LazyTelemetry(object):
             return "Exception %s: %s" % (type(e).__name__, str(e)), False
 
         if str(r.status_code).startswith('2'):  # (200 OK etc)
-            return r.text, True # Success
+            return r.text, True  # Success
         try:
             # noinspection PyProtectedMember
             msg = requests.status_codes._codes[r.status_code][0]
@@ -252,16 +251,19 @@ class LazyTelemetry(object):
                 return f"Server ID: {id1}\n\nStatus:\n{status1}"
             else:
                 return f"Error connecting to server: {serverid}"
-        except:
+        except requests.exceptions:
             return "Error connecting to server"
 
-### Global functions
+
+# Global functions
 
 TELEMETRY = LazyTelemetry()
 
-def record_usage_data(counter: str):
+
+def record_usage_data(counter: Optional[str] = None):
     """ Convenience function for recording usage """
     TELEMETRY.record_usage_data(counter)
+
 
 def telemetry_send() -> str:
     """ Routine called by scheduler, to regularly send telemetry data """

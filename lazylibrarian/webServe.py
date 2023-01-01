@@ -3290,6 +3290,7 @@ class WebInterface(object):
     def edit_book(self, bookid=None, library='eBook'):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('EDIT_BOOK')
+        TELEMETRY.record_usage_data()
         db = database.DBConnection()
         authors = db.select(
             "SELECT AuthorName from authors WHERE Status !='Ignored' ORDER by AuthorName COLLATE NOCASE")

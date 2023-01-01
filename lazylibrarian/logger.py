@@ -16,6 +16,7 @@ import os
 from typing import Optional
 
 from lazylibrarian.configtypes import ConfigDict
+from lazylibrarian.processcontrol import get_info_on_caller
 
 # Simple rotating log handler that uses RotatingFileHandler
 class RotatingLogger(object):
@@ -130,16 +131,7 @@ class RotatingLogger(object):
         threadname = thread_name()
 
         # Get the frame data of the method that made the original logger call
-        if len(inspect.stack()) > 2:
-            frame = inspect.getframeinfo(inspect.stack()[2][0])
-            program = os.path.basename(frame.filename)
-            method = frame.function
-            lineno = frame.lineno
-        else:
-            program = ""
-            method = ""
-            lineno = ""
-
+        program, method, lineno = get_info_on_caller(depth=2)
         if os.name == 'nt':  # windows cp1252 can't handle some accents
             message = unaccented(message)
         else:

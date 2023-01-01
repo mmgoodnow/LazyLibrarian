@@ -28,6 +28,7 @@ from lazylibrarian.gr import GoodReads
 from lazylibrarian.grsync import grfollow
 from lazylibrarian.images import get_author_image
 from lazylibrarian.ol import OpenLibrary
+from lazylibrarian.processcontrol import get_info_on_caller
 
 from thefuzz import fuzz
 from queue import Queue
@@ -83,11 +84,8 @@ def add_author_name_to_db(author=None, refresh=False, addbooks=None, reason=None
     # return authorname,authorid,new where new=False if author already in db, new=True if added
     # authorname returned is our preferred name, or empty string if not found or unable to add
     if not reason:
-        if len(inspect.stack()) > 2:
-            frame = inspect.getframeinfo(inspect.stack()[2][0])
-            program = os.path.basename(frame.filename)
-            method = frame.function
-            lineno = frame.lineno
+        program, method, lineno = get_info_on_caller(depth=1)
+        if lineno > 0:
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason = 'Unknown reason in add_author_name_to_db'
@@ -203,6 +201,7 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
             program = os.path.basename(frame.filename)
             method = frame.function
             lineno = frame.lineno
+            program, method, lineno = get_info_on_caller(depth=2)
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason = "Unknown reason in add_author_to_db"

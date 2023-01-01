@@ -27,6 +27,7 @@ from lazylibrarian.filesystem import DIRS, path_isfile, syspath, remove_file
 from lazylibrarian.formatter import safe_unicode, plural, clean_name, format_author_name, \
     check_int, replace_all, check_year, get_list, make_utf8bytes, unaccented, thread_name, quotes
 from lazylibrarian.logger import lazylibrarian_log
+from lazylibrarian.processcontrol import get_info_on_caller
 
 from thefuzz import fuzz
 
@@ -167,14 +168,8 @@ def set_series(serieslist=None, bookid=None, reason=""):
                 else:
                     newserieslist.append(item)
                     if not reason:
-                        if len(inspect.stack()) > 2:
-                            frame = inspect.getframeinfo(inspect.stack()[2][0])
-                            program = os.path.basename(frame.filename)
-                            method = frame.function
-                            lineno = frame.lineno
-                            reason = "%s:%s:%s" % (program, method, lineno)
-                        else:
-                            reason = 'Unknown reason in set_series'
+                        program, method, lineno = get_info_on_caller(depth=1)
+                        reason = "%s:%s:%s" % (program, method, lineno)
 
                     reason = "Bookid %s: %s" % (bookid, reason)
                     db.action('INSERT into series VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
