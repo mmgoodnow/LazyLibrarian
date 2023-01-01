@@ -133,21 +133,6 @@ def serve_template(templatename, **kwargs):
                 clear_mako_cache()
                 template = _hplookup.get_template(templatename)
         else:
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                res = db.match('SELECT UserName,Perms,UserID from users where UserID=?', (cookie['ll_uid'].value,))
-            if not res:
-                columns = db.select('PRAGMA table_info(users)')
-                if not columns:  # no such table
-                    cnt = 0
-                else:
-                    cnt = db.match("select count(*) as counter from users")
-                if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
-                        templatename not in ["register.html", "response.html", "opds.html"]:
-                    res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
-                    cherrypy.response.cookie['ll_uid'] = res['UserID']
-                    cherrypy.response.cookie['ll_prefs'] = res['Prefs']
-
             username = ''  # anyone logged in yet?
             userid = 0
             perm = 0
@@ -181,7 +166,7 @@ def serve_template(templatename, **kwargs):
                         cnt = 0
                     else:
                         cnt = db.match("select count(*) as counter from users")
-                    if cnt and cnt['counter'] == 1 and lazylibrarian.CONFIG.get_bool('SINGLE_USER') and \
+                    if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
                             templatename not in ["register.html", "response.html", "opds.html"]:
                         res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
                         cherrypy.response.cookie['ll_uid'] = res['UserID']
@@ -206,7 +191,7 @@ def serve_template(templatename, **kwargs):
                 userprefs = check_int(cookie['ll_prefs'].value, 0)
 
             if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-                if  lazylibrarian.CONFIG.get_item('auth_type') and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+                if  CONFIG.get_str('auth_type') == 'FORM':
                     templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
@@ -228,21 +213,21 @@ def serve_template(templatename, **kwargs):
                     (templatename in ['manualsearch.html', 'searchresults.html']
                      and not perm & lazylibrarian.perm_search):
                 logger.warn('User %s attempted to access %s' % (username, templatename))
-                if 'auth_type' in lazylibrarian.CONFIG and lazylibrarian.CONFIG['auth_type'] == 'FORM':
+                if CONFIG.get_str('auth_type') == 'FORM':
                     templatename = "formlogin.html"
                 else:
                     templatename = "login.html"
 
-            if lazylibrarian.LOGLEVEL & logger.log_admin:
+            if lazylibrarian_log.LOGLEVEL & logger.log_admin:
                 logger.debug("User %s: %s %s %s %s" % (username, perm, userprefs, usertheme, templatename))
 
             theme = usertheme.split('_', 1)[0]
-            if theme and theme != lazylibrarian.CONFIG['HTTP_LOOK']:
+            if theme and theme != CONFIG['HTTP_LOOK']:
                 template_dir = os.path.join(str(interface_dir), theme)
                 if not path_isdir(template_dir):
                     logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
-                    lazylibrarian.CONFIG.set_str('HTTP_LOOK', 'bookstrap')
-                    template_dir = os.path.join(str(interface_dir), lazylibrarian.CONFIG['HTTP_LOOK'])
+                    CONFIG.set_str('HTTP_LOOK', 'bookstrap')
+                    template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
 
                 module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
                 _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
@@ -253,9 +238,8 @@ def serve_template(templatename, **kwargs):
                 clear_mako_cache(userid)
                 template = _hplookup.get_template(templatename)
 
-<<<<<<< HEAD
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-            if  CONFIG.get_item('auth_type') and CONFIG['auth_type'] == 'FORM':
+            if  CONFIG.get_str('auth_type')  == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -277,7 +261,7 @@ def serve_template(templatename, **kwargs):
                 (templatename in ['manualsearch.html', 'searchresults.html']
                  and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
-            if 'auth_type' in CONFIG and CONFIG['auth_type'] == 'FORM':
+            if CONFIG.get_str('auth_type') == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -312,13 +296,13 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=0, title="Redirected", style=style)
 
         lazylibrarian.SUPPRESS_UPDATE = not perm & lazylibrarian.perm_config
-            theme = usertheme.split('_', 1)
-            if len(theme) > 1:
-                style = theme[1]
+        theme = usertheme.split('_', 1)
+        if len(theme) > 1:
+            style = theme[1]
 
-            if templatename in ["login.html", "formlogin.html"]:
-                cherrypy.response.cookie['ll_template'] = ''
-                return template.render(perm=0, title="Redirected", style=style)
+        if templatename in ["login.html", "formlogin.html"]:
+            cherrypy.response.cookie['ll_template'] = ''
+            return template.render(perm=0, title="Redirected", style=style)
 
         # keep template name for help context
         cherrypy.response.cookie['ll_template'] = templatename
@@ -6949,6 +6933,8 @@ class WebInterface(object):
 
     @cherrypy.expose
     def enable_telemetry(self, **kwargs):
-        lazylibrarian.CONFIG.set_bool('TELEMETRY_ENABLE', True)
-        lazylibrarian.CONFIG.save_config_and_backup_old(section='Telemetry')
+        CONFIG.set_bool('TELEMETRY_ENABLE', True)
+        CONFIG.set_int('TELEMETRY_INTERVAL', 6)
+        CONFIG.set_str('TELEMETRY_SERVER', 'put server url here in webserve.py')
+        CONFIG.save_config_and_backup_old(section='Telemetry')
         return "Telemetry is enabled"
