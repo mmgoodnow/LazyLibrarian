@@ -37,7 +37,6 @@ DOCKER = False  # Set to True if we discover LL is running inside of Docker
 STOPTHREADS = False  # Part of the scheduling state machine. Should move to a scheduling class?
 
 # These are globals
-SUPPRESS_UPDATE = False
 UPDATE_MSG = ''
 TIMERS = {
             'NO_TOR_MSG': 0,

@@ -119,79 +119,127 @@ def serve_template(templatename, **kwargs):
     # noinspection PyBroadException
     try:
         style = CONFIG['BOOKSTRAP_THEME']
+        userprefs = 0
         if lazylibrarian.UPDATE_MSG:
             template = _hplookup.get_template("dbupdate.html")
             return template.render(perm=0, message="Database upgrade in progress, please wait...",
                                    title="Database Upgrade", timer=5, style=style)
 
         if not CONFIG.get_bool('USER_ACCOUNTS'):
+            perm = lazylibrarian.perm_admin
             try:
                 template = _hplookup.get_template(templatename)
             except (AttributeError, KeyError):
                 clear_mako_cache()
                 template = _hplookup.get_template(templatename)
-            return template.render(perm=lazylibrarian.perm_admin, style=style, **kwargs)
-
-        username = ''  # anyone logged in yet?
-        userid = 0
-        perm = 0
-        res = None
-        cookie = None
-        userprefs = 0
-        usertheme = ''
-        db = database.DBConnection()
-
-        if lazylibrarian.LOGINUSER:
-            res = db.match('SELECT UserName,Perms from users where UserID=?', (lazylibrarian.LOGINUSER,))
-            if res:
-                cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
-                userid = lazylibrarian.LOGINUSER
-                logger.debug("Auto-login for %s" % res['UserName'])
-                lazylibrarian.SHOWLOGOUT = 0
-            else:
-                logger.debug("Auto-login failed for userid %s" % lazylibrarian.LOGINUSER)
-                cherrypy.response.cookie['ll_uid'] = ''
-                cherrypy.response.cookie['ll_uid']['expires'] = 0
-                cherrypy.response.cookie['ll_prefs'] = '0'
-                cherrypy.response.cookie['ll_prefs']['expires'] = 0
-            lazylibrarian.LOGINUSER = None
-
         else:
-            cookie = cherrypy.request.cookie
-            if cookie and 'll_uid' in list(cookie.keys()):
-                res = db.match('SELECT UserName,Perms,UserID from users where UserID=?', (cookie['ll_uid'].value,))
-            if not res:
-                columns = db.select('PRAGMA table_info(users)')
-                if not columns:  # no such table
-                    cnt = 0
-                else:
-                    cnt = db.match("select count(*) as counter from users")
-                if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
-                        templatename not in ["register.html", "response.html", "opds.html"]:
-                    res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
-                    cherrypy.response.cookie['ll_uid'] = res['UserID']
-                    cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+            username = ''  # anyone logged in yet?
+            userid = 0
+            perm = 0
+            res = None
+            cookie = None
+            usertheme = ''
+            db = database.DBConnection()
+
+            if lazylibrarian.LOGINUSER:
+                res = db.match('SELECT UserName,Perms from users where UserID=?', (lazylibrarian.LOGINUSER,))
+                if res:
+                    cherrypy.response.cookie['ll_uid'] = lazylibrarian.LOGINUSER
+                    userid = lazylibrarian.LOGINUSER
                     logger.debug("Auto-login for %s" % res['UserName'])
                     lazylibrarian.SHOWLOGOUT = 0
                 else:
-                    lazylibrarian.SHOWLOGOUT = 1
-        if res:
-            perm = check_int(res['Perms'], 0)
-            username = res['UserName']
-            userid = res['UserID']
+                    logger.debug("Auto-login failed for userid %s" % lazylibrarian.LOGINUSER)
+                    cherrypy.response.cookie['ll_uid'] = ''
+                    cherrypy.response.cookie['ll_uid']['expires'] = 0
+                    cherrypy.response.cookie['ll_prefs'] = '0'
+                    cherrypy.response.cookie['ll_prefs']['expires'] = 0
+                lazylibrarian.LOGINUSER = None
+
+            else:
+                cookie = cherrypy.request.cookie
+                if cookie and 'll_uid' in list(cookie.keys()):
+                    res = db.match('SELECT UserName,Perms,UserID from users where UserID=?', (cookie['ll_uid'].value,))
+                if not res:
+                    columns = db.select('PRAGMA table_info(users)')
+                    if not columns:  # no such table
+                        cnt = 0
+                    else:
+                        cnt = db.match("select count(*) as counter from users")
+                    if cnt and cnt['counter'] == 1 and CONFIG.get_bool('SINGLE_USER') and \
+                            templatename not in ["register.html", "response.html", "opds.html"]:
+                        res = db.match('SELECT UserName,Perms,Prefs,UserID from users')
+                        cherrypy.response.cookie['ll_uid'] = res['UserID']
+                        cherrypy.response.cookie['ll_prefs'] = res['Prefs']
+                        logger.debug("Auto-login for %s" % res['UserName'])
+                        lazylibrarian.SHOWLOGOUT = 0
+                    else:
+                        lazylibrarian.SHOWLOGOUT = 1
+            if res:
+                perm = check_int(res['Perms'], 0)
+                username = res['UserName']
+                userid = res['UserID']
+                try:
+                    res2 = db.match('SELECT Theme from users where UserID=?', (userid,))
+                    if res2:
+                        usertheme = res2['Theme']
+                        if not usertheme:
+                            usertheme = ''
+                except Exception as e:
+                    logger.debug("Unable to get user theme for %s: %s" % (userid, str(e)))
+            if cookie and 'll_prefs' in list(cookie.keys()):
+                userprefs = check_int(cookie['ll_prefs'].value, 0)
+
+            if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
+                if  CONFIG.get_str('auth_type') == 'FORM':
+                    templatename = "formlogin.html"
+                else:
+                    templatename = "login.html"
+            elif (templatename == 'config.html' and not perm & lazylibrarian.perm_config) or \
+                    (templatename == 'logs.html' and not perm & lazylibrarian.perm_logs) or \
+                    (templatename == 'history.html' and not perm & lazylibrarian.perm_history) or \
+                    (templatename == 'managebooks.html' and not perm & lazylibrarian.perm_managebooks) or \
+                    (templatename == 'books.html' and not perm & lazylibrarian.perm_ebook) or \
+                    (templatename == 'author.html' and not perm & lazylibrarian.perm_ebook
+                     and not perm & lazylibrarian.perm_audio) or \
+                    (templatename in ['magazines.html', 'issues.html', 'manageissues.html']
+                     and not perm & lazylibrarian.perm_magazines) or \
+                    (templatename in ['comics.html', 'comicissues.html', 'comicresults.html']
+                     and not perm & lazylibrarian.perm_comics) or \
+                    (templatename == 'audio.html' and not perm & lazylibrarian.perm_audio) or \
+                    (templatename == 'choosetype.html' and not perm & lazylibrarian.perm_download) or \
+                    (templatename in ['series.html', 'members.html'] and not perm & lazylibrarian.perm_series) or \
+                    (templatename in ['editauthor.html', 'editbook.html'] and not perm & lazylibrarian.perm_edit) or \
+                    (templatename in ['manualsearch.html', 'searchresults.html']
+                     and not perm & lazylibrarian.perm_search):
+                logger.warn('User %s attempted to access %s' % (username, templatename))
+                if CONFIG.get_str('auth_type') == 'FORM':
+                    templatename = "formlogin.html"
+                else:
+                    templatename = "login.html"
+
+            if lazylibrarian_log.LOGLEVEL & logger.log_admin:
+                logger.debug("User %s: %s %s %s %s" % (username, perm, userprefs, usertheme, templatename))
+
+            theme = usertheme.split('_', 1)[0]
+            if theme and theme != CONFIG['HTTP_LOOK']:
+                template_dir = os.path.join(str(interface_dir), theme)
+                if not path_isdir(template_dir):
+                    logger.error("Unable to locate template [%s], reverting to bookstrap" % template_dir)
+                    CONFIG.set_str('HTTP_LOOK', 'bookstrap')
+                    template_dir = os.path.join(str(interface_dir), CONFIG['HTTP_LOOK'])
+
+                module_directory = os.path.join(lazylibrarian.CACHEDIR, 'mako', str(userid))
+                _hplookup = TemplateLookup(directories=[template_dir], input_encoding='utf-8',
+                                           module_directory=module_directory)
             try:
-                res2 = db.match('SELECT Theme from users where UserID=?', (userid,))
-                if res2:
-                    usertheme = res2['Theme']
-                    if not usertheme:
-                        usertheme = ''
-            except Exception as e:
-                logger.debug("Unable to get user theme for %s: %s" % (userid, str(e)))
-        if cookie and 'll_prefs' in list(cookie.keys()):
-            userprefs = check_int(cookie['ll_prefs'].value, 0)
+                template = _hplookup.get_template(templatename)
+            except (AttributeError, KeyError):
+                clear_mako_cache(userid)
+                template = _hplookup.get_template(templatename)
 
         if perm == 0 and templatename not in ["register.html", "response.html", "opds.html"]:
-            if  CONFIG.get_item('auth_type') and CONFIG['auth_type'] == 'FORM':
+            if  CONFIG.get_str('auth_type')  == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -213,7 +261,7 @@ def serve_template(templatename, **kwargs):
                 (templatename in ['manualsearch.html', 'searchresults.html']
                  and not perm & lazylibrarian.perm_search):
             logger.warn('User %s attempted to access %s' % (username, templatename))
-            if 'auth_type' in CONFIG and CONFIG['auth_type'] == 'FORM':
+            if CONFIG.get_str('auth_type') == 'FORM':
                 templatename = "formlogin.html"
             else:
                 templatename = "login.html"
@@ -248,6 +296,13 @@ def serve_template(templatename, **kwargs):
             return template.render(perm=0, title="Redirected", style=style)
 
         lazylibrarian.SUPPRESS_UPDATE = not perm & lazylibrarian.perm_config
+        theme = usertheme.split('_', 1)
+        if len(theme) > 1:
+            style = theme[1]
+
+        if templatename in ["login.html", "formlogin.html"]:
+            cherrypy.response.cookie['ll_template'] = ''
+            return template.render(perm=0, title="Redirected", style=style)
 
         # keep template name for help context
         cherrypy.response.cookie['ll_template'] = templatename
@@ -6877,3 +6932,10 @@ class WebInterface(object):
         if 'config_tab' in kwargs:
             CONFIG.set_from_ui('CONFIG_TAB_NUM', kwargs['config_tab'])
 
+    @cherrypy.expose
+    def enable_telemetry(self, **kwargs):
+        CONFIG.set_bool('TELEMETRY_ENABLE', True)
+        CONFIG.set_int('TELEMETRY_INTERVAL', 6)
+        CONFIG.set_url('TELEMETRY_SERVER', 'https://telemetry-philborma.pitunnel.com')
+        CONFIG.save_config_and_backup_old(section='Telemetry')
+        return "Thank you for enabling Telemetry"

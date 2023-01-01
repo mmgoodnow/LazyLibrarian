@@ -839,6 +839,7 @@
 
        $('#checkforupdates').on('click', function() {
             eraseCookie("ignoreUpdate");
+            eraseCookie("ignoreTelemetry");
             $("#myAlert").removeClass('hidden');
             $.get('check_for_updates', function(data) {
                 $("#myAlert").addClass('hidden');

@@ -59,7 +59,7 @@ class TelemetryServer():
         self.logger.debug('Initializing database')
         if self._telemetry_db.initialize():
             self.logger.debug('Run server')
-            telemetryweb.run_server(self._telemetry_db.add_telemetry)
+            telemetryweb.run_server(self._telemetry_db.add_telemetry, self._telemetry_db.read_telemetry)
 
     def stop(self):
         self.logger.debug('Stopping server')

@@ -27,16 +27,8 @@ the volume mappings.
 
 ### Editing docker-compose.yml
 
-For the MySQL server, edit the left hand side of volumes to a directory
-that should hold the database files:
-
-```
-    volumes:
-      - C:/code/data/db:/var/lib/mysql
-```
-
 For the webL server, edit the left hand side of volumes to a directory
-that will hold the server's log files:
+that will hold the server's log files and the sqlite database:
 
 ```
     volumes:
@@ -73,3 +65,6 @@ simple welcome message.
 You can see the commands available by going to the [help](localhost:9174/help)
 page, and you can see the current status on the [status](localhost:9174/status)
 page.
+
+You can read data from the database on the [stats](localhost:9174/stats) page.
+stats can currently be usage, servers, configs, (localhost:9174/stats/configs)

@@ -1,7 +1,7 @@
 FROM python:latest
 
 # Install python modules we need
-RUN pip install mysql-connector-python configparser bottle pyyaml bash
+RUN pip install configparser bottle pyyaml bash
 
 # Telemetryserver listens to this post
 EXPOSE 9174/tcp
