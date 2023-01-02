@@ -3284,7 +3284,7 @@ class WebInterface(object):
         raise cherrypy.HTTPRedirect("author_page?authorid=%s" % authorid)
 
     @cherrypy.expose
-    def edit_book(self, bookid=None, library='eBook'):
+    def edit_book(self, bookid=None, library='eBook', images=False):
         cherrypy.response.headers['Cache-Control'] = "max-age=0,no-cache,no-store"
         self.label_thread('EDIT_BOOK')
         TELEMETRY.record_usage_data()
@@ -3300,19 +3300,21 @@ class WebInterface(object):
         seriesdict = db.select(cmd, (bookid,))
         if bookdata:
             bookdata = dict(bookdata)
+            bookdata['library'] = library
             if library != "AudioBook":
                 bookdata.pop('Narrator', None)
             covers = []
-            # flickr needs an apikey and doesn't seem to have authors or book covers
-            # baidu doesn't like bots, message: "Forbid spider access"
-            sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
-                       'googleisbn', 'bing', 'googleimage']
-            if NEW_WHATWORK:
-                sources.append('whatwork')
-            for source in sources:
-                cover, _ = get_book_cover(bookid, source)
-                if cover:
-                    covers.append([source, cover])
+            if images:
+                # flickr needs an apikey and doesn't seem to have authors or book covers
+                # baidu doesn't like bots, message: "Forbid spider access"
+                sources = ['current', 'cover', 'goodreads', 'librarything', 'openlibrary',
+                           'googleisbn', 'bing', 'googleimage']
+                if NEW_WHATWORK:
+                    sources.append('whatwork')
+                for source in sources:
+                    cover, _ = get_book_cover(bookid, source)
+                    if cover:
+                        covers.append([source, cover])
 
             bookfile = bookdata['BookFile']
             if bookfile and path_isfile(bookfile):

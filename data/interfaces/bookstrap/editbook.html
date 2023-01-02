@@ -151,16 +151,21 @@
             </table>
         </div>
         <div class="form-group">
-            <label for="changeCover" class="control-label">Change cover to: </label>
-            <select id="changeCover" class="changeCover form-control input" name="cover">
-            %for item in covers:
-                <option value="${item[0]}"
-                %if item[0] == 'current':
-                    selected = "selected"
-                %endif
-                >${item[0]}</option>
-            %endfor
-            </select>
+            %if len(covers) > 0:
+                <label for="changeCover" class="control-label">Change cover to: </label>
+                <select id="changeCover" class="changeCover form-control input" name="cover">
+                %for item in covers:
+                    <option value="${item[0]}"
+                    %if item[0] == 'current':
+                        selected = "selected"
+                    %endif
+                    >${item[0]}</option>
+                %endfor
+                </select>
+            %endif
+            %if len(covers) == 0:
+                <a class="btn-success btn" onclick="$('#myAlert').removeClass('hidden')" href="edit_book?bookid=${config['BookID']}&images=True&library=${config['library']}">Find Images</a>
+            %endif
         </div>
         %if replaces:
           <legend>OPF Fields</legend>
