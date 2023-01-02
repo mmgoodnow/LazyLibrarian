@@ -480,6 +480,7 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
     elif crawler_name == 'flickr':
         crawler = FlickrImageCrawler(storage={'root_dir': icrawlerdir})
     else:
+        crawler_name = 'google'
         crawler = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
 
     crawler.crawl(keyword=safeparams, max_num=1)
@@ -487,7 +488,7 @@ def crawl_image(crawler_name, src, cachedir, bookid, safeparams):
         res = len(os.listdir(icrawlerdir))
     else:
         res = 0
-    logger.debug("Found %d %s" % (res, plural(res, 'image')))
+    logger.debug("%s found %d %s" % (crawler_name, res, plural(res, 'image')))
     if res:
         img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
 
@@ -523,19 +524,21 @@ def get_author_image(authorid=None, refresh=False, max_num=1):
         safeparams = quote_plus(make_utf8bytes("author %s" % authorname)[0])
         icrawlerdir = os.path.join(cachedir, 'icrawler', authorid)
         rmtree(icrawlerdir, ignore_errors=True)
+        crawler_name = 'google'
         gc = GoogleImageCrawler(storage={'root_dir': icrawlerdir})
         gc.crawl(keyword=safeparams, max_num=int(max_num))
         if os.path.exists(icrawlerdir):
             res = len(os.listdir(icrawlerdir))
         else:
             # nothing from google, try bing
+            crawler_name = 'bing'
             bc = BingImageCrawler(storage={'root_dir': icrawlerdir})
             bc.crawl(keyword=safeparams, max_num=int(max_num))
             if os.path.exists(icrawlerdir):
                 res = len(os.listdir(icrawlerdir))
             else:
                 res = 0
-        logger.debug("Found %d %s" % (res, plural(res, 'image')))
+        logger.debug("%s found %d %s" % (crawler_name, res, plural(res, 'image')))
         if max_num == 1:
             if res:
                 img = os.path.join(icrawlerdir, os.listdir(icrawlerdir)[0])
