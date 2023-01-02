@@ -7,7 +7,7 @@ import time
 
 from lazylibrarian import logger
 from lazylibrarian.processcontrol import get_info_on_caller, get_process_memory, track_resource_usage, get_cpu_use, PSUTIL
-from unittesthelpers import LLTestCase
+from unittests.unittesthelpers import LLTestCase
 
 
 def some_function(path: bool, ext: bool) -> (str, str, int):
@@ -116,10 +116,10 @@ class TestProcessControl(LLTestCase):
         if PSUTIL:
             self.assertEqual(len(cm.output), 1)
             # Sample output:
-            # 'DEBUG:lazylibrarian.logger:MainThread : processcontrol:wrapper : use_some_resource: memory before: 87,011,328, after: 88,526,848, consumed: 1,515,520; exec time: 0:00:00.103080'
+            # 'DEBUG:lazylibrarian.logger:MainThread : processcontrol.py:wrapper : use_some_resource: memory before: 87,011,328, after: 88,526,848, consumed: 1,515,520; exec time: 0:00:00.103080'
             logparts = cm.output[0].split(' ')
             self.assertNotEqual('0', logparts[11])  # Memory consumed
             self.assertNotEqual('0:00:00.000000', logparts[14])  # Time taken > 0
         else:
             self.assertEqual(cm.output, [
-                'DEBUG:lazylibrarian.logger:MainThread : processcontrol:wrapper : psutil is not installed'])
+                'DEBUG:lazylibrarian.logger:MainThread : processcontrol.py:wrapper : psutil is not installed'])
