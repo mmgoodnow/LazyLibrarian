@@ -40,7 +40,7 @@ from lazylibrarian.processcontrol import get_cpu_use, get_process_memory
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, listdir, setperm
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.scheduling import show_jobs, restart_jobs, check_running_jobs, all_author_update, \
-    author_update, series_update, show_stats
+    author_update, series_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table
 from lazylibrarian.formatter import today, format_author_name, check_int, plural, replace_all, get_list, thread_name
 from lazylibrarian.gb import GoogleBooks
@@ -2293,7 +2293,7 @@ class Api(object):
     @staticmethod
     def _restartjobs():
         TELEMETRY.record_usage_data()
-        restart_jobs(start='Restart')
+        restart_jobs(command=SchedulerCommand.RESTART)
 
     @staticmethod
     def _checkrunningjobs():

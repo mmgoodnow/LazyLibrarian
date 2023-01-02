@@ -395,16 +395,16 @@ class LLConfigHandler(ConfigDict):
 
         # Restart all scheduled jobs since the schedules may have changed
         if restart_jobs:
-            from lazylibrarian.scheduling import schedule_job
+            from lazylibrarian.scheduling import schedule_job, SchedulerCommand
             for _, item in self.config.items():
                 schedule = item.get_schedule_name()
                 if schedule and isinstance(item, ConfigScheduler):
                     if self.scheduler_can_run(item):
                         logger.debug(f"Restarting job {schedule}, interval {item.get_int()}")
-                        schedule_job('Restart', schedule)
+                        schedule_job(SchedulerCommand.RESTART, schedule)
                     else:
                         logger.debug(f"Stopping job {schedule}")
-                        schedule_job('Stop', schedule)
+                        schedule_job(SchedulerCommand.STOP, schedule)
 
         # Clean up the database if needed (Does this really belong here?)
         if self.config['NO_SINGLE_BOOK_SERIES'].get_bool():

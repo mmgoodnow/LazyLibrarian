@@ -45,7 +45,7 @@ from lazylibrarian.common import clear_log, save_log, log_header, pwd_generator,
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, path_exists, remove_file, listdir, walk, \
     setperm, safe_move, safe_copy, opf_file, csv_file, book_file, get_directory
 from lazylibrarian.scheduling import schedule_job, show_jobs, restart_jobs, check_running_jobs, \
-    ensure_running, all_author_update, show_stats
+    ensure_running, all_author_update, show_stats, SchedulerCommand
 from lazylibrarian.csvfile import import_csv, export_csv, dump_table, restore_table
 from lazylibrarian.dbupgrade import check_db
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method, \
@@ -2205,7 +2205,7 @@ class WebInterface(object):
                 custom_notify_snatch("%s %s" % (bookid, library))
                 notify_snatch("%s from %s at %s" % (unaccented(bookdata["BookName"], only_ascii=False),
                                                     CONFIG.disp_name(provider), now()))
-                schedule_job(action='Start', target='PostProcessor')
+                schedule_job(action=SchedulerCommand.START, target='PostProcessor')
             else:
                 db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?', (res, url))
             raise cherrypy.HTTPRedirect("author_page?authorid=%s&library=%s" % (author_id, library))
@@ -5684,12 +5684,12 @@ class WebInterface(object):
 
     @cherrypy.expose
     def restart_jobs(self):
-        restart_jobs(start='Restart')
+        restart_jobs(command=SchedulerCommand.RESTART)
         # return self.show_jobs()
 
     @cherrypy.expose
     def stop_jobs(self):
-        restart_jobs(start='Stop')
+        restart_jobs(command=SchedulerCommand.STOP)
         # return self.show_jobs()
 
     # LOGGING ###########################################################
@@ -6453,7 +6453,7 @@ class WebInterface(object):
     def force_process(self, source=None):
         if 'POSTPROCESSOR' not in [n.name for n in [t for t in threading.enumerate()]]:
             threading.Thread(target=process_dir, name='POSTPROCESSOR', args=[True]).start()
-            schedule_job(action='Restart', target='PostProcessor')
+            schedule_job(action=SchedulerCommand.RESTART, target='PostProcessor')
         else:
             logger.debug('POSTPROCESSOR already running')
         raise cherrypy.HTTPRedirect(source)
@@ -6481,21 +6481,21 @@ class WebInterface(object):
                 elif source == 'magazines' and 'SEARCHALLMAG' not in [
                         n.name for n in [t for t in threading.enumerate()]]:
                     threading.Thread(target=search_magazines, name='SEARCHALLMAG', args=[]).start()
-                    schedule_job(action='Restart', target='search_magazines')
+                    schedule_job(action=SchedulerCommand.RESTART, target='search_magazines')
                 elif source == 'comics' and 'SEARCHALLCOMICS' not in [
                         n.name for n in [t for t in threading.enumerate()]]:
                     threading.Thread(target=search_comics, name='SEARCHALLCOMICS', args=[]).start()
-                    schedule_job(action='Restart', target='search_comics')
+                    schedule_job(action=SchedulerCommand.RESTART, target='search_comics')
             else:
                 logger.warn('Search called but no download providers set')
         elif source in ["books", "audio"]:
             if CONFIG.use_any():
                 if 'SEARCHALLBOOKS' not in [n.name for n in [t for t in threading.enumerate()]]:
-                    schedule_job("Stop", "search_book")
-                    schedule_job("StartNow", "search_book")
+                    schedule_job(SchedulerCommand.STOP, "search_book")
+                    schedule_job(SchedulerCommand.STARTNOW, "search_book")
                 if CONFIG.use_rss():
-                    schedule_job("Stop", "search_rss_book")
-                    schedule_job("StartNow", "search_rss_book")
+                    schedule_job(SchedulerCommand.STOP, "search_rss_book")
+                    schedule_job(SchedulerCommand.STARTNOW, "search_rss_book")
             else:
                 logger.warn('Search called but no download providers set')
         else:

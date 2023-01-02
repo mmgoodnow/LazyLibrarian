@@ -11,25 +11,26 @@
 #  GNU General Public License for more details.
 #  You should have received a copy of the GNU General Public License
 #  along with Lazylibrarian.  If not, see <http://www.gnu.org/licenses/>.
-
+#
 # Purpose:
 #   Scheduling functionality
 
-from typing import Optional, List
-import time
 import datetime
+import time
 import traceback
+from enum import Enum
+from typing import Optional, List
 
 from lib.apscheduler.scheduler import Scheduler
 
 import lazylibrarian
-from lazylibrarian.config2 import CONFIG
 from lazylibrarian import database, logger
-from lazylibrarian.formatter import thread_name, plural, check_int
-from lazylibrarian.configtypes import ConfigScheduler
-from lazylibrarian.bookwork import add_series_members
-from lazylibrarian.importer import add_author_to_db
 from lazylibrarian.blockhandler import BLOCKHANDLER
+from lazylibrarian.bookwork import add_series_members
+from lazylibrarian.config2 import CONFIG
+from lazylibrarian.configtypes import ConfigScheduler
+from lazylibrarian.formatter import thread_name, plural, check_int
+from lazylibrarian.importer import add_author_to_db
 
 # Notification Types
 NOTIFY_SNATCH = 1
@@ -40,6 +41,16 @@ notifyStrings = {NOTIFY_SNATCH: "Started Download", NOTIFY_DOWNLOAD: "Added to L
 
 # Scheduler
 SCHED: Scheduler
+
+
+class SchedulerCommand(Enum):
+    """ Commands that can be given to the scheduler or scheduled tasks """
+    START = 'Start'
+    STARTNOW = 'StartNow'
+    RESTART = 'Restart'
+    STOP = 'Stop'
+    NONE = 'Noop'
+
 
 def initscheduler():
     global SCHED
@@ -58,6 +69,7 @@ def shutdownscheduler():
     except NameError:
         pass
 
+
 def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     """
     Returns a readable approximation of how long until a job will be run,
@@ -74,16 +86,12 @@ def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
         td = ''
 
     td = str(td)
-    if 'days,' in td: # > 1 day, just return days
+    if 'days,' in td:  # > 1 day, just return days
         return td.split('s,')[0] + 's'
-    elif 'day,' in td and not "0:00:00" in td: # 1 day and change, or 1 day?
+    elif 'day,' in td and "0:00:00" not in td:  # 1 day and change, or 1 day?
         diff += 86400
 
-    # calculate whole units, plus round up by adding 1(true) if remainder >= half
-    days = int(diff / 86400) + (diff % 86400 >= 43200)
-    hours = int(diff / 3600) + (diff % 3600 >= 1800)
-    minutes = int(diff / 60) + (diff % 60 >= 30)
-    seconds = int(diff)
+    days, hours, minutes, seconds = get_whole_timediff_from_seconds(diff)
 
     if days > 1:
         return "%i days" % days
@@ -96,13 +104,23 @@ def next_run_time(when_run, test_now: Optional[datetime.datetime] = None):
     else:
         return "%i seconds" % seconds
 
-def nextrun(target=None, minutes=0, action=''):
+
+def get_whole_timediff_from_seconds(diff):
+    # calculate whole units, plus round up by adding 1(true) if remainder >= half
+    days = int(diff / 86400) + (diff % 86400 >= 43200)
+    hours = int(diff / 3600) + (diff % 3600 >= 1800)
+    minutes = int(diff / 60) + (diff % 60 >= 30)
+    seconds = int(diff)
+    return days, hours, minutes, seconds
+
+
+def get_next_run_time(target=None, minutes=0, action=SchedulerCommand.NONE):
     """ Check when a job is next due to run and log it
         Return startdate for the job """
     if target is None:
         return ''
 
-    if action == 'StartNow':
+    if action == SchedulerCommand.STARTNOW:
         lazylibrarian.STOPTHREADS = False
         minutes = 0
 
@@ -138,19 +156,20 @@ def nextrun(target=None, minutes=0, action=''):
             next_run_in = 1
 
         if next_run_in <= 120:
-            msg = "%s %s job in %s %s" % (action, target, next_run_in, plural(next_run_in, "minute"))
+            msg = "%s %s job in %s %s" % (action.value, target, next_run_in, plural(next_run_in, "minute"))
         else:
             hours = int(next_run_in / 60)
             if hours <= 48:
-                msg = "%s %s job in %s %s" % (action, target, hours, plural(hours, "hour"))
+                msg = "%s %s job in %s %s" % (action.value, target, hours, plural(hours, "hour"))
             else:
                 days = int(hours / 24)
-                msg = "%s %s job in %s %s" % (action, target, days, plural(days, "day"))
+                msg = "%s %s job in %s %s" % (action.value, target, days, plural(days, "day"))
     if lastrun:
         msg += " (Last run %s)" % ago(lastrun)
     logger.debug(msg)
 
     return startdate
+
 
 def adjust_schedule(scheduler: ConfigScheduler):
     """ This method makes any adjustments to the scheduler that need to happen,
@@ -167,7 +186,7 @@ def adjust_schedule(scheduler: ConfigScheduler):
         # Then, shorten the interval depending on how much needs to be done
         cdays = CONFIG.get_int('CACHE_AGE')
         if cdays:
-            maxhours = cdays*24
+            maxhours = cdays * 24
 
             typ = name.replace('_update', '')
             overdue, total, _, _, days = is_overdue(typ)
@@ -176,7 +195,7 @@ def adjust_schedule(scheduler: ConfigScheduler):
             else:
                 due = "overdue"
             logger.debug("Found %s %s from %s %s update" % (
-                            overdue, plural(overdue, typ), total, due))
+                overdue, plural(overdue, typ), total, due))
 
             interval = maxhours * 60
             interval = interval / max(total, 1)
@@ -190,23 +209,23 @@ def adjust_schedule(scheduler: ConfigScheduler):
             scheduler.set_int(interval)
 
 
-def schedule_job(action='Start', target:str=''):
+def schedule_job(action=SchedulerCommand.START, target: str = ''):
     """ Start or stop or restart a cron job by name e.g.
         target=search_magazines, target=process_dir, target=search_book """
     if target == '':
         return
 
-    if action in ['Stop', 'Restart']:
+    if action in [SchedulerCommand.STOP, SchedulerCommand.RESTART]:
         for job in SCHED.get_jobs():
             if target in str(job):
                 SCHED.unschedule_job(job)
                 logger.debug(f"Stop {target} job")
                 break
 
-    if action in ['Start', 'Restart', 'StartNow']:
+    if action in [SchedulerCommand.START, SchedulerCommand.RESTART, SchedulerCommand.STARTNOW]:
         for job in SCHED.get_jobs():
             if target in str(job):
-                logger.debug("%s %s job, already scheduled" % (action, target))
+                logger.debug("%s %s job, already scheduled" % (action.value, target))
                 return  # return if already running, if not, start a new one
 
         schedule = CONFIG.get_ConfigScheduler(target)
@@ -215,7 +234,7 @@ def schedule_job(action='Start', target:str=''):
                 # Perform local adjustments to the schedule before proceeding
                 adjust_schedule(schedule)
                 hours, minutes = schedule.get_hour_min_interval()
-                startdate = nextrun(schedule.run_name, minutes+hours*60, action)
+                startdate = get_next_run_time(schedule.run_name, minutes + hours * 60, action)
                 method = schedule.get_method()
                 if method:
                     SCHED.add_interval_job(method, hours=hours, minutes=minutes, start_date=startdate)
@@ -251,7 +270,7 @@ def author_update(restart=True, only_overdue=True):
                 msg = 'Updated author %s' % name
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             if total and restart and not lazylibrarian.STOPTHREADS:
-                schedule_job("Restart", "author_update")
+                schedule_job(SchedulerCommand.RESTART, "author_update")
     except Exception:
         logger.error('Unhandled exception in AuthorUpdate: %s' % traceback.format_exc())
         msg = "Unhandled exception in AuthorUpdate"
@@ -285,7 +304,7 @@ def series_update(restart=True, only_overdue=True):
 
             db.upsert("jobs", {"Finish": time.time()}, {"Name": thread_name()})
             if total and restart and not lazylibrarian.STOPTHREADS:
-                schedule_job("Restart", "series_update")
+                schedule_job(SchedulerCommand.RESTART, "series_update")
     except Exception:
         logger.error('Unhandled exception in series_update: %s' % traceback.format_exc())
         msg = "Unhandled exception in series_update"
@@ -307,7 +326,7 @@ def all_author_update(refresh=False):
                 logger.debug("Aborting ActiveAuthorUpdate")
                 break
             add_author_to_db(refresh=refresh, authorid=author['AuthorID'],
-                                                    reason="all_author_update")
+                             reason="all_author_update")
         logger.info('Active author update complete')
         msg = 'Updated %i active %s' % (len(activeauthors), plural(len(activeauthors), "author"))
         logger.debug(msg)
@@ -319,10 +338,11 @@ def all_author_update(refresh=False):
     return msg
 
 
-def restart_jobs(start='Restart'):
-    lazylibrarian.STOPTHREADS = start == 'Stop'
+def restart_jobs(command=SchedulerCommand.RESTART):
+    lazylibrarian.STOPTHREADS = command == SchedulerCommand.STOP
     for name, scheduler in CONFIG.get_schedulers():
-        schedule_job(start, scheduler.get_schedule_name())
+        schedule_job(command, scheduler.get_schedule_name())
+
 
 def ensure_running(jobname):
     lazylibrarian.STOPTHREADS = False
@@ -332,7 +352,7 @@ def ensure_running(jobname):
             found = True
             break
     if not found:
-        schedule_job('Start', jobname)
+        schedule_job(SchedulerCommand.START, jobname)
 
 
 def check_running_jobs():
@@ -357,29 +377,48 @@ def check_running_jobs():
         if CONFIG.use_rss():
             ensure_running('search_rss_book')
     else:
-        schedule_job('Stop', 'search_book')
-        schedule_job('Stop', 'search_rss_book')
+        schedule_job(SchedulerCommand.STOP, 'search_book')
+        schedule_job(SchedulerCommand.STOP, 'search_rss_book')
     if CONFIG.use_wishlist():
         ensure_running('search_wishlist')
     else:
-        schedule_job('Stop', 'search_wishlist')
+        schedule_job(SchedulerCommand.STOP, 'search_wishlist')
 
     if CONFIG.use_any():
         ensure_running('search_magazines')
         ensure_running('search_comics')
     else:
-        schedule_job('Stop', 'search_magazines')
-        schedule_job('Stop', 'search_comics')
+        schedule_job(SchedulerCommand.STOP, 'search_magazines')
+        schedule_job(SchedulerCommand.STOP, 'search_comics')
 
     ensure_running('author_update')
     ensure_running('series_update')
 
-def is_overdue(which="author"):
-    overdue = 0
-    total = 0
-    name = ''
-    ident = ''
-    days = 0
+
+def is_overdue(which="author") -> (int, int, str, str, int):
+    """ Determines how many items of type 'author' or 'series'are overdue for an update, because
+    the entries are older than CACHE_AGE.
+    Returns
+        overdue: Number of items
+        total: Total number of items, including those not overdue
+        name: The Author or Series name
+        ident: The ID for the Author or Series
+        days
+    """
+    def get_overdue_from_dbrows():
+        dtnow = time.time()
+        found = 0
+        thedays = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
+        for item in res:
+            diff = (dtnow - item['Updated']) / (24 * 60 * 60)
+            if diff > maxage:
+                found += 1
+            else:
+                break
+        return thedays, found
+
+    overdue = total = days = 0
+    name = ident = ''
     maxage = CONFIG.get_int('CACHE_AGE')
     if maxage:
         db = database.DBConnection()
@@ -396,14 +435,7 @@ def is_overdue(which="author"):
             if total:
                 name = res[0]['AuthorName']
                 ident = res[0]['AuthorID']
-                dtnow = time.time()
-                days = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
-                for item in res:
-                    diff = (dtnow - item['Updated']) / (24 * 60 * 60)
-                    if diff > maxage:
-                        overdue += 1
-                    else:
-                        break
+                days, overdue = get_overdue_from_dbrows()
         if which == 'series':
             cmd = 'SELECT SeriesName,SeriesID,Updated from Series where Status="Active" or Status="Wanted"'
             cmd += ' order by Updated ASC'
@@ -412,14 +444,7 @@ def is_overdue(which="author"):
             if total:
                 name = res[0]['SeriesName']
                 ident = res[0]['SeriesID']
-                dtnow = time.time()
-                days = int((dtnow - res[0]['Updated']) / (24 * 60 * 60))
-                for item in res:
-                    diff = (dtnow - item['Updated']) / (24 * 60 * 60)
-                    if diff > maxage:
-                        overdue += 1
-                    else:
-                        break
+                days, overdue = get_overdue_from_dbrows()
     return overdue, total, name, ident, days
 
 
@@ -428,11 +453,7 @@ def ago(when):
         when = seconds count """
 
     diff = time.time() - when
-    # calculate whole units, plus round up by adding 1(true) if remainder >= half
-    days = int(diff / 86400) + (diff % 86400 >= 43200)
-    hours = int(diff / 3600) + (diff % 3600 >= 1800)
-    minutes = int(diff / 60) + (diff % 60 >= 30)
-    seconds = int(diff)
+    days, hours, minutes, seconds = get_whole_timediff_from_seconds(diff)
 
     if days > 1:
         return "%i days ago" % days
@@ -444,6 +465,7 @@ def ago(when):
         return "%i seconds ago" % seconds
     else:
         return "just now"
+
 
 def show_jobs():
     result = []

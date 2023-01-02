@@ -21,7 +21,7 @@ import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
 from lazylibrarian.formatter import plural, now, replace_all, unaccented, \
     nzbdate2format, get_list, month2num, datecompare, check_int, check_year, age, thread_name
@@ -513,7 +513,7 @@ def search_magazines(mags=None, reset=False):
 
         logger.info("Search for magazines complete")
         if reset:
-            schedule_job(action='Restart', target='search_magazines')
+            schedule_job(action=SchedulerCommand.RESTART, target='search_magazines')
 
     except Exception:
         logger.error('Unhandled exception in search_magazines: %s' % traceback.format_exc())
@@ -565,7 +565,7 @@ def download_maglist(maglist, table='wanted'):
         logger.error(str(e))
     finally:
         if snatched:
-            schedule_job(action='Start', target='PostProcessor')
+            schedule_job(action=SchedulerCommand.START, target='PostProcessor')
 
 
 def get_issue_date(nzbtitle_exploded, datetype=''):

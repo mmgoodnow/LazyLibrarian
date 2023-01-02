@@ -25,7 +25,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.bookwork import set_genres
 from lazylibrarian.common import pwd_generator
 from lazylibrarian.filesystem import DIRS, syspath, setperm
-from lazylibrarian.scheduling import restart_jobs
+from lazylibrarian.scheduling import restart_jobs, SchedulerCommand
 from lazylibrarian.formatter import plural, md5_utf8, get_list, check_int
 from lazylibrarian.importer import update_totals
 from lazylibrarian.common import path_exists
@@ -293,7 +293,7 @@ def db_upgrade(current_version):
                 logger.info(lazylibrarian.UPDATE_MSG)
                 upgradelog.write("%s: %s\n" % (time.ctime(), lazylibrarian.UPDATE_MSG))
 
-            restart_jobs(start='Start')
+            restart_jobs(command=SchedulerCommand.START)
             lazylibrarian.UPDATE_MSG = ''
 
         except Exception:

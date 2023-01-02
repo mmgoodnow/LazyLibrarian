@@ -22,7 +22,7 @@ from lazylibrarian.formatter import get_list, plural, date_format, unaccented, r
 from lazylibrarian.logger import lazylibrarian_log
 from lazylibrarian.providers import iterate_over_rss_sites, iterate_over_torrent_sites, iterate_over_newznab_sites, \
     iterate_over_direct_sites, iterate_over_irc_sites
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.comicid import cv_identify, cx_identify
 from lazylibrarian.notifiers import notify_snatch, custom_notify_snatch
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, direct_dl_method
@@ -341,5 +341,4 @@ def download_comiclist(foundissues):
                 db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
                           (res, item["url"]))
     if snatched:
-        schedule_job(action='Start', target='PostProcessor')
-
+        schedule_job(SchedulerCommand.START, target='PostProcessor')

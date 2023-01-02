@@ -54,7 +54,7 @@ from lazylibrarian.mailinglist import mailing_list
 from lazylibrarian.images import create_mag_cover
 from lazylibrarian.preprocessor import preprocess_ebook, preprocess_audio, preprocess_magazine
 from lazylibrarian.notifiers import notify_download, custom_notify_download, notify_snatch,  custom_notify_snatch
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from deluge_client import DelugeRPCClient
 from thefuzz import fuzz
 
@@ -742,7 +742,7 @@ def unpack_archive(archivename, download_dir, title):
 def PostProcessor(): # was cron_process_dir
     if lazylibrarian.STOPTHREADS:
         logger.debug("STOPTHREADS is set, not starting postprocessor")
-        schedule_job(action='Stop', target='PostProcessor')
+        schedule_job(SchedulerCommand.STOP, target='PostProcessor')
     else:
         process_dir()
 
@@ -1597,16 +1597,16 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
         if not len(snatched) and not len(seeding):
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
-            schedule_job(action='Stop', target='PostProcessor')
+            schedule_job(SchedulerCommand.STOP, target='PostProcessor')
             status['status'] = 'idle'
             status['action'] = 'Stopped'
         elif len(seeding):
             logger.info('Seeding %s' % len(seeding))
-            schedule_job(action='Restart', target='PostProcessor')
+            schedule_job(SchedulerCommand.RESTART, target='PostProcessor')
             status['status'] = 'seeding'
             status['action'] = 'Restarted'
         elif reset:
-            schedule_job(action='Restart', target='PostProcessor')
+            schedule_job(SchedulerCommand.RESTART, target='PostProcessor')
             status['action'] = 'Restarted'
     except Exception:
         logger.error('Unhandled exception in process_dir: %s' % traceback.format_exc())

@@ -34,7 +34,7 @@ import lazylibrarian
 from lazylibrarian.common import log_header
 from lazylibrarian.notifiers import APPRISE_VER
 from lazylibrarian.filesystem import DIRS, path_isfile, path_isdir, syspath, remove_file, listdir
-from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler
+from lazylibrarian.scheduling import restart_jobs, initscheduler, startscheduler, shutdownscheduler, SchedulerCommand
 from lazylibrarian import database, versioncheck, logger
 from lazylibrarian.config2 import CONFIG, LLConfigHandler
 from lazylibrarian.blockhandler import BLOCKHANDLER
@@ -683,7 +683,7 @@ def start_schedulers():
     # noinspection PyUnresolvedReferences
     startscheduler()
     if not lazylibrarian.STOPTHREADS:
-        restart_jobs(start='Start')
+        restart_jobs(command=SchedulerCommand.START)
 
 
 def logmsg(level, msg):

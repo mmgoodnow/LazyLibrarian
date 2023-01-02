@@ -17,7 +17,7 @@ import traceback
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian import logger, database
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.csvfile import finditem
 from lazylibrarian.formatter import plural, unaccented, format_author_name, split_title, thread_name
 from lazylibrarian.importer import import_book, search_for, add_author_name_to_db
@@ -141,7 +141,7 @@ def search_wishlist():
         resultlist, wishproviders = iterate_over_wishlists()
         if not wishproviders:
             logger.debug('No wishlists are set')
-            schedule_job(action='Stop', target='search_wishlist')
+            schedule_job(action=SchedulerCommand.STOP, target='search_wishlist')
             return  # No point in continuing
 
         # for each item in resultlist, add to database if necessary, and mark as wanted
@@ -307,7 +307,7 @@ def search_rss_book(books=None, library=None):
     TELEMETRY.record_usage_data('Search/Book/RSS')
     if not (CONFIG.use_rss()):
         logger.warn('rss search is disabled')
-        schedule_job(action='Stop', target='search_rss_book')
+        schedule_job(action=SchedulerCommand.STOP, target='search_rss_book')
         return
     try:
         threadname = thread_name()
@@ -344,7 +344,7 @@ def search_rss_book(books=None, library=None):
         resultlist, nproviders, _ = iterate_over_rss_sites()
         if not nproviders:
             logger.warn('No rss providers are available')
-            schedule_job(action='Stop', target='search_rss_book')
+            schedule_job(action=SchedulerCommand.STOP, target='search_rss_book')
             return  # No point in continuing
 
         logger.info('rss Searching for %i %s' % (len(searchbooks), plural(len(searchbooks), "book")))

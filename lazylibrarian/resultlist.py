@@ -19,7 +19,7 @@ from lazylibrarian import logger, database
 from lazylibrarian.config2 import CONFIG
 from lazylibrarian.common import only_punctuation
 from lazylibrarian.logger import lazylibrarian_log
-from lazylibrarian.scheduling import schedule_job
+from lazylibrarian.scheduling import schedule_job, SchedulerCommand
 from lazylibrarian.downloadmethods import nzb_dl_method, tor_dl_method, \
     direct_dl_method, irc_dl_method
 from lazylibrarian.formatter import unaccented, replace_all, get_list, now, check_int
@@ -359,7 +359,7 @@ def download_result(match, book):
             # This would implement a round-robin search system. Blocklist with an incremental counter.
             # If number of active providers == number blocklisted, so no unblocked providers are left,
             # either sleep for a while, or unblock the one with the lowest counter.
-            schedule_job(action='Start', target='PostProcessor')
+            schedule_job(SchedulerCommand.START, target='PostProcessor')
             return 2  # we found it
         else:
             db.action('UPDATE wanted SET status="Failed",DLResult=? WHERE NZBurl=?',
