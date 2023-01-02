@@ -4,7 +4,6 @@ from typing import Callable
 from bottle import route, run, request
 import time
 import logging
-from lazylibrarian.formatter import pretty_approx_time
 
 @route('/')
 def hello():
@@ -12,10 +11,10 @@ def hello():
     return "LazyLibrarian Telemetry Server"
 
 @route('/stats/<type:re:[a-z]+>')
-def stats(atype):
-    logger.debug(f"Getting stats for {atype}")
+def stats(type):
+    logger.debug(f"Getting stats for {type}")
     valid_types = ['usage', 'configs', 'servers', 'switches', 'params', 'all']
-    if not atype or atype not in valid_types:
+    if not type or type not in valid_types:
         return ("Valid stats types: %s" % str(valid_types))
     result = _read_from_db(type)
     return result
@@ -78,8 +77,17 @@ def run_server(add_to_db, read_from_db):
     logger.info(f"Starting web server on port {port}")
     _add_to_db = add_to_db # Method handler
     _read_from_db = read_from_db # Method handler
-    run(host='0.0.0.0', port=PORT, debug=True, quiet=True)
+    run(host='0.0.0.0', port=port, debug=True, quiet=True)
 
+def pretty_approx_time(seconds: int) -> str:
+    """ Return a string representing the parameter in a nice human readable (approximate) way """
+    days, rem = divmod(seconds, 86400)
+    hours, rem = divmod(rem, 3600)
+    minutes, seconds = divmod(rem, 60)
+    locals_ = locals()
+    magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
+                      for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
+    return ", ".join(magnitudes_str)
 
 _starttime = time.time()
 _add_to_db = None
