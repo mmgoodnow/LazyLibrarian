@@ -641,8 +641,7 @@ class Config2Test(LLTestCase):
         # The ini file had array sections without _ in the name - check it's correct now
         for name in cfg.provider_names():
             array = cfg.get_array(name)
-            for inx in range(len(array)):
-                arrayitem = array[inx]
+            for inx, arrayitem in enumerate(array):
                 secstr = array.get_section_str(inx)
                 self.assertTrue('_' in secstr, 'All array sections must have an underscore')
                 for key, item in arrayitem.items():

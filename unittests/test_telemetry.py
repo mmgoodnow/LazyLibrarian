@@ -136,7 +136,7 @@ class TelemetryTest(LLTestCase):
             ['config',
              'config={"switches":"EBOOK_TAB COMIC_TAB SERIES_TAB BOOK_IMG MAG_IMG COMIC_IMG AUTHOR_IMG API_ENABLED CALIBRE_USE_SERVER OPF_TAGS ","params":"IMP_CALIBREDB DOWNLOAD_DIR API_KEY ","BOOK_API":"OpenLibrary","NEWZNAB":1,"TORZNAB":0,"RSS":0,"IRC":0,"GEN":0,"APPRISE":1}'],
             ['usage',
-             'usage={"Config/Save":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
+             'usage={"config2/save_config_and_backup_old":1,"API/getHelp":2,"web/test":1,"Download/NZB":1,"test_telemetry/test_record_usage_data":1}'],
         ]
         # Test individual strings
         for expect in s_expect:
@@ -149,7 +149,7 @@ class TelemetryTest(LLTestCase):
             # even if order of elements is different
             gotdata = json.loads(gotstr)
             expdata = json.loads(expstr)
-            self.assertEqual(gotdata, expdata)
+            self.assertEqual(gotdata, expdata, f'Unexpected data for {key}')
 
         # Test they are concatenated correctly, excluding server key
         s_usage = t.construct_data_string(send_usage=True, send_config=True, send_server=False)

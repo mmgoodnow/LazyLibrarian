@@ -179,15 +179,15 @@ class LLConfigHandler(ConfigDict):
         """ Used to iterate over all of the config items, whether base or array """
         alldicts = [self]
         for array in self.arrays.values():
-            for inx in range(len(array)):
-                alldicts += [array[inx]]
+            for _, item in enumerate(array):
+                alldicts += [item]
         return ConfigDictListIterator(alldicts)
 
     def all_error_lists(self) -> ErrorListIterator:
         alldicts = [self]
         for array in self.arrays.values():
-            for inx in range(len(array)):
-                alldicts += [array[inx]]
+            for _, item in enumerate(array):
+                alldicts += [item]
         return ErrorListIterator(alldicts)
 
     def clear_access_counters(self):

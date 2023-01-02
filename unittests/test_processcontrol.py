@@ -6,7 +6,7 @@ import os
 import time
 
 from lazylibrarian import logger
-from lazylibrarian.processcontrol import get_info_on_caller, get_process_memory, track_resource_usage, get_cpu_use
+from lazylibrarian.processcontrol import get_info_on_caller, get_process_memory, track_resource_usage, get_cpu_use, PSUTIL
 from unittesthelpers import LLTestCase
 
 

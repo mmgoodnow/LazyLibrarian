@@ -131,7 +131,7 @@ class RotatingLogger(object):
         threadname = thread_name()
 
         # Get the frame data of the method that made the original logger call
-        program, method, lineno = get_info_on_caller(depth=2)
+        program, method, lineno = get_info_on_caller(depth=2, filenamewithoutext=False)
         if os.name == 'nt':  # windows cp1252 can't handle some accents
             message = unaccented(message)
         else:
