@@ -247,12 +247,10 @@ class FormatterTest(LLTestCase):
             self.assertEqual(formatter.age(date), formatter.datecompare(formatter.today(), date))
 
     def test_month2num(self):
-        mnum = 0
-        for m in lazylibrarian.MONTHNAMES:
+        for mnum, m in enumerate(lazylibrarian.MONTHNAMES):
             # Try both the short and the long versions
             self.assertEqual(formatter.month2num(m[0]), mnum)
             self.assertEqual(formatter.month2num(m[1]), mnum)
-            mnum += 1
 
         specialmonths = [
             ("winter", 1),

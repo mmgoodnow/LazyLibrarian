@@ -202,7 +202,7 @@ class LLConfigHandler(ConfigDict):
         """ Update all provider arrays with a settings array from the web UI.
             Assumes that all UI settings are of the form section_num_setting=value """
         for pname, array in self.arrays.items():
-            for inx, config in array._configs.items():
+            for inx, config in enumerate(array):
                 for key, item in config.items():
                     setting = f'{pname.lower()}_{inx}_{key.lower()}'
                     value = kwargs.get(setting)
@@ -495,7 +495,7 @@ class LLConfigHandler(ConfigDict):
             key = definitions[0]  # Primary key for this array type
             array = self.get_array(name)
             if array:
-                for inx, config in array._configs.items():
+                for inx, config in enumerate(array):
                     if config[key]:
                         self.REDACTLIST.append(f"{config[key]}")
                     if 'API' in config:

@@ -4,39 +4,42 @@
 #    Defines all of the different types of configs that can be
 #    found in LazyLibrarian's config.ini (or eventually DB)
 
-from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
-from typing import Dict, List
-from enum import Enum
-from configparser import ConfigParser
-from collections import Counter, OrderedDict
-from re import match, compile, IGNORECASE
 import os
 import sys
+from collections import Counter, OrderedDict
+from configparser import ConfigParser
+from enum import Enum
+from re import match, compile, IGNORECASE
+from typing import Dict, List
+from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
 
 from lazylibrarian import logger
 
-### Type aliases to distinguish types of string
+# Type aliases to distinguish types of string
 ValidIntTypes = Union[int, bool]
-ValidStrTypes =  str
+ValidStrTypes = str
 ValidTypes = Union[ValidStrTypes, ValidIntTypes]
 
-### Types of access
+
+# Types of access
 class Access(Enum):
-    READ_OK   = 'read_ok'
-    WRITE_OK  = 'write_ok'
-    READ_ERR  = 'read_error'
+    READ_OK = 'read_ok'
+    WRITE_OK = 'write_ok'
+    READ_ERR = 'read_error'
     WRITE_ERR = 'write_error'
     CREATE_OK = 'create_ok'
-    FORMAT_ERR= 'format_error'
+    FORMAT_ERR = 'format_error'
 
-### Schedule intervals
+
+# Schedule intervals
 class TimeUnit(Enum):
     MIN = 'min'
     HOUR = 'hour'
     DAY = 'day'
 
-""" Simple wrapper classes for config values of different types """
+
 class ConfigItem:
+    """ Simple wrapper classes for config values of different types """
     section: str
     key: str
     default: ValidTypes
@@ -45,7 +48,7 @@ class ConfigItem:
     is_new: bool
     persist: bool
 
-    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool=False, persist: bool=True):
+    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool = False, persist: bool = True):
         self.section = section.upper()
         self.key = key.upper()
         self.default = default
@@ -82,12 +85,12 @@ class ConfigItem:
 
     def get_str(self) -> str:
         self._on_read(True)
-        return str(self.value) # Everything can be a string
+        return str(self.value)  # Everything can be a string
 
     def __str__(self) -> str:  # Make it the default when accessing the object
         return self.get_str()
 
-    def get_save_str(self) -> str: # The string used to save this setting
+    def get_save_str(self) -> str:  # The string used to save this setting
         return self.get_str()
 
     def set_str(self, value: str) -> bool:
@@ -136,7 +139,7 @@ class ConfigItem:
         return None
 
     def set_connection(self, value):
-        pass # Do nothing
+        pass  # Do nothing
 
     def do_persist(self) -> bool:
         """ Return True if the ConfigItem is one that needs to be saved """
@@ -191,9 +194,12 @@ class ConfigItem:
         """ Get number of successful writes since last reset """
         return self.accesses[Access.WRITE_OK]
 
+
 class ConfigStr(ConfigItem):
     """ A config item that is a string """
-    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False, persist: bool=True):
+
+    def __init__(self, section: str, key: str, default: str, force_lower: bool = False, is_new: bool = False,
+                 persist: bool = True):
         self.force_lower = force_lower
         super().__init__(section, key, default, is_new=is_new, persist=persist)
 
@@ -212,9 +218,11 @@ class ConfigStr(ConfigItem):
     def set_bool(self, value: int) -> bool:
         return self._on_type_mismatch(value)
 
+
 class ConfigInt(ConfigItem):
     """ A config item that is an int """
-    def __init__(self, section: str, key: str, default: int, is_new: bool=False, persist: bool=True):
+
+    def __init__(self, section: str, key: str, default: int, is_new: bool = False, persist: bool = True):
         super().__init__(section, key, default, is_new, persist)
 
     def get_int(self) -> int:
@@ -253,10 +261,12 @@ class ConfigInt(ConfigItem):
             value = 0
         return self.set_int(value)
 
+
 class ConfigRangedInt(ConfigInt):
     """ An int config item that must be in a particular range """
+
     def __init__(self, section: str, key: str, default: int,
-        range_min: int, range_max: int, is_new: bool=False, persist: bool=True):
+                 range_min: int, range_max: int, is_new: bool = False, persist: bool = True):
         self.range_min = range_min
         self.range_max = range_max
         super().__init__(section, key, default, is_new, persist)
@@ -267,18 +277,19 @@ class ConfigRangedInt(ConfigInt):
 
 class ConfigScheduler(ConfigRangedInt):
     """ An int config that is used to hold a scheduling interval and associated info to run it """
+
     def __init__(self, section: str, key: str, schedule_name: str, default: int, unit: TimeUnit,
-        run_name: str, method_name: str, friendly_name: str,
-        needs_provider: bool, is_new: bool=False, persist: bool=True):
+                 run_name: str, method_name: str, friendly_name: str,
+                 needs_provider: bool, is_new: bool = False, persist: bool = True):
         if not schedule_name:
             raise RuntimeError(f'Schedule name for {section}.{key} cannot be empty')
 
-        self.schedule_name = schedule_name    # The name of the schedule, like 'search_book'
-        self.run_name = run_name              # The name of the run, like 'SEARCHALLBOOKS'
-        self.method_name = method_name        # The method to call
-        self.friendly_name = friendly_name    # The name to show in the UI
+        self.schedule_name = schedule_name  # The name of the schedule, like 'search_book'
+        self.run_name = run_name  # The name of the run, like 'SEARCHALLBOOKS'
+        self.method_name = method_name  # The method to call
+        self.friendly_name = friendly_name  # The name to show in the UI
         self.needs_provider = needs_provider  # Whether it needs a provider to work
-        self.unit = unit                      # Is the value in Minutes or Hours?
+        self.unit = unit  # Is the value in Minutes or Hours?
         super().__init__(section, key, default, range_min=0, range_max=100000, is_new=is_new, persist=persist)
 
     def get_method(self):
@@ -305,12 +316,12 @@ class ConfigScheduler(ConfigRangedInt):
             hours = value
         else:
             if value <= 600:
-                minutes = value # Just minutes, if < 10 hours
+                minutes = value  # Just minutes, if < 10 hours
             else:
-                hours = int(value/60) # Just whole hours, if longer
+                hours = int(value / 60)  # Just whole hours, if longer
 
         # No interval < 5 minutes
-        if 60*hours+minutes < 5:
+        if 60 * hours + minutes < 5:
             hours, minutes = 0, 5
 
         return hours, minutes
@@ -318,9 +329,11 @@ class ConfigScheduler(ConfigRangedInt):
     def get_schedule_name(self) -> str:
         return self.schedule_name
 
+
 class ConfigPerm(ConfigStr):
     """ Represents UNIX file permissions. Emitted as an Octal string """
-    def __init__(self, section: str, key: str, default: str, is_new: bool=False, persist: bool=True):
+
+    def __init__(self, section: str, key: str, default: str, is_new: bool = False, persist: bool = True):
         super().__init__(section, key, default, is_new=is_new, persist=persist)
 
     def set_int(self, value: int) -> bool:
@@ -338,7 +351,7 @@ class ConfigPerm(ConfigStr):
     def is_valid_value(self, value: ValidTypes) -> bool:
         try:
             if type(value) == str:
-                octvalue = oct(int(str(value), 8)) # Must now be a valid Oct string
+                octvalue = oct(int(str(value), 8))  # Must now be a valid Oct string
                 if octvalue != value:
                     return False
             else:
@@ -352,18 +365,20 @@ class ConfigPerm(ConfigStr):
         except ValueError:
             return False
 
+
 class ConfigBool(ConfigInt):
     """ A config item that is a bool """
-    def __init__(self, section: str, key: str, default: Union[bool,int], is_new: bool=False, persist: bool=True):
+
+    def __init__(self, section: str, key: str, default: Union[bool, int], is_new: bool = False, persist: bool = True):
         super().__init__(section, key, default, is_new, persist)
 
     def get_bool(self) -> bool:
-        if self._on_read(type(self.value) in [bool, int]): # We're ok with ints
+        if self._on_read(type(self.value) in [bool, int]):  # We're ok with ints
             return bool(self.value)
         else:
             return False
 
-    def set_bool(self, value: Union[bool,int]) -> bool:
+    def set_bool(self, value: Union[bool, int]) -> bool:
         return self._on_set(value)
 
     def set_int(self, value: int) -> bool:
@@ -385,7 +400,7 @@ class ConfigBool(ConfigInt):
         if self.value:
             return '1'
         else:
-            return '' # Evaluates as False in if statements
+            return ''  # Evaluates as False in if statements
 
     def get_save_str(self) -> str:
         self._on_read(True)
@@ -399,9 +414,11 @@ class ConfigBool(ConfigInt):
             logger.debug(f'Loading bool {name} from section {tmpsection} into section {self.section}')
         return self.set_bool(parser.getboolean(tmpsection, name, fallback=False))
 
+
 class ConfigEmail(ConfigStr):
     """ A config item that is a string that must be a valid email address """
-    def __init__(self, section: str, key: str, default: str, is_new: bool=False, persist: bool=True):
+
+    def __init__(self, section: str, key: str, default: str, is_new: bool = False, persist: bool = True):
         super().__init__(section, key, default, force_lower=True, is_new=is_new, persist=persist)
 
     def get_email(self) -> str:
@@ -423,8 +440,10 @@ class ConfigEmail(ConfigStr):
                     return len(value.split("@")[1]) <= 255
             return False
 
+
 class ConfigCSV(ConfigStr):
     """ A config item that is a string that must be a valid CSV """
+
     def get_csv(self) -> str:
         return self.get_str()
 
@@ -444,8 +463,10 @@ class ConfigCSV(ConfigStr):
                     return all(part.strip() for part in parts)
         return False
 
+
 class ConfigDownloadTypes(ConfigCSV):
     """ A config item that holds a CSV of download types (letters A, C, E and M) """
+
     def set_str(self, value: str) -> bool:
         return super().set_str(value.upper())
 
@@ -458,8 +479,10 @@ class ConfigDownloadTypes(ConfigCSV):
         else:
             return False
 
+
 class ConfigURL(ConfigStr):
     """ A config item that is a string that must be a valid URL """
+
     def get_url(self) -> str:
         return self.get_str()
 
@@ -473,16 +496,17 @@ class ConfigURL(ConfigStr):
                 return True
             else:
                 regex = compile(
-                    r'^(?:http|ftp)s?://' # http:// or https://
-                    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|' #domain...
-                    r'localhost|' #localhost...
-                    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-                    r'(?::\d+)?' # optional port
+                    r'^(?:http|ftp)s?://'  # http:// or https://
+                    r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
+                    r'localhost|'  # localhost...
+                    r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
+                    r'(?::\d+)?'  # optional port
                     r'(?:/?|[/?]\S+)$', IGNORECASE)
 
                 # check if the URL matches the regular expression
                 return regex.match(value) is not None
         return False
+
 
 class ConfigFolder(ConfigStr):
     """ A config item that holds a folder name or template. It may hold path separators
@@ -491,7 +515,8 @@ class ConfigFolder(ConfigStr):
     """
     asLoaded = ''
 
-    def __init__(self, section: str, key: str, default: str, force_lower: bool=False, is_new: bool=False, persist: bool=True):
+    def __init__(self, section: str, key: str, default: str, force_lower: bool = False, is_new: bool = False,
+                 persist: bool = True):
         super().__init__(section, key, self.fix_separator(default), force_lower, is_new, persist)
 
     def update_from_parser(self, parser: ConfigParser, tmpsection: str, name: str) -> bool:
@@ -506,10 +531,10 @@ class ConfigFolder(ConfigStr):
 
     def get_save_str(self) -> str:
         if self.asLoaded and self.asLoaded[0] == '.':
-            return self.asLoaded # Relative path
+            return self.asLoaded  # Relative path
         else:
             tosave = self.get_str()
-            if '\\' in tosave: # Never save \\ in the ini file
+            if '\\' in tosave:  # Never save \\ in the ini file
                 tosave = tosave.replace('\\', '/')
             return tosave
 
@@ -521,8 +546,10 @@ class ConfigFolder(ConfigStr):
             return value.replace('\\', '/')
         return value
 
+
 class ConfigConnection(ConfigItem):
     """ A virtal config item that is used to hold a connection. Not persisted. """
+
     def __init__(self, section: str, key: str):
         self._connection = None
         super().__init__(section, key, 0, is_new=False, persist=False)
@@ -530,37 +557,49 @@ class ConfigConnection(ConfigItem):
     # Introduce connection as a property for easy access
     def get_connection(self):
         return self._connection
+
     def set_connection(self, value):
         self._connection = value
+
 
 ### This is to have section names be case insensitive.
 ### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
 class CaseInsensitiveDict(MutableMapping):
     """ Ordered case insensitive mutable mapping class. """
+
     def __init__(self, *args, **kwargs):
         self._d = OrderedDict(*args, **kwargs)
         self._convert_keys()
+
     def _convert_keys(self):
         for k in list(self._d.keys()):
             v = self._d.pop(k)
             self._d.__setitem__(k, v)
+
     def __len__(self):
         return len(self._d)
+
     def __iter__(self):
         return iter(self._d)
+
     def __setitem__(self, k, v):
         self._d[k.upper()] = v
+
     def __getitem__(self, k):
         return self._d[k.upper()]
+
     def __delitem__(self, k):
         del self._d[k.upper()]
+
     def copy(self):
         return CaseInsensitiveDict(self._d.copy())
 
+
 class ConfigDict:
     """ A class for managing access to a dict of configs in a convenient way """
-    def __init__(self, single_section: str=''):
-        self.config: Dict[str, ConfigItem] = CaseInsensitiveDict() # type: ignore
+
+    def __init__(self, single_section: str = ''):
+        self.config: Dict[str, ConfigItem] = CaseInsensitiveDict()  # type: ignore
         self.errors: Dict[str, Counter] = dict()
         self.single_section = single_section.upper()  # Set if the dict represents an array entry
 
@@ -569,6 +608,7 @@ class ConfigDict:
         self.errors.clear()
 
     """ As an object that acts like a Dict """
+
     def __iter__(self):
         return iter(self.config)
 
@@ -582,6 +622,7 @@ class ConfigDict:
         return len(self.config)
 
     """ As generic object """
+
     def get_item(self, key: str) -> Optional[ConfigItem]:
         if key.upper() in self.config:
             return self.config[key.upper()]
@@ -602,6 +643,7 @@ class ConfigDict:
             return False
 
     """ Plain strings """
+
     def get_str(self, key: str) -> str:
         if key.upper() in self.config:
             return self.config[key.upper()].get_str()
@@ -626,6 +668,7 @@ class ConfigDict:
             self.create_str_key(ConfigStr, key, value)
 
     """ Integers """
+
     def get_int(self, key: str) -> int:
         if key.upper() in self.config:
             return self.config[key.upper()].get_int()
@@ -641,6 +684,7 @@ class ConfigDict:
             self.set_int(key, value)
 
     """ Booleans (0/1, False/True) """
+
     def get_bool(self, key: str) -> bool:
         if key.upper() in self.config:
             return self.config[key.upper()].get_bool()
@@ -656,6 +700,7 @@ class ConfigDict:
             self.set_bool(key, value)
 
     """ Email addresses """
+
     def get_email(self, key: str) -> str:
         return self.get_str(key)
 
@@ -666,6 +711,7 @@ class ConfigDict:
             self.create_str_key(ConfigEmail, key, value)
 
     """ CSV strings """
+
     def get_csv(self, key: str) -> str:
         return self.get_str(key)
 
@@ -680,6 +726,7 @@ class ConfigDict:
             self.create_str_key(ConfigCSV, key, value)
 
     """ URL strings """
+
     def get_url(self, key: str) -> str:
         return self.get_str(key)
 
@@ -690,7 +737,8 @@ class ConfigDict:
             self.create_str_key(ConfigURL, key, value)
 
     """ Connection objects """
-    def get_connection(self, key: str=''):
+
+    def get_connection(self, key: str = ''):
         """ Return the named connection, or the first valid one if not specified """
         conn = None
         if key:
@@ -703,7 +751,7 @@ class ConfigDict:
                     break
         return conn
 
-    def set_connection(self, value=None, key: str=''):
+    def set_connection(self, value=None, key: str = ''):
         """ Set the named connection, or any connections if key=='' """
         if key:
             if key.upper() in self.config:
@@ -763,8 +811,10 @@ class ConfigDict:
         extn = os.path.splitext(filename)[1].lstrip('.')
         return extn and booktype_list and extn.lower() in booktype_list
 
+
 class ErrorListIterator:
     """ Helper to iterate over all Error Lists in a list of ConfigDicts """
+
     def __init__(self, config_dicts: List[ConfigDict]):
         self.errordicts = []
         for cd in config_dicts:
@@ -784,8 +834,10 @@ class ErrorListIterator:
         self.index += 1
         return item
 
+
 class ConfigDictListIterator:
     """ Helper to iterate over all ConfigItems in a list of ConfigDicts """
+
     def __init__(self, config_dicts: List[ConfigDict]):
         self.config_dicts = config_dicts
         self.dict_index = 0

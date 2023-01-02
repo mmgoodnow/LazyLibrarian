@@ -673,17 +673,13 @@ class Config2Test(LLTestCase):
         self.assertEqual(names, ['NZBtester', 'AnotherTest', ''])
 
         # Test writing re-accessing data
-        index = 0
-        for item in cfg.providers('rss'):
+        for index, item in enumerate(cfg.providers('rss')):
             item['HOST'] = f'TestHost-{index}'
             item.set_int('DLPRIORITY', index)
-            index += 1
-        index = 0
-        for item in cfg.providers('rss'):
+        for index, item in enumerate(cfg.providers('rss')):
             self.assertEqual(item['HOST'], f'TestHost-{index}')
             self.assertEqual(item['DLPRIORITY'], f'{index}')
             self.assertEqual(item.get_int('DLPRIORITY'), index)
-            index += 1
 
         # Test accessing a provider array that doesn't exist
         cm = None
