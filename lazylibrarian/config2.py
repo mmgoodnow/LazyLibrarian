@@ -384,7 +384,7 @@ class LLConfigHandler(ConfigDict):
         lazylibrarian_log.update_loglevel()
         # Clean the mako cache if the interface has changed
         interface = self.config['HTTP_LOOK']
-        if interface.get_writes() > 0:  # It's changed
+        if interface.get_write_count() > 0:  # It's changed
             mako_dir = DIRS.get_mako_cachedir()
             logger.debug("Clearing mako cache")
             shutil.rmtree(mako_dir)

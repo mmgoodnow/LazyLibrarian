@@ -4,13 +4,16 @@
 #   Hold helper functions only needed for testing
 
 import unittest
+from collections import Counter
 from os import remove
 from shutil import rmtree
+from typing import List
 
 import lazylibrarian
-from lazylibrarian import logger
-from lazylibrarian.filesystem import DIRS, path_isdir
 from lazylibrarian import dbupgrade, startup, config2
+from lazylibrarian import logger
+from lazylibrarian.configtypes import Access
+from lazylibrarian.filesystem import DIRS, path_isdir
 
 
 # noinspection PyBroadException
@@ -114,6 +117,15 @@ class LLTestCase(unittest.TestCase):
 
     def assertEndsWith(self, teststr, end):
         self.assertEqual(teststr[-len(end):], end)
+
+    def single_access_compare(self, got: Counter, expected: Counter, exclude: List[Access], error: str = ''):
+        """ Helper function, validates that two access counters are the same """
+        for access in got:
+            if access not in exclude:
+                self.assertTrue(access in expected, f'Excected {access}')
+                vgot = got[access]
+                vexp = expected[access]
+                self.assertEqual(vgot, vexp, f'{access}:{vgot}!={vexp}: {error}')
 
 
 def false_method() -> bool:

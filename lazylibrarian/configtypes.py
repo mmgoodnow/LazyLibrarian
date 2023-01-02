@@ -101,7 +101,7 @@ class ConfigItem:
             # Don't trigger a change if it's the same
             return self.set_str(value)
         else:
-            return False
+            return False  # Didn't change
 
     def get_list(self) -> List[str]:
         return [self.get_str().strip()]
@@ -126,8 +126,8 @@ class ConfigItem:
     def set_bool(self, value: bool) -> bool:
         return False
 
-    def reset_to_default(self):
-        self._on_set(self.default)
+    def reset_to_default(self) -> bool:
+        return self._on_set(self.default)
 
     def is_valid_value(self, value: ValidTypes) -> bool:
         return True
@@ -144,9 +144,6 @@ class ConfigItem:
     def do_persist(self) -> bool:
         """ Return True if the ConfigItem is one that needs to be saved """
         return self.persist
-
-    def get_read_count(self) -> int:
-        return self.accesses[Access.READ_OK]
 
     def _on_read(self, ok: bool) -> bool:
         from lazylibrarian.logger import lazylibrarian_log
@@ -186,11 +183,11 @@ class ConfigItem:
         """ Get the full list of 'accesses' """
         return self.accesses
 
-    def get_reads(self) -> int:
+    def get_read_count(self) -> int:
         """ Get number of successful reads since last reset """
         return self.accesses[Access.READ_OK]
 
-    def get_writes(self) -> int:
+    def get_write_count(self) -> int:
         """ Get number of successful writes since last reset """
         return self.accesses[Access.WRITE_OK]
 
@@ -430,7 +427,7 @@ class ConfigEmail(ConfigStr):
             return True
         else:
             # Regular expression pattern to match email addresses
-            pattern = r"^[\w.-]+@[\w.-]+\.[\w]+$"
+            pattern = r"^[\w.+-]+@[\w.-]+\.[\w]+$"  # Allow + in emails
 
             # Check if email matches pattern
             if match(pattern, value):
@@ -558,8 +555,9 @@ class ConfigConnection(ConfigItem):
     def get_connection(self):
         return self._connection
 
-    def set_connection(self, value):
+    def set_connection(self, value) -> bool:
         self._connection = value
+        return True
 
 
 ### This is to have section names be case insensitive.
