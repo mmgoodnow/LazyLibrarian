@@ -196,12 +196,8 @@ def add_author_to_db(authorname=None, refresh=False, authorid=None, addbooks=Tru
     Returns the author ID
     """
     if not reason:
-        if len(inspect.stack()) > 2:
-            frame = inspect.getframeinfo(inspect.stack()[2][0])
-            program = os.path.basename(frame.filename)
-            method = frame.function
-            lineno = frame.lineno
-            program, method, lineno = get_info_on_caller(depth=2)
+        program, method, lineno = get_info_on_caller(depth=1)
+        if lineno > 0:
             reason = "%s:%s:%s" % (program, method, lineno)
         else:
             reason = "Unknown reason in add_author_to_db"
