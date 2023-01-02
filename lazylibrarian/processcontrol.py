@@ -72,12 +72,12 @@ def track_resource_usage(func):
     # @track_resource_usage
     # def search_book():
     def wrapper(*args, **kwargs):
-        if PSUTIL:
-            mem_before = get_process_memory()
+        ok, mem_before = get_process_memory()
+        if ok:
             start = time.perf_counter()
             result = func(*args, **kwargs)
             elapsed_time = elapsed_since(start)
-            mem_after = get_process_memory()
+            _, mem_after = get_process_memory()
             logger.debug("{}: memory before: {:,}, after: {:,}, consumed: {:,}; exec time: {}".format(
                 func.__name__,
                 mem_before, mem_after, mem_after - mem_before,

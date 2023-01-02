@@ -3448,6 +3448,8 @@ class WebInterface(object):
                     covertype = '_gi'
                 elif cover == 'googleimage':
                     covertype = '_gb'
+                elif cover == 'bing':
+                    covertype = '_bi'
                 elif cover == 'cover':
                     covertype = '_cover'
 

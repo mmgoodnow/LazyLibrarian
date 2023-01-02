@@ -16,6 +16,7 @@ import traceback
 import subprocess
 import json
 import io
+import zipfile
 
 import lazylibrarian
 from lazylibrarian.config2 import CONFIG
@@ -27,8 +28,6 @@ from lazylibrarian.cache import cache_img, fetch_url
 from lazylibrarian.blockhandler import BLOCKHANDLER
 from urllib.parse import quote_plus
 from shutil import rmtree
-
-import zipfile
 
 try:
     import PIL
@@ -44,6 +43,7 @@ else:
     FlickrImageCrawler = None
 
 from PyPDF3 import PdfFileWriter, PdfFileReader
+
 try:
     import magic
 except Exception:  # magic might fail for multiple reasons
@@ -127,7 +127,7 @@ def coverswap(sourcefile):
             while p < cnt:
                 output.addPage(input1.getPage(p))
                 # logger.debug("Added page %s" % p)
-                p+=1
+                p += 1
             with open(srcfile + 'new', "wb") as outputStream:
                 output.write(outputStream)
         logger.debug("Writing new output file")
@@ -262,7 +262,7 @@ def get_book_cover(bookid=None, src=None):
         item = db.match('select BookImg from books where bookID=?', (bookid,))
         if item:
             coverlink = item['BookImg']
-            coverfile = os.path.join(cachedir, "book", item['BookImg'].replace('cache/', ''))
+            coverfile = os.path.join(cachedir, coverlink.replace('cache/', ''))
             if coverlink != 'images/nocover.png' and 'nocover' in coverlink or 'nophoto' in coverlink:
                 coverfile = os.path.join(DIRS.DATADIR, 'images', 'nocover.png')
                 coverlink = 'images/nocover.png'

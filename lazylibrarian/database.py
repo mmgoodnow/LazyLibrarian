@@ -86,6 +86,8 @@ class DBConnection:
         if lazylibrarian_log.LOGLEVEL & logger.log_dbcomms:
             # Get the frame data of the method that made the original database call
             program, method, lineno = get_info_on_caller(depth=3, filenamewithoutpath=True, filenamewithoutext=False)
+            if program == '_cpdispatch.py':  # Grab one lower in the call stack to be useful
+                program, method, lineno = get_info_on_caller(depth=2, filenamewithoutpath=True, filenamewithoutext=False)
             start = time.time()
         while attempt < 5:
             try:
