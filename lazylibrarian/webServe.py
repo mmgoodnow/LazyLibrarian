@@ -3144,19 +3144,20 @@ class WebInterface(object):
                 return self.request_book(library=library, bookid=bookid, redirect=redirect)
 
     @cherrypy.expose
-    def edit_author(self, authorid=None):
+    def edit_author(self, authorid=None, images=False):
         self.label_thread('EDIT_AUTHOR')
         db = database.DBConnection()
         data = db.match('SELECT * from authors WHERE AuthorID=?', (authorid,))
         if data:
-            images = []
-            res = get_author_image(authorid=authorid, refresh=False, max_num=5)
-            if res and path_isdir(res):
-                basedir = res.replace(DIRS.DATADIR, '').lstrip('/')
-                for item in listdir(res):
-                    images.append([item, os.path.join(basedir, item)])
+            photos = []
+            if images:
+                res = get_author_image(authorid=authorid, refresh=False, max_num=5)
+                if res and path_isdir(res):
+                    basedir = res.replace(DIRS.DATADIR, '').lstrip('/')
+                    for item in listdir(res):
+                        photos.append([item, os.path.join(basedir, item)])
             return serve_template(templatename="editauthor.html", title="Edit Author", config=data,
-                                  images=images)
+                                  images=photos)
         else:
             logger.info('Missing author %s:' % authorid)
 

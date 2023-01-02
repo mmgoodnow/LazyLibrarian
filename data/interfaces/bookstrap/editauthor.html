@@ -9,6 +9,7 @@
     </div>
 </%def>
 <%def name="body()">
+<button class="hidden" onclick="" id="myAlert" title=""><i class="fa fa-circle-notch fa-spin"></i> Searching, please wait...</button>
 <form accept-charset="UTF-8" action="author_update" method="post">
     <div class="configtable">
         <input name="utf8" type="hidden" value="&#x2713;" />
@@ -75,15 +76,20 @@
             </table>
         </div>
         <div class="form-group">
-            <label for="changeCover" class="control-label">Change cover to: </label>
-            <select id="changeCover" class="changeCover form-control input" name="cover">
-            <option value="current" selected="selected">No change</option>
-            <option value="manual">File/URL</option>
-            %for item in images:
-                <option value="${item[1]}"
-                >${item[0]}</option>
-            %endfor
-            </select>
+            %if len(images) > 0:
+                <label for="changeCover" class="control-label">Change image to: </label>
+                <select id="changeCover" class="changeCover form-control input" name="cover">
+                <option value="current" selected="selected">No change</option>
+                <option value="manual">File/URL</option>
+                %for item in images:
+                    <option value="${item[1]}"
+                    >${item[0]}</option>
+                %endfor
+                </select>
+            %endif
+            %if len(images) == 0:
+                <a class="btn-success btn" onclick="$('#myAlert').removeClass('hidden')" href="edit_author?authorid=${config['AuthorID']}&images=True">Find Images</a>
+            %endif
         </div>
             <div class="checkbox">
                 <%
