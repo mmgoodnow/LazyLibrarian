@@ -808,7 +808,7 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
         cleaned = unicodedata.normalize('NFKD', str_or_unicode.decode('utf-8', 'replace'))
 
     if not umlauts:
-        cleaned = no_umlauts(cleaned)
+        cleaned = no_umlauts(cleaned, languages=CONFIG.get_list('IMP_PREFLANG'))
 
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])
