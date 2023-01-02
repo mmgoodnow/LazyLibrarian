@@ -1595,6 +1595,7 @@ def process_dir(reset=False, startdir=None, ignoreclient=False, downloadid=None)
         # Check if postprocessor needs to run again
         snatched = db.select('SELECT * from wanted WHERE Status="Snatched"')
         seeding = db.select('SELECT * from wanted WHERE Status="Seeding"')
+        from lazylibrarian.scheduling import schedule_job
         if not len(snatched) and not len(seeding):
             logger.info('Nothing marked as snatched or seeding. Stopping postprocessor.')
             schedule_job(SchedulerCommand.STOP, target='PostProcessor')
