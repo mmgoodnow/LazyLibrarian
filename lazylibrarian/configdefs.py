@@ -3,11 +3,13 @@
 # Purpose:
 #    Contain all the config settings and defaults used across LazyLibrarian
 
-from typing import List, Dict, Tuple
 from copy import deepcopy
+from typing import List, Dict, Tuple
+
 from lazylibrarian.configtypes import ConfigItem, ConfigStr, ConfigBool, ConfigInt, ConfigEmail, \
     ConfigPerm, ConfigCSV, ConfigURL, ConfigRangedInt, ConfigFolder, \
     ConfigScheduler, ConfigDownloadTypes, ConfigConnection, TimeUnit
+from lazylibrarian.formatter import ImportPrefs
 
 BASE_DEFAULTS: List[ConfigItem] = [
     ConfigURL('General', 'OL_URL', 'https://www.openlibrary.org'),
@@ -93,7 +95,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigCSV('General', 'NAME_DEFINITE', 'the, a', force_lower=True),
     ConfigCSV('General', 'SKIPPED_EXT', 'fail, part, bts, !ut, torrent, magnet, nzb, unpack'),
     ConfigCSV('General', 'BANNED_EXT', 'avi, mp4, mov, iso, m4v', force_lower=True),
-    ConfigCSV('General', 'IMP_PREFLANG', 'en, eng, en-US, en-GB'),
+    ConfigCSV('General', 'IMP_PREFLANG', 'en, eng, en-US, en-GB', onchange=ImportPrefs.lang_changed),
     ConfigStr('General', 'ISS_FORMAT', '$Y-$m-$d'),
     ConfigStr('General', 'DATE_FORMAT', '$Y-$m-$d'),
     ConfigStr('General', 'AUTHOR_DATE_FORMAT', '$d-$m-$Y'),
@@ -130,7 +132,7 @@ BASE_DEFAULTS: List[ConfigItem] = [
     ConfigBool('General', 'IMP_MAGCOVER', 1),
     ConfigBool('General', 'IMP_COMICCOVER', 1),
     ConfigStr('General', 'IMP_CONVERT', ''),
-    ConfigCSV('General', 'IMP_NOSPLIT', '', force_lower=True),
+    ConfigCSV('General', 'IMP_NOSPLIT', '', force_lower=True, onchange=ImportPrefs.nosplit_changed),
     ConfigStr('General', 'EXT_PREPROCESS', ''),
     ConfigStr('General', 'GIT_PROGRAM', ''),
     ConfigInt('General', 'CACHE_AGE', 30),

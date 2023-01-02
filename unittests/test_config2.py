@@ -12,6 +12,7 @@ from lazylibrarian import config2, configdefs, logger
 from lazylibrarian.configdefs import get_default
 from lazylibrarian.configtypes import Access
 from lazylibrarian.filesystem import DIRS, syspath, remove_file, path_isfile, safe_copy
+from lazylibrarian.formatter import ImportPrefs
 
 # Ini files used for testing load/save functions.
 # If these change, many test cases need to be updated. Run to find out which ones
@@ -222,7 +223,7 @@ class Config2Test(LLTestCase):
             else:
                 nondefaults += 1
         self.assertEqual(len(allconfigs), defaults + nondefaults, 'Inconsistent results from iterating in two ways')
-        self.assertEqual(nondefaults, 47, 'Unexpected number of non-default entries in config file')
+        self.assertEqual(nondefaults, 48, 'Unexpected number of non-default entries in config file')
 
     def test_access_counters(self):
         """ Test that read/create counters work correctly when there are no errors """
@@ -284,7 +285,6 @@ class Config2Test(LLTestCase):
         cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
         self.assertEqual(len(cfg.config), len(configdefs.BASE_DEFAULTS),
                          'Maybe there is a duplicate entry in BASE_DEFAULTS')
-        self.do_access_compare({}, cfg.get_all_accesses(), [], 'There should be no changes from defaults')
         self.assertEqual(cfg.get_str('AUTH_TYPE'), 'BASIC')
 
     def test_schedule_list(self):
@@ -375,6 +375,7 @@ class Config2Test(LLTestCase):
             "GENERAL.CALIBRE_USE_SERVER": Counter({Access.WRITE_OK: 1}),
             "GENERAL.CALIBRE_SERVER": Counter({Access.WRITE_OK: 1}),
             "GENERAL.IMP_NOSPLIT": Counter({Access.WRITE_OK: 1}),
+            "GENERAL.IMP_PREFLANG": Counter({Access.WRITE_OK: 1}),
             "TELEMETRY.SERVER_ID": Counter({Access.WRITE_OK: 1}),
             "GENERAL.EBOOK_DIR": Counter({Access.WRITE_OK: 1}),
             "GENERAL.AUDIO_DIR": Counter({Access.WRITE_OK: 1}),
@@ -523,7 +524,7 @@ class Config2Test(LLTestCase):
         try:
             testfile = DIRS.get_tmpfilename('test-changed.ini')
             count = cfg.save_config(testfile, False)  # Save only non-default values
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected # of non-default items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected # of non-default items')
             cfgnew = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS, configfile=testfile)
             self.assertTrue(config2.are_equivalent(cfg, cfgnew),
                             f'Save error: {testfile} is not the same as original file!')
@@ -573,7 +574,7 @@ class Config2Test(LLTestCase):
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:  # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages')
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(path_isfile(backupfile), 'Backup file does not exist')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
@@ -585,7 +586,7 @@ class Config2Test(LLTestCase):
             with self.assertLogs('lazylibrarian.logger', level='INFO') as cm:  # Expect only INFO messages
                 count = cfg.save_config_and_backup_old(restart_jobs=False)
             self.assertEqual(len(cm), 2, 'Expected 2 INFO messages here')
-            self.assertEqual(count, 38, 'Saving config.ini has unexpected total # of items')
+            self.assertEqual(count, 39, 'Saving config.ini has unexpected total # of items')
             self.assertTrue(remove_file(backupfile), 'Could not delete backup file')
             acs = cfg.get_all_accesses()
             self.do_access_compare(acs, {}, [], 'Expect all accesses cleared after saving')
@@ -812,3 +813,20 @@ class Config2Test(LLTestCase):
         self.assertEqual(rss0['dispname'], 'test')
         self.assertEqual(rss0.get_bool('enabled'), True)
         self.assertEqual(rss0.get_int('DLPriority'), 1)
+
+    def test_onchange(self):
+        """ Test the onchange mechanism that calls a method when a config changes """
+        cfg = config2.LLConfigHandler(defaults=configdefs.BASE_DEFAULTS)
+        self.assertEqual(ImportPrefs.LANG_LIST, ['en', 'eng', 'en-US', 'en-GB'])
+
+        lang1 = cfg.get_str('IMP_PREFLANG')  # This item has an onchange method
+        cfg.load_configfile(COMPLEX_INI_FILE)  # This changes the IMP_PREFLANG value
+        lang2 = cfg.get_str('IMP_PREFLANG')
+        self.assertNotEqual(lang1, lang2)
+        self.assertEqual(ImportPrefs.LANG_LIST, ['de', 'fr', 'en'])
+
+        ci = cfg.get_item('IMP_PREFLANG')
+        ci.set_str('')
+        self.assertEqual(ImportPrefs.LANG_LIST, [])
+
+

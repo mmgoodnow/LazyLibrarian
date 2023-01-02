@@ -228,7 +228,7 @@ def schedule_job(action=SchedulerCommand.START, target: str = ''):
                 logger.debug("%s %s job, already scheduled" % (action.value, target))
                 return  # return if already running, if not, start a new one
 
-        schedule = CONFIG.get_ConfigScheduler(target)
+        schedule = CONFIG.get_configscheduler(target)
         if schedule:
             if CONFIG.scheduler_can_run(schedule):
                 # Perform local adjustments to the schedule before proceeding

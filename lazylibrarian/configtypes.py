@@ -10,7 +10,7 @@ from collections import Counter, OrderedDict
 from configparser import ConfigParser
 from enum import Enum
 from re import match, compile, IGNORECASE
-from typing import Dict, List
+from typing import Dict, List, Callable
 from typing import Union, Optional, Tuple, MutableMapping, Type, ItemsView, KeysView
 
 from lazylibrarian import logger
@@ -38,6 +38,10 @@ class TimeUnit(Enum):
     DAY = 'day'
 
 
+# Class method that can be called when a value changes
+OnChangeCallback = Callable[[object, str], None]
+
+
 class ConfigItem:
     """ Simple wrapper classes for config values of different types """
     section: str
@@ -47,14 +51,17 @@ class ConfigItem:
     accesses: Counter
     is_new: bool
     persist: bool
+    onchange: Optional[OnChangeCallback]
 
-    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool = False, persist: bool = True):
+    def __init__(self, section: str, key: str, default: ValidTypes, is_new: bool = False, persist: bool = True,
+                 onchange=None):
         self.section = section.upper()
         self.key = key.upper()
         self.default = default
         self.accesses = Counter()
         self.is_new = is_new
         self.persist = persist
+        self.onchange = onchange
         if self.is_valid_value(default):
             self.value = default
         else:
@@ -145,6 +152,9 @@ class ConfigItem:
         """ Return True if the ConfigItem is one that needs to be saved """
         return self.persist
 
+    def set_onchange(self, onchange: Optional[OnChangeCallback]=None):
+        self.onchange = onchange
+
     def _on_read(self, ok: bool) -> bool:
         from lazylibrarian.logger import lazylibrarian_log
         if ok:
@@ -168,6 +178,8 @@ class ConfigItem:
                 if lazylibrarian_log.LOGLEVEL & logger.log_configwrite:
                     logger.debug(f"Set config[{self.key}]={value}")
             self.value = value
+            if self.onchange:
+                self.onchange(self.get_str())
             return True
         else:
             self.accesses[Access.WRITE_ERR] += 1
@@ -196,9 +208,9 @@ class ConfigStr(ConfigItem):
     """ A config item that is a string """
 
     def __init__(self, section: str, key: str, default: str, force_lower: bool = False, is_new: bool = False,
-                 persist: bool = True):
+                 persist: bool = True, onchange=None):
         self.force_lower = force_lower
-        super().__init__(section, key, default, is_new=is_new, persist=persist)
+        super().__init__(section, key, default, is_new=is_new, persist=persist, onchange=onchange)
 
     def set_str(self, value: str) -> bool:
         if self.force_lower:
@@ -254,7 +266,7 @@ class ConfigInt(ConfigItem):
             logger.debug(f'Loading int {name} from section {tmpsection} into section {self.section}')
         try:
             value = parser.getint(tmpsection, name, fallback=0)
-        except:
+        except Exception:
             value = 0
         return self.set_int(value)
 
@@ -294,7 +306,7 @@ class ConfigScheduler(ConfigRangedInt):
         module, function = self.method_name.rsplit('.', 1)
         try:
             return getattr(sys.modules[module], function)
-        except:
+        except Exception:
             return None
 
     def is_valid_value(self, value: ValidTypes) -> bool:
@@ -560,8 +572,8 @@ class ConfigConnection(ConfigItem):
         return True
 
 
-### This is to have section names be case insensitive.
-### Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
+# This is to have section names be case insensitive.
+# Built from https://stackoverflow.com/questions/49755480/case-insensitive-sections-in-configparser
 class CaseInsensitiveDict(MutableMapping):
     """ Ordered case insensitive mutable mapping class. """
 
@@ -767,7 +779,7 @@ class ConfigDict:
         else:
             self._handle_access_error(key, Access.FORMAT_ERR)
 
-    def get_ConfigScheduler(self, schedule_name: str) -> Optional[ConfigScheduler]:
+    def get_configscheduler(self, schedule_name: str) -> Optional[ConfigScheduler]:
         """ Look for a config with the specified target """
         for key, value in self.config.items():
             if isinstance(value, ConfigScheduler):

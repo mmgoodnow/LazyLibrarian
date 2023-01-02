@@ -66,7 +66,10 @@ class LLConfigHandler(ConfigDict):
         if defaults:
             for config_item in defaults:
                 key = config_item.key.upper()
-                self.config[key] = configitem_from_default(config_item)
+                item = configitem_from_default(config_item)
+                self.config[key] = item
+                if item.onchange:
+                    item.onchange(item.get_str())
 
     @staticmethod
     def _load_section(section: str, parser: ConfigParser, config: ConfigDict):

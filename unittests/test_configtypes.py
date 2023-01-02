@@ -332,3 +332,14 @@ class Config2Test(LLTestCase):
         self.assertEqual(someint.get_int(), 123)
         self.assertEqual(someint.get_read_count(), 2, 'Expected 2 reads')
         self.assertEqual(someint.get_write_count(), 1, 'Expected 1 write')
+
+    @classmethod
+    def onchangesample(cls, value: str):
+        cls.changed_value = value
+
+    def test_onchange(self):
+        ci = configtypes.ConfigStr('', 'StrTest', '123')
+        ci.set_onchange(self.onchangesample)
+        ci.set_str('abc')
+        self.assertEqual(ci.get_str(), 'abc')
+        self.assertEqual(self.changed_value, 'abc')

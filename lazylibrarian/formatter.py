@@ -25,7 +25,6 @@ from lazylibrarian import logger
 from lazylibrarian.logger import lazylibrarian_log
 from urllib.parse import quote_plus, quote, urlsplit, urlunsplit
 
-
 # dict to remove/replace characters we don't want in a filename - this might be too strict?
 namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's', '|': '',
            ' + ': ' ', '"': '', ',': '', '*': '', ':': '', ';': '', '\'': '', '//': '/',
@@ -35,6 +34,21 @@ namedic = {'<': '', '>': '', '...': '', ' & ': ' ', ' = ': ' ', '?': '', '$': 's
 umlaut_dict = {u'\xe4': 'ae', u'\xf6': 'oe', u'\xfc': 'ue', u'\xc4': 'Ae', u'\xd6': 'Oe', u'\xdc': 'Ue', u'\xdf': 'ss'}
 
 apostrophe_dic = {u'\u0060': "'", u'\u2018': u"'", u'\u2019': u"'", u'\u201c': u'"', u'\u201d': u'"'}
+
+
+class ImportPrefs:
+    LANG_LIST = []
+    SPLIT_LIST = []
+
+    @classmethod
+    def lang_changed(cls, languages: str):
+        """ Called automatically when CONFIG[IMP_PREFLANG] changes value """
+        cls.LANG_LIST = get_list(languages, ',')
+
+    @classmethod
+    def nosplit_changed(cls, nosplits: str):
+        """ Called automatically when CONFIG[IMP_NOSPLIT] changes value """
+        cls.SPLIT_LIST = get_list(nosplits, ',')
 
 
 # noinspection PyDeprecation
@@ -177,7 +191,6 @@ def book_series(bookname):
         series = series.strip('.')
         series = series[:-3].strip()
     return series, seriesnum
-
 
 
 def now():
@@ -403,12 +416,12 @@ def plural(var, phrase=""):
     so copy -> copies, entry -> entries  etc
     """
     translates = {
-                    'copy': 'copies',
-                    'entry': 'entries',
-                    'shelf': 'shelves',
-                    'series': 'series',
-                    'is': 'are',
-                 }
+        'copy': 'copies',
+        'entry': 'entries',
+        'shelf': 'shelves',
+        'series': 'series',
+        'is': 'are',
+    }
     if check_int(var, 0) == 1:
         return phrase
     res = translates.get(phrase, '')
@@ -455,7 +468,7 @@ def pretty_approx_time(seconds: int) -> str:
     minutes, seconds = divmod(rem, 60)
     locals_ = locals()
     magnitudes_str = ("{n} {magnitude}".format(n=int(locals_[magnitude]), magnitude=magnitude)
-                    for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
+                      for magnitude in ("days", "hours", "minutes", "seconds") if locals_[magnitude])
     return ", ".join(magnitudes_str)
 
 
@@ -530,6 +543,7 @@ def make_utf8bytes(txt):
 
 _encodings = ['utf-8', 'iso-8859-15', 'cp850']
 
+
 def make_unicode(txt) -> str:
     # convert a bytestring to unicode, don't know what encoding it might be so try a few
     # it could be a file on a windows filesystem, unix...
@@ -584,11 +598,11 @@ def is_valid_isbn(isbn):
         return False
     isbn = isbn.replace('-', '').replace(' ', '')
     if len(isbn) == 13 and isbn.isdigit():
-         return True
-    if len(isbn) == 10 and isbn[:9].isdigit(): # Validate checksum
+        return True
+    if len(isbn) == 10 and isbn[:9].isdigit():  # Validate checksum
         xsum = 0
         for i in range(9):
-            xsum += check_int(isbn[i], 0) * (10-i)
+            xsum += check_int(isbn[i], 0) * (10 - i)
         if isbn[9] in "Xx":
             xsum += 10
         else:
@@ -630,16 +644,15 @@ def safe_unicode(obj, *args):
     """ return the unicode representation of obj """
     return str(obj, *args)
 
+
 def split_title(author, book):
     """
     Strips the author name from book title and
     returns the book name part split into (name, subtitle and series)
     """
-    from lazylibrarian.config2 import CONFIG
     if lazylibrarian_log.LOGLEVEL & logger.log_matching:
         lazylibrarian.logger.debug("%s [%s]" % (author, book))
     bookseries = ''
-    splitlist = get_list(CONFIG['IMP_NOSPLIT'], ',')
     # Strip author from title, eg Tom Clancy: Ghost Protocol
     if book.startswith(author + ':'):
         book = book.split(author + ':')[1].strip()
@@ -661,7 +674,7 @@ def split_title(author, book):
             bookname = parts[0].strip()
             booksub = parts[1].rstrip(':').strip()
             if booksub.find(')'):
-                for item in splitlist:
+                for item in ImportPrefs.SPLIT_LIST:
                     if f"({item})" == booksub.lower():
                         booksub = ""
             if lazylibrarian_log.LOGLEVEL & logger.log_matching:
@@ -679,7 +692,7 @@ def split_title(author, book):
         booksub = parts[1].rstrip(':').strip()
         bookname_lower = bookname.lower()
         booksub_lower = booksub.lower()
-        for item in splitlist:
+        for item in ImportPrefs.SPLIT_LIST:
             if item and booksub_lower.startswith(item) or bookname_lower.startswith(item):
                 bookname = book
                 booksub = ''
@@ -690,7 +703,6 @@ def split_title(author, book):
 
 
 def format_author_name(author: str, postfix: List[str]) -> str:
-
     """ get authorname in a consistent format """
     author = make_unicode(author)
     # if multiple authors assume the first one is primary
@@ -773,9 +785,9 @@ def clean_name(name, extras=None):
     return name
 
 
-def no_umlauts(s: str, languages: List[str]) -> str:
+def no_umlauts(s: str) -> str:
     """ Replace umlauts from the string, unless German is a preferred language """
-    if 'de' not in languages:
+    if 'de' not in ImportPrefs.LANG_LIST:
         return s
 
     s = replace_all(s, umlaut_dict)
@@ -808,7 +820,7 @@ def unaccented_bytes(str_or_unicode, only_ascii=True, umlauts=True):
         cleaned = unicodedata.normalize('NFKD', str_or_unicode.decode('utf-8', 'replace'))
 
     if not umlauts:
-        cleaned = no_umlauts(cleaned, languages=CONFIG.get_list('IMP_PREFLANG'))
+        cleaned = no_umlauts(cleaned)
 
     # turn accented chars into non-accented
     stripped = u''.join([c for c in cleaned if not unicodedata.combining(c)])

@@ -529,10 +529,12 @@ class FormatterTest(LLTestCase):
         ]
         # no_umlauts only does something if German is a language used
         # First test that nothing changes without German
+        formatter.ImportPrefs.lang_changed('en, da,languageX')
         for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0], ['en', 'da', 'languageX']), s[0])
+            self.assertEqual(formatter.no_umlauts(s[0]), s[0])
+        formatter.ImportPrefs.lang_changed('en, de, fr')
         for s in teststrings:
-            self.assertEqual(formatter.no_umlauts(s[0], ['en', 'de']), s[1])
+            self.assertEqual(formatter.no_umlauts(s[0]), s[1])
 
     def test_disp_name(self):
         # Add some dummy data to test on
